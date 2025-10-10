@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include <atomic>
@@ -12,7 +16,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 #ifndef CM_DEBUG
@@ -57,8 +60,12 @@ public:
     PagedCacheManager& operator=(const PagedCacheManager&) = delete;
 
     // adds a PagedAttention to the pool of managed ops if not added before
-    void register_operator(const std::shared_ptr<ov::Node> node);
-    bool operator_registered(const std::shared_ptr<ov::Node> node);
+    size_t register_operator(const size_t block_size,
+                             const size_t num_heads,
+                             const size_t key_head_size,
+                             const size_t value_head_size,
+                             const size_t query_head_size);
+    bool operator_registered(const size_t node_id);
 
     // shared buffer access
     cache_blocks get_cache_blocks() const noexcept;
@@ -71,37 +78,37 @@ public:
     std::size_t get_block_bytes() noexcept;
 
     // per-operator metadata
-    subsequence_view get_subsequence_begins(std::shared_ptr<ov::Node> node) const;
+    subsequence_view get_subsequence_begins(size_t node_id) const;
 
     // block lifecycle
-    std::vector<std::size_t> acquire_blocks(std::shared_ptr<ov::Node> node, std::size_t block_count);
-    void release_blocks(std::shared_ptr<ov::Node> node, const std::vector<std::size_t>& blocks);
+    std::vector<std::size_t> acquire_blocks(size_t node_id, std::size_t block_count);
+    void release_blocks(size_t node_id, const std::vector<std::size_t>& blocks);
 
     // insert and scoring
     template <typename T>
-    std::vector<std::size_t> insert(std::shared_ptr<ov::Node> node,
+    std::vector<std::size_t> insert(size_t node_id,
                                     const T* key_src,
                                     const T* value_src,
                                     std::size_t block_count,
                                     const T* scores /* may be nullptr */);
 
     template <typename T>
-    void set_block_scores(std::shared_ptr<ov::Node> node,
-                          const std::vector<std::size_t>& block_indices,
-                          const T* scores);
+    void set_block_scores(size_t node_id, const std::vector<std::size_t>& block_indices, const T* scores);
 
     // evict to maintain free pool
     void evict_to_target_free(std::size_t target_free_blocks);
 
 private:
+    inline static size_t m_node_id = 0;
+
     struct block_t {
         std::size_t index{0};
         float score{std::numeric_limits<float>::infinity()};
-        std::shared_ptr<ov::Node> owner{0};
+        size_t owner{0};
     };
 
     struct operator_state {
-        std::shared_ptr<ov::Node> node;
+        size_t node_id;
         std::vector<std::size_t> blocks;
         std::vector<float> scores;
         std::vector<std::int32_t> subsequence_begins;
@@ -115,16 +122,21 @@ private:
     void* offset_value(std::size_t block_idx) const noexcept;
 
     void compute_subsequence_begins_unlocked(operator_state& st) const;
-    void compute_operator_cache_geometry(operator_state& node);
+    void compute_operator_cache_geometry(operator_state& state,
+                                         const size_t block_size,
+                                         const size_t num_heads,
+                                         const size_t key_head_size,
+                                         const size_t value_head_size,
+                                         const size_t query_head_size);
 
     void ensure_free_blocks_unlocked(std::size_t need_blocks);
     void evict_one_unlocked();
 
-    std::vector<std::size_t> acquire_blocks_unlocked(std::shared_ptr<ov::Node> node, std::size_t block_count);
+    std::vector<std::size_t> acquire_blocks_unlocked(size_t node_id, std::size_t block_count);
     void copy_blocks_into_buffers_unlocked(const void* key_src_bytes,
                                            const void* value_src_bytes,
                                            const std::vector<std::size_t>& block_idxs);
-    void set_scores_for_blocks_unlocked(std::shared_ptr<ov::Node> node,
+    void set_scores_for_blocks_unlocked(size_t node_id,
                                         const std::vector<std::size_t>& block_idxs,
                                         const float* scores);
 
@@ -140,6 +152,10 @@ private:
 
     std::size_t m_block_size{0};
     std::size_t m_block_bytes{0};  // m_block_size * elem_type_size
+    std::size_t m_num_heads{0};
+    std::size_t m_key_head_size{0};
+    std::size_t m_value_head_size{0};
+
     std::size_t m_num_blocks{0};
 
     void* m_key_base{nullptr};
@@ -147,7 +163,7 @@ private:
 
     std::vector<block_t> m_blocks;
     std::list<std::size_t> m_free_block_list;
-    std::unordered_map<std::shared_ptr<ov::Node>, operator_state> m_ops;
+    std::unordered_map<size_t, operator_state> m_ops;
 
     std::vector<std::size_t> m_evict_heap;
 
@@ -179,7 +195,7 @@ inline std::size_t PagedCacheManager::get_block_bytes() noexcept {
 }
 
 template <typename T>
-std::vector<std::size_t> PagedCacheManager::insert(std::shared_ptr<ov::Node> node,
+std::vector<std::size_t> PagedCacheManager::insert(size_t node_id,
                                                    const T* key_src,
                                                    const T* value_src,
                                                    std::size_t block_count,
@@ -210,7 +226,7 @@ std::vector<std::size_t> PagedCacheManager::insert(std::shared_ptr<ov::Node> nod
 }
 
 template <typename T>
-void PagedCacheManager::set_block_scores(std::shared_ptr<ov::Node> node,
+void PagedCacheManager::set_block_scores(size_t node_id,
                                          const std::vector<std::size_t>& block_indices,
                                          const T* scores) {
     if (!is_element_compatible_with_T(m_elem_type, sizeof(T))) {

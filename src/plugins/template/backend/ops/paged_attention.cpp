@@ -11,14 +11,14 @@
 template <ov::element::Type_t ET>
 bool evaluate(ov::TensorVector& outputs,
               const ov::TensorVector& inputs,
-              std::shared_ptr<ov::Node> node,
+              const size_t node_id,
               const std::shared_ptr<ov::internal::PagedCacheManager> cache_manager) {
     using T = typename ov::element_type_traits<ET>::value_type;
 
     const bool has_rotation = inputs.size() == 16;
     const int rot = has_rotation ? 13 : -1;
 
-    ov::reference::paged_attention<T>(node,
+    ov::reference::paged_attention<T>(node_id,
                                       cache_manager,
                                       outputs[0].data<T>(),
                                       outputs[1].data<T>(),
@@ -58,17 +58,30 @@ bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> no
     const auto& element_type = node->get_output_element_type(0);
     const auto& pa = std::static_pointer_cast<ov::op::PagedAttentionExtension>(node);
     const auto& cache_manager = pa->get_cache_manager();
-    cache_manager->register_operator(node);
+
+    // query shape (id: 0):
+    // [batch_size_in_tokens, num_heads * head_size]
+
+    // key_cache shape (id: 3):
+    // [num_blocks == 0, num_kv_heads, block_size, head_size]
+    size_t block_size = node->get_input_shape(3)[2];
+    size_t num_heads = node->get_input_shape(3)[3];
+    size_t key_head_size = node->get_input_shape(3)[1];
+    size_t value_head_size = node->get_input_shape(3)[1];
+    size_t query_head_size = node->get_input_shape(0)[1] / num_heads;
+
+    size_t node_id =
+        cache_manager->register_operator(block_size, num_heads, key_head_size, value_head_size, query_head_size);
 
     switch (element_type) {
     case ov::element::bf16:
-        return evaluate<ov::element::bf16>(outputs, inputs, node, cache_manager);
+        return evaluate<ov::element::bf16>(outputs, inputs, node_id, cache_manager);
     case ov::element::f16:
-        return evaluate<ov::element::f16>(outputs, inputs, node, cache_manager);
+        return evaluate<ov::element::f16>(outputs, inputs, node_id, cache_manager);
     case ov::element::f64:
-        return evaluate<ov::element::f64>(outputs, inputs, node, cache_manager);
+        return evaluate<ov::element::f64>(outputs, inputs, node_id, cache_manager);
     case ov::element::f32:
-        return evaluate<ov::element::f32>(outputs, inputs, node, cache_manager);
+        return evaluate<ov::element::f32>(outputs, inputs, node_id, cache_manager);
     default:
         OPENVINO_THROW("Unhandled data type ", element_type, " in evaluate_node()");
     }

@@ -140,11 +140,9 @@ struct paged_attention_kernel_context {
 
 struct cache_manager_adapter {
     ov::internal::PagedCacheManager& cm;
-    std::shared_ptr<ov::Node> node;
+    size_t node_id;
 
-    explicit cache_manager_adapter(ov::internal::PagedCacheManager& mgr, std::shared_ptr<ov::Node> node)
-        : cm(mgr),
-          node(node) {}
+    explicit cache_manager_adapter(ov::internal::PagedCacheManager& mgr, size_t node_id) : cm(mgr), node_id(node_id) {}
 
     inline void* get_key_cache_base() const {
         return cm.get_cache_blocks().key_base;
@@ -154,7 +152,7 @@ struct cache_manager_adapter {
     }
 
     inline const int32_t* get_subsequence_begins_or_null() const {
-        auto sv = cm.get_subsequence_begins(node);
+        auto sv = cm.get_subsequence_begins(node_id);
         return sv.data;
     }
 
@@ -307,7 +305,7 @@ inline void accumulate_value_from_new_key(int32_t abs_token_idx,
 }
 
 template <typename T>
-void paged_attention(std::shared_ptr<ov::Node> node,
+void paged_attention(const size_t node_id,
                      const std::shared_ptr<ov::internal::PagedCacheManager>& cache_manager,
                      T* out,
                      T* out_scores,
@@ -336,7 +334,7 @@ void paged_attention(std::shared_ptr<ov::Node> node,
                      const ov::Shape& rotated_block_indices_shape,
                      const ov::Shape& rotation_deltas_shape,
                      const ov::Shape& rotation_trig_lut_shape) {
-    cache_manager_adapter cm(*cache_manager, node);
+    cache_manager_adapter cm(*cache_manager, node_id);
     const auto L = cm.infer_layout_from_shapes(query_shape, key_shape, value_shape);
 
     paged_attention_kernel_context ctx{};

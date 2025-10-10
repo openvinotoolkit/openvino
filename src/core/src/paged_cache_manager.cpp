@@ -1,4 +1,7 @@
-
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+#include "openvino/core/paged_cache_manager.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -10,8 +13,6 @@
 #if defined(_MSC_VER)
 #    include <malloc.h>
 #endif
-
-#include "openvino/core/paged_cache_manager.hpp"
 
 namespace ov {
 namespace internal {
@@ -53,15 +54,6 @@ PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, std::size_t to
         aligned_free(m_value_base);
         throw std::runtime_error("PagedCacheManager: aligned allocation failed");
     }
-
-    // m_blocks.resize(m_num_blocks);
-    // for (std::size_t i = 0; i < m_num_blocks; ++i) {
-    //     m_blocks[i].index = i;
-    //     m_blocks[i].score = std::numeric_limits<float>::infinity();
-    //     m_blocks[i].owner = 0;
-    //     m_free_block_list.push_back(i);
-    // }
-    // rebuild_evict_heap_unlocked();
 }
 
 PagedCacheManager::~PagedCacheManager() {
@@ -70,71 +62,120 @@ PagedCacheManager::~PagedCacheManager() {
 }
 
 // every op registered once
-bool PagedCacheManager::operator_registered(const std::shared_ptr<ov::Node> node) {
-    return m_ops.count(node);
+bool PagedCacheManager::operator_registered(const size_t node_id) {
+    return m_ops.count(node_id);
 }
 
 // registration
-void PagedCacheManager::register_operator(const std::shared_ptr<ov::Node> node) {
+// returns unique node_id id assigned to the given node_id
+size_t PagedCacheManager::register_operator(const size_t block_size,
+                                            const size_t num_heads,
+                                            const size_t key_head_size,
+                                            const size_t value_head_size,
+                                            const size_t query_head_size) {
     std::lock_guard<std::mutex> lock(m_mutex);
 
     operator_state state;
-    state.node = node;
+    state.node_id = m_node_id++;
     compute_operator_cache_geometry(state);
-    m_ops.emplace(node, std::move(state));
+    m_ops.emplace(state.node_id, std::move(state));
+
+    return state.node_id;
 }
 
 // buffers
 PagedCacheManager::cache_blocks PagedCacheManager::get_cache_blocks() const noexcept {
     std::lock_guard<std::mutex> lock(m_mutex);
-    return cache_blocks{m_key_base, m_value_base, m_total_bytes, m_total_bytes};
+    return cache_blocks{m_key_base, m_value_base, m_total_bytes / 2, m_total_bytes / 2};
 }
 
 // per-operator metadata
-PagedCacheManager::subsequence_view PagedCacheManager::get_subsequence_begins(std::shared_ptr<ov::Node> node) const {
+PagedCacheManager::subsequence_view PagedCacheManager::get_subsequence_begins(size_t node_id) const {
     std::lock_guard<std::mutex> lock(m_mutex);
-    auto it = m_ops.find(node);
+    auto it = m_ops.find(node_id);
     if (it == m_ops.end())
         return {};
     const auto& v = it->second.subsequence_begins;
     return subsequence_view{v.data(), v.size()};
 }
 
-void PagedCacheManager::compute_operator_cache_geometry(operator_state& state) {
-    // query shape (id: 0):
-    // [batch_size_in_tokens, num_heads * head_size]
-
-    // key_cache shape (id: 3):
-    // [num_blocks == 0, num_kv_heads, block_size, head_size]
-
-    size_t node_block_size = state.node->get_input_shape(3)[2];
-    if (m_block_size != node_block_size) {
+// Check if sizes match, initialize empty blocks since we know the size of a block and dtype at this point, prepare a
+// state for a given PA
+void PagedCacheManager::compute_operator_cache_geometry(operator_state& state,
+                                                        const size_t block_size,
+                                                        const size_t num_heads,
+                                                        const size_t key_head_size,
+                                                        const size_t value_head_size,
+                                                        const size_t query_head_size) {
+    if (m_block_size != block_size) {
         if (!m_block_size) {
-            m_block_size = node_block_size;
+            m_block_size = block_size;
             m_block_bytes = m_block_size * m_elem_type.size();
         } else {
             throw std::runtime_error("PagedCacheManager: All PagedAttention nodes must have the same block size.");
         }
     }
 
-    state.num_blocks = 0;
-    state.block_size = m_block_size;
+    if (m_num_heads != num_heads) {
+        if (!m_num_heads) {
+            m_num_heads = num_heads;
+        } else {
+            throw std::runtime_error("PagedCacheManager: All PagedAttention nodes must have the same number of heads.");
+        }
+    }
 
-    state.num_heads = state.node->get_input_shape(3)[3];
-    state.key_head_size = state.node->get_input_shape(3)[1];
-    state.value_head_size = state.node->get_input_shape(3)[1];
-    state.query_head_size = state.node->get_input_shape(0)[1] / state.num_heads;
+    if (m_key_head_size != key_head_size) {
+        if (!m_key_head_size) {
+            m_key_head_size = key_head_size;
+        } else {
+            throw std::runtime_error(
+                "PagedCacheManager: All PagedAttention nodes must have the same number of key cache heads.");
+        }
+    }
+
+    if (m_value_head_size != value_head_size) {
+        if (!m_value_head_size) {
+            m_value_head_size = value_head_size;
+        } else {
+            throw std::runtime_error(
+                "PagedCacheManager: All PagedAttention nodes must have the same number of value cache heads.");
+        }
+    }
+
+    if (!m_num_blocks) {
+        size_t num_blocks_key_cache = m_total_bytes / m_block_bytes / m_num_heads / m_key_head_size / 2;
+        size_t num_blocks_value_cache = m_total_bytes / m_block_bytes / m_num_heads / m_value_head_size / 2;
+        // If unequal we don't have the same available blocks in each cache.
+        // Instead of reordering memory, for now it's simpler to just set max blocks count to lower bound.
+        m_num_blocks = std::min(num_blocks_key_cache, num_blocks_value_cache);
+
+        m_blocks.resize(m_num_blocks);
+        for (std::size_t i = 0; i < m_num_blocks; ++i) {
+            m_blocks[i].index = i;
+            m_blocks[i].score = std::numeric_limits<float>::infinity();
+            m_blocks[i].owner = 0;
+            m_free_block_list.push_back(i);
+        }
+        rebuild_evict_heap_unlocked();
+    }
+
+    state.num_blocks = 0;
+    state.num_heads = num_heads;
+    state.block_size = block_size;
+    state.key_head_size = key_head_size;
+    state.value_head_size = value_head_size;
+    state.query_head_size = query_head_size;  // unused?
 }
 
 // block mgmt
-std::vector<std::size_t> PagedCacheManager::acquire_blocks(std::shared_ptr<ov::Node> node, std::size_t block_count) {
+std::vector<std::size_t> PagedCacheManager::acquire_blocks(size_t node_id, std::size_t block_count) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    return acquire_blocks_unlocked(node, block_count);
+    return acquire_blocks_unlocked(node_id, block_count);
 }
 
-void PagedCacheManager::release_blocks(std::shared_ptr<ov::Node> node, const std::vector<std::size_t>& blocks) {
+void PagedCacheManager::release_blocks(size_t node_id, const std::vector<std::size_t>& blocks) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    auto it = m_ops.find(node);
+    auto it = m_ops.find(node_id);
     if (it == m_ops.end())
         return;
     auto& state = it->second;
@@ -142,7 +183,7 @@ void PagedCacheManager::release_blocks(std::shared_ptr<ov::Node> node, const std
     for (std::size_t block_id : blocks) {
         if (block_id >= m_blocks.size())
             continue;
-        if (m_blocks[block_id].owner != node)
+        if (m_blocks[block_id].owner != node_id)
             continue;
 
         auto pit = std::find(state.blocks.begin(), state.blocks.end(), block_id);
@@ -153,7 +194,7 @@ void PagedCacheManager::release_blocks(std::shared_ptr<ov::Node> node, const std
                 state.scores.erase(state.scores.begin() + static_cast<std::ptrdiff_t>(pos));
         }
 
-        m_blocks[block_id].owner = nullptr;
+        m_blocks[block_id].owner = 0;
         m_blocks[block_id].score = std::numeric_limits<float>::infinity();
         m_free_block_list.push_back(block_id);
     }
@@ -161,13 +202,12 @@ void PagedCacheManager::release_blocks(std::shared_ptr<ov::Node> node, const std
 }
 
 // insert & scoring helpers
-std::vector<std::size_t> PagedCacheManager::acquire_blocks_unlocked(std::shared_ptr<ov::Node> node,
-                                                                    std::size_t block_count) {
+std::vector<std::size_t> PagedCacheManager::acquire_blocks_unlocked(size_t node_id, std::size_t block_count) {
     if (block_count == 0)
         return {};
-    auto it = m_ops.find(node);
+    auto it = m_ops.find(node_id);
     if (it == m_ops.end())
-        throw std::runtime_error("PagedCacheManager::acquire_blocks_unlocked: unknown node (not registered)");
+        throw std::runtime_error("PagedCacheManager::acquire_blocks_unlocked: unknown node_id (not registered)");
     auto& state = it->second;
 
     ensure_free_blocks_unlocked(block_count);
@@ -184,7 +224,7 @@ std::vector<std::size_t> PagedCacheManager::acquire_blocks_unlocked(std::shared_
         const std::size_t block_id = m_free_block_list.front();
         m_free_block_list.pop_front();
 
-        m_blocks[block_id].owner = node;
+        m_blocks[block_id].owner = node_id;
         m_blocks[block_id].score = std::numeric_limits<float>::infinity();
 
         state.blocks.push_back(block_id);
@@ -212,10 +252,10 @@ void PagedCacheManager::copy_blocks_into_buffers_unlocked(const void* key_src_by
     }
 }
 
-void PagedCacheManager::set_scores_for_blocks_unlocked(std::shared_ptr<ov::Node> node,
+void PagedCacheManager::set_scores_for_blocks_unlocked(size_t node_id,
                                                        const std::vector<std::size_t>& block_idxs,
                                                        const float* scores) {
-    auto it = m_ops.find(node);
+    auto it = m_ops.find(node_id);
     if (it == m_ops.end())
         throw std::runtime_error("PagedCacheManager::set_scores_for_blocks_unlocked: unknown handle");
     auto& state = it->second;
@@ -224,7 +264,7 @@ void PagedCacheManager::set_scores_for_blocks_unlocked(std::shared_ptr<ov::Node>
         const std::size_t block_id = block_idxs[i];
         if (block_id >= m_blocks.size())
             continue;
-        if (m_blocks[block_id].owner != node)
+        if (m_blocks[block_id].owner != node_id)
             continue;
 
         auto pit = std::find(state.blocks.begin(), state.blocks.end(), block_id);
@@ -268,7 +308,7 @@ void PagedCacheManager::evict_one_unlocked() {
     if (pg.owner == 0)
         return;
 
-    const std::shared_ptr<ov::Node> owner = pg.owner;
+    const size_t owner = pg.owner;
     auto it = m_ops.find(owner);
     if (it != m_ops.end()) {
         auto& state = it->second;
