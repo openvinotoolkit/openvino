@@ -19,8 +19,8 @@ inputs:
   component_pattern:
     description: "Pattern to extract component name from PR label. If not set, any label is considered a component name"
     required: false
-  labeler_check_name:
-    description: "Name of the labeler check"
+  check_names_to_wait:
+    description: "Name of the checks to wait for"
     required: false
     default: "triage"
   components_config:
@@ -46,10 +46,6 @@ inputs:
     description: "Enables running workflows for a given organization; triggers from other orgs are skipped"
     required: false
     default: "openvinotoolkit"
-  wait_for_code_style:
-    description: "Wait for code style check to complete before running Smart CI"
-    required: false
-    default: false
 
 outputs:
   all_components:
@@ -80,8 +76,7 @@ runs:
       if: ${{ github.event_name == 'pull_request' }}
       with:
         ref: ${{ github.event.pull_request.head.sha }}
-        # check-names: "${{ inputs.labeler_check_name }}"
-        check-names: ${{ inputs.labeler_check_name }},${{ inputs.wait_for_code_style == 'true' && 'clang-format,clang-format-aarch64,clang-format-riscv64,ShellCheck,NamingConventionCheck' || '' }}
+        check-names: ${{ inputs.check_names_to_wait }}
         repo-token: ${{ inputs.repo_token }}
         wait-interval: 10
         timeout: 600
