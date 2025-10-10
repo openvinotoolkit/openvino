@@ -129,6 +129,10 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             t_src = t_src.slice(3, m_config.slice_start, m_config.slice_stop);
             can_inplace = false;
         }
+        if (t_src.m_rank == 3) {
+            t_src = t_src.reshape({1, t_src.size(0), t_src.size(1), t_src.size(2)});
+            t_dst = t_dst.reshape({1, t_dst.size(0), t_dst.size(1), t_dst.size(2)});
+        }
         if (m_config.input_trans0213) {
             t_src = t_src.permute({0, 2, 1, 3});
             can_inplace = false;
@@ -139,9 +143,13 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
 
         if (t_cos.m_rank == 2) {
             t_cos = t_cos.reshape({1, 1, t_cos.size(0), t_cos.size(1)});
+        } else if (t_cos.m_rank == 3) {
+            t_cos = t_cos.reshape({1, t_cos.size(0), t_cos.size(1), t_cos.size(2)});
         }
         if (t_sin.m_rank == 2) {
             t_sin = t_sin.reshape({1, 1, t_sin.size(0), t_sin.size(1)});
+        } else if (t_sin.m_rank == 3) {
+            t_sin = t_sin.reshape({1, t_sin.size(0), t_sin.size(1), t_sin.size(2)});
         }
 
         auto batch_size = t_src.size(0);

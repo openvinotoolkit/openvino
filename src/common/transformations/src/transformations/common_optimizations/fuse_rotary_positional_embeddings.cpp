@@ -58,8 +58,9 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(4);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(3);
     // optional heads & tails are fused in separate matcher pass,
     // after RoPENode has been created.
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionCosSinPreprocess>();
@@ -164,7 +165,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     this->register_matcher(m, callback);
 }
 
-ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
+ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
     using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionGPTNEOX);
 
@@ -177,22 +178,24 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     // branch.
     // so here we use a WA, only match the path of rotate_hal(x)*sin and check the x*cos path
     // in the callback
-    auto x = pattern::any_input(pattern::rank_equals(4));
-    auto x_or_cos1 = pattern::any_input(pattern::rank_equals(4));
-    auto x_or_cos2 = pattern::any_input(pattern::rank_equals(4));
-    auto t_sin = pattern::any_input(pattern::rank_equals(4));
+    auto x = pattern::any_input(pattern::rank_equals(rank));
+    auto cos = pattern::any_input(pattern::rank_equals(rank));
+    auto t_sin = pattern::any_input(pattern::rank_equals(rank));
 
-    auto varsplit = pattern::wrap_type<v1::VariadicSplit>({x, 3, {"half_ndims", "?"}});
+    auto varsplit = pattern::wrap_type<v1::VariadicSplit>({x, rank - 1, {"half_ndims", "?"}});
     varsplit->set_output_size(2);
 
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
-    auto x2 = NewGenSlice(x, "half_ndims", int32_max, 1, 3);
+    auto x2 = NewGenSlice(x, "half_ndims", int32_max, 1, rank - 1);
     auto x2neg = pattern::wrap_type<v1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
-    auto x1 = NewGenSlice(x, 0, "half_ndims", 1, 3);
+    auto x1 = NewGenSlice(x, 0, "half_ndims", 1, rank - 1);
     auto x_rotate_half = pattern::wrap_type<v0::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
 
-    auto mul_cos = pattern::wrap_type<v1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
+    auto mul_cos1 = pattern::wrap_type<v1::Multiply>({x, cos}, {{"auto_broadcast", "numpy"}});
+    auto mul_cos2 = pattern::wrap_type<v1::Multiply>({cos, x}, {{"auto_broadcast", "numpy"}});
+    auto mul_cos = mul_cos1 | mul_cos2;
+
     auto mul_sin = pattern::wrap_type<v1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
 
     auto result = pattern::wrap_type<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
@@ -200,17 +203,6 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-
-        // check mul(x, cos) exists
-        Output<Node> v_cos;
-        if (pattern_map.at(x_or_cos1) == pattern_map.at(x)) {
-            v_cos = pattern_map.at(x_or_cos2);
-        } else if (pattern_map.at(x_or_cos2) == pattern_map.at(x)) {
-            v_cos = pattern_map.at(x_or_cos1);
-        } else {
-            // not a RoPE
-            return false;
-        }
 
         auto symbols = m.get_symbols();
         auto half_ndims = symbols["half_ndims"];
@@ -220,10 +212,13 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
+        if (rank == 3) {
+            config.support_3d_rope = true;
+        }
         config.rotary_ndims = 2ul * static_cast<size_t>(half_ndims.i());
 
         new_args.push_back(pattern_map.at(x));
-        new_args.push_back(v_cos);
+        new_args.push_back(pattern_map.at(cos));
         new_args.push_back(pattern_map.at(t_sin));
         auto old_node = root;
         auto new_node = std::make_shared<internal::RoPE>(new_args, config);
