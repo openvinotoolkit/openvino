@@ -112,12 +112,19 @@ bool Slice::has_evaluate() const {
         }
     };
 
-    return valid_integral_type(get_input_element_type(1)) &&
+    return get_input_element_type(0).bitwidth() >= 8 && valid_integral_type(get_input_element_type(1)) &&
            (slice_no_axes(this) || valid_integral_type(get_input_element_type(4)));
+}
+
+bool Slice::can_constant_fold(const OutputVector& inputs) const {
+    return inputs.at(0).get_element_type().bitwidth() >= 8;
 }
 
 bool Slice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v8_Slice_evaluate);
+
+    if (inputs[0].get_element_type().bitwidth() < 8)
+        return false;
 
     const auto output_shapes =
         shape_infer(this, ov::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs));
