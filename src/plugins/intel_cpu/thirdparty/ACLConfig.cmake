@@ -155,13 +155,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
                                     "Please, specify -DANDROID_PLATFORM=android-18 at least")
             endif()
 
-            if(ANDROID_NDK_REVISION LESS "23.0")
-                ov_arm_compute_add_option("toolchain_prefix" "${ANDROID_TOOLCHAIN_PREFIX}")
-            else()
-                string(REGEX REPLACE "/bin/[^/]+-" "/bin/llvm-" ANDROID_TOOLCHAIN_PREFIX_FIXED "${ANDROID_TOOLCHAIN_PREFIX}")
-                message(STATUS "SCONS: using ANDROID_TOOLCHAIN_PREFIX=${ANDROID_TOOLCHAIN_PREFIX_FIXED}")
-                ov_arm_compute_add_option("toolchain_prefix" "${ANDROID_TOOLCHAIN_PREFIX_FIXED}")
-            endif()
+            ov_arm_compute_add_option("toolchain_prefix" "${ANDROID_TOOLCHAIN_ROOT}/bin/llvm-")
 
             ov_arm_compute_add_option("compiler_prefix" "${ANDROID_TOOLCHAIN_ROOT}/bin/")
 
