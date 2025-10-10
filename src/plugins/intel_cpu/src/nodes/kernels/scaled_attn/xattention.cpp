@@ -205,9 +205,7 @@ PlainTensor xattn_estimate(PlainTensor& query,
                            PlainTensor& key,
                            size_t block_size,
                            size_t stride,
-                           int norm = 1,
-                           float threshold = 0.9f,
-                           bool causal = true) {
+                           float threshold) {
     const auto B = query.size(0);
     const auto H = query.size(1);
     const auto L = query.size(2);
@@ -226,7 +224,8 @@ PlainTensor xattn_estimate(PlainTensor& query,
     const auto q_num_blocks = div_up(B, block_size);
     const auto k_num_blocks = div_up(B, block_size);
     const auto num_per_block = block_size / stride;
-    if (q_num_blocks == 0 || k_num_blocks == 0 || num_per_block == 0) {
+
+    if (q_num_blocks <= 1 || k_num_blocks <= 1 || num_per_block == 0) {
         return {};
     }
 
@@ -348,7 +347,7 @@ PlainTensor xattn_estimate(PlainTensor& query,
     parallel_for3d(q_num_strided, H, L, [&](size_t b, size_t h, size_t l) {
         auto* data = attn_sum_temp.ptr<float>(h, l, b, 0);
         auto ncausal = b + 1;
-        auto scale = 1.0 / sqrt(S) / stride / norm;
+        auto scale = 1.0 / sqrt(S) / stride;
         attn_softmax_kernel<float>(data,
                                    reinterpret_cast<float*>(data),
                                    scale,
@@ -394,38 +393,30 @@ PlainTensor xattn_estimate(PlainTensor& query,
             values_with_index[k] = std::make_pair(row[k], k);
         }
 
-        if (causal) {
-            values_with_index[b_n].first += 100000.0f;
-            values_with_index[0].first += 100000.0f;
+        // The blocks in the first column and along the main diagonal should always be selected thus excluded from the
+        // sorting process.
+        if (b_n > 1) {
+            std::swap(values_with_index[1], values_with_index[b_n]);
         }
-
-        std::sort(values_with_index.begin(),
+        std::sort(values_with_index.begin() + 2,
                   values_with_index.end(),
                   [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
                       return a.first > b.first;
                   });
 
-        if (causal) {
-            values_with_index[1].first += values_with_index[0].first - 100000.0f * 2;
-            values_with_index[0].first = 0.0f;
-        }
-
+        // Compute the cumulative sum. Set the values in the first and second columns to zero to ensures that the blocks
+        // in the first column and along the main diagonal are always selected.
         std::vector<float> cumsum_without_self(k_num_blocks, 0.0f);
         for (size_t i = 1; i < k_num_blocks; i++) {
             cumsum_without_self[i] = values_with_index[i - 1].first + cumsum_without_self[i - 1];
         }
+        cumsum_without_self[1] = 0.0f;
 
         for (size_t i = 0; i < k_num_blocks; i++) {
             bool value = (cumsum_without_self[i] < required_sum);
-
-            if (causal && i > b_n) {
+            if (i > b_n) {
                 value = false;
             }
-
-            if (values_with_index[i].second == 0) {
-                value = true;
-            }
-
             *(mask.ptr<bool>(h, b_n, values_with_index[i].second)) = value;
         }
     });

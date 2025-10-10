@@ -2277,20 +2277,15 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         size_t num_seqs = past_lens.size(0);
         std::vector<PlainTensor> masks(num_seqs);
 
+#    if defined(OPENVINO_ARCH_X86_64)
         // TODO: support multiple batches
         for (size_t seq_idx = 0; seq_idx < 1; seq_idx++) {
             if (q.size(0) > 1) {
-#    if defined(OPENVINO_ARCH_X86_64)
-                masks[seq_idx] = xattn_estimate(q,
-                                                k,
-                                                x_attention_block_size,
-                                                x_attention_stride,
-                                                1,
-                                                threshold.ptr<float>()[seq_idx],
-                                                true);
-#    endif
+                masks[seq_idx] =
+                    xattn_estimate(q, k, x_attention_block_size, x_attention_stride, threshold.ptr<float>()[seq_idx]);
             }
         }
+#    endif
         return masks;
     }
 
