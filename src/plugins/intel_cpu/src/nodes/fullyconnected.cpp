@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #include "fullyconnected.h"
 
 #include <algorithm>
@@ -41,6 +42,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
@@ -49,8 +51,10 @@
 #include "post_ops.hpp"
 #include "shape_inference/custom/fullyconnected.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/bfloat16.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include <iostream>
 #if defined(OV_CPU_WITH_KLEIDIAI)
 #    include "openvino/core/shape.hpp"
 #    include "utils/precision_support.h"
@@ -411,12 +415,322 @@ void FullyConnected::execTensorParallelSync() {
     }
 }
 
+static uint8_t get_u2(const uint8_t& val, uint8_t shift) {
+    return (val & (0x3 << shift)) >> shift;
+}
+
+static uint8_t get_u4(const uint8_t& val, uint8_t shift) {
+    return (val & (0xf << shift)) >> shift;
+}
+
 void FullyConnected::execute([[maybe_unused]] const dnnl::stream& strm) {
     initTensorParallelSync();
 
     executor->execute(memory);
 
     execTensorParallelSync();
+
+    // Print input and output
+    {
+        std::cout << "###### getType(): " << NameFromType(getType()) << '\n';
+        std::cout << "###### getName(): " << getName() << '\n';
+        std::cout << "###### Input count: " << getParentEdges().size() << '\n';
+        std::cout << "###### Ouput count: " << getChildEdges().size() << '\n';
+
+        // Src_0
+        {
+            const auto& data = getSrcMemoryAtPort(0);
+            auto *const data_ptr = static_cast<uint8_t*>(data->getData());
+
+            const auto& shape = data->getShape();
+            const auto& dims = shape.getDims();
+            const auto& prec = data->getPrecision();
+
+            std::cout << "Src_0 (data): " << '\n';
+            std::cout << "Shape: [";
+            for (const auto& d : dims) {
+                std::cout << d << ", ";
+            }
+            std::cout << "]" << '\n';
+
+            std::cout << "Precision: " << prec << '\n';
+
+            size_t O = dims[0];
+            size_t I = dims.size() > 1 ? dims[1] : 1;
+            if (prec == ov::element::bf16) {
+                std::cout << "Print data bf16" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const uint16_t*>(data_ptr);
+                        std::cout << static_cast<float>(bfloat16_t::from_bits(data_p[o * I + i])) << " ";
+                    }
+                    std::cout << '\n';
+                }
+            } else if (prec == ov::element::f32) {
+                std::cout << "Print data f32" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const float*>(data_ptr);
+                        std::cout << static_cast<float>(data_p[o * I + i]) << " ";
+                    }
+                    std::cout << '\n';
+                }
+            }
+            std::cout << '\n';
+        }
+
+        // Src_1
+        {
+            const auto& data = getSrcMemoryAtPort(1);
+            auto *const data_ptr = static_cast<uint8_t*>(data->getData());
+
+            const auto& shape = data->getShape();
+            const auto& dims = shape.getDims();
+            const auto& prec = data->getPrecision();
+
+            std::cout << "Src_1 (weights): " << '\n';
+            std::cout << "Shape: [";
+            for (const auto& d : dims) {
+                std::cout << d << ", ";
+            }
+            std::cout << "]" << '\n';
+
+            std::cout << "Precision: " << prec << '\n';
+
+            size_t O = dims[0];
+            size_t I = dims.size() > 1 ? dims[1] : 1;
+            if (prec == ov::element::u2) {
+                std::cout << "Print data u2" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const uint8_t*>(data_ptr);
+                        const size_t k = o * I + i;
+                        std::cout << static_cast<int>(get_u2(data_p[k / 4], (k % 4) * 2)) << " ";
+                    }
+                    std::cout << '\n';
+                }
+            } else if (prec == ov::element::u4) {
+                std::cout << "Print data u4" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const uint8_t*>(data_ptr);
+                        const size_t k = o * I + i;
+                        std::cout << static_cast<int>(get_u4(data_p[k / 2], (k % 2) * 4)) << " ";
+                    }
+                    std::cout << '\n';
+                }
+            } else if (prec == ov::element::u8) {
+                std::cout << "Print data u8" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const uint8_t*>(data_ptr);
+                        const size_t k = o * I + i;
+                        std::cout << static_cast<int>(data_p[k]) << " ";
+                    }
+                    std::cout << '\n';
+                }
+            } else if (prec == ov::element::bf16) {
+                std::cout << "Print data bf16" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const uint16_t*>(data_ptr);
+                        std::cout << static_cast<float>(bfloat16_t::from_bits(data_p[o * I + i])) << " ";
+                    }
+                    std::cout << '\n';
+                }
+            } else if (prec == ov::element::f16) {
+                std::cout << "Print data f16" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const uint16_t*>(data_ptr);
+                        std::cout << static_cast<float>(float16::from_bits(data_p[o * I + i])) << " ";
+                    }
+                    std::cout << '\n';
+                }
+            } else if (prec == ov::element::f32) {
+                std::cout << "Print data f32" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const float*>(data_ptr);
+                        std::cout << static_cast<float>(data_p[o * I + i]) << " ";
+                    }
+                    std::cout << '\n';
+                }
+            }
+            std::cout << '\n';
+        }
+
+        // Src_2
+        {
+            const auto& data = getSrcMemoryAtPort(2);
+            auto *const data_ptr = static_cast<uint8_t*>(data->getData());
+
+            const auto& shape = data->getShape();
+            const auto& dims = shape.getDims();
+            const auto& prec = data->getPrecision();
+
+            std::cout << "Src_2 (bias): " << '\n';
+            std::cout << "Shape: [";
+            for (const auto& d : dims) {
+                std::cout << d << ", ";
+            }
+            std::cout << "]" << '\n';
+
+            std::cout << "Precision: " << prec << '\n';
+
+            size_t O = dims[0];
+            size_t I = dims.size() > 1 ? dims[1] : 1;
+            if (prec == ov::element::bf16) {
+                std::cout << "Print data bf16" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const uint16_t*>(data_ptr);
+                        std::cout << static_cast<float>(bfloat16_t::from_bits(data_p[o * I + i])) << " ";
+                    }
+                    std::cout << '\n';
+                }
+            } else if (prec == ov::element::f32) {
+                std::cout << "Print data f32" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const float*>(data_ptr);
+                        std::cout << static_cast<float>(data_p[o * I + i]) << " ";
+                    }
+                    std::cout << '\n';
+                }
+            }
+            std::cout << '\n';
+        }
+
+        if (getParentEdges().size() > 3) {
+            // Src_3
+            {
+                const auto& data = getSrcMemoryAtPort(3);
+                auto *const data_ptr = static_cast<uint8_t*>(data->getData());
+
+                const auto& shape = data->getShape();
+                const auto& dims = shape.getDims();
+                const auto& prec = data->getPrecision();
+
+                std::cout << "Src_3 (scale): " << '\n';
+                std::cout << "Shape: [";
+                for (const auto& d : dims) {
+                    std::cout << d << ", ";
+                }
+                std::cout << "]" << '\n';
+
+                std::cout << "Precision: " << prec << '\n';
+
+                size_t O = dims[0];
+                size_t I = dims.size() > 1 ? dims[1] : 1;
+                std::cout << "Print data f32" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const float*>(data_ptr);
+                        std::cout << static_cast<float>(data_p[o * I + i]) << " ";
+                    }
+                    std::cout << '\n';
+                }
+                std::cout << '\n';
+            }
+
+            // Src_4
+            {
+                const auto& data = getSrcMemoryAtPort(4);
+                auto *const data_ptr = static_cast<uint8_t*>(data->getData());
+
+                const auto& shape = data->getShape();
+                const auto& dims = shape.getDims();
+                const auto& prec = data->getPrecision();
+
+                std::cout << "Src_4 (zero point): " << '\n';
+                std::cout << "Shape: [";
+                for (const auto& d : dims) {
+                    std::cout << d << ", ";
+                }
+                std::cout << "]" << '\n';
+
+                std::cout << "Precision: " << prec << '\n';
+
+                size_t O = dims[0];
+                size_t I = dims.size() > 1 ? dims[1] : 1;
+                if (prec == ov::element::u2) {
+                    std::cout << "Print data u2" << '\n';
+                    for (size_t o = 0; o < O; o++) {
+                        for (size_t i = 0; i < I; i++) {
+                            const auto *const data_p = reinterpret_cast<const uint8_t*>(data_ptr);
+                            const size_t k = o * I + i;
+                            std::cout << static_cast<int>(get_u2(data_p[k / 4], (k % 4) * 2)) << " ";
+                        }
+                        std::cout << '\n';
+                    }
+                } else if (prec == ov::element::u4) {
+                    std::cout << "Print data u4" << '\n';
+                    for (size_t o = 0; o < O; o++) {
+                        for (size_t i = 0; i < I; i++) {
+                            const auto *const data_p = reinterpret_cast<const uint8_t*>(data_ptr);
+                            const size_t k = o * I + i;
+                            std::cout << static_cast<int>(get_u4(data_p[k / 2], (k % 2) * 4)) << " ";
+                        }
+                        std::cout << '\n';
+                    }
+                } else if (prec == ov::element::u8) {
+                    std::cout << "Print data u8" << '\n';
+                    for (size_t o = 0; o < O; o++) {
+                        for (size_t i = 0; i < I; i++) {
+                            const auto *const data_p = reinterpret_cast<const uint8_t*>(data_ptr);
+                            const size_t k = o * I + i;
+                            std::cout << static_cast<int>(data_p[k]) << " ";
+                        }
+                        std::cout << '\n';
+                    }
+                }
+                std::cout << '\n';
+            }
+        }
+
+        // Dst
+        {
+            const auto& data = getDstMemoryAtPort(0);
+            auto *const data_ptr = static_cast<uint8_t*>(data->getData());
+
+            const auto& shape = data->getShape();
+            const auto& dims = shape.getDims();
+            const auto& prec = data->getPrecision();
+
+            std::cout << "Dst: " << '\n';
+            std::cout << "Shape: [";
+            for (const auto& d : dims) {
+                std::cout << d << ", ";
+            }
+            std::cout << "]" << '\n';
+
+            std::cout << "Precision: " << prec << '\n';
+
+            size_t O = dims[0];
+            size_t I = dims.size() > 1 ? dims[1] : 1;
+            if (prec == ov::element::bf16) {
+                std::cout << "Print data bf16" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const uint16_t*>(data_ptr);
+                        std::cout << static_cast<float>(bfloat16_t::from_bits(data_p[o * I + i])) << " ";
+                    }
+                    std::cout << '\n';
+                }
+            } else if (prec == ov::element::f32) {
+                std::cout << "Print data f32" << '\n';
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        const auto *const data_p = reinterpret_cast<const float*>(data_ptr);
+                        std::cout << static_cast<float>(data_p[o * I + i]) << " ";
+                    }
+                    std::cout << '\n';
+                }
+            }
+            std::cout << '\n';
+        }
+    }
 }
 
 void FullyConnected::executeDynamicImpl(const dnnl::stream& strm) {
