@@ -234,7 +234,8 @@ void ZeroInferRequest::create_pipeline() {
         }
         _logger.debug("ZeroInferRequest::create_pipeline - allocate new output tensor %s",
                       _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
-        _levelZeroOutputTensors.at(outputIndex) = allocate_tensor(outputIndex, OUTPUT, *_outputAllocator, batchSize);
+
+        _levelZeroOutputTensors.at(outputIndex) = allocate_tensor(outputIndex, OUTPUT, batchSize);
 
         if (_dynamicBatchValueChanged && !_userOutputTensors.at(outputIndex)->get_shape().empty() &&
             _userOutputTensors.at(outputIndex)->get_shape()[utils::BATCH_AXIS] !=

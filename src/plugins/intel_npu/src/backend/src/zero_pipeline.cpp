@@ -160,18 +160,6 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("Pipeline - initialize completed");
 }
 
-Pipeline::Pipeline(const Config& config,
-                   const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                   const std::shared_ptr<IGraph>& graph,
-                   std::string logName,
-                   size_t batch_size)
-    : _init_structs(init_structs),
-      _graph(graph),
-      _config(config),
-      _id(_graph->get_unique_id()),
-      _number_of_command_lists(batch_size),
-      _logger(logName, _config.get<LOG_LEVEL>()) {}
-
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 
@@ -202,11 +190,11 @@ void Pipeline::push() {
     _logger.debug("Pipeline - push() completed");
 };
 
-void Pipeline::pull(size_t num_command_lists) {
+void Pipeline::pull() {
     _logger.debug("Pipeline - pull() started");
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "Pipeline", "pull");
 
-    for (size_t i = 0; i < num_command_lists; ++i) {
+    for (size_t i = 0; i < _command_lists.size(); ++i) {
         if (_sync_output_with_fences) {
             _fences.at(i)->hostSynchronize();
         } else {
@@ -219,9 +207,6 @@ void Pipeline::pull(size_t num_command_lists) {
     }
 
     _logger.debug("Pipeline - pull() completed");
-}
-void Pipeline::pull() {
-    pull(_command_lists.size());
 };
 
 void Pipeline::reset() const {
@@ -262,7 +247,7 @@ void Pipeline::update_graph_arguments_batching(uint32_t arg_index, const void* a
                     command_list_index);
 
     _command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data);
-}
+};
 
 std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     _logger.debug("InferRequest::get_profiling_info started");
