@@ -73,6 +73,7 @@ inline size_t get_input_kv_len(const RuntimeParams& params) {
 }
 
 inline size_t get_aligned_kv_len(const size_t kv_len) {
+    // TODO: how to change PA_KV_CACHE_BLOCK_SIZE here
     return (kv_len + PA_KV_CACHE_BLOCK_SIZE - 1) / PA_KV_CACHE_BLOCK_SIZE * PA_KV_CACHE_BLOCK_SIZE;
 }
 
@@ -154,7 +155,9 @@ int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAtt
     int64_t aligned_seq_len = 0;
     if (stage == PagedAttentionStage::PREFILL) {
         const auto desc = impl_param.typed_desc<paged_attention>();
-        if (static_cast<int64_t>(paged_attention::block_size) == target_seq_len_block_size) {
+        int64_t pa_block_size = paged_attention::block_size;
+        if (desc->has_xattention) pa_block_size = paged_attention::block_size_xattn;
+        if (static_cast<int64_t>(pa_block_size) == target_seq_len_block_size) {
             const auto& block_indices_ps = impl_param.get_input_layout(PagedAttentionInputIdx::BLOCK_INDICES).get_partial_shape();
 
             aligned_seq_len = block_indices_ps[0].get_length() * target_seq_len_block_size;
@@ -168,21 +171,21 @@ int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAtt
     return aligned_seq_len;
 }
 
-size_t get_partition_size() {
+size_t get_partition_size(const bool has_xattention) {
     // size_t k_partition_blok_num = (kv_len + 8191) / 8192;
     // if (k_partition_blok_num < 1)
     //     k_partition_blok_num = 1;
     // const size_t k_partition_blok_num = 16;
     // return k_partition_blok_num * PA_KV_CACHE_BLOCK_SIZE; // 128
-    if (PA_KV_CACHE_BLOCK_SIZE < 128) {
+    if (!has_xattention && PA_KV_CACHE_BLOCK_SIZE < 128) {
         return 128;
     } else {
-        return PA_KV_CACHE_BLOCK_SIZE;
+        return PA_KV_CACHE_BLOCK_SIZE_XATTN;
     }
 }
 
-size_t get_partition_num(const size_t kv_len) {
-    const size_t partition_size = get_partition_size();
+size_t get_partition_num(const size_t kv_len, const bool has_xattention) {
+    const size_t partition_size = get_partition_size(has_xattention);
     const size_t partition_num = (kv_len + partition_size - 1) / partition_size;
 
     return partition_num;
@@ -205,11 +208,13 @@ size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx) {
     return paged_attention_past_len;
 }
 
-const float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx) {
-    (void) seq_idx; // TODO
-
-    static const char* env = std::getenv("OV_GPU_XATTN_THRESH");
-    static const float thresh = env ? std::strtof(env, nullptr) : 0.9;
+// TODO: change xattn_thresh from scaler to memory... once we remove the converter node
+// between parameter node "xattention_threshold.xxx" and paged_attention node.
+const float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
+    const auto& input_mem = params.memory_deps;
+    const auto threshold_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
+    mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm); // converted
+    const auto thresh = static_cast<float>(lock[seq_idx]);
     return thresh;
 }
 
@@ -287,7 +292,11 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
     jit.make("KV_HEADS_NUM", desc->kv_heads_num);
     jit.make("K_HEAD_SIZE", desc->k_head_size);
     jit.make("V_HEAD_SIZE", desc->v_head_size);
-    jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
+    if (desc->has_xattention) {
+        jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+    } else {
+        jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
+    }
 
     if (get_kv_compressed(params)) {
         jit.make("KV_CACHE_COMPRESSION_PER_TOKEN", 1);
@@ -435,7 +444,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
     const size_t block_size = get_xattn_block_size(params);
-    if (block_size > 1) {
+    if (desc->has_xattention && block_size > 1) {
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // sparse_block_mask
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});  // sparse_block_mask_wg
     }
@@ -461,8 +470,13 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     jit.make("CMFLA_HEAD_SIZE", desc->k_head_size);
     jit.add(make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor));
     jit.make("CMFLA_IS_CAUSAL", 1);
-    jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE);
-    jit.make("SPARSE_BLOCK_SIZE", xattn_block_size);
+    if (desc->has_xattention) {
+        jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+        jit.make("SPARSE_BLOCK_SIZE", xattn_block_size);
+    } else {
+        jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE);
+        jit.make("SPARSE_BLOCK_SIZE", 1);
+    }
     jit.make("Q_STEP", get_q_step(xe_arch, true));
 
     if (get_kv_compressed(params)) {
@@ -544,11 +558,15 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     // jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
     auto desc = params.typed_desc<paged_attention>();
     const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
-    const size_t kv_partition_size = get_partition_size();
+    const size_t kv_partition_size = get_partition_size(desc->has_xattention);
     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
 
     jit.make("KV_PARTITION_SIZE", kv_partition_size);
-    jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
+    if (desc->has_xattention) {
+        jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+    } else {
+        jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
+    }
     jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
     jit.make("HEAD_SIZE", desc->k_head_size);
     jit.make("HEADS_NUM", desc->heads_num);
@@ -720,7 +738,7 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("BLOCK_SG_M", BLOCK_SG_M);
     jit.make("BLOCK_SG_N", BLOCK_SG_N);
     jit.make("BLOCK_SIZE", get_xattn_block_size(params));
-    jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
+    jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     jit.add(make_jit_constant("INV_S", scale_factor_i));
     jit.make("BLOCK_SHARE_MAX", BLOCK_WG_N);
     //# loop order walks HQ first and the step is WALK_HQ, 1 means not walk HQ, 2 means walks 2 heads first. Valid value: 1, 2, 4...
@@ -937,7 +955,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         const uint32_t q_block = ceil_div(q_stride, sum_per_n_token_in_block);
         const uint32_t k_block = ceil_div(k_stride, sum_per_n_token_in_block);
 
-        const float xattn_thresh = get_xattn_thresh(params, 0); // TODO: seq_idx
+        const float xattn_thresh = get_xattn_thresh(params);
 
         wgs.global = {q_block_pad, heads_num, 1};
         wgs.local = {1, 1, 1};

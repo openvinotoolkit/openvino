@@ -30,8 +30,9 @@ constexpr auto get_pa_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
 }
 
-// BLOCK_SIZE can be 16/32/64/128/256
-#define PA_KV_CACHE_BLOCK_SIZE 256
+// BLOCK_SIZE can be 16/256 for legacy and xattn cases respectively
+#define PA_KV_CACHE_BLOCK_SIZE 16
+#define PA_KV_CACHE_BLOCK_SIZE_XATTN 256
 
 constexpr uint32_t BLOCK_SG_M = 64;
 constexpr uint32_t BLOCK_SG_N = 32;
@@ -40,6 +41,7 @@ constexpr uint32_t SG_N = 8;
 constexpr uint32_t BLOCK_WG_M = BLOCK_SG_M * SG_M;
 constexpr uint32_t BLOCK_WG_N = BLOCK_SG_N * SG_N;
 constexpr int STRIDE = 16;
+constexpr size_t XATTN_BLOCK_SIZE = 128;
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
@@ -60,13 +62,13 @@ int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAtt
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
 size_t get_max_context_len(const kernel_impl_params& params);
 size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
-size_t get_partition_size();
-size_t get_partition_num(const size_t kv_len);
+size_t get_partition_size(const bool has_xattention);
+size_t get_partition_num(const size_t kv_len, const bool has_xattention);
 
-const float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx);
-inline size_t get_xattn_block_size(const kernel_impl_params& impl_param) {
-    return impl_param.get_program().get_config().get_xattention_block_size();
- }
+const float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
+inline const size_t get_xattn_block_size(const kernel_impl_params& impl_param) {
+    return XATTN_BLOCK_SIZE;
+}
 
 class PagedAttentionGeneratorBase : public KernelGenerator {
 public:

@@ -51,7 +51,7 @@ public:
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_multi_token, params);
         const size_t xattn_block_size = get_xattn_block_size(params);
-        if (xattn_block_size > 1) {
+        if (desc->has_xattention && xattn_block_size > 1) {
             add_stage(xattn_estimate_gemmqk, params);
             add_stage(xattn_estimate_find_block, params);
             add_stage(xattn_estimate_post_proc, params);
@@ -90,7 +90,7 @@ public:
 
         const auto max_context_len = get_max_context_len(params);
         rt_params->max_context_len = max_context_len;
-        rt_params->partition_size = get_partition_size();
+        rt_params->partition_size = get_partition_size(desc->has_xattention);
         rt_params->num_of_partitions = ceil_div(max_context_len, rt_params->partition_size);
         rt_params->stage = get_paged_attention_stage(params);
         const size_t block_size = get_xattn_block_size(params);
@@ -186,7 +186,7 @@ public:
         } else {
             stage = get_paged_attention_stage(params);
             const auto max_context_len = get_max_context_len(params);
-            partition_size = get_partition_size();
+            partition_size = get_partition_size(desc->has_xattention);
             num_of_partitions = ceil_div(max_context_len, partition_size);
         }
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::get_internal_buffer_descs(): stage = " << static_cast<int>(stage)
@@ -218,7 +218,7 @@ public:
             internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);                // 2: kq_max_wg
 
             const size_t block_size = get_xattn_block_size(params);
-            if (block_size > 1) {
+            if (desc->has_xattention && block_size > 1) {
                 OPENVINO_ASSERT(block_size % STRIDE == 0, "sparse block_size must be devidable by stride.");
                 const uint32_t q_block_pad = ceil_div(q_len, block_size);
                 const uint32_t sum_per_token_in_block = static_cast<uint32_t>(block_size / STRIDE);
