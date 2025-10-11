@@ -116,7 +116,8 @@ public:
 //-----------------------------------------------------------------------------------------------------------------
 class XAttentionEstimateGeneratorBase : public KernelGenerator {
 public:
-    explicit XAttentionEstimateGeneratorBase(std::string_view kernel_name, std::string_view stage_suffix = "_cm") : KernelGenerator(kernel_name, stage_suffix) {}
+    explicit XAttentionEstimateGeneratorBase(std::string_view kernel_name, std::string_view stage_suffix = "_cm")
+        : KernelGenerator(kernel_name, stage_suffix) {}
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
         return KernelGenerator::get_build_options(params) + get_pa_build_options();
     }
