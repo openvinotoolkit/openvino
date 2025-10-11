@@ -30,6 +30,13 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
             ov::element::i8,
         };
 
+        // Enable CM PA only in case of XAttention been enabled. May decouple them in future.
+        auto desc = node.as<paged_attention>().get_primitive();
+        if (!desc->has_xattention) {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because we enable CM PA when XAttention is enabled. " << std::endl;
+            return false;
+        }
+
         auto& engine = node.get_program().get_engine();
         const auto& config = node.get_program().get_config();
         const auto& info = engine.get_device_info();
