@@ -586,6 +586,7 @@ struct MHAHelper {
     PlainTensor _block_rotation_coefficient_scratch;
     // Block size used when generating sparse_attention_mask (0 means unspecified/equal to _block_size)
     size_t _sparse_mask_block_size = 0;
+    bool _use_softmax_sparse_mask = false;
 
     MHAHelper() {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
@@ -933,24 +934,12 @@ struct MHAHelper {
                     }
 
                     // Handle sparse attention mask for sliding window
-                    if (!sparse_attention_mask.empty()) {
-                        // Check _sparse_mask_block_size is a multiple of vector length for correct sparse_mask indexing
-#    if defined(HAVE_AVX512F)
-                        constexpr size_t vec_len = vec_len_f32_avx512;
-#    elif defined(HAVE_AVX2)
-                        constexpr size_t vec_len = vec_len_f32_avx2;
-#    elif defined(OPENVINO_ARCH_ARM64)
-                        constexpr size_t vec_len = vec_len_f32_neon;
-#    else
-                        constexpr size_t vec_len = 1;
-#    endif
-                        if (_sparse_mask_block_size % vec_len == 0) {
-                            // Get the original xattn_mask and calculate offset
-                            auto* original_mask = reinterpret_cast<uint8_t*>(
-                                sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_blk / sparse_scale));
-                            size_t mask_start_offset = start_idx / _sparse_mask_block_size;
-                            xattn_mask = original_mask + mask_start_offset;
-                        }
+                    if (!sparse_attention_mask.empty() && _use_softmax_sparse_mask) {
+                        // Get the original xattn_mask and calculate offset
+                        auto* original_mask = reinterpret_cast<uint8_t*>(
+                            sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_blk / sparse_scale));
+                        size_t mask_start_offset = start_idx / _sparse_mask_block_size;
+                        xattn_mask = original_mask + mask_start_offset;
                     }
 
                     attn_softmax_kernel<float>(score + start_idx,
@@ -978,23 +967,9 @@ struct MHAHelper {
                         alibi_slope = alibi_slopes.ptr<float>()[h];
                         alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
                     }
-                    if (!sparse_attention_mask.empty()) {
-                        // Check _sparse_mask_block_size is a multiple of vector length for correct sparse_mask indexing
-#    if defined(HAVE_AVX512F)
-                        constexpr size_t vec_len = vec_len_f32_avx512;
-#    elif defined(HAVE_AVX2)
-                        constexpr size_t vec_len = vec_len_f32_avx2;
-#    elif defined(OPENVINO_ARCH_ARM64)
-                        constexpr size_t vec_len = vec_len_f32_neon;
-#    else
-                        constexpr size_t vec_len = 1;
-#    endif
-                        if (_sparse_mask_block_size % vec_len == 0) {
-                            xattn_mask = reinterpret_cast<uint8_t*>(
-                                sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_blk / sparse_scale));
-                        }
-                    } else {
-                        xattn_mask = nullptr;
+                    if (!sparse_attention_mask.empty() && _use_softmax_sparse_mask) {
+                        xattn_mask = reinterpret_cast<uint8_t*>(
+                            sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_blk / sparse_scale));
                     }
                     attn_softmax_kernel<float>(score,
                                                reinterpret_cast<DATA_TYPE*>(score),
@@ -2198,6 +2173,19 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
             // keep original mask granularity; remember its block size for on-the-fly mapping
             _helper._sparse_mask_block_size = xattention_block_size;
+            // Check sparse_mask_block_size is a multiple of vector length for correct sparse_mask indexing
+#    if defined(HAVE_AVX512F)
+            constexpr size_t vec_len = vec_len_f32_avx512;
+#    elif defined(HAVE_AVX2)
+            constexpr size_t vec_len = vec_len_f32_avx2;
+#    elif defined(OPENVINO_ARCH_ARM64)
+            constexpr size_t vec_len = vec_len_f32_neon;
+#    else
+            constexpr size_t vec_len = 1;
+#    endif
+            if (xattention_block_size % vec_len == 0) {
+                _helper._use_softmax_sparse_mask = true;
+            }
         }
 
         _helper.init(H,
