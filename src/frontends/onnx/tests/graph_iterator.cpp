@@ -7,7 +7,9 @@
 
 #include <fstream>
 #include <openvino/frontend/graph_iterator.hpp>
+#include <openvino/openvino.hpp>
 
+#include "../frontend/src/core/graph_iterator_proto.hpp"
 #include "load_from.hpp"
 #include "onnx_utils.hpp"
 #include "utils.hpp"
@@ -58,10 +60,6 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
 
     ASSERT_EQ(model->get_ordered_ops().size(), 0);
 }
-
-#include <openvino/openvino.hpp>
-
-#include "../frontend/src/core/graph_iterator_proto.hpp"
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalStreams) {
     const std::string model_name = "external_data/external_data.onnx";

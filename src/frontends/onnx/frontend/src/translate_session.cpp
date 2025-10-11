@@ -160,7 +160,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 if (telemetry && translator == nullptr) {
                     telemetry->send_event("error_cause", "onnx_" + decoder->get_op_type());
                 }
-                throw;
+                FRONT_END_THROW(error_message);
             } else {
                 if (telemetry && !error_message.empty()) {
                     std::string onnx_domain = decoder->get_domain();

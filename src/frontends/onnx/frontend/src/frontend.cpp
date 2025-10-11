@@ -84,7 +84,7 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    bool gi_enabled = std::getenv("ONNX_ITERATOR") != nullptr;
+    const bool gi_enabled = std::getenv("ONNX_ITERATOR") != nullptr;
     if (variants.empty()) {
         return nullptr;
     }
