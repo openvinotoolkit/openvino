@@ -10,6 +10,10 @@
     #include "impls/ocl_v2/sdpa/paged_attention_opt.hpp"
 #endif
 
+#if OV_GPU_WITH_CM
+    #include "impls/cm/paged_attention.hpp"
+#endif
+
 namespace ov {
 namespace intel_gpu {
 
@@ -17,6 +21,9 @@ using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<paged_attention>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
+#if OV_GPU_WITH_CM
+        OV_GPU_CREATE_INSTANCE_CM(cm::PagedAttentionImplementationManager, shape_types::any)
+#endif
         OV_GPU_CREATE_INSTANCE_OCL(ocl::PagedAttentionOpt, shape_types::any)
     };
 
