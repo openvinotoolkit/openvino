@@ -126,14 +126,12 @@ void parse_processor_info_win(const char* base_ptr,
     };
 
     auto check_numa_node = [&]() {
-        if (l3_set.size() < 64) {
-            if (cur_numa_mask == initial_numa_mask) {
-                cur_numa_mask = info->Processor.GroupMask->Group;
-            } else if (cur_numa_mask != info->Processor.GroupMask->Group) {
-                create_new_proc_line();
-                _numa_nodes++;
-                cur_numa_mask = info->Processor.GroupMask->Group;
-            }
+        if (cur_numa_mask == initial_numa_mask) {
+            cur_numa_mask = info->Processor.GroupMask->Group;
+        } else if (info->Processor.GroupMask->Group - cur_numa_mask >= ((l3_set.size() < 64) ? 1 : 2)) {
+            create_new_proc_line();
+            _numa_nodes++;
+            cur_numa_mask = info->Processor.GroupMask->Group;
         }
         return;
     };
