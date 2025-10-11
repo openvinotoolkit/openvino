@@ -1093,7 +1093,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                 for (size_t i = 0 ; i < q_input.m_rank - sink_input.m_rank; i++) {
                     sink_shape.push_back(1);
                 }
-                sink_input.reshape(sink_shape);
+                sink_input = sink_input.reshape(sink_shape);
             }
         }
 
@@ -1145,6 +1145,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         bool use_one_token = L1 == 1 || (fuse_concat && L0 > 0);
         if (!use_one_token) {
             // multi-token version
+
+            std::cout << "multi-token version: L0:" << L0 << ",L1:" << L1 << ",fuse_concat:" << fuse_concat << std::endl;
             kernel(strm,
                    q_input,
                    k_input,
@@ -1247,6 +1249,7 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     if (orginSDPInputNumber > 4) {
         config.inConfs[nextPortIdx].setMemDesc(
             creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getInputShapeAtPort(nextPortIdx)));
+        nextPortIdx++;
     }
     // sink_input
     if (orginSDPInputNumber > 5) {

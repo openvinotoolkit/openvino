@@ -10,6 +10,7 @@
 #include <cstring>
 #include <limits>
 #include <type_traits>
+#include <mutex>
 
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -291,6 +292,9 @@ inline void scale_add2_reduce_max(float* a,
         i += (size - i);
     }
     if (sink != nullptr) {
+        // static std::mutex myMutex;
+        // std::lock_guard<std::mutex> lg(myMutex);
+        // std::cout << "================== do sink softmax get max, sink:" << *sink << std::endl;
         __mmask16 mask = 1;
         v_a = _mm512_maskz_loadu_ps(mask, sink);
         v_max0 = _mm512_mask_max_ps(v_max0, mask, v_a, v_max0);
@@ -704,6 +708,9 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
         i += (size - i);
     }
     if (sink != nullptr) {
+        // static std::mutex myMutex;
+        // std::lock_guard<std::mutex> lg(myMutex);
+        // std::cout << "================== do sink softmax sum, sink:" << *sink  << "size:" << size << std::endl;
         __mmask16 mask = 1;
         v_a = _mm512_maskz_loadu_ps(mask, sink);
         v_a = _mm512_sub_ps(v_a, v_max);
@@ -736,6 +743,9 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
         i += (size - i);
     }
     if (sink != nullptr) {
+        // static std::mutex myMutex;
+        // std::lock_guard<std::mutex> lg(myMutex);
+        // std::cout << "================== do sink softmax sum, sink:" << *sink  << "size:" << size << std::endl;
         auto mask = get_mask(1);
         v_a = _mm256_maskload_ps(sink, mask);
         v_a = _mm256_sub_ps(v_a, v_max);
