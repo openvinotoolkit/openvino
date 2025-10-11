@@ -380,9 +380,9 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
         auto get_simple_pitch = [](const layout& layout) {
             size_t pitch = 1;
             auto dims_padding = layout.get_padded_dims();
-            for(size_t i = dims_padding.size() - 1; i > 0; --i) {
+            for (size_t i = dims_padding.size() - 1; i > 0; --i) {
                 pitch = dims_padding[i];
-                if(pitch > 1) {
+                if (pitch > 1) {
                     break;
                 }
             }
@@ -841,9 +841,9 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         auto get_simple_pitch = [](const layout& layout) {
             size_t pitch = 1;
             auto dims_padding = layout.get_padded_dims();
-            for(size_t i = dims_padding.size() - 1; i > 0; --i) {
+            for (size_t i = dims_padding.size() - 1; i > 0; --i) {
                 pitch = dims_padding[i];
-                if(pitch > 1) {
+                if (pitch > 1) {
                     break;
                 }
             }
@@ -874,9 +874,10 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
             size_t max_context_len = get_max_context_len(params);
             size_t past_len = get_past_len(params, 0);
             std::cout << "XAttentionEstimateGEMMQK::get_dispatch_data_func: "
-                      << "N_kq_groups: " << N_kq_groups << ", q_stride_pad: " << q_stride_pad << ", scaler_value: " << PartialShape(scaler_value) << ", kv_len: " << kv_len
-                      << ", max_context_len = " << max_context_len << ", past_len = " << past_len << ", gws: [" << wgs.global[0] << ", " << wgs.global[1]
-                      << ", " << wgs.global[2] << "]"
+                      << "N_kq_groups: " << N_kq_groups << ", q_stride_pad: " << q_stride_pad
+                      << ", scaler_value: " << PartialShape(scaler_value) << ", kv_len: " << kv_len
+                      << ", max_context_len = " << max_context_len << ", past_len = " << past_len
+                      << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
 
             dump_block_indices_begins(params);
@@ -973,8 +974,8 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
             std::cout << "XAttentionEstimateFindBlock::get_dispatch_data_func: "
                       << "xattn_thresh : " << xattn_thresh
                       << " k_block: " << k_block << ", q_block: " << q_block
-                      << " q_stride: " << q_stride << ", q_stride_pad: " << q_stride_pad << ", k_block_pad: " << k_block_pad << ", gws: [" << wgs.global[0] << ", "
-                      << wgs.global[1] << ", " << wgs.global[2] << "]"
+                      << " q_stride: " << q_stride << ", q_stride_pad: " << q_stride_pad<< ", k_block_pad: " << k_block_pad
+                      << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
 
