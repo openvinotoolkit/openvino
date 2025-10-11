@@ -32,6 +32,7 @@ void pa_lsc_u8(
 #if SPARSE_BLOCK_SIZE > 1
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
+    bool validate,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
@@ -93,9 +94,11 @@ void pa_lsc_u8(
     auto load_slm_KV = [&](int kv_pos) {
         if (kv_pos < kv_stop) {
 #if SPARSE_BLOCK_SIZE > 1
-            if (skip_load(kv_pos)) {
-                slm_buff_id_write++;
-                return;
+            if (validate) {
+                if (skip_load(kv_pos)) {
+                    slm_buff_id_write++;
+                    return;
+                }
             }
 #endif
             auto cur_block_id = block_indices[kv_pos / CMPA_BLOCK_SZ];
@@ -201,11 +204,13 @@ void pa_lsc_u8(
 
 
 #if SPARSE_BLOCK_SIZE > 1
+        if (validate) {
             if (skip_compute(kv_pos)) {
                 if constexpr (use_causal_mask)
                     causal_left -= kv_step;
                 continue;
             }
+        }
 #endif
         {
 
@@ -277,6 +282,7 @@ void pa_kernel_lsc_prefetch_f16(
 #if SPARSE_BLOCK_SIZE > 1
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
+    bool validate,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
@@ -341,6 +347,7 @@ void pa_kernel_lsc_prefetch_f16(
             cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(0));
 
 #if SPARSE_BLOCK_SIZE > 1
+            if (validate)
             {
                 auto kv_start_block = kv_pos/ SPARSE_BLOCK_SIZE;
                 bool sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);

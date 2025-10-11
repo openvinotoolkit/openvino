@@ -443,16 +443,16 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
 
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
-    const size_t block_size = get_xattn_block_size(params);
-    if (desc->has_xattention && block_size > 1) {
+    if (desc->has_xattention) {
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // sparse_block_mask
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});  // sparse_block_mask_wg
     }
 
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});           // q_len
-    if (block_size > 1) {
+    if (desc->has_xattention) {
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});       // q_block_pad
         args.push_back({ArgumentDescriptor::Types::SCALAR, 2});       // k_block_pad
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});       // validate
     }
     return args;
 }
@@ -536,16 +536,21 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
 
-        std::vector<size_t> scaler_value = {q_len};
-        const size_t block_size = get_xattn_block_size(params);
-        if (block_size > 1) {
-            scaler_value.push_back(rtp->xattn_q_block_pad);
-            scaler_value.push_back(rtp->xattn_k_block_pad);
-        }
-        scalars.resize(scaler_value.size());
-        for (size_t i = 0; i < scaler_value.size(); ++i) {
-            scalars[i].t = ScalarDescriptor::Types::INT32;
-            scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
+        auto num_scalers = desc->has_xattention ? 4 : 1;
+        scalars.resize(num_scalers);
+        scalars[0].t = ScalarDescriptor::Types::INT32;
+        scalars[0].v.s32 = static_cast<int32_t>(q_len);
+        if (num_scalers > 1) {
+            scalars[1].t = ScalarDescriptor::Types::INT32;
+            scalars[1].v.s32 = static_cast<int32_t>(rtp->xattn_q_block_pad);
+
+            scalars[2].t = ScalarDescriptor::Types::INT32;
+            scalars[2].v.s32 = static_cast<int32_t>(rtp->xattn_k_block_pad);
+
+            scalars[3].t = ScalarDescriptor::Types::UINT8;
+            const float xattn_thresh = get_xattn_thresh(params);
+            const bool validate = xattn_thresh < 1.0;
+            scalars[3].v.u8 = static_cast<uint8_t>(validate);  // validate depending on xattn_threshold
         }
     }};
 }
