@@ -1009,6 +1009,7 @@ def test_patched_bitnet_model_converts():
     from transformers import PretrainedConfig, BitNetQuantConfig
     
     rng = torch.Generator().manual_seed(42)
+    torch.manual_seed(42)
 
     class TestModel(torch.nn.Module):
         def __init__(self, size):
