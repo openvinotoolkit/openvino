@@ -695,11 +695,11 @@ class TestParallelRunner:
             logger.info("Execute jobs taken from cache and runtime")
             worker_cnt += self.__execute_tests(test_filters, worker_cnt)
 
-        logger.info("Here we are")
+        # logger.info("Here we are")
         not_runned_tests, interapted_tests = self.__find_not_runned_tests()
-        logger.info(f"Here are {len(interapted_tests)} bad tests")
-        for bad in interapted_tests:
-            logger.info(f"Bad test : {bad}")
+        # logger.info(f"Here are {len(interapted_tests)} bad tests")
+        # for bad in interapted_tests:
+            # logger.info(f"Bad test : {bad}")
         if self._repeat_failed:
             if len(not_runned_tests) > 0:
                 logger.info(f"Execute not runned {len(not_runned_tests)} tests")
@@ -1030,6 +1030,16 @@ class TestParallelRunner:
         logger.info(
             f"Total test count with disabled tests is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}"
         )
+        ##
+        logger.info("Here we are.")
+        if "failed" in test_results:
+            logger.info(f"Failed tests ({test_results['failed']}):")
+            for hash, (dir_name, test_name) in hash_map.items():
+                if dir_name == "failed":
+                    logger.info(f"  {test_name}")
+        else:
+            logger.info("No failed tests detected.")
+        ##
         return is_successfull_run
 
 
