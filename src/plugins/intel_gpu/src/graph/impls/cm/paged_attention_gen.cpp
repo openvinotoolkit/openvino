@@ -208,11 +208,13 @@ size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx) {
     return paged_attention_past_len;
 }
 
-const float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx) {
-    (void) seq_idx; // TODO
-
-    static const char* env = std::getenv("OV_GPU_XATTN_THRESH");
-    static const float thresh = env ? std::strtof(env, nullptr) : 0.9;
+// TODO: change xattn_thresh from scaler to memory... once we remove the converter node
+// between parameter node "xattention_threshold.xxx" and paged_attention node.
+const float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
+    const auto& input_mem = params.memory_deps;
+    const auto threshold_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
+    mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm); // converted
+    const auto thresh = static_cast<float>(lock[seq_idx]);
     return thresh;
 }
 
@@ -953,7 +955,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         const uint32_t q_block = ceil_div(q_stride, sum_per_n_token_in_block);
         const uint32_t k_block = ceil_div(k_stride, sum_per_n_token_in_block);
 
-        const float xattn_thresh = get_xattn_thresh(params, 0); // TODO: seq_idx
+        const float xattn_thresh = get_xattn_thresh(params);
 
         wgs.global = {q_block_pad, heads_num, 1};
         wgs.local = {1, 1, 1};
