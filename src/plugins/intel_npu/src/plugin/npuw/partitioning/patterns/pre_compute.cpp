@@ -15,12 +15,6 @@
 namespace opp = ov::pass::pattern;
 
 namespace {
-template <typename T>
-std::shared_ptr<ov::Node> makeConst(const ov::element::Type& type,
-                                    const ov::Shape& shape,
-                                    const std::vector<T>& values) {
-    return std::make_shared<ov::op::v0::Constant>(type, shape, values);
-}
 // TODO: copied from common tests
 static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
                                         const std::shared_ptr<ov::Node> inverse_frequencies) {
@@ -48,8 +42,10 @@ static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
             psin[k + rotary_ndims / 2] = psin[k];
         }
     }
-    auto Cos = makeConst(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_cos);
-    auto Sin = makeConst(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_sin);
+    auto Cos =
+        ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_cos);
+    auto Sin =
+        ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_sin);
 
     return {Cos, Sin};
 }
@@ -160,30 +156,4 @@ ov::npuw::patterns::pre_compute::RopeInverseFreq::RopeInverseFreq(
 bool ov::npuw::patterns::pre_compute::RopeCache::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::npuw::patterns::pre_compute::RopeCacheMatcher ropeCache(m_max_prompt_len, model);
     return true;
-}
-
-//     Const -------> Gather ---> Convert ---> Squeeze ---> Unsqeeze
-//     Parameter --->
-ov::npuw::patterns::pre_compute::PreserveConstsRope::PreserveConstsRope(
-    ov::npuw::patterns::pre_compute::PreserveConstsRope::Results to_keep) {
-    auto pids = opp::wrap_type<ov::op::v0::Parameter>();
-
-    auto cnst = opp::wrap_type<ov::op::v0::Constant>();
-    auto gather = opp::wrap_type<ov::op::v8::Gather>({cnst, pids, opp::any_input()});
-
-    auto cvtg = opp::wrap_type<ov::op::v0::Convert>({gather});
-    auto squeeze = opp::wrap_type<ov::op::v0::Squeeze>({cvtg, opp::any_input()});
-    auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({squeeze, opp::any_input()});
-
-    // Note: Use [=] to make sure the above objects stay alive in the callback
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-
-        auto matched_node_cnst = node_to_output.at(cnst).get_node_shared_ptr();
-        auto matched_cnst = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_cnst);
-
-        to_keep.get().push_back(matched_cnst);
-        return false;  // root hasn't changed
-    };
-    register_matcher(std::make_shared<opp::Matcher>(unsqueeze, "PrecomputePreserveConstsRope"), std::move(callback));
 }
