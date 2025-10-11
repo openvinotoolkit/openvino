@@ -204,9 +204,8 @@ void regclass_graph_Model(py::module m) {
                     :type name: str
                 )");
 
-    model.def(
-        py::init([](const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name) {
-            return make_model_with_tensor_names(ov::as_output_vector(results), parameters, name);
+    model.def(py::init([](const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name) {
+        return make_model_with_tensor_names(ov::as_output_vector(results), parameters, name);
         }),
         py::arg("results"),
         py::arg("parameters"),
@@ -488,6 +487,104 @@ void regclass_graph_Model(py::module m) {
         )");
 
     model.def("validate_nodes_and_infer_types", &ov::Model::validate_nodes_and_infer_types);
+
+    model.def(
+        "reshape",
+        [](ov::Model& self, const py::object& shapes) {
+            std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+            if (py::isinstance<py::dict>(shapes)) {
+                py::dict shapes_dict = shapes.cast<py::dict>();
+                for (auto& item : shapes_dict) {
+                    new_shapes.emplace(output_from_handle(self, item.first), partial_shape_from_handle(item.second));
+                }
+            } else if (py::isinstance<py::tuple>(shapes) || py::isinstance<py::list>(shapes)) {
+                py::list shapes_list = py::isinstance<py::tuple>(shapes) ? py::cast<py::list>(shapes) : shapes.cast<py::list>();
+                if (!shapes_list.empty() &&
+                    (py::isinstance<py::list>(shapes_list[0]) || py::isinstance<py::tuple>(shapes_list[0]) ||
+                     py::isinstance<py::str>(shapes_list[0]) || py::isinstance<ov::Shape>(shapes_list[0]) ||
+                     py::isinstance<ov::PartialShape>(shapes_list[0]))) {
+                    if (shapes_list.size() != self.inputs().size()) {
+                        throw py::value_error("Number of provided shapes does not match number of model inputs");
+                    }
+                    for (size_t i = 0; i < shapes_list.size(); ++i) {
+                        new_shapes[self.inputs()[i]] = partial_shape_from_handle(shapes_list[i]);
+                    }
+                } else {
+                    new_shapes[self.inputs()[0]] = Common::partial_shape_from_list(shapes_list);
+                }
+            } else if (py::isinstance<py::str>(shapes)) {
+                new_shapes[self.inputs()[0]] = ov::PartialShape(shapes.cast<std::string>());
+            } else if (py::isinstance<ov::Shape>(shapes) || py::isinstance<ov::PartialShape>(shapes)) {
+                new_shapes[self.inputs()[0]] = shapes.cast<ov::PartialShape>();
+            } else {
+                throw py::type_error("shapes must be a list, tuple, dict, string, Shape, or PartialShape");
+            }
+            ConditionalGILScopedRelease release;
+            self.reshape(new_shapes);
+        },
+        py::arg("shapes"),
+        R"(
+            Reshape model inputs from various input types.
+
+            This overload accepts multiple input types describing the new input shapes.
+
+            Supported input types:
+            - list: List of shapes for multi-input or single-input reshaping
+            - tuple: Tuple of shapes (converted to list internally)
+            - dict: Dictionary mapping input identifiers to shapes
+            - str: String representation of shape (single input only)
+            - Shape: OpenVINO Shape object (single input only)
+            - PartialShape: OpenVINO PartialShape object (single input only)
+
+            List/Tuple behavior:
+            - Multi-input models: pass a list/tuple whose length equals the number of model inputs; each element
+              must be a list or tuple describing the corresponding input's dimensions.
+            - Single-input reshape (including multi-input models): pass a flat list or tuple of dimensions
+              to reshape only the first input; other inputs remain unchanged.
+
+            Dict behavior:
+            - Keys can be: int (input index), str (tensor name), or openvino.Output
+            - Values can be: openvino.PartialShape, list, tuple, or str
+            - Only specified inputs are reshaped; others remain unchanged
+
+            String behavior:
+            - Single input reshape using string syntax like "1..10,?,3"
+            - Supports dynamic dimension syntax: ?, 1..10, ..10, 1..
+
+            Shape/PartialShape behavior:
+            - Single input reshape using OpenVINO shape objects
+            - Direct conversion to PartialShape
+
+            Allowed dimension encodings inside per-input shapes (lists or tuples):
+            (1) non-negative int — static dimension
+            (2) -1 — fully dynamic dimension
+            (3) (min, max) — dynamic dimension with inclusive integer bounds; use -1 for unknown bound
+
+            Errors:
+            - TypeError: if input is not a supported type
+            - TypeError: if for multi-input usage any element is not a list or tuple
+            - ValueError: if the number of shapes does not match the number of model inputs (multi-input usage)
+            - TypeError: if a dimension value is not an int or a (min, max) tuple of ints
+
+            Examples:
+            - Multi-input reshape (all inputs):
+              model.reshape([[2, 2], [1, 3, 224, 244]])
+            - Single-input reshape on a multi-input model (first input only):
+              model.reshape([2, 2])
+            - Tuple input:
+              model.reshape((2, 2))
+            - Single-input with dynamic dimensions:
+              model.reshape([-1, 3, (28, 56)])
+            - String input:
+              model.reshape("1..10,?,3")
+            - Shape object:
+              model.reshape(Shape([2, 2]))
+            - Dict reshape by name:
+              model.reshape({"input1": [2, 2], "input2": [1, 3, 224, 224]})
+            - Dict reshape by index:
+              model.reshape({0: [2, 2], 1: [1, 3, 224, 224]})
+        )"
+    );    
 
     model.def(
         "reshape",
@@ -846,7 +943,7 @@ void regclass_graph_Model(py::module m) {
                                         :rtype: op.Result
                                     )");
     model.def("get_result_index",
-              (int64_t(ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
+              (int64_t (ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
               py::arg("value"),
               R"(
                     Return index of result.
@@ -859,7 +956,7 @@ void regclass_graph_Model(py::module m) {
                     :rtype: int
                  )");
     model.def("get_result_index",
-              (int64_t(ov::Model::*)(const ov::Output<const ov::Node>&) const) & ov::Model::get_result_index,
+              (int64_t (ov::Model::*)(const ov::Output<const ov::Node>&) const) & ov::Model::get_result_index,
               py::arg("value"),
               R"(
                     Return index of result.
@@ -1003,36 +1100,38 @@ void regclass_graph_Model(py::module m) {
 
                                         :rtype: bool
                                     )");
-    model.def("input", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::input);
+    model.def("input", (ov::Output<ov::Node> (ov::Model::*)())&ov::Model::input);
 
-    model.def("input", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::input, py::arg("index"));
-
-    model.def("input",
-              (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::input,
-              py::arg("tensor_name"));
-
-    model.def("input", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::input);
-
-    model.def("input", (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::input, py::arg("index"));
+    model.def("input", (ov::Output<ov::Node> (ov::Model::*)(size_t))&ov::Model::input, py::arg("index"));
 
     model.def("input",
-              (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::input,
+              (ov::Output<ov::Node> (ov::Model::*)(const std::string&))&ov::Model::input,
               py::arg("tensor_name"));
 
-    model.def("output", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::output);
+    model.def("input", (ov::Output<const ov::Node> (ov::Model::*)() const) & ov::Model::input);
 
-    model.def("output", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::output, py::arg("index"));
+    model.def("input", (ov::Output<const ov::Node> (ov::Model::*)(size_t) const) & ov::Model::input, py::arg("index"));
 
-    model.def("output",
-              (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::output,
+    model.def("input",
+              (ov::Output<const ov::Node> (ov::Model::*)(const std::string&) const) & ov::Model::input,
               py::arg("tensor_name"));
 
-    model.def("output", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::output);
+    model.def("output", (ov::Output<ov::Node> (ov::Model::*)())&ov::Model::output);
 
-    model.def("output", (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::output, py::arg("index"));
+    model.def("output", (ov::Output<ov::Node> (ov::Model::*)(size_t))&ov::Model::output, py::arg("index"));
 
     model.def("output",
-              (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::output,
+              (ov::Output<ov::Node> (ov::Model::*)(const std::string&))&ov::Model::output,
+              py::arg("tensor_name"));
+
+    model.def("output", (ov::Output<const ov::Node> (ov::Model::*)() const) & ov::Model::output);
+
+    model.def("output",
+              (ov::Output<const ov::Node> (ov::Model::*)(size_t) const) & ov::Model::output,
+              py::arg("index"));
+
+    model.def("output",
+              (ov::Output<const ov::Node> (ov::Model::*)(const std::string&) const) & ov::Model::output,
               py::arg("tensor_name"));
 
     model.def(
@@ -1095,7 +1194,7 @@ void regclass_graph_Model(py::module m) {
 
     model.def(
         "get_parameter_index",
-        (int64_t(ov::Model::*)(const std::shared_ptr<ov::op::v0::Parameter>&) const) & ov::Model::get_parameter_index,
+        (int64_t (ov::Model::*)(const std::shared_ptr<ov::op::v0::Parameter>&) const) & ov::Model::get_parameter_index,
         py::arg("parameter"),
         R"(
                     Return the index position of `parameter`
@@ -1456,8 +1555,8 @@ void regclass_graph_Model(py::module m) {
         :rtype: int
     )");
 
-    model.def_property_readonly("inputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::inputs);
-    model.def_property_readonly("outputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::outputs);
+    model.def_property_readonly("inputs", (std::vector<ov::Output<ov::Node>> (ov::Model::*)())&ov::Model::inputs);
+    model.def_property_readonly("outputs", (std::vector<ov::Output<ov::Node>> (ov::Model::*)())&ov::Model::outputs);
     model.def_property_readonly("name", &ov::Model::get_name);
     model.def_property_readonly("rt_info",
                                 (PyRTMap & (ov::Model::*)()) & ov::Model::get_rt_info,
