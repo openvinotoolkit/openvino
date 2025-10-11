@@ -62,7 +62,7 @@ size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
 size_t get_partition_size(const bool has_xattention);
 size_t get_partition_num(const size_t kv_len, const bool has_xattention);
 
-const float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx);
+const float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
 inline size_t get_xattn_block_size(const kernel_impl_params& impl_param) {
     return impl_param.get_program().get_config().get_xattention_block_size();
 }
