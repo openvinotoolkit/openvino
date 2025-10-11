@@ -40,7 +40,7 @@ except:
 
 FILENAME_LENGTH = 255
 LOG_NAME_REPLACE_STR = "##NAME##"
-DEFAULT_PROCESS_TIMEOUT = 3600
+DEFAULT_PROCESS_TIMEOUT = 13600
 DEFAULT_SUITE_TIMEOUT = 3600
 DEFAULT_TEST_TIMEOUT = 900
 MAX_LENGHT = 4096 if not constants.IS_WIN else 8191
@@ -695,10 +695,17 @@ class TestParallelRunner:
             logger.info("Execute jobs taken from cache and runtime")
             worker_cnt += self.__execute_tests(test_filters, worker_cnt)
 
+        # logger.info("Here we are")
         not_runned_tests, interapted_tests = self.__find_not_runned_tests()
+        # logger.info(f"Here are {len(interapted_tests)} bad tests")
+        # for bad in interapted_tests:
+            # logger.info(f"Bad test : {bad}")
         if self._repeat_failed:
             if len(not_runned_tests) > 0:
                 logger.info(f"Execute not runned {len(not_runned_tests)} tests")
+                logger.info(f"Bad tests: ")
+                for bad in not_runned_tests:
+                    logger.info(f"Bad test: {bad}")
                 not_runned_test_filters = [
                     f'"{self.__replace_restricted_symbols(test)}"'
                     for test in not_runned_tests
@@ -1002,6 +1009,9 @@ class TestParallelRunner:
 
         is_successfull_run = True
         test_cnt = 0
+        # for test_st, test_res in test_results.items():
+        #     if "{test_st}" == "failed":
+
         for test_st, test_res in test_results.items():
             logger.info(f"{test_st} test counter is: {test_res}")
             test_cnt += test_res
@@ -1020,6 +1030,16 @@ class TestParallelRunner:
         logger.info(
             f"Total test count with disabled tests is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}"
         )
+        ##
+        logger.info("Here we are.")
+        if "failed" in test_results:
+            logger.info(f"Failed tests ({test_results['failed']}):")
+            for hash, (dir_name, test_name) in hash_map.items():
+                if dir_name == "failed":
+                    logger.info(f"  {test_name}")
+        else:
+            logger.info("No failed tests detected.")
+        ##
         return is_successfull_run
 
 
