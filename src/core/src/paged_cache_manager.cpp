@@ -77,7 +77,7 @@ size_t PagedCacheManager::register_operator(const size_t block_size,
 
     operator_state state;
     state.node_id = m_node_id++;
-    compute_operator_cache_geometry(state);
+    compute_operator_cache_geometry(state, block_size, num_heads, key_head_size, value_head_size, query_head_size);
     m_ops.emplace(state.node_id, std::move(state));
 
     return state.node_id;
