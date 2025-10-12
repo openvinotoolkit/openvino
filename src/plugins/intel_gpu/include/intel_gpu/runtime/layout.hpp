@@ -320,6 +320,13 @@ struct layout {
     // element == { 0,0,0,0 } means first no-padding (i.e. data) element
     size_t get_linear_offset(tensor element = tensor(0)) const;
 
+    // Sets up variables needed to get linear offset for a tensor with given layout including padding
+    // axes_start and axes_end provides start and end coordinates for the axes. 
+    void setup_fast_liner_offset(tensor& axes_start_point, tensor& axes_end_point);
+
+    // Compute linear offset for a given tensor for which setup_fast_liner_offset() was called
+    size_t get_linear_offset_fast(int64_t* element_sizes) const;
+
     /// @brief Get aligned linear size calculated as multiplication of all elements.
     size_t get_linear_size() const;
 
@@ -464,6 +471,8 @@ struct layout {
 private:
     /// The size of the @ref memory (excluding padding)
     ov::PartialShape size;
+    std::vector<int64_t> _padded_sizes;
+    std::vector<int64_t> _axes_size_map;
 };
 
 inline ::std::ostream& operator<<(::std::ostream& os, const layout& p) {
