@@ -62,6 +62,9 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_ALIBI
     const __global ALIBI_INPUT_TYPE* alibi_slopes,
 #endif
+#if HAS_SINK_INPUT
+    const __global SINK_DATA_T* sink_ptr,
+#endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
     __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
@@ -341,7 +344,13 @@ KERNEL(pa_sdpa_opt)(
 
         // Final max value after reduction across of all SG and WI
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
+            #ifdef HAS_SINK_INPUT
+            const uint head_idx = GET_MULTIPLE_HEAD_IDX_OR_FIXED_VAL(sglid, 0);
+            const SOFTMAX_ACCUMULATOR_TYPE qk_max_tmp = sub_group_reduce_max(GET_VECTOR_ELEMENT(qk_max, q_idx));
+            GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp > sink_ptr[head_idx] ? qk_max_tmp : sink_ptr[head_idx];
+            #else
             GET_VECTOR_ELEMENT(qk_max, q_idx) = sub_group_reduce_max(GET_VECTOR_ELEMENT(qk_max, q_idx));
+            #endif
         }
 
         SOFTMAX_ACCUMULATOR_VEC_TYPE exp_sum = SOFTMAX_ACCUMULATOR_VAL_ZERO;
@@ -368,6 +377,10 @@ KERNEL(pa_sdpa_opt)(
 
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
             GET_VECTOR_ELEMENT(exp_sum, q_idx) = sub_group_reduce_add(GET_VECTOR_ELEMENT(exp_sum, q_idx));
+            #ifdef HAS_SINK_INPUT
+            const uint head_idx = GET_MULTIPLE_HEAD_IDX_OR_FIXED_VAL(sglid, 0);
+            GET_VECTOR_ELEMENT(exp_sum, q_idx) += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[head_idx] - GET_VECTOR_ELEMENT(qk_max, q_idx))));
+            #endif
         }
 
         if (sglid < QUERIES_PER_WI) {
