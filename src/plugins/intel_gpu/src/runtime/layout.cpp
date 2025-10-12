@@ -335,6 +335,37 @@ std::vector<tensor::value_type> layout::get_pitches() const {
     return pitches;
 }
 
+void layout::setup_fast_liner_offset(tensor& axes_start_point, tensor& axes_end_point) {
+    auto default_fmt = format::get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
+
+    std::vector<tensor::value_type> lower_sizes, upper_sizes;
+    lower_sizes.assign(data_padding._lower_size.begin(), data_padding._lower_size.begin() + format.dimension());
+    upper_sizes.assign(data_padding._upper_size.begin(), data_padding._upper_size.begin() + format.dimension());
+    axes_start_point = tensor(default_fmt, lower_sizes, 0);
+    const auto& u_padd = tensor(default_fmt, upper_sizes, 0);
+
+    auto t = get_tensor();
+    axes_end_point = t + axes_start_point;
+
+    for (auto& d : t.raw) {
+        if (d == 0)
+            d = 1;
+    }
+
+    const auto& padded_size = t + axes_start_point + u_padd;
+    _padded_sizes = padded_size.sizes(format);
+    _axes_size_map = axes_start_point.get_axes_size_map(format);
+}
+
+size_t layout::get_linear_offset_fast(int64_t* element_sizes) const {
+    size_t offset = element_sizes[_axes_size_map[0]];
+
+    for (size_t i = 1; i < _axes_size_map.size(); i++) {
+        offset = offset * _padded_sizes[i] + element_sizes[_axes_size_map[i]];
+    }
+
+    return offset;
+}
 
 size_t layout::get_linear_offset(tensor element) const {
     auto default_fmt = format::get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
