@@ -350,29 +350,37 @@ public:
         auto unsqueeze3 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze2, opp::any_input()});
         auto lessequal = opp::wrap_type<ov::op::v1::LessEqual>({unsqueeze3, opp::any_input()});
 
-        register_matcher(std::make_shared<opp::Matcher>(lessequal, this->get_type_info().name), [model](opp::Matcher& m) {
-            auto node = m.get_match_root();
-            auto attention_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
-            attention_mask->get_output_tensor(0).set_names({"attention_mask"});
-            model->add_parameters({attention_mask});
+        register_matcher(
+            std::make_shared<opp::Matcher>(lessequal, this->get_type_info().name),
+            [model](opp::Matcher& m) {
+                auto node = m.get_match_root();
+                auto attention_mask =
+                    std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+                attention_mask->get_output_tensor(0).set_names({"attention_mask"});
+                model->add_parameters({attention_mask});
 
-            auto cst_0 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 0);
-            auto cst_1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 1);
-            auto cst_2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 2);
+                auto cst_0 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 0);
+                auto cst_1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 1);
+                auto cst_2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 2);
 
-            auto attn_mask_shape = std::make_shared<ov::op::v3::ShapeOf>(attention_mask, ov::element::i64)->output(0);
-            auto gather = std::make_shared<ov::op::v8::Gather>(attn_mask_shape, cst_1, cst_0)->output(0);
-            auto attn_mask_size_minus_one = std::make_shared<ov::op::v1::Subtract>(gather, cst_1)->output(0);
-            auto slice = std::make_shared<ov::op::v8::Slice>(attention_mask->output(0), cst_0, attn_mask_size_minus_one, cst_1, cst_1);
+                auto attn_mask_shape =
+                    std::make_shared<ov::op::v3::ShapeOf>(attention_mask, ov::element::i64)->output(0);
+                auto gather = std::make_shared<ov::op::v8::Gather>(attn_mask_shape, cst_1, cst_0)->output(0);
+                auto attn_mask_size_minus_one = std::make_shared<ov::op::v1::Subtract>(gather, cst_1)->output(0);
+                auto slice = std::make_shared<ov::op::v8::Slice>(attention_mask->output(0),
+                                                                 cst_0,
+                                                                 attn_mask_size_minus_one,
+                                                                 cst_1,
+                                                                 cst_1);
 
-            auto unsqueeze_1 = std::make_shared<ov::op::v0::Unsqueeze>(slice->output(0), cst_1->output(0));
-            auto unsqueeze_2 = std::make_shared<ov::op::v0::Unsqueeze>(unsqueeze_1->output(0), cst_2->output(0));
+                auto unsqueeze_1 = std::make_shared<ov::op::v0::Unsqueeze>(slice->output(0), cst_1->output(0));
+                auto unsqueeze_2 = std::make_shared<ov::op::v0::Unsqueeze>(unsqueeze_1->output(0), cst_2->output(0));
 
-            auto equal = std::make_shared<ov::op::v1::Equal>(unsqueeze_2->output(0), cst_0->output(0));
+                auto equal = std::make_shared<ov::op::v1::Equal>(unsqueeze_2->output(0), cst_0->output(0));
 
-            ov::replace_node(node, equal);
-            return false;
-        });
+                ov::replace_node(node, equal);
+                return false;
+            });
     }
 };
 
@@ -389,8 +397,8 @@ public:
         const auto kAttnMaskPort = 3;
         for (auto node : model->get_ops()) {
             if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(node)) {
-                if (node->inputs().size() > kAttnMaskPort && ov::is_type<ov::op::v8::Slice>(
-                    node->input(kAttnMaskPort).get_source_output().get_node())) {
+                if (node->inputs().size() > kAttnMaskPort &&
+                    ov::is_type<ov::op::v8::Slice>(node->input(kAttnMaskPort).get_source_output().get_node())) {
                     self_attn_nodes.push_back(node);
                 } else {
                     cross_attn_nodes.push_back(node);
@@ -453,8 +461,7 @@ public:
                         cross_attn_node->input(1).get_source_output(),
                         cross_attn_node->input(2).get_source_output(),
                         unsq2->output(0),
-                        false
-                    );
+                        false);
                     ov::replace_node(cross_attn_node, sdpa);
                 } else {
                     cross_attn_node->input(3).replace_source_output(unsq2->output(0));
@@ -692,7 +699,7 @@ void add_attention_mask_input(std::shared_ptr<ov::Model> model,
         rewr.add_matcher<AttentionMaskInput>(model, max_prompt_size, lhs_seq_size, transform_cross_attn);
     } else {
         rewr.add_matcher<AttentionMaskInputPast>(model);
-        rewr.add_matcher<AttentionMaskInputPast_2>(model); // transformers>=4.53
+        rewr.add_matcher<AttentionMaskInputPast_2>(model);  // transformers>=4.53
     }
 
     rewr.run_on_model(model);

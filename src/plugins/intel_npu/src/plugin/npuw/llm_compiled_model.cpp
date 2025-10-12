@@ -9,8 +9,8 @@
 #include "openvino/op/greater.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
-#include "openvino/op/util/node_util.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/util/node_util.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -1060,7 +1060,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_kvcache_desc =
         KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
 
-
     uint32_t whisper_lhs_seq_size = 0;  // Not applicable for LLMs/VLMs
     if (m_is_whisper) {
         axes = KVAxesPosition{whisper_batch_dim, whisper_seq_len_dim};
@@ -1202,7 +1201,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         merge_config_with(prefill_config, no_runtime_fallback);
         merge_config_with(generate_config, no_runtime_fallback);
     }
-        
+
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
     }

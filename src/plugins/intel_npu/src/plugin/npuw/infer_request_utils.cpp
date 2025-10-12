@@ -150,4 +150,3 @@ std::optional<ov::Output<const ov::Node>> ov::npuw::util::find_port_by_name(
     }
     return std::make_optional(*it);
 }
-

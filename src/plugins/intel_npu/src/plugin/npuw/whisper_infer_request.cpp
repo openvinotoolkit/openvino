@@ -7,9 +7,9 @@
 #include <regex>
 
 #include "../../utils/include/intel_npu/utils/zero/zero_remote_tensor.hpp"
+#include "infer_request_utils.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "infer_request_utils.hpp"
 
 namespace {
 

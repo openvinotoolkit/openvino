@@ -6,11 +6,11 @@
 
 #include <regex>
 
+#include "infer_request_utils.hpp"
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "infer_request_utils.hpp"
 #include "util.hpp"
 
 namespace {
@@ -352,7 +352,8 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                     return;
                 }
 
-                auto new_tensor_slice = ov::npuw::util::make_tensor_slice(infer_tensor, low_rank_dim, 0u, state_tensor_rank);
+                auto new_tensor_slice =
+                    ov::npuw::util::make_tensor_slice(infer_tensor, low_rank_dim, 0u, state_tensor_rank);
                 if (low_rank_dim == 1) {
                     copy_columns_by_row_chunks_2d(state_tensor, new_tensor_slice);
                 } else {
@@ -426,11 +427,15 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - tokens_in_present_chunk;
             if (tokens_in_past_chunks > 0) {
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
-                auto prefill_past_kv_chunks =
-                    uu::make_tensor_slice(prefill_past_kv, pre_kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                auto prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv,
+                                                                    pre_kv_dim,
+                                                                    0u,
+                                                                    static_cast<uint32_t>(tokens_in_past_chunks));
 
-                auto kvcache_past_kv_chunks =
-                    uu::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
+                                                                    gen_kv_dim,
+                                                                    0u,
+                                                                    static_cast<uint32_t>(tokens_in_past_chunks));
 
                 uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
             }
@@ -438,21 +443,22 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             // Copy part 2 KV results
             auto prefill_present_kv_chunk =
                 uu::make_tensor_slice(prefill_out_tensor,
-                                        pre_kv_dim,
-                                        static_cast<uint32_t>(prefill_chunk_size - tokens_in_present_chunk),
-                                        static_cast<uint32_t>(prefill_chunk_size));
+                                      pre_kv_dim,
+                                      static_cast<uint32_t>(prefill_chunk_size - tokens_in_present_chunk),
+                                      static_cast<uint32_t>(prefill_chunk_size));
 
             auto kvcache_last_kv_chunk = uu::make_tensor_slice(kvcache_in_tensor,
-                                                           gen_kv_dim,
-                                                           static_cast<uint32_t>(tokens_in_past_chunks),
-                                                           kvcache_desc.num_stored_tokens);
+                                                               gen_kv_dim,
+                                                               static_cast<uint32_t>(tokens_in_past_chunks),
+                                                               kvcache_desc.num_stored_tokens);
 
             uu::copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, pre_kv_dim, gen_kv_dim);
         } else {
-            auto prefill_out_slice = uu::make_tensor_slice(prefill_out_tensor,
-                                                       pre_kv_dim,
-                                                       kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                                       kvcache_desc.max_prompt_size);
+            auto prefill_out_slice =
+                uu::make_tensor_slice(prefill_out_tensor,
+                                      pre_kv_dim,
+                                      kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
+                                      kvcache_desc.max_prompt_size);
 
             auto kvcache_in_slice =
                 uu::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);
@@ -487,9 +493,9 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
         auto dst_tensor = request->get_tensor(in_ports.at(input_name));
         const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
         auto dst_slice = uu::make_tensor_slice(dst_tensor,
-                                           kv_dim,
-                                           kvcache_desc.num_stored_tokens - num_tokens,
-                                           kvcache_desc.num_stored_tokens);
+                                               kv_dim,
+                                               kvcache_desc.num_stored_tokens - num_tokens,
+                                               kvcache_desc.num_stored_tokens);
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
 
         // NOTE: Sometimes present kv layer can contain greater seq_len
@@ -825,7 +831,8 @@ void ov::npuw::LLMInferRequest::infer() {
 
     auto token_type_ids = ov::npuw::util::TensorPtr();
 
-    if (auto type_ids_port = ov::npuw::util::find_port_by_name(inputs, layer_names::token_type_ids); type_ids_port.has_value()) {
+    if (auto type_ids_port = ov::npuw::util::find_port_by_name(inputs, layer_names::token_type_ids);
+        type_ids_port.has_value()) {
         token_type_ids = get_tensor(type_ids_port.value());
     }
 
