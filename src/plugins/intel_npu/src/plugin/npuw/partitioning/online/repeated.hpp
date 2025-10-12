@@ -23,7 +23,7 @@ struct Repeated {
         bool operator==(const Archetype& other) const;
     };
 
-    Repeated(size_t id) : m_id(id) {}
+    explicit Repeated(size_t id) : m_id(id) {}
 
     void exclude();
     void resetExclude();
@@ -31,7 +31,7 @@ struct Repeated {
     std::string id() const;
 
     bool m_excluded = false;
-    size_t m_id;
+    size_t m_id = 0;
 };
 
 struct Interconnect {
