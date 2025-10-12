@@ -43,7 +43,7 @@ layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_imp
 }
 
 template<typename ShapeType>
-std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*node*/, const kernel_impl_params& impl_param) {
+std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& node, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<broadcast>();
     auto input0_layout = impl_param.get_input_layout(0);
 
@@ -52,6 +52,10 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         output_type = impl_param.get_output_element_type();
     }
 
+    // If node is output by fusing of coming reorder, then selected output data_type should be used.
+    if (node.is_output() && desc->output_data_types[0].has_value()) {
+        output_type = desc->output_data_types[0].value();
+    }
 
     ov::op::v3::Broadcast op;
     op.set_broadcast_spec(desc->broadcast_mode);

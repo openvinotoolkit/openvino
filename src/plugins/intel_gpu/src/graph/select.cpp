@@ -32,7 +32,7 @@ layout select_inst::calc_output_layout(select_node const& node, kernel_impl_para
 }
 
 template<typename ShapeType>
-std::vector<layout> select_inst::calc_output_layouts(const select_node& /*node*/, const kernel_impl_params& impl_param) {
+std::vector<layout> select_inst::calc_output_layouts(const select_node& node, const kernel_impl_params& impl_param) {
     auto input0_layout = impl_param.get_input_layout(0);
     auto input1_layout = impl_param.get_input_layout(1);
     auto input2_layout = impl_param.get_input_layout(2);
@@ -41,6 +41,11 @@ std::vector<layout> select_inst::calc_output_layouts(const select_node& /*node*/
     auto dt = desc->output_data_types[0].value_or(input1_layout.data_type);
     if (impl_param.has_fused_primitives()) {
         dt = impl_param.get_output_element_type();
+    }
+
+    // If node is output by fusing of coming reorder, then selected output data_type should be used.
+    if (node.is_output() && desc->output_data_types[0].has_value()) {
+        dt = desc->output_data_types[0].value();
     }
 
     ov::op::v1::Select op;
