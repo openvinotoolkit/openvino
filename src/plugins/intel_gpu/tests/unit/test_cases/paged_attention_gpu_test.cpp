@@ -224,6 +224,8 @@ struct PagedAttentionManager {
         return get_QKV_memory(value_data, num_kv_heads, v_head_size, true);
     }
 
+/* TODO: These CM kernels test should be run only if CM compiler is ready on the system */
+#define ENABLE_PA_CM_PATH 1 // Define it here to make the build passed
 #if ENABLE_PA_CM_PATH
     memory::ptr get_key_cache_memory() {
         auto key_cache_dt = data_types::f16;
