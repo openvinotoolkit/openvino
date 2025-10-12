@@ -530,6 +530,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_elementwise(S_tile, scale);
 #endif // LOG_2_MUL_SCALE
         tile_binary(S_tile, mask_tile_float, binary_add);
+#elif IS_CAUSAL && HAS_SINK_INPUT
+#define scale(x) ((x)* scale)
+        tile_elementwise(S_tile, scale);
 #endif
 
         /* Apply k mask */
@@ -542,6 +545,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #define greater_than(offset_k, offset_q) (offset_k > offset_q || offset_k <= (offset_q - SLIDING_WINDOW_SIZE))
     #else
         #define greater_than(offset_k, offset_q) (offset_k > offset_q)
+    #endif
+
     #endif
 
         int col_offset = wg_j0 + sg_j0_kq;
