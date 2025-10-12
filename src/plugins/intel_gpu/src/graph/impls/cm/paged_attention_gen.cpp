@@ -837,7 +837,7 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
 
         const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);   //# will slient drop the tails which is less than `stride`
         const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
-        const uint32_t K = STRIDE * head_size;
+        const uint32_t K = static_cast<uint32_t>(STRIDE * head_size);
         auto get_simple_pitch = [](const layout& layout) {
             size_t pitch = 1;
             auto dims_padding = layout.get_padded_dims();
@@ -849,8 +849,8 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
             }
             return pitch;
         };
-        const uint32_t query_pitch = get_simple_pitch(querry_layout) * STRIDE;
-        const uint32_t slice_no = 0, slice = 0;
+        const size_t query_pitch = get_simple_pitch(querry_layout) * STRIDE;
+        const size_t slice_no = 0, slice = 0;
 
         const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
         const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
@@ -951,7 +951,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         const uint32_t q_stride = M;
         const uint32_t k_stride = N;
         const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
-        const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
+        const uint32_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
 
         const uint32_t sum_per_token_in_block = static_cast<uint32_t>(block_size / STRIDE);
         const uint32_t k_block_in_group = static_cast<uint32_t>(BLOCK_WG_N / sum_per_token_in_block);
@@ -1034,7 +1034,7 @@ DispatchDataFunc XAttentionEstimatePostProc::get_dispatch_data_func() const {
         const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);   //# will slient drop the tails which is less than `stride`
         const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
         const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
-        const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
+        const uint32_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
 
         const uint32_t sum_per_token_in_block = static_cast<uint32_t>(block_size / STRIDE);
         const uint32_t k_block_in_group = static_cast<uint32_t>(BLOCK_WG_N / sum_per_token_in_block);
