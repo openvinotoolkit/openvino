@@ -868,21 +868,6 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     }
     return result;
 }
-
-bool check_if_whisper_model(const std::shared_ptr<ov::Model>& model) {
-    for (const auto& in: model->inputs()) {
-        if (in.get_any_name() == "encoder_hidden_states")
-            return true;
-    }
-    // for (const auto& node : model->get_ops()) {
-    //     if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(node) && node->inputs().size() == 3u) {
-    //         // Found cross-attention -> whisper model
-    //         LOG_DEBUG("Whisper model was found");
-    //         return true;
-    //     }
-    // }
-    return false;
-}
 }  // namespace
 
 void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model) {
@@ -975,18 +960,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
-    m_is_whisper = check_if_whisper_model(model);
-    if (m_is_whisper) {
-        m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
-        m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
-        m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
-    }
-
     const auto npudesc = extract_npu_descriptor(plugin);
 
     ov::AnyMap npuw_llm_props;
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
+    auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
     // Solely used for serialization at the moment
     m_non_llm_props = other_props;
 
@@ -1002,6 +981,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto lm_head_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_SHARED_HEAD_CONFIG"));
     refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
+
+    m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
+    if (m_is_whisper) {
+        m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
+        m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
+        m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
+    }
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
@@ -1183,7 +1169,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
-
 
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();
@@ -1682,6 +1667,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString),
                           BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),
                           BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
-                          BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get)});
+                          BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
+                          BIND(npuw::whisper::enabled, NPUW_WHISPER, get)});
 #undef BIND
 }
