@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 #ifndef CM_DEBUG
@@ -33,21 +34,21 @@
 namespace ov {
 namespace internal {
 
-class PagedCacheManager {
+class OPENVINO_API PagedCacheManager {
 public:
-    struct cache_blocks {
+    struct OPENVINO_API cache_blocks {
         void* key_base{nullptr};
         void* value_base{nullptr};
         size_t key_bytes{0};
         size_t value_bytes{0};
     };
 
-    struct subsequence_view {
+    struct OPENVINO_API subsequence_view {
         const std::int32_t* data{nullptr};
         size_t count{0};
     };
 
-    struct block_span {
+    struct OPENVINO_API block_span {
         std::size_t key_byte_offset{0};
         std::size_t value_byte_offset{0};
         std::size_t byte_length{0};
