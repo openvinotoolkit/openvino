@@ -64,7 +64,7 @@ public:
         const size_t block_size = get_xattn_block_size(params);
         const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
         const size_t q_len = out_shape[0];
-        const uint32_t N = kv_len / STRIDE;
+        const size_t N = kv_len / STRIDE;
         const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
 
         const auto q_block_pad = ceil_div(q_len, block_size);
@@ -212,7 +212,7 @@ public:
             const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);   //# will slient drop the tails which is less than `stride`
             const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
             const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
-            const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
+            const uint32_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
 
             auto count_kq_max_wg = static_cast<int64_t>(desc->heads_num * N_kq_groups * q_stride_pad);
             internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);                // 2: kq_max_wg
