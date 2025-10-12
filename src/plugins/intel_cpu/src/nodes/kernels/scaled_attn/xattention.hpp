@@ -11,8 +11,8 @@
 
 namespace ov::Extensions::Cpu::XARCH {
 
-ov::intel_cpu::PlainTensor xattn_estimate(ov::intel_cpu::PlainTensor& query,
-                                          ov::intel_cpu::PlainTensor& key,
+ov::intel_cpu::PlainTensor xattn_estimate(const ov::intel_cpu::PlainTensor& query,
+                                          const ov::intel_cpu::PlainTensor& key,
                                           size_t block_size,
                                           size_t stride,
                                           float threshold);
