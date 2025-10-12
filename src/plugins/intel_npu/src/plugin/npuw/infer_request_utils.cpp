@@ -2,17 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "util_infer_request.hpp"
+#include "infer_request_utils.hpp"
 
 #include "logging.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util_xarch.hpp"
 
-void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
-    auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
-    std::fill_n(tensor_data, tensor->get_byte_size(), fill_val);
-}
-
+// FIXME: Use ov::npuw::util::view instead
 ov::SoPtr<ov::ITensor> ov::npuw::util::make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
                                                          uint32_t dim,
                                                          uint32_t start_pos,
@@ -98,8 +94,31 @@ void ov::npuw::util::copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::
 
 void ov::npuw::util::copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
                                         ov::SoPtr<ov::ITensor> dst_tensor,
-                                        uint32_t kv_dim) {
-    if (kv_dim == 3u) {
+                                        uint32_t kv_dim_src,
+                                        uint32_t kv_dim_dst) {
+    if (kv_dim_src != kv_dim_dst) {
+        // new case - do a generic copy for now (in fact it is a permute)
+        // Example:
+        //   kv_dim_src         kv_dim_dst
+        //       v                     v
+        // [1,8,256,128] --> [1,8,128,256]
+        const auto& src_shape = src_tensor->get_shape();
+        const auto& dst_shape = dst_tensor->get_shape();
+        NPUW_ASSERT(src_shape.size() == 4);
+        NPUW_ASSERT(dst_shape.size() == 4);
+        NPUW_ASSERT(kv_dim_src < 4);
+        NPUW_ASSERT(kv_dim_dst < 4);
+        NPUW_ASSERT(src_shape[kv_dim_src] == dst_shape[kv_dim_dst]);
+
+        std::array<int, 4> axis = {0, 1, 2, 3};
+        // Remap like 0,1,2,3 => 0,1,3,2 (see example)
+        std::swap(axis[kv_dim_src], axis[kv_dim_dst]);
+        ov::npuw::util::permute_i4d(src_tensor, dst_tensor, axis);
+        return;
+    }
+    // Old behavior
+    NPUW_ASSERT(kv_dim_src == kv_dim_dst);
+    if (kv_dim_src == 3u) {
         // Asserting that we work with last dimenston here:
         const auto& src_shape = src_tensor->get_shape();
         OPENVINO_ASSERT(src_shape.size() == 4);
@@ -108,12 +127,12 @@ void ov::npuw::util::copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
         // We can then treat src_tensor as a continuous tensor of row value vectors
         // for multiple heads, while dst_tensor will still have [1, heads, d_v, seq_len!=1],
         // shape, awaiting updates at column dimension, as value vectors are columns now.
-        if (src_shape[kv_dim] == 1 && src_tensor->is_continuous()) {
-            XARCH::copy_row_as_column(src_tensor, dst_tensor);
+        if (src_shape[kv_dim_src] == 1 && src_tensor->is_continuous()) {
+            ov::npuw::util::XARCH::copy_row_as_column(src_tensor, dst_tensor);
         } else {
             copy_columns_by_row_chunks(src_tensor, dst_tensor);
         }
-    } else if (kv_dim == 2u) {
+    } else if (kv_dim_src == 2u) {
         copy_by_planes(src_tensor, dst_tensor);
     } else {
         src_tensor->copy_to(dst_tensor._ptr);
@@ -131,3 +150,4 @@ std::optional<ov::Output<const ov::Node>> ov::npuw::util::find_port_by_name(
     }
     return std::make_optional(*it);
 }
+

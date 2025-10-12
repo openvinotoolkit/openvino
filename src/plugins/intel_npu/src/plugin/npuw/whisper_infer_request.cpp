@@ -9,7 +9,7 @@
 #include "../../utils/include/intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "util_infer_request.hpp"
+#include "infer_request_utils.hpp"
 
 namespace {
 
@@ -95,16 +95,20 @@ void ov::npuw::WhisperInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_
             //        taking into account kvcache dimension.
             ov::npuw::util::fill_tensor<ov::float16>(kvcache_in_tensor, 0);
 
-            const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                     ? 3u
-                                     : kvcache_desc.dim;
+            const auto is_value_tensor = output_name.find("value") != std::string::npos;
+            const auto kv_dim = [&](bool v_trans) -> uint32_t {
+                return (is_value_tensor && v_trans) ? 3u : kvcache_desc.dim;
+            };
+
+            const auto& pre_kv_dim = kv_dim(kvcache_desc.v_tensors_transposed_pre);
+            const auto& gen_kv_dim = kv_dim(kvcache_desc.v_tensors_transposed_gen);
 
             auto prefill_out_slice =
-                ov::npuw::util::make_tensor_slice(prefill_out_tensor, kv_dim, 0, kvcache_desc.num_stored_tokens);
+                ov::npuw::util::make_tensor_slice(prefill_out_tensor, pre_kv_dim, 0, kvcache_desc.num_stored_tokens);
 
             auto kvcache_in_slice =
-                ov::npuw::util::make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
-            ov::npuw::util::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, kv_dim);
+                ov::npuw::util::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);
+            ov::npuw::util::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, pre_kv_dim, gen_kv_dim);
         }
 
         LOG_DEBUG("Copying cross attn key value for Whisper.");
@@ -167,7 +171,7 @@ void ov::npuw::WhisperInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_
         }
 
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+        const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed_gen)
                                  ? 3u
                                  : kvcache_desc.dim;
         auto kvcache_in_slice = ov::npuw::util::make_tensor_slice(kvcache_in_tensor,
@@ -175,7 +179,7 @@ void ov::npuw::WhisperInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_
                                                                   kvcache_desc.num_stored_tokens - 1,
                                                                   kvcache_desc.num_stored_tokens);
         auto kvcache_out_tensor = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(output_name));
-        ov::npuw::util::copy_tensor_by_dim(kvcache_out_tensor, kvcache_in_slice, kv_dim);
+        ov::npuw::util::copy_tensor_by_dim(kvcache_out_tensor, kvcache_in_slice, kv_dim, kv_dim);
     }
     LOG_DEBUG("Done");
 }
