@@ -147,10 +147,7 @@ TEST_P(ZeroGraphTest, GetGraphInitIR) {
 TEST_P(ZeroGraphTest, GetGraphInitBlob) {
     std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
-    auto size = blobStream.tellg();
-    blobStream.seekg(0, std::ios::end);
-    size = blobStream.tellg() - size;
-    blobStream.seekg(0, std::ios::beg);
+    size_t size = get_file_size(blobStream);
 
     std::vector<uint8_t> blob(size);
     blobStream.read(reinterpret_cast<char*>(blob.data()), size);
