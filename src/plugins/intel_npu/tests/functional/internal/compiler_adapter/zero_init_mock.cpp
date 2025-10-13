@@ -4,12 +4,8 @@
 
 #include "zero_init_mock.hpp"
 
-#include "intel_npu/utils/zero/zero_api.hpp"
-// #include "ze_api.h"
 #include <ze_command_queue_npu_ext.h>
-
-#include <regex>
-
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 #ifdef _WIN32
