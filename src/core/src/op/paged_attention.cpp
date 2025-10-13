@@ -87,7 +87,10 @@ PagedAttentionExtension::PagedAttentionExtension(const Output<Node>& query,
                                                  const Output<Node>& scale,
                                                  const Output<Node>& sliding_window,
                                                  const Output<Node>& alibi_slopes,
-                                                 const Output<Node>& max_context_len)
+                                                 const Output<Node>& max_context_len,
+                                                 const Output<Node>& xattention_threshold,
+                                                 const Output<Node>& xattention_block_size,
+                                                 const Output<Node>& xattention_stride)
     : Op({query,
           key,
           value,
@@ -100,7 +103,10 @@ PagedAttentionExtension::PagedAttentionExtension(const Output<Node>& query,
           scale,
           sliding_window,
           alibi_slopes,
-          max_context_len}) {
+          max_context_len,
+          xattention_threshold,
+          xattention_block_size,
+          xattention_stride}) {
     constructor_validate_and_infer_types();
 }
 
@@ -119,7 +125,10 @@ PagedAttentionExtension::PagedAttentionExtension(const Output<Node>& query,
                                                  const Output<Node>& max_context_len,
                                                  const Output<Node>& rotated_block_indices,
                                                  const Output<Node>& rotation_deltas,
-                                                 const Output<Node>& rotation_trig_lut)
+                                                 const Output<Node>& rotation_trig_lut,
+                                                 const Output<Node>& xattention_threshold,
+                                                 const Output<Node>& xattention_block_size,
+                                                 const Output<Node>& xattention_stride)
     : Op({query,
           key,
           value,
@@ -135,7 +144,10 @@ PagedAttentionExtension::PagedAttentionExtension(const Output<Node>& query,
           max_context_len,
           rotated_block_indices,
           rotation_deltas,
-          rotation_trig_lut}) {
+          rotation_trig_lut,
+          xattention_threshold,
+          xattention_block_size,
+          xattention_stride}) {
     constructor_validate_and_infer_types();
 }
 

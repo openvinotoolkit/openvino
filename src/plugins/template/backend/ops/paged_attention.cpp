@@ -15,8 +15,8 @@ bool evaluate(ov::TensorVector& outputs,
               const std::shared_ptr<ov::internal::PagedCacheManager> cache_manager) {
     using T = typename ov::element_type_traits<ET>::value_type;
 
-    const bool has_rotation = inputs.size() == 16;
-    const int rot = has_rotation ? 13 : -1;
+    const bool has_rotation = inputs.size() == 20;
+    const int rot = has_rotation ? 14 : -1;
 
     ov::reference::paged_attention<T>(node_id,
                                       cache_manager,
