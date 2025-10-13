@@ -174,6 +174,7 @@ static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> 
 static constexpr Property<bool, ov::PropertyMutability::RW> could_use_flashattn_v2{"GPU_COULD_USE_FLASHATTN_V2"};
 static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{"GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
 static constexpr Property<bool, ov::PropertyMutability::RW> validate_output_buffer{"GPU_VALIDATE_OUTPUT_BUFFER"};
+static constexpr Property<float, ov::PropertyMutability::RW> mem_pool_util_threshold{"GPU_MEM_POOL_UTIL_THRESHOLD"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {
