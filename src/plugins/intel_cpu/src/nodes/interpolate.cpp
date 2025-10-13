@@ -2017,6 +2017,11 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             if (isAxesSpecified) {
                 axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(AXES_ID))
                            ->cast_vector<int>();
+                if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2) {
+                    interpAttrs.NCHWAsNHWC = true;
+                    axes[0] = 2;
+                    axes[1] = 3;
+                }
             } else {
                 axes.resize(dataRank);
                 for (int i = 0; i < static_cast<int>(dataRank); i++) {
@@ -4526,7 +4531,10 @@ size_t Interpolate::getSpatialDimsNum(const std::vector<float>& scales) {
 bool Interpolate::canFuse(const NodePtr& node) const {
     if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear ||
         interpAttrs.mode == InterpolateMode::bilinear_pillow || interpAttrs.mode == InterpolateMode::bicubic_pillow ||
-        (none_of(dataRank, 4U, 5U) && !mayiuse(cpu::x64::avx2))) {
+        (none_of(dataRank, 4U, 5U) && !mayiuse(cpu::x64::avx2)) ||
+        // NCHWAsNHWC cases: disable fusion for 4D tensors with specific axes pattern that may trigger layout
+        // optimization
+        (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2)) {
         return false;
     }
 
