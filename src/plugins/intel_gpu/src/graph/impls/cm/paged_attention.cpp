@@ -3,26 +3,26 @@
 //
 
 #include "paged_attention.hpp"
-#include "paged_attention_gen.hpp"
 
 #include <array>
 #include <cstdint>
 #include <memory>
 #include <utility>
 
-#include "primitive_cm_base.hpp"
-#include "common_utils/kernel_generator_base.hpp"
 #include "common_utils/jitter.hpp"
+#include "common_utils/kernel_generator_base.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "kv_cache_inst.h"
 #include "openvino/core/partial_shape.hpp"
+#include "paged_attention_gen.hpp"
 #include "paged_attention_inst.h"
+#include "primitive_cm_base.hpp"
 #include "primitive_inst.h"
 
 #define DUMP_XATTN_BLOCK_MASK 0
 #if DUMP_XATTN_BLOCK_MASK
-#include "openvino/util/file_util.hpp"
+#    include "openvino/util/file_util.hpp"
 #endif
 
 namespace ov::intel_gpu::cm {
@@ -39,7 +39,7 @@ public:
     Stage::Ptr xattn_estimate_find_block = make_stage<XAttentionEstimateFindBlock>();
     Stage::Ptr xattn_estimate_post_proc = make_stage<XAttentionEstimatePostProc>();
 
-    PagedAttentionCmImpl(): PrimitiveImplCM(PagedAttentionImplementationManager::get_type_info_static()) {
+    PagedAttentionCmImpl() : PrimitiveImplCM(PagedAttentionImplementationManager::get_type_info_static()) {
         m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
     }
     explicit PagedAttentionCmImpl(const kernel_impl_params& params) : PagedAttentionCmImpl() {
@@ -121,7 +121,7 @@ public:
         if (rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) {
             const float xattn_thresh = get_xattn_thresh(params);
             const bool validate = xattn_thresh < 1.0;
-            if (has_stage(xattn_estimate_gemmqk) && validate) { // bypass xattn stages if threshold is larger than 1.0.
+            if (has_stage(xattn_estimate_gemmqk) && validate) {  // bypass xattn stages if threshold is larger than 1.0.
                 // cldnn::stream& stream = instance.get_network().get_stream();
                 // stream.finish();
                 res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk)};
@@ -141,7 +141,7 @@ public:
                     std::string format = layout.format.to_string();
                     std::string tensor;
                     auto dims = layout.get_dims();
-                    for (size_t r = 0 ; r < layout.get_rank() ; r++) {
+                    for (size_t r = 0; r < layout.get_rank(); r++) {
                         tensor += ("_" + to_string(dims[r]));
                     }
                     // std::string filename = "PA" + std::to_string(pa_id) + "__" + data_type + "_" + tensor + "__" + format + ".bin";
@@ -209,13 +209,13 @@ public:
             auto out_shape = params.output_layouts[0].get_shape();
             const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
             const size_t q_len = out_shape[0];
-            const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);   //# will slient drop the tails which is less than `stride`
+            const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);  //# will slient drop the tails which is less than `stride`
             const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
             const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
             const uint32_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
 
             auto count_kq_max_wg = static_cast<int64_t>(desc->heads_num * N_kq_groups * q_stride_pad);
-            internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);                // 2: kq_max_wg
+            internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);  // 2: kq_max_wg
 
             if (desc->has_xattention) {
                 const size_t block_size = get_xattn_block_size(params);
@@ -225,12 +225,12 @@ public:
                 const uint32_t k_block_in_group = static_cast<uint32_t>(BLOCK_WG_N / sum_per_token_in_block);
                 const uint32_t k_block_pad = k_block_in_group * N_kq_groups;
                 auto count_kq_exp_partial_sum = static_cast<int64_t>(desc->heads_num * q_stride_pad * k_block_pad);
-                internal_buffers.emplace_back(count_kq_exp_partial_sum, ov::element::f32);       // 3: kq_exp_partial_sum
+                internal_buffers.emplace_back(count_kq_exp_partial_sum, ov::element::f32);  // 3: kq_exp_partial_sum
 
                 auto count_elements_mask = static_cast<int64_t>(desc->heads_num * q_block_pad * k_block_pad);
-                internal_buffers.emplace_back(count_elements_mask, ov::element::boolean);        // 4: sparse_block_mask
+                internal_buffers.emplace_back(count_elements_mask, ov::element::boolean);  // 4: sparse_block_mask
 
-                const uint32_t MERGED_Q_NUM = 2; // TODO
+                const uint32_t MERGED_Q_NUM = 2;  // TODO
                 const uint32_t q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
                 auto count_elements_mask_merged = static_cast<int64_t>(desc->heads_num * q_block_pad_merged * k_block_pad);
                 internal_buffers.emplace_back(count_elements_mask_merged, ov::element::boolean);  // 5: sparse_block_mask_wg
@@ -254,6 +254,6 @@ std::unique_ptr<primitive_impl> PagedAttentionImplementationManager::create_impl
     }
 }
 
-} // namespace ov::intel_gpu::cm
+}  // namespace ov::intel_gpu::cm
 // BIND_BINARY_BUFFER_WITH_TYPE(cldnn::paged_attention)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::cm::PagedAttentionCmImpl)

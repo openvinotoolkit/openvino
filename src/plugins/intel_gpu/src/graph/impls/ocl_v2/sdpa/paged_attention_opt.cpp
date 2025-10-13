@@ -196,7 +196,8 @@ static int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const P
     if (stage == PagedAttentionStage::PREFILL) {
         const auto desc = impl_param.typed_desc<paged_attention>();
         int64_t pa_block_size = paged_attention::block_size;
-        if (desc->has_xattention) pa_block_size = paged_attention::block_size_xattn;
+        if (desc->has_xattention)
+            pa_block_size = paged_attention::block_size_xattn;
         if (static_cast<int64_t>(pa_block_size) == target_seq_len_block_size) {
             const auto& block_indices_ps = impl_param.get_input_layout(PagedAttentionInputIdx::BLOCK_INDICES).get_partial_shape();
 
@@ -1589,7 +1590,8 @@ public:
         size_t micro_sdpa_index = 0;
         size_t subsequence_offsets_acc = 0;
         int pa_block_size = paged_attention::block_size;
-        if (desc->has_xattention) pa_block_size = paged_attention::block_size_xattn;
+        if (desc->has_xattention)
+            pa_block_size = paged_attention::block_size_xattn;
         for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
             const auto past_len = past_lens_mem_lock[i];
             const auto seq_start = subsequence_begins_mem_lock[i];

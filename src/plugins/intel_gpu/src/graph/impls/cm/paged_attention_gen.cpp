@@ -156,7 +156,8 @@ int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAtt
     if (stage == PagedAttentionStage::PREFILL) {
         const auto desc = impl_param.typed_desc<paged_attention>();
         int64_t pa_block_size = paged_attention::block_size;
-        if (desc->has_xattention) pa_block_size = paged_attention::block_size_xattn;
+        if (desc->has_xattention)
+            pa_block_size = paged_attention::block_size_xattn;
         if (static_cast<int64_t>(pa_block_size) == target_seq_len_block_size) {
             const auto& block_indices_ps = impl_param.get_input_layout(PagedAttentionInputIdx::BLOCK_INDICES).get_partial_shape();
 
@@ -213,7 +214,7 @@ size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx) {
 const float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
     const auto& input_mem = params.memory_deps;
     const auto threshold_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
-    mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm); // converted
+    mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm);  // converted
     const auto thresh = static_cast<float>(lock[seq_idx]);
     return thresh;
 }
@@ -448,11 +449,11 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});  // sparse_block_mask_wg
     }
 
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});           // q_len
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
     if (desc->has_xattention) {
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});       // q_block_pad
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});       // k_block_pad
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});       // validate
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_block_pad
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // k_block_pad
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // validate
     }
     return args;
 }
@@ -715,11 +716,9 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
     }};
 }
 
-
 //-----------------------------------------------------------------------------------------------------------------
 // Helpers of XAttention
 //-----------------------------------------------------------------------------------------------------------------
-
 
 //-----------------------------------------------------------------------------------------------------------------
 // Base generator of XAttention
@@ -835,7 +834,7 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t q_len = out_shape[0];
 
-        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);   //# will slient drop the tails which is less than `stride`
+        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);  //# will slient drop the tails which is less than `stride`
         const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
         const uint32_t K = static_cast<uint32_t>(STRIDE * head_size);
         auto get_simple_pitch = [](const layout& layout) {
@@ -874,10 +873,9 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
             size_t max_context_len = get_max_context_len(params);
             size_t past_len = get_past_len(params, 0);
             std::cout << "XAttentionEstimateGEMMQK::get_dispatch_data_func: "
-                      << "N_kq_groups: " << N_kq_groups << ", q_stride_pad: " << q_stride_pad
-                      << ", scaler_value: " << PartialShape(scaler_value) << ", kv_len: " << kv_len
-                      << ", max_context_len = " << max_context_len << ", past_len = " << past_len
-                      << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
+                      << "N_kq_groups: " << N_kq_groups << ", q_stride_pad: " << q_stride_pad << ", scaler_value: " << PartialShape(scaler_value)
+                      << ", kv_len: " << kv_len << ", max_context_len = " << max_context_len << ", past_len = " << past_len << ", gws: [" << wgs.global[0]
+                      << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
 
             dump_block_indices_begins(params);
@@ -885,7 +883,7 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         }
 
         for (size_t i = 0; i < scaler_value.size(); ++i) {
-            if (i == 4  || i == 5) {
+            if (i == 4 || i == 5) {
                 scalars[i].t = ScalarDescriptor::Types::INT32;
                 scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
             } else {
@@ -946,7 +944,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
         const size_t q_len = out_shape[0];
-        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);   //# will slient drop the tails which is less than `stride`
+        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);  //# will slient drop the tails which is less than `stride`
         const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
         const uint32_t q_stride = M;
         const uint32_t k_stride = N;
@@ -972,10 +970,9 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
 
         if (DEBUG_ENABLED) {  // Debug
             std::cout << "XAttentionEstimateFindBlock::get_dispatch_data_func: "
-                      << "xattn_thresh : " << xattn_thresh
-                      << " k_block: " << k_block << ", q_block: " << q_block
-                      << " q_stride: " << q_stride << ", q_stride_pad: " << q_stride_pad<< ", k_block_pad: " << k_block_pad
-                      << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
+                      << "xattn_thresh : " << xattn_thresh << " k_block: " << k_block << ", q_block: " << q_block << " q_stride: " << q_stride
+                      << ", q_stride_pad: " << q_stride_pad << ", k_block_pad: " << k_block_pad << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", "
+                      << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
 
@@ -1031,7 +1028,7 @@ DispatchDataFunc XAttentionEstimatePostProc::get_dispatch_data_func() const {
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
         const size_t q_len = out_shape[0];
-        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);   //# will slient drop the tails which is less than `stride`
+        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);  //# will slient drop the tails which is less than `stride`
         const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
         const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
         const uint32_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
@@ -1041,7 +1038,7 @@ DispatchDataFunc XAttentionEstimatePostProc::get_dispatch_data_func() const {
         const uint32_t k_block_pad = k_block_in_group * N_kq_groups;
         const uint32_t q_block_pad = ceil_div(q_len, block_size);
 
-        const uint32_t MERGED_Q_NUM = 2; // TODO
+        const uint32_t MERGED_Q_NUM = 2;  // TODO
         const uint32_t q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
 
         wgs.global = {q_block_pad_merged, heads_num, 1};
