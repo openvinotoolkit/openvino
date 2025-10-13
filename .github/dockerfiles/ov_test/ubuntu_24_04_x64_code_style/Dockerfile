@@ -28,7 +28,8 @@ RUN apt-get update && \
         clang-format-18 \
         shellcheck \
         python3-dev \
-        python3-distutils \
+        python3-setuptools \
+        python3-pip \
         && \
     wget https://apt.llvm.org/llvm.sh && \
     chmod +x llvm.sh && \
