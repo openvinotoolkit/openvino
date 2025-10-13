@@ -73,6 +73,7 @@ namespace npuw {
 // Forward declaration
 namespace compiled {
 struct Spatial;
+struct Attention;
 }  // namespace compiled
 namespace weights {
 class LazyTensor;
@@ -150,6 +151,7 @@ void write(std::ostream& stream, const std::string& var);
 void write(std::ostream& stream, const bool& var);
 void write(std::ostream& stream, const float& var);
 void write(std::ostream& stream, const ov::npuw::compiled::Spatial& var);
+void write(std::ostream& stream, const ov::npuw::compiled::Attention& var);
 void write(std::ostream& stream, const ov::Tensor& var);
 void write(std::ostream& stream, const ::intel_npu::Config& var);
 void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
@@ -165,6 +167,7 @@ void read(std::istream& stream, std::string& var);
 void read(std::istream& stream, bool& var);
 void read(std::istream& stream, float& var);
 void read(std::istream& stream, ov::npuw::compiled::Spatial& var);
+void read(std::istream& stream, ov::npuw::compiled::Attention& var);
 void read(std::istream& stream, ov::Tensor& var);
 void read(std::istream& stream, ::intel_npu::Config& var);
 void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);

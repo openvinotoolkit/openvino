@@ -108,9 +108,10 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     using namespace ov::op;
     using namespace ov::pass::pattern;
 
-    auto q = any_input(shape_matches("Batches..., S_q, D") && rank_more_than(2));
+    auto q = any_input(shape_matches("Batches..., S_q, D"));
     auto k = any_input(shape_matches("AnyLayout...") && rank_more_than(2));
-    auto v = any_input(shape_matches("Batches..., S_kv, D") && check_layout("AnyLayout") && rank_more_than(2));
+    auto v = any_input(shape_matches("Batches..., S_kv, D") && check_layout("AnyLayout"));
+    auto mask = any_input(has_static_rank());
 
     // these Reshape/Unsqueeze may already exist in the graph
     auto unsq_q = wrap_type<v1::Reshape, v0::Unsqueeze>({q, any_input()});
@@ -126,21 +127,19 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     auto opt_unsq_v = optional<v1::Reshape, v0::Unsqueeze>({unsq_v, any_input()});
 
     // this Transpose may be inserted by SDPAFusionMatcher
-    auto opt_transpose_k =
-        optional<v1::Transpose>({opt_unsq_k, any_input()}, shape_matches("..., S_kv, D") && rank_more_than(2));
+    auto opt_transpose_k = optional<v1::Transpose>({opt_unsq_k, any_input()}, shape_matches("..., S_kv, D"));
 
-    auto sdpa = wrap_type<v13::ScaledDotProductAttention>({
+    auto sdpa_pattern = wrap_type<v13::ScaledDotProductAttention>({
         opt_unsq_q,
         opt_transpose_k,
         opt_unsq_v,
-        any_input(),
+        mask,
         any_input(),
     });
 
-    auto opt_sdpa_reshape = optional<v1::Reshape, v0::Unsqueeze>({sdpa->output(0), any_input()});
-    auto opt_sdpa_transpose = optional<v1::Transpose>({opt_sdpa_reshape, any_input()});
-    auto post_sdpa = wrap_type<v1::Reshape, v0::Unsqueeze>({opt_sdpa_transpose, any_input()},
-                                                           shape_matches("Batches..., S_q, D") && rank_more_than(2));
+    auto opt_sdpa_reshape = optional<v1::Reshape, v0::Unsqueeze>({sdpa_pattern, any_input()});
+    auto post_sdpa =
+        wrap_type<v1::Reshape, v0::Unsqueeze>({opt_sdpa_reshape, any_input()}, shape_matches("Batches..., S_q, D"));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
@@ -148,8 +147,17 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         auto q_node = pm.at(q);
         auto k_node = pm.at(k);
         auto v_node = pm.at(v);
-        auto sdpa_node = pm.at(sdpa).get_node_shared_ptr();
+        auto mask_node = pm.at(mask);
         auto post_sdpa_node = pm.at(post_sdpa).get_node_shared_ptr();
+
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(pm.at(sdpa_pattern).get_node_shared_ptr());
+
+        // The mask will be ignored if causal is true; otherwise, the mask rank should be less than or equal to the SDPA
+        // input rank.
+        if (sdpa && !sdpa->get_causal() &&
+            mask_node.get_partial_shape().rank().get_length() > q_node.get_partial_shape().rank().get_length()) {
+            return false;
+        }
 
         const auto& sm = m.get_symbols();
 
@@ -185,11 +193,14 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
                 ov::copy_runtime_info(m.get_matched_nodes(), {shape_of_v, k_node.get_node_shared_ptr()});
             }
         }
-        auto new_sdpa_node = sdpa_node->clone_with_new_inputs(
-            {q_node, k_node, v_node, sdpa_node->input(3).get_source_output(), sdpa_node->input(4).get_source_output()});
+
+        auto new_sdpa_node = sdpa->clone_with_new_inputs(
+            {q_node, k_node, v_node, sdpa->input(3).get_source_output(), sdpa->input(4).get_source_output()});
+
         new_sdpa_node->set_friendly_name(post_sdpa_node->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), new_sdpa_node);
+        ov::copy_runtime_info(post_sdpa_node, new_sdpa_node);
         ov::replace_node(post_sdpa_node, new_sdpa_node);
+
         return true;
     };
 
