@@ -316,16 +316,17 @@ uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
             const auto& kv_in_name = input_name_map.at(kv_out_name);
 
             auto kv_tensor = kv_per_layer.second;
-            const auto& kv_dim = (kv_out_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                     ? 3u
-                                     : kvcache_desc.dim;
+            const auto& kv_dim =
+                (kv_out_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed_pre)
+                    ? 3u
+                    : kvcache_desc.dim;
 
             auto kv_dst_tensor = request.m_prefill_request->get_tensor(request.m_prefill_in_ports.at(kv_in_name));
             auto kv_dst_slice = util::make_tensor_slice(kv_dst_tensor,
                                                         kv_dim,
                                                         static_cast<uint32_t>(token_start),
                                                         static_cast<uint32_t>(token_start + block_size));
-            util::copy_tensor_by_dim(kv_tensor, kv_dst_slice, kv_dim);
+            util::copy_tensor_by_dim(kv_tensor, kv_dst_slice, kv_dim, kv_dim);
         }
 
         restored_token_num += block_size;
@@ -380,9 +381,10 @@ void store_blocks_in_cache(size_t chunk_size,
              ++i) {
             const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
 
-            const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                     ? 3u
-                                     : kvcache_desc.dim;
+            const auto& kv_dim =
+                (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed_pre)
+                    ? 3u
+                    : kvcache_desc.dim;
 
             auto kv_src_tensor = request.m_prefill_request->get_tensor(request.m_prefill_out_ports.at(output_name));
             auto kv_src_slice = util::make_tensor_slice(kv_src_tensor,
@@ -393,7 +395,7 @@ void store_blocks_in_cache(size_t chunk_size,
             auto new_tensor_elem_type = kv_src_slice->get_element_type();
             auto new_tensor_shape = kv_src_slice->get_shape();
             auto new_kv_tensor = ov::get_tensor_impl(ov::Tensor(new_tensor_elem_type, new_tensor_shape));
-            util::copy_tensor_by_dim(kv_src_slice, new_kv_tensor, kv_dim);
+            util::copy_tensor_by_dim(kv_src_slice, new_kv_tensor, kv_dim, kv_dim);
 
             kvcache_data.push_back(std::make_pair(output_name, new_kv_tensor));
         }

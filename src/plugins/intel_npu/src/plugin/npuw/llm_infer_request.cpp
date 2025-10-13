@@ -790,7 +790,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    uint32_t input_tokens_len = static_cast<uint32_t>(input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]);
+    uint32_t input_tokens_len = static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
     if (input_tokens_len > kvcache_desc.max_generation_token_len) {
         OPENVINO_THROW("Input prompt length is greater than output \"NPUW_LLM_MAX_GENERATION_TOKEN_LEN\": ",
                        kvcache_desc.max_generation_token_len,
@@ -947,7 +947,8 @@ void ov::npuw::LLMInferRequest::infer() {
     // The outcome of two items is that prefill and generate stages
     //    can be safely differentiated by start position id for
     //    both main and draft models.
-    if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] > 1 && position_ids->data<int64_t>()[0] == m_first_position_id) {
+    if (input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] > 1 &&
+        position_ids->data<int64_t>()[0] == m_first_position_id) {
         infer_prefill(input_ids, attention_mask, position_ids, token_type_ids);
     } else {
         trim_kvcache_for_speculative_decoding(position_ids);

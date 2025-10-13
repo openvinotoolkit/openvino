@@ -179,7 +179,10 @@ ov::SoPtr<ov::ITensor> make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
                                          uint32_t start_pos,
                                          uint32_t end_pos);
 
-void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor, uint32_t kv_dim);
+void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
+                        ov::SoPtr<ov::ITensor> dst_tensor,
+                        uint32_t kv_dim_src,
+                        uint32_t kv_dim_dst);
 
 using TensorPtr = ov::SoPtr<ov::ITensor>;
 TensorPtr allocMem(const ov::element::Type type,
