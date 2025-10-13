@@ -23,11 +23,6 @@ public:
     explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                               const std::shared_ptr<const ICompiledModel>& compiledModel,
                               const Config& config);
-    std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
-                                                       const size_t index,
-                                                       const bool isInput,
-                                                       const std::shared_ptr<ov::ITensor>& tensor,
-                                                       const std::optional<size_t> batchSize);
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
@@ -59,6 +54,12 @@ private:
     std::shared_ptr<ZeroTensor> allocate_tensor(const size_t index,
                                                 const bool isInput,
                                                 const std::optional<std::size_t> batchSize = std::nullopt) const;
+
+    std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
+                                                       const size_t index,
+                                                       const bool isInput,
+                                                       const std::shared_ptr<ov::ITensor>& tensor,
+                                                       const std::optional<size_t> batchSize);
 
     void add_state(const IODescriptor& descriptor, size_t tensorIndex) const;
 
