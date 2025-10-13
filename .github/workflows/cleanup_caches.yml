@@ -37,7 +37,7 @@ jobs:
 
   Cleanup_HF_Cache:
     name: Cleanup HuggingFace cache
-    runs-on: aks-linux-4-cores-16gb-st
+    runs-on: aks-linux-4-cores-16gb-bf16-st
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
