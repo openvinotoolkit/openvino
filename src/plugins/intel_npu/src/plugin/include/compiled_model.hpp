@@ -58,10 +58,10 @@ public:
 
     const FilteredConfig& get_config() const override;
 
-    const std::optional<int64_t>& get_batch_size() const;
-
 private:
     void configure_stream_executors();
+
+    const std::optional<int64_t>& get_batch_size() const;
 
     FilteredConfig _config;
     Logger _logger;
