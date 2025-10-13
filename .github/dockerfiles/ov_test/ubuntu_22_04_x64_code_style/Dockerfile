@@ -23,9 +23,18 @@ RUN apt-get update && \
         cmake \
         wget \
         build-essential \
-        python3-pip \
         shellcheck \
         clang-14 \
         libclang-14-dev \
         && \
     rm -rf /var/lib/apt/lists/*
+
+ENV PIP_VERSION="24.0"
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    rm -f get-pip.py
+
+ADD cmake/developer_package/ncc_naming_style/requirements_dev.txt /requirements_dev.txt
+
+RUN pip3 install --no-cache-dir -r /requirements_dev.txt && \
+    rm -f /requirements_dev.txt

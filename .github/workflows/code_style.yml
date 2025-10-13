@@ -84,7 +84,7 @@ jobs:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
       # - -DENABLE_SNIPPETS_LIBXSMM_TPP to cover snippets TPP adaptation
       - name: CMake configure
-        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -B build
+        run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -B build
 
       - name: Create code style diff
         run: cmake --build build --target clang_format_fix_all -j8
@@ -178,6 +178,10 @@ jobs:
         with:
           submodules: 'true'
 
+      - name: Fix git config safe directory
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+
       - name: CMake configure
         run: cmake -B build
 
@@ -210,8 +214,9 @@ jobs:
         with:
           submodules: 'true'
 
-      - name: Install Python-based dependencies
-        run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
+      - name: Fix git config safe directory
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
 
       - name: CMake configure
         run: cmake -B build
