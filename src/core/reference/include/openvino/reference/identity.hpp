@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstring>
+#include <openvino/core/type/element_type.hpp>
 
 namespace ov {
 namespace reference {
@@ -15,11 +16,25 @@ namespace reference {
  * @param output Output matrix (matrices) pointer.
  * @param size_in_bytes Size of the input tensor in bytes.
  **/
-static inline void identity(const char* input, char* output, const size_t size_in_bytes) {
+static inline void identity(const void* input,
+                            void* output,
+                            const size_t size_in_bytes,
+                            const ov::element::Type& type) {
     if (input == output) {
         return;
     } else {
-        std::memcpy(output, input, size_in_bytes);
+        if (type == ov::element::string) {
+            const std::string* str_input = static_cast<const std::string*>(input);
+            std::string* str_output = static_cast<std::string*>(output);
+            // Asign string values one by one
+            auto elem_num = size_in_bytes / sizeof(std::string);
+            for (size_t i = 0; i < elem_num; i++) {
+                str_output[i] = str_input[i];
+            }
+            return;
+        } else {
+            std::memcpy(output, input, size_in_bytes);
+        }
     }
 }
 }  // namespace reference
