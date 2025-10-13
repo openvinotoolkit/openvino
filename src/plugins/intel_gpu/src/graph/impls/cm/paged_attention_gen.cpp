@@ -72,11 +72,6 @@ inline size_t get_input_kv_len(const RuntimeParams& params) {
     return kv_len;
 }
 
-inline size_t get_aligned_kv_len(const size_t kv_len) {
-    // TODO: how to change PA_KV_CACHE_BLOCK_SIZE here
-    return (kv_len + PA_KV_CACHE_BLOCK_SIZE - 1) / PA_KV_CACHE_BLOCK_SIZE * PA_KV_CACHE_BLOCK_SIZE;
-}
-
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
     if (data_type_traits::is_i8_u8(key_cache_layout.data_type)) {
@@ -86,98 +81,7 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
     }
 }
 
-int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, int64_t target_seq_len_block_size = 16) {
-    // Since at prefill stage Q, K, V inputs may contain multiple sequences with arbitrary
-    // target sequence lengths each (shape is [sequences_num * target_seq_len, num_heads * head_size]),
-    // to apply blocking to the first dimension (target_seq_len of each sequence), we need to calculate aligned total
-    // target sequence length for proper kernel dispatching
-    // For instance, if input contains two sequences with 35 and 28 sequence lengths each,
-    // the Q, K, V inputs at prefill stage will have shapes [35 + 28, num_heads * head_size]; considering kernel's
-    // target_seq_len_block_size equals 16, we need to launch kernel instances for the following ranges:
-    // [0, 15], [16, 31], [32, 34], [35, 50], [51, 62], so aligned target_seq_len_block_size should be 5 * 16 = 80,
-    // and 5 kernels instances should be launched (for each range, some of them containing leftovers)
-    //
-    // In general, to obtain length for each sequence, we have to parse subsequence_begins input,
-    // which contains begin and end indexes for each sequence (for above example it will contain three values: {0, 35, 63})
-    // However, as long as kernel's target_seq_len_block_size matches with vLLM's block_size,
-    // we can reuse block_indices_shape[0] size to determine total aligned sequences length size, avoiding
-    // memory access at runtime, because vLLM internally uses similar logic to configure blocks for KV cache
-
-    auto calculate_aligned_seq_len = [&]() {
-        const auto& input_mem = impl_param.memory_deps;
-        const auto subsequence_begins_mem = input_mem.at(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
-        mem_lock<int32_t, mem_lock_type::read> subsequence_begins_mem_lock(subsequence_begins_mem, *impl_param.strm);
-
-        auto aligned_seq_len = 0;
-        if (stage == PagedAttentionStage::MIXED) {
-            const auto past_lens_mem = input_mem.at(PagedAttentionInputIdx::PAST_LENS);
-            mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, *impl_param.strm);
-
-            for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
-                auto past_len = past_lens_mem_lock[i];
-                auto seq_length = subsequence_begins_mem_lock[i + 1] - subsequence_begins_mem_lock[i];
-
-                // Since in MIXED execution mode the present KV-cache can be appended to the past KV-cache at any offset inside block,
-                // to ensure proper alignment and update_kv_cache kernel scheduling, we need to account for the number of unaligned tokens
-                // in the first block
-                // For example, if we need to store values in the following slots:
-                //
-                // block0: |O|O|O|O|O|O|O|O|O|O|O|O|U|U|U|U|
-                // block1: |U|U|U|U|U|U|U|U|U|U|U|U|U|U|U|U|
-                // block2: |U|U|U|U|U|U|E|E|E|E|E|E|E|E|E|E|
-                // Where O - occupied slots, U - currently beeing updated slots, E - empty slots
-                //
-                // We need to schedule 3 update_kv_cache operations:
-                // - For ranges of block0: [12-15]
-                // - For ranges of block1: [0-15]
-                // - For ranges of block2: [0-5]
-                //
-                // Therefore, consider an additional increment of aligned_seq_len to properly process all the blocks
-
-                auto occupied_slots_num = past_len % target_seq_len_block_size;
-                if (past_len != 0 && seq_length + occupied_slots_num > target_seq_len_block_size) {
-                    aligned_seq_len += target_seq_len_block_size;
-                    seq_length -= target_seq_len_block_size - occupied_slots_num;
-                }
-
-                aligned_seq_len += align_to(seq_length, target_seq_len_block_size);
-            }
-        } else {
-            for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
-                auto prompt_length = subsequence_begins_mem_lock[i + 1] - subsequence_begins_mem_lock[i];
-                aligned_seq_len += align_to(prompt_length, target_seq_len_block_size);
-            }
-        }
-
-        return aligned_seq_len;
-    };
-
-    int64_t aligned_seq_len = 0;
-    if (stage == PagedAttentionStage::PREFILL) {
-        const auto desc = impl_param.typed_desc<paged_attention>();
-        int64_t pa_block_size = paged_attention::block_size;
-        if (desc->has_xattention)
-            pa_block_size = paged_attention::block_size_xattn;
-        if (static_cast<int64_t>(pa_block_size) == target_seq_len_block_size) {
-            const auto& block_indices_ps = impl_param.get_input_layout(PagedAttentionInputIdx::BLOCK_INDICES).get_partial_shape();
-
-            aligned_seq_len = block_indices_ps[0].get_length() * target_seq_len_block_size;
-        } else {
-            aligned_seq_len = calculate_aligned_seq_len();
-        }
-    } else {
-        aligned_seq_len = calculate_aligned_seq_len();
-    }
-
-    return aligned_seq_len;
-}
-
 size_t get_partition_size(const bool has_xattention) {
-    // size_t k_partition_blok_num = (kv_len + 8191) / 8192;
-    // if (k_partition_blok_num < 1)
-    //     k_partition_blok_num = 1;
-    // const size_t k_partition_blok_num = 16;
-    // return k_partition_blok_num * PA_KV_CACHE_BLOCK_SIZE; // 128
     if (!has_xattention && PA_KV_CACHE_BLOCK_SIZE < 128) {
         return 128;
     } else {
@@ -249,9 +153,7 @@ PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_par
 JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = KernelGenerator::get_jit_constants(params);
     jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
-    // std::cout << "PagedAttentionGeneratorBase::get_jit_constants: " << get_entry_point(params) << std::endl;
 
-    // auto desc = params.typed_desc<paged_attention>();
     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
     jit.make("XE_ARCH", xe_arch);
 
@@ -317,9 +219,7 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
         assert(!params.is_dynamic());
         auto& wgs = kd.params.workGroups;
         const auto desc = params.typed_desc<paged_attention>();
-        // auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
-        // const size_t kv_len = get_max_context_len(params);
         const size_t kv_len = get_input_kv_len(params);
         const size_t kv_heads_num = desc->kv_heads_num;
         const size_t wg_count = (kv_len + WG_SIZE - 1) / WG_SIZE;
@@ -332,31 +232,6 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
         size_t value_pitch = desc->v_head_size * kv_heads_num;
         auto key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
         auto value_layout = params.input_layouts[PagedAttentionInputIdx::VALUE];
-
-        if (0) {  // Debug
-            std::cout << "PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func: "
-                      << "key_layout: " << key_layout.to_string() << ", value_layout: " << value_layout.to_string() << std::endl;
-            std::cout << "\tkey_dims = [";
-            for (auto& it : key_layout.get_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-            std::cout << "\tkey_pads = [";
-            for (auto& it : key_layout.get_padded_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-            std::cout << "\tvalue_dims = [";
-            for (auto& it : value_layout.get_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-            std::cout << "\tvalue_pads = [";
-            for (auto& it : value_layout.get_padded_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-        }
 
         auto get_simple_pitch = [](const layout& layout) {
             size_t pitch = 1;
@@ -393,7 +268,6 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
                       << ", value_offset: " << value_offset << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
-
         // TODO: support multiple sequences
         size_t batch_size_in_sequences = 1;
         std::vector<size_t> scaler_value = {key_pitch, key_offset, value_pitch, value_offset, batch_size_in_sequences};
@@ -465,10 +339,6 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     } else {
         jit.make("CMPA_KVCACHE_U8", 0);
     }
-    // for (auto& it : jit) {
-    //     std::cout << "\tjit[" << it.name << "] = " << it.value << std::endl;
-    // }
-    // std::cout << std::endl;
     return jit;
 }
 
@@ -480,22 +350,7 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         // assert(rt_params != nullptr);
         const size_t heads_num = desc->heads_num;
-
         auto query_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
-
-        if (0 && DEBUG_ENABLED) {  // Debug
-            std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: query_layout: " << query_layout.to_string() << std::endl;
-            std::cout << "\tquery_dims = [";
-            for (auto& it : query_layout.get_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-            std::cout << "\tquery_pads = [";
-            for (auto& it : query_layout.get_padded_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-        }
 
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t batch = out_shape.size() < 4 ? 1 : out_shape[0];
@@ -516,7 +371,6 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
                       << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
-
         auto num_scalers = desc->has_xattention ? 4 : 1;
         scalars.resize(num_scalers);
         scalars[0].t = ScalarDescriptor::Types::INT32;
@@ -625,7 +479,6 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
                       << ", " << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
-
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
             scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
@@ -688,7 +541,6 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
                       << wgs.global[1] << ", " << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
-
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
             scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
@@ -736,11 +588,6 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
         jit.make("HEAD_SIZE_KEY", desc->k_head_size);
     }
     jit.make("SOFTMAX_TYPE", "float");
-
-    // for (auto& it : jit) {
-    //     std::cout << "\tjit[" << it.name << "] = " << it.value << std::endl;
-    // }
-    // std::cout << std::endl;
 
     return jit;
 }
