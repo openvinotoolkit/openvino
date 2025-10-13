@@ -35,10 +35,11 @@ std::string IdentityLayerTestCPU::getTestCaseName(const testing::TestParamInfo<I
 void IdentityLayerTestCPU::SetUp() {
     targetDevice = utils::DEVICE_CPU;
 
-    const auto& [output_shape, output_precision, const_input, cpu_params, configuration] = this->GetParam();;
+    const auto& [output_shape, output_precision, const_input, cpu_params, additionalConfig] = this->GetParam();;
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpu_params;
 
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
     updateSelectedType("ref_any", output_precision, configuration);
 
     std::vector<InputShape> in_shapes;
