@@ -377,7 +377,11 @@ size_t Metadata<METADATA_VERSION_2_1>::get_metadata_size() const {
 }
 
 size_t Metadata<METADATA_VERSION_2_2>::get_metadata_size() const {
-    size_t metadataSize = Metadata<METADATA_VERSION_2_1>::get_metadata_size() + sizeof(_batchSize);
+    size_t metadataSize = Metadata<METADATA_VERSION_2_1>::get_metadata_size();
+
+    if (_batchSize.has_value()) {
+        metadataSize += sizeof(_batchSize);
+    }
 
     return metadataSize;
 }

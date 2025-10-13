@@ -53,7 +53,8 @@ constexpr std::string_view ONNX_EXTENSION = ".onnx";
  * @returns The dummy "ov::Model" composed of "parameter" and "result" nodes built using the given descriptors.
  */
 std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
-                                              const std::vector<IODescriptor>& outputDescriptors) {
+                                              const std::vector<IODescriptor>& outputDescriptors,
+                                              std::optional<int64_t> batchSize) {
     ov::ParameterVector parameters;
     ov::ResultVector results;
 
@@ -65,6 +66,10 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
         auto shape = inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
                                                                   : inputDescriptor.shapeFromCompiler;
+
+        if (batchSize.has_value()) {
+            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(batchSize.value());
+        }
 
         std::shared_ptr<ov::op::v0::Parameter> parameter =
             std::make_shared<ov::op::v0::Parameter>(inputDescriptor.precision, shape);
@@ -89,6 +94,10 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
         auto shape = outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
                                                                    : outputDescriptor.shapeFromCompiler;
+
+        if (batchSize.has_value()) {
+            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(batchSize.value());
+        }
 
         const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
             std::make_shared<ov::descriptor::Tensor>(outputDescriptor.precision,
@@ -352,7 +361,9 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
     return true;
 }
 
-bool deBatchModel(std::shared_ptr<ov::Model>& model, ov::Dimension newBatch, std::optional<ov::Dimension>& originalBatch) {
+bool deBatchModel(std::shared_ptr<ov::Model>& model,
+                  ov::Dimension newBatch,
+                  std::optional<ov::Dimension>& originalBatch) {
     try {
         std::map<std::string, ov::PartialShape> newShapes;
         for (auto&& item : model->get_parameters()) {
@@ -714,20 +725,26 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     return _properties->get_property(name, npu_plugin_properties);
 }
 
-void Plugin::handleDynamicBatching(std::shared_ptr<ov::Model>& modelForCompilation,
-                                   Config& localConfig,
-                                   const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
-                                   std::optional<ov::Dimension>& originalBatch) const {
+void Plugin::handlePluginBatching(std::shared_ptr<ov::Model>& modelForCompilation,
+                                  Config& localConfig,
+                                  const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
+                                  std::optional<ov::Dimension>& originalBatch) const {
     const auto batchMode = localConfig.get<BATCH_MODE>();
-    const bool isAutoOrPluginBatch =
+    const auto isAutoOrPluginBatch =
         (batchMode == ov::intel_npu::BatchMode::PLUGIN || batchMode == ov::intel_npu::BatchMode::AUTO);
 
-    try {
-        const bool pluginBatchingIsSupported = validateModelBatch(modelForCompilation, _logger);
+    if (!isAutoOrPluginBatch) {
+        return;
+    }
 
-        if (!isAutoOrPluginBatch || !pluginBatchingIsSupported) {
-            _logger.info("Batching will be handled by compiler.");
-            updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+    try {
+        const auto pluginBatchingIsSupported = validateModelBatch(modelForCompilation, _logger);
+
+        if (!pluginBatchingIsSupported) {
+            if (batchMode == ov::intel_npu::BatchMode::AUTO) {
+                _logger.info("Batching will be handled by compiler.");
+                updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+            }
             return;
         }
 
@@ -831,9 +848,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                     "This model contains states, thus it is not supported when handling batching on the plugin");
             }
             updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
-        } else {
-            handleDynamicBatching(modelForCompilation, localConfig, updateBatchMode, originalBatch);
         }
+        handlePluginBatching(modelForCompilation, localConfig, updateBatchMode, originalBatch);
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
@@ -896,22 +912,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         OPENVINO_THROW("NPU plugin: got an unexpected exception from compiler");
     }
 
+    std::optional<int64_t> batch = std::nullopt;
     if (originalBatch.has_value()) {
-        int64_t batch = originalBatch.value().is_static()? originalBatch.value().get_length() : -1;
-        auto metadata = graph->get_metadata();
-        for (auto& in : metadata.inputs) {
-            if (in.shapeFromIRModel.has_value() && in.shapeFromCompiler[intel_npu::utils::BATCH_AXIS] == 1) {
-                in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS] =
-                    ov::Dimension(batch);
-            }
-        }
-        graph->set_metadata(metadata);
-        graph->set_batch_size(batch);
+        batch = originalBatch.value().is_static() ? originalBatch.value().get_length() : -1;
+        graph->set_batch_size(batch.value());
     }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig);
+        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, batch);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -1180,16 +1189,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto graph = compiler->parse(std::move(tensorMain),
                                  localConfig,
                                  weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt,
-                                 weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt,
-                                 batchSize);
+                                 weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =
-        create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
+        create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs, batchSize);
+
+    if (batchSize.has_value()) {
+        graph->set_batch_size(batchSize.value());
+    }
 
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
-    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
+    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, batchSize);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};
