@@ -36,6 +36,7 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino::npu_al
         openvino::npu_common
+        openvino_npu_driver_compiler_adapter
 )
 
 #
