@@ -21,6 +21,7 @@
 #    include <unistd.h>
 #endif
 
+#include "openvino/util/variant_visitor.hpp"
 namespace ov {
 namespace test {
 namespace utils {
@@ -231,6 +232,24 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
     return output;
 }
 
+std::filesystem::path to_fs_path(const StringPathVariant& param) {
+    return std::visit(ov::util::VariantVisitor{
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                          [](const std::string& p) {
+                              if (std::any_of(p.begin(), p.end(), [](unsigned char c) {
+                                      return c > 127;
+                                  })) {
+                                  return std::filesystem::path(ov::util::string_to_wstring(p));
+                              } else {
+                                  return std::filesystem::path(p);
+                              }
+                          },
+#endif
+                          [](const auto& p) {
+                              return std::filesystem::path(p);
+                          }},
+                      param);
+}
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
