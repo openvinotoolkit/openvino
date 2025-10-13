@@ -772,7 +772,7 @@ void Input::initSupportedPdDefault() {
 
 void Input::initSupportedPdFromMemDesc() {
     NodeConfig config;
-    OPENVINO_ASSERT(extMemDesc, "Input node has invalid extMemDesc in initSupportedPdFromMemDesc");
+    CPU_NODE_ASSERT(extMemDesc, "has invalid extMemDesc in initSupportedPdFromMemDesc");
     PortConfig portConfig(extMemDesc, BlockedMemoryDesc::FULL_MASK, m_isInPlace ? 0 : -1, false);
 
     if (any_of(getType(), Type::Input, Type::MemoryInput)) {

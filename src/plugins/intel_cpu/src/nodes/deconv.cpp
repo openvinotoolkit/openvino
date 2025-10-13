@@ -1011,7 +1011,7 @@ void Deconvolution::prepareParams() {
     if (!dnnlCompatibleWeights) {
         createDnnlCompatibleWeights();
     }
-    OPENVINO_ASSERT(dnnlCompatibleWeights, "dnnlCompatibleWeights was not created for node ", getName(), ".");
+    CPU_NODE_ASSERT(dnnlCompatibleWeights, "has not created dnnlCompatibleWeights.");
     DnnlMemoryDescPtr wghDesc = dnnlCompatibleWeights->getDescWithType<DnnlMemoryDesc>();
 
     if (withBiases) {
