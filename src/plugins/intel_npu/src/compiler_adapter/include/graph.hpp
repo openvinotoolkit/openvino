@@ -64,7 +64,6 @@ public:
 
 protected:
     bool release_blob(const Config& config);
-    std::optional<size_t> determine_batch_size();
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
