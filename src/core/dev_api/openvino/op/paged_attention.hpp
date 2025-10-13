@@ -68,7 +68,10 @@ public:
                             const Output<Node>& scale,
                             const Output<Node>& sliding_window,
                             const Output<Node>& alibi_slopes,
-                            const Output<Node>& max_context_len);
+                            const Output<Node>& max_context_len,
+                            const Output<Node>& xattention_threshold,
+                            const Output<Node>& xattention_block_size,
+                            const Output<Node>& xattention_stride);
 
     /// \brief Constructs a PagedAttentionExtension operation with rotation support. (16 parameter constructor)
     ///
@@ -103,7 +106,10 @@ public:
                             const Output<Node>& max_context_len,
                             const Output<Node>& rotated_block_indices,
                             const Output<Node>& rotation_deltas,
-                            const Output<Node>& rotation_trig_lut);
+                            const Output<Node>& rotation_trig_lut,
+                            const Output<Node>& xattention_threshold,
+                            const Output<Node>& xattention_block_size,
+                            const Output<Node>& xattention_stride);
 
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
