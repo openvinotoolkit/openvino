@@ -123,9 +123,9 @@ The full ``optimum-cli`` command examples are shown below:
 
          optimum-cli export openvino -m microsoft/Phi-3.5-mini-instruct --weight-format int4 --sym --ratio 1.0 --group-size 128 Phi-3.5-mini-instruct
 
-   .. important::
+.. important::
 
-      For the channel-wise quantization, the group size argument must be ``-1`` ("minus one"), not ``1``.
+   For the channel-wise quantization, the group size argument must be ``-1`` ("minus one"), not ``1``.
 
 There are pre-compressed models on Hugging Face that can be exported as-is, e.g.
 - 4-bit (INT4) `GPTQ models <https://huggingface.co/models?other=gptq,4-bit&sort=trending>`__
