@@ -2944,8 +2944,8 @@ jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
         maximum = static_cast<int>(std::min<int64_t>(static_cast<int64_t>(beta), std::numeric_limits<int32_t>::max()));
         break;
     case element::f32:
-        minimum = x64::float2int(alpha);
-        maximum = x64::float2int(beta);
+        minimum = x64::float2int(static_cast<float>(alpha));
+        maximum = x64::float2int(static_cast<float>(beta));
         break;
     default:
         OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
@@ -2965,8 +2965,8 @@ jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
         maximum = static_cast<int>(std::min<int64_t>(static_cast<int64_t>(beta), std::numeric_limits<int32_t>::max()));
         break;
     case element::f32:
-        minimum = x64::float2int(alpha);
-        maximum = x64::float2int(beta);
+        minimum = x64::float2int(static_cast<float>(alpha));
+        maximum = x64::float2int(static_cast<float>(beta));
         break;
     default:
         OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
