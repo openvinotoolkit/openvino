@@ -37,7 +37,14 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     auto key_cache_ps = op->get_input_partial_shape(3);
     auto value_cache_ps = op->get_input_partial_shape(4);
 
-    auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[2].get_length();
+    // We may fallback to dense attention mode if xattn is not supported by either GPU archieture or compiler.
+    // So we check block_size from value cache shape, instead of checking op input type, to determine if xatnn is enabled.
+    if (value_cache_ps[2].get_length() == 256) {
+        prim.has_xattention = true;
+    }
+    const auto k_head_size_idx = prim.has_xattention ? 3 : 2;
+
+    auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[k_head_size_idx].get_length();
     auto v_head_size = has_rt_params ? rt_info.at(v_head_size_id).as<int64_t>() : value_cache_ps[3].get_length();
     auto kv_heads_num = has_rt_params ? rt_info.at(num_k_heads_id).as<int64_t>() : key_cache_ps[1].get_length();
 
@@ -89,12 +96,6 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     auto rotated_block_indices_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(rotated_block_indices_idx));
     if (rotated_block_indices_input && rotated_block_indices_input->get_output_partial_shape(0).is_dynamic()) {
         prim.has_rotated_blocks = true;
-    }
-
-    // We may fallback to dense attention mode if xattn is not supported by either GPU archieture or compiler.
-    // So we check key cache shape, instead of checking op inputs to determine if xatnn is enabled.
-    if (key_cache_ps[3].get_length() == k_head_size && key_cache_ps[2].get_length() == 256) {
-        prim.has_xattention = true;
     }
 
     const size_t sinks_idx = cldnn::paged_attention::PagedAttentionInputIdx::SINKS;
