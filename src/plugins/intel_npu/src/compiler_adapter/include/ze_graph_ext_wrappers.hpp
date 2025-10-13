@@ -39,8 +39,7 @@ public:
 
     GraphDescriptor getGraphDescriptor(void* data, size_t size) const;
 
-    NetworkMetadata getNetworkMeta(GraphDescriptor& graphDescriptor,
-                                   std::optional<int64_t> batchSize = std::nullopt) const;
+    NetworkMetadata getNetworkMeta(GraphDescriptor& graphDescriptor) const;
 
     void destroyGraph(GraphDescriptor& graphDescriptor);
 
@@ -62,8 +61,7 @@ private:
     void getMetadata(ze_graph_handle_t graphHandle,
                      uint32_t index,
                      std::vector<IODescriptor>& inputs,
-                     std::vector<IODescriptor>& outputs,
-                     std::optional<int64_t> batchSize) const;
+                     std::vector<IODescriptor>& outputs) const;
 
     void initializeGraphThroughCommandList(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
 

@@ -255,11 +255,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         _compiler);
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
-                                                     const Config& config,
-                                                     std::optional<std::vector<ov::Tensor>> initBlobs,
-                                                     const std::optional<std::shared_ptr<const ov::Model>>& model,
-                                                     std::optional<int64_t> batchSize) const {
+std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
+    ov::Tensor mainBlob,
+    const Config& config,
+    std::optional<std::vector<ov::Tensor>> initBlobs,
+    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");
@@ -307,19 +307,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
         initMetadata.push_back(_compiler->parse(network, config));
         network.clear();
         network.shrink_to_fit();
-
-        if (batchSize.has_value()) {
-            for (auto& in : networkMeta.inputs) {
-                if (in.shapeFromIRModel.has_value()) {
-                    in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS] = ov::Dimension(batchSize.value());
-                }
-            }
-            for (auto& out : networkMeta.outputs) {
-                if (out.shapeFromIRModel.has_value()) {
-                    out.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS] = ov::Dimension(batchSize.value());
-                }
-            }
-        }
 
         if (_zeGraphExt) {
             auto initGraphDesc = _zeGraphExt->getGraphDescriptor(initBlob.data(), initBlob.get_byte_size());

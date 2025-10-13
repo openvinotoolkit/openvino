@@ -231,11 +231,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
                                              config);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor mainBlob,
-                                                     const Config& config,
-                                                     std::optional<std::vector<ov::Tensor>> initBlobs,
-                                                     const std::optional<std::shared_ptr<const ov::Model>>& model,
-                                                     std::optional<int64_t> batchSize) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
+    ov::Tensor mainBlob,
+    const Config& config,
+    std::optional<std::vector<ov::Tensor>> initBlobs,
+    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
@@ -243,7 +243,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor mainBlob,
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
-    auto networkMeta = _zeGraphExt->getNetworkMeta(mainGraphDesc, batchSize);
+    auto networkMeta = _zeGraphExt->getNetworkMeta(mainGraphDesc);
 
     // exporting the blob when we get it from cache or ov::hint::compiled_blob property
     // shall be available

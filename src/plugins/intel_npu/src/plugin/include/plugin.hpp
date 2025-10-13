@@ -63,10 +63,10 @@ public:
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
 
-    void handleDynamicBatching(std::shared_ptr<ov::Model>& modelForCompilation,
-                               Config& localConfig,
-                               const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
-                               std::optional<ov::Dimension>& originalBatch) const;
+    void handlePluginBatching(std::shared_ptr<ov::Model>& modelForCompilation,
+                              Config& localConfig,
+                              const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
+                              std::optional<ov::Dimension>& originalBatch) const;
 
 private:
     void init_options();
