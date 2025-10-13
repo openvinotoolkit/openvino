@@ -273,27 +273,27 @@ inline std::shared_ptr<ov::Model> build_3gemm_moe_pattern_model() {
     // First GEMM (gate)
     auto gate_matmul = std::make_shared<op::v0::MatMul>(
         after_tile_reshape,
-        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f}),
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f}),
         false,
-        false);
+        true);
 
     auto swish = std::make_shared<op::v4::Swish>(gate_matmul);
 
     // Second GEMM (up)
     auto up_matmul = std::make_shared<op::v0::MatMul>(
         after_tile_reshape,
-        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f}),
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f}),
         false,
-        false);
+        true);
 
     auto swiglu = std::make_shared<op::v1::Multiply>(swish, up_matmul);
 
     // Third GEMM (down)
     auto down_matmul = std::make_shared<op::v0::MatMul>(
         swiglu,
-        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f}),
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f}),
         false,
-        false);
+        true);
 
     auto experts_out_reshape = std::make_shared<op::v1::Reshape>(
         down_matmul,
@@ -400,11 +400,11 @@ inline std::shared_ptr<ov::Model> build_fused_3gemm_moe_reference_model() {
 
     // MOE fused op
     auto w0_weight =
-        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
-    auto w1_weight =
-        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
-    auto w2_weight =
         op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f});
+    auto w1_weight =
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f});
+    auto w2_weight =
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
 
     ov::OutputVector moe_inputs =
         {input, unsqueeze_routing_weights, router_topk_indices, w0_weight, w1_weight, w2_weight};
