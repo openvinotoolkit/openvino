@@ -12,7 +12,7 @@ for information on how to start.
 Prerequisites
 ###############################################################################################
 
-Install required dependencies:
+Install the required dependencies:
 
 .. tab-set::
 
@@ -61,90 +61,83 @@ Install required dependencies:
     may be required to process prompts longer than 1024 tokens with models exceeding 7B parameters,
     such as Llama-2-7B, Mistral-0.2-7B, and Qwen-2-7B.
 
-LLMs on NPU with OpenVINO GenaI
+LLM Inference on NPU
 ###############################################################################################
 
-Export an LLM from Hugging Face via Optimum-Intel
+Export LLMs from Hugging Face for NPU
 ***********************************************************************************************
 
-Since **symmetrically-quantized 4-bit (INT4) models are preferred for inference on NPU**, make
-sure to export the model with the proper conversion and optimization settings.
+Optimum Intel is the primary way to export Hugging Face models for inference on NPU.
+LLMs **must** be exported with the following settings:
+* Symmetric weights compression: ``--sym``;
+* 4-bit weight format (INT4 or NF4): ``--weight-format int4`` or ``--weight-format nf4``;
+* Channel-wise or group-wise weight quantization: ``--group-size -1`` or ``--group-size 128``;
+* Maximize the 4-bit weight ratio in the model: ``--ratio 1.0``.
 
-| You may export LLMs via Optimum-Intel, using one of two compression methods:
-| **group quantization** - for both smaller and larger models,
-| **channel-wise quantization** - remarkably effective but for models exceeding 1 billion parameters.
+**Group quantization** with group size ``128`` is recommended for smaller models, e.g. up to
+4B..5B parameters. Larger models may also work with group-quantization, but normally demonstrate
+a better performance with channel-wise quantization.
 
-You select one of the methods by setting the ``--group-size`` parameter to either ``128`` or
-``-1``, respectively. See the following examples:
+**Channel-wise quantization** usually performs best but may impact the model accuracy. OpenVINO
+Neural Network Compression Framework (NNCF) provides various ways to compensate the quality loss,
+e.g. data-aware compression methods or GPTQ.
+
+.. important::
+
+   The NF4 data type is only supported on Intel® Core Ultra Processors Series 2 NPUs (formerly
+   codenamed Lunar Lake) and beyond. Please make sure to use channel-wise quantization with NF4.
+
+The full ``optimum-cli`` command examples are shown below:
 
 .. tab-set::
 
-   .. tab-item:: Channel-wise quantization
+   .. tab-item:: Channel-wise quantization, INT4, data-free
 
-      .. tab-set::
+      .. code-block:: console
+         :name: channel-wise-data-free-quant
 
-         .. tab-item:: Data-free quantization
+         optimum-cli export openvino -m meta-llama/Meta-Llama-3.1-8B-Instruct --weight-format int4 --sym --ratio 1.0 --group-size -1 Meta-Llama-3.1-8B-Instruct
 
+   .. tab-item:: Channel-wise quantization, INT4, data-aware
 
-            .. code-block:: console
-               :name: channel-wise-data-free-quant
+      Use Scale Estimation (``--scale_estimation``) and/or AWQ (``--awq``) to improve accuracy
+      for the channel-wise quantized models. Note that these options require a dataset
+      (``--dataset <dataset_name>``). Refer to ``optimum-cli`` and NNCF documentation for more details.
 
-               optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --ratio 1.0 --group-size -1 Llama-2-7b-chat-hf
+      .. code-block:: console
+         :name: channel-wise-data-aware-quant
 
-         .. tab-item:: Data-aware quantization
+         optimum-cli export openvino -m meta-llama/Meta-Llama-3.1-8B-Instruct --weight-format int4 --sym --group-size -1 --ratio 1.0 --awq --scale-estimation --dataset wikitext2 Meta-Llama-3.1-8B-Instruct
 
-            If you want to improve accuracy, make sure you:
+   .. tab-item:: Channel-wise quantization, NF4, data-free
 
-            1. Update NNCF: ``pip install nncf==2.13``
-            2. Use ``--scale_estimation --dataset <dataset_name>`` and accuracy aware quantization ``--awq``:
+      .. code-block:: console
+         :name: channel-wise-data-free-quant-nf4
 
-               .. code-block:: console
-                  :name: channel-wise-data-aware-quant
+         optimum-cli export openvino -m meta-llama/Meta-Llama-3.1-8B-Instruct --weight-format nf4 --sym --group-size -1 --ratio 1.0  Meta-Llama-3.1-8B-Instruct
 
-                  optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --group-size -1 --ratio 1.0 --awq --scale-estimation --dataset wikitext2  Llama-2-7b-chat-hf
-
-
-      .. important::
-
-         Remember that the negative value of ``-1`` is required here, not ``1``.
-
-   .. tab-item:: Group quantization
+   .. tab-item:: Group quantization, INT4
 
       .. code-block:: console
          :name: group-quant
 
-         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group-size 128 TinyLlama-1.1B-Chat-v1.0
+         optimum-cli export openvino -m microsoft/Phi-3.5-mini-instruct --weight-format int4 --sym --ratio 1.0 --group-size 128 Phi-3.5-mini-instruct
 
+   .. important::
 
+      For the channel-wise quantization, the group size argument must be ``-1`` ("minus one"), not ``1``.
 
-You can also try using 4-bit (INT4)
-`GPTQ models <https://huggingface.co/models?other=gptq,4-bit&sort=trending>`__,
-which do not require specifying quantization parameters:
+There are pre-compressed models on Hugging Face that can be exported as-is, e.g.
+- 4-bit (INT4) `GPTQ models <https://huggingface.co/models?other=gptq,4-bit&sort=trending>`__
+- `LLMs optimized for NPU <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__, hosted by OpenVINO.
+In this case, the commands are as simple as:
 
 .. code-block:: console
 
    optimum-cli export openvino -m TheBloke/Llama-2-7B-Chat-GPTQ
+   optimum-cli export openvino -m OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov
 
-
-| Remember, NPU supports GenAI models quantized symmetrically to INT4.
-| Below is a list of such models:
-
-* Qwen/Qwen2-7B
-* Qwen/Qwen2-7B-Instruct-GPTQ-Int4
-* TheBloke/Llama-2-7B-Chat-GPTQ
-* TinyLlama/TinyLlama-1.1B-Chat-v1.0
-* meta-llama/Llama-3.1-8B
-* meta-llama/Meta-Llama-3-8B-Instruct
-* microsoft/Phi-3-mini-4k-instruct
-* mistralai/Mistral-7B-Instruct-v0.2
-* openbmb/MiniCPM-1B-sft-bf16
-
-.. note::
-
-   Pre-converted models optimized for NPU are available on `Hugging Face <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__
-
-
-Run text generation using OpenVINO GenAI
+Run text generation on NPU
 ***********************************************************************************************
 
 It is typically recommended to install the latest available
@@ -152,14 +145,12 @@ It is typically recommended to install the latest available
 
 Use the following code snippet to perform generation with OpenVINO GenAI API.
 
-
 .. tab-set::
 
    .. tab-item:: Python
       :sync: py
 
       .. code-block:: python
-         :emphasize-lines: 4
 
          import openvino_genai as ov_genai
          model_path = "TinyLlama"
@@ -170,7 +161,6 @@ Use the following code snippet to perform generation with OpenVINO GenAI API.
       :sync: cpp
 
       .. code-block:: cpp
-         :emphasize-lines: 7, 9
 
          #include "openvino/genai/llm_pipeline.hpp"
          #include <iostream>
@@ -202,7 +192,7 @@ the following parameters:
 * ``MAX_PROMPT_LEN`` - defines the maximum number of tokens that the LLM pipeline can process
   for the input prompt (default: 1024),
 * ``MIN_RESPONSE_LEN`` - defines the minimum number of tokens that the LLM pipeline will generate
-  in its response (default: 150).
+  in its response (default: 128).
 
 Use the following code snippet to change the default settings:
 
@@ -498,3 +488,4 @@ Additional Resources
 * :doc:`NPU Device <../../openvino-workflow/running-inference/inference-devices-and-modes/npu-device>`
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
+* `Optimum Intel <https://github.com/huggingface/optimum-intel>`__
