@@ -14,6 +14,12 @@
     #define TO_OUTPUT_VEC_TYPE_RTE(val)  convert_char8_rte(val)
 #endif
 
+#if GENERATE_PRECOMPUTED_REDUCTION
+    #define FOR_PRECOMPUTED_REDUCTION(x)  x
+#else
+    #define FOR_PRECOMPUTED_REDUCTION(x)
+#endif
+
 #if OUTPUT_DIMS != 4
 #error "dynamic_quantize_gpu_ref.cl: Unsupported output dimension"
 #endif
@@ -37,6 +43,9 @@ KERNEL(dynamic_quantize_gpu_ref)(
     __global OUTPUT1_TYPE* output_scale
 #if ASYMMETRIC_QUANTIZATION && !GROUP_SCALES_WITH_ZP
     , __global OUTPUT2_TYPE* output_zp
+#endif
+#if GENERATE_PRECOMPUTED_REDUCTION
+    , __global OUTPUT2_TYPE* output_precomputed_reduction
 #endif
 )
 {
@@ -114,9 +123,10 @@ KERNEL(dynamic_quantize_gpu_ref)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)(scale_tmp);
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
 #else  // !ASYMMETRIC_QUANTIZATION
-    max_val = work_group_reduce_max(max_val);
     OUTPUT1_TYPE scale = 127.0h / max_val;
 #endif
+
+    FOR_PRECOMPUTED_REDUCTION(OUTPUT2_TYPE precomputed_reduction = 0);
 
     for (int b_off = 0; b_off < (GROUP_SIZE_DIM0 == 1 ? 1 : INPUT0_BATCH_NUM); b_off++) {
     for (int f_off = 0; f_off < (GROUP_SIZE_DIM1 == 1 ? 1 : INPUT0_FEATURE_NUM); f_off++) {
@@ -130,8 +140,10 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION
         val += zp;
 #endif
-        output[out_offset] = TO_OUTPUT_TYPE_RTE(val);
-#else
+        OUTPUT_TYPE ival = TO_OUTPUT_TYPE_RTE(val);
+        output[out_offset] = ival;
+        FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ival);
+#else   // GROUP_SIZE_DIM3 != 1
         const uint in_offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, 0);
         const uint out_offset = OUTPUT_GET_INDEX(b + b_off, f + f_off, y + y_off, 0);
         int x;
@@ -141,7 +153,9 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION
             val += zp;
 #endif
-            vstore8(TO_OUTPUT_VEC_TYPE_RTE(val), 0, output + out_offset + x * 8);
+            MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) ival = TO_OUTPUT_VEC_TYPE_RTE(val);
+            vstore8(ival, 0, output + out_offset + x * 8);
+            FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ((int)ival[0]) + ival[1] + ival[2] + ival[3] + ival[4] + ival[5] + ival[6] + ival[7]);
         }
         x *= 8;
         for (; x < INPUT0_SIZE_X; x++) {
@@ -150,7 +164,9 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION
             val += zp;
 #endif
-            output[out_offset + x] = TO_OUTPUT_TYPE_RTE(val);
+            OUTPUT_TYPE ival = TO_OUTPUT_TYPE_RTE(val);
+            output[out_offset + x] = ival;
+            FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ival);
         }
 #endif
     }
@@ -158,6 +174,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     }
 
     output_scale[scale_idx] = 1.0h / scale;
+    FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[scale_idx] = precomputed_reduction);
 #if ASYMMETRIC_QUANTIZATION && GROUP_SCALES_WITH_ZP
     output_scale[scale_idx + 1] = zp;
 #elif ASYMMETRIC_QUANTIZATION

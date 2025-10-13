@@ -4,12 +4,13 @@
 
 #include "behavior/compiled_model/properties.hpp"
 
+#include <locale.h>
+
 #include <cstdint>
 
-#include "openvino/runtime/properties.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-
-#include <locale.h>
+#include "openvino/op/relu.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -82,6 +83,162 @@ TEST_P(OVClassCompiledModelPropertiesTests, CanUseCache) {
     core->set_property(ov::cache_dir(cache_dir));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
+    ov::test::utils::removeDir(cache_dir);
+}
+
+TEST(CacheHeaderAlignmentTests, CacheHeaderPaddingAndAlignment) {
+    ov::Core core;
+    const std::string device_with_alignment{"TEMPLATE"};
+    uint32_t alignment{};
+    try {
+        alignment =
+            core.get_property(device_with_alignment, ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
+    } catch (...) {
+        GTEST_SKIP() << device_with_alignment
+                     << " device is not supported or cache_header_alignment property is not defined";
+    }
+
+    auto p = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    auto relu = std::make_shared<ov::op::v0::Relu>(p);
+    auto r = std::make_shared<ov::op::v0::Result>(relu);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{r}, ov::ParameterVector{p});
+
+    auto cache_dir =
+        std::string("cache_alignment_") + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+    ov::test::utils::createDirectory(cache_dir);
+    core.set_property(ov::cache_dir(cache_dir));
+
+    // Generate cache blob
+    auto compiled = core.compile_model(model, device_with_alignment);
+    ASSERT_FALSE(compiled.get_property(ov::loaded_from_cache));
+
+    auto blobs = ov::test::utils::listFilesWithExt(cache_dir, "blob");
+    ASSERT_EQ(blobs.size(), 1) << "Expected exactly one cache blob";
+    const auto& blob_path = blobs.front();
+
+    std::ifstream ifs(blob_path, std::ios::binary);
+    ASSERT_TRUE(ifs.is_open());
+    std::vector<uint8_t> data((std::istreambuf_iterator<char>(ifs)), {});
+    ASSERT_GT(data.size(), alignment) << "Blob too small";
+
+    // Find end of header
+    auto it_nl = std::find(data.begin(), data.end(), '\n');
+    ASSERT_NE(it_nl, data.end()) << "No newline in header";
+    size_t header_len = (it_nl - data.begin()) + 1;
+
+    size_t pad_expected = (alignment - (header_len % alignment)) % alignment;
+    ASSERT_LE(header_len + pad_expected, data.size());
+
+    for (size_t i = 0; i < pad_expected; ++i) {
+        ASSERT_EQ(data[header_len + i], 0) << "Non-zero byte in padding at +" << i;
+    }
+
+    size_t binary_start = header_len + pad_expected;
+    ASSERT_EQ(binary_start % alignment, 0U) << "Binary start not aligned";
+
+    size_t probe = std::min<size_t>(32, data.size() - binary_start);
+    bool any_non_zero = false;
+    for (size_t i = 0; i < probe; ++i) {
+        if (data[binary_start + i] != 0) {
+            any_non_zero = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(any_non_zero) << "Binary section is empty/zeroed";
+
+    ov::test::utils::removeFilesWithExt(cache_dir, "blob");
+    ov::test::utils::removeDir(cache_dir);
+}
+
+TEST(CacheHeaderAlignmentTests, CacheHeaderPaddingAndAlignmentReadPath) {
+    ov::Core core;
+    const std::string device_with_alignment{"TEMPLATE"};
+    uint32_t alignment{};
+    try {
+        alignment =
+            core.get_property(device_with_alignment, ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
+    } catch (...) {
+        GTEST_SKIP() << device_with_alignment
+                     << " device is not supported or cache_header_alignment property is not defined";
+    }
+
+    auto p = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    auto relu = std::make_shared<ov::op::v0::Relu>(p);
+    auto r = std::make_shared<ov::op::v0::Result>(relu);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{r}, ov::ParameterVector{p});
+
+    auto cache_dir = std::string("cache_alignment_read_") +
+                     std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+    ov::test::utils::createDirectory(cache_dir);
+    core.set_property(ov::cache_dir(cache_dir));
+
+    // Generate cache blob
+    auto compiled = core.compile_model(model, device_with_alignment);
+    ASSERT_FALSE(compiled.get_property(ov::loaded_from_cache));
+
+    auto blobs = ov::test::utils::listFilesWithExt(cache_dir, "blob");
+    ASSERT_EQ(blobs.size(), 1u);
+    const std::string blob_path = blobs.front();
+
+    // Second core to force read path
+    ov::Core core_reader;
+    core_reader.set_property(ov::cache_dir(cache_dir));
+    auto cm_second = core_reader.compile_model(model, device_with_alignment);
+
+    // If supported, must be loaded from cache now
+    {
+        auto supp = cm_second.get_property(ov::supported_properties);
+        if (std::find(supp.begin(), supp.end(), ov::loaded_from_cache.name()) != supp.end()) {
+            ASSERT_TRUE(cm_second.get_property(ov::loaded_from_cache));
+        }
+    }
+
+    // Read whole file
+    std::ifstream ifs(blob_path, std::ios::binary);
+    ASSERT_TRUE(ifs.is_open());
+    std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(ifs)), {});
+    ASSERT_GT(bytes.size(), alignment);
+
+    // Locate textual header end (newline) and compute padding
+    auto it_nl = std::find(bytes.begin(), bytes.end(), '\n');
+    ASSERT_NE(it_nl, bytes.end()) << "No newline in cache header";
+    size_t header_len = (it_nl - bytes.begin()) + 1;
+    size_t pad = (alignment - (header_len % alignment)) % alignment;
+
+    // Verify padding bytes are zero
+    for (size_t i = 0; i < pad; ++i) {
+        ASSERT_LT(header_len + i, bytes.size());
+        ASSERT_EQ(bytes[header_len + i], 0) << "Padding byte not zero at +" << i;
+    }
+
+    size_t binary_start = header_len + pad;
+    ASSERT_EQ(binary_start % alignment, 0u) << "Binary segment not aligned";
+
+    // Export compiled model (should correspond exactly to binary segment on disk)
+    std::ostringstream oss;
+    cm_second.export_model(oss);
+    std::string exported = oss.str();
+
+    ASSERT_EQ(exported.size(), bytes.size() - binary_start)
+        << "Mismatch between exported binary size and file tail size";
+
+    // Byte-for-byte compare
+    const uint8_t* file_bin = bytes.data() + binary_start;
+    for (size_t i = 0; i < exported.size(); ++i) {
+        ASSERT_EQ(static_cast<unsigned char>(exported[i]), file_bin[i]) << "Binary mismatch at offset " << i;
+    }
+
+    // Quick inference sanity (ensures model usable after cache load)
+    auto ir = cm_second.create_infer_request();
+    for (size_t i = 0; i < cm_second.inputs().size(); ++i) {
+        auto t = ir.get_input_tensor(i);
+        if (t.get_element_type() == ov::element::f32) {
+            std::fill(t.data<float>(), t.data<float>() + t.get_size(), 1.0f);
+        }
+    }
+    ASSERT_NO_THROW(ir.infer());
+
+    ov::test::utils::removeFilesWithExt(cache_dir, "blob");
     ov::test::utils::removeDir(cache_dir);
 }
 
