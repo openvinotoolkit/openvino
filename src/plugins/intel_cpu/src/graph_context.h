@@ -128,7 +128,6 @@ private:
     // cpu stream executor for current graph
     ov::threading::CPUStreamsExecutor::Ptr m_cpuStreamExecutor;
     std::shared_ptr<CpuParallel> m_cpuParallel = nullptr;
-    // std::shared_ptr<ThreadPool> m_threadPool = nullptr;
     // numa submemory manager
     std::shared_ptr<SubMemoryManager> m_subMemoryManager;
 

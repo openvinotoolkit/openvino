@@ -10,13 +10,14 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 
 namespace ov::intel_cpu {
-
-// Default multiplier for the number of virtual threads when tbb partitioner is AUTO. This value is determined
-// empirically.
-constexpr int default_multiplier = 32;
 class ThreadPool;
 
 class CpuParallel {
+public:
+    // Default multiplier for the number of virtual threads when tbb partitioner is AUTO. This value is determined
+    // empirically.
+    static constexpr int default_multiplier = 32;
+
 public:
     CpuParallel() = delete;
     CpuParallel(CpuParallel&) = delete;
@@ -66,6 +67,42 @@ public:
 #endif
     }
 
+    template <typename T0, typename R, typename F>
+    [[nodiscard]] R parallel_sum(const T0& D0, const R& input, const F& func) const {
+        return cpu_parallel_sum(D0, input, func);
+    }
+    template <typename T0, typename F>
+    void parallel_for(const T0& D0, const F& func) const {
+        cpu_parallel_for(D0, func);
+    }
+    template <typename T0, typename T1, typename F>
+    void parallel_for2d(const T0& D0, const T1& D1, const F& func) const {
+        cpu_parallel_for2d(D0, D1, func);
+    }
+    template <typename T0, typename T1, typename T2, typename F>
+    void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) const {
+        cpu_parallel_for3d(D0, D1, D2, func);
+    }
+    template <typename T0, typename T1, typename T2, typename T3, typename F>
+    void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const F& func) const {
+        cpu_parallel_for4d(D0, D1, D2, D3, func);
+    }
+    template <typename T0, typename T1, typename T2, typename T3, typename T4, typename F>
+    void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const F& func) const {
+        cpu_parallel_for5d(D0, D1, D2, D3, D4, func);
+    }
+    template <typename T0, typename T1, typename T2, typename T3, typename T4, typename T5, typename F>
+    void parallel_for6d(const T0& D0,
+                        const T1& D1,
+                        const T2& D2,
+                        const T3& D3,
+                        const T4& D4,
+                        const T5& D5,
+                        const F& func) const {
+        cpu_parallel_for6d(D0, D1, D2, D3, D4, D5, func);
+    }
+
+private:
     template <typename T0, typename R, typename F>
     [[nodiscard]] R cpu_parallel_sum(const T0& D0, const R& input, const F& func) const {
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
@@ -316,42 +353,6 @@ public:
 #endif
     }
 
-    template <typename T0, typename R, typename F>
-    [[nodiscard]] R parallel_sum(const T0& D0, const R& input, const F& func) const {
-        return cpu_parallel_sum(D0, input, func);
-    }
-    template <typename T0, typename F>
-    void parallel_for(const T0& D0, const F& func) const {
-        cpu_parallel_for(D0, func);
-    }
-    template <typename T0, typename T1, typename F>
-    void parallel_for2d(const T0& D0, const T1& D1, const F& func) const {
-        cpu_parallel_for2d(D0, D1, func);
-    }
-    template <typename T0, typename T1, typename T2, typename F>
-    void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) const {
-        cpu_parallel_for3d(D0, D1, D2, func);
-    }
-    template <typename T0, typename T1, typename T2, typename T3, typename F>
-    void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const F& func) const {
-        cpu_parallel_for4d(D0, D1, D2, D3, func);
-    }
-    template <typename T0, typename T1, typename T2, typename T3, typename T4, typename F>
-    void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const F& func) const {
-        cpu_parallel_for5d(D0, D1, D2, D3, D4, func);
-    }
-    template <typename T0, typename T1, typename T2, typename T3, typename T4, typename T5, typename F>
-    void parallel_for6d(const T0& D0,
-                        const T1& D1,
-                        const T2& D2,
-                        const T3& D3,
-                        const T4& D4,
-                        const T5& D5,
-                        const F& func) const {
-        cpu_parallel_for6d(D0, D1, D2, D3, D4, D5, func);
-    }
-
-private:
     ov::intel_cpu::TbbPartitioner m_partitioner = ov::intel_cpu::TbbPartitioner::STATIC;
     size_t m_multiplier = default_multiplier;
     std::shared_ptr<ThreadPool> m_thread_pool = nullptr;
