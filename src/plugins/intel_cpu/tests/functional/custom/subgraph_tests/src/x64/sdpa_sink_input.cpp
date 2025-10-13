@@ -82,107 +82,122 @@ public:
         param->get_output_tensor(0).set_names({name});
         return param;
     }
+    virtual std::shared_ptr<ov::Model> get_model(ov::element::Type data_type,
+                                                     ov::Dimension::value_type head_size = 64,
+                                                     ov::Dimension::value_type head_num = 8) {
+        // q, k, v use L,B,H,S layout
+        ov::PartialShape q_shape, kv_shape, past_shape, atten_mask_shape, scale_shape, sink_shape;
+        ov::ParameterVector inputParams;
+        past_shape = {-1, 1, head_num, head_size};
+        q_shape = {-1, 1, static_cast<int64_t>(head_num), head_size};
+        kv_shape = {-1, 1, head_num, head_size};
+        atten_mask_shape = {1, head_num, -1, -1};
+        scale_shape = {1};
+        sink_shape = {1, head_num, 1, 1};
 
-    std::shared_ptr<ov::Model> get_model(ov::element::Type data_type,
-                                         ov::Dimension::value_type head_size = 64,
-                                         ov::Dimension::value_type head_num = 8,
-                                         uint32_t score_aggregation_window = 0) {
-        // q [batch_in_tokens, head_num * head_size]
-        // k [batch_in_tokens, head_num * head_size]
-        // v [batch_in_tokens, head_num * head_size]
-        auto q = make_param(PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
-        auto k = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
-        auto v = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
-        auto key_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
-                                    ov::element::dynamic,
-                                    "key_cache.0");
-        auto value_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
-                                      ov::element::dynamic,
-                                      "value_cache.0");
-        auto past_lens = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
-        auto subsequence_begins =
-            make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
-        auto block_indices = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices");
-        auto block_indices_begins =
-            make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices_begins");
-        float scale_value = 1.0 / std::sqrt(head_size);
-        auto scale =
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
-        auto silding_windows =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
-        auto alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
-        auto max_context_len =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<float>{128});
-        auto score_aggregation_window_node =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<uint32_t>{score_aggregation_window});
-        auto rotated_block_indices =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<uint32_t>{});
-        auto rotation_deltas =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<uint32_t>{});
-        auto rotation_trig_lut =
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
-        auto xattention_threshold =
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
-        auto xattention_block_size =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<uint32_t>{0});
-        auto xattention_stride =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<uint32_t>{0});
-        ParameterVector params =
-            {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
-        auto paged_attn = std::make_shared<op::PagedAttentionExtension>(OutputVector{q,
-                                                                                     k,
-                                                                                     v,
-                                                                                     key_cache,
-                                                                                     value_cache,
-                                                                                     past_lens,
-                                                                                     subsequence_begins,
-                                                                                     block_indices,
-                                                                                     block_indices_begins,
-                                                                                     scale,
-                                                                                     silding_windows,
-                                                                                     alibi_slopes,
-                                                                                     max_context_len,
-                                                                                     score_aggregation_window_node,
-                                                                                     rotated_block_indices,
-                                                                                     rotation_deltas,
-                                                                                     rotation_trig_lut,
-                                                                                     xattention_threshold,
-                                                                                     xattention_block_size,
-                                                                                     xattention_stride});
-        paged_attn->get_rt_info()["num_k_heads"] = head_num;
-        paged_attn->get_rt_info()["k_head_size"] = head_size;
-        paged_attn->get_rt_info()["num_v_heads"] = head_num;
-        paged_attn->get_rt_info()["v_head_size"] = head_size;
-        OutputVector outputs{paged_attn};
-        if (score_aggregation_window) {
-            outputs.push_back(paged_attn->output(1));
-        }
-        return std::make_shared<ov::Model>(outputs, params);
+        auto q = make_param(q_shape, data_type, "q");
+        auto k = make_param(kv_shape, data_type, "k");
+        auto v = make_param(kv_shape, data_type, "v");
+        auto past_kv = make_param(past_shape, data_type, "past_kv");
+        auto atten_mask = make_param(atten_mask_shape, data_type, "atten_mask");
+        auto scale = make_param(scale_shape, data_type, "scale");
+        auto sink = make_param(sink_shape, data_type, "sink");
+        inputParams.push_back(q);
+        inputParams.push_back(k);
+        inputParams.push_back(v);
+        inputParams.push_back(atten_mask);
+        inputParams.push_back(scale);
+        inputParams.push_back(sink);
+        inputParams.push_back(past_kv);
+        auto var_k =
+            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{past_shape, data_type, "pastk"});
+        auto pastk = std::make_shared<ov::op::v6::ReadValue>(inputParams[6], var_k);
+        pastk->set_friendly_name("pastk_r");
+        auto var_v =
+            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{past_shape, data_type, "pastv"});
+        auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[6], var_v);
+        pastv->set_friendly_name("pastv_r");
+        std::vector<size_t> transposeOrder{1, 2, 0, 3};
+        auto preOrder = op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
+        std::shared_ptr<ov::Node> q_in = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
+
+        auto concat_axis = transposeOrder[2];
+        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+        beam_idx->set_friendly_name("beam_idx");
+        inputParams.push_back(beam_idx);
+        auto gatherK =
+            std::make_shared<ov::op::v8::Gather>(pastk,
+                                                 beam_idx,
+                                                 op::v0::Constant::create(ov::element::i32, {1}, {transposeOrder[0]}));
+        auto gatherV =
+            std::make_shared<ov::op::v8::Gather>(pastv,
+                                                 beam_idx,
+                                                 op::v0::Constant::create(ov::element::i32, {1}, {transposeOrder[0]}));
+        auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherK, inputParams[1]}, concat_axis);
+        auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherV, inputParams[2]}, concat_axis);
+        std::shared_ptr<ov::Node> k_in = concatK;
+        std::shared_ptr<ov::Node> v_in = concatV;
+        k_in = std::make_shared<ov::op::v1::Transpose>(k_in, preOrder);
+        v_in = std::make_shared<ov::op::v1::Transpose>(v_in, preOrder);
+        auto sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_in, k_in, v_in, atten_mask, scale, sink, false);
+        sdp->set_friendly_name("mha");
+        auto pastk_assign = std::make_shared<ov::op::v6::Assign>(concatK, var_k);
+        auto pastv_assign = std::make_shared<ov::op::v6::Assign>(concatV, var_v);
+        pastk_assign->set_friendly_name("pastk_w");
+        pastv_assign->set_friendly_name("pastv_w");
+        auto get_reshape_order = [](const ov::PartialShape& qkv_shape,
+                                    const std::vector<size_t>& transposeOrder) -> std::vector<size_t> {
+            assert(transposeOrder.size() == 4);
+            auto H = qkv_shape[transposeOrder[1]].get_length();
+            auto S = qkv_shape[transposeOrder[3]].get_length();
+            return std::vector<size_t>{0, static_cast<size_t>(H * S)};
+        };
+        const auto reshapeOrder = get_reshape_order(q_shape, transposeOrder);
+        auto postOrder =
+            ov::op::v0::Constant::create(ov::element::i32, {4}, std::vector<size_t>{2, 0, 1, 3});  // BHLS -> LBHS
+        auto transposeSDP = std::make_shared<ov::op::v1::Transpose>(sdp, postOrder);
+
+        auto constReshape = ov::op::v0::Constant::create(ov::element::i32, {2}, reshapeOrder);
+        auto reshapeSDP =
+            std::make_shared<ov::op::v1::Reshape>(transposeSDP,
+                                                  constReshape,
+                                                  true);  // use LBHS to better compare data between pa and sdpa
+        SinkVector sinks{pastk_assign, pastv_assign};
+        ov::OutputVector results{reshapeSDP};
+        auto model = std::make_shared<Model>(results, sinks, inputParams, "sdpa_model");
+        return model;
     }
 
     void SetUp() override {
-        const auto& [inType, inputShapes, score_aggregation_window] = this->GetParam();
+        const auto& [inType, inputShapes] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
-        rel_threshold = 0.01f;
-        abs_threshold = 0.01f;
+        // rel_threshold = 0.001f;
+        // abs_threshold = 0.001f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
         if (inType == ElementType::bf16) {
             configuration[ov::hint::inference_precision.name()] = ov::element::bf16;
-        }
-        if (inType != ElementType::f32) {
+            configuration[ov::hint::kv_cache_precision.name()] = ov::element::f16;
             rel_threshold = 0.02f;
             abs_threshold = 0.02f;
+        } else if (inType == ElementType::f32) {
+            configuration[ov::hint::kv_cache_precision.name()] = ov::element::f32;
+        } else if (inType == ElementType::f16) {
+            configuration[ov::hint::kv_cache_precision.name()] = ov::element::f16;
         }
+        // if (inType != ElementType::f32) {
+        //     rel_threshold = 0.02f;
+        //     abs_threshold = 0.02f;
+        // }
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
 
-        function = get_model(inType, 64, 8, score_aggregation_window);
+        function = get_model(inType, 64, 8);
         targetDevice = ov::test::utils::DEVICE_CPU;
 
-        functionRefs = get_ref_model(inType, 64, 8, score_aggregation_window);
+        // functionRefs = get_ref_model(inType, 64, 8, score_aggregation_window);
     }
 
-    virtual void generate(int idx, const bool isPagedAttn, const std::vector<ov::Shape>& targetInputStaticShapes) {
+    virtual void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
         auto create_input = [this](std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val = 0) {
             if (param->get_element_type() == ov::element::i32) {
@@ -210,58 +225,17 @@ public:
             }
         };
 
-        if (isPagedAttn) {
-            auto qkv_shape = targetInputStaticShapes[0];
-            // L, B, H, S -> L * B, H * S
-            create_input(function->get_parameters()[0],
-                         {qkv_shape[0] * qkv_shape[1], qkv_shape[2] * qkv_shape[3]});
-            create_input(function->get_parameters()[1],
-                         {qkv_shape[0] * qkv_shape[1], qkv_shape[2] * qkv_shape[3]});
-            create_input(function->get_parameters()[2],
-                         {qkv_shape[0] * qkv_shape[1], qkv_shape[2] * qkv_shape[3]});
-            size_t batch_size_in_sequences = 1;
-            // The test here simulates pagedAttn calcuation with 1 subsequence
-            // idx = 0 means 1st token calculation, idx > 0 means 2nd token calculation
-            int32_t total_blocks = intel_cpu::div_up(qkv_shape[0] + past_len_count, 32);
-            ov::Tensor past_lens(ov::element::i32, {batch_size_in_sequences}),
-                subsequence_begins(ov::element::i32, {batch_size_in_sequences + 1}),
-                block_indices_begins(ov::element::i32, {batch_size_in_sequences + 1}),
-                block_indices(ov::element::i32, {static_cast<size_t>(total_blocks)});
-            int32_t *past_lens_data = reinterpret_cast<int32_t*>(past_lens.data()),
-                    *subsequence_begins_data = reinterpret_cast<int32_t*>(subsequence_begins.data()),
-                    *block_indices_begins_data = reinterpret_cast<int32_t*>(block_indices_begins.data()),
-                    *block_indices_data = reinterpret_cast<int32_t*>(block_indices.data());
-            inputs.insert({function->get_parameters()[3], key_cache});
-            inputs.insert({function->get_parameters()[4], value_cache});
-            if (idx == 0) {
-                past_lens_data[0] = 0;
-                subsequence_begins_data[0] = 0;
-                subsequence_begins_data[1] = targetInputStaticShapes[0][0];
-                block_indices_begins_data[0] = 0;
-                block_indices_begins_data[1] = 1;
-            } else {
-                past_lens_data[0] = past_len_count;
-                subsequence_begins_data[0] = 0;
-                subsequence_begins_data[1] = targetInputStaticShapes[0][0];
-                block_indices_begins_data[0] = 0;
-                block_indices_begins_data[1] = total_blocks;
-            }
-            for (int32_t i = 0; i < total_blocks; i++) {
-                block_indices_data[i] = i;
-            }
-            inputs.insert({function->get_parameters()[5], past_lens});
-            inputs.insert({function->get_parameters()[6], subsequence_begins});
-            inputs.insert({function->get_parameters()[7], block_indices});
-            inputs.insert({function->get_parameters()[8], block_indices_begins});
-            past_len_count += static_cast<int32_t>(qkv_shape[0]);
-        } else {
-            // q, k, v, pastkv
-            create_input(function->get_parameters()[0], targetInputStaticShapes[0]);
-            create_input(function->get_parameters()[1], targetInputStaticShapes[0]);
-            create_input(function->get_parameters()[2], targetInputStaticShapes[0]);
-            create_input(function->get_parameters()[3], targetInputStaticShapes[1]);
-            create_input(function->get_parameters()[4], ov::Shape{targetInputStaticShapes[0][1]});
-        }
+        // q, k, v, pastkv
+        create_input(function->get_parameters()[0], targetInputStaticShapes[0]);
+        create_input(function->get_parameters()[1], targetInputStaticShapes[0]);
+        create_input(function->get_parameters()[2], targetInputStaticShapes[0]);
+        create_input(function->get_parameters()[3], targetInputStaticShapes[2]);
+        create_input(function->get_parameters()[4],
+                     function->get_parameters()[4]->get_partial_shape().to_shape());
+        create_input(function->get_parameters()[5],
+                     function->get_parameters()[5]->get_partial_shape().to_shape());
+        create_input(function->get_parameters()[6], targetInputStaticShapes[1]);
+        create_input(function->get_parameters()[7], ov::Shape{targetInputStaticShapes[0][1]});
     }
     void prepare() {
         compile_model();
@@ -274,7 +248,7 @@ public:
         }
     }
 
-    std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
+    /* std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
                                              ov::Dimension::value_type head_size = 64,
                                              ov::Dimension::value_type head_num = 8,
                                              uint32_t score_aggregation_window = 0) {
@@ -401,136 +375,63 @@ public:
         auto model = std::make_shared<Model>(results, sinks, inputParams, "model");
         return model;
     }
+    */
 
-    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model, uint32_t score_aggregation_window) {
-        configuration[ov::hint::kv_cache_precision.name()] = ov::element::f16;
+    void run_test(std::shared_ptr<ov::Model> model) {
         function = model;
         prepare();
-        for (const auto& input : compiledModel.inputs()) {
-            for (auto& name : input.get_names()) {
-                auto cache_precision = input.get_element_type();
-                const size_t block_nums = 4;
-                ov::PartialShape pshape;
-                if (name.find("key_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    key_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                    break;
-                } else if (name.find("value_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    value_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                    break;
-                }
-            }
-        }
-        std::vector<ov::Tensor> outputs;
+
+        auto core = ov::test::utils::PluginCache::get().core();
+        ov::AnyMap config_ref = {{"DISABLE_TRANSFORMATIONS" , "YES"}};
+        auto compiled_model_ref = core->compile_model(model,
+                ov::test::utils::DEVICE_TEMPLATE, config_ref);
+        auto inferRequestRef = compiled_model_ref.create_infer_request();
+
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, true, shapes);
+            generate(idx++, shapes);
             for (const auto& input : inputs) {
                 inferRequest.set_tensor(input.first, input.second);
+                inferRequestRef.set_tensor(input.first, input.second);
             }
             inferRequest.infer();
+            inferRequestRef.infer();
             auto logits = inferRequest.get_output_tensor(0);
-            ov::Tensor copy{logits.get_element_type(), logits.get_shape()};
-            logits.copy_to(copy);
-            outputs.push_back(copy);
-
-            if (score_aggregation_window) {
-                auto score = inferRequest.get_output_tensor(1);
-                ov::Tensor score_copy{score.get_element_type(), score.get_shape()};
-                score.copy_to(score_copy);
-                outputs.push_back(score_copy);
-            }
-        }
-        return outputs;
-    }
-
-    ov::Tensor get_score_ref(ov::Tensor softmax_output, uint32_t score_aggregation_window) {
-        auto softmax_shape = softmax_output.get_shape();
-        OPENVINO_ASSERT(softmax_shape.size() == 4, "shape:", softmax_shape);
-        auto softmax_p = softmax_output.data<float>();
-        auto B = softmax_shape[0], H = softmax_shape[1],
-            L_q = softmax_shape[2], L_kv = softmax_shape[3];
-        ov::Shape shape = {L_kv};
-        ov::Tensor score{ov::element::f32, shape};
-        std::memset(score.data(), 0, score.get_byte_size());
-        auto score_p = score.data<float>();
-        for (size_t b = 0; b < B; b++) {
-            for (size_t h = 0; h < H; h++) {
-                size_t l = L_q > score_aggregation_window ? L_q - score_aggregation_window : 0;
-                for (; l < L_q; l++) {
-                    for (size_t x = 0; x < L_kv; x++) {
-                        score_p[b * B + x] += softmax_p[b * H * L_q * L_kv + h * L_q * L_kv + l * L_kv + x];
-                    }
-                }
-            }
-        }
-        return score;
-    }
-
-    std::vector<ov::Tensor> run_ref_test(std::shared_ptr<ov::Model> model, uint32_t score_aggregation_window) {
-        function = model;
-        prepare();
-        std::vector<ov::Tensor> outputs;
-        int idx = 0;
-        for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, false, shapes);
-            for (const auto& input : inputs) {
-                inferRequest.set_tensor(input.first, input.second);
-            }
-            inferRequest.infer();
-            auto logits = inferRequest.get_output_tensor(0);
-            ov::Tensor copy{logits.get_element_type(), logits.get_shape()};
-            logits.copy_to(copy);
-            outputs.push_back(copy);
-
-            if (score_aggregation_window)
-                outputs.push_back(get_score_ref(inferRequest.get_output_tensor(1), score_aggregation_window));
+            auto logits_ref = inferRequestRef.get_output_tensor(0);
+            ov::test::utils::compare(logits_ref, logits, abs_threshold, rel_threshold);
         }
         reset();
-        return outputs;
+        for (auto&& state : inferRequestRef.query_state()) {
+            state.reset();
+        }
     }
-    std::vector<size_t> transposeOrder;
-    size_t keyGroupSize = 0;
-    bool quantKeyByChannel = false;
-    bool hasShapeOf;
-    ov::Tensor key_cache;
-    ov::Tensor value_cache;
-    int32_t past_len_count = 0;
 };
 
 TEST_P(SpdaSinkTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, score_aggregation_window] = this->GetParam();
+    const auto& [inType, inputShapes] = this->GetParam();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
-    auto actualOutputs = run_test(function, score_aggregation_window);
-    auto expectedOutputs = run_ref_test(functionRefs, score_aggregation_window);
-    for (size_t i = 0; i < actualOutputs.size(); i++) {
-        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
-    }
+    run_test(function);
 }
 
 namespace {
 
 const std::vector<InputShapes> inputShapes = {  // greedy search
     {
-        // L1, B, H, S, across blocks(32 + 2)
-        {{-1, 1, 8, 64}, {{32 + 2, 1, 8, 64}, {1, 1, 8, 64}}},
-        // B, L0, H, S
-        {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {32 + 2, 1, 8, 64}}},
+        // q k v
+        {{-1, 1, 8, 64}, {{10, 1, 8, 64}, {1, 1, 8, 64}}},
+        // pask kv
+        {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {10, 1, 8, 64}}},
+        // attention_mask
+        {{1, 8, -1, -1}, {{1, 8, 10, 10}, {1, 8, 1, 11}}},
     }};
 
 INSTANTIATE_TEST_SUITE_P(smoke_SpdaSinkTest,
                          SpdaSinkTest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16, ElementType::bf16),
-                                            ::testing::ValuesIn(inputShapes),
-                                            // 0: disable score function, 1: old function, 7: across blocks
-                                            ::testing::Values(0, 1, 7)),
+                                            ::testing::ValuesIn(inputShapes)),
                          SpdaSinkTest::getTestCaseName);
 }  // namespace
-
 }  // namespace test
 }  // namespace ov
