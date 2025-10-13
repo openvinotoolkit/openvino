@@ -1,8 +1,8 @@
-NPU with OpenVINO GenAI
+OpenVINO GenAI on NPU
 ===============================================================================================
 
 .. meta::
-   :description: Learn how to use OpenVINO GenAI to execute LLM models on NPU.
+   :description: Learn how to use OpenVINO GenAI to execute LLMs and other pipelines on NPU.
 
 
 This guide will give you extra details on how to use NPU with OpenVINO GenAI.
@@ -49,33 +49,23 @@ Install required dependencies:
 
          pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 
-Note: with OpenVINO 2025.3, it is highly recommended to use ``transformers==4.51.3`` to
-generate models for Intel NPU. Please expect support for newer transformer versions in
-the future releases.
+.. note::
 
-Note that for systems based on Intel® Core™ Ultra Processors Series 2, more than 16GB of RAM
-may be required to run prompts over 1024 tokens on models exceeding 7B parameters,
-such as Llama-2-7B, Mistral-0.2-7B, and Qwen-2-7B.
+    With OpenVINO 2025.3, it is highly recommended to use ``transformers==4.51.3`` to
+    generate models for Intel NPU. Please expect support for newer transformer versions in
+    the future releases.
 
-Make sure your model works with NPU. Some models may not be supported, for example,
-**the FLUX.1 pipeline is currently not supported by the device**.
+.. note::
 
-Currently, the Whisper pipeline (using:
-`whisper-tiny <https://huggingface.co/openai/whisper-tiny>`__,
-`whisper-base <https://huggingface.co/openai/whisper-base>`__,
-`whisper-small <https://huggingface.co/openai/whisper-small>`__, or
-`whisper-large <https://huggingface.co/openai/whisper-large>`__)
-only accepts stateless models. The pipeline will convert stateful models to stateless models automatically or you can manually generate stateless models with the ``--disable-stateful`` flag.
-Here is a conversion example:
+    For systems based on Intel® Core™ Ultra Processors Series 2, more than 16GB of RAM
+    may be required to process prompts longer than 1024 tokens with models exceeding 7B parameters,
+    such as Llama-2-7B, Mistral-0.2-7B, and Qwen-2-7B.
 
-.. code:: console
-
-   optimum-cli export openvino --trust-remote-code --model openai/whisper-tiny whisper-tiny --disable-stateful
-
-
-
-Export an LLM model via Hugging Face Optimum-Intel
+LLMs on NPU with OpenVINO GenaI
 ###############################################################################################
+
+Export an LLM from Hugging Face via Optimum-Intel
+***********************************************************************************************
 
 Since **symmetrically-quantized 4-bit (INT4) models are preferred for inference on NPU**, make
 sure to export the model with the proper conversion and optimization settings.
@@ -139,23 +129,23 @@ which do not require specifying quantization parameters:
 | Remember, NPU supports GenAI models quantized symmetrically to INT4.
 | Below is a list of such models:
 
-* meta-llama/Meta-Llama-3-8B-Instruct
-* meta-llama/Llama-3.1-8B
-* microsoft/Phi-3-mini-4k-instruct
 * Qwen/Qwen2-7B
+* Qwen/Qwen2-7B-Instruct-GPTQ-Int4
+* TheBloke/Llama-2-7B-Chat-GPTQ
+* TinyLlama/TinyLlama-1.1B-Chat-v1.0
+* meta-llama/Llama-3.1-8B
+* meta-llama/Meta-Llama-3-8B-Instruct
+* microsoft/Phi-3-mini-4k-instruct
 * mistralai/Mistral-7B-Instruct-v0.2
 * openbmb/MiniCPM-1B-sft-bf16
-* TinyLlama/TinyLlama-1.1B-Chat-v1.0
-* TheBloke/Llama-2-7B-Chat-GPTQ
-* Qwen/Qwen2-7B-Instruct-GPTQ-Int4
 
 .. note::
 
    Pre-converted models optimized for NPU are available on `Hugging Face <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__
 
 
-Run generation using OpenVINO GenAI
-###############################################################################################
+Run text generation using OpenVINO GenAI
+***********************************************************************************************
 
 It is typically recommended to install the latest available
 `driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
@@ -195,7 +185,7 @@ Use the following code snippet to perform generation with OpenVINO GenAI API.
 
 
 Additional configuration options
-###############################################################################################
+***********************************************************************************************
 
 Prompt and response length options
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -232,6 +222,36 @@ Use the following code snippet to change the default settings:
       .. code-block:: cpp
 
          ov::AnyMap pipeline_config = { { "MAX_PROMPT_LEN",  1024 }, { "MIN_RESPONSE_LEN", 512 } };
+         ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
+
+
+Performance modes
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+You can configure the NPU pipeline with the ``GENERATE_HINT`` option to switch
+between two different performance modes:
+
+* ``FAST_COMPILE`` (default) - enables fast compilation at the expense of performance,
+* ``BEST_PERF`` - ensures best possible performance at lower compilation speed.
+
+Use the following code snippet:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         pipeline_config = { "GENERATE_HINT": "BEST_PERF" }
+         pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         ov::AnyMap pipeline_config = { { "GENERATE_HINT",  "BEST_PERF" } };
          ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
 
@@ -280,7 +300,7 @@ CACHE_DIR
 
 
 'Ahead of time' compilation
------------------------------------------------------------------------------------------------
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CACHE_DIR`` but:
 
@@ -382,7 +402,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 
 
 Blob encryption
------------------------------------------------------------------------------------------------
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 When exporting NPUW blobs you can also specify encryption and decryption functions for the blob.
 In case of weightless blob the whole blob is encrypted, in case of blob with weights everything but
@@ -447,34 +467,24 @@ Set the environment variable in a terminal:
          set DISABLE_OPENVINO_GENAI_NPU_L0=1
 
 
-Performance modes
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-You can configure the NPU pipeline with the ``GENERATE_HINT`` option to switch
-between two different performance modes:
+Whisper (speech to text) on NPU with OpenVINO GenAI
+###############################################################################################
 
-* ``FAST_COMPILE`` (default) - enables fast compilation at the expense of performance,
-* ``BEST_PERF`` - ensures best possible performance at lower compilation speed.
+Currently, the Whisper pipeline (using:
+`whisper-tiny <https://huggingface.co/openai/whisper-tiny>`__,
+`whisper-base <https://huggingface.co/openai/whisper-base>`__,
+`whisper-small <https://huggingface.co/openai/whisper-small>`__, or
+`whisper-large <https://huggingface.co/openai/whisper-large>`__)
+only accepts stateless models. The pipeline will convert stateful models to stateless models automatically or you can manually generate stateless models with the ``--disable-stateful`` flag.
+Here is a conversion example:
 
-Use the following code snippet:
+.. code:: console
 
-.. tab-set::
+   optimum-cli export openvino --trust-remote-code --model openai/whisper-tiny whisper-tiny --disable-stateful
 
-   .. tab-item:: Python
-      :sync: py
 
-      .. code-block:: python
 
-         pipeline_config = { "GENERATE_HINT": "BEST_PERF" }
-         pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. code-block:: cpp
-
-         ov::AnyMap pipeline_config = { { "GENERATE_HINT",  "BEST_PERF" } };
-         ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
 
 
