@@ -1361,6 +1361,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_use_chunk_prefill);
         write(model_stream, m_max_lora_rank);
         write(model_stream, m_gemma_sliding_window_size);
+        write(model_stream, m_is_whisper);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1572,6 +1573,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_use_chunk_prefill);
         read(model_stream, compiled->m_max_lora_rank);
         read(model_stream, compiled->m_gemma_sliding_window_size);
+        read(model_stream, compiled->m_is_whisper);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
