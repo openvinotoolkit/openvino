@@ -91,12 +91,9 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
         prim.has_rotated_blocks = true;
     }
 
-    const size_t xattention_threshold_idx = cldnn::paged_attention::PagedAttentionInputIdx::XATTENTION_THRESHOLD;
-    auto xattention_threshold_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(xattention_threshold_idx));
-    if (xattention_threshold_input && xattention_threshold_input->get_output_partial_shape(0).is_dynamic()) {
-        // TODO: enable xattention_threshold_input
-        prim.has_xattention = true;
-    } else if (key_cache_ps[3].get_length() == k_head_size && key_cache_ps[2].get_length() == 256) {
+    // We may fallback to dense attention mode if xattn is not supported by either GPU archieture or compiler.
+    // So we check key cache shape, instead of checking op inputs to determine if xatnn is enabled.
+    if (key_cache_ps[3].get_length() == k_head_size && key_cache_ps[2].get_length() == 256) {
         prim.has_xattention = true;
     }
 
