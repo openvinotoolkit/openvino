@@ -469,7 +469,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                 auto* score = weight_score.ptr<float>(ithr, 0, m - m_start);
                 auto* sink = sink_input.safe_ptr<float>(b, h, m, 0);
 
-                std::cout << "================== b:" << b <<  ",h:" << h << ",m:" << m << ",sink:" << *sink  << std::endl;
+                // std::cout << "================== b:" << b <<  ",h:" << h << ",m:" << m << ",sink:" << *sink  << std::endl;
                 attn_softmax(reinterpret_cast<void*>(score),
                              reinterpret_cast<T*>(score),
                              d_scale,
@@ -1152,7 +1152,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         if (!use_one_token) {
             // multi-token version
 
-            std::cout << "multi-token version: L0:" << L0 << ",L1:" << L1 << ",fuse_concat:" << fuse_concat << std::endl;
+            // std::cout << "multi-token version: L0:" << L0 << ",L1:" << L1 << ",fuse_concat:" << fuse_concat << std::endl;
             kernel(strm,
                    q_input,
                    k_input,
