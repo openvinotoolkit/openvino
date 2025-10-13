@@ -232,8 +232,6 @@ void Graph::initialize(const Config& config) {
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
 
-    _batchSize = determine_batch_size();
-
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
@@ -288,58 +286,6 @@ void Graph::set_last_submitted_id(uint32_t id_index) {
 
 uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
-}
-
-std::optional<size_t> Graph::determine_batch_size() {
-    if (!_metadata.outputs.at(0).shapeFromIRModel.has_value()) {
-        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
-        return std::nullopt;
-    }
-
-    const ov::PartialShape& firstShape = *_metadata.outputs.at(0).shapeFromIRModel;
-    if (firstShape.is_dynamic() || firstShape.rank().get_length() == 0) {
-        return std::nullopt;
-    }
-
-    const size_t candidateBatchSize = firstShape[utils::BATCH_AXIS].get_max_length();
-    if (candidateBatchSize == 0 || candidateBatchSize == utils::DEFAULT_BATCH_SIZE) {
-        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
-        return std::nullopt;
-    }
-
-    auto checkDescriptorsUseCandidateBatchSize = [candidateBatchSize](const std::vector<IODescriptor>& descriptors) {
-        for (const IODescriptor& descriptor : descriptors) {
-            OPENVINO_ASSERT(descriptor.shapeFromIRModel.has_value(),
-                            "Missing value for the \"shapeFromIRModel\" attribute, I/O descriptor");
-
-            const ov::PartialShape& shapeFromCompiler = descriptor.shapeFromCompiler;
-            const ov::PartialShape& shapeFromIRModel = *descriptor.shapeFromIRModel;
-
-            if (shapeFromCompiler.is_dynamic() || shapeFromCompiler.rank().get_length() == 0 ||
-                *shapeFromCompiler.begin() != utils::DEFAULT_BATCH_SIZE) {
-                return false;
-            }
-
-            if (!descriptor.isStateInput && !descriptor.isStateOutput && !descriptor.isShapeTensor) {
-                if (shapeFromIRModel.is_dynamic() || shapeFromIRModel.rank().get_length() == 0 ||
-                    *shapeFromIRModel.begin() != candidateBatchSize) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    };
-
-    if (!checkDescriptorsUseCandidateBatchSize(_metadata.inputs) ||
-        !checkDescriptorsUseCandidateBatchSize(_metadata.outputs)) {
-        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
-        return std::nullopt;
-    }
-
-    _logger.debug("Batching is handled by the plugin");
-
-    return candidateBatchSize;
 }
 
 const std::optional<std::size_t> Graph::get_batch_size() const {
