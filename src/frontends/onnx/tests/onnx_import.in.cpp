@@ -7025,3 +7025,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e4m3fn_constant) {
 
     test_case.run();
 }
+
+/// @brief Testing ONNX SplitToSequence operator with implicit split (num_splits is not provided)
+/// Model sequence_at_3x2_position0.onnx was generated in the following way:
+/// - input shape: feeding SplitToSequence with a 3x2 tensor
+/// - position: indexing the element 0 with SequenceAt operation
+/// - axis: splitting along first dimension (index 0)
+/// - keepdims: true, keeping output dimensions 1x3
+OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_implicit_split) {
+    const auto model = convert_model("sequence_at_3x2_position0.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{3, 2}, {1.,  2., 3., 4., 5.,  6.});
+    test_case.add_expected_output<float>(Shape{1, 2}, {1.,  2.});
+
+    test_case.run();
+}
