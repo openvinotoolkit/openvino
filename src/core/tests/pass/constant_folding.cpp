@@ -15,9 +15,10 @@
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
-using namespace std;
+using std::make_shared;
+using std::vector;
 
+namespace ov::test {
 namespace {
 
 std::shared_ptr<op::v0::Constant> get_result_constant(std::shared_ptr<Model> m, size_t pos = 0) {
@@ -2194,6 +2195,34 @@ TEST(constant_folding, const_gather_v7_subgraph_skip_if_not_single_input) {
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 1);
 }
 
+TEST(constant_folding, const_slice) {
+    const auto make_model = [](const element::Type& et) {
+        const auto data_i8 = op::v0::Constant::create(element::i8, Shape{5}, {1, 2, 3, 4, 5});
+        const auto data_et = std::make_shared<op::v0::Convert>(data_i8, et);
+
+        const auto starts = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{1});
+        const auto ends = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{3});
+        const auto step = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{1});
+        const auto slice = std::make_shared<op::v8::Slice>(data_et, starts, ends, step);
+
+        const auto input = std::make_shared<op::v0::Parameter>(et, Shape{1});
+        const auto add = std::make_shared<op::v1::Add>(input, slice);
+        return std::make_shared<Model>(OutputVector{add}, ParameterVector{input});
+    };
+    for (const auto& et : {element::i32, element::f32, element::u8}) {
+        auto m = make_model(et);
+        run_constant_folding(m);
+        EXPECT_EQ(count_ops_of_type<op::v8::Slice>(m), 0);
+        EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 1);
+    }
+    for (const auto& et : {element::i4, element::f4e2m1, element::u4}) {
+        auto m = make_model(et);
+        run_constant_folding(m);
+        EXPECT_EQ(count_ops_of_type<op::v8::Slice>(m), 1);
+        EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 5);
+    }
+}
+
 TEST(constant_folding, const_strided_slice) {
     Shape shape_in{16};
 
@@ -4076,3 +4105,4 @@ INSTANTIATE_TEST_SUITE_P(constant_folding,
                          UnsupportedTypesTest,
                          testing::ValuesIn(ov::util::unsupported_types()),
                          unsupported_types_test_case_name);
+}  // namespace ov::test
