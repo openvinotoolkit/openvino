@@ -1014,36 +1014,36 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(input_data, quantize_node, &fusing_history);
         };
 
-        auto fuse_dynamic_quantize_f = [&](dynamic_quantize_node& dynamic_quantize_node) {
-            auto& input_data = dynamic_quantize_node.get_dependency(0);
-            if (input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
-                return;
+        //auto fuse_dynamic_quantize_f = [&](dynamic_quantize_node& dynamic_quantize_node) {
+        //    auto& input_data = dynamic_quantize_node.get_dependency(0);
+        //    if (input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
+        //        return;
 
-            if (input_data.in_shape_of_subgraph || dynamic_quantize_node.in_shape_of_subgraph)
-                return;
+        //    if (input_data.in_shape_of_subgraph || dynamic_quantize_node.in_shape_of_subgraph)
+        //        return;
 
-            auto dyn_quan_prim = dynamic_quantize_node.get_primitive();
-            auto attrs = dyn_quan_prim->attrs;
+        //    auto dyn_quan_prim = dynamic_quantize_node.get_primitive();
+        //    auto attrs = dyn_quan_prim->attrs;
 
-            bool symmetric_quant = attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
-            bool is_fp8 = attrs.scale_dt == ov::element::f8e8m0 &&
-                (attrs.quantization_dt == ov::element::f8e4m3 || attrs.quantization_dt == ov::element::f8e5m2);
-            bool is_block_scaling = attrs.group_sizes.back() == 32;
+        //    bool symmetric_quant = attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
+        //    bool is_fp8 = attrs.scale_dt == ov::element::f8e8m0 &&
+        //        (attrs.quantization_dt == ov::element::f8e4m3 || attrs.quantization_dt == ov::element::f8e5m2);
+        //    bool is_block_scaling = attrs.group_sizes.back() == 32;
 
-            if (!symmetric_quant || !is_fp8 || !is_block_scaling) {
-                return;
-            }
+        //    if (!symmetric_quant || !is_fp8 || !is_block_scaling) {
+        //        return;
+        //    }
 
-            auto in_layout = input_data.get_output_layout();
-            auto out_layouts = dynamic_quantize_node.get_output_layouts();
-            if (in_layout.is_dynamic() || std::any_of(out_layouts.begin(), out_layouts.end(), [](const auto& layout) {
-                    return layout.is_dynamic();
-                })) {
-                return;
-            }
+        //    auto in_layout = input_data.get_output_layout();
+        //    auto out_layouts = dynamic_quantize_node.get_output_layouts();
+        //    if (in_layout.is_dynamic() || std::any_of(out_layouts.begin(), out_layouts.end(), [](const auto& layout) {
+        //            return layout.is_dynamic();
+        //        })) {
+        //        return;
+        //    }
 
-            p.fuse_nodes(input_data, dynamic_quantize_node, &fusing_history);
-        };
+        //    p.fuse_nodes(input_data, dynamic_quantize_node, &fusing_history);
+        //};
 
         auto fuse_eltwise_f = [&](eltwise_node& node) {
             GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
@@ -1367,7 +1367,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         program_helpers::do_for_types<activation, quantize, eltwise>(*node,
                 fuse_activation_f,
                 fuse_quantize_f,
-                fuse_dynamic_quantize_f,
+                // fuse_dynamic_quantize_f,
                 fuse_eltwise_f);
     }
 

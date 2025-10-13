@@ -45,7 +45,7 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
 layout dynamic_quantize_inst::calc_output_layout(dynamic_quantize_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<dynamic_quantize>();
     const auto& input_layout = impl_param.get_input_layout();
-    auto output_type = data_types::i8;
+    auto output_type = desc->attrs.quantization_dt;
     auto output_format = input_layout.format;
 
     return layout(output_type, output_format, input_layout.get_tensor());
