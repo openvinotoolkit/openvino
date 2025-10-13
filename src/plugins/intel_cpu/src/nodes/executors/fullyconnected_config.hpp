@@ -20,7 +20,7 @@ struct FCAttrs {
     bool weightsNonTransposed = false;
     bool sparseWeights = false;
     uint64_t dynamicQuantizationGroupSize = 0;
-    bool nonConstantWeights = false;
+    bool constantWeights = true;
 
     ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
 

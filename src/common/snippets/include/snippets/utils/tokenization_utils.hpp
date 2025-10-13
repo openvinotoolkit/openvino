@@ -24,8 +24,7 @@ namespace ov::snippets::utils {
  * @param config tokenization config which regulates
  * @return whether the node was tokenized or not
  */
-bool tokenize_node(const std::shared_ptr<ov::Node>& node,
-                   const ov::snippets::pass::SnippetsTokenization::Config& config);
+bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pass::TokenizationConfig& config);
 /**
  * @brief Tokenizes a list of nodes into Subgraph with the following rules:
  *        1. The user is responsible for valid count of parameters, results and hidden virtual ports (constants)
@@ -40,4 +39,15 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node,
  */
 std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::NodeVector& ordered_ops,
                                                                    bool are_shared_internal_params_allowed = false);
+
+/**
+ * @brief Calculates the potential number of body parameters that would be required for a given operation.
+ * Body parameters are created for Snippets node in 2 cases:
+ *   1. The input is not a Constant node
+ *   2. The input is a Constant node but it is not scalar
+ * @note This function assumes that 0'th input of the operation is already counted, so it is ignored here
+ * @param op The operation node to analyze
+ * @return The estimated number of body parameters needed for this operation
+ */
+size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op);
 }  // namespace ov::snippets::utils

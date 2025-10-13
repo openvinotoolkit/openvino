@@ -33,7 +33,6 @@
 using namespace ov::test;
 using namespace CPUTestUtils;
 using namespace ov::op;
-using namespace std;
 
 namespace ov {
 namespace test {
@@ -123,6 +122,8 @@ public:
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
         auto xattention_stride =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto sinks =
+            std::make_shared<ov::op::v0::Constant>(data_type, Shape{0, 0, 0, 0}, std::vector<float>{});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(OutputVector{q,
@@ -144,7 +145,8 @@ public:
                                                                                      rotation_trig_lut,
                                                                                      xattention_threshold,
                                                                                      xattention_block_size,
-                                                                                     xattention_stride});
+                                                                                     xattention_stride,
+                                                                                     sinks});
         paged_attn->get_rt_info()["num_k_heads"] = head_num;
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;
@@ -313,7 +315,7 @@ public:
             ov::Tensor past_lens(ov::element::i32, {batch_size_in_sequences}),
                 subsequence_begins(ov::element::i32, {batch_size_in_sequences + 1}),
                 block_indices_begins(ov::element::i32, {batch_size_in_sequences + 1}),
-                block_indices(ov::element::i32, {static_cast<size_t>(total_blocks)});
+                block_indices(ov::element::i32, {static_cast<size_t>(total_blocks == 0 ? 1 : total_blocks)});
             int32_t *past_lens_data = reinterpret_cast<int32_t*>(past_lens.data()),
                     *subsequence_begins_data = reinterpret_cast<int32_t*>(subsequence_begins.data()),
                     *block_indices_begins_data = reinterpret_cast<int32_t*>(block_indices_begins.data()),

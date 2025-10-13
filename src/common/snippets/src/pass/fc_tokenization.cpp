@@ -13,10 +13,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/tokenization_config.hpp"
 #include "snippets/utils/tokenization_utils.hpp"
 
-ov::snippets::pass::TokenizeFCSnippets::TokenizeFCSnippets(const SnippetsTokenization::Config& config) {
+ov::snippets::pass::TokenizeFCSnippets::TokenizeFCSnippets(const TokenizationConfig& config) {
     MATCHER_SCOPE(TokenizeFCSnippets);
     // TODO: extend constant path coverage
     // Ticket: 153480

@@ -14,7 +14,7 @@ public:
     std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>> m_plugin;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<get_property_params> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<get_property_params>& obj) {
         const auto& [property_name, throw_exception] = obj.param;
         std::string res = "";
 

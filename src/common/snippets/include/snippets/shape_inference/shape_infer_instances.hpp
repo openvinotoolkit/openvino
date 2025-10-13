@@ -37,10 +37,14 @@ public:
 };
 
 class PassThroughShapeInfer : public IShapeInferSnippets {
+    size_t m_output_num;
+
 public:
+    explicit PassThroughShapeInfer(const size_t& output_num = 1) : m_output_num(output_num) {}
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
         OPENVINO_ASSERT(!input_shapes.empty(), "Empty Input shapes are not allowed for PassThroughShapeInfer");
-        return {{input_shapes[0].get()}, ShapeInferStatus::success};
+        std::vector<VectorDims> output_shapes(m_output_num, input_shapes[0].get());
+        return {output_shapes, ShapeInferStatus::success};
     }
 };
 
@@ -85,6 +89,16 @@ class ReduceShapeInfer : public IShapeInferSnippets {
 public:
     explicit ReduceShapeInfer(const std::shared_ptr<Node>& n);
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+};
+
+class OnlineSoftmaxShapeInfer : public IShapeInferSnippets {
+public:
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
+        OPENVINO_ASSERT(input_shapes.size() == 1, "Invalid number of shapes to OnlineSoftmaxShapeInfer.");
+        auto coeff_shape = input_shapes[0].get();
+        coeff_shape.back() = 1;
+        return {{input_shapes[0].get(), coeff_shape}, ShapeInferStatus::success};
+    }
 };
 
 }  // namespace ov::snippets

@@ -71,6 +71,10 @@ set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
                           CXX_STANDARD 17)
 
+if (WIN32)
+    target_link_options(${TARGET_NAME} PRIVATE "/MANIFESTINPUT:${CMAKE_SOURCE_DIR}/protopipe.exe.manifest")
+endif()
+
 #
 # Install
 #

@@ -40,7 +40,7 @@ using TransposeVLSDPATestParams = std::tuple<ElementType,
 class TransposeVLSDPATestOnGPU: public testing::WithParamInterface<TransposeVLSDPATestParams>,
                                 virtual public test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposeVLSDPATestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposeVLSDPATestParams>& obj) {
         ElementType inType;
         ov::Dimension::value_type num_head, head_size;
         std::vector<int32_t> cu_seqlens;

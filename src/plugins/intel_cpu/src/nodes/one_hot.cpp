@@ -25,18 +25,23 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/one_hot.hpp"
+#include "openvino/op/util/one_hot_base.hpp"
 #include "selective_build.h"
 #include "shape_inference/custom/one_hot.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
 bool OneHot::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto oneHot = ov::as_type_ptr<const ov::op::v1::OneHot>(op);
-        if (!oneHot) {
-            errorMessage = "Only opset1 OneHot operation is supported";
+        if (none_of(op->get_type_info(),
+                    op::v1::OneHot::get_type_info_static(),
+                    op::v16::OneHot::get_type_info_static())) {
+            errorMessage = "Only OneHot operations from opset1 and opset16 are supported";
             return false;
         }
+
+        const auto* oneHot = ov::as_type<const op::util::OneHotBase>(op.get());
         if (ov::as_type_ptr<const ov::op::v0::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID)) == nullptr) {
             errorMessage = "Only const 'on_value' input is supported";
             return false;
@@ -59,12 +64,16 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto oneHot = ov::as_type_ptr<const ov::op::v1::OneHot>(op);
+    const auto oneHot = ov::as_type_ptr<const ov::op::util::OneHotBase>(op);
     const auto depthNode = ov::as_type_ptr<const ov::op::v0::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
     if (depthNode) {
         depth = depthNode->cast_vector<uint32_t>()[0];
     }
     axis = static_cast<int32_t>(oneHot->get_axis());
+    if (const auto oneHot_v16 = ov::as_type_ptr<const ov::op::v16::OneHot>(op)) {
+        is_mode_normalize =
+            oneHot_v16->get_negative_indices_mode() == ov::op::v16::OneHot::NegativeIndicesMode::NORMALIZE;
+    }
 
     VectorDims srcDims = getInputShapeAtPort(INDICES_ID).getDims();
     if (ov::is_scalar(srcDims)) {
@@ -134,9 +143,10 @@ void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
         const in_type* src_dataPtr = &src_data[prefix_idx * suffix_size];
         out_type* dst_dataPtr = &dst_data[prefix_idx * depth * suffix_size];
         for (std::size_t suffix_idx = 0; suffix_idx < suffix_size; ++suffix_idx, ++src_dataPtr, ++dst_dataPtr) {
-            auto v = static_cast<std::size_t>(*src_dataPtr);
-            if (v < depth) {
-                dst_dataPtr[v * suffix_size] = on_val;
+            const in_type val = *src_dataPtr;
+            const in_type mapped_val = (val < 0 && is_mode_normalize) ? static_cast<in_type>(depth) + val : val;
+            if (mapped_val >= 0 && mapped_val <= static_cast<in_type>(depth) - 1) {
+                dst_dataPtr[mapped_val * suffix_size] = on_val;
             }
         }
     });

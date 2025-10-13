@@ -30,6 +30,7 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         params.one_hot_axis = primitive->one_hot_axis;
         params.on_value = primitive->on_value;
         params.off_value = primitive->off_value;
+        params.indices_normalize_mode = primitive->indices_normalize_mode;
 
         auto output_sizes = impl_param.get_output_layout().get_dims();
 

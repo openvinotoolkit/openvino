@@ -29,13 +29,20 @@ class DnnlMatMulPrimitive {
         DnnlMemoryDescCPtr bias;
         DnnlMemoryDescCPtr dst;
         dnnl::primitive_attr attr;
+        impl_desc_type implType;
+        bool transposeA = false;
+        bool transposeB = false;
+        bool fcSemantic = false;
 
         [[nodiscard]] size_t hash() const;
         bool operator==(const Key& rhs) const;
     };
 
 public:
-    DnnlMatMulPrimitive(const Key& key, const dnnl::engine& engine, const std::vector<impl_desc_type>& implPriorities);
+    DnnlMatMulPrimitive(const Key& key,
+                        const dnnl::engine& engine,
+                        const std::vector<impl_desc_type>& implPriorities,
+                        impl_desc_type defaultImplType);
 
     void execute(const dnnl_primitive_args& primArgs) const;
 
@@ -61,14 +68,19 @@ public:
 
     static bool useWeightsDecompressionImpl(ov::element::Type inputType, ov::element::Type weightsType);
 
-    static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
+    static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const MatMulAttrs& attrs,
+                                                            const MemoryArgs& memory,
+                                                            const ExecutorContext::CPtr& context,
+                                                            bool cacheWeights);
+
+    static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& fcAttrs,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
                                                             bool cacheWeights);
 
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,
-                                                            bool weightsNonTransposed);
+                                                            const MatMulAttrs& attrs);
 
     static std::shared_ptr<DnnlMatMulPrimitive> create(const MemoryArgs& memory,
                                                        const MatMulAttrs& attrs,

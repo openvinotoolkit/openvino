@@ -32,7 +32,7 @@ namespace ov::snippets::pass {
 class SplitDimensionM : public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("SplitDimensionM", "0");
-    explicit SplitDimensionM(size_t concurrency) : m_concurrency(concurrency) {}
+    explicit SplitDimensionM(size_t concurrency) : SubgraphPass("SplitDimensionM"), m_concurrency(concurrency) {}
 
     bool run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) override;
 

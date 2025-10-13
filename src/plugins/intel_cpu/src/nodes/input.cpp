@@ -88,7 +88,7 @@ protected:
     void foreach (const Xbyak::Reg64& idx,
                   size_t step,
                   const Xbyak::Reg64& end,
-                  std::function<void(const Xbyak::Reg64&)> && fn) {
+                  const std::function<void(const Xbyak::Reg64&)>& fn) {
         Label loop;
         Label exit;
 

@@ -29,7 +29,7 @@ using DFTLayerGPUTestParams = std::tuple<std::vector<InputShape>,
 class DFTLayerGPUTest : public testing::WithParamInterface<std::tuple<ov::element::Type, DFTLayerGPUTestParams>>,
                            virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<ov::element::Type, DFTLayerGPUTestParams>> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<ov::element::Type, DFTLayerGPUTestParams>>& obj) {
         const auto& [precision, params] = obj.param;
         const auto& [shapes, axes, signalSizes, inverse, real, constAxes, constSignalSizes, targetDevice] = params;
 

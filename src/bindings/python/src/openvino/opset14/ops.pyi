@@ -14,7 +14,7 @@ import typing
 """
 Factory functions for ops added to openvino opset14.
 """
-__all__ = ['Node', 'NodeInput', 'TensorShape', 'Type', 'as_node', 'as_nodes', 'avg_pool', 'convert_promote_types', 'inverse', 'max_pool', 'nameable_op', 'partial']
+__all__: list[str] = ['Node', 'NodeInput', 'TensorShape', 'Type', 'as_node', 'as_nodes', 'avg_pool', 'convert_promote_types', 'inverse', 'max_pool', 'nameable_op', 'partial']
 def avg_pool(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return average pooling node.

@@ -147,8 +147,8 @@ public:
     }
 
     template <typename T,
-              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
-              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
+              typename = std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>>,
+              typename = std::enable_if_t<std::is_base_of_v<MemoryDesc, T>>>
     T* as() {
         T* casted = dynamic_cast<T*>(this);
         OPENVINO_ASSERT(casted, "Cannot dynamically cast MemoryDesc");
@@ -156,8 +156,8 @@ public:
     }
 
     template <typename T,
-              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
-              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
+              typename = std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>>,
+              typename = std::enable_if_t<std::is_base_of_v<MemoryDesc, T>>>
     const T* as() const {
         const T* casted = dynamic_cast<const T*>(this);
         OPENVINO_ASSERT(casted, "Cannot dynamically cast MemoryDesc");

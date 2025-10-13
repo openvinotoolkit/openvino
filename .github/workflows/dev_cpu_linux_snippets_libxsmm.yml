@@ -241,7 +241,7 @@ jobs:
           popd
 
       - name: Snippets func tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).snippets.test
         run: |
           ${{ env.SETUPVARS_COMMAND }}
           ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml

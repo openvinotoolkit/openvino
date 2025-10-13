@@ -2744,8 +2744,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_argmax_int32) {
     auto model = convert_model("argmax_int32.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<std::int32_t>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-    test_case.add_expected_output<std::int64_t>({1, 1, 1, 1, 1, 1});
+    test_case.add_input<std::int32_t>({3, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    test_case.add_expected_output<std::int64_t>({0, 1, 1, 1, 1, 1});
     test_case.run();
 }
 
@@ -2753,7 +2753,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_argmin_int32) {
     auto model = convert_model("argmin_int32.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<std::int32_t>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    test_case.add_input<std::int32_t>({2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
     test_case.add_expected_output<std::int64_t>({0, 0, 0, 0});
     test_case.run();
 }
@@ -2762,7 +2762,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_argmax_float) {
     auto model = convert_model("argmax_float.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>({4.f, 0.1f, 2.f, 3.f, -3.f, 1.f, -0.9f, 0.f, 1.f, 2.f, 3.f, 0.f});
+    test_case.add_input<float>({4.f, 0.1f, 2.f, 4.f, -3.f, 1.f, -0.9f, 0.f, 1.f, 2.f, 3.f, 0.f});
     test_case.add_expected_output<std::int64_t>({0, 3, 0});
     test_case.run();
 }
@@ -2771,8 +2771,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_argmin_float) {
     auto model = convert_model("argmin_float.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>({4.f, 0.1f, 2.f, 3.f, -3.f, 1.f, -0.9f, 0.f, 1.f, 2.f, 3.f, 0.f});
-    test_case.add_expected_output<std::int64_t>({1, 1, 0, 2});
+    test_case.add_input<float>({0.1f, 0.1f, 2.f, 3.f, -3.f, 1.f, -0.9f, 0.f, 1.f, 2.f, 3.f, 0.f});
+    test_case.add_expected_output<std::int64_t>({0, 1, 0, 2});
     test_case.run();
 }
 
@@ -2979,6 +2979,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_one_hot_without_axis) {
     auto model = convert_model("one_hot_no_axis.onnx");
 
     std::vector<std::vector<std::int64_t>> inputs{{0, 7, 8}, {2, 5}};
+    std::vector<std::int64_t> expected_output{5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                              2, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 2, 2, 2};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_one_hot_negative_indices) {
+    auto model = convert_model("one_hot_negative_indices.onnx");
+
+    std::vector<std::vector<std::int64_t>> inputs{{0, -5, -4}};
     std::vector<std::int64_t> expected_output{5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
                                               2, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 2, 2, 2};
 
