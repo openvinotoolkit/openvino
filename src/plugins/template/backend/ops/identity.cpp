@@ -16,8 +16,9 @@ bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::Node> node,
 
     outputs[0].set_shape(input_shape);
 
-    ov::reference::identity(static_cast<const char*>(inputs[0].data()),
-                            static_cast<char*>(outputs[0].data()),
-                            inputs[0].get_byte_size());
+    ov::reference::identity(inputs[0].data(),
+                            outputs[0].data(),
+                            inputs[0].get_byte_size(),
+                            inputs[0].get_element_type());
     return true;
 }
