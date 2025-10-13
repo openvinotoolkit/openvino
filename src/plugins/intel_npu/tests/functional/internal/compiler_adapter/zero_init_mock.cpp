@@ -5,6 +5,7 @@
 #include "zero_init_mock.hpp"
 
 #include <ze_command_queue_npu_ext.h>
+
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
