@@ -332,9 +332,9 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
         // const size_t kv_len = get_max_context_len(params);
         const size_t kv_len = get_input_kv_len(params);
         const size_t kv_heads_num = desc->kv_heads_num;
-        const size_t wg_count = (kv_len + WG_SIZE - 1) / WG_SIZE;
+        const size_t wg_count = (kv_len + PA_KV_CACHE_BLOCK_SIZE - 1) / PA_KV_CACHE_BLOCK_SIZE;
 
-        wgs.global = {1, kv_heads_num, wg_count * WG_SIZE};
+        wgs.global = {1, kv_heads_num, wg_count * PA_KV_CACHE_BLOCK_SIZE};
         wgs.local = {1, 1, WG_SIZE};
 
         auto& scalars = kd.params.scalars;

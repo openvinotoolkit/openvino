@@ -95,10 +95,10 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         // Once NAN takes part in dpas, the NAN will propagate and cause result become NAN.
         // As a WA, we need to set the unused part(in the same 16 row) of V cache to 0 here.
         const uint last_token_idx = (past_len + 1) % PAGED_ATTENTION_BLOCK_SIZE;
-        const uint last_token_idx_aligned = (last_token_idx + REG_K - 1) / REG_K * REG_K;
+        // const uint last_token_idx_aligned = (last_token_idx + REG_K - 1) / REG_K * REG_K;
 
-        // if (token_idx >= last_token_idx && token_idx < PAGED_ATTENTION_BLOCK_SIZE) {
-        if (token_idx >= last_token_idx && token_idx < last_token_idx_aligned) {
+        if (token_idx >= last_token_idx && token_idx < PAGED_ATTENTION_BLOCK_SIZE) {
+        // if (token_idx >= last_token_idx && token_idx < last_token_idx_aligned) {
             uint block_k_base_offset = ((past_len + 1) / PAGED_ATTENTION_BLOCK_SIZE) * KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
             uint key_out_offset = block_k_base_offset + head_idx * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + token_idx * ADJUSTED_K_HEAD_SIZE;
             vector<short, V_HEAD_SIZE> zero_data = 0;
