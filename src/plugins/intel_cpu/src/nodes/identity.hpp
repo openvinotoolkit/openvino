@@ -16,8 +16,6 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
 
-    bool needPrepareParams() const override;
-
     void prepareParams() override;
 
     void execute(const dnnl::stream& strm) override;
@@ -31,8 +29,6 @@ public:
     bool canBeInPlace() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-
-    std::string getPrimitiveDescriptorType() const override;
 
 protected:
     bool needShapeInfer() const override;
