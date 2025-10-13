@@ -292,26 +292,6 @@ public:
         return result;
     }
 };
-}  // namespace
-
-#ifdef __GNUC__
-#    pragma GCC diagnostic pop
-#endif
-
-namespace ov::npuw::util {
-bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
-    TransposeValueTensors::Context ctx;
-    rewr.add_matcher<TransposeValueTensors_llama2>(std::ref(ctx));
-    rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));
-    rewr.run_on_model(model);
-
-    ov::pass::Validate().run_on_model(model);
-
-    // NB: matmul parameters gets transposed, if pass applied
-    return ctx.bTransposed;
-}
 
 class AttentionMaskInputPast : public ov::pass::MatcherPass {
 public:
@@ -470,6 +450,25 @@ public:
         }
     }
 };
+}  // namespace
+
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif
+
+bool ov::npuw::util::optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
+    TransposeValueTensors::Context ctx;
+    rewr.add_matcher<TransposeValueTensors_llama2>(std::ref(ctx));
+    rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));
+    rewr.run_on_model(model);
+
+    ov::pass::Validate().run_on_model(model);
+
+    // NB: matmul parameters gets transposed, if pass applied
+    return ctx.bTransposed;
+}
 
 namespace {
 auto remove_encoder_attn_read_value(const std::shared_ptr<ov::Node>& rv_node,
@@ -739,4 +738,3 @@ std::shared_ptr<ov::Model> ov::npuw::util::prepare_whisper_kvcache_model(std::sh
     model->validate_nodes_and_infer_types();
     return model;
 }
-}  // namespace ov::npuw::util
