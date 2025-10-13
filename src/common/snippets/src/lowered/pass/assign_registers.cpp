@@ -54,7 +54,10 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
         gpr_pool.erase(gpr_pool.begin());
     }
     for (const auto& result : linear_ir.get_results()) {
-        manually_assigned[result->get_input_port_descriptor(0)->get_reg()] = *gpr_pool.begin();
+        for (const auto& result_input : result->get_input_port_descriptors()) {
+            manually_assigned[result_input->get_reg()] = *gpr_pool.begin();
+        }
+        // manually_assigned[result->get_input_port_descriptor(0)->get_reg()] = *gpr_pool.begin();
         gpr_pool.erase(gpr_pool.begin());
     }
 

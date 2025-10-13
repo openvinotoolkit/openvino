@@ -93,6 +93,7 @@
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reduce.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/reg_spill.hpp"
 #include "snippets/op/reorder.hpp"
 #include "snippets/op/reshape.hpp"
@@ -250,6 +251,7 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
+    jitters[snippets::op::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::RankNormalization::get_type_info_static()] =

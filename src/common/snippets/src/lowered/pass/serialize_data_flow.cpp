@@ -21,6 +21,7 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/serialization_node.hpp"
+#include "snippets/op/result.hpp"
 
 namespace ov::snippets::lowered::pass {
 
@@ -47,7 +48,7 @@ bool SerializeDataFlow::run(const LinearIR& linear_ir) {
             parameter->get_rt_info()["execTimeMcs"] = 0;
             ops_map[expr] = parameter;
             parameters.push_back(parameter);
-        } else if (ov::is_type<ov::op::v0::Result>(node)) {
+        } else if (ov::is_type<ov::op::v0::Result>(node) || ov::is_type<op::Result>(node)) {
             const auto result = std::make_shared<ov::op::v0::Result>(inputs[0]);
             ops_map[expr] = result;
             results.push_back(result);

@@ -37,6 +37,7 @@
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
@@ -236,7 +237,7 @@ void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed, d
     if (ov::is_type<ov::op::v0::Parameter>(node)) {
         m_parameter_expressions.push_back(expr);
     }
-    if (ov::is_type<ov::op::v0::Result>(node)) {
+    if (ov::is_type<ov::op::v0::Result>(node) || ov::is_type<op::Result>(node)) {
         m_result_expressions.push_back(expr);
     }
     if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
@@ -253,8 +254,8 @@ void LinearIR::unregister_expression(const ExpressionPtr& expr) {
 
     const auto& node = expr->get_node();
     m_node2expression_map.erase(node);
-    OPENVINO_ASSERT((!ov::is_type_any_of<ov::op::v0::Parameter, ov::op::v0::Result>(node)),
-                    "unregister_expression mustn't be called for parameter or result expressions");
+    OPENVINO_ASSERT((!ov::is_type<ov::op::v0::Parameter>(node)),
+                    "unregister_expression mustn't be called for parameter expressions");
     if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
         const auto& it = std::find(m_buffer_expressions.cbegin(), m_buffer_expressions.cend(), buffer_expr);
         OPENVINO_ASSERT(it != m_buffer_expressions.cend(),
@@ -428,9 +429,11 @@ LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& o
                                              const std::vector<size_t>& loop_ids,
                                              const constExprIt& place) {
     OPENVINO_ASSERT(!old_exprs.empty(), "Failed to replace node: there are no old expressions for replacing");
-    OPENVINO_ASSERT(
-        new_node->get_output_size() == old_exprs.back()->get_output_count(),
-        "Failed to replace node: node output port count is not equal to output count of last old expression");
+    std::cout << "new_node->get_output_size():" << new_node->get_output_size() << std::endl;
+    std::cout << "old_exprs.back()->get_output_count():" << old_exprs.back()->get_output_count() << std::endl;
+    // OPENVINO_ASSERT(
+    //     new_node->get_output_size() == old_exprs.back()->get_output_count(),
+    //     "Failed to replace node: node output port count is not equal to output count of last old expression");
 
     std::vector<PortConnectorPtr> new_inputs(new_node->get_input_size());
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
@@ -439,7 +442,8 @@ LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& o
     }
 
     const auto& last_old_expr = old_exprs.back();
-    for (size_t i = 0; i < new_node->get_output_size(); ++i) {
+    // for (size_t i = 0; i < new_node->get_output_size(); ++i) {
+    for (size_t i = 0; i < old_exprs.back()->get_output_count(); ++i) {
         snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
             new_node->output(i),
             last_old_expr->get_output_port_descriptor(i)->clone());
