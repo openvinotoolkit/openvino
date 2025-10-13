@@ -18,6 +18,8 @@ namespace ov {
 namespace npuw {
 namespace util {
 
+void copy(const ov::Tensor& src, ov::Tensor& dst);
+
 bool is_set(const std::size_t sub_idx,
             const std::string& opt,
             const std::size_t real_idx = SIZE_MAX,

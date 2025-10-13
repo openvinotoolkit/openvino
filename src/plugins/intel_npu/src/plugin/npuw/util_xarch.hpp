@@ -88,6 +88,8 @@ void transpose_i4(const uint8_t* src, uint8_t* dst, size_t rows, size_t cols);
 void transpose_f16(const uint16_t* src, uint16_t* dst, size_t rows, size_t cols);
 void transpose_f32(const float* src, float* dst, size_t rows, size_t cols);
 
+void copy(const ov::Tensor& src, ov::Tensor& dst);
+
 }  // namespace XARCH
 }  // namespace util
 }  // namespace npuw

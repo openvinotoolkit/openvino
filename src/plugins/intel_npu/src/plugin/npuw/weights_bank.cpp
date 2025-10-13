@@ -115,7 +115,7 @@ void Bank::evaluate_and_allocate() {
 void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTensor>& to_process) {
     // Note: not locking here. This is a private function, so Bank should handle the locks around it
     // as we lock in evaluate_and_allocate() now.
-    ov::parallel_for(to_process.size(), [&](std::size_t idx) {
+    ov::npuw::util::non_parallel_for(to_process.size(), [&](std::size_t idx) {
         const auto& lt = to_process[idx];
         auto iter_device_registered = device_bank.registered_tensors.find(lt);
         NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
@@ -124,7 +124,8 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
         auto t = lt.eval();
         device_bank.storage.at(uid).tensor = ov::Tensor(t.get_element_type(), t.get_shape());
         // Get ownership of the weights, might be a mmaped object during import
-        t.copy_to(device_bank.storage.at(uid).tensor);
+        // t.copy_to(device_bank.storage.at(uid).tensor);
+        ov::npuw::util::copy(t, device_bank.storage.at(uid).tensor);
         const_cast<LazyTensor&>(lt).detach();
     });
 }
@@ -172,7 +173,8 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         auto& stored_tensor = device_bank.storage.at(allocated.uid);
 
         auto transformed = stored_tensor.lt.eval();
-        transformed.copy_to(allocated.allocated_tensor);
+        // transformed.copy_to(allocated.allocated_tensor);
+        ov::npuw::util::copy(transformed, allocated.allocated_tensor);
         stored_tensor.tensor = std::move(allocated.allocated_tensor);
 
         // Detach the evaluated LazyTensor from its memory here - when it is 100%

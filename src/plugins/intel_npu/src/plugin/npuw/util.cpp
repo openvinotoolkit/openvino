@@ -654,6 +654,10 @@ ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
     return tnew;
 }
 
+void ov::npuw::util::copy(const ov::Tensor& src, ov::Tensor& dst) {
+    ov::npuw::util::XARCH::copy(src, dst);
+}
+
 ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::size_t>& axes) {
     ov::Shape shape = t.get_shape();
     NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors

@@ -1492,6 +1492,31 @@ void ov::npuw::util::XARCH::copy_row_as_column(const ov::SoPtr<ov::ITensor>& fro
 #endif
 }
 
+void ov::npuw::util::XARCH::copy(const ov::Tensor& from, ov::Tensor& to) {
+#if defined(HAVE_AVX2)
+    constexpr uint32_t block_size = sizeof(__m256i) / sizeof(uint32_t);
+    size_t total_bytes = from.get_size() * from.get_element_type().size() / 4;
+    if (from.get_element_type() == ov::element::u4 || from.get_element_type() == ov::element::i4 ||
+        from.get_element_type() == ov::element::f4e2m1 || from.get_element_type() == ov::element::nf4) {
+        total_bytes = from.get_size() / 8;
+    }
+
+    const auto* pSrc = reinterpret_cast<uint32_t*>(from.data());
+    auto* pDst = reinterpret_cast<uint32_t*>(to.data());
+
+    size_t i = 0;
+    for (; i + block_size < total_bytes; i += block_size) {
+        __m256i input = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(pSrc + i));
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(pDst + i), input);
+    }
+    if (i < total_bytes) {
+        std::memcpy(pDst + i, pSrc + i, (total_bytes - i) * 4);
+    }
+#else
+    from.copy_to(to);
+#endif
+}
+
 void ov::npuw::util::XARCH::transpose_i4(const uint8_t* src, uint8_t* dst, size_t rows, size_t cols) {
 #if defined(HAVE_AVX2)
     size_t c_step = 8;
