@@ -31,7 +31,7 @@ constexpr auto get_pa_build_options() {
 }
 
 // BLOCK_SIZE can be 16/256 for legacy and xattn cases respectively
-#define PA_KV_CACHE_BLOCK_SIZE 16
+#define PA_KV_CACHE_BLOCK_SIZE       16
 #define PA_KV_CACHE_BLOCK_SIZE_XATTN 256
 
 constexpr uint32_t BLOCK_SG_M = 64;
@@ -53,7 +53,6 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t xattn_q_block_pad;
     size_t xattn_k_block_pad;
 };
-
 
 //-----------------------------------------------------------------------------------------------------------------
 // Helpers of XAttention
