@@ -58,6 +58,7 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
         params.scales_output_order = desc->attrs.scales_zp_output_order;
         params.use_asymmetric_quantization = desc->attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
         params.combine_scales_and_zp = desc->attrs.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+        params.generate_precomputed_reduction = desc->attrs.precomputed_reduction;
 
         return params;
     }
