@@ -201,7 +201,11 @@ void sum_blocks8x8(const float* a, size_t M, size_t a_stride, float* out, size_t
 }
 #endif
 
-PlainTensor xattn_estimate(const PlainTensor& query, const PlainTensor& key, size_t block_size, size_t stride, float threshold) {
+PlainTensor xattn_estimate(const PlainTensor& query,
+                           const PlainTensor& key,
+                           size_t block_size,
+                           size_t stride,
+                           float threshold) {
     auto B = query.size(0);
     auto H = query.size(1);
     auto L = query.size(2);
