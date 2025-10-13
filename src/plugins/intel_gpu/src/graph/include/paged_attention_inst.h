@@ -25,10 +25,6 @@ public:
                                          PagedAttentionInputIdx::XATTENTION_THRESHOLD,
                                          PagedAttentionInputIdx::MAX_CONTEXT_LEN };
 
-        // debug
-        input_ports.insert(PagedAttentionInputIdx::BLOCK_INDICES);
-        input_ports.insert(PagedAttentionInputIdx::BLOCK_INDICES_BEGINS);
-
         if (typed_desc()->has_score_aggregation)
             input_ports.insert(PagedAttentionInputIdx::SCORE_AGGREGATION);
 

@@ -219,26 +219,6 @@ const float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_
     return thresh;
 }
 
-inline void dump_block_indices_begins(const kernel_impl_params& params) {
-    const auto& input_mem = params.memory_deps;
-    const auto mem = input_mem.at(PagedAttentionInputIdx::BLOCK_INDICES_BEGINS);
-    mem_lock<int32_t, mem_lock_type::read> mem_lock(mem, *params.strm);
-    std::cout << "============ dump BLOCK_INDICES_BEGINS [";
-    for (size_t i = 0; i < mem->count(); i++)
-        std::cout << mem_lock[i] << ", ";
-    std::cout << "]" << std::endl;
-}
-
-inline void dump_block_indices(const kernel_impl_params& params) {
-    const auto& input_mem = params.memory_deps;
-    const auto mem = input_mem.at(PagedAttentionInputIdx::BLOCK_INDICES);
-    mem_lock<int32_t, mem_lock_type::read> mem_lock(mem, *params.strm);
-    std::cout << "============ dump BLOCK_INDICES [";
-    for (size_t i = 0; i < mem->count(); i++)
-        std::cout << mem_lock[i] << ", ";
-    std::cout << "]" << std::endl;
-}
-
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param) {
     const auto& query_shape = impl_param.get_input_layout(PagedAttentionInputIdx::QUERY).get_partial_shape();
     const auto& past_lens_shape = impl_param.get_input_layout(PagedAttentionInputIdx::PAST_LENS).get_partial_shape();
@@ -877,9 +857,6 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
                       << ", kv_len: " << kv_len << ", max_context_len = " << max_context_len << ", past_len = " << past_len << ", gws: [" << wgs.global[0]
                       << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
-
-            dump_block_indices_begins(params);
-            dump_block_indices(params);
         }
 
         for (size_t i = 0; i < scaler_value.size(); ++i) {
