@@ -620,7 +620,8 @@ Example:
     </skip_config>
 
     <!-- E#112064 -->
-    <skip_config>
+    <!-- Implementation moved to test Setup -->
+    <!-- <skip_config>
         <message>Failing Windows PV Driver core threading tests</message>
         <enable_rules>
             <backend>LEVEL0</backend>
@@ -629,7 +630,7 @@ Example:
         <filters>
             <filter>.*CoreThreadingTest.smoke_QueryModel/.*_driverVersion=1688.*</filter>
         </filters>
-    </skip_config>
+    </skip_config> -->
 
     <skip_config>
         <message>Failing properties tests</message>
@@ -698,13 +699,14 @@ Example:
     </skip_config>
 
     <!-- E#116761 -->
-    <skip_config>
+    <!-- Implementation moved to test Setup -->
+    <!-- <skip_config>
         <message>OVClassQueryModel tests do not work with COMPILER_TYPE=DRIVER and PV driver</message>
         <filters>
             <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*_driverVersion=1688.*</filter>
             <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*_driverVersion=1688.*</filter>
         </filters>
-    </skip_config>
+    </skip_config> -->
 
     <!-- E#109040 -->
     <skip_config>
