@@ -335,7 +335,7 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
+        ARCH AVX512F AVX2
                     src/nodes/kernels/scaled_attn/xattention.cpp
         API         src/nodes/kernels/scaled_attn/xattention.hpp
         NAME        xattn_estimate
