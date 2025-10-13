@@ -759,12 +759,14 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
     OPENVINO_ASSERT(!cacheWeightsWithUndefData,
                     "dnnl convolution weights caching for dynamic shapes is not implemented");
 
+    const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
+
     ConvAttrs attrs{{1},
                     {0},
                     {0},
                     {0},
                     AutoPaddingType::None,
-                    fcAttrs.withBias,
+                    hasBias,
                     fcAttrs.weightsNonTransposed,
                     false,
                     false,
@@ -880,7 +882,6 @@ DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const
                                                                            const DnnlMemoryDescPtr& dstDesc,
                                                                            const ConvAttrs& attrs) {
     FCAttrs fcAttrs{};
-    fcAttrs.withBias = attrs.withBias;
     fcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
 
     return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, fcAttrs);
