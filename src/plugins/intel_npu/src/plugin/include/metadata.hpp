@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "openvino/core/layout.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -41,7 +42,17 @@ public:
     /**
      * @returns The sizes of the init schedules. Populated only if "weights separation" has been enabled.
      */
-    virtual std::optional<std::vector<uint64_t>> get_init_sizes() const = 0;
+    virtual std::optional<std::vector<uint64_t>> get_init_sizes() const {
+        return std::nullopt;
+    }
+
+    virtual std::optional<std::vector<ov::Layout>> get_input_layouts() const {
+        return std::nullopt;
+    }
+
+    virtual std::optional<std::vector<ov::Layout>> get_output_layouts() const {
+        return std::nullopt;
+    }
 
     virtual ~MetadataBase() = default;
 
@@ -101,6 +112,7 @@ constexpr std::string_view MAGIC_BYTES = "OVNPU";
  */
 constexpr uint32_t METADATA_VERSION_2_0{MetadataBase::make_version(2, 0)};
 constexpr uint32_t METADATA_VERSION_2_1{MetadataBase::make_version(2, 1)};
+constexpr uint32_t METADATA_VERSION_2_2{MetadataBase::make_version(2, 2)};
 
 /**
  * @brief Current metadata version.
@@ -208,8 +220,6 @@ public:
      */
     bool is_compatible() override;
 
-    std::optional<std::vector<uint64_t>> get_init_sizes() const override;
-
     size_t get_metadata_size() const override;
 
 protected:
@@ -247,6 +257,36 @@ public:
 private:
     std::optional<std::vector<uint64_t>> _initSizes;
     uint64_t _numberOfInits = 0;
+};
+
+/**
+ * @brief Stores the layouts for all inputs and outputs (Parameter and Result nodes).
+ * @details The order used for recording the layouts follows the deterministic order in which OV parses the I/O.
+ */
+template <>
+class Metadata<METADATA_VERSION_2_2> : public Metadata<METADATA_VERSION_2_1> {
+public:
+    Metadata(uint64_t blobSize,
+             std::optional<OpenvinoVersion> ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
+             const std::optional<std::vector<ov::Layout>> inputLayouts = std::nullopt,
+             const std::optional<std::vector<ov::Layout>> outputLayouts = std::nullopt);
+
+    void read(std::istream& stream) override;
+
+    void read(const ov::Tensor& tensor) override;
+
+    void write(std::ostream& stream) override;
+
+    size_t get_metadata_size() const override;
+
+    std::optional<std::vector<ov::Layout>> get_input_layouts() const override;
+
+    std::optional<std::vector<ov::Layout>> get_output_layouts() const override;
+
+private:
+    std::optional<std::vector<ov::Layout>> _inputLayouts;
+    std::optional<std::vector<ov::Layout>> _outputLayouts;
 };
 
 /**

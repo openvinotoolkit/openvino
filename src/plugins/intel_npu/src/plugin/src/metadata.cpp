@@ -114,6 +114,42 @@ void Metadata<METADATA_VERSION_2_1>::read(const ov::Tensor& tensor) {
     }
 }
 
+void Metadata<METADATA_VERSION_2_2>::read(std::istream& stream) {
+    Metadata<METADATA_VERSION_2_1>::read(stream);
+
+    uint64_t numberOfInputLayouts, numberOfOutputLayouts;
+    stream.read(reinterpret_cast<char*>(&numberOfInputLayouts), sizeof(numberOfInputLayouts));
+    stream.read(reinterpret_cast<char*>(&numberOfOutputLayouts), sizeof(numberOfOutputLayouts));
+
+    uint16_t stringLength;
+    if (numberOfInputLayouts) {
+        _inputLayouts = std::vector<ov::Layout>();
+        _inputLayouts->reserve(numberOfInputLayouts);
+        for (uint64_t inputIndex = 0; inputIndex < numberOfInputLayouts; ++inputIndex) {
+            stream.read(reinterpret_cast<char*>(&stringLength), sizeof(stringLength));
+
+            std::string layoutString(stringLength, 0);
+            stream.read(const_cast<char*>(layoutString.c_str()), stringLength);
+            _inputLayouts->push_back(ov::Layout(std::move(layoutString)));
+        }
+    }
+    if (numberOfOutputLayouts) {
+        _outputLayouts = std::vector<ov::Layout>();
+        _outputLayouts->reserve(numberOfOutputLayouts);
+        for (uint64_t outputIndex = 0; outputIndex < numberOfOutputLayouts; ++outputIndex) {
+            stream.read(reinterpret_cast<char*>(&stringLength), sizeof(stringLength));
+
+            std::string layoutString(stringLength, 0);
+            stream.read(const_cast<char*>(layoutString.c_str()), stringLength);
+            _outputLayouts->push_back(ov::Layout(std::move(layoutString)));
+        }
+    }
+}
+
+void Metadata<METADATA_VERSION_2_2>::read(const ov::Tensor& tensor) {
+    // TODO
+}
+
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
     size_t metadataSize = get_metadata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
     size_t size = utils::align_size_to_standard_page_size(metadataSize);
@@ -140,6 +176,32 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
     if (_initSizes.has_value()) {
         for (uint64_t initSize : _initSizes.value()) {
             stream.write(reinterpret_cast<const char*>(&initSize), sizeof(initSize));
+        }
+    }
+}
+
+void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_1>::write(stream);
+
+    const uint64_t numberOfInputLayouts = _inputLayouts.has_value() ? _inputLayouts->size() : 0;
+    const uint64_t numberOfOutputLayouts = _outputLayouts.has_value() ? _outputLayouts->size() : 0;
+    stream.write(reinterpret_cast<const char*>(&numberOfInputLayouts), sizeof(numberOfInputLayouts));
+    stream.write(reinterpret_cast<const char*>(&numberOfOutputLayouts), sizeof(numberOfOutputLayouts));
+
+    if (_inputLayouts.has_value()) {
+        for (const ov::Layout& layout : _inputLayouts.value()) {
+            const std::string layoutString = layout.to_string();
+            const uint16_t stringLength = layoutString.size();
+            stream.write(reinterpret_cast<const char*>(&stringLength), sizeof(stringLength));
+            stream.write(reinterpret_cast<const char*>(layoutString.c_str()), stringLength);
+        }
+    }
+    if (_outputLayouts.has_value()) {
+        for (const ov::Layout& layout : _outputLayouts.value()) {
+            const std::string layoutString = layout.to_string();
+            const uint16_t stringLength = layoutString.size();
+            stream.write(reinterpret_cast<const char*>(&stringLength), sizeof(stringLength));
+            stream.write(reinterpret_cast<const char*>(layoutString.c_str()), stringLength);
         }
     }
 
@@ -291,10 +353,6 @@ uint64_t MetadataBase::get_blob_size() const {
     return _blobDataSize;
 }
 
-std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_0>::get_init_sizes() const {
-    return std::nullopt;
-}
-
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
     return _initSizes;
 }
@@ -307,12 +365,31 @@ size_t Metadata<METADATA_VERSION_2_1>::get_metadata_size() const {
     size_t metadataSize = Metadata<METADATA_VERSION_2_0>::get_metadata_size() + sizeof(_numberOfInits);
 
     if (_initSizes.has_value()) {
-        for (size_t initSize : _initSizes.value()) {
-            metadataSize += sizeof(initSize);
+        metadataSize += _initSizes->size() * sizeof(uint64_t);
+    }
+
+    return metadataSize;
+}
+
+size_t Metadata<METADATA_VERSION_2_2>::get_metadata_size() const {
+    size_t metadataSize = Metadata<METADATA_VERSION_2_1>::get_metadata_size() + 2 * sizeof(uint64_t);  // I/O counts
+
+    if (_inputLayouts.has_value()) {
+        for (const ov::Layout& layout : _inputLayouts.value()) {
+            // Length followed by the layout value as string
+            metadataSize += sizeof(uint16_t) * layout.to_string().size();
         }
     }
 
     return metadataSize;
+}
+
+std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_2_2>::get_input_layouts() const {
+    return _inputLayouts;
+}
+
+std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_2_2>::get_output_layouts() const {
+    return _outputLayouts;
 }
 
 }  // namespace intel_npu
