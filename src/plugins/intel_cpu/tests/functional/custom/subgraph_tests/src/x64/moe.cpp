@@ -7,8 +7,11 @@
 #include <memory>
 #include <openvino/core/model.hpp>
 #include <openvino/op/add.hpp>
+#include <openvino/op/broadcast.hpp>
 #include <openvino/op/clamp.hpp>
+#include <openvino/op/concat.hpp>
 #include <openvino/op/constant.hpp>
+#include <openvino/op/gather.hpp>
 #include <openvino/op/matmul.hpp>
 #include <openvino/op/minimum.hpp>
 #include <openvino/op/moe.hpp>
@@ -18,7 +21,9 @@
 #include <openvino/op/reshape.hpp>
 #include <openvino/op/result.hpp>
 #include <openvino/op/scatter_elements_update.hpp>
+#include <openvino/op/shape_of.hpp>
 #include <openvino/op/slice.hpp>
+#include <openvino/op/softmax.hpp>
 #include <openvino/op/swish.hpp>
 #include <openvino/op/tile.hpp>
 #include <openvino/op/topk.hpp>
@@ -42,20 +47,14 @@ using namespace CPUTestUtils;
 
 namespace ov::test {
 
-struct MoeShapeParams {
+struct MoePatternParams {
     ov::test::InputShape data_shape;
-    size_t hidden_size;
-    size_t intermediate_size;
-    size_t number_of_experts;
     size_t topk;
-    size_t fusion_factor;
-    // Weight decompression parameters
-    ov::Shape gate_up_weights_shape;
-    ov::Shape down_proj_weights_shape;
-    int decompression_group_size;
+    size_t number_of_experts;
+    size_t intermediate_size;
 };
 
-typedef std::tuple<MoeShapeParams,
+typedef std::tuple<MoePatternParams,
                    ov::test::ElementType,  // weights precision
                    ov::test::ElementType,  // decompression precision
                    ov::test::ElementType,  // scale precision
@@ -63,8 +62,8 @@ typedef std::tuple<MoeShapeParams,
                    DecompressionType,      // decompression multiply type
                    DecompressionType,      // decompression subtract type
                    bool,                   // reshape on decompression constants
-                   ov::AnyMap,             // additional config
-                   fusingSpecificParams>
+                   int,                    // decompression_group_size
+                   ov::AnyMap>             // additional config
     MoeTestParams;
 
 class MoeSubgraphTest : public testing::WithParamInterface<MoeTestParams>,
@@ -72,7 +71,7 @@ class MoeSubgraphTest : public testing::WithParamInterface<MoeTestParams>,
                         public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MoeTestParams>& obj) {
-        const auto& [shape_params,
+        const auto& [moe_params,
                      weights_precision,
                      decompression_precision,
                      scale_precision,
@@ -80,16 +79,18 @@ public:
                      decompression_multiply_type,
                      decompression_subtract_type,
                      reshape_on_decompression,
-                     additional_config,
-                     fusing_params] = obj.param;
+                     decompression_group_size,
+                     additional_config] = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << shape_params.data_shape << "_";
-        result << "HS=" << shape_params.hidden_size << "_";
-        result << "IS=" << shape_params.intermediate_size << "_";
-        result << "NE=" << shape_params.number_of_experts << "_";
-        result << "TK=" << shape_params.topk << "_";
-        result << "FF=" << shape_params.fusion_factor << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({moe_params.data_shape.first}) << "_";
+        result << "TS=";
+        for (const auto& static_shape : moe_params.data_shape.second) {
+            result << ov::test::utils::vec2str(static_shape) << ",";
+        }
+        result << "top_k_experts=" << moe_params.topk << "_";
+        result << "total_experts=" << moe_params.number_of_experts << "_";
+        result << "intermediate_size=" << moe_params.intermediate_size << "_";
 
         if (use_weight_decompression) {
             result << "WP=" << weights_precision << "_";
@@ -98,7 +99,7 @@ public:
             result << "DM=" << decompression_multiply_type << "_";
             result << "DS=" << decompression_subtract_type << "_";
             result << "RD=" << reshape_on_decompression << "_";
-            result << "GS=" << shape_params.decompression_group_size << "_";
+            result << "GS=" << decompression_group_size << "_";
         }
 
         result << "config=(";
@@ -106,13 +107,12 @@ public:
             result << configEntry.first << "=" << configEntry.second.as<std::string>() << "_";
         }
         result << ")";
-        result << CpuTestWithFusing::getTestCaseName(fusing_params);
 
         return result.str();
     }
 
 protected:
-    std::shared_ptr<ov::Model> initMoeSubgraph(const MoeShapeParams& shape_params,
+    std::shared_ptr<ov::Model> initMoeSubgraph(const MoePatternParams& moe_params,
                                                const ov::element::Type data_precision,
                                                const ov::element::Type weights_precision,
                                                const ov::element::Type decompression_precision,
@@ -120,21 +120,25 @@ protected:
                                                const bool use_weight_decompression,
                                                const DecompressionType decompression_multiply_type,
                                                const DecompressionType decompression_subtract_type,
-                                               const bool reshape_on_decompression) {
+                                               const bool reshape_on_decompression,
+                                               const int decompression_group_size) {
         // Use parameters from shape_params - static shapes only
-        const size_t hidden_size = shape_params.hidden_size;
-        const size_t intermediate_size = shape_params.intermediate_size;
-        const size_t topk = shape_params.topk;
-        const size_t number_of_experts = shape_params.number_of_experts;
-        const size_t fusion_factor = shape_params.fusion_factor;
+        const auto& data_shape = moe_params.data_shape;
+        const int64_t intermediate_size = moe_params.intermediate_size;
+        const int64_t topk = moe_params.topk;
+        const int64_t number_of_experts = moe_params.number_of_experts;
+
         const auto expert_alpha = 1.702f;
         const auto expert_beta = 7.0f;
 
+        constexpr int64_t fusion_factor = 2;  // property of GPT-OSS
+
+        const auto& input_shape = data_shape.first;
         // Create input parameter with dynamic shape - batch and hidden_size are fixed, seq_len is dynamic
-        const size_t batch = 2;                                      // Fixed batch size from reference
-        const ov::Dimension seq_len_dim = ov::Dimension::dynamic();  // Dynamic sequence length
-        auto input_shape = ov::PartialShape{batch, seq_len_dim, hidden_size};
         auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, input_shape);
+
+        OPENVINO_ASSERT(input_shape[2].is_static());
+        const auto hidden_size = input_shape[2].get_length();
 
         // Expert processing path - use -1 for dynamic reshape like in reference
         auto experts_reshape = std::make_shared<ov::op::v1::Reshape>(
@@ -152,7 +156,7 @@ protected:
             tile,
             ov::op::v0::Constant::create(ov::element::i64,
                                          ov::Shape{3},
-                                         std::vector<int64_t>{number_of_experts, batch, hidden_size}),
+                                         std::vector<int64_t>{number_of_experts, -1, hidden_size}),
             false);
 
         // Gate/Up projection
@@ -160,33 +164,38 @@ protected:
             after_tile_reshape,
             ov::test::utils::make_constant(
                 ov::element::f32,
-                ov::Shape{number_of_experts, hidden_size, intermediate_size * fusion_factor}));
+                ov::Shape{number_of_experts, intermediate_size * fusion_factor, hidden_size}),
+            false,
+            true);
+
+        gate_up_matmul->set_friendly_name("GateUpMatMul");
 
         auto gate_up_add = std::make_shared<ov::op::v1::Add>(
             gate_up_matmul,
             ov::test::utils::make_constant(ov::element::f32,
                                            ov::Shape{number_of_experts, 1, intermediate_size * fusion_factor}));
 
+        // Slice the last axis, every second element
         auto slice1 = std::make_shared<ov::op::v8::Slice>(
             gate_up_add,
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 0, 0}),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
             ov::op::v0::Constant::create(ov::element::i64,
-                                         ov::Shape{3},
-                                         std::vector<int64_t>{number_of_experts, batch, intermediate_size * 2}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 1, 2}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 1, 2}));
+                                         ov::Shape{1},
+                                         std::vector<int64_t>{std::numeric_limits<int64_t>::max()}),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}));
         auto clamp = std::make_shared<ov::op::v0::Clamp>(slice1, -expert_beta, expert_beta);
         auto add1 =
             std::make_shared<ov::op::v1::Add>(clamp, ov::test::utils::make_constant(ov::element::f32, ov::Shape{1}));
 
         auto slice2 = std::make_shared<ov::op::v8::Slice>(
             gate_up_add,
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 1, 0}),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}),
             ov::op::v0::Constant::create(ov::element::i64,
-                                         ov::Shape{3},
-                                         std::vector<int64_t>{number_of_experts, batch, intermediate_size * 2}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 1, 2}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 1, 2}));
+                                         ov::Shape{1},
+                                         std::vector<int64_t>{std::numeric_limits<int64_t>::max()}),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}));
         auto minimum1 = std::make_shared<ov::op::v1::Minimum>(
             slice2,
             ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {10.0f}));
@@ -199,19 +208,25 @@ protected:
         auto down_proj_matmul = std::make_shared<ov::op::v0::MatMul>(
             multiply2,
             ov::test::utils::make_constant(ov::element::f32,
-                                           ov::Shape{number_of_experts, intermediate_size, hidden_size}));
+                                           ov::Shape{number_of_experts, hidden_size, intermediate_size}),
+            false,
+            true);
+
+        down_proj_matmul->set_friendly_name("DownProjMatMul");
 
         auto down_proj_add = std::make_shared<ov::op::v1::Add>(
             down_proj_matmul,
             ov::test::utils::make_constant(ov::element::f32, ov::Shape{number_of_experts, 1, hidden_size}));
 
-        auto end_reshape = std::make_shared<ov::op::v1::Reshape>(
-            down_proj_add,
-            ov::op::v0::Constant::create(
-                ov::element::i64,
-                ov::Shape{4},
-                std::vector<int64_t>{number_of_experts, batch, -1, hidden_size}),  // Use -1 for dynamic seq_len
-            false);
+        const auto fetch_input_shape = std::make_shared<ov::op::v0::ShapeOf>(input);
+        // here we simulate shape calculation
+        // concat a const with the total number of experts and fetch_input_shape
+        const auto number_of_experts_const =
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {number_of_experts});
+        const auto end_shape =
+            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{number_of_experts_const, fetch_input_shape}, 0);
+
+        auto end_reshape = std::make_shared<ov::op::v1::Reshape>(down_proj_add, end_shape, false);
 
         // Router subgraph - this is crucial for the MoE pattern recognition
         auto reshape_2nd_consumer_router_matmul = std::make_shared<ov::op::v0::MatMul>(
@@ -233,13 +248,19 @@ protected:
                                                 ov::element::i64);
 
         auto router_topk_values = router_topk_values_and_indices->output(0);
+        auto router_topk_values_softmax = std::make_shared<ov::op::v1::Softmax>(router_topk_values, 1);
         auto router_topk_indices = router_topk_values_and_indices->output(1);
 
-        // ScatterElementsUpdate: Follow reference pattern exactly
+        // add ShapeOf after Add
+        auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(router_bias);
+        // broadcast zeroes to the tensor of shape [batch, topk]
+        auto zero_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {0});
+        auto broadcast_zero = std::make_shared<ov::op::v3::Broadcast>(zero_const, shape_of);
+
         auto scatter_elements_update = std::make_shared<ov::op::v12::ScatterElementsUpdate>(
-            router_topk_values,                                                           // data
-            router_topk_indices,                                                          // indices
-            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{batch, topk}, {0}),  // updates - match reference
+            broadcast_zero,
+            router_topk_indices,
+            router_topk_values_softmax,
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}));  // axis
 
         // Transpose: Dynamic shape transpose
@@ -247,16 +268,19 @@ protected:
             scatter_elements_update,
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0}));
 
-        auto router_reshape = std::make_shared<ov::op::v1::Reshape>(
-            router_transpose,
-            ov::op::v0::Constant::create(ov::element::i64,
-                                         ov::Shape{3},
-                                         std::vector<int64_t>{number_of_experts, batch, -1}),
-            true);
+        const auto batch_seq_len = std::make_shared<ov::op::v1::Gather>(
+            fetch_input_shape,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{0, 1}),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+
+        const auto router_shape =
+            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{number_of_experts_const, batch_seq_len}, 0);
+
+        auto router_reshape = std::make_shared<ov::op::v1::Reshape>(router_transpose, router_shape, true);
 
         auto unsqueeze_routing_weights = std::make_shared<ov::op::v0::Unsqueeze>(
             router_reshape,
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}));
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1}));
 
         auto mul3 = std::make_shared<ov::op::v1::Multiply>(end_reshape, unsqueeze_routing_weights);
 
@@ -270,6 +294,8 @@ protected:
         return std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Result>(reduce_sum)},
                                            params,
                                            "MoeSubgraph");
+
+        /*(-:**/
     }
 
     void SetUp() override {
@@ -283,11 +309,10 @@ protected:
                      decompression_multiply_type,
                      decompression_subtract_type,
                      reshape_on_decompression,
-                     additional_config,
-                     fusing_params] = GetParam();
+                     decompression_group_size,
+                     additional_config] = GetParam();
 
         configuration.insert(additional_config.begin(), additional_config.end());
-        std::tie(postOpMgrPtr, fusedOps) = fusing_params;
 
         init_input_shapes({shape_params.data_shape});
 
@@ -300,7 +325,8 @@ protected:
                                    use_weight_decompression,
                                    decompression_multiply_type,
                                    decompression_subtract_type,
-                                   reshape_on_decompression);
+                                   reshape_on_decompression,
+                                   decompression_group_size);
     }
 };
 
@@ -309,50 +335,30 @@ namespace {
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
 
-const std::vector<MoeShapeParams> input_shapes_basic = {
+const std::vector<MoePatternParams> moe_params = {
     {
-        {{2, -1, 2048}, {{2, 1, 2048}, {2, 4, 2048}, {2, 8, 2048}}},  // data_shape - dynamic seq_len: batch=2,
-                                                                      // seq_len=dynamic, hidden_size=2048
-        2048,                                                         // hidden_size - match reference
-        4096,                                                         // intermediate_size - match reference
-        3,                                                            // number_of_experts - match reference
-        2,                                                            // topk
-        2,                                                            // fusion_factor
-        {3, 2048, 8192},  // gate_up_weights_shape - match reference dimensions
-        {3, 4096, 2048},  // down_proj_weights_shape - match reference dimensions
-        64                // decompression_group_size
+        {{-1, -1, 2048}, {{2, 15, 2048}, {2, 1, 2048}, {3, 8, 2048}}},  // data_shape,
+                                                                        // seq_len=dynamic, hidden_size=2048
+        4,                                                              // topk
+        32,                                                             // number_of_experts
+        4096                                                            // intermediate_size
     },
     {
-        {{1, -1, 1024}, {{1, 2, 1024}, {1, 6, 1024}, {1, 16, 1024}}},  // Different batch size and hidden size
-        1024,                                                          // hidden_size
-        2048,                                                          // intermediate_size
-        4,                                                             // number_of_experts
-        2,                                                             // topk
-        2,                                                             // fusion_factor
-        {4, 1024, 4096},                                               // gate_up_weights_shape
-        {4, 2048, 1024},                                               // down_proj_weights_shape
-        32                                                             // decompression_group_size
+        {{-1, -1, 1024}, {{1, 32, 1024}, {1, 1, 1024}, {1, 16, 1024}}},  // Different seq length
+        6,                                                               // topk
+        64,                                                              // number_of_experts
+        2048                                                             // intermediate_size
     }};
-auto filter_additional_config_basic = []() {
-    std::vector<std::map<std::string, ov::Any>> additional_config = {
-        {{ov::hint::inference_precision.name(), ov::element::f32}}};
-    return additional_config;
-};
 
-auto filter_additional_config_bf16 = []() {
-    std::vector<std::map<std::string, ov::Any>> additional_config = {
-        {{ov::hint::inference_precision.name(), ov::element::bf16}}};
-    return additional_config;
-};
-
-const std::vector<CPUTestUtils::fusingSpecificParams> fusing_params = {emptyFusingSpec};
+const ov::AnyMap additional_config_basic = {{ov::hint::inference_precision.name(), ov::element::f32}};
+const ov::AnyMap additional_config_bf16 = {{ov::hint::inference_precision.name(), ov::element::bf16}};
 
 }  // namespace
 
 // Basic FP32 tests
 INSTANTIATE_TEST_SUITE_P(smoke_MoeSubgraph_basic,
                          MoeSubgraphTest,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
+                         ::testing::Combine(::testing::ValuesIn(moe_params),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(ov::element::f32),
@@ -360,15 +366,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeSubgraph_basic,
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(false),
-                                            ::testing::Values(ov::AnyMap{
-                                                {ov::hint::inference_precision.name(), ov::element::f32}}),
-                                            ::testing::ValuesIn(fusing_params)),
+                                            ::testing::Values(0),
+                                            ::testing::Values(additional_config_basic)),
                          MoeSubgraphTest::getTestCaseName);
 
 // BF16 inference precision tests
 INSTANTIATE_TEST_SUITE_P(smoke_MoeSubgraph_bf16,
                          MoeSubgraphTest,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
+                         ::testing::Combine(::testing::ValuesIn(moe_params),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(ov::element::f32),
@@ -376,9 +381,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeSubgraph_bf16,
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(false),
-                                            ::testing::Values(ov::AnyMap{
-                                                {ov::hint::inference_precision.name(), ov::element::bf16}}),
-                                            ::testing::ValuesIn(fusing_params)),
+                                            ::testing::Values(0),
+                                            ::testing::Values(additional_config_bf16)),
                          MoeSubgraphTest::getTestCaseName);
 
 TEST_P(MoeSubgraphTest, CompareWithRefs) {
