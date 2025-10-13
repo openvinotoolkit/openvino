@@ -470,7 +470,28 @@ pass::EliminateConvert::EliminateConvert() {
         if (!convert) {
             return false;
         }
-        if (convert->get_input_element_type(0) == convert->get_element_type()) {
+        auto is_identity_io = [&]() {
+            // The Identity can be eliminated if it is not in `Parameter->Identity->Result` path
+            // In the Convert Precision changed the pattern to
+            //  Parameter->Convert->Identity->Convert->Result
+            // So eliminate `Convert` here.
+            // Check for cases like Parameter->Convert->Identity or Identity->Convert->Result
+            auto input = convert->input_value(0);
+            auto consumers = convert->output(0).get_target_inputs();
+            if (consumers.size() != 1) {
+                return false;
+            }
+            if (is_type<ov::op::v0::Parameter>(input.get_node()) &&
+                is_type<op::v16::Identity>(consumers.cbegin()->get_node())) {
+                return true;
+            }
+            if (is_type<op::v16::Identity>(input.get_node()) &&
+                is_type<ov::op::v0::Result>(consumers.cbegin()->get_node())) {
+                return true;
+            }
+            return false;
+        };
+        if (convert->get_input_element_type(0) == convert->get_element_type() || is_identity_io()) {
             return replace_output_update_name(convert->output(0), convert->input_value(0));
         }
         return false;
