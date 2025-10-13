@@ -858,7 +858,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     if (!m_generate_initialized) {
         LOG_DEBUG("Copy kv-cache from prefill to generate model.");
-        copy_kvcache();
+        if (kvcache_desc.num_stored_tokens > 0) {
+            copy_kvcache();
+        }
 
         LOG_DEBUG("Prepare inputs.");
         namespace uu = ov::npuw::util;
