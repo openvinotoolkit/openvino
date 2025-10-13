@@ -452,10 +452,11 @@ struct PlainTensor {
     }
     template <int dim, typename I, typename... Is>
     [[nodiscard]] int64_t safe_offset(I i, Is... indices) const {
+        // std::cout << "i:" << i << ",dim:" << dim << ",m_dims[dim]:" << m_dims[dim] << std::endl;
         if (i >= m_dims[dim]) {
             i = m_dims[dim] - 1;
         }
-        return i * m_strides[dim] + offset<dim + 1>(indices...);
+        return i * m_strides[dim] + safe_offset<dim + 1>(indices...);
     }
 
     template <typename DT, ov::element::Type_t SRC_PREC = ov::element::u8, typename... Is>

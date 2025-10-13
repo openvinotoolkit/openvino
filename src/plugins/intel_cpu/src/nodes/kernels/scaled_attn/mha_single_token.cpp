@@ -1593,6 +1593,12 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
             attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, pq, 0}, true));
         }
         uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
+
+        static std::mutex myMutex;
+        std::lock_guard<std::mutex> lg(myMutex);
+
+        auto sink = sink_input.safe_ptr<T3>(b, h, pq);
+        std::cout << "======mlas============ b:" << b <<  ",h:" << h << ",pq:" << pq << ",sink:" << *(float*)sink  << std::endl;
         attn_softmax_kernel<T3>(buf_attn_w.ptr<T3>(b, h, pq),
                                 buf_attn_w.ptr<T3>(b, h, pq),
                                 d_scale,
@@ -1605,7 +1611,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 attn_mask_prec,
                                 precision,
                                 0,
-                                sink_input.safe_ptr<T3>(b, h, pq)
+                                sink
                                );
     });
 
