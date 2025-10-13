@@ -26,6 +26,12 @@ bool Repeated::Archetype::operator==(const Repeated::Archetype& other) const {
     return true;
 }
 
+std::string Repeated::id() const {
+    std::ostringstream oss;
+    oss << std::uppercase << "REP" << std::hex << std::setw(4) << std::setfill('0') << m_id;
+    return oss.str();
+}
+
 void Repeated::exclude() {
     m_excluded = true;
 }
