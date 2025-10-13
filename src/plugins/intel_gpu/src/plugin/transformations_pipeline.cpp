@@ -551,6 +551,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (use_xattention)
                 use_xattention = check_xattn_gpu_compatibility();
 
+            // KVCache layout with default attention -
+            // k: [num_blocks, num_kv_heads, head_size, block_size(16)]
+            // v: [num_blocks, num_kv_heads, block_size(16), head_size]
+            // KVCache layout with XAttention -
+            // k: [num_blocks, num_kv_heads, block_size(256), head_size]
+            // v: [num_blocks, num_kv_heads, block_size(256), head_size]
             ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
             kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
             kv_cache_config.valueCachePrecision = config.get_kv_cache_precision();
