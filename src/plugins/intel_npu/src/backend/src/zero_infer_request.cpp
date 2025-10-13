@@ -82,9 +82,14 @@ std::optional<size_t> ZeroInferRequest::determine_dynamic_batch_size(const IODes
         return std::nullopt;
     }
 
-    auto batchFromModel = isInput ? _compiledModel->inputs()[index].get_partial_shape()[intel_npu::utils::BATCH_AXIS]
-                                  : _compiledModel->outputs()[index].get_partial_shape()[intel_npu::utils::BATCH_AXIS];
+    auto ioShape = isInput ? _compiledModel->inputs()[index].get_partial_shape()
+                           : _compiledModel->outputs()[index].get_partial_shape();
 
+    if (!ioShape.size()) {
+        return std::nullopt;
+    }
+
+    auto batchFromModel = ioShape[intel_npu::utils::BATCH_AXIS];
     if (!batchFromModel.is_dynamic()) {
         return std::nullopt;
     }
