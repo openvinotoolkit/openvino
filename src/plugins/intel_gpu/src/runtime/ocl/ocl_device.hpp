@@ -39,8 +39,9 @@ public:
      *                   before any use of the device.
      *
      * Copies platform, device info, and memory capabilities.
+     * If @p initialize is true, initializes context of new ocl_device instance accordingly.
      */
-    ocl_device(const ocl_device::ptr other);
+    ocl_device(const ocl_device::ptr other, bool initialize = true);
 
     const device_info& get_info() const override { return _info; }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }
@@ -63,7 +64,7 @@ public:
     ~ocl_device() = default;
 
 protected:
-    void initialize_device(const cl::Device dev, const cl::Context& ctx);
+    void initialize_context(const cl::Context& ctx);
 
     bool _is_initialized = false;
 

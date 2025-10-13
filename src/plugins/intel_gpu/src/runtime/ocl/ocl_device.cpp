@@ -391,27 +391,30 @@ memory_capabilities init_memory_caps(const cl::Device& device, const device_info
 
 }  // namespace
 
-void ocl_device::initialize_device(const cl::Device dev, const cl::Context& ctx) {
-    _context = ctx;
-    _device = dev;
-    _usm_helper = std::make_unique<cl::UsmHelper>(_context, _device, use_unified_shared_memory() && ctx.get() != nullptr);
-    _is_initialized = ctx.get() != nullptr;
+void ocl_device::initialize_context(const cl::Context& ctx) {
+    _context = ctx.get() != nullptr ? ctx : cl::Context(_device);
+    _usm_helper = std::make_unique<cl::UsmHelper>(_context, _device, use_unified_shared_memory());
+    _is_initialized = true;
 }
 
-ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform, bool initialize)
-: _platform(platform)
+ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform, bool initialize_ctx)
+: _device(dev)
+, _platform(platform)
 , _info(init_device_info(dev, ctx))
 , _mem_caps(init_memory_caps(dev, _info)) {
-    if (initialize) {
-        initialize_device(dev, ctx);
+    if (initialize_ctx) {
+        initialize_context(ctx);
     }
 }
 
-ocl_device::ocl_device(const ocl_device::ptr other)
-: _platform(other->_platform)
+ocl_device::ocl_device(const ocl_device::ptr other, bool initialize_ctx)
+: _device(other->_device)
+, _platform(other->_platform)
 , _info(other->_info)
 , _mem_caps(other->_mem_caps) {
-    initialize_device(other->_device, other->_context);
+    if (initialize_ctx) {
+        initialize_context(other->_context);
+    }
 }
 
 bool ocl_device::is_same(const device::ptr other) {
@@ -478,7 +481,7 @@ void ocl_device::initialize() {
                 if (casted->get_context().get() == nullptr) {
                     casted->set_context(cl::Context(casted_device));
                 }
-                initialize_device(casted_device, casted->get_context());
+                initialize_context(casted->get_context());
                 found = true;
             }
         }

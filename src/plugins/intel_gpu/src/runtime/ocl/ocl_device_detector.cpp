@@ -176,7 +176,7 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
         OPENVINO_ASSERT(root_device != nullptr, "[GPU] Invalid device type created in ocl_device_detector");
 
         auto map_id = std::to_string(idx++);
-        ret[map_id] = std::make_shared<ocl_device>(root_device);
+        ret[map_id] = std::make_shared<ocl_device>(root_device, initialize_device);
 
         OPENVINO_ASSERT(root_device->is_initialized() || !is_intel_igpu, "[GPU] Device is not initialized");
 
@@ -221,12 +221,13 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
             for (auto& device : devices) {
                 if (!does_device_match_config(device))
                     continue;
+
                 bool is_igpu = device.getInfo<CL_DEVICE_HOST_UNIFIED_MEMORY>();
-                auto context = cl::Context();
                 if (device.getInfo<CL_DEVICE_VENDOR_ID>() == cldnn::INTEL_VENDOR_ID && is_igpu) {
-                    context = cl::Context(device);
+                    supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), platform));
+                } else {
+                    supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(), platform, false));
                 }
-                supported_devices.emplace_back(std::make_shared<ocl_device>(device, context, platform));
             }
         } catch (std::exception& ex) {
             GPU_DEBUG_LOG << "Devices query/creation failed for " << platform.getInfo<CL_PLATFORM_NAME>() << ": " << ex.what() << std::endl;
