@@ -403,7 +403,6 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                                   paddingR,
                                                   attr,
                                                   engine);
-            return std::move(prim_desc);
         }
 
         for (auto preferredImplType : implPriorities) {
