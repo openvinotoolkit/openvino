@@ -160,11 +160,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 DEPENDEES install  # Ensures this runs after install
             )
         endif()
-        if(GPU_RUNTIME STREQUAL "L0")
-            set(DNNL_GPU_RUNTIME_VALUE DNNL_RUNTIME_L0)
-        elseif(GPU_RUNTIME STREQUAL "OCL")
-            set(DNNL_GPU_RUNTIME_VALUE  DNNL_RUNTIME_OCL)
-        endif()
         set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include"
                              "${ONEDNN_GPU_DIR}/src"
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/jit/ngen"
@@ -172,7 +167,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/gemm/jit/include"
                              "${ONEDNN_GPU_DIR}/third_party/ngen")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
-                            DNNL_GPU_RUNTIME={$DNNL_GPU_RUNTIME_VALUE}
                             DNNL_DLL
                             DNNL_DLL_EXPORTS
                             DNNL_ENABLE_CPU_ISA_HINTS
