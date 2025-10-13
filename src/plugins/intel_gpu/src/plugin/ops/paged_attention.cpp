@@ -39,7 +39,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
 
     // We may fallback to dense attention mode if xattn is not supported by either GPU archieture or compiler.
     // So we check block_size from value cache shape, instead of checking op input type, to determine if xatnn is enabled.
-    if (value_cache_ps[2].get_length() == 256) {
+    if (value_cache_ps[2].get_length() == cldnn::paged_attention::block_size_xattn) {
         prim.has_xattention = true;
     }
     const auto k_head_size_idx = prim.has_xattention ? 3 : 2;

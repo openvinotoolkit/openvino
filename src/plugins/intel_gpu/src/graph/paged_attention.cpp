@@ -11,9 +11,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(paged_attention)
 
-constexpr size_t paged_attention::block_size;
-constexpr size_t paged_attention::block_size_xattn;
-
 layout paged_attention_inst::calc_output_layout(const paged_attention_node& /*node*/, kernel_impl_params const& impl_param) {
     auto out_layout = impl_param.get_input_layout(0);
 
