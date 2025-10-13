@@ -10,6 +10,8 @@
 
 namespace cldnn {
 
+#define ENABLE_PA_CM_PATH 1
+
 struct paged_attention : public primitive_base<paged_attention> {
     CLDNN_DECLARE_PRIMITIVE(paged_attention)
 
@@ -37,7 +39,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         SINKS = 20,
     };
 
-    static constexpr size_t block_size = 16;
+    static constexpr size_t block_size = 256;
 
     paged_attention() : primitive_base("", {}) {}
 
