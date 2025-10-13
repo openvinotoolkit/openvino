@@ -54,7 +54,6 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         if (out_layout.data_padding)
             return false;
 
-        bool any_dep_is_onednn = false;
         for (const auto& dep : node.get_dependencies()) {
             const auto& in_layout = dep.first->get_output_layout(false, dep.second);
 
@@ -66,13 +65,7 @@ struct ConcatenationImplementationManager : public ImplementationManager {
 
             if (!one_of(in_layout.format.value, supported_in_fmts))
                 return false;
-
-            if (dep.first->get_preferred_impl_type() == impl_types::onednn)
-                any_dep_is_onednn = true;
         }
-
-        if (!any_dep_is_onednn && format::is_simple_data_format(out_layout.format))
-            return false;
 
         return true;
     }
