@@ -459,8 +459,6 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                                                                                 topk_indices_output,
                                                                                 normalized_topk,
                                                                                 axis1_vector);
-            scatter->set_reduction(ov::op::v12::ScatterElementsUpdate::Reduction::SUM);
-            scatter->set_use_init_val(true);
             auto router_transpose = std::make_shared<ov::op::v1::Transpose>(scatter, transpose_perm);
             auto router_shape =
                 std::make_shared<ov::op::v0::Concat>(OutputVector{num_experts_dim, batch_dim, minus_one_vec}, 0);
