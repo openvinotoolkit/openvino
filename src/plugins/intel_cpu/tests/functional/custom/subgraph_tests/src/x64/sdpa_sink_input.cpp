@@ -171,8 +171,6 @@ public:
     void SetUp() override {
         const auto& [inType, inputShapes] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
-        // rel_threshold = 0.001f;
-        // abs_threshold = 0.001f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
         if (inType == ElementType::bf16) {
             configuration[ov::hint::inference_precision.name()] = ov::element::bf16;
@@ -184,17 +182,11 @@ public:
         } else if (inType == ElementType::f16) {
             configuration[ov::hint::kv_cache_precision.name()] = ov::element::f16;
         }
-        // if (inType != ElementType::f32) {
-        //     rel_threshold = 0.02f;
-        //     abs_threshold = 0.02f;
-        // }
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
 
         function = get_model(inType, 64, 8);
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        // functionRefs = get_ref_model(inType, 64, 8, score_aggregation_window);
     }
 
     virtual void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -247,136 +239,6 @@ public:
             state.reset();
         }
     }
-
-    /* std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
-                                             ov::Dimension::value_type head_size = 64,
-                                             ov::Dimension::value_type head_num = 8,
-                                             uint32_t score_aggregation_window = 0) {
-        // q, k, v use L,B,H,S layout
-        ov::PartialShape q_shape, kv_shape, past_shape;
-        ov::ParameterVector inputParams;
-        past_shape = {-1, 1, head_num, head_size};
-        q_shape = {-1, 1, static_cast<int64_t>(head_num), head_size};
-        kv_shape = {-1, 1, head_num, head_size};
-        auto q = make_param(q_shape, data_type, "q");
-        auto k = make_param(kv_shape, data_type, "k");
-        auto v = make_param(kv_shape, data_type, "v");
-        auto past_kv = make_param(past_shape, data_type, "past_kv");
-        auto beam_idx = make_param(ov::PartialShape{-1}, ov::element::i32, "beam_idx");
-        inputParams.push_back(q);
-        inputParams.push_back(k);
-        inputParams.push_back(v);
-        inputParams.push_back(past_kv);
-        inputParams.push_back(beam_idx);
-        auto var_k =
-            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{past_shape, data_type, "pastk"});
-        auto pastk = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_k);
-        pastk->set_friendly_name("pastk_r");
-        auto var_v =
-            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{past_shape, data_type, "pastv"});
-        auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_v);
-        pastv->set_friendly_name("pastv_r");
-        std::vector<size_t> transposeOrder{1, 2, 0, 3};
-        auto preOrder = op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
-        auto q_in = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
-        auto concat_axis = transposeOrder[2];
-        auto gatherK =
-            std::make_shared<ov::op::v8::Gather>(pastk,
-                                                 beam_idx,
-                                                 op::v0::Constant::create(ov::element::i32, {1}, {transposeOrder[0]}));
-        auto gatherV =
-            std::make_shared<ov::op::v8::Gather>(pastv,
-                                                 beam_idx,
-                                                 op::v0::Constant::create(ov::element::i32, {1}, {transposeOrder[0]}));
-        auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherK, inputParams[1]}, concat_axis);
-        auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherV, inputParams[2]}, concat_axis);
-        auto pastk_assign = std::make_shared<ov::op::v6::Assign>(concatK, var_k);
-        auto pastv_assign = std::make_shared<ov::op::v6::Assign>(concatV, var_v);
-        pastk_assign->set_friendly_name("pastk_w");
-        pastv_assign->set_friendly_name("pastv_w");
-        auto zero_1d_const = op::v0::Constant::create(ov::element::i32, {1}, {0});
-        auto zero_scalar_const = op::v0::Constant::create(ov::element::i32, {}, {0});
-        auto one_1d_const = op::v0::Constant::create(ov::element::i32, {1}, {1});
-        auto one_scalar_const = op::v0::Constant::create(ov::element::i32, {}, {1});
-        auto neg_2_1d_const = op::v0::Constant::create(ov::element::i32, {1}, {-2});
-        auto neg_2_scalar_const = op::v0::Constant::create(ov::element::i32, {}, {-2});
-        // mha structure
-        auto ConvertLike_484 =
-            std::make_shared<ov::op::v1::ConvertLike>(op::v0::Constant::create(ov::element::i32, {}, {1}), q_in);
-        auto ConvertLike_491 =
-            std::make_shared<ov::op::v1::ConvertLike>(op::v0::Constant::create(ov::element::i32, {}, {64}), q_in);
-        auto Sqrt_492 = std::make_shared<ov::op::v0::Sqrt>(ConvertLike_491);
-        auto Divide_493 = std::make_shared<ov::op::v1::Divide>(ConvertLike_484, Sqrt_492);
-        auto Multiply_494 = std::make_shared<ov::op::v1::Multiply>(q_in, Divide_493);
-        auto Transpose_442 = std::make_shared<ov::op::v1::Transpose>(concatK, preOrder);
-        auto ShapeOf_479 = std::make_shared<ov::op::v3::ShapeOf>(Transpose_442, ov::element::i32);
-        auto ShapeOf_495 = std::make_shared<ov::op::v3::ShapeOf>(ShapeOf_479, ov::element::i32);
-        auto Add_497 =
-            std::make_shared<ov::op::v1::Add>(ShapeOf_495, op::v0::Constant::create(ov::element::i32, {1}, {-2}));
-        auto Squeeze_500 = std::make_shared<ov::op::v0::Squeeze>(Add_497, zero_1d_const);
-        auto Range_501 =
-            std::make_shared<ov::op::v4::Range>(zero_scalar_const, Squeeze_500, one_scalar_const, ov::element::i32);
-        auto Add_496 =
-            std::make_shared<ov::op::v1::Add>(ShapeOf_495, op::v0::Constant::create(ov::element::i32, {1}, {-1}));
-        auto Concat_505 = std::make_shared<ov::op::v0::Concat>(OutputVector{Range_501, Add_496, Add_497}, 0);
-        auto Transpose_506 = std::make_shared<ov::op::v1::Transpose>(Transpose_442, Concat_505);
-        auto MatMul_510 = std::make_shared<ov::op::v0::MatMul>(Multiply_494, Transpose_506, false, false);
-        // k_len
-        auto Gather_517 = std::make_shared<ov::op::v8::Gather>(ShapeOf_479, neg_2_scalar_const, zero_scalar_const, 0);
-        auto Range_531 =
-            std::make_shared<ov::op::v4::Range>(zero_scalar_const, Gather_517, one_scalar_const, ov::element::i32);
-        auto Unsqueeze_532 = std::make_shared<ov::op::v0::Unsqueeze>(Range_531, zero_scalar_const);
-        auto ShapeOf_478 = std::make_shared<ov::op::v3::ShapeOf>(q_in, ov::element::i32);
-        // q_len
-        auto q_len = std::make_shared<ov::op::v8::Gather>(ShapeOf_478, neg_2_scalar_const, zero_scalar_const, 0);
-        // past_len
-        auto shape_past_len = std::make_shared<ov::op::v3::ShapeOf>(past_kv, ov::element::i32);
-        auto past_len = std::make_shared<ov::op::v8::Gather>(shape_past_len, zero_scalar_const, zero_scalar_const, 0);
-        auto total_len = std::make_shared<ov::op::v1::Add>(q_len, past_len);
-        auto Range_534 =
-            std::make_shared<ov::op::v4::Range>(zero_scalar_const, q_len, one_scalar_const, ov::element::i32);
-        auto add_past_len = std::make_shared<ov::op::v1::Add>(Range_534, past_len);
-        auto Unsqueeze_597 = std::make_shared<ov::op::v0::Unsqueeze>(add_past_len, one_scalar_const);
-        auto GreaterEqual_598 = std::make_shared<ov::op::v1::Greater>(Unsqueeze_532, Unsqueeze_597);
-        auto Unsqueeze_521 = std::make_shared<ov::op::v0::Unsqueeze>(q_len, zero_scalar_const);
-        auto Unsqueeze_520 = std::make_shared<ov::op::v0::Unsqueeze>(Gather_517, zero_scalar_const);
-        auto Concat_522 = std::make_shared<ov::op::v0::Concat>(OutputVector{Unsqueeze_521, Unsqueeze_520}, 0);
-        auto Constant_523 = op::v0::Constant::create(element::u8, ov::Shape({}), {0});
-        float negative_inf = -INFINITY;
-        auto ConvertLike_511 =
-            std::make_shared<ov::op::v1::ConvertLike>(v0::Constant::create(ov::element::f32, Shape{}, {negative_inf}),
-                                                      MatMul_510);
-        // mask
-        auto Broadcast_524 = std::make_shared<ov::op::v1::Broadcast>(ConvertLike_511,
-                                                                     Concat_522,
-                                                                     Constant_523,
-                                                                     AutoBroadcastSpec(AutoBroadcastType::NUMPY));
-        auto ConvertLike_485 = std::make_shared<ov::op::v1::ConvertLike>(zero_scalar_const, q_in);
-        auto Select_599 = std::make_shared<ov::op::v1::Select>(GreaterEqual_598, Broadcast_524, ConvertLike_485);
-        auto Add_600 = std::make_shared<ov::op::v1::Add>(MatMul_510, Select_599);
-
-        // softmax
-        auto Softmax_9787 = std::make_shared<ov::op::v8::Softmax>(Add_600, -1);
-        auto Transpose_443 = std::make_shared<ov::op::v1::Transpose>(concatV, preOrder);
-        auto mha = std::make_shared<ov::op::v0::MatMul>(Softmax_9787, Transpose_443, false, false);
-        auto Transpose_9634 = std::make_shared<ov::op::v1::Transpose>(
-            mha,
-            op::v0::Constant::create(ov::element::i32, {4}, std::vector<int32_t>{2, 0, 1, 3}));
-        auto Reshape_9636 = std::make_shared<ov::op::v1::Reshape>(
-            Transpose_9634,
-            op::v0::Constant::create(ov::element::i32, {2}, std::vector<int32_t>{0, 512}),
-            true);
-        SinkVector sinks{pastk_assign, pastv_assign};
-        ov::OutputVector results{Reshape_9636};
-        if (score_aggregation_window) {
-            auto cvt = std::make_shared<ov::op::v0::Convert>(Softmax_9787, element::f32);
-            results.push_back(cvt);
-        }
-        auto model = std::make_shared<Model>(results, sinks, inputParams, "model");
-        return model;
-    }
-    */
-
     void run_test(std::shared_ptr<ov::Model> model) {
         function = model;
         prepare();

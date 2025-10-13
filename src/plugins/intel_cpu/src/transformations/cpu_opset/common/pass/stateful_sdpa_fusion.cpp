@@ -244,9 +244,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         args[0] = pattern_map.at(cur_q);
         args[1] = pattern_map.at(cur_k);
         args[2] = pattern_map.at(cur_v);
-        // if (pattern_map.count(atten_sink)) {
-        //     args.push_back(pattern_map.at(atten_sink));
-        // }
         args.push_back(pattern_map.at(beam_idx));
         args.push_back(gather_k_node->input_value(0));
         args.push_back(gather_v_node->input_value(0));

@@ -452,7 +452,6 @@ struct PlainTensor {
     }
     template <int dim, typename I, typename... Is>
     [[nodiscard]] int64_t safe_offset(I i, Is... indices) const {
-        // std::cout << "i:" << i << ",dim:" << dim << ",m_dims[dim]:" << m_dims[dim] << std::endl;
         if (i >= m_dims[dim]) {
             i = m_dims[dim] - 1;
         }
