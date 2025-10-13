@@ -95,32 +95,15 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         // Once NAN takes part in dpas, the NAN will propagate and cause result become NAN.
         // As a WA, we need to set the unused part(in the same 16 row) of V cache to 0 here.
         const uint last_token_idx = (past_len + 1) % PAGED_ATTENTION_BLOCK_SIZE;
-        // const uint last_token_idx_aligned = (last_token_idx + REG_K - 1) / REG_K * REG_K;
 
         if (token_idx >= last_token_idx && token_idx < PAGED_ATTENTION_BLOCK_SIZE) {
-        // if (token_idx >= last_token_idx && token_idx < last_token_idx_aligned) {
             uint block_k_base_offset = ((past_len + 1) / PAGED_ATTENTION_BLOCK_SIZE) * KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
             uint key_out_offset = block_k_base_offset + head_idx * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + token_idx * ADJUSTED_K_HEAD_SIZE;
             vector<short, V_HEAD_SIZE> zero_data = 0;
-            //if(token_idx == last_token_idx_aligned - 1) {
-            //    zero_data[18] = 0xFE00; //test NAN
-            //}
 
             // Only reset unused part in the same 16 row for V cache.
             // cm_ptr_store<int, K_HEAD_SIZE / 2>((int*)key_cache, key_out_offset * (int)sizeof(half), zero_data.format<int>());
             cm_ptr_store<int, V_HEAD_SIZE / 2>((int*)value_cache, key_out_offset * (int)sizeof(half), zero_data.format<int>());
-
-            if(0) {
-                const uint block_idx = key_out_offset / (ADJUSTED_K_HEAD_SIZE * KV_HEADS_NUM * PAGED_ATTENTION_BLOCK_SIZE);
-                const uint head_idx = (key_out_offset % (ADJUSTED_K_HEAD_SIZE * KV_HEADS_NUM * PAGED_ATTENTION_BLOCK_SIZE)) / (ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE);
-                const uint block_m = (key_out_offset % (ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE)) / ADJUSTED_K_HEAD_SIZE;
-                const uint block_n = (key_out_offset % ADJUSTED_K_HEAD_SIZE);
-
-                if(cm_global_id(0)==0 && cm_global_id(1)==0)
-                    printf("token_idx = %d, last_token_idx = %d, subsequence_begins[%d] = %d, past_len = %d, out_token_idx = %d, key_out_offset = %d, reset_block = [%d, %d,%d,%d]\n",
-                            token_idx, last_token_idx, batch_size_in_sequences, subsequence_begins[batch_size_in_sequences], past_len,
-                            key_out_offset/(ADJUSTED_K_HEAD_SIZE * KV_HEADS_NUM), key_out_offset, block_idx, head_idx, block_m, block_n);
-            }
         }
         #endif
         return;
