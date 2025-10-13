@@ -27,6 +27,15 @@ size_t calculate_alignment_with_padding(size_t size, size_t alignment) {
     return size + alignment - (size % alignment);
 }
 
+size_t get_file_size(std::ifstream& file) {
+    auto size = file.tellg();
+    file.seekg(0, std::ios::end);
+    size = file.tellg() - size;
+    file.seekg(0, std::ios::beg);
+
+    return size;
+}
+
 void* allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                            const size_t bytes,
                            const size_t alignment) noexcept {
@@ -172,10 +181,7 @@ TEST_P(ZeroGraphTest, QueryGraph) {
 TEST_P(ZeroGraphTest, GetGraphBinary) {
     std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
-    size_t size = blobStream.tellg();
-    blobStream.seekg(0, std::ios::end);
-    size = static_cast<size_t>(blobStream.tellg()) - size;
-    blobStream.seekg(0, std::ios::beg);
+    size_t size = get_file_size(blobStream);
 
     std::vector<uint8_t> blob(size);
     blobStream.read(reinterpret_cast<char*>(blob.data()), size);
@@ -218,10 +224,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
     std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
-    size_t size = blobStream.tellg();
-    blobStream.seekg(0, std::ios::end);
-    size = static_cast<size_t>(blobStream.tellg()) - size;
-    blobStream.seekg(0, std::ios::beg);
+    size_t size = get_file_size(blobStream);
     size = calculate_alignment_with_padding(size, ::utils::STANDARD_PAGE_SIZE);
 
     uint8_t* blob = static_cast<uint8_t*>(::operator new(size, std::align_val_t(::utils::STANDARD_PAGE_SIZE)));
@@ -240,10 +243,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryZeMemAllocBlob) {
     std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
-    size_t size = blobStream.tellg();
-    blobStream.seekg(0, std::ios::end);
-    size = static_cast<size_t>(blobStream.tellg()) - size;
-    blobStream.seekg(0, std::ios::beg);
+    size_t size = get_file_size(blobStream);
     size = calculate_alignment_with_padding(size, ::utils::STANDARD_PAGE_SIZE);
 
     void* blob = nullptr;
@@ -263,10 +263,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryZeMemAllocBlob) {
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
     std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
-    size_t size = blobStream.tellg();
-    blobStream.seekg(0, std::ios::end);
-    size = static_cast<size_t>(blobStream.tellg()) - size;
-    blobStream.seekg(0, std::ios::beg);
+    size_t size = get_file_size(blobStream);
 
     uint8_t* blob = static_cast<uint8_t*>(::operator new(size, std::align_val_t(::utils::STANDARD_PAGE_SIZE)));
     blobStream.read(reinterpret_cast<char*>(blob), size);
@@ -284,10 +281,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryZeMemAllocBlob) {
     std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
-    size_t size = blobStream.tellg();
-    blobStream.seekg(0, std::ios::end);
-    size = static_cast<size_t>(blobStream.tellg()) - size;
-    blobStream.seekg(0, std::ios::beg);
+    size_t size = get_file_size(blobStream);
 
     void* blob = nullptr;
     OV_ASSERT_NO_THROW(blob = allocate_zero_memory(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE))
@@ -306,10 +300,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryZeMemAllocBlob) 
 TEST_P(ZeroGraphTest, SetGraphArgsOnDestroyedBlob) {
     std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
-    size_t size = blobStream.tellg();
-    blobStream.seekg(0, std::ios::end);
-    size = static_cast<size_t>(blobStream.tellg()) - size;
-    blobStream.seekg(0, std::ios::beg);
+    size_t size = get_file_size(blobStream);
     size = calculate_alignment_with_padding(size, ::utils::STANDARD_PAGE_SIZE);
 
     uint8_t* blob = static_cast<uint8_t*>(::operator new(size, std::align_val_t(::utils::STANDARD_PAGE_SIZE)));
