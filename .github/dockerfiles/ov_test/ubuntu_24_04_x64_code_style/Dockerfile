@@ -27,6 +27,8 @@ RUN apt-get update && \
         build-essential \
         clang-format-18 \
         shellcheck \
+        python3-dev \
+        python3-distutils \
         && \
     wget https://apt.llvm.org/llvm.sh && \
     chmod +x llvm.sh && \
