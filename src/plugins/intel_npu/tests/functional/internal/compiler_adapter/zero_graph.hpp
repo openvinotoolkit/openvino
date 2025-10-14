@@ -169,9 +169,7 @@ TEST_P(ZeroGraphTest, GetNetworkMeta) {
     serializeIR();
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
 
-    NetworkMetadata meta;
-    // init matters?
-    OV_ASSERT_NO_THROW(meta = zeGraphExt->getNetworkMeta(graphDescriptor));
+    OV_ASSERT_NO_THROW(NetworkMetadata meta = zeGraphExt->getNetworkMeta(graphDescriptor));
 }
 
 TEST_P(ZeroGraphTest, QueryGraph) {
@@ -204,7 +202,7 @@ TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
     OV_ASSERT_NO_THROW(ptr = allocate_zero_memory(zeroInitStruct, totalSize, ::utils::STANDARD_PAGE_SIZE));
 
     ASSERT_ANY_THROW(
-        zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, nullptr));  // with cpuVA or cpu buffer -- should throw
+        zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, nullptr));
 
     OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, ptr));
 }
