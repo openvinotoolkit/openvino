@@ -161,7 +161,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           get_input_size() == 21,
                           "PagedAttensionExtension expects 21 inputs, but it has ",
                           get_input_size());
- 
+
     // format: Node*, input_idx, name, {rank_list}, {type_list}
     input_check(this, 0, "query", {2}, {});
     input_check(this, 1, "key", {2}, {});
@@ -186,19 +186,6 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 20, "sinks", {1, 4}, {});
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
-
-    std::ostringstream os;
-    os << "[PAE] node=" << get_friendly_name() << " type=" << get_type_name()
-       << " ptr=" << static_cast<const void*>(this) << " inputs=" << get_input_size() << "\n";
-
-    for (size_t i = 0; i < get_input_size(); ++i) {
-        const auto& in = input_value(i);
-        os << "  #" << i << " from=" << in.get_node()->get_friendly_name() << " shape=" << get_input_partial_shape(i)
-           << " et=" << in.get_element_type() << "\n";
-    }
-
-    NODE_VALIDATION_CHECK(this, false, os.str(), " [PAE] vector size from util: ", input_shapes.size());
-
     const auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs()));
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);

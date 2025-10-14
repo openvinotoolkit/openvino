@@ -14,10 +14,7 @@ template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
                                  const std::vector<TShape>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
-    NODE_VALIDATION_CHECK(op,
-                          input_shapes.size() == 17 || input_shapes.size() == 20,
-                          "Expected either 17 or 20 inputs but got ",
-                          input_shapes.size());
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 21, "Expected either 21 inputs but got ", input_shapes.size());
     auto output_shapes = std::vector<TRShape>(2);
 
     // Value head_size may be not same with key
