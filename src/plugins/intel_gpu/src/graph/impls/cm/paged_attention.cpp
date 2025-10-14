@@ -125,38 +125,6 @@ public:
                 //     ov::util::save_binary(filename, lock.data(), output_mem->size());
                 //     pa_id++;
                 // }
-                {
-                    cldnn::stream& stream = instance.get_network().get_stream();
-                    stream.finish();
-                    static uint32_t pa_id = 0;
-                    std::cout << "finish xattn_estimate_find_block!\n";
-                    for (int index = 0; index < 5; index++) {
-                        auto output_mem = instance.get_intermediates_memories()[4];
-                        mem_lock<char, mem_lock_type::read> lock(output_mem, stream);
-                        auto& layout = output_mem->get_layout();
-                        auto dims = layout.get_dims();
-                        size_t total_size = output_mem->size();
-    
-                        std::cout << "PA" << pa_id << " layout: rank=" << layout.get_rank() 
-                                << ", dims=[";
-                        for (size_t r = 0; r < dims.size(); r++) {
-                            std::cout << dims[r];
-                            if (r != dims.size() - 1) std::cout << ",";
-                        }
-                        std::cout << "], total_size=" << total_size << "\n";
-    
-                        size_t max_print = total_size; //std::min<size_t>(100, total_size);
-                        std::cout << "Data: ";
-                        for (size_t i = 0; i < max_print; i++) {
-                            if (i % 32 == 0) std::cout << std::endl;
-                            std::cout << static_cast<int>(lock.data()[i]) << " ";
-                        }
-                        if (total_size > max_print) std::cout << "...";
-                        std::cout << "\n";
-                    }
-
-                    pa_id++;
-                }
 // #endif
                 res_event = {execute_stage(res_event, instance, xattn_estimate_post_proc)};
             }

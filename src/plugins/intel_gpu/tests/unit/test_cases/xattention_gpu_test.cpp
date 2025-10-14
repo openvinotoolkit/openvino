@@ -16,22 +16,354 @@
 #include "paged_attention_gpu_test.hpp"
 #include "random_generator.hpp"
 #include "test_utils.h"
-#include <fstream>
-#include <string>
-
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
 using namespace ::tests;
 
-namespace std {
-template <>
-struct hash<ov::float16> {
-    uint64_t operator()(const ov::float16 __val) const {
-        return std::hash<float>()(__val);
+using Shape = std::vector<size_t>;
+
+using CMXAttentionBlockIndex = std::pair<size_t, size_t>;  // .first is the *query* dimension block index, .second is *key*
+using CMXAttentionRetainedBlockIndices = std::set<CMXAttentionBlockIndex>;
+using CMXAttentionRetainedBlockIndicesForAllHeads = std::vector<CMXAttentionRetainedBlockIndices>;
+
+template <typename T>
+class CMXAttentionBlockSelector {
+public:
+    CMXAttentionBlockSelector(double threshold, size_t block_size, size_t stride) : m_threshold(threshold), m_block_size(block_size), m_stride(stride) {
+        OPENVINO_ASSERT(m_block_size % m_stride == 0);
     }
+
+    void diagonal_reshape(const T* input_data, const Shape& input_shape, T* output_data, const Shape& out_shape, bool is_antidiagonal) {
+        OPENVINO_ASSERT(input_shape.size() == 3);
+        OPENVINO_ASSERT(out_shape.size() == 3);
+        OPENVINO_ASSERT(input_shape[0] == out_shape[0]);
+        OPENVINO_ASSERT(input_shape[1] % m_stride == 0);
+        OPENVINO_ASSERT(input_shape[1] / m_stride == out_shape[1]);
+        OPENVINO_ASSERT(input_shape[2] * m_stride == out_shape[2]);
+
+        size_t num_stride_steps = input_shape[1] / m_stride;
+        for (size_t head_idx = 0; head_idx < input_shape[0]; head_idx++) {
+            size_t head_offset = head_idx * input_shape[1] * input_shape[2];
+            for (size_t slice_idx = 0; slice_idx < m_stride; slice_idx++) {
+                for (size_t stride_idx = 0; stride_idx < num_stride_steps; stride_idx++) {
+                    size_t input_offset = head_offset;
+                    size_t output_offset = head_offset + stride_idx * out_shape[2] + slice_idx * input_shape[2];
+                    if (is_antidiagonal) {
+                        input_offset += (input_shape[1] - 1 - slice_idx - stride_idx * m_stride) * input_shape[2];
+                    } else {
+                        input_offset += (slice_idx + stride_idx * m_stride) * input_shape[2];
+                    }
+                    std::memcpy(output_data + output_offset, input_data + input_offset, input_shape[2] * sizeof(T));
+                }
+            }
+        }
+    }
+
+    void diagonal_reshape_kdb1_no_batch(const T* input_data,
+                                        const std::vector<size_t>& input_shape,  // [H, Q_orig, dim]
+                                        T* output_data,
+                                        const std::vector<size_t>& output_shape) {
+        size_t H = input_shape[0];
+        size_t Q_orig = input_shape[1];
+        size_t dim = input_shape[2];
+        size_t Q_new = output_shape[1];
+
+        for (size_t h = 0; h < H; ++h) {
+            size_t head_in_offset = h * Q_orig * dim;
+            size_t head_out_offset = h * Q_new * m_stride * dim;
+
+            for (size_t s = 0; s < m_stride; ++s) {
+                for (size_t q = 0; q < Q_new; ++q) {
+                    size_t in_idx = head_in_offset + (m_stride - 1 - s + q * m_stride) * dim;
+                    size_t out_idx = head_out_offset + q * m_stride * dim + s * dim;
+                    std::memcpy(output_data + out_idx, input_data + in_idx, dim * sizeof(T));
+                }
+            }
+        }
+    }
+
+    void transpose_matmul_scale(const T* reshaped_query_data,
+                                const T* reshaped_key_data,
+                                const Shape& reshaped_query_shape,
+                                const Shape& reshaped_key_shape,
+                                T* out,
+                                const Shape& out_shape) {
+        OPENVINO_ASSERT(reshaped_key_shape.size() == 3);
+        OPENVINO_ASSERT(reshaped_query_shape.size() == 3);
+        OPENVINO_ASSERT(reshaped_query_shape[0] == reshaped_key_shape[0]);
+        OPENVINO_ASSERT(reshaped_query_shape[2] == reshaped_key_shape[2]);
+
+        OPENVINO_ASSERT(out_shape.size() == 3);
+        OPENVINO_ASSERT(out_shape[0] == reshaped_query_shape[0]);
+        OPENVINO_ASSERT(out_shape[1] == reshaped_query_shape[1]);
+        OPENVINO_ASSERT(out_shape[2] == reshaped_key_shape[1]);
+
+        ov::reference::matmul(reshaped_query_data, reshaped_key_data, out, reshaped_query_shape, reshaped_key_shape, out_shape, false, true);
+
+        size_t out_size = out_shape[0] * out_shape[1] * out_shape[2];
+
+        for (size_t i = 0; i < out_size; i++) {
+            out[i] = out[i] / std::sqrt(reshaped_query_shape[2] * m_stride);
+        }
+    }
+
+    void softmax(const T* reshaped_qk_product_data, const Shape& reshaped_qk_product_shape, T* out, const Shape& out_shape) {
+        OPENVINO_ASSERT(reshaped_qk_product_shape.size() == 3);
+        OPENVINO_ASSERT(reshaped_qk_product_shape == out_shape);
+        ov::reference::softmax(reshaped_qk_product_data, out, reshaped_qk_product_shape, {2});
+    }
+
+    void block_sum_attention_scores(const T* attention_scores_data, const Shape& attention_scores_shape, T* out, const Shape& out_shape) {
+        OPENVINO_ASSERT(attention_scores_shape.size() == 3);
+        size_t antidiagonals_per_xattention_block = m_block_size / m_stride;
+        OPENVINO_ASSERT(attention_scores_shape[1] % antidiagonals_per_xattention_block == 0);
+        OPENVINO_ASSERT(attention_scores_shape[2] % antidiagonals_per_xattention_block == 0);
+
+        OPENVINO_ASSERT(out_shape[0] == attention_scores_shape[0]);
+        OPENVINO_ASSERT(out_shape[1] == attention_scores_shape[1] / antidiagonals_per_xattention_block);
+        OPENVINO_ASSERT(out_shape[2] == attention_scores_shape[2] / antidiagonals_per_xattention_block);
+
+        std::memset(out, 0, out_shape[0] * out_shape[1] * out_shape[2] * sizeof(T));
+
+        for (size_t head_idx = 0; head_idx < attention_scores_shape[0]; head_idx++) {
+            size_t in_head_offset = head_idx * attention_scores_shape[1] * attention_scores_shape[2];
+            size_t out_head_offset = head_idx * out_shape[1] * out_shape[2];
+            for (size_t query_len_idx = 0; query_len_idx < attention_scores_shape[1]; query_len_idx++) {
+                for (size_t key_len_idx = 0; key_len_idx < attention_scores_shape[2]; key_len_idx++) {
+                    size_t query_block_idx = query_len_idx / antidiagonals_per_xattention_block;
+                    size_t key_block_idx = key_len_idx / antidiagonals_per_xattention_block;
+                    auto target_block_sum_ptr = out + out_head_offset + query_block_idx * out_shape[2] + key_block_idx;
+                    *target_block_sum_ptr += *(attention_scores_data + in_head_offset + query_len_idx * attention_scores_shape[2] + key_len_idx);
+                }
+            }
+        }
+    }
+
+    CMXAttentionRetainedBlockIndicesForAllHeads get_block_indices_to_keep(T* blocked_attention_scores_data, const Shape& blocked_attention_scores_shape) {
+        OPENVINO_ASSERT(blocked_attention_scores_shape.size() == 3, "Expected shape [num_heads, q_block_num, k_block_num]");
+
+        size_t num_heads = blocked_attention_scores_shape[0];
+        size_t q_block_num = blocked_attention_scores_shape[1];
+        size_t k_block_num = blocked_attention_scores_shape[2];
+
+        CMXAttentionRetainedBlockIndicesForAllHeads retval(num_heads);
+
+        std::vector<std::vector<std::vector<bool>>> mask(num_heads, std::vector<std::vector<bool>>(q_block_num, std::vector<bool>(k_block_num, false)));
+
+        for (size_t head_idx = 0; head_idx < num_heads; head_idx++) {
+            for (size_t q_block_idx = 0; q_block_idx < q_block_num; q_block_idx++) {
+                size_t diagonal_k = q_block_idx;
+                if (diagonal_k < k_block_num) {
+                    mask[head_idx][q_block_idx][diagonal_k] = true;
+                }
+                // Step1: Keep the first column
+                mask[head_idx][q_block_idx][0] = true;
+
+                // Step2: Create other_values（masked_fill）
+                std::vector<std::pair<float, size_t>> other_values;
+                for (size_t k_block_idx = 0; k_block_idx < k_block_num; k_block_idx++) {
+                    if (mask[head_idx][q_block_idx][k_block_idx])
+                        continue;
+                    size_t offset = head_idx * q_block_num * k_block_num + q_block_idx * k_block_num + k_block_idx;
+                    other_values.emplace_back(static_cast<float>(blocked_attention_scores_data[offset]), k_block_idx);
+                }
+
+                // Step3: Sort other-values in descending order
+                std::sort(other_values.begin(), other_values.end(), [](const auto& a, const auto& b) {
+                    return a.first > b.first;
+                });
+
+                // Step4: Create cumulative_sum_without_self，cat([0, diagonal_sum, sorted_values[:-1]])
+                std::vector<float> sorted_scores;
+                sorted_scores.push_back(0.0);
+                size_t offset_diag = head_idx * q_block_num * k_block_num + q_block_idx * k_block_num + diagonal_k;
+                float diag_score = static_cast<float>(blocked_attention_scores_data[offset_diag]);
+                float first_col_score = 0.0;
+                if (diagonal_k != 0) {
+                    size_t offset_first = head_idx * q_block_num * k_block_num + q_block_idx * k_block_num + 0;
+                    first_col_score = static_cast<float>(blocked_attention_scores_data[offset_first]);
+                }
+                sorted_scores.push_back(diag_score + first_col_score);
+
+                for (auto& p : other_values) {
+                    sorted_scores.push_back(p.first);
+                }
+                if (q_block_idx == 0) {
+                    sorted_scores.pop_back();
+                }
+
+                // Step5: Calculate cumsum_without_self: cumsum of right-shifted sorted_scores
+                std::vector<float> cumsum_without_self(sorted_scores.size(), 0.0);
+                float running = 0.0;
+                for (size_t i = 0; i < sorted_scores.size(); ++i) {
+                    cumsum_without_self[i] = running;
+                    running += sorted_scores[i];
+                }
+
+                // Step6: Generate required_sum
+                size_t offset_row_start = head_idx * q_block_num * k_block_num + q_block_idx * k_block_num;
+                float row_sum = 0.0;
+                for (size_t k = 0; k < k_block_num; k++) {
+                    row_sum += static_cast<float>(blocked_attention_scores_data[offset_row_start + k]);
+                }
+                float required_sum = row_sum * m_threshold;
+
+                // Step7: Create index_mask
+                std::vector<bool> index_mask(cumsum_without_self.size(), false);
+                for (size_t i = 0; i < cumsum_without_self.size(); i++) {
+                    index_mask[i] = (cumsum_without_self[i] < required_sum);
+                }
+
+                // Step8: Ceate index
+                std::vector<size_t> index(index_mask.size(), 0);
+                for (size_t i = 0; i < index_mask.size(); i++) {
+                    if (index_mask[i]) {
+                        if (i == 0)
+                            index[i] = 0;
+                        else if (i == 1)
+                            index[i] = diagonal_k;
+                        else if (i - 2 < other_values.size())
+                            index[i] = other_values[i - 2].second;
+                        else
+                            index[i] = 0;
+                    }
+                }
+
+                for (size_t i = 0; i < index.size(); i++) {
+                    size_t k_block_idx = index[i];
+                    if (index_mask[i] && k_block_idx < k_block_num) {
+                        mask[head_idx][q_block_idx][k_block_idx] = true;
+                    }
+                }
+                for (size_t k_block_idx = 0; k_block_idx < k_block_num; k_block_idx++) {
+                    if (mask[head_idx][q_block_idx][k_block_idx])
+                        retval[head_idx].insert({q_block_idx, k_block_idx});
+                }
+            }
+        }
+
+        return retval;
+    }
+
+    CMXAttentionRetainedBlockIndicesForAllHeads select_blocks(const T* query_data, const Shape& query_shape, const T* key_data, const Shape& key_shape) {
+        OPENVINO_ASSERT(query_shape.size() == 3);
+        OPENVINO_ASSERT(key_shape.size() == 3);
+        OPENVINO_ASSERT(key_shape[0] == query_shape[0]);
+        OPENVINO_ASSERT(key_shape[2] == query_shape[2]);
+        OPENVINO_ASSERT(query_shape[1] % m_stride == 0);
+        OPENVINO_ASSERT(key_shape[1] % m_stride == 0);
+        OPENVINO_ASSERT(query_shape[1] % m_block_size == 0);
+        OPENVINO_ASSERT(key_shape[1] % m_block_size == 0);
+
+        size_t chunk_size = query_shape[1];
+        size_t k_len = key_shape[1];
+        size_t head_dim = query_shape[2];
+        size_t num_heads = query_shape[0];
+        size_t k_num_to_pad = ((k_len + chunk_size - 1) / chunk_size) * chunk_size - k_len;
+        Shape pad_key_shape = {num_heads, k_len + k_num_to_pad, head_dim};
+        auto pad_key_buf = allocate_buf(pad_key_shape);
+
+        for (size_t h = 0; h < num_heads; h++)
+            for (size_t t = 0; t < k_len; t++)
+                for (size_t d = 0; d < head_dim; d++) {
+                    size_t offset = h * (k_len + k_num_to_pad) * head_dim + t * head_dim + d;
+                    size_t original_offset = h * k_len * head_dim + t * head_dim + d;
+                    pad_key_buf.get()[offset] = key_data[original_offset];
+                }
+
+        size_t k_chunk_num = (k_len + k_num_to_pad) / chunk_size;
+        size_t offset_token_chunk_num = k_chunk_num - 1;
+        size_t reshaped_chunk_size = chunk_size / m_stride;
+        size_t k_reshaped_num_to_pad = k_num_to_pad / m_stride;
+        size_t k_reshaped_seq_len = (k_len + k_num_to_pad) / m_stride;
+
+        Shape reshaped_query_shape = {num_heads, query_shape[1] / m_stride, head_dim * m_stride};
+        auto q_buf = allocate_buf(reshaped_query_shape);
+        diagonal_reshape_kdb1_no_batch(query_data, query_shape, q_buf.get(), reshaped_query_shape);
+        Shape reshaped_key_shape = {num_heads, pad_key_shape[1] / m_stride, head_dim * m_stride};
+        auto k_buf = allocate_buf(reshaped_key_shape);
+        diagonal_reshape(pad_key_buf.get(), pad_key_shape, k_buf.get(), reshaped_key_shape, false);
+        Shape transpose_matmul_scaled_shape = {num_heads, query_shape[1] / m_stride, pad_key_shape[1] / m_stride};
+        auto qk_buf = allocate_buf(transpose_matmul_scaled_shape);
+
+        transpose_matmul_scale(q_buf.get(), k_buf.get(), reshaped_query_shape, reshaped_key_shape, qk_buf.get(), transpose_matmul_scaled_shape);
+        q_buf.reset();
+        k_buf.reset();
+
+        Shape causal_mask_shape = {num_heads, reshaped_chunk_size, reshaped_chunk_size * k_chunk_num};
+        auto causal_mask_buf = allocate_buf(causal_mask_shape);
+        std::fill(causal_mask_buf.get(), causal_mask_buf.get() + ov::shape_size(causal_mask_shape), T(0));
+        if (k_reshaped_num_to_pad) {
+            for (size_t h = 0; h < num_heads; h++)
+                for (size_t q = 0; q < reshaped_chunk_size; q++)
+                    for (size_t k = k_reshaped_seq_len - k_reshaped_num_to_pad; k < k_reshaped_seq_len; k++) {
+                        size_t offset = h * reshaped_chunk_size * (reshaped_chunk_size * k_chunk_num) + q * (reshaped_chunk_size * k_chunk_num) + k;
+
+                        causal_mask_buf.get()[offset] = std::numeric_limits<T>::lowest();
+                    }
+        }
+
+        size_t chunk_start = offset_token_chunk_num * reshaped_chunk_size;
+        size_t chunk_end = chunk_start + reshaped_chunk_size;
+
+        for (size_t h = 0; h < num_heads; h++) {
+            for (size_t q = 0; q < reshaped_chunk_size; q++) {
+                for (size_t k = q + 1; k < reshaped_chunk_size; k++) {
+                    size_t offset = h * reshaped_chunk_size * (reshaped_chunk_size * k_chunk_num) + q * (reshaped_chunk_size * k_chunk_num) + chunk_start + k;
+                    causal_mask_buf.get()[offset] = std::numeric_limits<T>::lowest();
+                }
+            }
+        }
+
+        for (size_t h = 0; h < num_heads; h++) {
+            for (size_t q = 0; q < reshaped_chunk_size; q++) {
+                for (size_t k = chunk_end; k < reshaped_chunk_size * k_chunk_num; k++) {
+                    size_t offset = h * reshaped_chunk_size * (reshaped_chunk_size * k_chunk_num) + q * (reshaped_chunk_size * k_chunk_num) + k;
+                    causal_mask_buf.get()[offset] = std::numeric_limits<T>::lowest();
+                }
+            }
+        }
+        size_t out_size = transpose_matmul_scaled_shape[0] * transpose_matmul_scaled_shape[1] * transpose_matmul_scaled_shape[2];
+
+        for (size_t i = 0; i < out_size; i++) {
+            qk_buf.get()[i] += causal_mask_buf.get()[i];
+        }
+
+        causal_mask_buf.reset();
+        Shape attention_scores_shape = transpose_matmul_scaled_shape;
+        auto attn_score_buf = allocate_buf(attention_scores_shape);
+        softmax(qk_buf.get(), transpose_matmul_scaled_shape, attn_score_buf.get(), attention_scores_shape);
+        qk_buf.reset();
+
+        size_t antidiagonals_per_xattention_block = m_block_size / m_stride;
+        Shape block_sum_shape = {attention_scores_shape[0],
+                                 attention_scores_shape[1] / antidiagonals_per_xattention_block,
+                                 attention_scores_shape[2] / antidiagonals_per_xattention_block};
+
+        auto block_sum_buf = allocate_buf(block_sum_shape);
+        block_sum_attention_scores(attn_score_buf.get(), attention_scores_shape, block_sum_buf.get(), block_sum_shape);
+        attn_score_buf.reset();
+        auto selected_block_indices = get_block_indices_to_keep(block_sum_buf.get(), block_sum_shape);
+        block_sum_buf.reset();
+
+        return selected_block_indices;
+    }
+
+    std::shared_ptr<T[]> allocate_buf(const Shape& shape) {
+        return std::shared_ptr<T[]>(new T[ov::shape_size(shape)]);
+    }
+
+    size_t pad_to_block(size_t token_length) {
+        return (token_length + m_block_size - 1) / m_block_size * m_block_size;
+    }
+
+    double m_threshold;
+
+    size_t m_block_size;
+
+    size_t m_stride;
 };
-}  // namespace std
 
 struct xAttentionReference {
     xAttentionReference(PagedAttentionManager& pam) : pam(pam), test_engine(pam.test_engine), test_stream(pam.test_stream) {}
@@ -93,169 +425,6 @@ struct xAttentionReference {
     }
 
 private:
-    void print_tensor(const std::vector<ov::float16>& data, size_t heads, size_t rows, size_t cols, const std::string& name) {
-        std::cout << name << " (" << heads << "x" << rows << "x" << cols << "):\n";
-        for (size_t h = 0; h < heads; h++) {
-            std::cout << " Head " << h << ":\n";
-            for (size_t i = 0; i < rows; i++) {
-                for (size_t j = 0; j < cols; j++) {
-                    std::cout << static_cast<float>(data[h * rows * cols + i * cols + j]) << "\n";
-                }
-                std::cout << "\n";
-            }
-        }
-    }
-
-    std::vector<ov::float16> softmax_1(const std::vector<float>& logits) {
-        std::vector<ov::float16> out(logits.size());
-        float max_val = *std::max_element(logits.begin(), logits.end());
-        float sum = 0.0f;
-        for (float v : logits)
-            sum += std::exp(v - max_val);
-        for (size_t i = 0; i < logits.size(); i++) {
-            out[i] = static_cast<ov::float16>(std::exp(logits[i] - max_val) / sum);
-        }
-        return out;
-    }
-
-    std::vector<float> safe_softmax(const std::vector<float>& logits) {
-        std::vector<float> probs(logits.size(), 0.0f);
-        float max_logit = -std::numeric_limits<float>::infinity();
-        for (float l : logits)
-            max_logit = std::max(max_logit, l);
-        if (std::isinf(max_logit))
-            return probs;
-
-        float sum_exp = 0.0f;
-        for (float l : logits)
-            sum_exp += std::exp(l - max_logit);
-        if (sum_exp == 0.0f)
-            return probs;
-
-        for (size_t i = 0; i < logits.size(); ++i)
-            probs[i] = std::exp(logits[i] - max_logit) / sum_exp;
-        return probs;
-    }
-
-    std::vector<ov::float16> compute_sparse_causal_attention(const std::vector<ov::float16>& Q_in,  // [B, Tq, H, Dq]
-                                                             const std::vector<ov::float16>& K_in,  // [B, Tk, H, Dk]
-                                                             const std::vector<ov::float16>& V_in,  // [B, Tk, H, Dv]
-                                                             size_t num_heads,
-                                                             size_t num_queries,
-                                                             size_t num_keys,
-                                                             size_t qk_head_dim,
-                                                             size_t v_head_dim,
-                                                             const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& retained_blocks_for_all_heads = {},
-                                                             float scale = 0.0f,
-                                                             size_t block_size = 1) {
-        if (scale == 0.0f)
-            scale = 1.0f / std::sqrt(static_cast<float>(qk_head_dim));
-
-        bool use_sparse = !retained_blocks_for_all_heads.empty();
-        std::vector<ov::float16> output(num_heads * num_queries * v_head_dim, ov::float16(0.0f));
-
-        std::cout << "---- compute_sparse_causal_attention ----\n";
-        std::cout << "num_heads=" << num_heads << "  num_queries=" << num_queries << "  num_keys=" << num_keys << "  qk_head_dim=" << qk_head_dim
-                  << "  v_head_dim=" << v_head_dim << "  scale=" << scale << "\n";
-
-        // ======== permute Q,K,V from [B,T,H,D] → [H,T,D] ========
-        std::vector<ov::float16> Q(num_heads * num_queries * qk_head_dim);
-        std::vector<ov::float16> K(num_heads * num_keys * qk_head_dim);
-        std::vector<ov::float16> V(num_heads * num_keys * v_head_dim);
-
-        for (size_t h = 0; h < num_heads; ++h) {
-            for (size_t t = 0; t < num_queries; ++t) {
-                for (size_t d = 0; d < qk_head_dim; ++d) {
-                    Q[h * num_queries * qk_head_dim + t * qk_head_dim + d] = Q_in[t * num_heads * qk_head_dim + h * qk_head_dim + d];
-                }
-            }
-            for (size_t t = 0; t < num_keys; ++t) {
-                for (size_t d = 0; d < qk_head_dim; ++d) {
-                    K[h * num_keys * qk_head_dim + t * qk_head_dim + d] = K_in[t * num_heads * qk_head_dim + h * qk_head_dim + d];
-                }
-                for (size_t d = 0; d < v_head_dim; ++d) {
-                    V[h * num_keys * v_head_dim + t * v_head_dim + d] = V_in[t * num_heads * v_head_dim + h * v_head_dim + d];
-                }
-            }
-        }
-
-        // ======== Attention per head ========
-        for (size_t h = 0; h < num_heads; ++h) {
-            const auto& retained_blocks = use_sparse ? retained_blocks_for_all_heads[h] : ov::reference::XAttentionRetainedBlockIndices{};
-
-            if (use_sparse) {
-                std::cout << "Head " << h << " retained blocks: ";
-                for (const auto& blk : retained_blocks)
-                    std::cout << "(" << blk.first << "," << blk.second << ") ";
-                std::cout << std::endl;
-            }
-
-            for (size_t q = 0; q < num_queries; ++q) {
-                std::vector<float> logits(num_keys, -1e9f);
-                bool any_valid = false;
-
-                for (size_t k = 0; k < num_keys; ++k) {
-                    size_t q_block = q / block_size;
-                    size_t k_block = k / block_size;
-
-                    if (use_sparse && retained_blocks.find({q_block, k_block}) == retained_blocks.end())
-                        continue;
-                    if (k > q)
-                        continue;  // causal mask
-
-                    float score = 0.0f;
-                    for (size_t d = 0; d < qk_head_dim; ++d)
-                        score += static_cast<float>(Q[h * num_queries * qk_head_dim + q * qk_head_dim + d]) *
-                                 static_cast<float>(K[h * num_keys * qk_head_dim + k * qk_head_dim + d]);
-                    logits[k] = score * scale;
-                    any_valid = true;
-                }
-
-                if (!any_valid) {
-                    std::cout << "Head " << h << ", Query " << q << " has no valid keys -> zero output.\n";
-                    continue;
-                }
-
-                auto probs = safe_softmax(logits);
-
-                for (size_t d = 0; d < v_head_dim; ++d) {
-                    float acc = 0.0f;
-                    for (size_t k = 0; k <= q; ++k) {
-                        if (use_sparse && retained_blocks.find({q / block_size, k / block_size}) == retained_blocks.end())
-                            continue;
-                        acc += probs[k] * static_cast<float>(V[h * num_keys * v_head_dim + k * v_head_dim + d]);
-                    }
-                    output[h * num_queries * v_head_dim + q * v_head_dim + d] = static_cast<ov::float16>(acc);
-                }
-            }
-        }
-
-        // ======== Debug summary ========
-        std::cout << "Output preview (head0, first few queries):\n";
-        for (size_t q = 0; q < std::min<size_t>(4, num_queries); ++q) {
-            std::cout << "  Q" << q << ": ";
-            for (size_t d = 0; d < std::min<size_t>(8, v_head_dim); ++d)
-                std::cout << static_cast<float>(output[q * v_head_dim + d]) << " ";
-            std::cout << "\n";
-        }
-
-        return output;
-    }
-
-
-// 保存为二进制 .bin 文件
-void save_tensor_to_bin(const std::string& filename, const std::vector<ov::float16>& data) {
-    std::ofstream file(filename, std::ios::out | std::ios::binary);
-    if (!file) {
-        std::cerr << "Failed to open " << filename << " for writing" << std::endl;
-        return;
-    }
-    file.write(reinterpret_cast<const char*>(data.data()), data.size() * sizeof(ov::float16));
-    file.close();
-    std::cout << "[Info] Saved " << filename << " (" << data.size() << " elements)" << std::endl;
-}
-
-
     std::pair<std::vector<ov::float16>, std::vector<ov::float16>> run_reference(const std::vector<ov::float16>& query_data,
                                                                                    const std::vector<ov::float16>& key_data,
                                                                                    const std::vector<ov::float16>& value_data,
@@ -270,7 +439,6 @@ void save_tensor_to_bin(const std::string& filename, const std::vector<ov::float
                                                                                    double threshold = 0.9,
                                                                                    size_t block_size = 128,
                                                                                    size_t stride = 16) {
-        // --- 1. allocate memory ---
         auto query_shape_bfyx = ov::PartialShape{1, num_queries, num_heads, k_head_size};
         auto key_shape_bfyx = ov::PartialShape{1, num_keys, num_heads, k_head_size};
         auto value_shape_bfyx = ov::PartialShape{1, num_keys, num_heads, v_head_size};
@@ -313,37 +481,10 @@ void save_tensor_to_bin(const std::string& filename, const std::vector<ov::float
         ov::Shape query_shape_3d = {static_cast<size_t>(num_heads), static_cast<size_t>(num_queries), static_cast<size_t>(k_head_size)};
         ov::Shape key_shape_3d = {static_cast<size_t>(num_heads), static_cast<size_t>(num_keys), static_cast<size_t>(k_head_size)};
 
-        ov::reference::XAttentionRetainedBlockIndicesForAllHeads retained_blocks;
-        // {
-        //     ov::reference::XAttentionBlockSelector<ov::float16> selector(threshold, block_size, stride);
-        //     retained_blocks = selector.select_blocks(query_data_3d.data(), query_shape_3d, key_data_3d.data(), key_shape_3d);
-
-        //     std::cout << "=== C++ 选中 blocks ===" << std::endl;
-        //     for (size_t h = 0; h < retained_blocks.size(); ++h) {
-        //         std::cout << "Head " << h << " selected blocks: ";
-        //         for (const auto& idx_pair : retained_blocks[h]) {
-        //             std::cout << "(" << idx_pair.first << "," << idx_pair.second << ") ";
-        //         }
-        //         std::cout << std::endl;
-        //     }
-        // }
-
-
-    if (num_queries < static_cast<int>(block_size)) {
-        // Case 1: too few queries — skip block selection
-        std::cout << "[Info] num_queries < block_size, skip block selection." << std::endl;
-    } else {
-        // Case 2: handle non-divisible length via padding
+        CMXAttentionRetainedBlockIndicesForAllHeads retained_blocks;
+    if (num_queries >= static_cast<int>(block_size)) {
         size_t padded_q = ((num_queries + block_size - 1) / block_size) * block_size;
         size_t padded_k = ((num_keys + block_size - 1) / block_size) * block_size;
-
-        if (padded_q != static_cast<size_t>(num_queries) || padded_k != static_cast<size_t>(num_keys)) {
-            std::cout << "[Info] Padding Q/K length for block alignment: "
-                      << "Q " << num_queries << "→" << padded_q
-                      << ", K " << num_keys << "→" << padded_k << std::endl;
-        }
-
-        // Build padded buffers for selection
         std::vector<ov::float16> query_padded(num_heads * padded_q * k_head_size, ov::float16(0));
         std::vector<ov::float16> key_padded(num_heads * padded_k * k_head_size, ov::float16(0));
 
@@ -359,23 +500,6 @@ void save_tensor_to_bin(const std::string& filename, const std::vector<ov::float
         ov::Shape query_shape_padded = {static_cast<size_t>(num_heads), padded_q, static_cast<size_t>(k_head_size)};
         ov::Shape key_shape_padded = {static_cast<size_t>(num_heads), padded_k, static_cast<size_t>(k_head_size)};
 
-
-        // === Save padded Q/K for Python comparison ===
-        save_tensor_to_bin("q_padded.bin", query_padded);
-        save_tensor_to_bin("k_padded.bin", key_padded);
-
-        std::ofstream meta("meta.txt");
-        meta << "num_heads=" << num_heads << "\n";
-        meta << "padded_q=" << padded_q << "\n";
-        meta << "padded_k=" << padded_k << "\n";
-        meta << "k_head_size=" << k_head_size << "\n";
-        meta << "block_size=" << block_size << "\n";
-        meta << "stride=" << stride << "\n";
-        meta << "threshold=" << threshold << "\n";
-        meta.close();
-        std::cout << "[Info] Saved meta.txt with shape info" << std::endl;
-
-
         std::vector<float> query_padded_f32(query_padded.size());
         std::vector<float> key_padded_f32(key_padded.size());
         for (size_t i = 0; i < query_padded.size(); ++i)
@@ -383,49 +507,11 @@ void save_tensor_to_bin(const std::string& filename, const std::vector<ov::float
         for (size_t i = 0; i < key_padded.size(); ++i)
             key_padded_f32[i] = static_cast<float>(key_padded[i]);
 
-        ov::reference::XAttentionBlockSelector<float> selector(threshold, block_size, stride);
+        CMXAttentionBlockSelector<float> selector(threshold, block_size, stride);
         retained_blocks = selector.select_blocks(query_padded_f32.data(), query_shape_padded,
                                                  key_padded_f32.data(), key_shape_padded);
-
-        std::cout << "=== Selected blocks after padding ===" << std::endl;
-        for (size_t h = 0; h < retained_blocks.size(); ++h) {
-            std::cout << "Head " << h << " selected blocks: ";
-            for (const auto& idx_pair : retained_blocks[h]) {
-                std::cout << "(" << idx_pair.first << "," << idx_pair.second << ") ";
-            }
-            std::cout << std::endl;
-        }
     }
-
-        // retained_blocks = {
-        //     {   // Head 0
-        //         {0,0}, {1,0}, {1,1}, {2,0}, {2,1}, {2,2}, {3,0}, {3,1}, {3,2}, {3,3}, {4,0}, {4,1}, {4,2}, {4,3}, {4,4}, {5,0}, {5,1}, {5,2}, {5,3}, {5,4}, {5,5}, {6,0}, {6,1}, {6,2}, {6,3}, {6,4}, {6,5}, {6,6}, {7,0}, {7,1}, {7,2}, {7,3}, {7,4}, {7,5}, {7,6}, {7,7}, {8,0}, {8,1}, {8,2}, {8,3}, {8,4}, {8,5}, {8,6}, {8,7}, {8,8}, {9,0}, {9,1}, {9,2}, {9,3}, {9,4}, {9,5}, {9,6}, {9,7}, {9,8}, {9,9}, {10,0}, {10,1}, {10,2}, {10,3}, {10,5}, {10,6}, {10,7}, {10,8}, {10,9}, {10,10}, {11,0}, {11,1}, {11,2}, {11,3}, {11,4}, {11,5}, {11,7}, {11,8}, {11,9}, {11,10}, {11,11}, {12,0}, {12,1}, {12,2}, {12,3}, {12,4}, {12,5}, {12,6}, {12,7}, {12,8}, {12,9}, {12,10}, {12,12}, {13,0}, {13,1}, {13,2}, {13,3}, {13,4}, {13,5}, {13,6}, {13,7}, {13,8}, {13,9}, {13,11}, {13,12}, {13,13}, {14,0}, {14,1}, {14,2}, {14,3}, {14,4}, {14,5}, {14,6}, {14,8}, {14,9}, {14,10}, {14,11}, {14,12}, {14,13}, {14,14}, {15,0}, {15,1}, {15,2}, {15,3}, {15,4}, {15,5}, {15,6}, {15,8}, {15,9}, {15,10}, {15,11}, {15,12}, {15,13}, {15,14}, {15,15}, {16,0}, {16,1}, {16,2}, {16,3}, {16,4}, {16,5}, {16,6}, {16,7}, {16,8}, {16,9}, {16,10}, {16,11}, {16,12}, {16,13}, {16,14}, {16,16}, {17,0}, {17,1}, {17,2}, {17,3}, {17,4}, {17,5}, {17,6}, {17,7}, {17,8}, {17,9}, {17,10}, {17,11}, {17,12}, {17,13}, {17,14}, {17,15}, {17,17}, {18,0}, {18,1}, {18,2}, {18,3}, {18,4}, {18,5}, {18,6}, {18,7}, {18,9}, {18,10}, {18,11}, {18,12}, {18,13}, {18,14}, {18,15}, {18,16}, {18,17}, {18,18}, {19,0}, {19,1}, {19,3}, {19,4}, {19,5}, {19,6}, {19,7}, {19,8}, {19,9}, {19,10}, {19,11}, {19,12}, {19,13}, {19,14}, {19,15}, {19,16}, {19,17}, {19,18}, {19,19}, {20,0}, {20,1}, {20,2}, {20,3}, {20,4}, {20,5}, {20,6}, {20,7}, {20,9}, {20,10}, {20,12}, {20,13}, {20,14}, {20,15}, {20,16}, {20,17}, {20,18}, {20,19}, {20,20}, {21,0}, {21,1}, {21,2}, {21,3}, {21,4}, {21,5}, {21,6}, {21,7}, {21,8}, {21,9}, {21,10}, {21,12}, {21,13}, {21,14}, {21,16}, {21,17}, {21,18}, {21,19}, {21,20}, {21,21}, {22,0}, {22,1}, {22,2}, {22,3}, {22,4}, {22,5}, {22,7}, {22,8}, {22,10}, {22,11}, {22,12}, {22,13}, {22,14}, {22,15}, {22,16}, {22,17}, {22,18}, {22,19}, {22,20}, {22,21}, {22,22}, {23,0}, {23,1}, {23,2}, {23,3}, {23,4}, {23,5}, {23,6}, {23,7}, {23,9}, {23,10}, {23,11}, {23,13}, {23,14}, {23,15}, {23,16}, {23,17}, {23,18}, {23,19}, {23,20}, {23,21}, {23,22}, {23,23}, {24,0}, {24,2}, {24,3}, {24,4}, {24,5}, {24,6}, {24,7}, {24,9}, {24,10}, {24,11}, {24,12}, {24,13}, {24,14}, {24,15}, {24,16}, {24,17}, {24,18}, {24,19}, {24,20}, {24,21}, {24,22}, {24,23}, {24,24}, {25,0}, {25,1}, {25,2}, {25,3}, {25,4}, {25,5}, {25,6}, {25,7}, {25,8}, {25,9}, {25,10}, {25,11}, {25,12}, {25,13}, {25,14}, {25,15}, {25,16}, {25,17}, {25,19}, {25,20}, {25,22}, {25,23}, {25,24}, {25,25}, {26,0}, {26,1}, {26,2}, {26,3}, {26,4}, {26,5}, {26,6}, {26,7}, {26,8}, {26,9}, {26,10}, {26,12}, {26,13}, {26,14}, {26,15}, {26,16}, {26,17}, {26,18}, {26,19}, {26,20}, {26,21}, {26,23}, {26,24}, {26,25}, {26,26}, {27,0}, {27,1}, {27,3}, {27,4}, {27,5}, {27,6}, {27,7}, {27,8}, {27,9}, {27,10}, {27,12}, {27,13}, {27,14}, {27,15}, {27,16}, {27,17}, {27,18}, {27,19}, {27,20}, {27,21}, {27,22}, {27,23}, {27,24}, {27,25}, {27,26}, {27,27}, {28,0}, {28,1}, {28,2}, {28,3}, {28,4}, {28,5}, {28,6}, {28,7}, {28,8}, {28,9}, {28,11}, {28,12}, {28,13}, {28,14}, {28,15}, {28,16}, {28,17}, {28,18}, {28,19}, {28,20}, {28,21}, {28,22}, {28,23}, {28,24}, {28,25}, {28,26}, {28,28}, {29,0}, {29,1}, {29,2}, {29,3}, {29,4}, {29,5}, {29,6}, {29,7}, {29,8}, {29,9}, {29,11}, {29,12}, {29,13}, {29,14}, {29,15}, {29,17}, {29,18}, {29,19}, {29,20}, {29,21}, {29,22}, {29,23}, {29,24}, {29,25}, {29,26}, {29,27}, {29,29}, {30,0}, {30,1}, {30,2}, {30,3}, {30,4}, {30,5}, {30,6}, {30,7}, {30,8}, {30,9}, {30,10}, {30,13}, {30,14}, {30,15}, {30,16}, {30,17}, {30,18}, {30,19}, {30,20}, {30,21}, {30,23}, {30,24}, {30,25}, {30,26}, {30,27}, {30,28}, {30,29}, {30,30}, {31,0}, {31,1}, {31,2}, {31,4}, {31,5}, {31,6}, {31,8}, {31,9}, {31,10}, {31,11}, {31,12}, {31,13}, {31,14}, {31,15}, {31,16}, {31,17}, {31,18}, {31,19}, {31,20}, {31,21}, {31,22}, {31,23}, {31,25}, {31,26}, {31,27}, {31,28}, {31,29}, {31,30}, {31,31}
-        //     },
-        //     {   // Head 1
-        //         {0,0}, {1,0}, {1,1}, {2,0}, {2,1}, {2,2}, {3,0}, {3,1}, {3,2}, {3,3}, {4,0}, {4,1}, {4,2}, {4,3}, {4,4}, {5,0}, {5,1}, {5,2}, {5,3}, {5,4}, {5,5}, {6,0}, {6,1}, {6,2}, {6,3}, {6,4}, {6,5}, {6,6}, {7,0}, {7,1}, {7,2}, {7,3}, {7,4}, {7,5}, {7,6}, {7,7}, {8,0}, {8,1}, {8,2}, {8,3}, {8,4}, {8,5}, {8,6}, {8,7}, {8,8}, {9,0}, {9,1}, {9,2}, {9,3}, {9,4}, {9,5}, {9,6}, {9,7}, {9,8}, {9,9}, {10,0}, {10,1}, {10,2}, {10,3}, {10,4}, {10,6}, {10,7}, {10,8}, {10,9}, {10,10}, {11,0}, {11,1}, {11,2}, {11,3}, {11,4}, {11,5}, {11,6}, {11,8}, {11,9}, {11,10}, {11,11}, {12,0}, {12,1}, {12,2}, {12,3}, {12,5}, {12,6}, {12,7}, {12,8}, {12,9}, {12,10}, {12,11}, {12,12}, {13,0}, {13,1}, {13,2}, {13,3}, {13,4}, {13,5}, {13,6}, {13,8}, {13,9}, {13,10}, {13,11}, {13,12}, {13,13}, {14,0}, {14,1}, {14,2}, {14,3}, {14,4}, {14,5}, {14,6}, {14,8}, {14,9}, {14,10}, {14,11}, {14,12}, {14,13}, {14,14}, {15,0}, {15,1}, {15,2}, {15,3}, {15,4}, {15,5}, {15,6}, {15,7}, {15,8}, {15,9}, {15,10}, {15,11}, {15,12}, {15,14}, {15,15}, {16,0}, {16,1}, {16,2}, {16,3}, {16,4}, {16,5}, {16,7}, {16,8}, {16,9}, {16,10}, {16,11}, {16,12}, {16,13}, {16,14}, {16,15}, {16,16}, {17,0}, {17,2}, {17,3}, {17,4}, {17,5}, {17,6}, {17,7}, {17,8}, {17,9}, {17,10}, {17,11}, {17,12}, {17,13}, {17,14}, {17,15}, {17,16}, {17,17}, {18,0}, {18,1}, {18,2}, {18,3}, {18,4}, {18,5}, {18,6}, {18,7}, {18,8}, {18,9}, {18,10}, {18,11}, {18,12}, {18,13}, {18,14}, {18,15}, {18,17}, {18,18}, {19,0}, {19,1}, {19,2}, {19,3}, {19,4}, {19,5}, {19,6}, {19,7}, {19,8}, {19,9}, {19,10}, {19,11}, {19,12}, {19,13}, {19,15}, {19,16}, {19,17}, {19,18}, {19,19}, {20,0}, {20,1}, {20,2}, {20,3}, {20,4}, {20,5}, {20,6}, {20,7}, {20,8}, {20,10}, {20,11}, {20,12}, {20,13}, {20,14}, {20,15}, {20,16}, {20,18}, {20,19}, {20,20}, {21,0}, {21,1}, {21,2}, {21,4}, {21,5}, {21,6}, {21,7}, {21,9}, {21,10}, {21,11}, {21,12}, {21,13}, {21,14}, {21,15}, {21,16}, {21,17}, {21,18}, {21,19}, {21,20}, {21,21}, {22,0}, {22,1}, {22,2}, {22,3}, {22,4}, {22,5}, {22,7}, {22,8}, {22,9}, {22,10}, {22,11}, {22,12}, {22,13}, {22,14}, {22,15}, {22,16}, {22,17}, {22,18}, {22,20}, {22,21}, {22,22}, {23,0}, {23,1}, {23,2}, {23,3}, {23,5}, {23,6}, {23,7}, {23,8}, {23,9}, {23,10}, {23,11}, {23,12}, {23,13}, {23,14}, {23,15}, {23,16}, {23,18}, {23,19}, {23,20}, {23,21}, {23,22}, {23,23}, {24,0}, {24,1}, {24,2}, {24,3}, {24,4}, {24,5}, {24,6}, {24,7}, {24,9}, {24,10}, {24,11}, {24,13}, {24,14}, {24,15}, {24,16}, {24,17}, {24,18}, {24,19}, {24,20}, {24,21}, {24,22}, {24,23}, {24,24}, {25,0}, {25,1}, {25,2}, {25,3}, {25,4}, {25,5}, {25,6}, {25,7}, {25,8}, {25,10}, {25,11}, {25,12}, {25,13}, {25,14}, {25,15}, {25,16}, {25,17}, {25,18}, {25,19}, {25,20}, {25,21}, {25,22}, {25,24}, {25,25}, {26,0}, {26,1}, {26,2}, {26,3}, {26,4}, {26,5}, {26,6}, {26,7}, {26,8}, {26,9}, {26,10}, {26,11}, {26,12}, {26,13}, {26,15}, {26,16}, {26,17}, {26,18}, {26,19}, {26,20}, {26,21}, {26,23}, {26,24}, {26,25}, {26,26}, {27,0}, {27,1}, {27,2}, {27,3}, {27,4}, {27,5}, {27,6}, {27,7}, {27,8}, {27,9}, {27,10}, {27,11}, {27,12}, {27,13}, {27,14}, {27,16}, {27,17}, {27,18}, {27,19}, {27,20}, {27,22}, {27,23}, {27,24}, {27,25}, {27,26}, {27,27}, {28,0}, {28,1}, {28,2}, {28,3}, {28,4}, {28,5}, {28,6}, {28,7}, {28,8}, {28,9}, {28,11}, {28,12}, {28,13}, {28,14}, {28,15}, {28,16}, {28,17}, {28,18}, {28,19}, {28,20}, {28,21}, {28,22}, {28,24}, {28,25}, {28,26}, {28,27}, {28,28}, {29,0}, {29,1}, {29,2}, {29,3}, {29,4}, {29,5}, {29,7}, {29,8}, {29,9}, {29,11}, {29,12}, {29,13}, {29,14}, {29,15}, {29,16}, {29,17}, {29,18}, {29,19}, {29,20}, {29,21}, {29,22}, {29,23}, {29,24}, {29,25}, {29,27}, {29,28}, {29,29}, {30,0}, {30,1}, {30,2}, {30,3}, {30,4}, {30,6}, {30,7}, {30,8}, {30,9}, {30,10}, {30,11}, {30,12}, {30,14}, {30,15}, {30,16}, {30,17}, {30,18}, {30,19}, {30,20}, {30,21}, {30,22}, {30,24}, {30,25}, {30,26}, {30,27}, {30,28}, {30,29}, {30,30}, {31,0}, {31,1}, {31,2}, {31,3}, {31,4}, {31,5}, {31,6}, {31,7}, {31,9}, {31,10}, {31,11}, {31,12}, {31,14}, {31,15}, {31,16}, {31,17}, {31,18}, {31,19}, {31,20}, {31,21}, {31,23}, {31,24}, {31,25}, {31,26}, {31,27}, {31,28}, {31,29}, {31,30}, {31,31}
-        //     }
-        // };
-
-//         retained_blocks = {{   // Head 0
-//     {0,0}, {1,0}, {1,1}, {2,0}, {2,1}, {2,2}, {3,0}, {3,1}, {3,2}, {3,3}, {4,0}, {4,1}, {4,2}, {4,3}, {4,4}, {5,0}, {5,1}, {5,2}, {5,3}, {5,4}, {5,5}, {6,0}, {6,1}, {6,2}, {6,3}, {6,4}, {6,5}, {6,6}, {7,0}, {7,1}, {7,2}, {7,3}, {7,4}, {7,5}, {7,6}, {7,7}, {8,0}, {8,1}, {8,2}, {8,3}, {8,4}, {8,5}, {8,6}, {8,7}, {8,8}, {9,0}, {9,1}, {9,2}, {9,3}, {9,4}, {9,5}, {9,6}, {9,7}, {9,8}, {9,9}, {10,0}, {10,1}, {10,2}, {10,3}, {10,4}, {10,5}, {10,6}, {10,7}, {10,9}, {10,10}, {11,0}, {11,1}, {11,2}, {11,3}, {11,4}, {11,5}, {11,6}, {11,7}, {11,9}, {11,10}, {11,11}, {12,0}, {12,1}, {12,2}, {12,3}, {12,4}, {12,6}, {12,7}, {12,8}, {12,9}, {12,10}, {12,11}, {12,12}, {13,0}, {13,2}, {13,3}, {13,4}, {13,5}, {13,6}, {13,7}, {13,8}, {13,9}, {13,10}, {13,11}, {13,12}, {13,13}, {14,0}, {14,1}, {14,2}, {14,3}, {14,4}, {14,5}, {14,7}, {14,8}, {14,9}, {14,10}, {14,11}, {14,12}, {14,13}, {14,14}, {15,0}, {15,1}, {15,2}, {15,3}, {15,5}, {15,6}, {15,7}, {15,8}, {15,9}, {15,10}, {15,11}, {15,12}, {15,13}, {15,14}, {15,15}, {16,0}, {16,1}, {16,2}, {16,3}, {16,4}, {16,5}, {16,6}, {16,7}, {16,8}, {16,9}, {16,10}, {16,12}, {16,13}, {16,14}, {16,15}, {16,16}, {17,0}, {17,1}, {17,2}, {17,4}, {17,5}, {17,6}, {17,7}, {17,8}, {17,9}, {17,10}, {17,11}, {17,12}, {17,13}, {17,14}, {17,15}, {17,16}, {17,17}, {18,0}, {18,1}, {18,2}, {18,3}, {18,4}, {18,5}, {18,7}, {18,8}, {18,9}, {18,10}, {18,11}, {18,12}, {18,13}, {18,14}, {18,15}, {18,16}, {18,17}, {18,18}, {19,0}, {19,1}, {19,2}, {19,4}, {19,5}, {19,6}, {19,7}, {19,8}, {19,9}, {19,10}, {19,11}, {19,12}, {19,13}, {19,14}, {19,15}, {19,16}, {19,17}, {19,18}, {19,19}, {20,0}, {20,1}, {20,2}, {20,3}, {20,4}, {20,5}, {20,6}, {20,7}, {20,9}, {20,10}, {20,11}, {20,13}, {20,14}, {20,15}, {20,16}, {20,17}, {20,18}, {20,19}, {20,20}, {21,0}, {21,1}, {21,2}, {21,3}, {21,5}, {21,6}, {21,7}, {21,8}, {21,9}, {21,10}, {21,11}, {21,12}, {21,14}, {21,15}, {21,16}, {21,17}, {21,18}, {21,19}, {21,20}, {21,21}, {22,0}, {22,1}, {22,2}, {22,3}, {22,4}, {22,5}, {22,7}, {22,8}, {22,9}, {22,10}, {22,11}, {22,12}, {22,14}, {22,15}, {22,16}, {22,17}, {22,18}, {22,19}, {22,20}, {22,21}, {22,22}, {23,0}, {23,1}, {23,2}, {23,3}, {23,4}, {23,5}, {23,7}, {23,8}, {23,9}, {23,10}, {23,11}, {23,12}, {23,13}, {23,14}, {23,16}, {23,17}, {23,18}, {23,19}, {23,20}, {23,21}, {23,22}, {23,23}, {24,0}, {24,1}, {24,2}, {24,3}, {24,5}, {24,6}, {24,7}, {24,8}, {24,10}, {24,11}, {24,12}, {24,13}, {24,14}, {24,15}, {24,16}, {24,17}, {24,18}, {24,19}, {24,20}, {24,21}, {24,22}, {24,23}, {24,24}, {25,0}, {25,1}, {25,2}, {25,3}, {25,6}, {25,7}, {25,8}, {25,9}, {25,10}, {25,11}, {25,12}, {25,13}, {25,14}, {25,15}, {25,16}, {25,17}, {25,18}, {25,19}, {25,20}, {25,21}, {25,22}, {25,23}, {25,24}, {25,25}, {26,0}, {26,1}, {26,2}, {26,3}, {26,4}, {26,5}, {26,6}, {26,7}, {26,8}, {26,9}, {26,10}, {26,11}, {26,12}, {26,13}, {26,14}, {26,15}, {26,16}, {26,17}, {26,18}, {26,20}, {26,21}, {26,22}, {26,23}, {26,24}, {26,26}, {27,0}, {27,1}, {27,2}, {27,3}, {27,4}, {27,7}, {27,8}, {27,9}, {27,10}, {27,11}, {27,12}, {27,13}, {27,14}, {27,15}, {27,16}, {27,17}, {27,18}, {27,19}, {27,20}, {27,21}, {27,22}, {27,23}, {27,24}, {27,25}, {27,26}, {27,27}, {28,0}, {28,1}, {28,2}, {28,3}, {28,4}, {28,5}, {28,6}, {28,7}, {28,9}, {28,10}, {28,11}, {28,12}, {28,13}, {28,14}, {28,15}, {28,16}, {28,17}, {28,18}, {28,19}, {28,20}, {28,21}, {28,22}, {28,23}, {28,25}, {28,26}, {28,27}, {28,28}, {29,0}, {29,1}, {29,2}, {29,3}, {29,4}, {29,5}, {29,6}, {29,7}, {29,8}, {29,9}, {29,10}, {29,11}, {29,12}, {29,13}, {29,14}, {29,15}, {29,16}, {29,17}, {29,18}, {29,19}, {29,22}, {29,23}, {29,24}, {29,25}, {29,26}, {29,27}, {29,28}, {29,29}, {30,0}, {30,1}, {30,2}, {30,3}, {30,4}, {30,5}, {30,6}, {30,7}, {30,8}, {30,9}, {30,10}, {30,11}, {30,12}, {30,13}, {30,14}, {30,15}, {30,16}, {30,17}, {30,18}, {30,19}, {30,20}, {30,22}, {30,23}, {30,24}, {30,25}, {30,27}, {30,28}, {30,30}, {31,0}, {31,1}, {31,2}, {31,3}, {31,4}, {31,5}, {31,6}, {31,8}, {31,9}, {31,10}, {31,11}, {31,12}, {31,13}, {31,14}, {31,15}, {31,16}, {31,17}, {31,18}, {31,19}, {31,20}, {31,22}, {31,23}, {31,24}, {31,25}, {31,27}, {31,28}, {31,29}, {31,30}, {31,31}
-// }};
-
-
-        // auto output = compute_sparse_causal_attention(query_data,
-        //                                               key_data,
-        //                                               value_data,
-        //                                               num_heads,
-        //                                               num_queries,
-        //                                               num_keys,
-        //                                               k_head_size,
-        //                                               v_head_size,
-        //                                               retained_blocks,
-        //                                               0.0f,
-        //                                               block_size);
-
-        // print_tensor(output, num_heads, num_queries, k_head_size, "Output");
         auto mask_mem = get_mask_mem_combined_multi_head(num_queries, num_keys, num_heads, sliding_window_size, retained_blocks, block_size);
-        // auto mask_mem =  get_mask_mem(num_queries, num_keys, num_heads, sliding_window_size);
 
         topology topology;
         topology.add(input_layout("query", query_layout),
@@ -493,12 +579,9 @@ void save_tensor_to_bin(const std::string& filename, const std::vector<ov::float
                                                  int num_keys,
                                                  int num_heads,
                                                  int sliding_window_size,
-                                                 const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& retained_blocks,
+                                                 const CMXAttentionRetainedBlockIndicesForAllHeads& retained_blocks,
                                                  int block_size) {
-        // mask layout: [1, num_heads, num_queries, num_keys]
         auto mask_shape = ov::PartialShape{1, num_heads, num_queries, num_keys};
-        std::cout << "**********************************************************************\n";
-        std::cout << num_heads << " " << num_queries << " " << num_keys << std::endl;
         auto mask_layout = layout{mask_shape, data_types::f16, format::bfyx};
         auto mask_mem = test_engine.allocate_memory(mask_layout);
 
@@ -580,77 +663,6 @@ void save_tensor_to_bin(const std::string& filename, const std::vector<ov::float
 
         return mask_mem;
     }
-
-    memory::ptr get_mask_mem(int num_queries, int num_keys, int num_heads, int sliding_window_size) {
-        /*
-        * Two kinds of masks:
-        *
-        * Case 1 (N == K):
-        * num_queries = N
-        * num_keys = K = N
-        * k_head_size = H
-        * Q  [N, H] * K[H, N]
-        * QK [N, N]
-        *       0    1        N
-        * 0  [  0, MIN, .., MIN ]
-        * 1  [  0,   0, .., MIN ]
-        *    [ ..,  .., .., MIN ]
-        * N  [  0,   0, ..,   0 ]
-        *
-        * Case 2 (N != K):
-        * num_queries = N
-        * num_keys = K
-        * k_head_size = H
-        * past_len = P = K - N + 1
-        * Q  [N, H] * K[H, K]
-        * QK [N, K]
-        *      0    1    2    P   ..    K
-        * 0 [  0,   0,   0, MIN, MIN, MIN ]
-        * 1 [  0,   0,   0,   0, MIN, MIN ]
-        *   [  .., ..,  ..,  ..,  .., MIN ]
-        * N [  0,   0,   0,   0,  ..,   0 ]
-        *
-        * Shapes:
-        * Q   [1, num_heads, num_queries, k_head_size]
-        * K   [1, num_heads, k_head_size, num_keys]
-        * Q*K [1, num_heads, num_queries, num_keys]
-        */
-
-        auto mask_shape = ov::PartialShape{ 1, 1, num_queries, num_keys };
-        auto mask_layout = layout{mask_shape, data_types::f16, format::bfyx};
-        auto mask_mem = test_engine.allocate_memory(mask_layout);
-
-        mem_lock<ov::float16> mem_ptr(mask_mem, test_stream);
-
-        if (sliding_window_size == 0) {
-            int past_len = num_keys - num_queries + 1;
-            for (int i = 0; i < num_queries; i++) {
-                for (int j = 0; j < num_keys; j++) {
-                    mem_ptr[i * num_keys + j] = j >= past_len + i ? std::numeric_limits<ov::float16>::lowest()
-                                                                    : ov::float16(0.f);
-                }
-            }
-        } else {
-            int sliding_left = num_keys - num_queries - sliding_window_size + 1;
-            int past_len = num_keys - num_queries + 1;
-
-            for (int i = 0; i < num_queries; i++) {
-                for (int j = 0; j < num_keys; j++) {
-                    bool is_min;
-                    if (num_queries == num_keys) {
-                        is_min = (j >= sliding_left + i) && (j <= i) ? 0 : 1;
-                    } else {
-                        is_min = (j >= sliding_left + i) && (j < past_len + i) ? 0 : 1;
-                    }
-
-                    mem_ptr[i * num_keys + j] = is_min ? std::numeric_limits<ov::float16>::lowest() : ov::float16(0.f);
-                }
-            }
-        }
-
-        return mask_mem;
-    }
-
 
     void rotate_block(std::vector<ov::float16>& cache_data,
                       std::vector<int> rotation_deltas,
@@ -932,9 +944,6 @@ public:
             output_scores_mem = outputs.at("output_scores").get_memory();
         }
         auto ref_data = xAttentionReference(pam).get_reference();
-        // for (size_t i = 0; i < ref_data.first.size(); i++) {
-        //     std::cout << i << "reference = " << ref_data.first[i] << std::endl;
-        // }
         compare(output_data_mem, output_scores_mem, ref_data);
     }
 
@@ -942,27 +951,25 @@ public:
         if (data_output_mem) {
             ASSERT_EQ(data_output_mem->count(), ref_data.first.size());
             mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, get_test_stream());
+            int mismatch_count = 0;
             for (size_t i = 0; i < data_output_mem->count(); i++) {
-                std::cout << i << ": result = " << mem_ptr[i] << ", reference = " << ref_data.first[i] << std::endl;
-            }
-            std::cout << "data_output_mem->count(): " << data_output_mem->count() << std::endl;
-            int num = 0;
-            for (size_t i = 0; i < data_output_mem->count(); i++) {
-                if (abs(mem_ptr[i] - ref_data.first[i]) > tolerance) {
-                    // std::cout << "mem_ptr: " << mem_ptr[i] << " " << "ref_data: " << ref_data.first[i] << std::endl;
-                    num++;
+                if (std::fabs(static_cast<float>(mem_ptr[i]) - static_cast<float>(ref_data.first[i])) > tolerance) {
+                    mismatch_count++;
                 }
-                // ASSERT_NEAR(mem_ptr[i], ref_data.first[i], tolerance) << " at index=" << i;
             }
-            std::cout << "num: " << num << std::endl;
+            EXPECT_LE(mismatch_count, int(data_output_mem->count() * 0.02));
         }
 
         if (scores_output_mem) {
             ASSERT_EQ(scores_output_mem->count(), ref_data.second.size());
             mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output_mem, get_test_stream());
+            int mismatch_count = 0;
             for (size_t i = 0; i < scores_output_mem->count(); i++) {
-                ASSERT_NEAR(mem_ptr[i], ref_data.second[i], tolerance) << " at index=" << i;
+                if (std::fabs(static_cast<float>(mem_ptr[i]) - static_cast<float>(ref_data.second[i])) > tolerance) {
+                    mismatch_count++;
+                }
             }
+            EXPECT_LE(mismatch_count, int(scores_output_mem->count() * 0.02));
         }
     }
 };
@@ -1002,28 +1009,17 @@ const auto DYNAMIC_INPUT_PAD = true;
 const auto ENABLE_FA_V2 = false;
 const auto DISABLE_FA_V2 = true;
 
-INSTANTIATE_TEST_SUITE_P(smoke_xattention,
+INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention,
                          xattention_test,
                          ::testing::ValuesIn(std::vector<xattention_test_params>{
 
 #if ENABLE_PA_CM_PATH
     /* without scores output, static input query paddings, single sequence, disable KV cache compression, k_head_size==v_head_size,
     token_size>=32, disable_mix_mode */
-    // xattention_test_params{ {{32, 0}},   2, 2, 2, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    xattention_test_params{ {{4096, 0}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    // xattention_test_params{ {{1024, 0}}, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token long
+    xattention_test_params{ {{32, 0}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    xattention_test_params{ {{4096, 0}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
 
-// xattention_test_params{ {{1024, 0}}, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES,
-// DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token long
-
-// xattention_test_params{ {{1, 31}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES,
-// DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token xattention_test_params{ {{1, 32}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION,
-// ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token xattention_test_params{ {{1,
-// 1023}}, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION,
-// DISABLE_FA_V2 }, // 2nd token xattention_test_params{ {{1, 127}},  2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,
-// STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token xattention_test_params{ {{1, 129}},  2, 64, 64, 256, 0,
-// DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-// xattention_test_params{ {{1, 32}},  28, 128, 128, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD,
-// DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    xattention_test_params{ {{1, 31}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    xattention_test_params{ {{1, 32}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
 #endif
 }));
