@@ -17,6 +17,7 @@
 #include "kai/kai_common.h"
 #include "kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f32.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi4cxp_qs4cxs1s0.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi8cxp_qsi8cx_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_nxk_qsi4cxp_qs4cxs1s0.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
@@ -74,7 +75,8 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     auto N = weiDims[0];
     auto K = weiDims[1];
 
-    if (memory.at(ARG_BIAS)->getDataAs<float>() == nullptr) {
+    bool hasBias = memory.at(ARG_BIAS)->getDataAs<float>() != nullptr;
+    if (!hasBias) {
         auto biasDesc = std::make_shared<CpuBlockedMemoryDesc>(f32, Shape({N}));
         biasMem = std::make_shared<Memory>(context->getEngine(), biasDesc);
         biasMem->nullify();
@@ -148,18 +150,34 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
             params.lhs_zero_point = 1;
             params.rhs_zero_point = 0;
 
-            kai_run_rhs_pack_nxk_qsi4cxp_qs4cxs1s0(1,
-                                                   N,
-                                                   K,
-                                                   nr,
-                                                   kr,
-                                                   sr,
-                                                   rhs_native_qs4cx,
-                                                   nullptr,
-                                                   rhs_scales,
-                                                   rhs_packed_qs4cx,
-                                                   0,
-                                                   &params);
+            auto* bias_ptr = hasBias ? biasMem->getDataAs<float>() : nullptr;
+            if (attrs.weightsNonTransposed) {
+                kai_run_rhs_pack_kxn_qsi4cxp_qs4cxs1s0(1,
+                                                       N,
+                                                       K,
+                                                       nr,
+                                                       kr,
+                                                       sr,
+                                                       rhs_native_qs4cx,
+                                                       bias_ptr,
+                                                       rhs_scales,
+                                                       rhs_packed_qs4cx,
+                                                       0,
+                                                       &params);
+            } else {
+                kai_run_rhs_pack_nxk_qsi4cxp_qs4cxs1s0(1,
+                                                       N,
+                                                       K,
+                                                       nr,
+                                                       kr,
+                                                       sr,
+                                                       rhs_native_qs4cx,
+                                                       bias_ptr,
+                                                       rhs_scales,
+                                                       rhs_packed_qs4cx,
+                                                       0,
+                                                       &params);
+            }
 
         } else {
             ukernel_i8 = hasInt8MMSupport() ? &ukernel_i8_imm : &ukernel_i8_dotprod;
