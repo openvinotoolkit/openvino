@@ -3,6 +3,7 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/f8_utils.cl"
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
 

@@ -1525,6 +1525,30 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type_size = "2";
             is_fp = false;
             break;
+        case Datatype::F8E4M3:
+            type = "fp8e4m3_t";
+            max_val = "(fp8e4m3_t){as_char((char)0x7E)}"; // 448.0
+            min_val = "(fp8e4m3_t){as_char((char)0xFE)}"; // -448.0
+            val_one = "(fp8e4m3_t){as_char((char)0x38)}";
+            val_zero = "(fp8e4m3_t){as_char((char)0x0)}";
+            to_type = "_convert_fp8e4m3_t(v)";
+            to_type_sat = "_convert_fp8e4m3_t_sat(v)";
+            as_type = "as_fp8e4m3_t(v)";
+            type_size = "1";
+            is_fp = true;
+            break;
+        case Datatype::F8E5M2:
+            type = "fp8e5m2_t";
+            max_val = "(fp8e5m2_t){as_uchar((uchar)0x7B)}"; // 57344.0
+            min_val = "(fp8e5m2_t){as_uchar((uchar)0xFB)}"; // -57344.0
+            val_one = "(fp8e5m2_t){as_uchar((uchar)0x3C)}";
+            val_zero = "(fp8e5m2_t){as_uchar((uchar)0x0)}";
+            to_type = "_convert_fp8e5m2_t(v)";
+            to_type_sat = "_convert_fp8e5m2_t_sat(v)";
+            as_type = "as_fp8e5m2_t(v)";
+            type_size = "1";
+            is_fp = true;
+            break;
         default:
             type = "float";
             max_val = "FLT_MAX";
