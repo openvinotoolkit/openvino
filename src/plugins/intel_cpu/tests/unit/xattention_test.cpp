@@ -2,10 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// q_len % stride != 0
-
-// q_len % block != 0
-
 #include "nodes/kernels/scaled_attn/xattention.hpp"
 
 #include <gtest/gtest.h>
@@ -78,7 +74,17 @@ TEST_P(XAttentionTest, test1) {
         }
     }
 
-    PlainTensor mask = xattn_estimate(query, key, xattr.block_size, xattr.stride, xattr.threshold);
+    Xattn xattn;
+    xattn.init(query.size(0),
+               query.size(1),
+               query.size(2),
+               query.size(3),
+               key.size(2),
+               xattr.stride,
+               xattr.block_size,
+               ov::element::f32);
+    PlainTensor mask;
+    xattn.estimate(query, key, xattr.block_size, xattr.stride, xattr.threshold, mask);
     size_t k_num_blocks = div_up(key_shape[0], xattr.block_size);
     for (size_t i = 0; i < expected_values.size(); i++) {
         EXPECT_EQ(*mask.ptr<bool>(0, i / k_num_blocks, i % k_num_blocks), expected_values[i]);
