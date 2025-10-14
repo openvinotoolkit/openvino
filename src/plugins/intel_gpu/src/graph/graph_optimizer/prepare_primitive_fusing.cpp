@@ -782,12 +782,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (lo.has_all_enabled_onednn_impls_optimization_attribute()) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
-                auto additional_params_input = activation_node.get_primitive()->additional_params_input;
-                if (activation_func == cldnn::activation_func::relu_negative_slope && additional_params_input.is_valid() &&
-                    (input.is_type<fully_connected>() || input.is_type<gemm>())) {
-                    // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
-                    return;
-                }
 
                 // Activation should not be fused if oneDNN does NOT support it
                 if (lo.is_primitive_implemented_for_onednn(input))  {
@@ -909,9 +903,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto out_layout = quantize_node.get_output_layout();
             auto in_layout = input_data.get_output_layout();
 
-            // In dynamic shape, quantize-fusion is enabled in only onednn convolution.
+            // In dynamic shape, quantize-fusion is disable in only cldnn convolution
             if ((in_layout.is_dynamic() || out_layout.is_dynamic()) &&
-                (!input_data.is_type<convolution>() || (input_data.is_type<convolution>() && !lo.has_all_enabled_onednn_impls_optimization_attribute())))
+                (input_data.is_type<convolution>() && !lo.has_all_enabled_onednn_impls_optimization_attribute()))
                 return;
 
             auto out_dt = out_layout.data_type;
