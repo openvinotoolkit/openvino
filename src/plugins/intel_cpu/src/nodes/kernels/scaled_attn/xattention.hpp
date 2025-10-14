@@ -197,8 +197,8 @@ struct Xattn {
               size_t xattn_block_size,
               ov::element::Type in_type) {
         _kv_head_groups = H / K_H;
-        // Align k length to multiple of stride and multiple of 32, since block
-        // size in brgemm computation is 32.
+        // The k length should first divided by stride, and the result should be divisible by 32 since block
+        // size in brgemm computation is 32. Therefore align k to multiple of xattn_stride * 32.
         auto k_padded = rnd_up(B, xattn_stride * 32);
         _k_num_to_pad = k_padded - B;
         _k_num_strided = div_up(k_padded, xattn_stride);

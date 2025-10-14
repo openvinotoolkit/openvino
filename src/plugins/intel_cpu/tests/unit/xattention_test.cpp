@@ -49,7 +49,7 @@ public:
     }
 };
 
-TEST_P(XAttentionTest, test1) {
+TEST_P(XAttentionTest, simpleTest) {
     const auto& [data_type, query_shape, key_shape, xattr, expected_values] = this->GetParam();
     size_t element_size = ov::element::Type(data_type).size();
     PlainTensor query;

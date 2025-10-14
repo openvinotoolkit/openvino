@@ -2142,6 +2142,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         // TODO: enable block_size to be multiple of 32
         OPENVINO_ASSERT(block_size == 32, "CPU: block size must be 32, current: ", block_size);
 
+#    if defined(OPENVINO_ARCH_X86_64)
         // xattention_threshold.resize<float>({1});
         // xattention_threshold.ptr<float>()[0] = 0.9f;
         // xattention_stride = 16;
@@ -2179,19 +2180,20 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             // keep original mask granularity; remember its block size for on-the-fly mapping
             _helper._sparse_mask_block_size = xattention_block_size;
             // Check sparse_mask_block_size is a multiple of vector length for correct sparse_mask indexing
-#    if defined(HAVE_AVX512F)
+#        if defined(HAVE_AVX512F)
             constexpr size_t vec_len = vec_len_f32_avx512;
-#    elif defined(HAVE_AVX2)
+#        elif defined(HAVE_AVX2)
             constexpr size_t vec_len = vec_len_f32_avx2;
-#    elif defined(OPENVINO_ARCH_ARM64)
+#        elif defined(OPENVINO_ARCH_ARM64)
             constexpr size_t vec_len = vec_len_f32_neon;
-#    else
+#        else
             constexpr size_t vec_len = 1;
-#    endif
+#        endif
             if (xattention_block_size % vec_len == 0) {
                 _helper._use_softmax_sparse_mask = true;
             }
         }
+#    endif
 
         _helper.init(H,
                      S,
