@@ -16,7 +16,7 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op,
                           input_shapes.size() == 17 || input_shapes.size() == 20,
-                          "Expected either 17 or 20 inputs but got",
+                          "Expected either 17 or 20 inputs but got ",
                           input_shapes.size());
     auto output_shapes = std::vector<TRShape>(2);
 

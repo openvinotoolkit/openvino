@@ -4,6 +4,9 @@
 
 #include "openvino/op/paged_attention.hpp"
 
+#include <iostream>
+#include <sstream>
+
 #include "dimension_util.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -182,6 +185,18 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 19, "xattention_stride", {0}, {element::i32});
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
+
+    std::ostringstream os;
+    os << "[PAE] node=" << get_friendly_name() << " type=" << get_type_name()
+       << " ptr=" << static_cast<const void*>(this) << " inputs=" << get_input_size() << "\n";
+
+    for (size_t i = 0; i < get_input_size(); ++i) {
+        const auto& in = input_value(i);
+        os << "  #" << i << " from=" << (in ? in.get_node()->get_friendly_name() : std::string("<null>"))
+           << " shape=" << get_input_partial_shape(i) << " et=" << in.get_element_type() << "\n";
+    }
+    std::cerr << os.str() << "[PAE] vector size from util: " << input_shapes.size() << "\n";
+
     const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
