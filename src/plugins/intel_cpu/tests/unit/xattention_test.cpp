@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define OPENVINO_ARCH_X86_64
+
 #include "nodes/kernels/scaled_attn/xattention.hpp"
 
 #include <gtest/gtest.h>
