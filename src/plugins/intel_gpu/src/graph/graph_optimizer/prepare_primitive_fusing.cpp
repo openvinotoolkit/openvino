@@ -1040,10 +1040,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             std::vector<std::pair<program_node*, int32_t>> parents = node.get_dependencies();
 
-            if (node.is_type<eltwise>() && parents[0].first->is_type<broadcast>()) {
-                std::cout << ">> Try to fuse " << node.id() << " to " << parents[0].first->id() << std::endl;
-            }
-
             std::vector<bool> can_fuse_parents = { false, false };
 
             for (size_t i = 0; i < parents.size(); i++) {
@@ -1080,10 +1076,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                        lora_supports_fusings(parents[i].first->as<lora>())) ||
                                        (parents[i].first->is_type<broadcast>() &&
                                        broadcast_supports_fusings(parents[i].first->as<broadcast>()));
-            }
-
-            if (node.is_type<eltwise>() && parents[0].first->is_type<broadcast>()) {
-                std::cout << "  -- Pass fusing " << node.id() << " : can_fuse_parents[0] " << can_fuse_parents[0] << std::endl;
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -1143,19 +1135,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 can_fuse_parents[1] = can_fuse_parents[1] && are_compatible(out_pshape, parent2_pshape);
             }
 
-            // if (node.is_type<eltwise>() && parents[0].first->is_type<broadcast>()) {
-            //     std::cout << "    -- fusing " << node.id() << " : aaa can_fuse_parents[0] " << can_fuse_parents[0] << std::endl;
-            //     std::cout << "      -- parent0_shape : " << parent1.first->get_output_pshape(0) << std::endl;
-            //     std::cout << "      -- out_shape : " << node.get_output_pshape(0) << std::endl;
-            // }
-
             // We should have at least one node to fuse
             if (!can_fuse_parents[0] && !can_fuse_parents[1])
                 return;
-
-            if (node.is_type<eltwise>() && parents[0].first->is_type<broadcast>()) {
-                std::cout << "    -- fusing " << node.id() << " : bbb can_fuse_parents[0] " << can_fuse_parents[0] << std::endl;
-            }
 
             // Choose node to fuse
             size_t fused_idx = can_fuse_parents[0] ? 0 : 1;
@@ -1255,10 +1237,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (parent2.first->is_type<convolution>() && !conv_supports_fusings(parent2.first->as<convolution>()))
                 return;
 
-            if (node.is_type<eltwise>() && parents[0].first->is_type<broadcast>()) {
-                std::cout << "    -- fusing " << node.id() << " : ccc can_fuse_parents[0] " << can_fuse_parents[0] << std::endl;
-            }
-
             bool merge_allowed = true;
             // If fused node is not convolution and fused node has multiple users,
             //  follow the legacy checking rule
@@ -1351,10 +1329,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             // As in both cases processing order is valid, the issue might be connected with memory pool
             if (fused_node->is_type<resample>()) {
                 recalc_processing_order = true;
-            }
-
-            if (node.is_type<eltwise>() && parents[0].first->is_type<broadcast>()) {
-                std::cout << "  -- Done fusing " << node.id() << " to " << parents[0].first->id() << std::endl;
             }
 
             p.fuse_nodes(*fused_node, node, &fusing_history);
