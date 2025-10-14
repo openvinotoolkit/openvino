@@ -20,15 +20,21 @@ class MetadataBase {
 public:
     MetadataBase(uint32_t version, uint64_t blobDataSize);
 
+protected:
+    union Source;
+
+public:
     /**
      * @brief Reads metadata from a stream.
      */
-    virtual void read(std::istream& tensor) = 0;
+    void read(std::istream& tensor);
 
     /**
      * @brief Reads metadata from a ov::Tensor.
      */
-    virtual void read(const ov::Tensor& tensor) = 0;
+    void read(const ov::Tensor& tensor);
+
+    virtual void read(const Source& source, const bool isStream) = 0;
 
     /**
      * @brief Writes metadata to a stream.
@@ -42,17 +48,11 @@ public:
     /**
      * @returns The sizes of the init schedules. Populated only if "weights separation" has been enabled.
      */
-    virtual std::optional<std::vector<uint64_t>> get_init_sizes() const {
-        return std::nullopt;
-    }
+    virtual std::optional<std::vector<uint64_t>> get_init_sizes() const;
 
-    virtual std::optional<std::vector<ov::Layout>> get_input_layouts() const {
-        return std::nullopt;
-    }
+    virtual std::optional<std::vector<ov::Layout>> get_input_layouts() const;
 
-    virtual std::optional<std::vector<ov::Layout>> get_output_layouts() const {
-        return std::nullopt;
-    }
+    virtual std::optional<std::vector<ov::Layout>> get_output_layouts() const;
 
     virtual ~MetadataBase() = default;
 
@@ -89,6 +89,17 @@ public:
     }
 
 protected:
+    union Source {
+        explicit Source(std::istream& source);
+
+        explicit Source(const ov::Tensor& source);
+
+        std::reference_wrapper<std::istream> stream;
+        std::reference_wrapper<const ov::Tensor> tensor;
+    };
+
+    void read_data_from_source(const Source& source, const bool isStream, char* destination, const size_t size);
+
     /**
      * @brief Adds the size of the binary object and the magic string to the end of the stream.
      * @details This should be called after the "write" method in order to conclude writing the metadata into the given
@@ -193,9 +204,7 @@ class Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 public:
     Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion = std::nullopt);
 
-    void read(std::istream& tensor) override;
-
-    void read(const ov::Tensor& tensor) override;
+    void read(const Source& source, const bool isStream) override;
 
     /**
      * @attention It's a must to first write metadata version in any metadata specialization.
@@ -241,9 +250,7 @@ public:
      * @details The number of init schedules, along with the size of each init binary object are read in addition to the
      * information provided by the previous metadata versions.
      */
-    void read(std::istream& stream) override;
-
-    void read(const ov::Tensor& tensor) override;
+    void read(const Source& source, const bool isStream) override;
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are written in addition to
@@ -273,9 +280,7 @@ public:
              const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt);
 
-    void read(std::istream& stream) override;
-
-    void read(const ov::Tensor& tensor) override;
+    void read(const Source& source, const bool isStream) override;
 
     void write(std::ostream& stream) override;
 
