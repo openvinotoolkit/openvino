@@ -143,7 +143,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     #if USE_LSC_BLOCK_2D_DESC
         #if KV_CACHE_COMPRESSION
-            // Transpose only support dword and qwork
+            // Transpose only support dword and qword
             lsc::block_2d_desc<uint, 1, REG_N, REG_K/4> b2dK(reinterpret_cast<uint*>(key + kv_base_offset),  KV_BLOCK_SIZE - 1, HEAD_SIZE*sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
         #else
             lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dK(reinterpret_cast<uint*>(key + kv_base_offset),  KV_BLOCK_SIZE - 1, HEAD_SIZE*sizeof(half) - 1, kv_pitch - 1, 0, 0);
