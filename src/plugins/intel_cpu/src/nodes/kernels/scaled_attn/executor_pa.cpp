@@ -1914,6 +1914,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
     MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC> _helper;
     MHA<DATA_TYPE, KEY_PREC, VALUE_PREC> _kernel;
     PlainTensor _slot_mapping;
+    Xattn _xatt;
 
     AttentionExecutor() : _kernel(_helper) {}
 
@@ -2161,15 +2162,19 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                                    block_size);
                 }
             }
-            sparse_attention_mask = get_sparse_blocks(q,
-                                                      k,
-                                                      past_lens,
-                                                      subsequence_begins,
-                                                      block_indices,
-                                                      block_indices_begins,
-                                                      xattention_stride,
-                                                      xattention_block_size,
-                                                      xattention_threshold);
+
+            _xatt.init(B_token, H, 1, S, Hk, xattention_stride, xattention_block_size, q.m_dt);
+            get_sparse_blocks(q,
+                              k,
+                              past_lens,
+                              subsequence_begins,
+                              block_indices,
+                              block_indices_begins,
+                              xattention_stride,
+                              xattention_block_size,
+                              xattention_threshold,
+                              _xatt,
+                              sparse_attention_mask);
 
             // keep original mask granularity; remember its block size for on-the-fly mapping
             _helper._sparse_mask_block_size = xattention_block_size;
@@ -2253,28 +2258,32 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
     }
 
-    std::vector<PlainTensor> get_sparse_blocks(PlainTensor& q,
-                                               PlainTensor& k,
-                                               PlainTensor& past_lens,
-                                               PlainTensor& subsequence_begins,
-                                               PlainTensor& block_indices,
-                                               PlainTensor& block_indices_begins,
-                                               size_t x_attention_stride,
-                                               size_t x_attention_block_size,
-                                               PlainTensor& threshold) {
+    void get_sparse_blocks(PlainTensor& q,
+                           PlainTensor& k,
+                           PlainTensor& past_lens,
+                           PlainTensor& subsequence_begins,
+                           PlainTensor& block_indices,
+                           PlainTensor& block_indices_begins,
+                           size_t x_attention_stride,
+                           size_t x_attention_block_size,
+                           PlainTensor& threshold,
+                           Xattn& xattn,
+                           std::vector<PlainTensor>& sparse_attention_mask) {
         size_t num_seqs = past_lens.size(0);
-        std::vector<PlainTensor> masks(num_seqs);
+        sparse_attention_mask.resize(num_seqs);
 
 #    if defined(OPENVINO_ARCH_X86_64)
         // TODO: support multiple batches
-        for (size_t seq_idx = 0; seq_idx < 1; seq_idx++) {
-            if (q.size(0) > 1) {
-                masks[seq_idx] =
-                    xattn_estimate(q, k, x_attention_block_size, x_attention_stride, threshold.ptr<float>()[seq_idx]);
-            }
+        if (q.size(0) > 1) {
+            size_t seq_idx = 0;
+            xattn.estimate(q,
+                           k,
+                           x_attention_block_size,
+                           x_attention_stride,
+                           threshold.ptr<float>()[seq_idx],
+                           sparse_attention_mask[seq_idx]);
         }
 #    endif
-        return masks;
     }
 
     void execute(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr> outputs) override {
