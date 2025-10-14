@@ -117,6 +117,7 @@ struct Xattn {
     size_t _num_per_block = 0;
     size_t _n_block_size = 32;
     size_t _kv_head_groups = 0;
+    size_t _m_block_size = 0;
 
     void sum_blocks_ref(const float* a,
                         size_t M,
@@ -201,6 +202,7 @@ struct Xattn {
               size_t K_H,
               size_t xattn_stride,
               size_t xattn_block_size,
+              size_t m_block_size,
               ov::element::Type in_type) {
         _kv_head_groups = H / K_H;
         // The k length should first divided by stride, and the result should be divisible by 32 since block
@@ -213,6 +215,7 @@ struct Xattn {
         _q_num_blocks = div_up(B, xattn_block_size);
         _k_num_blocks = div_up(B, xattn_block_size);
         _num_per_block = xattn_block_size / xattn_stride;
+        _m_block_size = m_block_size;
         size_t n_num_blocks = _k_num_strided / _n_block_size;
 
         if (_q_num_blocks <= 1 || _k_num_blocks <= 1 || _num_per_block == 0) {
@@ -220,9 +223,8 @@ struct Xattn {
         }
 
         if (_xattn_gemm.empty()) {
-            const auto m_block_size = BrgemmKernel::get_mblk_size();
-            _xattn_gemm.resize(m_block_size);
-            for (size_t i = 1; i < m_block_size + 1; i++) {
+            _xattn_gemm.resize(_m_block_size);
+            for (size_t i = 1; i < _m_block_size + 1; i++) {
                 _xattn_gemm[i - 1] = std::make_shared<BrgemmKernel>(i,                         // M
                                                                     _n_block_size,             // N
                                                                     S,                         // K
@@ -264,8 +266,7 @@ struct Xattn {
         auto K_H = key.size(1);
         OPENVINO_ASSERT(query.size(0) == key.size(0));
 
-        const auto m_block_size = BrgemmKernel::get_mblk_size();
-        const auto m_num_blocks = div_up(_q_num_strided, m_block_size);
+        const auto m_num_blocks = div_up(_q_num_strided, _m_block_size);
         auto in_type = query.m_dt;
         auto scratch_a_size = _xattn_gemm.back()->get_scratch_a_size();
         auto wsp_size = _xattn_gemm.back()->get_wsp_size();
@@ -317,8 +318,8 @@ struct Xattn {
 
             ov::parallel_for2d(H, m_num_blocks, [&](size_t h, size_t m_blk) {
                 auto ithr = parallel_get_thread_num();
-                auto m_start = m_blk * m_block_size;
-                auto m_end = std::min(m_start + m_block_size, _q_num_strided);
+                auto m_start = m_blk * _m_block_size;
+                auto m_end = std::min(m_start + _m_block_size, _q_num_strided);
                 auto m_cnt = m_end - m_start;
 
                 auto q_index = m_start * stride + stride - i - 1;
@@ -336,7 +337,7 @@ struct Xattn {
                         auto n_start = n_blk * S;
                         auto* k_ptr = _key_repack.ptr_v(h / _kv_head_groups, 0, n_start, 0);
                         auto* c_ptr = &_attn_sum_temp.at<float>({h, 0, m_start, n_blk * _n_block_size});
-                        _xattn_gemm[m_cnt - 1]->executeGemm(m_cnt < m_block_size,
+                        _xattn_gemm[m_cnt - 1]->executeGemm(m_cnt < _m_block_size,
                                                             q_ptr,
                                                             k_ptr,
                                                             c_ptr,
