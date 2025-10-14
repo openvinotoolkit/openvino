@@ -306,6 +306,23 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           [[maybe_unused]] const bool useSparseWeights,
                                           const bool useWeightsDecompression,
                                           const bool fcSemantic) {
+    auto createDescriptor = [&]() {
+        return fcSemantic ? createDescriptorInternalAsFc(inputDesc,
+                                                         weightDesc,
+                                                         biasDesc,
+                                                         outputDesc,
+                                                         attr,
+                                                         engine,
+                                                         useWeightsDecompression)
+                          : createDescriptorInternal(inputDesc,
+                                                     weightDesc,
+                                                     biasDesc,
+                                                     outputDesc,
+                                                     attr,
+                                                     engine,
+                                                     transposeA,
+                                                     transposeB);
+    };
     if (defaultImplType == impl_desc_type::undef) {
         struct PrimitiveDescWithPriority {
             dnnl::primitive_desc prim_desc;
@@ -315,21 +332,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
         PrimitiveDescWithPriority prim_desc_w_priority{dnnl::primitive_desc(), implPriorities.size()};
         const bool first_match = implPriorities.front() == impl_desc_type::unknown;
 
-        auto cur_desc = fcSemantic ? createDescriptorInternalAsFc(inputDesc,
-                                                                  weightDesc,
-                                                                  biasDesc,
-                                                                  outputDesc,
-                                                                  attr,
-                                                                  engine,
-                                                                  useWeightsDecompression)
-                                   : createDescriptorInternal(inputDesc,
-                                                              weightDesc,
-                                                              biasDesc,
-                                                              outputDesc,
-                                                              attr,
-                                                              engine,
-                                                              transposeA,
-                                                              transposeB);
+        auto cur_desc = createDescriptor();
 
         DnnlExtensionUtils::for_each_implementation(
             cur_desc,
@@ -351,21 +354,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
         return prim_desc_w_priority.prim_desc;
     }
 
-    auto prim_desc = fcSemantic ? createDescriptorInternalAsFc(inputDesc,
-                                                               weightDesc,
-                                                               biasDesc,
-                                                               outputDesc,
-                                                               attr,
-                                                               engine,
-                                                               useWeightsDecompression)
-                                : createDescriptorInternal(inputDesc,
-                                                           weightDesc,
-                                                           biasDesc,
-                                                           outputDesc,
-                                                           attr,
-                                                           engine,
-                                                           transposeA,
-                                                           transposeB);
+    auto prim_desc = createDescriptor();
 
     OPENVINO_ASSERT(prim_desc, "Failed to create matmul primitive descriptor");
     auto first_desc = dnnl::matmul::primitive_desc(prim_desc.get());
