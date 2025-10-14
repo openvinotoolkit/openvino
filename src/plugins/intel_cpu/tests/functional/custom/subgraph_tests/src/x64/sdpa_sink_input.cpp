@@ -49,7 +49,7 @@ namespace test {
 using InputShapes = std::vector<InputShape>;
 using PagedAttnTestParams = std::tuple<ElementType, InputShapes>;
 
-class SpdaSinkTest : public testing::WithParamInterface<PagedAttnTestParams>,
+class SdpaSinkTest : public testing::WithParamInterface<PagedAttnTestParams>,
                            virtual public ov::test::SubgraphBaseTest,
                            public CPUTestsBase {
 public:
@@ -244,10 +244,10 @@ public:
         prepare();
 
         auto core = ov::test::utils::PluginCache::get().core();
-        ov::AnyMap config_ref = {{"DISABLE_TRANSFORMATIONS" , "YES"}};
-        auto compiled_model_ref = core->compile_model(model,
-                ov::test::utils::DEVICE_TEMPLATE, config_ref);
-        auto inferRequestRef = compiled_model_ref.create_infer_request();
+        ov::AnyMap configRef = {{"DISABLE_TRANSFORMATIONS" , "YES"}};
+        auto compiledModelRef = core->compile_model(model,
+                ov::test::utils::DEVICE_TEMPLATE, configRef);
+        auto inferRequestRef = compiledModelRef.create_infer_request();
 
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
@@ -259,8 +259,8 @@ public:
             inferRequest.infer();
             inferRequestRef.infer();
             auto logits = inferRequest.get_output_tensor(0);
-            auto logits_ref = inferRequestRef.get_output_tensor(0);
-            ov::test::utils::compare(logits_ref, logits, abs_threshold, rel_threshold);
+            auto logitsRef = inferRequestRef.get_output_tensor(0);
+            ov::test::utils::compare(logitsRef, logits, abs_threshold, rel_threshold);
         }
         reset();
         for (auto&& state : inferRequestRef.query_state()) {
@@ -269,7 +269,7 @@ public:
     }
 };
 
-TEST_P(SpdaSinkTest, CompareWithRefs) {
+TEST_P(SdpaSinkTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto& [inType, inputShapes] = this->GetParam();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
@@ -289,11 +289,11 @@ const std::vector<InputShapes> inputShapes = {  // greedy search
         {{1, 8, -1, -1}, {{1, 8, 10, 10}, {1, 8, 1, 11}}},
     }};
 
-INSTANTIATE_TEST_SUITE_P(smoke_SpdaSinkTest,
-                         SpdaSinkTest,
+INSTANTIATE_TEST_SUITE_P(smoke_SdpaSinkTest,
+                         SdpaSinkTest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16, ElementType::bf16),
                                             ::testing::ValuesIn(inputShapes)),
-                         SpdaSinkTest::getTestCaseName);
+                         SdpaSinkTest::getTestCaseName);
 }  // namespace
 }  // namespace test
 }  // namespace ov

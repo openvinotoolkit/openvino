@@ -559,13 +559,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
-    char* sdpafusion_envstr = std::getenv("OV_CPU_SDPA_FUSION");
-    if (sdpafusion_envstr == nullptr || std::string(sdpafusion_envstr) != "0") {
-        CPU_REGISTER_PASS_COMMON(manager, ov::pass::SDPAFusion);
-        CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
-    } else {
-        CPU_DISABLE_PASS_COMMON(manager, ov::pass::SDPAFusion);
-    }
+    CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCachePrecision = config.keyCachePrecision;
     cacheConfig.valueCachePrecision = config.valueCachePrecision;
@@ -862,7 +856,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertSliceScatter);
-    //CPU_DISABLE_PASS_COMMON(manager, ov::pass::SDPAFusion);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::SDPAFusion);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
     CPU_DISABLE_PASS_ARM64(manager, ov::pass::HSigmoidDecomposition);
 
