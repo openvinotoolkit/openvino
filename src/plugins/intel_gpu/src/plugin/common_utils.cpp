@@ -25,52 +25,8 @@ void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
         dst[i] = static_cast<dst_t>(src[i]);
 }
 
-//using Ms = std::chrono::duration<double, std::ratio<1, 1000>>;
-
-#if 0
 template <typename src_t, typename dst_t>
 void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout layout) {
-    FILE* pF;
-    auto e = fopen_s(&pF, "c:\\intel\\ai\\phi\\temp\\org.bin", "ab+");
-
-    if (e != 0)
-        std::cout << "fopen err: " << e << std::endl;
-    
-    auto start = std::chrono::steady_clock::now();
-    cldnn::tensor size = layout.get_tensor();
-    for (int64_t b = 0; b < size.batch[0]; b++) {
-        for (int64_t f = 0; f < size.feature[0]; f++) {
-            for (int64_t w = 0; w < size.spatial[3]; w++) {
-                for (int64_t z = 0; z < size.spatial[2]; z++) {
-                    for (int64_t y = 0; y < size.spatial[1]; y++) {
-                        for (int64_t x = 0; x < size.spatial[0]; x++) {
-                            size_t offset = layout.get_linear_offset(cldnn::tensor(b, f, x, y, z, w));
-                            if (pF)
-                                fwrite(&offset, sizeof(offset), 1, pF);
-
-                            *dst++ = static_cast<dst_t>(src[offset]);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    auto end = std::chrono::steady_clock::now();
-    double duration = std::chrono::duration_cast<Ms>(end - start).count();
-
-    if (pF)
-        fclose(pF);
-
-    std::cout << __FUNCTION__ << "took Ms: " << duration << std::endl;
-}
-#else
-template <typename src_t, typename dst_t>
-void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout layout) {
-    /*FILE* pF;
-    auto e = fopen_s(&pF, "c:\\intel\\ai\\phi\\temp\\new.bin", "ab+");*/
-
-    //auto start = std::chrono::steady_clock::now();
     cldnn::tensor axes_start_point, axes_end_point;
     layout.setup_fast_liner_offset(axes_start_point, axes_end_point);
 
@@ -81,28 +37,14 @@ void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout 
                     for (int64_t y = axes_start_point.spatial[1]; y < axes_end_point.spatial[1]; y++) {
                         for (int64_t x = axes_start_point.spatial[0]; x < axes_end_point.spatial[0]; x++) {
                             int64_t element_sizes[6] = {b, f, x, y, z, w};
-                            size_t offset = layout.get_linear_offset_fast(element_sizes);
-                                                        
-                            /*if (pF)
-                                fwrite(&offset, sizeof(offset), 1, pF);*/
-
-                            *dst++ = static_cast<dst_t>(src[offset]);
+                            *dst++ = static_cast<dst_t>(src[layout.get_linear_offset_fast(element_sizes)]);
                         }
                     }
                 }
             }
         }
     }
-
-    //auto end = std::chrono::steady_clock::now();
-    //double duration = std::chrono::duration_cast<Ms>(end - start).count();
-
-    /*if (pF)
-        fclose(pF);*/
-
-    //std::cout << __FUNCTION__ << "took Ms: " << duration << std::endl;
 }
-#endif
 
 template <typename src_t, typename dst_t>
 void convert_and_copy_transposed(const src_t* src, dst_t* dst, ov::Shape shape) {
