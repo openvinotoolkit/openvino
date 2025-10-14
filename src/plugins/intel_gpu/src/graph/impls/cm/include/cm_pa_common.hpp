@@ -362,6 +362,12 @@ void pa_kernel_lsc_prefetch_f16(
             b2dK.set_base_ptr((reinterpret_cast<half*>(k_cache_base)+cur_block_id*blk_stride));
             b2dK.set_block_y(kv_pos%CMPA_BLOCK_SZ);
             cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(0));
+            // somtimes KV cache would be filled with random Nan, so need to clean up the unused key data.
+            if ((kv_pos + kv_step) > kv_stop) {
+                auto valid_rows = kv_stop - kv_pos;
+                for (int r = valid_rows; r < kv_step; r++)
+                    Kmat.format<half, num_K*REG_M, REG_N>().row(r) = 0.f;
+            }
             #pragma unroll
             for(int k = 0; k < num_K; k++)
                 St2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
@@ -415,6 +421,15 @@ void pa_kernel_lsc_prefetch_f16(
                 matrix<half, REG_K/2, REG_N*2> Vmat;
                 cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(k));
                 cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(k));
+                // somtimes KV cache would be filled with random Nan, so need to clean up the unused value data.
+                if ((kv_pos + kv_step) > kv_stop) {
+                    uint valid_rows = kv_stop - kv_pos;
+                    uint valid_rows_vnni = (valid_rows+1)/2;
+                    for (int r = valid_rows_vnni; r < kv_step / 2; r++)
+                        Vmat.row(r) = 0.f;
+                    if (valid_rows % 2 == 1)
+                        Vmat.row(valid_rows_vnni-1).select<REG_N,2>(1) = 0.f;
+                }
                 #pragma unroll
                 for(int p = 0; p < num_P_tiles; p++) {
                     rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
@@ -433,7 +448,15 @@ void pa_kernel_lsc_prefetch_f16(
 
                 cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(k));
                 cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(k));
-
+                 // somtimes KV cache would be filled with random Nan, so need to clean up the unused value data.
+                if ((kv_pos + kv_step) > kv_stop) {
+                    uint valid_rows = kv_stop - kv_pos;
+                    uint valid_rows_vnni = (valid_rows+1)/2;
+                    for (int r = valid_rows_vnni; r < kv_step / 2; r++)
+                        Vmat.row(r) = 0.f;
+                    if (valid_rows % 2 == 1)
+                        Vmat.row(valid_rows_vnni-1).select<REG_N,2>(1) = 0.f;
+                }
                 //# compensate cur_O
                 //  matrix <float, head_size/REG_K*2, REG_M*REG_N> rO;
                 #pragma unroll
