@@ -99,6 +99,7 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/fuse_moe.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
@@ -108,6 +109,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/normalize_sdpa_inputs.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
@@ -193,6 +195,7 @@
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/log.hpp"
+#include "ov_ops/moe.hpp"
 
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 namespace {
@@ -467,6 +470,23 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // moe expert requires onednn enabled which needs in order queue.
+        if (device_info.supports_immad) {
+            manager.register_pass<ov::pass::FuseMOE>();
+            pass_config->set_callback<ov::pass::FuseMOERouter>([](const_node_ptr& node) -> bool {
+                auto moe = as_type_ptr<const ov::op::internal::MOE>(node);
+                const auto& config = moe->get_config();
+                // TODO(MOE): support more cases
+                if (config.weight_type == ov::element::u4 && config.scale_type == ov::element::f16 && config.zp_type == ov::element::u4 &&
+                    config.group_size == 128) {
+                    return false;
+                }
+                return true;
+            });
+        }
+#endif
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
@@ -1133,6 +1153,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::Validate>();
 
         manager.register_pass<ov::pass::RoPEFusion>(true);
+        manager.register_pass<ov::pass::NormalizeSDPAInputs>();
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
