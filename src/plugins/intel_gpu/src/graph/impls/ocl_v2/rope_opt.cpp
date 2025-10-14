@@ -152,8 +152,10 @@ protected:
                     auto b = extract_channel(ChannelName::BATCH, out_l);
                     auto f = extract_channel(ChannelName::FEATURE, out_l);
                     auto y = extract_channel(ChannelName::Y, out_l);
-
                     wgs.global = {b, f, y * cfg.rotary_ndims / 2ul / vec_size};
+                    if (cfg.support_3d_rope) {
+                        wgs.global = {b, f, cfg.rotary_ndims / 2ul / vec_size};
+                    }
                 }
 
                 wgs.local = ov::intel_gpu::get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);

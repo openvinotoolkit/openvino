@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API RoPEShareCosSin;
 class ov::pass::RoPEFusionGPTNEOX : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionGPTNEOX");
-    RoPEFusionGPTNEOX();
+    RoPEFusionGPTNEOX(int rank);
 };
 
 class ov::pass::RoPEFusionFlux : public ov::pass::MatcherPass {
