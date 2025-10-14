@@ -13,6 +13,7 @@ namespace pass {
 class TRANSFORMATIONS_API EliminateConcat;
 class TRANSFORMATIONS_API EliminateConcatStridedSlice;
 class TRANSFORMATIONS_API EliminateConvert;
+class TRANSFORMATIONS_API EliminateIdentityConvert;
 class TRANSFORMATIONS_API EliminateConvertNonZero;
 class TRANSFORMATIONS_API EliminateEltwise;
 class TRANSFORMATIONS_API EliminateScatterUpdate;
@@ -63,6 +64,17 @@ class ov::pass::EliminateConvert : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("EliminateConvert");
     EliminateConvert();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateIdentityConvert eliminates convert that before and after Identity
+ * have the same input and output types
+ */
+class ov::pass::EliminateIdentityConvert : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateIdentityConvert");
+    EliminateIdentityConvert();
 };
 
 /**
