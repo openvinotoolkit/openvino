@@ -61,7 +61,7 @@ void basic_memory_dependencies::run(program& p) {
             }
 
             // onednn concatenation doesn't support non-zero padding which can occur for unaligned feature.
-            if (node->is_type<concatenation>()) {
+            if (node->is_type<concatenation>() && format::is_blocked(node->get_output_layout().format)) {
                 node->can_share_buffer(false);
                 for (auto& dep : node->get_dependencies()) {
                     dep.first->can_share_buffer(false);
