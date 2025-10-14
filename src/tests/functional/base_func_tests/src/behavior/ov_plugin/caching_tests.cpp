@@ -496,8 +496,13 @@ void CompileModelCacheRuntimePropertiesTestBase::run() {
             m_compiled_model_runtime_properties.replace(1, 1, "x");
         }
         content.replace(index, m_compiled_model_runtime_properties.size(), m_compiled_model_runtime_properties);
+        std::filesystem::permissions(fileName, std::filesystem::perms::owner_write, std::filesystem::perm_options::add);
         std::ofstream out(fileName, std::ios_base::binary);
         out.write(content.c_str(), static_cast<std::streamsize>(content.size()));
+        out.close();
+        std::filesystem::permissions(fileName,
+                                     std::filesystem::perms::owner_write,
+                                     std::filesystem::perm_options::remove);
     }
 
     // Third compile model to remove old cache blob and create new model cache blob file
