@@ -28,7 +28,7 @@ import typing
 """
 Factory functions for all openvino ops.
 """
-__all__: list[str] = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericData', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'as_node', 'as_nodes', 'assert_list_of_ints', 'assign', 'binary_op', 'broadcast', 'bucketize', 'check_valid_attributes', 'cum_sum', 'embedding_bag_offsets_sum', 'embedding_bag_packed_sum', 'embedding_segments_sum', 'extract_image_patches', 'get_dtype', 'get_element_type', 'get_element_type_str', 'gru_cell', 'is_non_negative_value', 'is_positive_value', 'make_constant_node', 'nameable_op', 'non_max_suppression', 'non_zero', 'np', 'partial', 'read_value', 'rnn_cell', 'roi_align', 'scatter_elements_update', 'scatter_update', 'shape_of', 'shuffle_channels', 'topk', 'unary_op']
+__all__: list[str] = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'as_node', 'as_nodes', 'assert_list_of_ints', 'assign', 'binary_op', 'broadcast', 'bucketize', 'check_valid_attributes', 'cum_sum', 'embedding_bag_offsets_sum', 'embedding_bag_packed_sum', 'embedding_segments_sum', 'extract_image_patches', 'get_dtype', 'get_element_type', 'get_element_type_str', 'gru_cell', 'is_non_negative_value', 'is_positive_value', 'make_constant_node', 'nameable_op', 'non_max_suppression', 'non_zero', 'np', 'partial', 'read_value', 'rnn_cell', 'roi_align', 'scatter_elements_update', 'scatter_update', 'shape_of', 'shuffle_channels', 'topk', 'unary_op']
 def assign(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return a node which produces the Assign operation.
@@ -358,7 +358,6 @@ def topk(*args, **kwargs) -> openvino._pyopenvino.Node:
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
-NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]
 _get_node_factory_opset3: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset3')

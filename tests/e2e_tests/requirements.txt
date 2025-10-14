@@ -29,7 +29,7 @@ pytest-timeout==2.4.0
 # for common utils, e2e_tests
 openvino-dev
 distro==1.9.0
-pyyaml==6.0.2
+pyyaml==6.0.3
 jsonschema==4.25.0
 # filelock==3.9.0
 omegaconf>=2.1,<2.4

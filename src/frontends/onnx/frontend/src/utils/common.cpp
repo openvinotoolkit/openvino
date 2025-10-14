@@ -6,6 +6,7 @@
 
 #include <onnx/onnx_pb.h>  // onnx types
 
+#include "core/null_node.hpp"
 #include "core/tensor.hpp"
 #include "onnx_framework_node.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -98,6 +99,14 @@ void default_op_checks(const Node& node, size_t min_inputs_size, size_t max_inpu
                                   std::to_string(max_inputs_size),
                                   " inputs, got: ",
                                   inputs.size());
+}
+
+bool is_input_valid(const Node& node, size_t index) {
+    const auto& inputs = node.get_ov_inputs();
+    if (index >= inputs.size())
+        return false;
+    const auto node_ptr = inputs[index].get_node_shared_ptr();
+    return node_ptr != nullptr && !ov::as_type_ptr<NullNode>(node_ptr);
 }
 
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,

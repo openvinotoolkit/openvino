@@ -34,7 +34,7 @@ ov::pass::FuseVectorizedMOE2GEMM::FuseVectorizedMOE2GEMM() {
     auto tile = pattern::wrap_type<ov::op::v0::Tile>({experts_input, pattern::any_input()});
     auto after_tile_reshape = pattern::wrap_type<ov::op::v1::Reshape>({tile, pattern::any_input()});
     auto gate_up_matmul = pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, pattern::any_input()},
-                                                                 {{"transpose_a", false}, {"transpose_b", false}});
+                                                                 {{"transpose_a", false}, {"transpose_b", true}});
     auto gate_up_add = pattern::wrap_type<ov::op::v1::Add>({gate_up_matmul, pattern::any_input()});
 
     // Branch 1: Slice_1 -> Clamp -> Add_1
@@ -55,7 +55,7 @@ ov::pass::FuseVectorizedMOE2GEMM::FuseVectorizedMOE2GEMM() {
 
     // Down projection
     auto down_proj_matmul = pattern::wrap_type<ov::op::v0::MatMul>({multiply2, pattern::any_input()},
-                                                                   {{"transpose_a", false}, {"transpose_b", false}});
+                                                                   {{"transpose_a", false}, {"transpose_b", true}});
     auto down_proj_add = pattern::wrap_type<ov::op::v1::Add>({down_proj_matmul, pattern::wrap_const()});
     auto end_reshape = pattern::wrap_type<ov::op::v1::Reshape>({down_proj_add, pattern::any_input()});
 
@@ -129,17 +129,17 @@ ov::pass::FuseVectorizedMOE3GEMM::FuseVectorizedMOE3GEMM() {
 
     // First GEMM (activation gate)
     auto gate_matmul = pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, pattern::any_input()},
-                                                              {{"transpose_a", false}, {"transpose_b", false}});
+                                                              {{"transpose_a", false}, {"transpose_b", true}});
     auto swish = pattern::wrap_type<ov::op::v4::Swish>({gate_matmul});
     // Second GEMM (up_projection)
     auto up_matmul = pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, pattern::any_input()},
-                                                            {{"transpose_a", false}, {"transpose_b", false}});
+                                                            {{"transpose_a", false}, {"transpose_b", true}});
     // Join: Multiply (SwiGLU)
     auto swiglu = pattern::wrap_type<ov::op::v1::Multiply>({swish, up_matmul});
 
     // Third GEMM (down_projection)
     auto down_matmul = pattern::wrap_type<ov::op::v0::MatMul>({swiglu, pattern::any_input()},
-                                                              {{"transpose_a", false}, {"transpose_b", false}});
+                                                              {{"transpose_a", false}, {"transpose_b", true}});
     auto end_reshape = pattern::wrap_type<ov::op::v1::Reshape>({down_matmul, pattern::any_input()});
 
     // Routing weights/mask

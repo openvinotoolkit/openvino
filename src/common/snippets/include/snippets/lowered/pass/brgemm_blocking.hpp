@@ -32,8 +32,6 @@ namespace ov::snippets::lowered::pass {
 class BrgemmBlockingBase {
 public:
     virtual ~BrgemmBlockingBase() = default;
-    static snippets::lowered::SpecificIterationHandlers get_default_blocking_loop_handlers(size_t work_amount,
-                                                                                           size_t block_size);
 
 protected:
     /**
