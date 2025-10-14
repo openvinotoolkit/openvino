@@ -1588,6 +1588,8 @@ TEST(pattern, output_index_matches_predicate) {
     auto axis = op::v0::Constant::create(element::i64, {}, {-1});
     auto split_lengths = op::v0::Constant::create(element::i64, {3}, {5, 10, 15});
     auto variadic_split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
+    // Explicitly set output size to 3 to ensure the VariadicSplit node produces the expected number of outputs.
+    // Although split_lengths has 3 elements, set_output_size may be required for correct behavior in some cases.
     variadic_split->set_output_size(3);
 
     // Test basic output_index_matches predicate functionality
@@ -1659,6 +1661,8 @@ TEST(pattern, wrap_type_with_output_index_constraint) {
     auto axis = op::v0::Constant::create(element::i64, {}, {-1});
     auto split_lengths = op::v0::Constant::create(element::i64, {3}, {5, 10, 15});
     auto variadic_split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
+    // Explicitly set output size to 3 to ensure the VariadicSplit node produces the expected number of outputs.
+    // Although split_lengths has 3 elements, set_output_size may be required for correct behavior in some cases.
     variadic_split->set_output_size(3);
 
     // Create reshapes that use different outputs
