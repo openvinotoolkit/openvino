@@ -64,6 +64,9 @@ bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> no
 
     // key_cache shape (id: 3):
     // [num_blocks == 0, num_kv_heads, block_size, head_size]
+    OPENVINO_ASSERT(node->get_input_partial_shape(3).rank() == 4,
+                    "Refrence implementation supports only cache of rank 4");
+
     size_t block_size = node->get_input_shape(3)[2];
     size_t num_heads = node->get_input_shape(3)[3];
     size_t key_head_size = node->get_input_shape(3)[1];

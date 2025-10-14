@@ -166,8 +166,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 0, "query", {2}, {});
     input_check(this, 1, "key", {2}, {});
     input_check(this, 2, "value", {2}, {});
-    input_check(this, 3, "key_cache", {4}, {});
-    input_check(this, 4, "value_cache", {4}, {});
+    input_check(this, 3, "key_cache", {2, 3, 4, 5}, {});
+    input_check(this, 4, "value_cache", {2, 3, 4, 5}, {});
     input_check(this, 5, "past_lens", {1}, {element::i32});
     input_check(this, 6, "subsequence_begins", {1}, {element::i32});
     input_check(this, 7, "block_indices", {1}, {element::i32});
