@@ -14,7 +14,6 @@
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
-#include <openvino/reference/xattention.hpp>
 
 using namespace cldnn;
 using namespace ov::intel_gpu;

@@ -12,6 +12,11 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
 
+#include "openvino/reference/divide.hpp"
+#include "openvino/reference/matmul.hpp"
+#include "openvino/reference/softmax.hpp"
+#include "openvino/reference/transpose.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "paged_attention_gpu_test.hpp"
 #include "random_generator.hpp"
 #include "test_utils.h"
