@@ -174,9 +174,8 @@ void Metadata<METADATA_VERSION_2_2>::read(const ov::Tensor& tensor) {
             stringLength = *reinterpret_cast<const decltype(stringLength)*>(tensor.data<const char>() + _coursorOffset);
             _coursorOffset += sizeof(stringLength);
 
-            std::string layoutString(stringLength, 0);
-            layoutString = *(tensor.data<const char>() + _coursorOffset);
-            _coursorOffset += sizeof(layoutString);
+            std::string layoutString(tensor.data<const char>() + _coursorOffset, stringLength);
+            _coursorOffset += stringLength;
             _inputLayouts->push_back(ov::Layout(std::move(layoutString)));
         }
     }
@@ -187,9 +186,8 @@ void Metadata<METADATA_VERSION_2_2>::read(const ov::Tensor& tensor) {
             stringLength = *reinterpret_cast<const decltype(stringLength)*>(tensor.data<const char>() + _coursorOffset);
             _coursorOffset += sizeof(stringLength);
 
-            std::string layoutString(stringLength, 0);
-            layoutString = *(tensor.data<const char>() + _coursorOffset);
-            _coursorOffset += sizeof(layoutString);
+            std::string layoutString(tensor.data<const char>() + _coursorOffset, stringLength);
+            _coursorOffset += stringLength;
             _outputLayouts->push_back(ov::Layout(std::move(layoutString)));
         }
     }
@@ -238,7 +236,7 @@ void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
             const std::string layoutString = layout.to_string();
             const uint16_t stringLength = layoutString.size();
             stream.write(reinterpret_cast<const char*>(&stringLength), sizeof(stringLength));
-            stream.write(reinterpret_cast<const char*>(layoutString.c_str()), stringLength);
+            stream.write(layoutString.c_str(), stringLength);
         }
     }
     if (_outputLayouts.has_value()) {
@@ -246,7 +244,7 @@ void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
             const std::string layoutString = layout.to_string();
             const uint16_t stringLength = layoutString.size();
             stream.write(reinterpret_cast<const char*>(&stringLength), sizeof(stringLength));
-            stream.write(reinterpret_cast<const char*>(layoutString.c_str()), stringLength);
+            stream.write(layoutString.c_str(), stringLength);
         }
     }
 
