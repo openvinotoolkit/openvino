@@ -130,7 +130,7 @@ void BatchGatherMatmul::validate_and_infer_types() {
     op.set_transpose_a(transp_a);
     op.set_transpose_b(transp_b);
 
-    ov::PartialShape matmul_shape_a = {a_shape[2], a_shape[3]};
+    ov::PartialShape matmul_shape_a = {a_shape[1], a_shape[2]};
     ov::PartialShape matmul_shape_b = {b_shape[1], b_shape[2]};
 
     auto out_matmul_shape =
