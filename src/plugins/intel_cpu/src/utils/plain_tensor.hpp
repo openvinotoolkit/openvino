@@ -445,14 +445,14 @@ struct PlainTensor {
     }
     template <int dim, typename I>
     [[nodiscard]] int64_t safe_offset(I i) const {
-        if (i >= m_dims[dim]) {
+        if (static_cast<size_t>(i) >= m_dims[dim]) {
             i = m_dims[dim] - 1;
         }
         return m_offset + i * m_strides[dim];
     }
     template <int dim, typename I, typename... Is>
     [[nodiscard]] int64_t safe_offset(I i, Is... indices) const {
-        if (i >= m_dims[dim]) {
+        if (static_cast<size_t>(i) >= m_dims[dim]) {
             i = m_dims[dim] - 1;
         }
         return i * m_strides[dim] + safe_offset<dim + 1>(indices...);
@@ -467,7 +467,6 @@ struct PlainTensor {
         const size_t off = safe_offset<0>(indices...) / stride_div;
         return reinterpret_cast<DT*>(m_ptr.get()) + off;
     }
-
 
     template <typename... Is>
     [[nodiscard]] void* ptr_v(Is... indices) const {

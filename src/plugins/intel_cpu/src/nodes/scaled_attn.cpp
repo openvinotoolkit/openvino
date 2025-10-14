@@ -125,7 +125,7 @@ struct MHAKernel {
     void softmax(float* a, int len, float* sink = nullptr) {
         float max = *std::max_element(a, a + len);
         if (sink != nullptr) {
-           max = max > (*sink) ? max : (*sink);
+            max = max > (*sink) ? max : (*sink);
         }
         float sum = 0.0F;
         for (int i = 0; i < len; i++) {
@@ -133,7 +133,7 @@ struct MHAKernel {
             sum += a[i];
         }
         if (sink != nullptr) {
-           sum += exp((*sink) - max);
+            sum += exp((*sink) - max);
         }
         float scale = 1.0F / sum;
         for (int i = 0; i < len; i++) {
@@ -1092,7 +1092,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             // reshape the shape to match q
             if (sink_input.m_rank < q_input.m_rank) {
                 auto sink_shape = sink_input.shape();
-                for (size_t i = 0 ; i < q_input.m_rank - sink_input.m_rank; i++) {
+                for (size_t i = 0; i < q_input.m_rank - sink_input.m_rank; i++) {
                     sink_shape.push_back(1);
                 }
                 sink_input = sink_input.reshape(sink_shape);

@@ -90,8 +90,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto sdp2 =
         wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input(), any_input()});
     //gpt-oss
-    auto sdp3 =
-        wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input(), any_input(), atten_sink});
+    auto sdp3 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
+        {cur_q, present_k, present_v, any_input(), any_input(), atten_sink});
 
     // non-canonical q/k/v shape definitions, for example: [L, B, H, S]/[B, L, H, S]
     auto order_k = wrap_type<ov::op::v0::Constant>();

@@ -1606,8 +1606,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 attn_mask_prec,
                                 precision,
                                 0,
-                                sink
-                               );
+                                sink);
     });
 
     // attn_w * V
