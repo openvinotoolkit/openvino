@@ -14,9 +14,11 @@ using MetadataUnitTests = ::testing::Test;
 
 struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
     MetadataTest(uint64_t blobSize,
-                 std::optional<OpenvinoVersion> ovVersion,
-                 const std::optional<std::vector<uint64_t>> initSizes = std::nullopt)
-        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion, initSizes) {}
+                 const std::optional<OpenvinoVersion>& ovVersion,
+                 const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
+                 const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
+                 const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt)
+        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion, initSizes, inputLayouts, outputLayouts) {}
 
     void set_version(uint32_t newVersion) {
         _version = newVersion;

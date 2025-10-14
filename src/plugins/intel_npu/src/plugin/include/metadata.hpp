@@ -118,7 +118,7 @@ constexpr uint32_t METADATA_VERSION_2_2{MetadataBase::make_version(2, 2)};
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_1};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_2};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -165,8 +165,6 @@ public:
 
     uint16_t get_patch() const;
 
-    size_t get_attributes_size() const;
-
     size_t get_openvino_version_size() const;
 
     bool operator!=(const OpenvinoVersion& version);
@@ -193,7 +191,7 @@ struct Metadata : public MetadataBase {};
 template <>
 class Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 public:
-    Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion = std::nullopt);
+    Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion = std::nullopt);
 
     void read(std::istream& tensor) override;
 
@@ -236,8 +234,8 @@ template <>
 class Metadata<METADATA_VERSION_2_1> : public Metadata<METADATA_VERSION_2_0> {
 public:
     Metadata(uint64_t blobSize,
-             std::optional<OpenvinoVersion> ovVersion = std::nullopt,
-             const std::optional<std::vector<uint64_t>> initSizes = std::nullopt);
+             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt);
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are read in addition to the
@@ -270,10 +268,10 @@ template <>
 class Metadata<METADATA_VERSION_2_2> : public Metadata<METADATA_VERSION_2_1> {
 public:
     Metadata(uint64_t blobSize,
-             std::optional<OpenvinoVersion> ovVersion = std::nullopt,
-             const std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
-             const std::optional<std::vector<ov::Layout>> inputLayouts = std::nullopt,
-             const std::optional<std::vector<ov::Layout>> outputLayouts = std::nullopt);
+             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt);
 
     void read(std::istream& stream) override;
 

@@ -26,10 +26,6 @@ uint16_t OpenvinoVersion::get_patch() const {
     return _patch;
 }
 
-size_t OpenvinoVersion::get_attributes_size() const {
-    return sizeof(_major) + sizeof(_minor) + sizeof(_patch);
-}
-
 bool OpenvinoVersion::operator!=(const OpenvinoVersion& version) {
     return this->_major != version._major || this->_minor != version._minor || this->_patch != version._patch;
 }
@@ -63,16 +59,27 @@ size_t OpenvinoVersion::get_openvino_version_size() const {
 
 MetadataBase::MetadataBase(uint32_t version, uint64_t blobDataSize) : _version(version), _blobDataSize(blobDataSize) {}
 
-Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion)
+Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion)
     : MetadataBase{METADATA_VERSION_2_0, blobSize},
       _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)} {}
 
 Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
-                                         std::optional<OpenvinoVersion> ovVersion,
-                                         const std::optional<std::vector<uint64_t>> initSizes)
+                                         const std::optional<OpenvinoVersion>& ovVersion,
+                                         const std::optional<std::vector<uint64_t>>& initSizes)
     : Metadata<METADATA_VERSION_2_0>{blobSize, ovVersion},
       _initSizes{initSizes} {
     _version = METADATA_VERSION_2_1;
+}
+
+Metadata<METADATA_VERSION_2_2>::Metadata(uint64_t blobSize,
+                                         const std::optional<OpenvinoVersion>& ovVersion,
+                                         const std::optional<std::vector<uint64_t>>& initSizes,
+                                         const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                         const std::optional<std::vector<ov::Layout>>& outputLayouts)
+    : Metadata<METADATA_VERSION_2_1>{blobSize, ovVersion, initSizes},
+      _inputLayouts{inputLayouts},
+      _outputLayouts{outputLayouts} {
+    _version = METADATA_VERSION_2_2;
 }
 
 void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
@@ -81,7 +88,7 @@ void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
 
 void Metadata<METADATA_VERSION_2_0>::read(const ov::Tensor& tensor) {
     _ovVersion.read(tensor);
-    _coursorOffset = _ovVersion.get_attributes_size();
+    _coursorOffset = _ovVersion.get_openvino_version_size();
 }
 
 void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
@@ -248,15 +255,17 @@ void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
     if (MetadataBase::get_major(version) == CURRENT_METADATA_MAJOR_VERSION &&
-        MetadataBase::get_minor(version) > CURRENT_METADATA_MINOR_VERSION) {
-        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(blobSize, std::nullopt);
+        MetadataBase::get_minor(version) >= CURRENT_METADATA_MINOR_VERSION) {
+        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(blobSize);
     }
 
     switch (version) {
     case METADATA_VERSION_2_0:
-        return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize, std::nullopt);
+        return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize);
     case METADATA_VERSION_2_1:
-        return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize, std::nullopt);
+        return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize);
+    case METADATA_VERSION_2_2:
+        return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
     default:
         OPENVINO_THROW("Metadata version is not supported!");
     }
