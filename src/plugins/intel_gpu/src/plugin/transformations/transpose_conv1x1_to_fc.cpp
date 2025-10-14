@@ -90,13 +90,6 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
                    return x == 1;
                }) == 2;
     };
-    auto input_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) {
-        return has_optimized_version(output, supports_immad, false);
-    };
-    auto output_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) {
-        return has_optimized_version(output, supports_immad, true);
-    };
-
     
     auto first_input_m = ov::pass::pattern::any_input();
     auto a_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
