@@ -65,30 +65,37 @@ public:
      * tensor and `false` for key tensor.
      */
     void diagonal_reshape(const T* input_data,
-                          const Shape& input_shape,
-                          T* output_data,
-                          const Shape& out_shape,
-                          bool is_antidiagonal) {
-        OPENVINO_ASSERT(input_shape.size() == 3);  // [num_heads, num_tokens, head_size]
-        OPENVINO_ASSERT(out_shape.size() == 3);
-        OPENVINO_ASSERT(input_shape[0] == out_shape[0]);
-        OPENVINO_ASSERT(input_shape[1] % m_stride == 0);
-        OPENVINO_ASSERT(input_shape[1] / m_stride == out_shape[1]);
-        OPENVINO_ASSERT(input_shape[2] * m_stride == out_shape[2]);
+                            const Shape& input_shape,
+                            T* output_data,
+                            const Shape& output_shape,
+                            bool is_antidiagonal) {
+        OPENVINO_ASSERT(input_shape.size() == 3);
+        OPENVINO_ASSERT(output_shape.size() == 3);
+        size_t H = input_shape[0];
+        size_t Q_orig = input_shape[1];
+        size_t D = input_shape[2];
+        size_t Q_new = output_shape[1];
 
-        size_t num_stride_steps = input_shape[1] / m_stride;
-        for (size_t head_idx = 0; head_idx < input_shape[0]; head_idx++) {
-            size_t head_offset = head_idx * input_shape[1] * input_shape[2];
-            for (size_t slice_idx = 0; slice_idx < m_stride; slice_idx++) {
-                for (size_t stride_idx = 0; stride_idx < num_stride_steps; stride_idx++) {
-                    size_t input_offset = head_offset;
-                    size_t output_offset = head_offset + stride_idx * out_shape[2] + slice_idx * input_shape[2];
+        OPENVINO_ASSERT(Q_orig % m_stride == 0);
+        OPENVINO_ASSERT(Q_orig / m_stride == Q_new);
+
+        for (size_t h = 0; h < H; ++h) {
+            size_t head_in_offset = h * Q_orig * D;
+            size_t head_out_offset = h * Q_new * m_stride * D;
+
+            for (size_t s = 0; s < m_stride; ++s) {
+                for (size_t q = 0; q < Q_new; ++q) {
+                    size_t in_idx;
                     if (is_antidiagonal) {
-                        input_offset += (input_shape[1] - 1 - slice_idx - stride_idx * m_stride) * input_shape[2];
+                        // Anti-diagonal: (stride - 1 - s + q * stride)
+                        in_idx = head_in_offset + (m_stride - 1 - s + q * m_stride) * D;
                     } else {
-                        input_offset += (slice_idx + stride_idx * m_stride) * input_shape[2];
+                        // Normal diagonal: (s + q * stride)
+                        in_idx = head_in_offset + (s + q * m_stride) * D;
                     }
-                    std::memcpy(output_data + output_offset, input_data + input_offset, input_shape[2] * sizeof(T));
+
+                    size_t out_idx = head_out_offset + q * m_stride * D + s * D;
+                    std::memcpy(output_data + out_idx, input_data + in_idx, D * sizeof(T));
                 }
             }
         }
@@ -213,42 +220,116 @@ public:
      * index along the query dimension, .second - along the key). Each set is the head-specific subset of blocks
      * corresponding to the property described above.
      */
-    XAttentionRetainedBlockIndicesForAllHeads get_block_indices_to_keep(const T* blocked_attention_scores_data,
+    XAttentionRetainedBlockIndicesForAllHeads get_block_indices_to_keep(T* blocked_attention_scores_data,
                                                                         const Shape& blocked_attention_scores_shape) {
-        OPENVINO_ASSERT(blocked_attention_scores_shape.size() ==
-                        3);  // [num_heads, num_blocks_in_query, num_blocks_in_key]
+        OPENVINO_ASSERT(blocked_attention_scores_shape.size() == 3,
+                        "Expected shape [num_heads, q_block_num, k_block_num]");
 
-        auto retval = XAttentionRetainedBlockIndicesForAllHeads(blocked_attention_scores_shape[0]);
+        size_t num_heads = blocked_attention_scores_shape[0];
+        size_t q_block_num = blocked_attention_scores_shape[1];
+        size_t k_block_num = blocked_attention_scores_shape[2];
 
-        struct IndexAndScore {
-            XAttentionBlockIndex idx;
-            T score;
-            bool operator<(const IndexAndScore& rhs) const {
-                return score < rhs.score;
-            }
-        };
+        XAttentionRetainedBlockIndicesForAllHeads retval(num_heads);
 
-        for (size_t head_idx = 0; head_idx < blocked_attention_scores_shape[0]; head_idx++) {
-            size_t head_offset = head_idx * blocked_attention_scores_shape[1] * blocked_attention_scores_shape[2];
-            std::priority_queue<IndexAndScore> indices_and_scores_queue;
-            double total_sum = 0.0;
-            for (size_t q_block_idx = 0; q_block_idx < blocked_attention_scores_shape[1]; q_block_idx++) {
-                for (size_t k_block_idx = 0; k_block_idx < blocked_attention_scores_shape[2]; k_block_idx++) {
-                    size_t target_offset = head_offset + blocked_attention_scores_shape[2] * q_block_idx + k_block_idx;
-                    T current_score = *(blocked_attention_scores_data + target_offset);
-                    indices_and_scores_queue.push({{q_block_idx, k_block_idx}, current_score});
-                    total_sum += current_score;
+        std::vector<std::vector<std::vector<bool>>> mask(
+            num_heads,
+            std::vector<std::vector<bool>>(q_block_num, std::vector<bool>(k_block_num, false)));
+
+        for (size_t head_idx = 0; head_idx < num_heads; head_idx++) {
+            for (size_t q_block_idx = 0; q_block_idx < q_block_num; q_block_idx++) {
+                size_t diagonal_k = q_block_idx;
+                if (diagonal_k < k_block_num) {
+                    mask[head_idx][q_block_idx][diagonal_k] = true;
+                }
+                // Step1: First column reserved
+                mask[head_idx][q_block_idx][0] = true;
+
+                // Step2: Create other_values（masked_fill）
+                std::vector<std::pair<float, size_t>> other_values;
+                for (size_t k_block_idx = 0; k_block_idx < k_block_num; k_block_idx++) {
+                    if (mask[head_idx][q_block_idx][k_block_idx])
+                        continue;
+                    size_t offset = head_idx * q_block_num * k_block_num + q_block_idx * k_block_num + k_block_idx;
+                    other_values.emplace_back(static_cast<float>(blocked_attention_scores_data[offset]), k_block_idx);
+                }
+
+                // Step3: Sort other-values in descending order
+                std::sort(other_values.begin(), other_values.end(), [](const auto& a, const auto& b) {
+                    return a.first > b.first;
+                });
+
+                // Step4: Create cumulative_sum_without_self，cat([0, diagonal_sum, sorted_values[:-1]])
+                std::vector<float> sorted_scores;
+                sorted_scores.push_back(0.0);
+                // diagonal + First column score
+                size_t offset_diag = head_idx * q_block_num * k_block_num + q_block_idx * k_block_num + diagonal_k;
+                float diag_score = static_cast<float>(blocked_attention_scores_data[offset_diag]);
+                float first_col_score = 0.0;
+                if (diagonal_k != 0) {
+                    size_t offset_first = head_idx * q_block_num * k_block_num + q_block_idx * k_block_num + 0;
+                    first_col_score = static_cast<float>(blocked_attention_scores_data[offset_first]);
+                }
+                sorted_scores.push_back(diag_score + first_col_score);
+
+                for (auto& p : other_values) {
+                    sorted_scores.push_back(p.first);
+                }
+                if (q_block_idx == 0) {
+                    sorted_scores.pop_back();
+                }
+
+                // Step5: Calculate cumsum_without_self: cumsum of right-shifted sorted_scores
+                std::vector<float> cumsum_without_self(sorted_scores.size(), 0.0);
+                float running = 0.0;
+                for (size_t i = 0; i < sorted_scores.size(); ++i) {
+                    cumsum_without_self[i] = running;
+                    running += sorted_scores[i];
+                }
+
+                // Step6: Generate required_sum
+                size_t offset_row_start = head_idx * q_block_num * k_block_num + q_block_idx * k_block_num;
+                float row_sum = 0.0;
+                for (size_t k = 0; k < k_block_num; k++) {
+                    row_sum += static_cast<float>(blocked_attention_scores_data[offset_row_start + k]);
+                }
+                float required_sum = row_sum * m_threshold;
+
+                // Step7: Create index_mask
+                std::vector<bool> index_mask(cumsum_without_self.size(), false);
+                for (size_t i = 0; i < cumsum_without_self.size(); i++) {
+                    index_mask[i] = (cumsum_without_self[i] < required_sum);
+                }
+
+                // Step8: Create index
+                std::vector<size_t> index(index_mask.size(), 0);
+                for (size_t i = 0; i < index_mask.size(); i++) {
+                    if (index_mask[i]) {
+                        if (i == 0)
+                            index[i] = 0;
+                        else if (i == 1)
+                            index[i] = diagonal_k;
+                        else if (i - 2 < other_values.size())
+                            index[i] = other_values[i - 2].second;
+                        else
+                            index[i] = 0;
+                    }
+                }
+
+                // Step9: Get retval
+                for (size_t i = 0; i < index.size(); i++) {
+                    size_t k_block_idx = index[i];
+                    if (index_mask[i] && k_block_idx < k_block_num) {
+                        mask[head_idx][q_block_idx][k_block_idx] = true;
+                    }
+                }
+
+                for (size_t k_block_idx = 0; k_block_idx < k_block_num; k_block_idx++) {
+                    if (mask[head_idx][q_block_idx][k_block_idx])
+                        retval[head_idx].insert({q_block_idx, k_block_idx});
                 }
             }
-            double cumsum = 0.0;
-            double required_sum = m_threshold * total_sum;
-            while (cumsum < required_sum && !indices_and_scores_queue.empty()) {
-                auto index_and_largest_score = indices_and_scores_queue.top();
-                indices_and_scores_queue.pop();
-                cumsum += index_and_largest_score.score;
-                retval[head_idx].insert(index_and_largest_score.idx);
-            }
         }
+
         return retval;
     }
 
@@ -263,6 +344,8 @@ public:
      * @param key_shape Shape of the key input tensor data. Expected shape is [num_heads, num_key_tokens, head_size],
      * where `num_key_tokens` must be a multiple of both `block_size` and `stride`, padded with zeroes if necessary to
      * do so in the real-world scenario.
+     * @param chunk_size The length of each chunk used for padding and block computation. Query and key sequences are padded
+     * as needed to make their lengths multiples of this chunk size, before reshaping and computing XAttention.
      * @return A vector of size `num_heads` of sets, each set containing pairs of block indices (.first is the block
      * index along the query dimension, .second - along the key). Each set is the head-specific subset of blocks that
      * must be preserved in the sparse attention computation. Indices are given in units of XAttention-specific
@@ -271,49 +354,99 @@ public:
     XAttentionRetainedBlockIndicesForAllHeads select_blocks(const T* query_data,
                                                             const Shape& query_shape,
                                                             const T* key_data,
-                                                            const Shape& key_shape) {
-        OPENVINO_ASSERT(query_shape.size() == 3);  // [num_heads, query_token_len, head_dim]
-        OPENVINO_ASSERT(key_shape.size() == 3);    // [num_heads, key_token_len, head_dim]
+                                                            const Shape& key_shape,
+                                                            int chunk_size) {
+        OPENVINO_ASSERT(query_shape.size() == 3 && key_shape.size() == 3);
+        OPENVINO_ASSERT(query_shape[0] == key_shape[0] && query_shape[2] == key_shape[2]);
+        OPENVINO_ASSERT(query_shape[1] % m_stride == 0 && key_shape[1] % m_stride == 0);
+        OPENVINO_ASSERT(query_shape[1] % m_block_size == 0 && key_shape[1] % m_block_size == 0);
 
-        OPENVINO_ASSERT(key_shape[0] == query_shape[0]);
-        OPENVINO_ASSERT(key_shape[2] == query_shape[2]);
+        const size_t num_heads = query_shape[0];
+        const size_t q_len = query_shape[1];
+        const size_t k_len = key_shape[1];
+        const size_t head_dim = query_shape[2];
 
-        OPENVINO_ASSERT(query_shape[1] % m_stride == 0);
-        OPENVINO_ASSERT(key_shape[1] % m_stride == 0);
+        auto pad_seq = [&](const T* src_data, size_t seq_len) {
+            size_t num_to_pad = ((seq_len + chunk_size - 1) / chunk_size) * chunk_size - seq_len;
+            Shape pad_shape = {num_heads, seq_len + num_to_pad, head_dim};
+            auto buf = allocate_buf(pad_shape);
 
-        OPENVINO_ASSERT(query_shape[1] % m_block_size == 0);
-        OPENVINO_ASSERT(key_shape[1] % m_block_size == 0);
+            for (size_t h = 0; h < num_heads; ++h) {
+                size_t src_off = h * seq_len * head_dim;
+                size_t dst_off = h * (seq_len + num_to_pad) * head_dim;
+                std::memcpy(buf.get() + dst_off, src_data + src_off, seq_len * head_dim * sizeof(T));
+                if (num_to_pad)
+                    std::fill(buf.get() + dst_off + seq_len * head_dim,
+                            buf.get() + dst_off + (seq_len + num_to_pad) * head_dim, T(0));
+            }
+            return std::make_pair(std::move(buf), pad_shape);
+        };
 
-        Shape reshaped_query_shape = {query_shape[0], query_shape[1] / m_stride, query_shape[2] * m_stride};
-        auto q_buf = allocate_buf(reshaped_query_shape);
-        diagonal_reshape(query_data, query_shape, q_buf.get(), reshaped_query_shape, /* is_antidiagonal = */ true);
+        // ======== Pad Query & Key ========
+        auto [pad_query_buf, pad_query_shape] = pad_seq(query_data, q_len);
+        auto [pad_key_buf, pad_key_shape] = pad_seq(key_data, k_len);
 
-        Shape reshaped_key_shape = {key_shape[0], key_shape[1] / m_stride, key_shape[2] * m_stride};
-        auto k_buf = allocate_buf(reshaped_key_shape);
-        diagonal_reshape(key_data, key_shape, k_buf.get(), reshaped_key_shape, /* is_antidiagonal = */ false);
+        // ======== Diagonal Reshape ========
+        const size_t reshaped_q_len = pad_query_shape[1] / m_stride;
+        const size_t reshaped_k_len = pad_key_shape[1] / m_stride;
+        Shape q_shape_r = {num_heads, reshaped_q_len, head_dim * m_stride};
+        Shape k_shape_r = {num_heads, reshaped_k_len, head_dim * m_stride};
 
-        Shape transpose_matmul_scaled_shape = {key_shape[0], query_shape[1] / m_stride, key_shape[1] / m_stride};
-        auto qk_buf = allocate_buf(transpose_matmul_scaled_shape);
-        transpose_matmul_scale(q_buf.get(),
-                               k_buf.get(),
-                               reshaped_query_shape,
-                               reshaped_key_shape,
-                               qk_buf.get(),
-                               transpose_matmul_scaled_shape);
+        auto q_buf = allocate_buf(q_shape_r);
+        auto k_buf = allocate_buf(k_shape_r);
+        diagonal_reshape(pad_query_buf.get(), pad_query_shape, q_buf.get(), q_shape_r, true);
+        diagonal_reshape(pad_key_buf.get(), pad_key_shape, k_buf.get(), k_shape_r, false);
+        pad_query_buf.reset();
+        pad_key_buf.reset();
+
+        // ======== QK^T + scale ========
+        Shape qk_shape = {num_heads, reshaped_q_len, reshaped_k_len};
+        auto qk_buf = allocate_buf(qk_shape);
+        transpose_matmul_scale(q_buf.get(), k_buf.get(), q_shape_r, k_shape_r, qk_buf.get(), qk_shape);
         q_buf.reset();
         k_buf.reset();
 
-        Shape attention_scores_shape = transpose_matmul_scaled_shape;
-        auto attn_score_buf = allocate_buf(attention_scores_shape);
-        softmax(qk_buf.get(), transpose_matmul_scaled_shape, attn_score_buf.get(), attention_scores_shape);
+        // ======== Causal Mask ========
+        auto causal_mask_buf = allocate_buf(qk_shape);
+        std::fill(causal_mask_buf.get(), causal_mask_buf.get() + ov::shape_size(qk_shape), T(0));
+        const size_t reshaped_chunk_size = q_len / m_stride;
+        const size_t k_chunk_num = (k_len + ((k_len + chunk_size - 1) / chunk_size * chunk_size - k_len)) / q_len;
+        const size_t k_reshaped_seq_len = pad_key_shape[1] / m_stride;
+        const size_t k_reshaped_num_to_pad = pad_key_shape[1] / m_stride - k_len / m_stride;
+        const size_t chunk_start = (k_chunk_num - 1) * reshaped_chunk_size;
+        const size_t chunk_end = chunk_start + reshaped_chunk_size;
+        const T neg_inf = std::numeric_limits<T>::lowest();
+
+        for (size_t h = 0; h < num_heads; ++h) {
+            for (size_t q = 0; q < reshaped_chunk_size; ++q) {
+                size_t base = h * reshaped_chunk_size * (reshaped_chunk_size * k_chunk_num)
+                            + q * (reshaped_chunk_size * k_chunk_num);
+
+                for (size_t k = k_reshaped_seq_len - k_reshaped_num_to_pad; k < k_reshaped_seq_len; ++k)
+                    causal_mask_buf.get()[base + k] = neg_inf;
+                for (size_t k = q + 1; k < reshaped_chunk_size; ++k)
+                    causal_mask_buf.get()[base + chunk_start + k] = neg_inf;
+                for (size_t k = chunk_end; k < reshaped_chunk_size * k_chunk_num; ++k)
+                    causal_mask_buf.get()[base + k] = neg_inf;
+            }
+        }
+        // ======== qk += mask ========
+        for (size_t i = 0; i < ov::shape_size(qk_shape); ++i)
+            qk_buf.get()[i] += causal_mask_buf.get()[i];
+        causal_mask_buf.reset();
+
+        // ======== softmax ========
+        auto attn_score_buf = allocate_buf(qk_shape);
+        softmax(qk_buf.get(), qk_shape, attn_score_buf.get(), qk_shape);
         qk_buf.reset();
 
-        size_t antidiagonals_per_xattention_block = m_block_size / m_stride;
-        Shape block_sum_shape = {attention_scores_shape[0],
-                                 attention_scores_shape[1] / antidiagonals_per_xattention_block,
-                                 attention_scores_shape[2] / antidiagonals_per_xattention_block};
+        // ======== block sum + select ========
+        const size_t blocks_per_axis = m_block_size / m_stride;
+        Shape block_sum_shape = {num_heads,
+                                reshaped_q_len / blocks_per_axis,
+                                reshaped_k_len / blocks_per_axis};
         auto block_sum_buf = allocate_buf(block_sum_shape);
-        block_sum_attention_scores(attn_score_buf.get(), attention_scores_shape, block_sum_buf.get(), block_sum_shape);
+        block_sum_attention_scores(attn_score_buf.get(), qk_shape, block_sum_buf.get(), block_sum_shape);
         attn_score_buf.reset();
 
         auto selected_block_indices = get_block_indices_to_keep(block_sum_buf.get(), block_sum_shape);

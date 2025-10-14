@@ -64,10 +64,18 @@ TEST_P(XAttentionE2EBlockSelectTest, SelectsBlocksWithoutThrowing) {
                                                             test_struct.block_size,
                                                             test_struct.stride);
 
-    EXPECT_NO_THROW(selector.select_blocks(test_struct.q_data.data(),
+    auto res = selector.select_blocks(test_struct.q_data.data(),
                                            test_struct.q_shape,
                                            test_struct.k_data.data(),
-                                           test_struct.k_shape));
+                                           test_struct.k_shape);
+    std::cout << "=== Selected blocks after padding ===" << std::endl;
+    for (size_t h = 0; h < res.size(); ++h) {
+        std::cout << "Head " << h << " selected blocks: ";
+        for (const auto& idx_pair : res[h]) {
+            std::cout << "(" << idx_pair.first << "," << idx_pair.second << ") ";
+        }
+        std::cout << std::endl;
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(VariousInputs, XAttentionE2EBlockSelectTest, ::testing::ValuesIn(E2E_BLOCK_SELECT_TEST_CASES));
@@ -108,11 +116,11 @@ std::vector<DiagonalReshapeTestData> DIAGONAL_RESHAPE_TEST_CASES = {
 
         // clang-format off
         {
-             4.534, -5.908, -9.388,  2.356, -6.624, -8.463,  7.474,  9.879,
              7.889, -5.721,  5.507,  4.295,  3.144,  8.512,  8.518, -8.386,
+             4.534, -5.908, -9.388,  2.356, -6.624, -8.463,  7.474,  9.879,
 
-            -7.173,  4.450,  6.705, -7.035,  3.469,  7.633,  7.244, -6.844,
             -8.248, -9.797, -7.907, -4.513,  7.497,  8.186, -8.658, -4.796,
+            -7.173,  4.450,  6.705, -7.035,  3.469,  7.633,  7.244, -6.844,
         },
         // clang-format on
     },
@@ -180,13 +188,13 @@ std::vector<DiagonalReshapeTestData> DIAGONAL_RESHAPE_TEST_CASES = {
 
         // clang-format off
         {
-            -8.410,  6.247,  0.264,  7.095, 1.354, -7.748,
-            -7.413,  5.855, -4.142,  2.837, 3.930, -2.122,
-             3.664, -2.459,  3.530, -1.083, 1.110, -4.244,
+             3.664, -2.459,  3.530, -1.083,  1.110, -4.244,
+            -7.413,  5.855, -4.142,  2.837,  3.930, -2.122,
+            -8.410,  6.247,  0.264,  7.095,  1.354, -7.748, 
 
-            -9.869, -7.636, -5.892,  7.820, 9.438, -2.421,
-             3.568,  8.530, -0.841,  1.935, 1.767,  5.950,
             -5.429,  7.854, -7.414, -3.682, -7.832,  9.163,
+             3.568,  8.530, -0.841,  1.935,  1.767,  5.950,
+            -9.869, -7.636, -5.892,  7.820,  9.438, -2.421,
         },
         // clang-format on
     },
@@ -471,8 +479,8 @@ std::vector<BlockSelectTestData> BLOCK_SELECT_TEST_CASES = {
      // clang-format on
      /* threshold = */ 0.25,
      {
-         {{1, 2}, {0, 3}},
-         {{1, 0}, {1, 3}},
+         {{0, 0}, {1, 0}, {1, 1}},
+         {{0, 0}, {1, 0}, {1, 1}},
      }},
 
     {{2, 2, 4},
@@ -487,8 +495,8 @@ std::vector<BlockSelectTestData> BLOCK_SELECT_TEST_CASES = {
      // clang-format on
      /* threshold = */ 0.35,
      {
-         {{1, 2}, {0, 3}, {0, 0}},
-         {{1, 0}, {1, 3}, {0, 3}},
+         {{0, 0}, {0, 3}, {1, 0}, {1, 1}},
+         {{0, 0}, {0, 3}, {1, 0}, {1, 1}},
      }},
     {{2, 2, 4},
      // clang-format off
@@ -502,8 +510,8 @@ std::vector<BlockSelectTestData> BLOCK_SELECT_TEST_CASES = {
      // clang-format on
      /* threshold = */ 0.1,
      {
-         {{1, 2}},
-         {{1, 0}},
+         {{0, 0}, {1, 0}, {1, 1}},
+         {{0, 0}, {1, 0}, {1, 1}},
      }},
     {{2, 2, 4},
      // clang-format off
@@ -517,8 +525,8 @@ std::vector<BlockSelectTestData> BLOCK_SELECT_TEST_CASES = {
      // clang-format on
      /* threshold = */ 0.0,
      {
-         {},
-         {},
+         {{0, 0}, {1, 0}, {1, 1}},
+         {{0, 0}, {1, 0}, {1, 1}},
      }},
     {{2, 2, 4},
      // clang-format off
@@ -532,8 +540,8 @@ std::vector<BlockSelectTestData> BLOCK_SELECT_TEST_CASES = {
      // clang-format on
      /* threshold = */ 1.0,
      {
-         {{1, 2}, {0, 3}, {0, 0}, {0, 2}, {1, 1}, {1, 3}, {1, 0}, {0, 1}},
-         {{1, 0}, {1, 3}, {0, 3}, {0, 2}, {0, 0}, {1, 2}, {0, 1}, {1, 1}},
+         {{0, 0}, {0, 2}, {0, 3}, {1, 0}, {1, 1}, {1, 2}, {1, 3}},
+         {{0, 0}, {0, 2}, {0, 3}, {1, 0}, {1, 1}, {1, 2}, {1, 3}},
      }},
 };
 
