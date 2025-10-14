@@ -198,7 +198,7 @@ TEST(devices_test, on_demand_initialization) {
     // Check that devices have the expected initialization state and their descriptions are properly configured
     for (const auto& device : devices) {
         auto ocl_device = std::dynamic_pointer_cast<ocl::ocl_device>(device.second);
-        auto should_be_initialized = ocl_device->get_info().vendor_id == cldnn::INTEL_VENDOR_ID && ocl_device->get_info().dev_type == cldnn::device_type::integrated_gpu;
+        auto should_be_initialized = ocl_device->get_info().vendor_id == cldnn::INTEL_VENDOR_ID;
         ASSERT_EQ(ocl_device->is_initialized(), should_be_initialized);
         ASSERT_EQ(ocl_device->get_device().get() != nullptr, true);
         ASSERT_EQ(ocl_device->get_context().get() != nullptr, should_be_initialized);
