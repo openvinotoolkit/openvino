@@ -59,6 +59,18 @@ void basic_memory_dependencies::run(program& p) {
                     }
                 }
             }
+
+            // onednn concatenation doesn't support non-zero padding which can occur for unaligned feature.
+            if (node->is_type<concatenation>()) {
+                node->can_share_buffer(false);
+                for (auto& dep : node->get_dependencies()) {
+                    dep.first->can_share_buffer(false);
+                    for (auto& user : node->get_users()) {
+                        add_memory_dependency(user, dep.first);
+                        add_memory_dependency(user, node);
+                    }
+                }
+            }
         }
 
         // Note we iterate over processing order, it means if primitve has processing num greater than any of outputs,
