@@ -57,12 +57,18 @@ protected:
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);
 
-        ov::op::v8::MaxPool op;
-        op.set_strides(stride_shape);
-        op.set_kernel(kernel_shape);
-        op.set_auto_pad(auto_pad);
+        if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
+            ov::op::v8::MaxPool op;
+            op.set_strides(stride_shape);
+            op.set_kernel(kernel_shape);
+            op.set_auto_pad(auto_pad);
 
-        ov::op::pooling::apply_padding(&op, input_layout.get_partial_shape(), dilation_shape, pad_l, pad_r);
+            ov::op::pooling::apply_padding(&op, input_layout.get_partial_shape(), dilation_shape, pad_l, pad_r);
+        } else {
+            for (size_t i = 0; i < kernel.size(); i++) {
+                pad_r[i] = (output_md.get_dims()[2 + i] - 1) * stride[i] - input_md.get_dims()[2 + i] + ((kernel[i] - 1) * dilation[i]) - pad_l[i] + 1;
+            }
+        }
 
         dnnl::algorithm alg;
         switch (prim->mode) {

@@ -39,10 +39,9 @@ struct SDPAOpt : public ImplementationManager {
             ov::element::f16,
             ov::element::i8,
         };
-
-        const auto& q_layout = node.get_input_layout(0);
-        const auto& k_layout = node.get_input_layout(1);
-        const auto& v_layout = node.get_input_layout(2);
+        const auto& q_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::QUERY);
+        const auto& k_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::KEY);
+        const auto& v_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::VALUE);
         const auto& out_layout = node.get_output_layout(0);
         if (!everyone_is(format::bfyx, q_layout.format, k_layout.format, v_layout.format, out_layout.format)) {
             return false;
@@ -60,6 +59,13 @@ struct SDPAOpt : public ImplementationManager {
         auto k_head_size = k_layout.get_partial_shape()[desc->input_k_transpose_order[dim_size - 1]];
         if (k_head_size.is_dynamic()) {
             return false;
+        }
+
+        if (desc->has_sink_input) {
+            auto sink_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::SINK);
+            auto q_heads_num = q_layout.get_partial_shape()[1].get_length();
+            if (sink_layout.count() != static_cast<size_t>(q_heads_num))
+                OPENVINO_THROW("Currently only supporting per-head sink.Sink_layout : ", sink_layout.to_short_string(), " heads_num  :", q_heads_num);
         }
 
         const bool use_asymmetric_quantization =

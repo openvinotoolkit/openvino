@@ -92,8 +92,7 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
                 const auto parent = tensor->get_source();
                 const auto parent_expr = parent.get_expr();
                 if (ov::is_type<op::Fill>(parent_expr->get_node())) {
-                    if (ov::is_type<op::VectorBuffer>(
-                            parent_expr->get_input_port_connector(0)->get_source().get_expr()->get_node())) {
+                    if (ov::is_type<op::VectorBuffer>(parent_expr->get_input_expr_ptr(0)->get_node())) {
                         manually_assigned[parent.get_descriptor_ptr()->get_reg()] =
                             manually_assigned[parent_expr->get_input_port_descriptor(0)->get_reg()] = assigned;
                     }

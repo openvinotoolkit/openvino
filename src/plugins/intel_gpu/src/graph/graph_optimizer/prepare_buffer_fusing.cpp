@@ -1031,6 +1031,9 @@ void prepare_buffer_fusing::run(program& p) {
                 return;
             }
             auto &permute_node = users.front()->as<permute>();
+            if (!permute_node.get_fused_primitives().empty()) {
+                return;
+            }
 
             auto &input_layout = node.get_input_layout(0);
             auto &output_layout = node.get_output_layout(0);
