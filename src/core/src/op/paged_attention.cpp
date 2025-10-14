@@ -192,8 +192,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
 
     for (size_t i = 0; i < get_input_size(); ++i) {
         const auto& in = input_value(i);
-        os << "  #" << i << " from=" << (in ? in.get_node()->get_friendly_name() : std::string("<null>"))
-           << " shape=" << get_input_partial_shape(i) << " et=" << in.get_element_type() << "\n";
+        os << "  #" << i << " from=" << in.get_node()->get_friendly_name() << " shape=" << get_input_partial_shape(i)
+           << " et=" << in.get_element_type() << "\n";
     }
     std::cerr << os.str() << "[PAE] vector size from util: " << input_shapes.size() << "\n";
 
