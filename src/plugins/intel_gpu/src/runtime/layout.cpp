@@ -347,10 +347,7 @@ void layout::setup_fast_liner_offset(tensor& axes_start_point, tensor& axes_end_
     auto t = get_tensor();
     axes_end_point = t + axes_start_point;
 
-    for (auto& d : t.raw) {
-        if (d == 0)
-            d = 1;
-    }
+    std::replace(t.raw.begin(), t.raw.end(), 0, 1);
 
     const auto& padded_size = t + axes_start_point + u_padd;
     _padded_sizes = padded_size.sizes(format);
