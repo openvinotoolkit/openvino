@@ -580,8 +580,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
         #endif
 
-
-        // int k_chunk = min(k - k0, ugemm_kq_wg_tile_m);
 #ifdef PREFETCH_V
         /* Prefetch V tile. */
         cooperative_prefetch_2d_maybe_rem(
