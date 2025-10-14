@@ -17,26 +17,12 @@
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/loop_port.hpp"
-#include "snippets/lowered/pass/propagate_subtensors.hpp"
 #include "snippets/lowered/specific_loop_iter_handlers.hpp"
-#include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
 using namespace ov::snippets::utils;
 using PortType = LoopPort::Type;
-
-lowered::SpecificIterationHandlers BrgemmBlockingBase::get_default_blocking_loop_handlers(size_t work_amount,
-                                                                                          size_t block_size) {
-    OPENVINO_ASSERT(block_size != 0, "block size must be non zero");
-    SpecificIterationHandlers handlers;
-    const auto tail_size =
-        utils::is_dynamic_value(work_amount) ? utils::get_dynamic_value<size_t>() : work_amount % block_size;
-    if (tail_size != 0) {
-        handlers.register_pass<lowered::SpecificLoopIterType::LAST_ITER, lowered::pass::UpdateSubtensors>(tail_size);
-    }
-    return handlers;
-}
 
 bool BrgemmBlockingBase::blocking_loop_exists(const lowered::LoopManagerPtr& loop_manager,
                                               const ExpressionPtr& brgemm_expr) {
@@ -87,14 +73,17 @@ void BrgemmBlockingBase::mark_k_blocking(const LoopManagerPtr& loop_manager,
     loop_manager->get_loop_info<UnifiedLoopInfo>(id)->set_handlers(get_k_loop_handlers(k, block_size_k));
 }
 
-SpecificIterationHandlers BrgemmBlockingBase::get_m_loop_handlers(size_t work_amount, size_t block_size) const {
-    return get_default_blocking_loop_handlers(work_amount, block_size);
+SpecificIterationHandlers BrgemmBlockingBase::get_m_loop_handlers([[maybe_unused]] size_t work_amount,
+                                                                  [[maybe_unused]] size_t block_size) const {
+    return {};
 }
-SpecificIterationHandlers BrgemmBlockingBase::get_n_loop_handlers(size_t work_amount, size_t block_size) const {
-    return get_default_blocking_loop_handlers(work_amount, block_size);
+SpecificIterationHandlers BrgemmBlockingBase::get_n_loop_handlers([[maybe_unused]] size_t work_amount,
+                                                                  [[maybe_unused]] size_t block_size) const {
+    return {};
 }
-SpecificIterationHandlers BrgemmBlockingBase::get_k_loop_handlers(size_t work_amount, size_t block_size) const {
-    return get_default_blocking_loop_handlers(work_amount, block_size);
+SpecificIterationHandlers BrgemmBlockingBase::get_k_loop_handlers([[maybe_unused]] size_t work_amount,
+                                                                  [[maybe_unused]] size_t block_size) const {
+    return {};
 }
 
 std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_blocking_params(const ExpressionPtr& brgemm_expr) const {

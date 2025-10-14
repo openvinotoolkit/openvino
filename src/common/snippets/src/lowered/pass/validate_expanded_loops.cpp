@@ -6,11 +6,11 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <set>
-#include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
+#include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
@@ -99,24 +99,31 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
     for (const auto& p : initializated_info_map) {
         const auto loop_info = p.first;
         const auto total_info = p.second;
-        INFORMATIVE_ASSERT(
-            total_info.work_amount == loop_info->get_work_amount(),
-            "total work amount of expanded loops is not equal to work amount of undefined loop with ID: " +
-                std::to_string(total_info.id));
-        INFORMATIVE_ASSERT(
-            total_info.finalization_offsets == loop_info->get_finalization_offsets(),
-            "total finalization offsets are not equal to finalization offsets of undefined loop with ID: " +
-                std::to_string(total_info.id));
+        INFORMATIVE_ASSERT(total_info.work_amount == loop_info->get_work_amount(),
+                           "total work amount of expanded loops (",
+                           total_info.work_amount,
+                           ") is not equal to work amount of unified loop (",
+                           loop_info->get_work_amount(),
+                           ") with ID: ",
+                           total_info.id);
+        INFORMATIVE_ASSERT(total_info.finalization_offsets == loop_info->get_finalization_offsets(),
+                           "total finalization offsets of expanded loops (",
+                           ::ov::util::to_string(total_info.finalization_offsets),
+                           ") are not equal to finalization offsets of unified loop (",
+                           ::ov::util::to_string(loop_info->get_finalization_offsets()),
+                           ") with ID: ",
+                           total_info.id);
     }
 }
 
 void ValidateExpandedLoops::validate_loop_expressions(const LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
 
-    std::set<size_t> unique_loop_ids;
+    std::unordered_set<size_t> unique_loop_ids;
     for (const auto& expr : linear_ir) {
         if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node())) {
             const auto loop_id = loop_end->get_id();
+            INFORMATIVE_ASSERT(unique_loop_ids.count(loop_id) == 0, "LoopEnd has duplicate loop ID: ", loop_id);
             unique_loop_ids.insert(loop_id);
 
             // At the moment, InnerSpliitedTail LoopEnd is not compatible with ExpandedLoopInfo

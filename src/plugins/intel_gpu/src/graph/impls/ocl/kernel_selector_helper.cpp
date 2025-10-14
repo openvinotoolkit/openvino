@@ -1164,6 +1164,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supports_imad = device_info.supports_imad;
     params.engineInfo.supports_immad = device_info.supports_immad;
     params.engineInfo.enable_sub_groups_emulation = true;
+    params.engineInfo.enable_large_allocations = config.get_enable_large_allocations();
     params.engineInfo.bOptHintsSupport = false;
 
     params.engineInfo.supports_microkernels = query_microkernels_supported(engine, config);

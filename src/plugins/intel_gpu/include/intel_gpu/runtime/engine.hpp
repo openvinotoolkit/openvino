@@ -145,6 +145,10 @@ public:
 
     virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
 
+    void set_enable_large_allocations(bool enable_large_allocations);
+
+    bool get_enable_large_allocations() const;
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     /// Creates onednn engine object which shares device and context with current engine
     virtual void create_onednn_engine(const ExecutionConfig& config) = 0;
@@ -161,20 +165,19 @@ public:
     /// @param engine_type requested engine type
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
     /// @param device specifies the device which the engine is created for
-    /// @param configuration options for the engine
     static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type, const device::ptr device);
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
-    /// @param configuration options for the engine
     /// @note engine is created for the first device returned by devices query
     static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type);
 
 protected:
-    /// Create engine for given @p device and @p configuration
+    /// Create engine for given @p device
     engine(const device::ptr device);
     const device::ptr _device;
+    bool enable_large_allocations;
 
     std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _memory_usage_data{};
     std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _peak_memory_usage_data{};

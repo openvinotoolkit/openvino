@@ -27,7 +27,7 @@ def import_python_modules(directory, subdirectory=""):
             except AttributeError as e:
                 pass
 
-            print(f"Snippet {item} succesfully executed.")
+            print(f"Snippet {item} successfully executed.")
 
 
         if os.path.isdir(os.path.join(directory, item)):
