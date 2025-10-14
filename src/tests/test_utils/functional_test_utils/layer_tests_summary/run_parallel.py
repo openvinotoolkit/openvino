@@ -695,17 +695,10 @@ class TestParallelRunner:
             logger.info("Execute jobs taken from cache and runtime")
             worker_cnt += self.__execute_tests(test_filters, worker_cnt)
 
-        # logger.info("Here we are")
         not_runned_tests, interapted_tests = self.__find_not_runned_tests()
-        # logger.info(f"Here are {len(interapted_tests)} bad tests")
-        # for bad in interapted_tests:
-            # logger.info(f"Bad test : {bad}")
         if self._repeat_failed:
             if len(not_runned_tests) > 0:
                 logger.info(f"Execute not runned {len(not_runned_tests)} tests")
-                logger.info(f"Bad tests: ")
-                for bad in not_runned_tests:
-                    logger.info(f"Bad test: {bad}")
                 not_runned_test_filters = [
                     f'"{self.__replace_restricted_symbols(test)}"'
                     for test in not_runned_tests
