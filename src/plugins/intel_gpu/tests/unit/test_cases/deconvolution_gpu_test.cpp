@@ -3191,15 +3191,19 @@ TEST(deconvolution_gpu_onednn, input_b_fs_zyx_fsv16_output_bfzyx_stride2_nopad) 
     auto topology_test = create_topology();
     auto topology_ref = create_topology();
 
-    ExecutionConfig config_test = get_test_default_config(engine);
-    ov::intel_gpu::ImplementationDesc deconv_impl = { format::bzyxf, "", impl_types::onednn };
-    config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", deconv_impl} }));
-    config_test.set_property(ov::intel_gpu::optimize_data(true));
-    network network_test(engine, topology_test, config_test);
+    ov::intel_gpu::ImplementationDesc impl_test = { format::bzyxf, std::string(""), impl_types::onednn };
+    ov::intel_gpu::ImplementationDesc impl_ref = { format::bfzyx, std::string(""), impl_types::ocl };
 
-    ExecutionConfig config_ref = get_test_default_config(engine);
-    config_ref.set_property(ov::intel_gpu::optimize_data(true));
-    network network_ref(engine, topology_ref, config_ref);
+    ExecutionConfig cfg_test = get_test_default_config(engine);
+    cfg_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", impl_test} }));
+    cfg_test.set_property(ov::intel_gpu::optimize_data(true));
+
+    ExecutionConfig cfg_ref = get_test_default_config(engine);
+    cfg_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", impl_ref} }));
+    cfg_ref.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network_test(engine, topology_test, cfg_test);
+    network network_ref(engine, topology_ref, cfg_ref);
 
     network_test.set_input_data("input", input);
     network_ref.set_input_data("input", input);
@@ -3213,9 +3217,9 @@ TEST(deconvolution_gpu_onednn, input_b_fs_zyx_fsv16_output_bfzyx_stride2_nopad) 
     ASSERT_EQ(outputs_ref.begin()->first, "output");
 
     auto output_memory_test = outputs_test.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr_test(output_memory_test, get_test_stream());
-
     auto output_memory_ref = outputs_ref.begin()->second.get_memory();
+
+    cldnn::mem_lock<float> output_ptr_test(output_memory_test, get_test_stream());
     cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
     for (size_t i = 0; i < output_memory_ref->count(); i++) {
