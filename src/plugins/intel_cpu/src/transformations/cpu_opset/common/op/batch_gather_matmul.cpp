@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "batch_gather_matmul.hpp"
+
 #include <cstddef>
 #include <memory>
 #include <vector>
 
-#include "batch_gather_matmul.hpp"
 #include "matmul_shape_inference.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
@@ -50,10 +51,10 @@ void BatchGatherMatmul::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(GroupGatherMatmul_validate_and_infer_types);
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this,
-                          input_size >= 3,
+                          input_size == 3,
                           "Number of inputs is incorrect. Current value is: ",
                           input_size,
-                          ", expected at least 3.");
+                          ", expected exactly 3.");
 
     // Check input B is Const
     auto input_b = get_input_node_shared_ptr(1);
@@ -76,7 +77,7 @@ void BatchGatherMatmul::validate_and_infer_types() {
     const size_t indices_rank = indices_shape.size();
     const size_t bias_rank = bias_shape.is_dynamic() ? 0 : bias_shape.size();
 
-    NODE_VALIDATION_CHECK(this, a_rank == 4, "Input A rank must be exactly 4D. Got: ", a_rank, "D instead.");
+    NODE_VALIDATION_CHECK(this, a_rank == 3, "Input A rank must be exactly 3D. Got: ", a_rank, "D instead.");
     NODE_VALIDATION_CHECK(this, b_rank == 3, "Input B rank must be exactly 3D. Got: ", b_rank, "D instead.");
     NODE_VALIDATION_CHECK(this,
                           indices_rank == 2,
@@ -91,28 +92,39 @@ void BatchGatherMatmul::validate_and_infer_types() {
                               "D instead.");
     }
 
-    // Check the index groups size doesn't exceed the input A group size and the input B groups size
-
-    if (indices_shape[0].is_static()) {
-        NODE_VALIDATION_CHECK(
-            this,
-            indices_shape[0].get_length() <= a_shape[0].get_length(),
-            "Input indices first dimension must be less than or equal to input A group dimension. Got: ",
-            indices_shape[0].get_length(),
-            " and ",
-            a_shape[0].get_length(),
-            " instead.");
-
-        NODE_VALIDATION_CHECK(this,
-                              indices_shape[0].get_length() <= b_shape[0].get_length(),
-                              "Input indices first dimension must be less than or equal to max group dimension. Got: ",
-                              indices_shape[0].get_length(),
-                              " and ",
-                              b_shape[0].get_length(),
-                              " instead.");
+    if (indices_shape[1].is_static()) {
+        if (a_shape[0].is_static()) {
+            NODE_VALIDATION_CHECK(this,
+                                  a_shape[0] == 1 || a_shape[0] == b_shape[0],
+                                  "The first dimension of input A and input B must be equal. Got: ",
+                                  a_shape[0],
+                                  " and ",
+                                  b_shape[0],
+                                  " instead.");
+        }
+        if (b_shape[0].is_static()) {
+            NODE_VALIDATION_CHECK(
+                this,
+                indices_shape[1].get_length() <= b_shape[0].get_length(),
+                "The second dimension of input indices must be less or equal to the first dimension of input B. "
+                "Got: ",
+                indices_shape[1],
+                " and ",
+                b_shape[0],
+                " instead.");
+        }
     }
 
-    // check that batch of idices correspond
+    if (indices_shape[0].is_static() && a_shape[1].is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              indices_shape[0] == a_shape[1],
+                              "The first dimension of input indices must be equal to the second dimension of input A. "
+                              "Got: ",
+                              indices_shape[0],
+                              " and ",
+                              a_shape[1],
+                              " instead.");
+    }
 
     ov::op::v0::MatMul op;
     op.set_transpose_a(transp_a);
