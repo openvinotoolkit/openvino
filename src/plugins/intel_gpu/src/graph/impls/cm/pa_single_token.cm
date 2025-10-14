@@ -219,6 +219,13 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     }
                 #else
                     cm_load<lsc::Transpose>(Kt.format<uint>(), b2dK.set_block_y(kv_pos));
+                    if(kv_pos_end < kv_pos + KV_STEP) {
+                        auto KmatRef = Kt.format<half, REG_K/2, REG_N*2>();
+                        uint valid_cols = kv_pos_end - kv_pos;
+                        uint valid_cols_vnni = valid_cols * 2;
+                        for (int r = valid_cols_vnni; r < KV_STEP * 2; r++)
+                            KmatRef.select<REG_K/2,1,1,1>(0,r) = 0.0f;
+                    }
                 #endif
             #else
                 matrix<uint, REG_N, REG_K/2> temp;
@@ -398,6 +405,16 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     prepack_to_VNNI_W2(VmatNormal, Vmat.format<half, REG_K/2, REG_N*2>());
                 #else
                     cm_load<lsc::VNNI>(Vmat[0].format<half>(), b2dV.set_block_y(kv_pos));
+                    // somtimes KV cache would be filled with random Nan, so need to clean up the unused value data.
+                    if(kv_pos_end - kv_pos < KV_STEP) {
+                        auto VmatRef = Vmat[0].format<half, REG_K/2, REG_N*2>();
+                        uint valid_rows = kv_pos_end - kv_pos;
+                        uint valid_rows_vnni = (valid_rows+1)/2;
+                        for (int r = valid_rows_vnni; r < KV_STEP / 2; r++)
+                            VmatRef.row(r) = 0.f;
+                        if (valid_rows % 2 == 1)
+                            VmatRef.row(valid_rows_vnni-1).select<REG_N,2>(1) = 0.f;
+                    }
                 #endif
             #else
                 matrix<half, REG_K, REG_N> temp;
