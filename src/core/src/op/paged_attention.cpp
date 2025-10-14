@@ -157,10 +157,10 @@ PagedAttentionExtension::PagedAttentionExtension(const Output<Node>& query,
 void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 20,
-                          "PagedAttensionExtension expects 20 inputs, but it has ",
-                          get_input_size());
+    auto a = get_input_size();
+    NODE_VALIDATION_CHECK(this, a == 20, "PagedAttensionExtension expects 20 inputs, but it has ", a);
+
+    NODE_VALIDATION_CHECK(this, false, "[PAE] Before inputs ", a);
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
     input_check(this, 0, "query", {2}, {});
@@ -198,7 +198,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, false, os.str(), " [PAE] vector size from util: ", input_shapes.size());
 
-    const auto output_shapes = shape_infer(this, input_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs()));
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, get_input_element_type(0), output_shapes[1]);
