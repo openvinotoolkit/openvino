@@ -64,9 +64,9 @@ public:
 #define CASE_BROADCAST_FP16_2         { 2, 1,  4, 4, 4 }, { 2, 16, 4, 4, 4 },  data_types::f16, data_types::f16, format::bfzyx,          data_types::f16,  format::bfzyx,         {1}
 #define CASE_BROADCAST_FP16_3         { 2, 16, 4, 4, 1 }, { 2, 16, 4, 4, 8 },  data_types::f16, data_types::f16, format::bfzyx,          data_types::f16,  format::bfzyx,         {4}
 
-#define CASE_BROADCAST_FP16_1_BLK     { 2, 16, 4, 1 }, { 2, 16, 4, 4 },        data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  data_types::f16,  format::b_fs_yx_fsv16, {3}
-#define CASE_BROADCAST_FP16_2_BLK     { 1, 16, 4, 4 }, { 2, 16, 4, 4 },        data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  data_types::f16,  format::b_fs_yx_fsv16, {0}
-#define CASE_BROADCAST_FP16_3_BLK     { 2, 16, 4, 1 }, { 2, 16, 4, 4 },        data_types::u8, data_types::i8,   format::b_fs_yx_fsv32,  data_types::f16,  format::b_fs_yx_fsv32, {3}
+#define CASE_BROADCAST_FP16_1_BLK     { 2, 16, 4, 1 }, { 2, 16, 4, 4 },        data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  data_types::f16,  format::bfyx,          {3}
+#define CASE_BROADCAST_FP16_2_BLK     { 1, 16, 4, 4 }, { 2, 16, 4, 4 },        data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  data_types::f16,  format::bfyx,          {0}
+#define CASE_BROADCAST_FP16_3_BLK     { 2, 16, 4, 1 }, { 2, 16, 4, 4 },        data_types::u8, data_types::i8,   format::b_fs_yx_fsv32,  data_types::f16,  format::bfyx,          {3}
 
 class broadcast_fused_prims : public BroadcastFusingTest {};
 TEST_P(broadcast_fused_prims, broadcast_activation_with_broadcast) {
