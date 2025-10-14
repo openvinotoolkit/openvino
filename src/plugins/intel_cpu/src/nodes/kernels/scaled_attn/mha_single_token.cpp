@@ -1593,7 +1593,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         }
         uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
 
-        auto sink = sink_input.safe_ptr<T3>(b, h, pq);
+        auto* sink = sink_input.safe_ptr<float>(b, h, pq, 0);
         attn_softmax_kernel<T3>(buf_attn_w.ptr<T3>(b, h, pq),
                                 buf_attn_w.ptr<T3>(b, h, pq),
                                 d_scale,
@@ -1605,7 +1605,6 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 cur_kv_len,
                                 attn_mask_prec,
                                 precision,
-                                0,
                                 sink);
     });
 

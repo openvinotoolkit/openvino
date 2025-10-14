@@ -21,5 +21,5 @@ void attn_softmax(void* a,
                   ov::element::Type precision,
                   ov::element::Type attn_mask_prec,
                   ov::element::Type dst_precision,
-                  void* sink = nullptr);
+                  const float* sink);
 }  // namespace ov::Extensions::Cpu::XARCH

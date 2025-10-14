@@ -192,7 +192,7 @@ inline void scale_add2_reduce_max(float* a,
                                   size_t size,
                                   float alibi_slope,
                                   float& max,
-                                  float* sink = nullptr) {
+                                  const float* sink) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto v_max0 = _mm512_set1_ps(std::numeric_limits<float>::lowest());
@@ -481,8 +481,7 @@ inline void scale_add2_reduce_max(ov::float16* a,
                                   bool select_nfltmax_at_0,  // true:  0 in mask set -FLT_MAX
                                   size_t size,
                                   float alibi_slope,
-                                  ov::float16& max,
-                                  ov::float16* sink = nullptr) {
+                                  ov::float16& max) {
     size_t i = 0;
 #    if defined(HAVE_SVE)
     svfloat16_t v_max = svdup_n_f16(static_cast<float16_t>(-FLT_MAX));
@@ -678,7 +677,7 @@ static inline void exp_ps_avx512(__m512& src) {
 }
 #endif
 
-inline void exp_reduce_sum(float* a, const float max, const size_t size, float& sum, float* sink = nullptr) {
+inline void exp_reduce_sum(float* a, const float max, const size_t size, float& sum, const float* sink) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     __m512 v_a;
@@ -1090,8 +1089,8 @@ inline void attn_softmax_kernel(T* a,
                                 size_t total_size,
                                 ov::element::Type attn_mask_prec,
                                 ov::element::Type dst_precision,
-                                float alibi_slope = 0,
-                                T* sink = nullptr);
+                                const float* sink,
+                                float alibi_slope = 0);
 
 template <>
 inline void attn_softmax_kernel<float>(float* a,
@@ -1105,14 +1104,14 @@ inline void attn_softmax_kernel<float>(float* a,
                                        size_t total_size,
                                        ov::element::Type attn_mask_prec,
                                        ov::element::Type dst_precision,
-                                       float alibi_slope,
-                                       float* sink) {
+                                       const float* sink,
+                                       float alibi_slope) {
     using func_fp32_type =
-        void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float, float&, float*);
+        void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float, float&, const float*);
     using func_bf16_type =
-        void (*)(float*, float, const float*, const ov::bfloat16*, const uint8_t*, bool, size_t, float, float&, float*);
+        void (*)(float*, float, const float*, const ov::bfloat16*, const uint8_t*, bool, size_t, float, float&, const float*);
     using func_f16_type =
-        void (*)(float*, float, const float*, const ov::float16*, const uint8_t*, bool, size_t, float, float&, float*);
+        void (*)(float*, float, const float*, const ov::float16*, const uint8_t*, bool, size_t, float, float&, const float*);
     static constexpr func_fp32_type funcs_fp32[] = {scale_add2_reduce_max<false, false, false>,
                                                     scale_add2_reduce_max<false, false, true>,
                                                     scale_add2_reduce_max<false, true, false>,
@@ -1213,7 +1212,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                              ov::element::Type attn_mask_prec,
                                              ov::element::Type dst_precision,
                                              float alibi_slope,
-                                             ov::float16* sink = nullptr) {
+                                             const float* sink) {
     using func_fp32_type = void (*)(ov::float16*,
                                     float,
                                     const ov::float16*,

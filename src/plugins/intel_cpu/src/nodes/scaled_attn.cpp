@@ -122,7 +122,7 @@ struct MHAKernel {
         return result;
     }
 
-    void softmax(float* a, int len, const float* sink = nullptr) {
+    void softmax(float* a, int len, const float* sink) {
         float max = *std::max_element(a, a + len);
         if (sink != nullptr) {
             max = max > (*sink) ? max : (*sink);
@@ -481,7 +481,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                              precision_of<T>::value,
                              precision_of<T>::value,
                              precision_of<T>::value,
-                             reinterpret_cast<void*>(sink));
+                             sink);
             }
             auto* w_ptr = reinterpret_cast<T*>(weight_score.ptr<float>(ithr, 0, 0, 0));
             float* fp32_out_ptr = nullptr;
@@ -615,7 +615,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
-                    PlainTensor& sink,
+                    PlainTensor& sink_input,
                     float d_scale = 0.0F) {
         auto B = query.size(0);
         auto H = query.size(1);
@@ -870,7 +870,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
 
-                void* sink = reinterpret_cast<void*>(sink_input.safe_ptr<float>(b, h, m, 0));
+                auto* sink = sink_input.safe_ptr<float>(b, h, m, 0);
 
                 attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * qk_m_stride),
                              qk + (m - m_start) * qk_m_stride,
