@@ -19,6 +19,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/op.hpp"
 #include "transformations/itt.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov::intel_cpu {
 
@@ -51,26 +52,23 @@ void BatchGatherMatmul::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(GroupGatherMatmul_validate_and_infer_types);
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this,
-                          input_size == 3,
+                          input_size == 4,
                           "Number of inputs is incorrect. Current value is: ",
                           input_size,
-                          ", expected exactly 3.");
+                          ", expected 4.");
 
-    // Check input B is Const
-    auto input_b = get_input_node_shared_ptr(1);
-    NODE_VALIDATION_CHECK(this, ov::is_type<ov::op::v0::Constant>(input_b), "Input B must be a Constant node.");
+    // Check input B is on constant path
+    NODE_VALIDATION_CHECK(this, ov::op::util::is_on_constant_path(input_value(1)), "Input B must be on constant path.");
 
     const auto& a_shape = get_input_partial_shape(0);
     const auto& b_shape = get_input_partial_shape(1);
     const auto& indices_shape = get_input_partial_shape(2);
-    const auto& bias_shape = input_size > 3 ? get_input_partial_shape(3) : ov::PartialShape::dynamic();
+    const auto& bias_shape = get_input_partial_shape(3);
 
     NODE_VALIDATION_CHECK(this, a_shape.rank().is_static(), "Input A rank must be static.");
     NODE_VALIDATION_CHECK(this, b_shape.rank().is_static(), "Input B rank must be static.");
     NODE_VALIDATION_CHECK(this, indices_shape.rank().is_static(), "Input indices rank must be static.");
-    if (input_size > 3) {
-        NODE_VALIDATION_CHECK(this, bias_shape.rank().is_static(), "Input bias rank must be static.");
-    }
+    NODE_VALIDATION_CHECK(this, bias_shape.rank().is_static(), "Input bias rank must be static.");
 
     const size_t a_rank = a_shape.size();
     const size_t b_rank = b_shape.size();
@@ -84,22 +82,20 @@ void BatchGatherMatmul::validate_and_infer_types() {
                           "Input indices rank must be exactly 2D. Got: ",
                           indices_rank,
                           "D instead.");
-    if (input_size > 3) {
-        NODE_VALIDATION_CHECK(this,
-                              (bias_rank == 1 || bias_rank == 0 || bias_rank == a_rank),
-                              "Input bias rank must be either 1D, scalar or same as Input A rank. Got: ",
-                              bias_rank,
-                              "D instead.");
-    }
+    NODE_VALIDATION_CHECK(this,
+                          (bias_rank == 1 || bias_rank == 0 || bias_rank == a_rank),
+                          "Input bias rank must be either 1D, scalar or same as Input A rank. Got: ",
+                          bias_rank,
+                          "D instead.");
 
     if (indices_shape[1].is_static()) {
         if (a_shape[0].is_static()) {
             NODE_VALIDATION_CHECK(this,
-                                  a_shape[0] == 1 || a_shape[0] == b_shape[0],
-                                  "The first dimension of input A and input B must be equal. Got: ",
+                                  a_shape[0] == 1 || a_shape[0] == indices_shape[1],
+                                  "The first dimension of input A must be equal to number of activated experts. Got: ",
                                   a_shape[0],
                                   " and ",
-                                  b_shape[0],
+                                  indices_shape[1],
                                   " instead.");
         }
         if (b_shape[0].is_static()) {
