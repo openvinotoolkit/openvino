@@ -26,6 +26,10 @@ uint16_t OpenvinoVersion::get_patch() const {
     return _patch;
 }
 
+size_t OpenvinoVersion::get_attributes_size() const {
+    return sizeof(_major) + sizeof(_minor) + sizeof(_patch);
+}
+
 bool OpenvinoVersion::operator!=(const OpenvinoVersion& version) {
     return this->_major != version._major || this->_minor != version._minor || this->_patch != version._patch;
 }
@@ -77,6 +81,7 @@ void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
 
 void Metadata<METADATA_VERSION_2_0>::read(const ov::Tensor& tensor) {
     _ovVersion.read(tensor);
+    _coursorOffset = _ovVersion.get_attributes_size();
 }
 
 void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
@@ -95,21 +100,18 @@ void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
 
 void Metadata<METADATA_VERSION_2_1>::read(const ov::Tensor& tensor) {
     Metadata<METADATA_VERSION_2_0>::read(tensor);
-    auto roiTensor = ov::Tensor(tensor,
-                                ov::Coordinate{sizeof(decltype(std::declval<OpenvinoVersion>().get_major())) +
-                                               sizeof(decltype(std::declval<OpenvinoVersion>().get_minor())) +
-                                               sizeof(decltype(std::declval<OpenvinoVersion>().get_patch()))},
-                                ov::Coordinate{tensor.get_byte_size()});
 
     uint64_t numberOfInits;
-    numberOfInits = *reinterpret_cast<const decltype(numberOfInits)*>(roiTensor.data<const char>());
+    numberOfInits = *reinterpret_cast<const decltype(numberOfInits)*>(tensor.data<const char>() + _coursorOffset);
+    _coursorOffset += sizeof(numberOfInits);
 
     if (numberOfInits) {
         _initSizes = std::vector<uint64_t>(numberOfInits);
         for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
             _initSizes->at(initIndex) =
-                reinterpret_cast<const std::remove_reference_t<decltype(_initSizes->at(initIndex))>*>(
-                    roiTensor.data<const char>() + sizeof(numberOfInits))[initIndex];
+                *reinterpret_cast<const std::remove_reference_t<decltype(_initSizes->at(initIndex))>*>(
+                    tensor.data<const char>() + _coursorOffset);
+            _coursorOffset += sizeof(uint64_t);
         }
     }
 }
@@ -147,7 +149,43 @@ void Metadata<METADATA_VERSION_2_2>::read(std::istream& stream) {
 }
 
 void Metadata<METADATA_VERSION_2_2>::read(const ov::Tensor& tensor) {
-    // TODO
+    Metadata<METADATA_VERSION_2_1>::read(tensor);
+
+    uint64_t numberOfInputLayouts, numberOfOutputLayouts;
+    numberOfInputLayouts =
+        *reinterpret_cast<const decltype(numberOfInputLayouts)*>(tensor.data<const char>() + _coursorOffset);
+    _coursorOffset += sizeof(numberOfInputLayouts);
+    numberOfOutputLayouts =
+        *reinterpret_cast<const decltype(numberOfOutputLayouts)*>(tensor.data<const char>() + _coursorOffset);
+    _coursorOffset += sizeof(numberOfOutputLayouts);
+
+    uint16_t stringLength;
+    if (numberOfInputLayouts) {
+        _inputLayouts = std::vector<ov::Layout>();
+        _inputLayouts->reserve(numberOfInputLayouts);
+        for (uint64_t inputIndex = 0; inputIndex < numberOfInputLayouts; ++inputIndex) {
+            stringLength = *reinterpret_cast<const decltype(stringLength)*>(tensor.data<const char>() + _coursorOffset);
+            _coursorOffset += sizeof(stringLength);
+
+            std::string layoutString(stringLength, 0);
+            layoutString = *(tensor.data<const char>() + _coursorOffset);
+            _coursorOffset += sizeof(layoutString);
+            _inputLayouts->push_back(ov::Layout(std::move(layoutString)));
+        }
+    }
+    if (numberOfOutputLayouts) {
+        _outputLayouts = std::vector<ov::Layout>();
+        _outputLayouts->reserve(numberOfOutputLayouts);
+        for (uint64_t outputIndex = 0; outputIndex < numberOfOutputLayouts; ++outputIndex) {
+            stringLength = *reinterpret_cast<const decltype(stringLength)*>(tensor.data<const char>() + _coursorOffset);
+            _coursorOffset += sizeof(stringLength);
+
+            std::string layoutString(stringLength, 0);
+            layoutString = *(tensor.data<const char>() + _coursorOffset);
+            _coursorOffset += sizeof(layoutString);
+            _outputLayouts->push_back(ov::Layout(std::move(layoutString)));
+        }
+    }
 }
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {

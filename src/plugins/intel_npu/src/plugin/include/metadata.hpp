@@ -100,6 +100,7 @@ protected:
 
     uint32_t _version;
     uint64_t _blobDataSize;
+    size_t _coursorOffset = 0;
 };
 
 /**
@@ -163,6 +164,8 @@ public:
     uint16_t get_minor() const;
 
     uint16_t get_patch() const;
+
+    size_t get_attributes_size() const;
 
     size_t get_openvino_version_size() const;
 
