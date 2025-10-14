@@ -1011,6 +1011,7 @@ void Deconvolution::prepareParams() {
     if (!dnnlCompatibleWeights) {
         createDnnlCompatibleWeights();
     }
+    CPU_NODE_ASSERT(dnnlCompatibleWeights, "has not created dnnlCompatibleWeights.");
     DnnlMemoryDescPtr wghDesc = dnnlCompatibleWeights->getDescWithType<DnnlMemoryDesc>();
 
     if (withBiases) {

@@ -157,11 +157,11 @@ PagedAttentionExtension::PagedAttentionExtension(const Output<Node>& query,
 void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
-    auto a = get_input_size();
-    NODE_VALIDATION_CHECK(this, a == 20, "PagedAttensionExtension expects 20 inputs, but it has ", a);
-
-    NODE_VALIDATION_CHECK(this, false, "[PAE] Before inputs ", a);
-
+    NODE_VALIDATION_CHECK(this,
+                          get_input_size() == 21,
+                          "PagedAttensionExtension expects 21 inputs, but it has ",
+                          get_input_size());
+ 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
     input_check(this, 0, "query", {2}, {});
     input_check(this, 1, "key", {2}, {});
@@ -183,6 +183,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 17, "xattention_threshold", {1}, {element::f16, element::f32});
     input_check(this, 18, "xattention_block_size", {0}, {element::i32});
     input_check(this, 19, "xattention_stride", {0}, {element::i32});
+    input_check(this, 20, "sinks", {1, 4}, {});
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 

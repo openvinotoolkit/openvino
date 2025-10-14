@@ -37,6 +37,7 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
     const auto xattention_threshold = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5});
     const auto xattention_block_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
     const auto xattention_stride = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    const auto sinks = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 1, 1});
 
     ov::OutputVector args = {query,
                              key,
@@ -57,7 +58,8 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
                              rotation_trig_lut,
                              xattention_threshold,
                              xattention_block_size,
-                             xattention_stride};
+                             xattention_stride,
+                             sinks};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -87,6 +89,7 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
     const auto xattention_threshold = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5});
     const auto xattention_block_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
     const auto xattention_stride = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    const auto sinks = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 1, 1});
 
     ov::OutputVector args = {query,
                              key,
@@ -107,7 +110,8 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
                              rotation_trig_lut,
                              xattention_threshold,
                              xattention_block_size,
-                             xattention_stride};
+                             xattention_stride,
+                             sinks};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -140,6 +144,7 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
     const auto xattention_threshold = std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
     const auto xattention_block_size = std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
     const auto xattention_stride = std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
+    const auto sinks = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 1, 1});
 
     ov::OutputVector args = {query,
                              key,
@@ -160,7 +165,8 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
                              rotation_trig_lut,
                              xattention_threshold,
                              xattention_block_size,
-                             xattention_stride};
+                             xattention_stride,
+                             sinks};
 
     EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
 }
