@@ -70,7 +70,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint token_idx = cm_global_id(2);
 
     // token_idx -> subsequence_idx
-    // if (token_idx >= subsequence_begins[batch_size_in_sequences]) return;
+    if (token_idx >= subsequence_begins[batch_size_in_sequences]) return;
     uint subsequence_idx = 0;
     for (uint i = 0; i < batch_size_in_sequences; i++) {
         if (token_idx >= subsequence_begins[i] && token_idx < subsequence_begins[i + 1]) {
@@ -86,28 +86,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint current_block_idx = (past_len + token_idx - subsequence_begin_idx) / PAGED_ATTENTION_BLOCK_SIZE;
     const uint token_start_pos = (past_len + token_idx - subsequence_begin_idx) % PAGED_ATTENTION_BLOCK_SIZE;
     const uint block_offset = block_indices_begins[subsequence_idx] + current_block_idx;
-
-    if (token_idx >= subsequence_begins[batch_size_in_sequences]) {
-        #if KV_CACHE_COMPRESSION_PER_TOKEN
-        #else
-        // In PTL some V cache are written with NAN or random value due to unknown reason, while PA kernel will leverage lsc cm_load to
-        // load V cache by 16x16 block with vnni format, it is hard to exclude the unused V cache when NAN is involved in the same 16x16 block.
-        // Once NAN takes part in dpas, the NAN will propagate and cause result become NAN.
-        // As a WA, we need to set the unused part(in the same 16 row) of V cache to 0 here.
-        const uint last_token_idx = (past_len + 1) % PAGED_ATTENTION_BLOCK_SIZE;
-
-        if (token_idx >= last_token_idx && token_idx < PAGED_ATTENTION_BLOCK_SIZE) {
-            uint block_k_base_offset = ((past_len + 1) / PAGED_ATTENTION_BLOCK_SIZE) * KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
-            uint key_out_offset = block_k_base_offset + head_idx * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + token_idx * ADJUSTED_K_HEAD_SIZE;
-            vector<short, V_HEAD_SIZE> zero_data = 0;
-
-            // Only reset unused part in the same 16 row for V cache.
-            // cm_ptr_store<int, K_HEAD_SIZE / 2>((int*)key_cache, key_out_offset * (int)sizeof(half), zero_data.format<int>());
-            cm_ptr_store<int, V_HEAD_SIZE / 2>((int*)value_cache, key_out_offset * (int)sizeof(half), zero_data.format<int>());
-        }
-        #endif
-        return;
-    }
 
     #if KV_CACHE_COMPRESSION_PER_TOKEN
     // Assume: K_HEAD_SIZE == K_HEAD_SIZE
