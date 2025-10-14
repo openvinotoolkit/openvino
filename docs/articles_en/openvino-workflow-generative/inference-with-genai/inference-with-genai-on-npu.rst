@@ -12,7 +12,7 @@ for information on how to start.
 Prerequisites
 ###############################################################################################
 
-Install the required dependencies:
+First, install the required dependencies for the model conversion:
 
 .. tab-set::
 
@@ -83,18 +83,13 @@ a better performance with channel-wise quantization.
 Neural Network Compression Framework (NNCF) provides various ways to compensate the quality loss,
 e.g. data-aware compression methods or GPTQ.
 
-.. important::
-
-   The NF4 data type is only supported on Intel® Core Ultra Processors Series 2 NPUs (formerly
-   codenamed Lunar Lake) and beyond. Please make sure to use channel-wise quantization with NF4.
-
 The full ``optimum-cli`` command examples are shown below:
 
 .. tab-set::
 
-   .. tab-item:: INT4-CW, data-free
+   .. tab-item:: INT4-CW
 
-      INT4 Symmetric channel-wise compression:
+      INT4 Symmetric channel-wise data-free compression:
 
       .. code-block:: console
          :name: channel-wise-data-free-quant
@@ -103,7 +98,7 @@ The full ``optimum-cli`` command examples are shown below:
 
    .. tab-item:: INT4-CW, data-aware
 
-      INT4 Symmetric channel-wise data-aware compression:
+      INT4 Symmetric data-aware channel-wise compression:
 
       Use Scale Estimation (``--scale_estimation``) and/or AWQ (``--awq``) to improve accuracy
       for the channel-wise quantized models. Note that these options require a dataset
@@ -114,9 +109,9 @@ The full ``optimum-cli`` command examples are shown below:
 
          optimum-cli export openvino -m meta-llama/Meta-Llama-3.1-8B-Instruct --weight-format int4 --sym --group-size -1 --ratio 1.0 --awq --scale-estimation --dataset wikitext2 Meta-Llama-3.1-8B-Instruct
 
-   .. tab-item:: NF4-CW, data-free
+   .. tab-item:: NF4-CW
 
-      NF4 Symmetric channel-wise compression:
+      NF4 Symmetric data-free channel-wise compression:
 
       .. code-block:: console
          :name: channel-wise-data-free-quant-nf4
@@ -129,12 +124,17 @@ The full ``optimum-cli`` command examples are shown below:
 
    .. tab-item:: INT4-GQ
 
-      INT4 Symmetric group quantization:
+      INT4 Symmetric data-free group quantization:
 
       .. code-block:: console
          :name: group-quant
 
          optimum-cli export openvino -m microsoft/Phi-3.5-mini-instruct --weight-format int4 --sym --ratio 1.0 --group-size 128 Phi-3.5-mini-instruct
+
+.. note::
+
+   The NF4 data type is only supported on Intel® Core Ultra Processors Series 2 NPUs (formerly
+   codenamed Lunar Lake) and beyond. Please make sure to use channel-wise quantization with NF4.
 
 .. important::
 
@@ -143,7 +143,7 @@ The full ``optimum-cli`` command examples are shown below:
 There are pre-compressed models on Hugging Face that can be exported as-is, e.g.
 
 * 4-bit (INT4) `GPTQ models <https://huggingface.co/models?other=gptq,4-bit&sort=trending>`__
-* `LLMs optimized for NPU <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__, hosted by OpenVINO.
+* `LLMs optimized for NPU <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__, hosted and maintained by OpenVINO.
 
 In this case, the commands are as simple as:
 
@@ -157,7 +157,6 @@ Run text generation
 
 It is recommended to install the latest available
 `NPU driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
-
 Use the following code snippet to perform generation with OpenVINO GenAI API.
 
 .. tab-set::
@@ -209,14 +208,16 @@ user explicitly sets a lower length limit for the response.
 You may configure both the 'maximum input prompt length' and 'minimum response length' using
 the following parameters:
 
-* ``MAX_PROMPT_LEN`` - defines the maximum number of tokens that the LLM pipeline can process
+* ``MAX_PROMPT_LEN`` -- defines the maximum number of tokens that the LLM pipeline can process
   for the input prompt (default: 1024),
-* ``MIN_RESPONSE_LEN`` - defines the minimum number of tokens that the LLM pipeline will generate
+* ``MIN_RESPONSE_LEN`` -- defines the minimum number of tokens that the LLM pipeline can generate
   in its response (default: 128).
 
 The maximum context size for an LLM on NPU is defined as the sum of these two numbers. By default,
 if the input prompt passed to the model is shorter than ``MAX_PROMPT_LEN`` tokens, time to first
-token (TTFT) will still be equal to the TTFT as if the full prompt was passed.
+token (TTFT) will still be equal to the TTFT as if the full prompt was passed, but it leaves more
+room in the context for the model to generate more tokens. E.g., if the input prompt is just 30 tokens,
+the model can generate up to :math:`1024 + 128 - 32 = 1120` tokens.
 
 OpenVINO 2025.3 has introduced dynamic input prompts support for NPU. The dynamism granularity is
 regulated by the new property ``NPUW_LLM_PREFILL_CHUNK_SIZE`` (default: 1024).
@@ -243,6 +244,8 @@ Use the following code snippet to change the default settings:
          ov::AnyMap pipeline_config = { { "MAX_PROMPT_LEN",  1024 }, { "MIN_RESPONSE_LEN", 512 } };
          ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
+In the GenAI LLM chat scenarios, the conversation history is accumulated in the context and may require
+a larger ``MAX_PROMPT_LEN`` to handle the history properly.
 
 Performance hints
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -251,15 +254,16 @@ You can configure the NPU LLM pipeline with the ``PREFILL_HINT`` and ``GENERATE_
 to fine-tune the performance behavior. These options impact the prompt processing (first token)
 and text generation (all other tokens) behavior respectively.
 
-``PREFILL_HINT`` -- fine-tune prompt processing:
+``PREFILL_HINT`` -- fine-tune the prompt processing stage:
 
-* ``DYNAMIC`` (default since 2025.3) - enables dynamic prompt execution, unblocks longer prompts.
-* ``STATIC`` - disables dybamic prompt execution, may perform better with several precise prompt sizes. Default behavior until OpenVINO 2025.3.
+* ``DYNAMIC`` (default since 2025.3) -- enables dynamic prompt execution, unblocks longer prompts.
+* ``STATIC`` -- disables dynamic prompt execution, may perform better with several precise prompt sizes.
+  Default behavior until OpenVINO 2025.3.
 
-``GENERATE_HINT`` -- fine-tune text generation:
+``GENERATE_HINT`` -- fine-tune the text generation stage:
 
-* ``FAST_COMPILE`` (default) - enables fast compilation at the expense of performance,
-* ``BEST_PERF`` - ensures best possible performance at lower compilation speed.
+* ``FAST_COMPILE`` (default) -- enables fast compilation at the expense of performance,
+* ``BEST_PERF`` -- ensures best possible performance at lower compilation speed.
 
 Use the following code snippet:
 
@@ -292,7 +296,7 @@ improve the user experience, the following options are available: OpenVINO Cachi
 OpenVINO Caching
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-By caching compiled models, you may shorten the initialization time of the future pipeline
+By caching compiled models, you can improve the initialization time of the future pipeline
 runs. To do so, specify one of the following options in ``pipeline_config`` for NPU pipeline.
 
 CACHE_DIR
@@ -339,12 +343,14 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
   * By default it is ``OPTIMIZE_SIZE``, so a weightless blob will be produced and either original weights file or ``ov::Model`` object is required to load such a blob.
   * Pass ``OPTIMIZE_SPEED`` to export a blob with full weights.
 * If the blob is exported as weightless you also need to either provide
-  ``"WEIGHTS_PATH" : "path\\to\\original\\model.bin"`` or ``"MODEL_PTR" : original ov::Model object``.
+  ``"WEIGHTS_PATH" : "path\\to\\original\\model.bin"`` or ``"MODEL_PTR" : original ov::Model object`` in the config.
 * Ahead-of-time import in weightless mode has been optimized to consume less memory than during regular compilation or using ``CACHE_DIR``.
+
+The following snippets demonstrate the functionality:
 
 .. tab-set::
 
-   .. tab-item:: Export weightless example
+   .. tab-item:: Weightless export
 
       .. tab-set::
 
@@ -365,7 +371,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
                ov::AnyMap pipeline_config = { { "EXPORT_BLOB", "YES" }, { "BLOB_PATH", ".npucache\\compiled_model.blob" } };
                ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
-   .. tab-item:: Import weightless example
+   .. tab-item:: Weightless import
 
       .. tab-set::
 
@@ -386,7 +392,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
                ov::AnyMap pipeline_config = { { "BLOB_PATH", ".npucache\\compiled_model.blob" }, { "WEIGHTS_PATH", "path\\to\\original\\model.bin" } };
                ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
-   .. tab-item:: Export with weights example
+   .. tab-item:: Full-weight export
 
       .. tab-set::
 
@@ -407,7 +413,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
                ov::AnyMap pipeline_config = { { "EXPORT_BLOB", "YES" }, { "BLOB_PATH", ".npucache\\compiled_model.blob" }, { "CACHE_MODE", "OPTIMIZE_SPEED" } };
                ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
-   .. tab-item:: Import with weights example
+   .. tab-item:: Full-weight import
 
       .. tab-set::
 
@@ -468,21 +474,37 @@ model weights is encrypted.
 
 
 
-Whisper (speech to text) on NPU with OpenVINO GenAI
+Whisper on NPU with OpenVINO GenAI
 ###############################################################################################
 
-Prior to OpenVINO 2025.1 the Whisper pipeline (for
+OpenAI Whisper support (for
 `whisper-tiny <https://huggingface.co/openai/whisper-tiny>`__,
 `whisper-base <https://huggingface.co/openai/whisper-base>`__,
 `whisper-small <https://huggingface.co/openai/whisper-small>`__, or
-`whisper-large <https://huggingface.co/openai/whisper-large>`__ models)
+`whisper-large <https://huggingface.co/openai/whisper-large>`__ models) was first introduced in
+OpenVINO 2024.5.
+
+Export Whisper models from Hugging Face
+***********************************************************************************************
+
+Prior to OpenVINO 2025.1 the Whisper pipeline
 only accepted stateless Whisper models, exported with ``--disable-stateful`` flag:
 
 .. code:: console
 
    optimum-cli export openvino --trust-remote-code --model openai/whisper-tiny whisper-tiny --disable-stateful
 
-Since OpenVINO 2025.1, this is no longer required.
+Since OpenVINO 2025.1, this is no longer required. Weights can remain in FP16 or be compressed in INT8:
+
+.. code:: consolse
+
+   optimum-cli export openvino --trust-remote-code --model openai/whisper-base whisper-base-int8 --weight-format int8
+
+Run speech-to-text with Whisper
+***********************************************************************************************
+
+There is no any NPU specifics in running the Whisper GenAI pipeline on NPU, so a standard
+OpenVINO GenAI sample can work without limitations.
 
 
 Troubleshooting
