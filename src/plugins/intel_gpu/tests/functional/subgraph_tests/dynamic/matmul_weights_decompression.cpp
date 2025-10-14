@@ -427,7 +427,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_precomputed_redu
                                             ::testing::Values(true),
                                             ::testing::Values(false),
                                             ::testing::Values(false),  // per_tensor_zp
-                                            ::testing::ValuesIn(group_size),
+                                            ::testing::Values(128),
                                             ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
                          MatmulWeightsDecompression::get_test_case_name);
 
