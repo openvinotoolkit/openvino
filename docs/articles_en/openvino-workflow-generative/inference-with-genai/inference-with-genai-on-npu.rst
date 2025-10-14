@@ -474,7 +474,7 @@ model weights is encrypted.
 
 
 
-Whisper on NPU with OpenVINO GenAI
+Whisper Inference on NPU
 ###############################################################################################
 
 OpenAI Whisper support (for
