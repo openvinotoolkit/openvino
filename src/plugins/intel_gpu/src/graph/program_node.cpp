@@ -1691,7 +1691,8 @@ void program_node::create_onednn_primitive_attributes(
                         } else {
                             auto in_scale = get_input_layout(dep_idx++);
                             resize_layout_for_fc(this, in_scale);
-                            dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, onednn::get_default_data_format(in_scale));
+                            auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ? onednn::mem_flags::need_blocked : onednn::mem_flags::None;
+                            auto in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::undef, mem_flag);
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                             update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, onednn::get_default_data_format(in_scale), false,
                                                        in_scale_desc.get_dims(), in_scale_desc.get_data_type());
@@ -1704,7 +1705,8 @@ void program_node::create_onednn_primitive_attributes(
                             } else {
                                 auto in_shift = get_input_layout(dep_idx++);
                                 resize_layout_for_fc(this, in_shift);
-                                dnnl::memory::desc in_shift_desc = onednn::layout_to_memory_desc(in_shift, onednn::get_default_data_format(in_shift));
+                                auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ? onednn::mem_flags::need_blocked : onednn::mem_flags::None;
+                                auto in_shift_desc = onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::undef, mem_flag);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, onednn::get_default_data_format(in_shift), false,
                                                            in_shift_desc.get_dims(), in_shift_desc.get_data_type());
@@ -1737,7 +1739,8 @@ void program_node::create_onednn_primitive_attributes(
                             } else {
                                 auto out_scale = get_input_layout(dep_idx++);
                                 resize_layout_for_fc(this, out_scale);
-                                dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, onednn::get_default_data_format(out_scale));
+                                auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ? onednn::mem_flags::need_blocked : onednn::mem_flags::None;
+                                auto out_scale_desc = onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::undef, mem_flag);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, onednn::get_default_data_format(out_scale), false,
                                                            out_scale_desc.get_dims(), out_scale_desc.get_data_type());
