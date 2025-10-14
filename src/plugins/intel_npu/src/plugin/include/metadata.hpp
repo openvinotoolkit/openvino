@@ -90,6 +90,9 @@ public:
     }
 
 protected:
+    /**
+     * @brief Where the metadata is read from. The type can be either a stream or an OpenVINO tensor.
+     */
     union Source {
         explicit Source(std::istream& source);
 
@@ -99,6 +102,12 @@ protected:
         std::reference_wrapper<const ov::Tensor> tensor;
     };
 
+    /**
+     * @brief Reads data from the given source. The implementation depends on the type of source.
+     *
+     * @param source Either a stream or an OpenVINO tensor. The metadata will be read from this buffer.
+     * @param isStream Flag indicating the type of the source buffer.
+     */
     void read_data_from_source(const Source& source, const bool isStream, char* destination, const size_t size);
 
     /**
@@ -112,8 +121,12 @@ protected:
 
     uint32_t _version;
     uint64_t _blobDataSize;
-    size_t _coursorOffset = 0;
     Logger _logger;
+
+    /**
+     * @brief Used only when the source buffer is an OV tensor for managing the read coursor.
+     */
+    size_t _coursorOffset = 0;
 };
 
 /**
