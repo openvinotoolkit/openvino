@@ -666,7 +666,7 @@ public:
     std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
                                              ov::Dimension::value_type head_size = 64,
                                              ov::Dimension::value_type head_num = 8) override {
-        // Use default model 
+        // Use default model
         const auto& model = get_model(data_type, head_size, head_num);
         return model;
     }
