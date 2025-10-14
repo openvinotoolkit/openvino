@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -112,6 +113,7 @@ protected:
     uint32_t _version;
     uint64_t _blobDataSize;
     size_t _coursorOffset = 0;
+    Logger _logger;
 };
 
 /**

@@ -8,7 +8,6 @@
 #include <iterator>
 #include <optional>
 
-#include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
@@ -57,7 +56,10 @@ size_t OpenvinoVersion::get_openvino_version_size() const {
     return sizeof(_major) + sizeof(_minor) + sizeof(_patch);
 }
 
-MetadataBase::MetadataBase(uint32_t version, uint64_t blobDataSize) : _version(version), _blobDataSize(blobDataSize) {}
+MetadataBase::MetadataBase(uint32_t version, uint64_t blobDataSize)
+    : _version(version),
+      _blobDataSize(blobDataSize),
+      _logger("NPUBlobMetadata", Logger::global().level()) {}
 
 Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion)
     : MetadataBase{METADATA_VERSION_2_0, blobSize},
@@ -159,6 +161,7 @@ void Metadata<METADATA_VERSION_2_2>::read(const Source& source, const bool isStr
                           sizeof(numberOfOutputLayouts));
 
     uint16_t stringLength;
+
     if (numberOfInputLayouts) {
         _inputLayouts = std::vector<ov::Layout>();
         _inputLayouts->reserve(numberOfInputLayouts);
@@ -167,7 +170,16 @@ void Metadata<METADATA_VERSION_2_2>::read(const Source& source, const bool isStr
 
             std::string layoutString(stringLength, 0);
             read_data_from_source(source, isStream, const_cast<char*>(layoutString.c_str()), stringLength);
-            _inputLayouts->push_back(ov::Layout(std::move(layoutString)));
+
+            try {
+                _inputLayouts->push_back(ov::Layout(std::move(layoutString)));
+            } catch (const ov::Exception&) {
+                _logger.warning("Error encountered while constructing an ov::Layout object. Input index: %d. Value "
+                                "read from blob: %s. A default value will be used instead.",
+                                inputIndex,
+                                layoutString.c_str());
+                _inputLayouts->push_back(ov::Layout());
+            }
         }
     }
     if (numberOfOutputLayouts) {
@@ -178,7 +190,16 @@ void Metadata<METADATA_VERSION_2_2>::read(const Source& source, const bool isStr
 
             std::string layoutString(stringLength, 0);
             read_data_from_source(source, isStream, const_cast<char*>(layoutString.c_str()), stringLength);
-            _outputLayouts->push_back(ov::Layout(std::move(layoutString)));
+
+            try {
+                _outputLayouts->push_back(ov::Layout(std::move(layoutString)));
+            } catch (const ov::Exception&) {
+                _outputLayouts->push_back(ov::Layout());
+                _logger.warning("Error encountered while constructing an ov::Layout object. Input index: %d. Value "
+                                "read from blob: %s. A default value will be used instead.",
+                                outputIndex,
+                                layoutString.c_str());
+            }
         }
     }
 }
@@ -243,28 +264,34 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
     case METADATA_VERSION_2_2:
         return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
     default:
-        OPENVINO_THROW("Metadata version is not supported!");
+        OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
+                       MetadataBase::get_major(version),
+                       ".",
+                       MetadataBase::get_minor(version),
+                       " but the current version is: ",
+                       CURRENT_METADATA_MAJOR_VERSION,
+                       ".",
+                       CURRENT_METADATA_MINOR_VERSION);
     }
 }
 
 bool Metadata<METADATA_VERSION_2_0>::is_compatible() {
-    auto logger = Logger::global().clone("NPUBlobMetadata");
     // checking if we can import the blob
     if (_ovVersion != CURRENT_OPENVINO_VERSION) {
-        logger.error("Imported blob OpenVINO version: %d.%d.%d, but the current OpenVINO version is: %d.%d.%d",
-                     _ovVersion.get_major(),
-                     _ovVersion.get_minor(),
-                     _ovVersion.get_patch(),
-                     OPENVINO_VERSION_MAJOR,
-                     OPENVINO_VERSION_MINOR,
-                     OPENVINO_VERSION_PATCH);
+        _logger.error("Imported blob OpenVINO version: %d.%d.%d, but the current OpenVINO version is: %d.%d.%d",
+                      _ovVersion.get_major(),
+                      _ovVersion.get_minor(),
+                      _ovVersion.get_patch(),
+                      OPENVINO_VERSION_MAJOR,
+                      OPENVINO_VERSION_MINOR,
+                      OPENVINO_VERSION_PATCH);
         return false;
     }
     return true;
 }
 
 std::streampos MetadataBase::getFileSize(std::istream& stream) {
-    auto log = intel_npu::Logger::global().clone("getFileSize");
+    auto log = Logger::global().clone("getFileSize");
     if (!stream) {
         OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
     }
@@ -311,22 +338,9 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     stream.read(reinterpret_cast<char*>(&metaVersion), sizeof(metaVersion));
 
     std::unique_ptr<MetadataBase> storedMeta;
-    try {
-        storedMeta = create_metadata(metaVersion, blobDataSize);
-        storedMeta->read(stream);
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what(),
-                       "Imported blob metadata version: ",
-                       MetadataBase::get_major(metaVersion),
-                       ".",
-                       MetadataBase::get_minor(metaVersion),
-                       " but the current version is: ",
-                       CURRENT_METADATA_MAJOR_VERSION,
-                       ".",
-                       CURRENT_METADATA_MINOR_VERSION);
-    } catch (...) {
-        OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
-    }
+    storedMeta = create_metadata(metaVersion, blobDataSize);
+    storedMeta->read(stream);
+
     stream.seekg(-stream.tellg() + currentStreamPos, std::ios::cur);
 
     return storedMeta;
