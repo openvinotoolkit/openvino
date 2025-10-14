@@ -136,7 +136,7 @@ void BatchGatherMatmul::validate_and_infer_types() {
     auto out_matmul_shape =
         (ov::op::v0::shape_infer(&op, std::vector<ov::PartialShape>{matmul_shape_a, matmul_shape_b})).front();
 
-    ov::PartialShape output_shape = {indices_shape[1], a_shape[1], out_matmul_shape[0], out_matmul_shape[1]};
+    ov::PartialShape output_shape = {indices_shape[1], out_matmul_shape[0], out_matmul_shape[1]};
 
     set_output_type(0, get_input_element_type(0), output_shape);
 }
