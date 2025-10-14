@@ -75,6 +75,36 @@ void BorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
+static void OptimizeDispatchDataForBorderKernel(BorderKernelBase::DispatchData& dispatchData, int max_lws = 64) {
+    static const std::map<std::vector<size_t>, std::vector<size_t>> lws_mapping_table = {
+        {{264, 264, 32}, {1, 1, 32}},
+        {{264, 264, 64}, {1, 1, 64}},
+        {{132, 132, 128}, {1, 1, 64}},
+        {{3, 336, 336}, {3, 8, 8}},
+    };
+    auto it = lws_mapping_table.find(dispatchData.gws);
+    if (it != lws_mapping_table.end()) {
+        dispatchData.lws = it->second;
+        return;
+    }
+
+    if (dispatchData.gws[0] == 32 || dispatchData.gws[1] == 32 || dispatchData.gws[2] == 32) {
+        max_lws = 32;
+    }
+    dispatchData.lws = {1, 1, 1};
+    size_t budget = max_lws;
+    for (int i = 2; i >= 0; --i) {
+        size_t best = 1;
+        for (size_t d = 1; d <= dispatchData.gws[i] && d <= budget; ++d) {
+            if (dispatchData.gws[i] % d == 0 && budget % d == 0) {
+                best = d;
+            }
+        }
+        dispatchData.lws[i] = best;
+        budget /= best;
+    }
+}
+
 KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::BORDER);
 
@@ -82,6 +112,9 @@ KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params) const {
         static_cast<const border_params&>(params);
 
     auto dispatchData = SetDefault(prim_params);
+    if (params.engineInfo.arch == gpu_arch::xe3) {
+        OptimizeDispatchDataForBorderKernel(dispatchData);
+    }
     KernelData k_data = KernelData::Default<border_params>(params);
     GetUpdateDispatchDataFunc(k_data);
 
