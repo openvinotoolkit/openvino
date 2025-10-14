@@ -1264,6 +1264,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     // Start counting time.
     auto t_start = std::chrono::high_resolution_clock::now();
 
+    // Evaluate and allocate all LazyTensors inside the bank
     m_profile["weights bank"].record([&]() {
         m_weights_bank->evaluate_and_allocate();
     });
