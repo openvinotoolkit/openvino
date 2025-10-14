@@ -76,6 +76,7 @@ TEST_P(XAttentionTest, simpleTest) {
         }
     }
 
+    size_t m_block_size = 32;
     Xattn xattn;
     xattn.init(query.size(0),
                query.size(1),
@@ -84,6 +85,7 @@ TEST_P(XAttentionTest, simpleTest) {
                key.size(2),
                xattr.stride,
                xattr.block_size,
+               m_block_size,
                ov::element::f32);
     PlainTensor mask;
     xattn.estimate(query, key, xattr.block_size, xattr.stride, xattr.threshold, mask);
