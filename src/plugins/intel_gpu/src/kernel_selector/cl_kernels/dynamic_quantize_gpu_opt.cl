@@ -3,6 +3,7 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/f8_utils.cl"
 
 #if OUTPUT_DIMS != 4 && OUTPUT_DIMS != 2
 #error "dynamic_quantize_gpu_opt.cl: Unsupported output dimension"
