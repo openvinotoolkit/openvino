@@ -35,45 +35,6 @@ using ov::pass::pattern::op::Or;
 
 namespace ov::intel_gpu {
 
-namespace {
-
-bool is_valid_order(const std::vector<size_t>& target_order, bool is_output_transpose) {
-    // Check valid input/output transpose order for onednn gemm primitive
-    cldnn::format fmt_dummy = cldnn::format::bfyx;
-    if (is_output_transpose) {
-        return cldnn::typed_primitive_inst<cldnn::gemm>::is_fusable_permute_output_order_onednn(target_order, fmt_dummy);
-    } else {
-        return cldnn::typed_primitive_inst<cldnn::gemm>::is_fusable_permute_input_order_onednn(target_order, fmt_dummy);
-    }
-}
-
-bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_immad, bool is_output_transpose = false) {
-    if (!output.get_element_type().is_real())
-        return false;
-
-    if (output.get_partial_shape().is_static() && !supports_immad)
-        return false;
-
-    auto order_node = output.get_node()->get_input_node_shared_ptr(1);
-    if (!ov::is_type<ov::op::v0::Constant>(order_node))
-        return false;
-
-    auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(order_node)->cast_vector<int64_t>();
-    const auto expected_dims_num = 4;
-
-    std::vector<size_t> order(std::begin(transpose_order), std::end(transpose_order));
-    if (expected_dims_num > order.size()) {
-        size_t orders_to_add = expected_dims_num - order.size();
-        for (size_t i = 0; i < orders_to_add; ++i)
-            order.insert(order.begin(), i);
-        for (size_t i = orders_to_add; i < order.size(); ++i)
-            order[i] = order[i] + orders_to_add;
-    }
-    
-    return is_valid_order(order, is_output_transpose);
-}
-}  // namespace
-
 TransposeConv1x1TransposeFusion::TransposeConv1x1TransposeFusion(bool supports_immad) {
     add_matcher<TransposeConv1x1TransposeMatcher>(supports_immad);
 }
