@@ -1914,7 +1914,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
     MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC> _helper;
     MHA<DATA_TYPE, KEY_PREC, VALUE_PREC> _kernel;
     PlainTensor _slot_mapping;
+#    if defined(OPENVINO_ARCH_X86_64)
     Xattn _xatt;
+#    endif
 
     AttentionExecutor() : _kernel(_helper) {}
 

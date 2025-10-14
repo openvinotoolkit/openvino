@@ -6,7 +6,11 @@
 #include <fstream>
 #include <utility>
 
-#include "nodes/kernels/x64/brgemm_kernel.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/kernels/x64/brgemm_kernel.hpp"
+#elif defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
+#endif
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -120,6 +124,8 @@ struct Xattn {
                         float* dst,
                         size_t out_stride,
                         size_t num_per_block) {
+        // TODO: Here we assume the output block is square. So only the row parameter is passed. Need to pass both row
+        // and col num to support multi-chunks.
         size_t block_num = div_up(M, num_per_block);
         for (size_t row = 0; row < block_num; row++) {
             for (size_t col = 0; col < block_num; col++) {
@@ -142,7 +148,7 @@ struct Xattn {
 #if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
     void sum_blocks8x8(const float* a, size_t M, size_t a_stride, float* out, size_t out_stride) {
         size_t block_num = (M + 7) / 8;
-        size_t col_num = block_num * 8;
+        size_t col_num = block_num * 8;  // TODO: Need to pass both row and col num parameter to support multi-chunks
         size_t i = 0;
         for (; i + 8 <= M; i += 8) {
             for (size_t j = 0; j + 8 <= col_num; j += 8) {
