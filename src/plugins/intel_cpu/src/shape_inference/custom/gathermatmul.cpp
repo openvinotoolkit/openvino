@@ -1,0 +1,119 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "gathermatmul.hpp"
+
+#include <cstddef>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "shape_inference/shape_inference_status.hpp"
+#include "utils/general_utils.h"
+
+namespace ov::intel_cpu::node {
+
+Result GatherMatmulShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                                     [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+    // Expected inputs:
+    // 0: A - activations [group, seq_len, hidden_size] (3D)
+    // 1: B - weights [num_experts, N, K] (3D)
+    // 2: indices - expert indices [seq_len, num_selected_experts] (2D)
+    // Optional: 3: bias
+
+    OPENVINO_DEBUG_ASSERT(input_shapes.size() >= 3,
+                          "GatherMatmul shape inference expects at least 3 inputs, got: ",
+                          input_shapes.size());
+
+    const VectorDims& shapeA = input_shapes[0].get();
+    const VectorDims& shapeB = input_shapes[1].get();
+    const VectorDims& shapeIndices = input_shapes[2].get();
+
+    const size_t rankA = shapeA.size();
+    const size_t rankB = shapeB.size();
+    const size_t rankIndices = shapeIndices.size();
+
+    // Validate input ranks
+    OPENVINO_DEBUG_ASSERT(rankA == 3,
+                          "GatherMatmul input A must be 3D, got rank: ",
+                          rankA,
+                          " with shape: ",
+                          vec2str(shapeA));
+    OPENVINO_DEBUG_ASSERT(rankB == 3,
+                          "GatherMatmul input B must be 3D, got rank: ",
+                          rankB,
+                          " with shape: ",
+                          vec2str(shapeB));
+    OPENVINO_DEBUG_ASSERT(rankIndices == 2,
+                          "GatherMatmul indices must be 2D, got rank: ",
+                          rankIndices,
+                          " with shape: ",
+                          vec2str(shapeIndices));
+
+    // Extract dimensions for matmul computation
+    // A shape: [group, seq_len, hidden_size]
+    // B shape: [num_experts, N, K]
+    // We perform matmul on A[1:2] x B[1:2].T
+
+    const size_t seq_len = shapeA[1];
+    const size_t hidden_size = shapeA[2];
+    const size_t K = shapeB[1];
+    const size_t N = shapeB[2];
+
+    // Validate K-dimension compatibility
+
+    const size_t k_lhs = m_transpose_a ? seq_len : hidden_size;
+    const size_t k_rhs = m_transpose_b ? N : K;
+
+    OPENVINO_ASSERT(k_lhs == k_rhs,
+                    "GatherMatmul: incompatible matmul dimensions. ",
+                    "A shape: ",
+                    vec2str(shapeA),
+                    m_transpose_a ? " (transposed)" : "",
+                    ", B shape: ",
+                    vec2str(shapeB),
+                    m_transpose_b ? " (transposed)" : "",
+                    ". K dimension mismatch: ",
+                    k_lhs,
+                    " vs ",
+                    k_rhs);
+
+    // Validate group dimension compatibility (A[0] can be 1 for broadcasting or match B[0])
+    if (shapeA[0] != 1 && shapeA[0] != shapeB[0]) {
+        OPENVINO_ASSERT(false,
+                        "GatherMatmul: incompatible group dimensions. ",
+                        "A[0] = ",
+                        shapeA[0],
+                        " must be 1 or equal to B[0] = ",
+                        shapeB[0]);
+    }
+
+    // Validate indices dimensions
+    OPENVINO_ASSERT(shapeIndices[0] == seq_len,
+                    "GatherMatmul: indices first dimension must match A's seq_len. ",
+                    "indices[0] = ",
+                    shapeIndices[0],
+                    ", A[1] = ",
+                    seq_len);
+
+    // Compute output shape from matmul
+    // matmul([seq_len, hidden_size], [N, K].T) = [seq_len, N]
+    const size_t matmul_M = m_transpose_a ? hidden_size : seq_len;
+    const size_t matmul_N = m_transpose_b ? K : N;
+
+    // Output shape: [num_selected_experts, seq_len, N]
+    const size_t num_selected_experts = shapeIndices[1];
+
+    VectorDims outputShape(m_out_rank);
+    OPENVINO_DEBUG_ASSERT(m_out_rank == 3, "GatherMatmul output must be 3D, got rank: ", m_out_rank);
+
+    outputShape[0] = num_selected_experts;
+    outputShape[1] = matmul_M;
+    outputShape[2] = matmul_N;
+
+    return {{std::move(outputShape)}, ShapeInferStatus::success};
+}
+
+}  // namespace ov::intel_cpu::node
