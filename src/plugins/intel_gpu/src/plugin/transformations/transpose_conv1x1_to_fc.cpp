@@ -51,7 +51,7 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
                    return x == 1;
                }) == 2;
     };
-    
+
     auto first_input_m = ov::pass::pattern::any_input();
     auto a_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto transpose_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({first_input_m, a_order_m});
@@ -106,7 +106,6 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
                 return constant;
 
             if (current_shape.size() <= 1) {
-
                 auto new_shape = ov::Shape{(current_shape.size() == 1) ? current_shape[0] : 1, 1};
 
                 auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
@@ -124,7 +123,7 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
                 ov::copy_weightless_cache_attr(constant, new_constant);
                 return new_constant;
             }
-        };        
+        };
 
         // add reshape after weight
         std::shared_ptr<ov::op::v0::Convert> weight_squeezed_convert;
