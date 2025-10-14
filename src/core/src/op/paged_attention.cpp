@@ -186,7 +186,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 20, "sinks", {1, 4}, {});
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
-    const auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs()));
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, get_input_element_type(0), output_shapes[1]);
