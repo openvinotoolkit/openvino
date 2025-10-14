@@ -701,7 +701,8 @@ void StridedSlice::StridedSliceCommonExecutor::dimsGluing() {
     indexes[indexes.size() - 1] = vLastDim ? indexes.back() : params.attrs.begin.size() - 1;
     indexes.push_back(params.attrs.begin.size() - 1);
 
-    for (int idx = indexes.size() - 1; idx >= 0; idx -= 2) {
+    OPENVINO_ASSERT(indexes.size() % 2 == 0, "StridedSliceCommonExecutor has incorrect number of elements in indexes.");
+    for (int idx = indexes.size() - 1; idx > 0; idx -= 2) {
         if (indexes[idx - 1] < indexes[idx]) {
             for (size_t jdx = indexes[idx]; jdx > indexes[idx - 1]; --jdx) {
                 params.dstBlockedDims[indexes[idx - 1]] *= params.dstBlockedDims[jdx];
