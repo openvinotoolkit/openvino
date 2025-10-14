@@ -25,7 +25,8 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
 
     // Compute for output shape
     if (out_ps.rank().is_static()) {
-        if (key_ps.rank().is_static() && value_ps.rank().is_static() && key_ps[1].is_static()) {
+        if (key_ps.rank().is_static() && key_ps.rank().get_length() >= 2 && key_ps[1].is_static() &&
+            value_ps.rank().is_static() && key_ps.rank().get_length() >= 2) {
             // The dim of out_ps[1] should be `num_heads * v_head_size`, it can be obtained from:
             //   q: query_ps[1] = num_heads * head_size
             //   k: key_ps[1] = num_kv_heads * head_size
@@ -45,12 +46,16 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
 
     auto& scores_ps = output_shapes[1];
     // Compute for scores shape
-    if (past_lens_ps.rank().is_static() && key_ps.rank().is_static()) {
+    if (past_lens_ps.rank().is_static() && key_ps.rank().is_static() && key_ps.rank().get_length() >= 1 &&
+        key_ps[0].is_static()) {
         const auto& past_lens = get_input_const_data_as<TRShape, int32_t>(op, 5, ta);
-        NODE_VALIDATION_CHECK(op, past_lens.has_value(), "Failed to obtain past_lens values as a vector.");
-        auto computed_dim =
-            key_ps[0].get_length() + std::accumulate(past_lens.value().begin(), past_lens.value().end(), 0);
-        scores_ps.push_back(computed_dim);
+        if (past_lens.has_value()) {
+            auto computed_dim =
+                key_ps[0].get_length() + std::accumulate(past_lens.value().begin(), past_lens.value().end(), 0);
+            scores_ps.push_back(computed_dim);
+        } else {
+            scores_ps.push_back(Dimension::dynamic());
+        }
     } else {
         scores_ps.push_back(Dimension::dynamic());
     }
