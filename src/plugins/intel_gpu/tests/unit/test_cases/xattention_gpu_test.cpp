@@ -11,7 +11,6 @@
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
-#include <openvino/reference/xattention.hpp>
 
 #include "paged_attention_gpu_test.hpp"
 #include "random_generator.hpp"
