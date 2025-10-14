@@ -18,8 +18,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/type.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/identity.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 
@@ -47,24 +45,24 @@ Identity::Identity(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 
 void Identity::getSupportedDescriptors() {
     if (getParentEdges().size() != 1) {
-        OPENVINO_THROW("has incorrect number of input edges.");
+        CPU_NODE_THROW("has incorrect number of input edges.");
     }
     if (getChildEdges().empty()) {
-        OPENVINO_THROW("has incorrect number of output edges.");
+        CPU_NODE_THROW("has incorrect number of output edges.");
     }
 }
 
 void Identity::initSupportedPrimitiveDescriptors() {
-    auto shape_prc = getOriginalInputPrecisionAtPort(0);
+    auto in_prc = getOriginalInputPrecisionAtPort(0);
     auto out_prc = getOriginalOutputPrecisionAtPort(0);
 
-    if (shape_prc != out_prc) {
-        OPENVINO_THROW("has to have the same dtype for input and output nodes.");
+    if (in_prc != out_prc) {
+        CPU_NODE_THROW("has to have the same dtype for input and output nodes. src: ", in_prc, ", dst: ", out_prc);
     }
 
     m_out_prc = out_prc;
 
-    addSupportedPrimDesc({{LayoutType::ncsp, shape_prc}}, {{LayoutType::ncsp, out_prc}}, ref_any);
+    addSupportedPrimDesc({{LayoutType::ncsp, in_prc}}, {{LayoutType::ncsp, out_prc}}, ref_any);
 }
 
 void Identity::prepareParams() {
