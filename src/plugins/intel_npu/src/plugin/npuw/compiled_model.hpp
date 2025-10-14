@@ -60,6 +60,10 @@ public:
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
+    std::shared_ptr<ov::ISyncInferRequest> get_internal_request() const {
+        return m_internal_request;
+    }
+
 private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
@@ -69,6 +73,8 @@ private:
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
     friend class LLMInferRequest;
+
+    mutable std::shared_ptr<ov::ISyncInferRequest> m_internal_request;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);

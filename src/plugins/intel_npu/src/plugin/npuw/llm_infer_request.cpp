@@ -6,6 +6,7 @@
 
 #include <regex>
 
+#include "base_sync_infer_request.hpp"
 #include "infer_request_utils.hpp"
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
@@ -594,7 +595,13 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         restore_prefix_cache = scheduled_token_num < input_prompt_len;
     }
 
+    auto internal_request = m_npuw_llm_compiled_model->m_prefill_compiled->get_internal_request();
+    auto base_request = std::dynamic_pointer_cast<ov::npuw::IBaseInferRequest>(internal_request);
+    NPUW_ASSERT(base_request != nullptr);
+
     bool is_first_chunk = true;
+
+    int64_t present_size = chunk_prompt_len;
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
@@ -653,6 +660,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             kvcache_desc.num_stored_tokens,
             kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
         pad_position_ids(pos_ids_in_tensor, actual_position_ids_slice);
+
+        // Update history size for dynamic context:
+        // dynamic attention selector needs history size to determin the past KV shape and attention mask shape
+        base_request->update_history_size(kvcache_desc.num_stored_tokens);
 
         m_prefill_request->infer();
 
