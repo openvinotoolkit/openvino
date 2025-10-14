@@ -107,21 +107,8 @@ static void mvn_ref_impl(const MVNAttrs& attrs,
     // use a generic reduction path over arbitrary axes.
     bool generic_reduction = true;  // always use precise reference path for correctness
 
-    auto offset = [&](size_t n, size_t c, size_t d, size_t h, size_t w) -> size_t {
-        if (attrs.layout == mvn_planar) {
-            return ((((n * C + c) * D + d) * H + h) * W + w);
-        } else if (attrs.layout == mvn_by_channel) {
-            return ((((n * D + d) * H + h) * W + w) * C + c);
-        } else {  // mvn_block
-            const size_t blk_size =
-                (memoryArgs.at(ARG_SRC_0)->getDescPtr()->hasLayoutType(LayoutType::nCsp16c)) ? 16 : 8;
-            const size_t CB = div_up(C, blk_size);
-            const size_t cb = c / blk_size;
-            const size_t c_in_blk = c % blk_size;
-            return n * CB * D * H * W * blk_size + cb * D * H * W * blk_size + d * H * W * blk_size + h * W * blk_size +
-                   w * blk_size + c_in_blk;
-        }
-    };
+    // Note: previous offset() helper was unused after switching to generic
+    // reference path. Removed to avoid -Wunused-but-set-variable with Werror.
 
     if (generic_reduction) {
         // Use reference MVN implementation to match interpreter semantics precisely.
