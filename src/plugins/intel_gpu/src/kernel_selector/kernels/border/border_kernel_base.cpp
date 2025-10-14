@@ -76,33 +76,45 @@ void BorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
 }
 
 static void OptimizeDispatchDataForBorderKernel(BorderKernelBase::DispatchData& dispatchData, int max_lws = 64) {
-    static const std::map<std::vector<size_t>, std::vector<size_t>> lws_mapping_table = {
-        {{264, 264, 32}, {1, 1, 32}},
-        {{264, 264, 64}, {1, 1, 64}},
-        {{132, 132, 128}, {1, 1, 64}},
-        {{3, 336, 336}, {3, 8, 8}},
-    };
-    auto it = lws_mapping_table.find(dispatchData.gws);
+    using Vec3 = std::array<size_t, 3>;
+    using DispatchDataPair = std::pair<Vec3, Vec3>;
+
+    constexpr std::array<DispatchDataPair, 4> lws_mapping_table = {{
+        DispatchDataPair{{264, 264, 32},  {1, 1, 32}},
+        DispatchDataPair{{264, 264, 64},  {1, 1, 64}},
+        DispatchDataPair{{132, 132, 128}, {1, 1, 64}},
+        DispatchDataPair{{3, 336, 336},   {3, 8, 8}}
+    }};
+
+    Vec3 gws = {dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]};
+
+    auto it = std::find_if(lws_mapping_table.begin(), lws_mapping_table.end(), [&gws](const DispatchDataPair& ddp) {
+        return ddp.first == gws;
+    });
+
     if (it != lws_mapping_table.end()) {
-        dispatchData.lws = it->second;
+        dispatchData.lws = {it->second[0], it->second[1], it->second[2]};
         return;
     }
 
-    if (dispatchData.gws[0] == 32 || dispatchData.gws[1] == 32 || dispatchData.gws[2] == 32) {
+    if (std::any_of(gws.begin(), gws.end(), [](size_t v) { return v == 32; })) {
         max_lws = 32;
     }
-    dispatchData.lws = {1, 1, 1};
-    size_t budget = max_lws;
+
+    Vec3 lws = {1, 1, 1};
+    size_t tmp = max_lws;
     for (int i = 2; i >= 0; --i) {
         size_t best = 1;
-        for (size_t d = 1; d <= dispatchData.gws[i] && d <= budget; ++d) {
-            if (dispatchData.gws[i] % d == 0 && budget % d == 0) {
+        for (size_t d = std::min(gws[i], tmp); d >= 1; --d) {
+            if (gws[i] % d == 0 && tmp % d == 0) {
                 best = d;
+                break;
             }
         }
-        dispatchData.lws[i] = best;
-        budget /= best;
+        lws[i] = best;
+        tmp /= best;
     }
+    dispatchData.lws = {lws[0], lws[1], lws[2]};
 }
 
 KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params) const {
