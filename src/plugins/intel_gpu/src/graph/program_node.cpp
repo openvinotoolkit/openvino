@@ -1705,7 +1705,8 @@ void program_node::create_onednn_primitive_attributes(
                             } else {
                                 auto in_shift = get_input_layout(dep_idx++);
                                 resize_layout_for_fc(this, in_shift);
-                                auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ? onednn::mem_flags::need_blocked : onednn::mem_flags::None;
+                                auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ?
+                                    onednn::mem_flags::need_blocked : onednn::mem_flags::None;
                                 auto in_shift_desc = onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::undef, mem_flag);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, onednn::get_default_data_format(in_shift), false,
@@ -1739,7 +1740,8 @@ void program_node::create_onednn_primitive_attributes(
                             } else {
                                 auto out_scale = get_input_layout(dep_idx++);
                                 resize_layout_for_fc(this, out_scale);
-                                auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ? onednn::mem_flags::need_blocked : onednn::mem_flags::None;
+                                auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ?
+                                    onednn::mem_flags::need_blocked : onednn::mem_flags::None;
                                 auto out_scale_desc = onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::undef, mem_flag);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, onednn::get_default_data_format(out_scale), false,
