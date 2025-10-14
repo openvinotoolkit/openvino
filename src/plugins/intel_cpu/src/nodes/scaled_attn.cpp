@@ -122,7 +122,7 @@ struct MHAKernel {
         return result;
     }
 
-    void softmax(float* a, int len, float* sink = nullptr) {
+    void softmax(float* a, int len, const float* sink = nullptr) {
         float max = *std::max_element(a, a + len);
         if (sink != nullptr) {
             max = max > (*sink) ? max : (*sink);
@@ -615,6 +615,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
+                    PlainTensor& sink,
                     float d_scale = 0.0F) {
         auto B = query.size(0);
         auto H = query.size(1);

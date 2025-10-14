@@ -482,7 +482,7 @@ inline void scale_add2_reduce_max(ov::float16* a,
                                   size_t size,
                                   float alibi_slope,
                                   ov::float16& max,
-                                  float* sink = nullptr) {
+                                  ov::float16* sink = nullptr) {
     size_t i = 0;
 #    if defined(HAVE_SVE)
     svfloat16_t v_max = svdup_n_f16(static_cast<float16_t>(-FLT_MAX));

@@ -89,7 +89,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto sdp1 = wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input()});
     auto sdp2 =
         wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input(), any_input()});
-    //gpt-oss
+    // gpt-oss
     auto sdp3 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
         {cur_q, present_k, present_v, any_input(), any_input(), atten_sink});
 
@@ -116,6 +116,12 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
+// only support sink input on x86 platform currently.
+#ifndef OPENVINO_ARCH_X86_64
+        if (pattern_map.count(atten_sink)) {
+            return false;
+        }
+#endif
         // Check concat axes equality first
         const auto concat_k_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
         const auto concat_v_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
