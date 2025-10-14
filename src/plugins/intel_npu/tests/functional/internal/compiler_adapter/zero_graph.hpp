@@ -21,10 +21,6 @@
 using namespace intel_npu;
 
 namespace {
-const std::string BLOB_NAME = "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
-
-const std::string BLOB_PATH = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
-
 size_t calculate_alignment_with_padding(size_t size, size_t alignment) {
     return size + alignment - (size % alignment);
 }
@@ -86,6 +82,8 @@ public:
 
     std::shared_ptr<driver_compiler_utils::IRSerializer> irSerializer;
 
+    std::string blobPath;
+
     int extVersion;
 
     int graphDescFlag;
@@ -117,6 +115,9 @@ protected:
 
         std::tie(graphDescFlag, extVersion) = GetParam();
 
+        const std::string BLOB_NAME = "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
+        blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
+
         model = ov::test::utils::make_multi_single_conv();
 
         std::shared_ptr<ZeroInitStructsMock> zeroInitMock = std::make_shared<ZeroInitStructsMock>(extVersion);
@@ -147,12 +148,13 @@ TEST_P(ZeroGraphTest, GetGraphInitIR) {
 }
 
 TEST_P(ZeroGraphTest, GetGraphInitBlob) {
-    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = get_file_size(blobStream);
 
     std::vector<uint8_t> blob(size);
     blobStream.read(reinterpret_cast<char*>(blob.data()), size);
+    blobStream.close();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob.data(), blob.size()));
 
@@ -178,12 +180,13 @@ TEST_P(ZeroGraphTest, QueryGraph) {
 }
 
 TEST_P(ZeroGraphTest, GetGraphBinary) {
-    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = get_file_size(blobStream);
 
     std::vector<uint8_t> blob(size);
     blobStream.read(reinterpret_cast<char*>(blob.data()), size);
+    blobStream.close();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob.data(), blob.size()));
 
@@ -221,13 +224,14 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
-    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = get_file_size(blobStream);
     size = calculate_alignment_with_padding(size, ::utils::STANDARD_PAGE_SIZE);
 
     uint8_t* blob = static_cast<uint8_t*>(::operator new(size, std::align_val_t(::utils::STANDARD_PAGE_SIZE)));
     blobStream.read(reinterpret_cast<char*>(blob), size);
+    blobStream.close();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
 
@@ -240,7 +244,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryZeMemAllocBlob) {
-    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = get_file_size(blobStream);
     size = calculate_alignment_with_padding(size, ::utils::STANDARD_PAGE_SIZE);
@@ -248,6 +252,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryZeMemAllocBlob) {
     void* blob = nullptr;
     OV_ASSERT_NO_THROW(blob = allocate_zero_memory(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE))
     blobStream.read(reinterpret_cast<char*>(blob), size);
+    blobStream.close();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
 
@@ -260,12 +265,13 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryZeMemAllocBlob) {
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
-    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = get_file_size(blobStream);
 
     uint8_t* blob = static_cast<uint8_t*>(::operator new(size, std::align_val_t(::utils::STANDARD_PAGE_SIZE)));
     blobStream.read(reinterpret_cast<char*>(blob), size);
+    blobStream.close();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
 
@@ -278,13 +284,14 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryZeMemAllocBlob) {
-    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = get_file_size(blobStream);
 
     void* blob = nullptr;
     OV_ASSERT_NO_THROW(blob = allocate_zero_memory(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE))
     blobStream.read(reinterpret_cast<char*>(blob), size);
+    blobStream.close();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
 
@@ -297,13 +304,14 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryZeMemAllocBlob) 
 }
 
 TEST_P(ZeroGraphTest, SetGraphArgsOnDestroyedBlob) {
-    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = get_file_size(blobStream);
     size = calculate_alignment_with_padding(size, ::utils::STANDARD_PAGE_SIZE);
 
     uint8_t* blob = static_cast<uint8_t*>(::operator new(size, std::align_val_t(::utils::STANDARD_PAGE_SIZE)));
     blobStream.read(reinterpret_cast<char*>(blob), size);
+    blobStream.close();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
 
