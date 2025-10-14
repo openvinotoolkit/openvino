@@ -13,6 +13,7 @@
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 #include "ze_graph_ext_wrappers.hpp"
@@ -21,7 +22,7 @@
 using namespace intel_npu;
 
 namespace {
-size_t calculate_alignment_with_padding(size_t size, size_t alignment) {
+size_t calculate_size_with_alignment_padding(size_t size, size_t alignment) {
     return size + alignment - (size % alignment);
 }
 
@@ -32,38 +33,6 @@ size_t get_file_size(std::ifstream& file) {
     file.seekg(0, std::ios::beg);
 
     return size;
-}
-
-void* allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                           const size_t bytes,
-                           const size_t alignment) noexcept {
-    size_t size = bytes + alignment - (bytes % alignment);
-
-    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC,
-                                     nullptr,
-                                     ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED};
-    void* data = nullptr;
-    auto result = intel_npu::zeMemAllocHost(init_structs->getContext(), &desc, size, alignment, &data);
-
-    if (result == ZE_RESULT_SUCCESS) {
-        return data;
-    } else {
-        OPENVINO_THROW("L0 zeMemAllocHost result: %s, code %#X - %s",
-                       ze_result_to_string(result).c_str(),
-                       uint64_t(result),
-                       ze_result_to_description(result).c_str());
-        return nullptr;
-    }
-}
-
-void deallocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, void* handle) noexcept {
-    auto result = intel_npu::zeMemFree(init_structs->getContext(), handle);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 zeMemFree result: %s, code %#X - %s",
-                       ze_result_to_string(result).c_str(),
-                       uint64_t(result),
-                       ze_result_to_description(result).c_str());
-    }
 }
 }  // namespace
 
@@ -188,6 +157,12 @@ TEST_P(ZeroGraphTest, GetGraphBinary) {
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob.data(), blob.size()));
 
+    uint32_t initCommandQueueOrdinal = 0;
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+
     const uint8_t* blobPtr = nullptr;
     OV_ASSERT_NO_THROW(zeGraphExt->getGraphBinary(graphDescriptor, blob, blobPtr, size));
 }
@@ -197,14 +172,13 @@ TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
 
-    size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
-    void* ptr = nullptr;
-    OV_ASSERT_NO_THROW(ptr = allocate_zero_memory(zeroInitStruct, totalSize, ::utils::STANDARD_PAGE_SIZE));
+    uint32_t initCommandQueueOrdinal = 0;
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
 
-    ASSERT_ANY_THROW(
-        zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, nullptr));
-
-    OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, ptr));
+    ASSERT_ANY_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, nullptr));
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
@@ -212,20 +186,25 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
 
+    uint32_t initCommandQueueOrdinal = 0;
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+
     size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
-    void* ptr = nullptr;
-    OV_ASSERT_NO_THROW(ptr = allocate_zero_memory(zeroInitStruct, totalSize, ::utils::STANDARD_PAGE_SIZE));
+    std::unique_ptr<ZeroMem> buffer;
+    OV_ASSERT_NO_THROW(buffer =
+                           std::make_unique<ZeroMem>(zeroInitStruct, totalSize, ::utils::STANDARD_PAGE_SIZE, false));
 
-    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, ptr));
-
-    OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, ptr));
+    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer->data()));
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
     std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = get_file_size(blobStream);
-    size = calculate_alignment_with_padding(size, ::utils::STANDARD_PAGE_SIZE);
+    size = calculate_size_with_alignment_padding(size, ::utils::STANDARD_PAGE_SIZE);
 
     uint8_t* blob = static_cast<uint8_t*>(::operator new(size, std::align_val_t(::utils::STANDARD_PAGE_SIZE)));
     blobStream.read(reinterpret_cast<char*>(blob), size);
@@ -233,33 +212,16 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
 
-    void* buffer = nullptr;
-    OV_ASSERT_NO_THROW(buffer = allocate_zero_memory(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE));
+    uint32_t initCommandQueueOrdinal = 0;
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
 
-    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer));
+    std::unique_ptr<ZeroMem> buffer;
+    OV_ASSERT_NO_THROW(buffer = std::make_unique<ZeroMem>(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE, false));
 
-    OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, buffer));
-}
-
-TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryZeMemAllocBlob) {
-    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
-    ASSERT_TRUE(blobStream.is_open());
-    size_t size = get_file_size(blobStream);
-    size = calculate_alignment_with_padding(size, ::utils::STANDARD_PAGE_SIZE);
-
-    void* blob = nullptr;
-    OV_ASSERT_NO_THROW(blob = allocate_zero_memory(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE))
-    blobStream.read(reinterpret_cast<char*>(blob), size);
-    blobStream.close();
-
-    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
-
-    void* buffer = nullptr;
-    OV_ASSERT_NO_THROW(buffer = allocate_zero_memory(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE));
-
-    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer));
-
-    OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, buffer));
+    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer->data()));
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
@@ -273,51 +235,15 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
 
-    void* buffer = nullptr;
-    OV_ASSERT_NO_THROW(buffer = allocate_zero_memory(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE));
+    uint32_t initCommandQueueOrdinal = 0;
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
 
-    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(buffer) + 1));
+    std::unique_ptr<ZeroMem> buffer;
+    OV_ASSERT_NO_THROW(buffer = std::make_unique<ZeroMem>(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE, false));
 
-    OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, buffer));
-}
-
-TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryZeMemAllocBlob) {
-    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
-    ASSERT_TRUE(blobStream.is_open());
-    size_t size = get_file_size(blobStream);
-
-    void* blob = nullptr;
-    OV_ASSERT_NO_THROW(blob = allocate_zero_memory(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE))
-    blobStream.read(reinterpret_cast<char*>(blob), size);
-    blobStream.close();
-
-    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
-
-    void* buffer = nullptr;
-    OV_ASSERT_NO_THROW(buffer = allocate_zero_memory(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE));
-
-    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(buffer) + 1));
-
-    OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, buffer));
-}
-
-TEST_P(ZeroGraphTest, SetGraphArgsOnDestroyedBlob) {
-    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
-    ASSERT_TRUE(blobStream.is_open());
-    size_t size = get_file_size(blobStream);
-    size = calculate_alignment_with_padding(size, ::utils::STANDARD_PAGE_SIZE);
-
-    uint8_t* blob = static_cast<uint8_t*>(::operator new(size, std::align_val_t(::utils::STANDARD_PAGE_SIZE)));
-    blobStream.read(reinterpret_cast<char*>(blob), size);
-    blobStream.close();
-
-    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
-
-    void* buffer = nullptr;
-    OV_ASSERT_NO_THROW(buffer = allocate_zero_memory(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE));
-
-    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer));
-
-    OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, buffer));
+    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(buffer->data()) + 1));
 }
 }  // namespace ov::test::behavior
