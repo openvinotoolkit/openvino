@@ -410,6 +410,7 @@ KERNEL(broadcast_gpu_ref)(
         const uint idx_pos = FUNC_CALL(get_idx_pos)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_y, out_x);
 #endif
         #if HAS_FUSED_OPS
+            uint offset = 0;
             OUTPUT_TYPE res = TO_OUTPUT_TYPE(input[idx_pos]);
             FUSED_OPS
             output[out_pos] = FUSED_OPS_RESULT;
