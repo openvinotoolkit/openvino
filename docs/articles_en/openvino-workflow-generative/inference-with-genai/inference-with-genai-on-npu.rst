@@ -75,7 +75,7 @@ LLMs **must** be exported with the following settings:
 * Maximize the 4-bit weight ratio in the model: ``--ratio 1.0``.
 
 **Group quantization** (GQ) with group size ``128`` is recommended for smaller models, e.g. up to
-4B..5B parameters. Larger models may also work with group-quantization, but normally demonstrate
+4B--5B parameters. Larger models may also work with group-quantization, but normally demonstrate
 a better performance with channel-wise quantization.
 
 **Channel-wise quantization** (CW) generally offers the best performance but may reduce model accuracy. OpenVINO
@@ -117,9 +117,7 @@ The full ``optimum-cli`` command examples are shown below:
 
          optimum-cli export openvino -m meta-llama/Meta-Llama-3.1-8B-Instruct --weight-format nf4 --sym --group-size -1 --ratio 1.0  Meta-Llama-3.1-8B-Instruct
 
-      .. note::
-
-         Usually, NF4-CW provides a better accuracy compared to INT4-CW even with data-free compression. Data-aware methods are also available and can further improve the compressed model accuracy.
+      Usually, NF4-CW provides a better accuracy compared to INT4-CW even with data-free compression. Data-aware methods are also available and can further improve the compressed model accuracy.
 
    .. tab-item:: INT4-GQ
 
@@ -129,6 +127,8 @@ The full ``optimum-cli`` command examples are shown below:
          :name: group-quant
 
          optimum-cli export openvino -m microsoft/Phi-3.5-mini-instruct --weight-format int4 --sym --ratio 1.0 --group-size 128 Phi-3.5-mini-instruct
+
+      Data-aware methods are also available for the group-quantized models and can further improve the compressed model accuracy.
 
 .. note::
 
@@ -340,8 +340,10 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 * It allows to explicitly specify where to **store** the compiled model.
 * For subsequent runs, it requires the same ``BLOB_PATH`` to **import** the compiled model.
 * Blob type is also defined by ``CACHE_MODE``.
+
   * By default, ``OPTIMIZE_SIZE`` is used,  producing a weightless blob. To load this blob, either the original weights file or an ``ov::Model`` object is required.
   * Pass ``OPTIMIZE_SPEED`` to export a blob with full weights.
+
 * If the blob is exported as weightless you also need to either provide
   ``"WEIGHTS_PATH" : "path\\to\\original\\model.bin"`` or ``"MODEL_PTR" : original ov::Model object`` in the config.
 * Ahead-of-time import in weightless mode has been optimized to consume less memory than during regular compilation or using ``CACHE_DIR``.
@@ -482,7 +484,9 @@ OpenAI Whisper support (for
 `whisper-base <https://huggingface.co/openai/whisper-base>`__,
 `whisper-small <https://huggingface.co/openai/whisper-small>`__, or
 `whisper-large <https://huggingface.co/openai/whisper-large>`__ models) was first introduced in
-OpenVINO 2024.5.
+OpenVINO 2024.5. There are no NPU-specific requirements when running the Whisper GenAI pipeline on NPU,
+so a standard OpenVINO GenAI sample works without any limitations.
+
 
 Export Whisper models from Hugging Face
 ***********************************************************************************************
@@ -499,13 +503,6 @@ Since OpenVINO 2025.1, this is no longer required. Weights can remain in FP16 or
 .. code:: console
 
    optimum-cli export openvino --trust-remote-code --model openai/whisper-base whisper-base-int8 --weight-format int8
-
-Run speech-to-text with Whisper
-***********************************************************************************************
-
-There are no NPU-specific requirements when running the Whisper GenAI pipeline on NPU, so a standard
-OpenVINO GenAI sample works without any limitations.
-
 
 Troubleshooting
 ###############################################################################################
