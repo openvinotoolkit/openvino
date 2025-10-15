@@ -332,7 +332,7 @@ NPUW_CACHE_DIR
 the preferred device-neutral caching mechanism is the OpenVINO caching (``CACHE_DIR``).
 
 
-'Ahead-of-time' compilation
+Ahead-of-time compilation
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CACHE_DIR`` but:
