@@ -21,7 +21,7 @@ First, install the required dependencies for the model conversion:
       .. code-block:: console
 
          python3 -m venv npu-env
-         npu-env/bin/activate
+         source npu-env/bin/activate
          pip install nncf==2.18.0 onnx==1.18.0 optimum-intel==1.25.2 transformers==4.51.3
          pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
 
@@ -192,7 +192,7 @@ Additional configuration options
 
 .. important::
 
-   The options described in this article are specific to the NPU device and 
+   The options described in this article are specific to the NPU device and
    may not work with other devices.
 
 Prompt and response length options
@@ -212,11 +212,11 @@ the following parameters:
 * ``MIN_RESPONSE_LEN`` -- defines the minimum number of tokens that the LLM pipeline can generate
   in its response (default: 128).
 
-The maximum context size for an LLM on NPU is defined as the sum of these two numbers. By default,
-if the input prompt passed to the model is shorter than ``MAX_PROMPT_LEN`` tokens, time to first
-token (TTFT) will still be equal to the TTFT as if the full prompt was passed, but it leaves more
-room in the context for the model to generate more tokens. E.g., if the input prompt is just 30 tokens,
-the model can generate up to :math:`1024 + 128 - 32 = 1120` tokens.
+The maximum context size for an LLM on NPU is defined as the sum of these two values. By default,
+if the input prompt is shorter than ``MAX_PROMPT_LEN`` tokens, time to first
+token (TTFT) remains the same as if a full-length prompt was passed. However, a shorter prompt
+allows the model to generate more tokens within the available context. For example, if the input
+prompt is just 30 tokens, the model can generate up to :math:`1024 + 128 - 30 = 1122` tokens.
 
 OpenVINO 2025.3 has introduced dynamic input prompt support for NPU. The dynamism granularity is
 controlled by the new property ``NPUW_LLM_PREFILL_CHUNK_SIZE`` (default: 1024).
@@ -304,7 +304,7 @@ CACHE_DIR
 
 ``CACHE_DIR`` is the default OpenVINO caching mechanism. The  ``CACHE_MODE``
 hint defines how the cached blob stores weights. ``OPTIMIZE_SPEED`` includes the weights
-and allows faster loading for group-quantized models.`OPTIMIZE_SIZE`` excludes the weights, 
+and allows faster loading for group-quantized models. ``OPTIMIZE_SIZE`` excludes the weights,
 producing a weightless blob, and requires the original model to be present on disk.
 
 .. tab-set::
