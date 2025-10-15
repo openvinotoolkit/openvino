@@ -443,7 +443,6 @@ Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_im
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len==1
-    // args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_partition_num
 
     return args;
 }
