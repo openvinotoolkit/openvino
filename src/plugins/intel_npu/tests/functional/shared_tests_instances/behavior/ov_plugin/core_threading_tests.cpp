@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "core_threading_tests.hpp"
 #include <utility>
+
+#include "behavior/ov_plugin/core_threading.hpp"
+#include "common/utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 
 namespace {
@@ -22,24 +24,26 @@ const Params params_cached[] = {std::tuple<Device, Config>{ov::test::utils::DEVI
 
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_CoreThreadingTest_NPU,
-                         CoreThreadingTestNPU,
-                         testing::ValuesIn(params),
-                         ov::test::utils::appendPlatformTypeTestName<CoreThreadingTestNPU>);
+INSTANTIATE_TEST_SUITE_P(
+    compatibility_smoke_BehaviorTests_CoreThreadingTest_NPU,
+    CoreThreadingTest,
+    testing::ValuesIn(params),
+    ov::test::utils::appendDriverVersionTestName<CoreThreadingTest>);  // need to get also driver version to skip
+                                                                       // failing tests with PV driver
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CoreThreadingTest_NPU,
-                         CoreThreadingTestsWithIterNPU,
+                         CoreThreadingTestsWithIter,
                          testing::Combine(testing::ValuesIn(params), testing::Values(15), testing::Values(50)),
-                         ov::test::utils::appendPlatformTypeTestName<CoreThreadingTestsWithIterNPU>);
+                         ov::test::utils::appendPlatformTypeTestName<CoreThreadingTestsWithIter>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CoreThreadingTest_NPU,
-                         CoreThreadingTestsWithCacheEnabledNPU,
+                         CoreThreadingTestsWithCacheEnabled,
                          testing::Combine(testing::ValuesIn(params_cached), testing::Values(10), testing::Values(30)),
-                         ov::test::utils::appendPlatformTypeTestName<CoreThreadingTestsWithCacheEnabledNPU>);
+                         ov::test::utils::appendPlatformTypeTestName<CoreThreadingTestsWithCacheEnabled>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CoreThreadingTest_UmdCacheDisabled_NPU,
-                         CoreThreadingTestsWithIterNPU,
+                         CoreThreadingTestsWithIter,
                          testing::Combine(testing::ValuesIn(params_disable_umd_cache),
                                           testing::Values(8),
                                           testing::Values(20)),
-                         ov::test::utils::appendPlatformTypeTestName<CoreThreadingTestsWithIterNPU>);
+                         ov::test::utils::appendPlatformTypeTestName<CoreThreadingTestsWithIter>);
