@@ -1123,7 +1123,8 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
                     output_layout.format == format::os_is_yx_osv16_isv4) {
             // imad case
             // nothing to do, just go out from here.
-        } else if (output_layout.batch() % 32 == 0) {
+        } else if (output_layout.batch() % 32 == 0 && output_layout.data_type == data_types::f32 &&
+                   input_layout.spatial(0) == 1 && input_layout.spatial(1) > 1 && input_layout.get_rank() <= 4) {
             expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
         } else if (layout_optimizer::convolution_bfyx_opt(output_layout, weights_layout, prim) || _output_size_handling_enabled || node.get_transposed()) {
             {
