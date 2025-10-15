@@ -102,6 +102,7 @@ static void transpose_16NxK(T* dst,
 }
 #endif
 
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 struct Xattn {
     std::vector<uint8_t> _scratch_a;
     std::vector<uint8_t> _wsp;
@@ -146,7 +147,7 @@ struct Xattn {
         }
     }
 
-#if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
+#    if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
     void sum_blocks8x8(const float* a, size_t M, size_t a_stride, float* out, size_t out_stride) {
         size_t block_num = (M + 7) / 8;
         size_t col_num = block_num * 8;  // TODO: Need to pass both row and col num parameter to support multi-chunks
@@ -193,7 +194,7 @@ struct Xattn {
             }
         }
     }
-#endif
+#    endif
 
     void init(size_t B,
               size_t H,
@@ -283,7 +284,7 @@ struct Xattn {
                     void* src = key.ptr_v(n_start * stride + i, h, 0, 0);
                     void* dst = _key_repack.ptr_v(h, 0, S * n_blk, 0);
                     if (in_type == ov::element::bf16) {
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
                         transpose_16NxK<bfloat16, ov::element::bf16>(reinterpret_cast<bfloat16*>(dst),  // dst
                                                                      reinterpret_cast<bfloat16*>(src),  // src
                                                                      N,                                 // N
@@ -292,9 +293,9 @@ struct Xattn {
                                                                      _n_block_size,                     // dst stride
                                                                      (S * stride * K_H)                 // src stride
                         );
-#else
+#    else
                     OPENVINO_THROW("xattention: bf16 needs avx512+ hardware.");
-#endif
+#    endif
                     } else if (in_type == ov::element::f32) {
                         transpose_16NxK<float, ov::element::f32>(reinterpret_cast<float*>(dst),  // dst
                                                                  src,                            // src
@@ -374,15 +375,15 @@ struct Xattn {
         parallel_for2d(H, L, [&](size_t h, size_t l) {
             auto* src = _attn_sum_temp.ptr<float>(h, l, 0, 0);
             auto* dst = _attn_sum.ptr<float>(h, l, 0, 0);
-#if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
+#    if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
             if (_num_per_block == 8) {
                 sum_blocks8x8(src, row_num, src_stride, dst, dst_stride);
             } else {
                 sum_blocks_ref(src, row_num, src_stride, dst, dst_stride, _num_per_block);
             }
-#else
+#    else
         sum_blocks_ref(src, row_num, src_stride, dst, dst_stride, _num_per_block);
-#endif
+#    endif
         });
 
         // Find blocks
@@ -425,5 +426,6 @@ struct Xattn {
         });
     }
 };
+#endif
 
 }  // namespace ov::Extensions::Cpu::XARCH
