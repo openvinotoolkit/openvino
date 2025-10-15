@@ -78,9 +78,9 @@ LLMs **must** be exported with the following settings:
 4B..5B parameters. Larger models may also work with group-quantization, but normally demonstrate
 a better performance with channel-wise quantization.
 
-**Channel-wise quantization** (CW) usually performs best but may impact the model accuracy. OpenVINO
-Neural Network Compression Framework (NNCF) provides various ways to compensate the quality loss,
-e.g. data-aware compression methods or GPTQ.
+**Channel-wise quantization** (CW) generally offers the best performance but may reduce model accuracy. OpenVINO
+Neural Network Compression Framework (NNCF) provides several methods to compensate for the quality loss,
+such as data-aware compression methods or GPTQ.
 
 The full ``optimum-cli`` command examples are shown below:
 
