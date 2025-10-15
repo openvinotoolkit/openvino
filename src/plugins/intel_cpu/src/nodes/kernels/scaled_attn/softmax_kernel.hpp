@@ -671,7 +671,7 @@ static inline void exp_ps_avx512(__m512& src) {
 }
 #endif
 
-inline void exp_reduce_sum(float* a, const float max, const size_t size, float& sum, const float* sink) {
+inline void exp_reduce_sum(float* a, const float max, const size_t size, float& sum) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     __m512 v_a;
@@ -695,13 +695,6 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
         _mm512_mask_storeu_ps(a + i, mask, v_a);
 
         i += (size - i);
-    }
-    if (sink != nullptr) {
-        __mmask16 mask = 1;
-        v_a = _mm512_maskz_loadu_ps(mask, sink);
-        v_a = _mm512_sub_ps(v_a, v_max);
-        exp_ps_avx512(v_a);
-        v_sum = _mm512_mask_add_ps(v_sum, mask, v_a, v_sum);
     }
     sum = _mm512_reduce_add_ps(v_sum);
 #elif defined(HAVE_AVX2)
@@ -727,14 +720,6 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
         _mm256_maskstore_ps(a + i, mask, v_a);
 
         i += (size - i);
-    }
-    if (sink != nullptr) {
-        auto mask = get_mask(1);
-        v_a = _mm256_maskload_ps(sink, mask);
-        v_a = _mm256_sub_ps(v_a, v_max);
-        exp_ps_avx2(v_a);
-        v_a = _mm256_blendv_ps(_mm256_setzero_ps(), v_a, _mm256_castsi256_ps(mask));
-        v_sum = _mm256_add_ps(v_a, v_sum);
     }
     hsum(v_sum);
     sum = _mm256_cvtss_f32(v_sum);
@@ -1169,7 +1154,10 @@ inline void attn_softmax_kernel<float>(float* a,
         max = max > (*sink) ? max : (*sink);
     }
     // exp sum
-    exp_reduce_sum(a, max, len, sum, sink);
+    exp_reduce_sum(a, max, len, sum);
+    if (sink != nullptr) {
+        sum += std::exp(*sink - max);
+    }
     // divide sum
     float scalar = 1.0f / sum;
     if (dst_precision == ov::element::f32) {
