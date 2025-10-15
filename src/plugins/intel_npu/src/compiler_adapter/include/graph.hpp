@@ -51,10 +51,10 @@ public:
 
     void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) override;
     const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const override;
-    void resize_last_submitted_event(size_t batch) override;
-    void set_batch_size(std::size_t batch) override;
+    void resize_last_submitted_event(int64_t batch) override;
+    void set_batch_size(int64_t batch) override;
 
-    const std::optional<std::size_t> get_batch_size() const override;
+    const std::optional<int64_t> get_batch_size() const override;
 
     uint32_t get_unique_id() override;
     void set_last_submitted_id(uint32_t id_index) override;
@@ -93,7 +93,7 @@ protected:
      * @brief The batch size used by the corresponding model.
      * @details The attribute contains a value only if the plugin performs the batches splitting operation.
      */
-    std::optional<std::size_t> _batchSize = std::nullopt;
+    std::optional<int64_t> _batchSize = std::nullopt;
 
     const ov::SoPtr<ICompiler> _compiler;
     Logger _logger;

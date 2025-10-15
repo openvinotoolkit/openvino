@@ -268,11 +268,11 @@ const std::shared_ptr<Event>& Graph::get_last_submitted_event(size_t indexOfComm
     return _lastSubmittedEvent[indexOfCommandList];
 }
 
-void Graph::resize_last_submitted_event(size_t batch) {
+void Graph::resize_last_submitted_event(int64_t batch) {
     _lastSubmittedEvent.resize(batch);
 }
 
-void Graph::set_batch_size(std::size_t batch) {
+void Graph::set_batch_size(int64_t batch) {
     _batchSize = batch;
 }
 
@@ -288,7 +288,7 @@ uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
 }
 
-const std::optional<std::size_t> Graph::get_batch_size() const {
+const std::optional<int64_t> Graph::get_batch_size() const {
     return _batchSize;
 }
 
