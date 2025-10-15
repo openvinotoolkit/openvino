@@ -52,8 +52,7 @@ First, install the required dependencies for the model conversion:
 .. note::
 
     With OpenVINO 2025.3, it is highly recommended to use ``transformers==4.51.3`` to
-    generate models for Intel NPU. Please expect support for newer transformer versions in
-    the future releases.
+    generate models for Intel NPU. Newer Transformers versions will be supported in upcoming releases.
 
 .. note::
 
