@@ -543,7 +543,7 @@ void primitive_inst::update_shape() {
 }
 
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(program_node const& node, kernel_impl_params const& orig_impl_param) {
-    // Check if fake alignment is not necessary
+    // disable if fake alignment is not necessary
     if (node.is_output()) {
         GPU_DEBUG_TRACE_DETAIL << " Disable fake alignment : " << node.id() << " is output node" << std::endl;
         return orig_impl_param;

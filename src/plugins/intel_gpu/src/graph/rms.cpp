@@ -20,11 +20,6 @@ layout rms_inst::calc_output_layout(rms_node const& node, kernel_impl_params con
         output_type = impl_param.get_output_element_type();
     }
 
-    // If node is output by fusing of coming reorder, then selected output data_type should be used.
-    if (node.is_output() && desc->output_data_types[0].has_value()) {
-        output_type = desc->output_data_types[0].value();
-    }
-
     return layout(output_type, input_layout.format, input_layout.get_tensor());
 }
 

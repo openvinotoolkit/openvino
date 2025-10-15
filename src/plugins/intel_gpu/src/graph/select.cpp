@@ -43,11 +43,6 @@ std::vector<layout> select_inst::calc_output_layouts(const select_node& node, co
         dt = impl_param.get_output_element_type();
     }
 
-    // If node is output by fusing of coming reorder, then selected output data_type should be used.
-    if (node.is_output() && desc->output_data_types[0].has_value()) {
-        dt = desc->output_data_types[0].value();
-    }
-
     ov::op::v1::Select op;
     op.set_auto_broadcast(desc->broadcast_spec);
 

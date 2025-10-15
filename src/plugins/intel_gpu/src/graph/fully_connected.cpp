@@ -180,11 +180,6 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
         output_type = impl_param.get_output_element_type();
     }
 
-    // If FC node is output by fusing of coming reorder, then selected output data_type should be used.
-    if (node.is_output() && desc->output_data_types[0].has_value()) {
-        output_type = desc->output_data_types[0].value();
-    }
-
     ov::op::v0::MatMul matmul_op;
     matmul_op.set_transpose_b(true);
     std::vector<ShapeType> input_shapes = {

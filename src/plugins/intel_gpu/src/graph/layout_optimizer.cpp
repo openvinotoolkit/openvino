@@ -341,19 +341,29 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
     bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
-    // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
+    // Because kernels can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
-    if ((prev.is_type<mvn>() || prev.is_type<concatenation>() || prev.is_type<gather>() || prev.is_type<broadcast>() ||
-         prev.is_type<select>() || prev.is_type<eltwise>() || prev.is_type<rms>()) &&
-        !prev.is_in_shape_of_subgraph() && node.is_type_conversion_only() &&
-        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
+    if ((format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
         // If the prev node is backedge of the loop, the type will be changed by fusing reorder.
         // We can void only that case if we can check whether the current node is backedge of the network.
         // However no such handle is existing yet. (To be done in the future when we need to optimize out the type converting
         // reorders in the body network)
-        !node.get_program().is_body_program() &&
+        !node.get_program().is_body_program() && !prev.is_in_shape_of_subgraph() &&
         prev.get_preferred_impl_type() != cldnn::impl_types::cpu) {
-        return true;
+        // case for truncate mode
+        if ((prev.is_type<mvn>() || prev.is_type<concatenation>() || prev.is_type<gather>() || prev.is_type<broadcast>() ||
+            prev.is_type<select>() || prev.is_type<eltwise>() || prev.is_type<rms>()) &&
+            node.is_type_conversion_only()) {
+            return true;
+        }
+
+        auto prev_layout = prev.get_output_layout();
+        auto output_layout = node.get_output_layout();
+        if (prev.is_type<fully_connected>() && (prev.get_preferred_impl_type() == cldnn::impl_types::onednn) &&
+            node.only_precision_changed() && node.is_simple_reorder() && !output_layout.data_padding &&
+            !data_type_traits::is_i8_u8(prev_layout.data_type) && !data_type_traits::is_i8_u8(output_layout.data_type)) {
+            return true;
+        }
     }
 
     bool is_dynamic = false;

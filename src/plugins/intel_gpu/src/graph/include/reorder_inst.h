@@ -55,9 +55,8 @@ public:
         return only_precision_changed;
     }
 
-    bool is_type_conversion_only(bool force_truncate_mode = false) const {
-        bool is_truncate = typed_desc()->truncate || force_truncate_mode;
-        return only_precision_changed() && is_simple_reorder() && is_truncate;
+    bool is_type_conversion_only() const {
+        return only_precision_changed() && is_simple_reorder() && typed_desc()->truncate;
     }
 
     bool is_simple_reorder() const {

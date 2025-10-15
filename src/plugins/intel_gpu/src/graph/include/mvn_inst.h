@@ -30,14 +30,8 @@ class typed_primitive_inst<mvn> : public typed_primitive_inst_base<mvn> {
 
 public:
     template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(mvn_node const& node, const kernel_impl_params& impl_param)  {
+    static std::vector<layout> calc_output_layouts(mvn_node const& /*node*/, const kernel_impl_params& impl_param)  {
         auto output_layouts = forward_input0_shape<ShapeType>(impl_param);
-
-        // If node is output by fusing of comimg reorder, then selected output data_type should be used.
-        auto desc = impl_param.typed_desc<mvn>();
-        if (node.is_output() && desc->output_data_types[0].has_value()) {
-            output_layouts[0].data_type = desc->output_data_types[0].value();
-        }
 
         return output_layouts;
     }
