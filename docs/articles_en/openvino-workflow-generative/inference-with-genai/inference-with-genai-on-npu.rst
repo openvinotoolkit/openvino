@@ -340,7 +340,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 * It allows to explicitly specify where to **store** the compiled model.
 * For subsequent runs, it requires the same ``BLOB_PATH`` to **import** the compiled model.
 * Blob type is also defined by ``CACHE_MODE``.
-  * By default it is ``OPTIMIZE_SIZE``, so a weightless blob will be produced and either original weights file or ``ov::Model`` object is required to load such a blob.
+  * By default, ``OPTIMIZE_SIZE`` is used,  producing a weightless blob. To load this blob, either the original weights file or an ``ov::Model`` object is required.
   * Pass ``OPTIMIZE_SPEED`` to export a blob with full weights.
 * If the blob is exported as weightless you also need to either provide
   ``"WEIGHTS_PATH" : "path\\to\\original\\model.bin"`` or ``"MODEL_PTR" : original ov::Model object`` in the config.
