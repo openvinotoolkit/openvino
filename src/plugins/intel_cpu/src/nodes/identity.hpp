@@ -32,7 +32,7 @@ public:
 
 private:
     element::Type m_out_prc;
-    size_t m_element_num;
+    size_t m_element_num = 0;
 };
 
 }  // namespace ov::intel_cpu::node
