@@ -37,6 +37,8 @@ public:
 
     virtual SerializedIR serialize() = 0;
 
+    virtual ~VCLSerializerBase();
+
 protected:
     /**
      * @brief Stores the runtime information required by the compiler inside the model.

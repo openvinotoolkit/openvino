@@ -229,6 +229,8 @@ void VCLSerializerBase::remove_model_runtime_information() {
     rtInfo.erase("use_indices_for_io_metadata");
 }
 
+VCLSerializerBase::~VCLSerializerBase() = default;
+
 VCLSerializerWithWeightsCopy::VCLSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
                                                            const ze_graph_compiler_version_info_t compilerVersion,
                                                            const uint32_t supportedOpset)
