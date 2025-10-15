@@ -190,10 +190,10 @@ Use the following code snippet to perform generation with OpenVINO GenAI API.
 Additional configuration options
 ***********************************************************************************************
 
-.. note::
+.. important::
 
-   Options described in this article are NPU device-specific. Please don't expect it to work
-   with other devices!
+   The options described in this article are specific to the NPU device and 
+   may not work with other devices.
 
 Prompt and response length options
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
