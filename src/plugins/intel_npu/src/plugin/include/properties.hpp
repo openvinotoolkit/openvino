@@ -131,7 +131,8 @@ private:
         ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
-                                                                        ov::internal::caching_with_mmap.name()};
+                                                                        ov::internal::caching_with_mmap.name(),
+                                                                        ov::internal::cache_header_alignment.name()};
 };
 
 }  // namespace intel_npu
