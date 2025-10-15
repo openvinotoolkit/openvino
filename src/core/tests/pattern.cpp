@@ -1662,6 +1662,8 @@ TEST(pattern, wrap_type_with_output_index_constraint) {
     auto variadic_split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
     // Explicitly set output size to 3 to ensure the VariadicSplit node produces the expected number of outputs.
     // Although split_lengths has 3 elements, set_output_size may be required for correct behavior in some cases.
+    // Explicitly set output size to 3 to ensure the VariadicSplit node produces the expected number of outputs.
+    // This may be required for correct behavior even if split_lengths has 3 elements.
     variadic_split->set_output_size(3);
 
     // Create reshapes that use different outputs
