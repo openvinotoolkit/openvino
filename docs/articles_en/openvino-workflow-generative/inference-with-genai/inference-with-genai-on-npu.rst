@@ -496,7 +496,7 @@ only accepted stateless Whisper models, exported with ``--disable-stateful`` fla
 
 Since OpenVINO 2025.1, this is no longer required. Weights can remain in FP16 or be compressed in INT8:
 
-.. code:: consolse
+.. code:: console
 
    optimum-cli export openvino --trust-remote-code --model openai/whisper-base whisper-base-int8 --weight-format int8
 
