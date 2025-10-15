@@ -93,6 +93,7 @@
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -486,6 +487,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
         manager.register_pass<ov::pass::RMSFusion>(false, true);
+        manager.register_pass<DisableFP16CompForRMS>();
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
