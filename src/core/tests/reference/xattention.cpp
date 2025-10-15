@@ -64,18 +64,10 @@ TEST_P(XAttentionE2EBlockSelectTest, SelectsBlocksWithoutThrowing) {
                                                             test_struct.block_size,
                                                             test_struct.stride);
 
-    auto res = selector.select_blocks(test_struct.q_data.data(),
+    EXPECT_NO_THROW(selector.select_blocks(test_struct.q_data.data(),
                                            test_struct.q_shape,
                                            test_struct.k_data.data(),
-                                           test_struct.k_shape);
-    std::cout << "=== Selected blocks after padding ===" << std::endl;
-    for (size_t h = 0; h < res.size(); ++h) {
-        std::cout << "Head " << h << " selected blocks: ";
-        for (const auto& idx_pair : res[h]) {
-            std::cout << "(" << idx_pair.first << "," << idx_pair.second << ") ";
-        }
-        std::cout << std::endl;
-    }
+                                           test_struct.k_shape));
 };
 
 INSTANTIATE_TEST_SUITE_P(VariousInputs, XAttentionE2EBlockSelectTest, ::testing::ValuesIn(E2E_BLOCK_SELECT_TEST_CASES));

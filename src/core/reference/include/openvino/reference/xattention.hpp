@@ -65,10 +65,10 @@ public:
      * tensor and `false` for key tensor.
      */
     void diagonal_reshape(const T* input_data,
-                            const Shape& input_shape,
-                            T* output_data,
-                            const Shape& output_shape,
-                            bool is_antidiagonal) {
+                          const Shape& input_shape,
+                          T* output_data,
+                          const Shape& output_shape,
+                          bool is_antidiagonal) {
         OPENVINO_ASSERT(input_shape.size() == 3);
         OPENVINO_ASSERT(output_shape.size() == 3);
         size_t H = input_shape[0];
@@ -322,7 +322,6 @@ public:
                         mask[head_idx][q_block_idx][k_block_idx] = true;
                     }
                 }
-
                 for (size_t k_block_idx = 0; k_block_idx < k_block_num; k_block_idx++) {
                     if (mask[head_idx][q_block_idx][k_block_idx])
                         retval[head_idx].insert({q_block_idx, k_block_idx});
@@ -344,8 +343,8 @@ public:
      * @param key_shape Shape of the key input tensor data. Expected shape is [num_heads, num_key_tokens, head_size],
      * where `num_key_tokens` must be a multiple of both `block_size` and `stride`, padded with zeroes if necessary to
      * do so in the real-world scenario.
-     * @param chunk_size The length of each chunk used for padding and block computation. Query and key sequences are padded
-     * as needed to make their lengths multiples of this chunk size, before reshaping and computing XAttention.
+     * @param chunk_size The length of each chunk used for padding and block computation. Query and key sequences are
+     * padded as needed to make their lengths multiples of this chunk size, before reshaping and computing XAttention.
      * @return A vector of size `num_heads` of sets, each set containing pairs of block indices (.first is the block
      * index along the query dimension, .second - along the key). Each set is the head-specific subset of blocks that
      * must be preserved in the sparse attention computation. Indices are given in units of XAttention-specific
@@ -355,7 +354,7 @@ public:
                                                             const Shape& query_shape,
                                                             const T* key_data,
                                                             const Shape& key_shape,
-                                                            int chunk_size) {
+                                                            int chunk_size = -1) {
         OPENVINO_ASSERT(query_shape.size() == 3 && key_shape.size() == 3);
         OPENVINO_ASSERT(query_shape[0] == key_shape[0] && query_shape[2] == key_shape[2]);
         OPENVINO_ASSERT(query_shape[1] % m_stride == 0 && key_shape[1] % m_stride == 0);
@@ -365,6 +364,7 @@ public:
         const size_t q_len = query_shape[1];
         const size_t k_len = key_shape[1];
         const size_t head_dim = query_shape[2];
+        if (chunk_size == -1) chunk_size = q_len;
 
         auto pad_seq = [&](const T* src_data, size_t seq_len) {
             size_t num_to_pad = ((seq_len + chunk_size - 1) / chunk_size) * chunk_size - seq_len;
@@ -377,7 +377,8 @@ public:
                 std::memcpy(buf.get() + dst_off, src_data + src_off, seq_len * head_dim * sizeof(T));
                 if (num_to_pad)
                     std::fill(buf.get() + dst_off + seq_len * head_dim,
-                            buf.get() + dst_off + (seq_len + num_to_pad) * head_dim, T(0));
+                              buf.get() + dst_off + (seq_len + num_to_pad) * head_dim,
+                              T(0));
             }
             return std::make_pair(std::move(buf), pad_shape);
         };
@@ -419,8 +420,8 @@ public:
 
         for (size_t h = 0; h < num_heads; ++h) {
             for (size_t q = 0; q < reshaped_chunk_size; ++q) {
-                size_t base = h * reshaped_chunk_size * (reshaped_chunk_size * k_chunk_num)
-                            + q * (reshaped_chunk_size * k_chunk_num);
+                size_t base = h * reshaped_chunk_size * (reshaped_chunk_size * k_chunk_num) +
+                              q * (reshaped_chunk_size * k_chunk_num);
 
                 for (size_t k = k_reshaped_seq_len - k_reshaped_num_to_pad; k < k_reshaped_seq_len; ++k)
                     causal_mask_buf.get()[base + k] = neg_inf;
@@ -442,9 +443,7 @@ public:
 
         // ======== block sum + select ========
         const size_t blocks_per_axis = m_block_size / m_stride;
-        Shape block_sum_shape = {num_heads,
-                                reshaped_q_len / blocks_per_axis,
-                                reshaped_k_len / blocks_per_axis};
+        Shape block_sum_shape = {num_heads, reshaped_q_len / blocks_per_axis, reshaped_k_len / blocks_per_axis};
         auto block_sum_buf = allocate_buf(block_sum_shape);
         block_sum_attention_scores(attn_score_buf.get(), qk_shape, block_sum_buf.get(), block_sum_shape);
         attn_score_buf.reset();
