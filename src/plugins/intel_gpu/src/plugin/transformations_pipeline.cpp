@@ -558,8 +558,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // k: [num_blocks, num_kv_heads, block_size(256), head_size]
             // v: [num_blocks, num_kv_heads, block_size(256), head_size]
             ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
-            kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
-            kv_cache_config.valueCachePrecision = config.get_kv_cache_precision();
+            const auto kv_cache_precision = config.get_kv_cache_precision();
+            OPENVINO_ASSERT(kv_cache_precision != ov::element::dynamic, "[GPU] kv_cache precision should be specified.");
+            kv_cache_config.keyCachePrecision = kv_cache_precision;
+            kv_cache_config.valueCachePrecision = kv_cache_precision;
             kv_cache_config.inferencePrecision = infer_precision;
             if (use_xattention) {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size_xattn;
