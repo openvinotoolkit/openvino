@@ -911,8 +911,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
 
         if (is_weightless) {
             compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
-            compiled->finalize_weights_bank();
-            compiled->m_import_weights_ctx.reset();
+            compiled->m_weights_bank_evaluation = std::async(std::launch::async, [&]{
+                compiled->finalize_weights_bank();
+                compiled->m_import_weights_ctx.reset();
+                return;
+            });
         } else {
             compiled->m_weights_bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);

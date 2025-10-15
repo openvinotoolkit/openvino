@@ -5,6 +5,7 @@
 #pragma once
 
 #include <optional>
+#include <future>
 
 #include "attention.hpp"
 #include "common.hpp"
@@ -206,6 +207,8 @@ private:
     std::unordered_map<const void*, std::size_t> m_const_to_offset;
     ov::npuw::s11n::BF16Cache m_bf16_consts;
     ov::npuw::s11n::WeightsContext m_import_weights_ctx;
+
+    std::future<void> m_weights_bank_evaluation;
 };
 }  // namespace npuw
 }  // namespace ov

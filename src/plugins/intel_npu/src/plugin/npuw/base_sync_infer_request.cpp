@@ -30,6 +30,10 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
 
     m_footprint.report_on_die = ov::npuw::profiling_enabled();
     m_footprint.area = m_npuw_model->m_name + "/memory";
+
+    if (m_npuw_model->m_weights_bank_evaluation.valid()) {
+        m_npuw_model->m_weights_bank_evaluation.wait();
+    }
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
