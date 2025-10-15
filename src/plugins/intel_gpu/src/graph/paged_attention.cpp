@@ -47,9 +47,19 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
 
     const auto block_size_idx = desc->has_xattention ? 2 : 3;
     bool valid_block_size = key_cache_ps.is_dynamic() ||
-                            (key_cache_ps[block_size_idx].get_length() == static_cast<long int>(expected_block_size));
+                            (key_cache_ps[block_size_idx].get_length() == static_cast<ov::Dimension::value_type>(expected_block_size));
     OPENVINO_ASSERT(valid_block_size, "[GPU] Incorrect block size for Paged Attention operation for key cache quant mode "
                     , key_cache_quant_mode, ". Expected ", expected_block_size, ", but got ", key_cache_ps[block_size_idx].get_length());
+
+    // TODO: as a preview feature, only single sequence is supported so far. Will remove this check once
+    // full function ready in near future.
+    if (desc->has_xattention) {
+        const auto& subseq_begins_ps = impl_param.get_input_layout(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS).get_partial_shape();
+        bool valid_subseq_count = subseq_begins_ps.is_dynamic() ||
+                                (subseq_begins_ps[0].get_length() == static_cast<ov::Dimension::value_type>(2));
+        OPENVINO_ASSERT(valid_subseq_count, "[GPU] Unexpected sub sequences count for XAttention. Got ", subseq_begins_ps[0].get_length() - 1);
+    }
+
     std::vector<layout> output_layouts{ data_layout };
 
     if (desc->has_scores_output()) {
