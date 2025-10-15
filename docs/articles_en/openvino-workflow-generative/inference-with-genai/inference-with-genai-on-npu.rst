@@ -296,8 +296,8 @@ improve user experience, the following options are available: OpenVINO Caching a
 OpenVINO Caching
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-By caching compiled models, you can improve the initialization time of the future pipeline
-runs. To do so, specify one of the following options in ``pipeline_config`` for NPU pipeline.
+By caching compiled models, you can reduce the initialization time for subsequent pipeline
+runs. To do so, specify one of the following options in ``pipeline_config`` for the NPU pipeline.
 
 CACHE_DIR
 -----------------------------------------------------------------------------------------------
