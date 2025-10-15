@@ -105,6 +105,13 @@ static void OptimizeBorderKernelDispatch(BorderKernelBase::DispatchData& dispatc
         return;
     }
 
+    for (size_t prefered_max_lws : {32, 64}) {
+        if (std::find(gws.begin(), gws.end(), prefered_max_lws) != gws.end()) {
+            max_lws = prefered_max_lws;
+            break;
+        }
+    }
+
     Vec3 lws = {1, 1, 1};
     size_t tmp = max_lws;
     for (int i = 2; i >= 0; --i) {
