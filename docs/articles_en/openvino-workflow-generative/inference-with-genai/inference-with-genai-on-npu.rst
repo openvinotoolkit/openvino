@@ -256,9 +256,9 @@ and text generation (subsequent tokens) behavior, respectively.
 
 ``PREFILL_HINT`` -- fine-tunes the prompt processing stage:
 
-* ``DYNAMIC`` (default since 2025.3) -- enables dynamic prompt execution, unblocks longer prompts.
-* ``STATIC`` -- disables dynamic prompt execution, may perform better with several precise prompt sizes.
-  Default behavior until OpenVINO 2025.3.
+* ``DYNAMIC`` (default since OpenVINO 2025.3) -- enables dynamic prompt execution, supports longer prompts.
+* ``STATIC`` -- disables dynamic prompt execution, may provide better performance for specific prompt sizes.
+  Default behavior before OpenVINO 2025.3.
 
 ``GENERATE_HINT`` -- fine-tune the text generation stage:
 
