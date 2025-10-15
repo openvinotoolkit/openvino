@@ -208,6 +208,8 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     cp_offload_desc.pNext = nullptr;
     if (info.supports_cp_offload) {
         command_queue_desc.pNext = &cp_offload_desc;
+    } else {
+        GPU_DEBUG_INFO << "Copy offload hint is not supported" << std::endl;
     }
 
     ZE_CHECK(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_command_list));
