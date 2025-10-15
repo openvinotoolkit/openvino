@@ -66,11 +66,8 @@ void Identity::initSupportedPrimitiveDescriptors() {
 }
 
 void Identity::prepareParams() {
-    m_out_shape = getDstMemoryAtPort(0)->getShape().getStaticDims();
-}
-
-bool Identity::needShapeInfer() const {
-    return !m_const_input;
+    VectorDims out_shape = getDstMemoryAtPort(0)->getShape().getStaticDims();
+    m_element_num = std::accumulate(out_shape.begin(), out_shape.end(), 1LU, std::multiplies<>());
 }
 
 bool Identity::isExecutable() const {
@@ -86,13 +83,11 @@ bool Identity::canBeInPlace() const {
 }
 
 void Identity::execute([[maybe_unused]] const dnnl::stream& strm) {
-    const auto out_el_num = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1LU, std::multiplies<>());
-
     if (!canBeInPlace()) {
         auto* input = getSrcDataAtPort(0);
         auto* output = getDstDataAtPort(0);
 
-        cpu_parallel_memcpy(output, input, m_out_prc.size() * out_el_num);
+        cpu_parallel_memcpy(output, input, m_out_prc.size() * m_element_num);
     }
 }
 

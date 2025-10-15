@@ -30,13 +30,9 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-protected:
-    bool needShapeInfer() const override;
-
 private:
     element::Type m_out_prc;
-    bool m_const_input = false;
-    VectorDims m_out_shape;
+    size_t m_element_num;
 };
 
 }  // namespace ov::intel_cpu::node
