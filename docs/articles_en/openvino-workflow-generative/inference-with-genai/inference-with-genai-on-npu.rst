@@ -289,8 +289,8 @@ Use the following code snippet:
 Caching and ahead-of-time compilation
 ***********************************************************************************************
 
-LLM compilation for NPU happens on-the-fly so may take a substantinal time. In order to
-improve the user experience, the following options are available: OpenVINO Caching and Ahead-of-time
+LLM compilation for NPU happens on-the-fly and may take substantial time. To
+improve user experience, the following options are available: OpenVINO Caching and Ahead-of-time
 (AoT) compilation.
 
 OpenVINO Caching
