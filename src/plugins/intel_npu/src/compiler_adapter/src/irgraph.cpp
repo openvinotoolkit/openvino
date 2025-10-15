@@ -658,6 +658,10 @@ void IRGraph::set_argument_property(uint32_t argi,
 void IRGraph::initialize(const Config& config) {
     _logger.debug("Graph initialize start");
 
+    if(!_zeroInitStruct) {
+        _logger.warning("Zero device is not available, skip graph initialize!");
+    }
+
     if (_commandQueue = nullptr) {
         _logger.debug("Graph initialize without graph handle");
 

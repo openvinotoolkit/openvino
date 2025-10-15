@@ -12,7 +12,6 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "ir_serializer.hpp"
-#include "irgraph.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"

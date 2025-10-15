@@ -16,7 +16,11 @@
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+
+#ifdef NPU_LLVM_BACKEND
 #include "irgraph.hpp"
+#endif
+
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/make_tensor.hpp"
