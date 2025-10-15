@@ -6,6 +6,7 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/reference/slice.hpp"
 #include "slice_shape_inference.hpp"
@@ -112,18 +113,18 @@ bool Slice::has_evaluate() const {
         }
     };
 
-    return get_input_element_type(0).bitwidth() >= 8 && valid_integral_type(get_input_element_type(1)) &&
+    return element::is_byte_type(get_input_element_type(0)) && valid_integral_type(get_input_element_type(1)) &&
            (slice_no_axes(this) || valid_integral_type(get_input_element_type(4)));
 }
 
 bool Slice::can_constant_fold(const OutputVector& inputs) const {
-    return inputs.at(0).get_element_type().bitwidth() >= 8 && Op::can_constant_fold(inputs);
+    return element::is_byte_type(inputs.at(0).get_element_type()) && Op::can_constant_fold(inputs);
 }
 
 bool Slice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v8_Slice_evaluate);
 
-    if (inputs[0].get_element_type().bitwidth() < 8)
+    if (!element::is_byte_type(inputs[0].get_element_type()))
         return false;
 
     const auto output_shapes =
