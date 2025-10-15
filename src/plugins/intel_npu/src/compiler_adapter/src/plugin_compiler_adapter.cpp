@@ -94,8 +94,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                                        const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
+    // Remove "BATCH_MODE" key from config before passing to compiler
+    auto filteredConfig = config.getFilteredConfigMap({"NPU_BATCH_MODE"});
+    _logger.debug("compile config options : %s", filteredConfig.toString().c_str());
+
     _logger.debug("compile start");
-    auto networkDesc = _compiler->compile(model, config);
+    auto networkDesc = _compiler->compile(model, filteredConfig);
     _logger.debug("compile end");
 
     ov::Tensor tensor = make_tensor_from_vector(networkDesc.compiledNetwork);

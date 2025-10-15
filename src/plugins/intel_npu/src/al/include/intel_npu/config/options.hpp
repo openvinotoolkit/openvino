@@ -464,7 +464,7 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     }
 
     static OptionMode mode() {
-        return OptionMode::CompileTime;
+        return OptionMode::RunTime;
     }
 
     static ov::intel_npu::BatchMode parse(std::string_view val) {
