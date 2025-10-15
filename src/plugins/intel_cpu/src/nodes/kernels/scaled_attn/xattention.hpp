@@ -118,25 +118,25 @@ struct Xattn {
     size_t _num_per_block = 0;
     size_t _n_block_size = 32;
     size_t _kv_head_groups = 0;
-    size_t _m_block_size = 0;
+    size_t _m_block_size = 32;
 
     void sum_blocks_ref(const float* a,
                         size_t M,
+                        size_t N,
                         size_t a_stride,
                         float* dst,
                         size_t out_stride,
                         size_t num_per_block) {
-        // TODO: Here we assume the output block is square. So only the row parameter is passed. Need to pass both row
-        // and col num to support multi-chunks.
-        size_t block_num = div_up(M, num_per_block);
-        for (size_t row = 0; row < block_num; row++) {
-            for (size_t col = 0; col < block_num; col++) {
+        size_t row_block_num = div_up(M, num_per_block);
+        size_t col_block_num = div_up(N, num_per_block);
+        for (size_t row = 0; row < row_block_num; row++) {
+            for (size_t col = 0; col < col_block_num; col++) {
                 float value = 0.0f;
                 for (size_t i = 0; i < num_per_block; i++) {
                     for (size_t j = 0; j < num_per_block; j++) {
                         auto r_idx = row * num_per_block + i;
                         auto c_idx = col * num_per_block + j;
-                        if (r_idx < M && c_idx < M) {
+                        if (r_idx < M && c_idx < N) {
                             auto in = a[r_idx * a_stride + c_idx];
                             value += in;
                         }
@@ -148,9 +148,8 @@ struct Xattn {
     }
 
 #    if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
-    void sum_blocks8x8(const float* a, size_t M, size_t a_stride, float* out, size_t out_stride) {
-        size_t block_num = (M + 7) / 8;
-        size_t col_num = block_num * 8;  // TODO: Need to pass both row and col num parameter to support multi-chunks
+    void sum_blocks8x8(const float* a, size_t M, size_t N, size_t a_stride, float* out, size_t out_stride) {
+        size_t col_num = rnd_up(N, 8);  // The src in the column direction must be aligned to 8.
         size_t i = 0;
         for (; i + 8 <= M; i += 8) {
             for (size_t j = 0; j + 8 <= col_num; j += 8) {
@@ -190,7 +189,7 @@ struct Xattn {
                 hsum(sum);
                 const float block_sum = _mm256_cvtss_f32(sum);
                 const int jb = j >> 3;
-                out[(block_num - 1) * out_stride + jb] = block_sum;
+                out[(M / 8) * out_stride + jb] = block_sum;
             }
         }
     }
@@ -203,7 +202,6 @@ struct Xattn {
               size_t K_H,
               size_t xattn_stride,
               size_t xattn_block_size,
-              size_t m_block_size,
               ov::element::Type in_type) {
         _kv_head_groups = H / K_H;
         // The k length should first divided by stride, and the result should be divisible by 32 since block
@@ -216,7 +214,6 @@ struct Xattn {
         _q_num_blocks = div_up(B, xattn_block_size);
         _k_num_blocks = div_up(B, xattn_block_size);
         _num_per_block = xattn_block_size / xattn_stride;
-        _m_block_size = m_block_size;
         size_t n_num_blocks = _k_num_strided / _n_block_size;
 
         if (_q_num_blocks <= 1 || _k_num_blocks <= 1 || _num_per_block == 0) {
@@ -371,18 +368,19 @@ struct Xattn {
 
         size_t src_stride = _attn_sum_temp.size(3);
         size_t dst_stride = _attn_sum.size(3);
-        size_t row_num = _attn_sum_temp.size(2);
+        size_t row_num = _q_num_strided;
+        size_t col_num = div_up(key.size(0), stride);
         parallel_for2d(H, L, [&](size_t h, size_t l) {
             auto* src = _attn_sum_temp.ptr<float>(h, l, 0, 0);
             auto* dst = _attn_sum.ptr<float>(h, l, 0, 0);
 #    if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
             if (_num_per_block == 8) {
-                sum_blocks8x8(src, row_num, src_stride, dst, dst_stride);
+                sum_blocks8x8(src, row_num, col_num, src_stride, dst, dst_stride);
             } else {
-                sum_blocks_ref(src, row_num, src_stride, dst, dst_stride, _num_per_block);
+                sum_blocks_ref(src, row_num, col_num, src_stride, dst, dst_stride, _num_per_block);
             }
 #    else
-        sum_blocks_ref(src, row_num, src_stride, dst, dst_stride, _num_per_block);
+        sum_blocks_ref(src, row_num, col_num, src_stride, dst, dst_stride, _num_per_block);
 #    endif
         });
 
