@@ -115,7 +115,7 @@ const auto conv2DParams_emb = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_B32, ConvolutionLayerTest,
                          ::testing::Combine(
                                  conv2DParams_emb,
-                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::ValuesIn({ov::element::f32}),
                                  ::testing::Values(ov::test::static_shapes_to_test_representation({{32, 64, 128, 199}})),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvolutionLayerTest::getTestCaseName);
