@@ -132,6 +132,7 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
             MatcherPass::register_new_node(Reshape_weight);
             Reshape_weight->set_friendly_name(weight->get_friendly_name() + "_Reshape_weight");
             weight_squeezed_convert = ov::as_type_ptr<ov::op::v0::Convert>(weight_convert->clone_with_new_inputs({Reshape_weight}));
+            ov::copy_runtime_info(weight_convert, weight_squeezed_convert);
         } else {
             auto param = ov::as_type_ptr<ov::op::v0::Parameter>(weight);
             OPENVINO_ASSERT(param != nullptr);
@@ -147,6 +148,7 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
             MatcherPass::register_new_node(Reshape_weight);
             Reshape_weight->set_friendly_name(param->get_friendly_name() + "_Reshape_weight");
             weight_squeezed_convert = ov::as_type_ptr<ov::op::v0::Convert>(weight_convert->clone_with_new_inputs({Reshape_weight}));
+            ov::copy_runtime_info(weight_convert, weight_squeezed_convert);
         }
         ov::disable_constant_folding(weight_squeezed_convert);
 
@@ -154,6 +156,7 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
         auto Reshape_scale = reshape_const_to_2d(scale);
         MatcherPass::register_new_node(Reshape_scale);
         Reshape_scale->set_friendly_name(scale->get_friendly_name() + "_Reshape_scale");
+        ov::copy_runtime_info(scale, Reshape_scale);
 
         auto scaled_weight = weight_mult->clone_with_new_inputs({weight_squeezed_convert, Reshape_scale});
         if (zp) {
@@ -163,10 +166,13 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
             Reshape_zp->set_friendly_name(zp->get_friendly_name() + "_Reshape_zp");
             auto weights_zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weights_zp_convert_m).get_node_shared_ptr());
             auto zp_squeezed_convert = weights_zp_convert->clone_with_new_inputs({Reshape_zp});
+            ov::copy_runtime_info(weights_zp_convert, zp_squeezed_convert);
             ov::disable_constant_folding(zp_squeezed_convert);
             auto zero_adjusted_weight = weight_sub->clone_with_new_inputs({weight_squeezed_convert, zp_squeezed_convert});
+            ov::copy_runtime_info(weight_sub, zero_adjusted_weight);
             scaled_weight = weight_mult->clone_with_new_inputs({zero_adjusted_weight, Reshape_scale});
-        }
+        } 
+        ov::copy_runtime_info(weight_mult, scaled_weight);
         ov::disable_constant_folding(scaled_weight);
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(activation, scaled_weight, false, true);
