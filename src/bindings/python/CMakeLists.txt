@@ -220,8 +220,6 @@ macro(ov_define_setup_py_packaging_vars)
     if(NOT pyversion OR pyversion_result)
         set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
         message(STATUS "Failed to detect pyversion with abiflags, using fallback: ${pyversion}")
-    else()
-        message(STATUS "Detected pyversion with abiflags: ${pyversion}")
     endif()
 
     # define version (syncronize with tools/openvino_dev/CMakeLists.txt)

@@ -8,15 +8,13 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
 endif()
 
 # Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined by FindPython3
-# Include ABI flags (like 't' for free-threaded Python) in the version
 execute_process(COMMAND ${Python3_EXECUTABLE} -c "import sys; print(f'python{sys.version_info.major}.{sys.version_info.minor}{sys.abiflags}')"
                 OUTPUT_VARIABLE pyversion OUTPUT_STRIP_TRAILING_WHITESPACE
                 RESULT_VARIABLE pyversion_result)
 if(NOT pyversion OR pyversion_result)
-    # Fallback for older Python versions without abiflags
     set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
+    message(STATUS "Failed to detect pyversion with abiflags, using fallback: ${pyversion}")
 endif()
-message(STATUS "pyopenvino: Using pyversion=${pyversion}")
 
 if(OV_GENERATOR_MULTI_CONFIG)
     set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python/openvino)
