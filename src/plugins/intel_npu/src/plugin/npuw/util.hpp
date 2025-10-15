@@ -201,11 +201,6 @@ typename std::underlying_type<T>::type _v(T&& t) {
     return static_cast<typename std::underlying_type<T>::type>(t);
 }
 
-void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
-                        ov::SoPtr<ov::ITensor> dst_tensor,
-                        uint32_t kv_dim_src,
-                        uint32_t kv_dim_dst);
-
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov

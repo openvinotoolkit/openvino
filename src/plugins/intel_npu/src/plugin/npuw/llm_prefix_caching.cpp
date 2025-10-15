@@ -4,6 +4,7 @@
 
 #include "llm_prefix_caching.hpp"
 
+#include "infer_request_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
