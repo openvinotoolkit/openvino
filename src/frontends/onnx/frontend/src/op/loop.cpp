@@ -105,13 +105,21 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
 
     const auto& cond_in = body_inputs[1];
     const auto& cond_out = body_outputs[0];
-    ov::ParameterVector body_params(body_inputs.begin(), body_inputs.end());
     bool needs_condition_param = true;
+    ov::ParameterVector body_params;
     // optimization allow to improve nG Loop shape inference
     if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
         body_outputs[0] = v0::Constant::create(ov::element::boolean, {1}, {true});
-        body_params.erase(body_params.begin() + 1);
+        // Construct body_params without the condition parameter (body_inputs[1])
+        body_params.reserve(body_inputs.size() - 1);
+        body_params.push_back(body_inputs[0]);
+        for (size_t i = 2; i < body_inputs.size(); ++i) {
+            body_params.push_back(body_inputs[i]);
+        }
         needs_condition_param = false;
+    } else {
+        // Construct body_params with all body_inputs
+        body_params = ov::ParameterVector(body_inputs.begin(), body_inputs.end());
     }
 
     CHECK_VALID_NODE(node,
