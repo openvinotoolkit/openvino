@@ -57,7 +57,7 @@ public:
 
     int graphDescFlag;
 
-    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<int, int>> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<int, int>>& obj) {
         int flag, version;
         std::tie(flag, version) = obj.param;
         std::string targetDevice = ov::test::utils::DEVICE_NPU;
