@@ -93,10 +93,10 @@ private:
     ov::SoPtr<IEngineBackend> _backend;
 
     std::shared_ptr<OptionsDesc> _options;
-    FilteredConfig _globalConfig;
+    mutable FilteredConfig _globalConfig;
     mutable Logger _logger;
     std::shared_ptr<Metrics> _metrics;
-    std::unique_ptr<Properties> _properties;
+    mutable std::unique_ptr<Properties> _properties;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };
