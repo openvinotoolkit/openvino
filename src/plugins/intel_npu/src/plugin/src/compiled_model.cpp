@@ -85,7 +85,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
     auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
-    auto originalBatchSize = get_batch_size();
+    auto originalBatchSize = _batchSize;
 
     Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
                                        CURRENT_OPENVINO_VERSION,
@@ -169,10 +169,6 @@ const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
 
 const FilteredConfig& CompiledModel::get_config() const {
     return _config;
-}
-
-const std::optional<int64_t>& CompiledModel::get_batch_size() const {
-    return _batchSize;
 }
 
 void CompiledModel::configure_stream_executors() {

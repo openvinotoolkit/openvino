@@ -461,6 +461,20 @@ public:
     // Returns a string with all config keys which have set values
     std::string toString() const;
 
+    /**
+     * @brief Creates a new Config from ConfigMap using the same descriptor
+     * @param configMap The configuration map
+     * @return New Config object
+     */
+    Config createFromConfigMap(const ConfigMap& configMap) const;
+
+    /**
+     * @brief Creates a filtered ConfigMap excluding specified keys
+     * @param keysToRemove Set of keys to exclude from the configuration
+     * @return A new ConfigMap with specified keys removed
+     */
+    Config getFilteredConfigMap(const std::set<std::string>& keysToRemove) const;
+
     virtual ~Config() = default;
 
 protected:

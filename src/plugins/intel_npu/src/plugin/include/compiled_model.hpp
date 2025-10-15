@@ -61,8 +61,6 @@ public:
 private:
     void configure_stream_executors();
 
-    const std::optional<int64_t>& get_batch_size() const;
-
     FilteredConfig _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
