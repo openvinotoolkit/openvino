@@ -214,7 +214,11 @@ add_subdirectory(src/pyopenvino)
 
 macro(ov_define_setup_py_packaging_vars)
     # Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined inside pybind11
-    set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
+    execute_process(COMMAND ${Python3_EXECUTABLE} -c "import sys; print(f'python{sys.version_info.major}.{sys.version_info.minor}{sys.abiflags}')"
+                    OUTPUT_VARIABLE pyversion OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(NOT pyversion)
+        set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
+    endif()
 
     # define version (syncronize with tools/openvino_dev/CMakeLists.txt)
     if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
