@@ -364,7 +364,8 @@ public:
         const size_t q_len = query_shape[1];
         const size_t k_len = key_shape[1];
         const size_t head_dim = query_shape[2];
-        if (chunk_size == -1) chunk_size = q_len;
+        if (chunk_size == -1)
+            chunk_size = q_len;
 
         auto pad_seq = [&](const T* src_data, size_t seq_len) {
             size_t num_to_pad = ((seq_len + chunk_size - 1) / chunk_size) * chunk_size - seq_len;
