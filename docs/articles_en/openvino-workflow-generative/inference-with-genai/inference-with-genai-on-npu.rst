@@ -254,7 +254,7 @@ You can configure the NPU LLM pipeline using the ``PREFILL_HINT`` and ``GENERATE
 to fine-tune performance. These options impact prompt processing (first token)
 and text generation (subsequent tokens) behavior, respectively.
 
-``PREFILL_HINT`` -- fine-tune the prompt processing stage:
+``PREFILL_HINT`` -- fine-tunes the prompt processing stage:
 
 * ``DYNAMIC`` (default since 2025.3) -- enables dynamic prompt execution, unblocks longer prompts.
 * ``STATIC`` -- disables dynamic prompt execution, may perform better with several precise prompt sizes.
