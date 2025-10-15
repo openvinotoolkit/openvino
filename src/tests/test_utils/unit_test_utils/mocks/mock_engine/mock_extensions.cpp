@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "mock_extensions.hpp"
-
 #include "openvino/core/op_extension.hpp"
 #include "openvino/op/op.hpp"
 
@@ -29,6 +27,8 @@ public:
 namespace {
 auto shared_mock_op_extension = std::make_shared<ov::OpExtension<MockOp>>();
 }
+
+OPENVINO_EXTENSION_C_API int get_mock_extension_counter();
 
 int get_mock_extension_counter() {
     const int basic_internal_counter = 1;
