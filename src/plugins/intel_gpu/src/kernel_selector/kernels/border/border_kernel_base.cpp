@@ -75,11 +75,14 @@ void BorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-static void OptimizeDispatchDataForBorderKernel(BorderKernelBase::DispatchData& dispatchData, int max_lws = 64) {
+static void OptimizeBorderKernelDispatch(BorderKernelBase::DispatchData& dispatchData,
+                                         EngineInfo engine_info,
+                                         bool use_predefined_only = true,
+                                         int max_lws = 64) {
     using Vec3 = std::array<size_t, 3>;
     using DispatchDataPair = std::pair<Vec3, Vec3>;
 
-    constexpr std::array<DispatchDataPair, 4> lws_mapping_table = {{
+    static constexpr std::array<DispatchDataPair, 4> lws_mapping_table = {{
         DispatchDataPair{{264, 264, 32},  {1, 1, 32}},
         DispatchDataPair{{264, 264, 64},  {1, 1, 64}},
         DispatchDataPair{{132, 132, 128}, {1, 1, 64}},
@@ -97,8 +100,9 @@ static void OptimizeDispatchDataForBorderKernel(BorderKernelBase::DispatchData& 
         return;
     }
 
-    if (std::any_of(gws.begin(), gws.end(), [](size_t v) { return v == 32; })) {
-        max_lws = 32;
+    if (use_predefined_only) return;
+    if (max_lws < 1 || max_lws > engine_info.maxWorkGroupSize) {
+        return;
     }
 
     Vec3 lws = {1, 1, 1};
@@ -114,6 +118,7 @@ static void OptimizeDispatchDataForBorderKernel(BorderKernelBase::DispatchData& 
         lws[i] = best;
         tmp /= best;
     }
+
     dispatchData.lws = {lws[0], lws[1], lws[2]};
 }
 
@@ -124,9 +129,7 @@ KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params) const {
         static_cast<const border_params&>(params);
 
     auto dispatchData = SetDefault(prim_params);
-    if (params.engineInfo.arch == gpu_arch::xe3) {
-        OptimizeDispatchDataForBorderKernel(dispatchData);
-    }
+    OptimizeBorderKernelDispatch(dispatchData, params.engineInfo);
     KernelData k_data = KernelData::Default<border_params>(params);
     GetUpdateDispatchDataFunc(k_data);
 
