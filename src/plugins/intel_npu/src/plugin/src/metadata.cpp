@@ -59,7 +59,8 @@ size_t OpenvinoVersion::get_openvino_version_size() const {
 MetadataBase::MetadataBase(uint32_t version, uint64_t blobDataSize)
     : _version(version),
       _blobDataSize(blobDataSize),
-      _logger("NPUBlobMetadata", Logger::global().level()) {}
+      _logger("NPUBlobMetadata", Logger::global().level()),
+      _source(ov::Tensor()) {}
 
 Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion)
     : MetadataBase{METADATA_VERSION_2_0, blobSize},
@@ -89,23 +90,24 @@ MetadataBase::Source::Source(std::istream& source) : stream(source) {}
 MetadataBase::Source::Source(const ov::Tensor& source) : tensor(source) {}
 
 void MetadataBase::read(std::istream& tensor) {
-    read(Source(tensor), true);
+    _source = Source(tensor);
+    _isStream = true;
+    read();
 }
 
 void MetadataBase::read(const ov::Tensor& tensor) {
-    read(Source(tensor), false);
+    _source = Source(tensor);
+    _isStream = false;
+    read();
 }
 
-void MetadataBase::read_data_from_source(const Source& source,
-                                         const bool isStream,
-                                         char* destination,
-                                         const size_t size) {
-    if (isStream) {
-        source.stream.get().read(destination, size);
+void MetadataBase::read_data_from_source(char* destination, const size_t size) {
+    if (_isStream) {
+        _source.stream.get().read(destination, size);
         return;
     }
 
-    std::memcpy(destination, source.tensor.get().data<const char>() + _coursorOffset, size);
+    std::memcpy(destination, _source.tensor.get().data<const char>() + _coursorOffset, size);
     _coursorOffset += size;
 }
 
@@ -121,44 +123,36 @@ void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
 
-void Metadata<METADATA_VERSION_2_0>::read(const Source& source, const bool isStream) {
-    if (isStream) {
-        _ovVersion.read(source.stream);
+void Metadata<METADATA_VERSION_2_0>::read() {
+    if (_isStream) {
+        _ovVersion.read(_source.stream);
     } else {
-        _ovVersion.read(source.tensor);
+        _ovVersion.read(_source.tensor);
         _coursorOffset = _ovVersion.get_openvino_version_size();
     }
 }
 
-void Metadata<METADATA_VERSION_2_1>::read(const Source& source, const bool isStream) {
-    Metadata<METADATA_VERSION_2_0>::read(source, isStream);
+void Metadata<METADATA_VERSION_2_1>::read() {
+    Metadata<METADATA_VERSION_2_0>::read();
 
     uint64_t numberOfInits;
-    read_data_from_source(source, isStream, reinterpret_cast<char*>(&numberOfInits), sizeof(numberOfInits));
+    read_data_from_source(reinterpret_cast<char*>(&numberOfInits), sizeof(numberOfInits));
 
     if (numberOfInits) {
         _initSizes = std::vector<uint64_t>(numberOfInits);
         for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
-            read_data_from_source(source,
-                                  isStream,
-                                  reinterpret_cast<char*>(&_initSizes->at(initIndex)),
+            read_data_from_source(reinterpret_cast<char*>(&_initSizes->at(initIndex)),
                                   sizeof(_initSizes->at(initIndex)));
         }
     }
 }
 
-void Metadata<METADATA_VERSION_2_2>::read(const Source& source, const bool isStream) {
-    Metadata<METADATA_VERSION_2_1>::read(source, isStream);
+void Metadata<METADATA_VERSION_2_2>::read() {
+    Metadata<METADATA_VERSION_2_1>::read();
 
     uint64_t numberOfInputLayouts, numberOfOutputLayouts;
-    read_data_from_source(source,
-                          isStream,
-                          reinterpret_cast<char*>(&numberOfInputLayouts),
-                          sizeof(numberOfInputLayouts));
-    read_data_from_source(source,
-                          isStream,
-                          reinterpret_cast<char*>(&numberOfOutputLayouts),
-                          sizeof(numberOfOutputLayouts));
+    read_data_from_source(reinterpret_cast<char*>(&numberOfInputLayouts), sizeof(numberOfInputLayouts));
+    read_data_from_source(reinterpret_cast<char*>(&numberOfOutputLayouts), sizeof(numberOfOutputLayouts));
 
     uint16_t stringLength;
 
@@ -166,10 +160,10 @@ void Metadata<METADATA_VERSION_2_2>::read(const Source& source, const bool isStr
         _inputLayouts = std::vector<ov::Layout>();
         _inputLayouts->reserve(numberOfInputLayouts);
         for (uint64_t inputIndex = 0; inputIndex < numberOfInputLayouts; ++inputIndex) {
-            read_data_from_source(source, isStream, reinterpret_cast<char*>(&stringLength), sizeof(stringLength));
+            read_data_from_source(reinterpret_cast<char*>(&stringLength), sizeof(stringLength));
 
             std::string layoutString(stringLength, 0);
-            read_data_from_source(source, isStream, const_cast<char*>(layoutString.c_str()), stringLength);
+            read_data_from_source(const_cast<char*>(layoutString.c_str()), stringLength);
 
             try {
                 _inputLayouts->push_back(ov::Layout(std::move(layoutString)));
@@ -186,10 +180,10 @@ void Metadata<METADATA_VERSION_2_2>::read(const Source& source, const bool isStr
         _outputLayouts = std::vector<ov::Layout>();
         _outputLayouts->reserve(numberOfOutputLayouts);
         for (uint64_t outputIndex = 0; outputIndex < numberOfOutputLayouts; ++outputIndex) {
-            read_data_from_source(source, isStream, reinterpret_cast<char*>(&stringLength), sizeof(stringLength));
+            read_data_from_source(reinterpret_cast<char*>(&stringLength), sizeof(stringLength));
 
             std::string layoutString(stringLength, 0);
-            read_data_from_source(source, isStream, const_cast<char*>(layoutString.c_str()), stringLength);
+            read_data_from_source(const_cast<char*>(layoutString.c_str()), stringLength);
 
             try {
                 _outputLayouts->push_back(ov::Layout(std::move(layoutString)));

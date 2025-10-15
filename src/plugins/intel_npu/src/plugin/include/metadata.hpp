@@ -35,7 +35,7 @@ public:
      */
     void read(const ov::Tensor& tensor);
 
-    virtual void read(const Source& source, const bool isStream) = 0;
+    virtual void read() = 0;
 
     /**
      * @brief Writes metadata to a stream.
@@ -103,12 +103,9 @@ protected:
     };
 
     /**
-     * @brief Reads data from the given source. The implementation depends on the type of source.
-     *
-     * @param source Either a stream or an OpenVINO tensor. The metadata will be read from this buffer.
-     * @param isStream Flag indicating the type of the source buffer.
+     * @brief Reads data from the source containing the metadata. The implementation depends on the type of source.
      */
-    void read_data_from_source(const Source& source, const bool isStream, char* destination, const size_t size);
+    void read_data_from_source(char* destination, const size_t size);
 
     /**
      * @brief Adds the size of the binary object and the magic string to the end of the stream.
@@ -122,6 +119,18 @@ protected:
     uint32_t _version;
     uint64_t _blobDataSize;
     Logger _logger;
+
+    /**
+     * @brief Either the stream or tensor used for providing the metadata.
+     * @details Stored as attribute in order to avoid repeatedly passing the same arguments to some methods.
+     */
+    Source _source;
+
+    /**
+     * @brief Flag indicating the type of source used for providing the metadata
+     * @details Stored as attribute in order to avoid repeatedly passing the same arguments to some methods.
+     */
+    bool _isStream;
 
     /**
      * @brief Used only when the source buffer is an OV tensor for managing the read coursor.
@@ -219,7 +228,7 @@ class Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 public:
     Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion = std::nullopt);
 
-    void read(const Source& source, const bool isStream) override;
+    void read() override;
 
     /**
      * @attention It's a must to first write metadata version in any metadata specialization.
@@ -265,7 +274,7 @@ public:
      * @details The number of init schedules, along with the size of each init binary object are read in addition to the
      * information provided by the previous metadata versions.
      */
-    void read(const Source& source, const bool isStream) override;
+    void read() override;
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are written in addition to
@@ -295,7 +304,7 @@ public:
              const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt);
 
-    void read(const Source& source, const bool isStream) override;
+    void read() override;
 
     void write(std::ostream& stream) override;
 
