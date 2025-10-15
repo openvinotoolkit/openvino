@@ -141,7 +141,7 @@ The full ``optimum-cli`` command examples are shown below:
 
 There are pre-compressed models on Hugging Face that can be exported as-is, for example:
 
-* 4-bit (INT4) `GPTQ models <https://huggingface.co/models?other=gptq,4-bit&sort=trending>`__
+* 4-bit (INT4) `GPTQ models <https://huggingface.co/models?other=gptq,4-bit&sort=trending>`__,
 * `LLMs optimized for NPU <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__, hosted and maintained by OpenVINO.
 
 In this case, the commands are as simple as:
