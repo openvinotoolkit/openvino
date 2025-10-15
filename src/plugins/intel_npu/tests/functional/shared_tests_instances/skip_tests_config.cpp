@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "common/functions.h"
+#include "common/functions.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/common_utils.hpp"

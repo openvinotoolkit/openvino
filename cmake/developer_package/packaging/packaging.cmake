@@ -217,7 +217,7 @@ function(ov_check_conflicts_versions var_name)
 
     # perform check
     if(NOT ov_prev_version IN_LIST ${var_name})
-        message(FATAL_ERROR "List ${var_name} (${${var_name}}) does not contain verison ${ov_prev_version}")
+        message(FATAL_ERROR "List ${var_name} (${${var_name}}) does not contain version ${ov_prev_version}")
     endif()
 endfunction()
 
