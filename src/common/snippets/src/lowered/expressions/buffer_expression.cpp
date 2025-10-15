@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,6 +129,11 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
             continue;
         }
         const auto& dim_idx = loop_port.get_dim_idx();
+        // loops are traversed from outer to inner, so if the dimension index is already processed,
+        // then the current loop work amount was already taken into account when outer loop was processed
+        if (processed_dim_idxs.count(dim_idx) > 0) {
+            continue;
+        }
         if (dim_idx < rank) {
             if (const auto& unified_loop_info = ov::as_type_ptr<UnifiedLoopInfo>(loop_info)) {
                 m_allocation_size = utils::dynamic_safe_mul(m_allocation_size, unified_loop_info->get_work_amount());

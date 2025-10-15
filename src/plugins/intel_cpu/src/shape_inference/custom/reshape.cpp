@@ -68,7 +68,6 @@ Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     if (minusOneIdx >= 0) {
         if (outputProduct != 0) {
             outputShape[minusOneIdx] = inputProduct / outputProduct;
-            outputProduct *= outputShape[minusOneIdx];
         } else {
             outputShape[minusOneIdx] = 0;
         }

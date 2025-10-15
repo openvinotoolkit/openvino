@@ -21,7 +21,7 @@ namespace ov::snippets::pass {
 class ExtractUnsupportedTransposes : public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("ExtractUnsupportedTransposes", "0");
-    ExtractUnsupportedTransposes() = default;
+    ExtractUnsupportedTransposes() : SubgraphPass("ExtractUnsupportedTransposes") {}
 
     bool run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) override;
 };

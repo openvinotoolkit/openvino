@@ -64,7 +64,7 @@ if (WINDOWS_STORE)
     set(_tbb_compiler_subdir ${_tbb_compiler_subdir}_ui)
 endif()
 
-#set conveniance variable to locate TBB files (these are used for a PSXE install)
+#set convenience variable to locate TBB files (these are used for a PSXE install)
 get_filename_component(_tbb_lib_path "${_tbb_root}/lib/${_tbb_arch_subdir}/${_tbb_compiler_subdir}" ABSOLUTE)
 get_filename_component(_tbb_inc_path "${_tbb_root}/include/" ABSOLUTE)
 
