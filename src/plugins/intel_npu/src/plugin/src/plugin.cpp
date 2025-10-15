@@ -948,10 +948,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                  weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt,
                                  weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
-    const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(graph->get_metadata().inputs,
-                                                                     graph->get_metadata().outputs,
-                                                                     metadata->get_input_layouts(),
-                                                                     metadata->get_output_layouts());
+    const std::shared_ptr<ov::Model> modelDummy =
+        create_dummy_model(graph->get_metadata().inputs,
+                           graph->get_metadata().outputs,
+                           metadata ? metadata->get_input_layouts() : std::nullopt,
+                           metadata ? metadata->get_output_layouts() : std::nullopt);
 
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
