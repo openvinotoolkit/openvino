@@ -52,8 +52,7 @@ OutputVector translate_cat_common(const NodeContext& context,
         bool is_complex = complex != nullptr;
 
         if (is_complex) {
-            tensor = complex->get_input_source_output(0);
-            return {context.mark_node(std::make_shared<ComplexTypeMark>(tensor))};
+            return {tensor};
         }
         else if (!ov::as_type_ptr<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr())) {
             auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
