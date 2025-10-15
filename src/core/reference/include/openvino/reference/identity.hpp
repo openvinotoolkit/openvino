@@ -26,7 +26,7 @@ static inline void identity(const void* input,
         if (type == ov::element::string) {
             const std::string* str_input = static_cast<const std::string*>(input);
             std::string* str_output = static_cast<std::string*>(output);
-            // Asign string values one by one
+            // Assign string values one by one
             auto elem_num = size_in_bytes / sizeof(std::string);
             for (size_t i = 0; i < elem_num; i++) {
                 str_output[i] = str_input[i];
