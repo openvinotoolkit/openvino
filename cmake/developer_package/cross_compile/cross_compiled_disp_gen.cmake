@@ -54,10 +54,10 @@ function(_generate_dispatcher)
             string(APPEND DISP_CONTENT
                 "namespace ${_arch} {\n    ${SIGNATURE}\; \n}\n")
         endforeach()
-        ## remove default value in SIGNATURE
-        string(REGEX REPLACE "[ ]*=[ ]*[a-zA-Z0-9_]+[ ]*" "" SIGNATURE_NO_DEFAULT ${SIGNATURE})   
+
         string(APPEND DISP_CONTENT
-                "namespace ${XARCH_CURRENT_NAMESPACE} {\n\n${SIGNATURE_NO_DEFAULT} {\n")
+                "namespace ${XARCH_CURRENT_NAMESPACE} {\n\n${SIGNATURE} {\n")
+
         foreach(_arch IN LISTS XARCH_SET)
             string(APPEND DISP_CONTENT
                 "    if (${_CPU_CHECK_${_arch}}) {\n        return ${_arch}::${CALL_LINE}\;\n    }\n")
@@ -98,9 +98,6 @@ function(_generate_call_line_from_signature SIGNATURE RESULT_NAME)
     string(REPLACE ")" "" _args ${_args})
     string(REPLACE "," ";" _args ${_args})   # now it's list
     foreach(_arg_elem ${_args})
-        string(STRIP ${_arg_elem} _arg_elem)
-        ## remove default value 
-        string(REGEX REPLACE "=.*$" "" _arg_elem ${_arg_elem})   
         string(REGEX MATCH "[a-zA-Z0-9_]*[ ]*$" _arg_elem "${_arg_elem}")
         list(APPEND _arg_names ${_arg_elem})
     endforeach()
