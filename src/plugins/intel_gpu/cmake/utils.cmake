@@ -5,7 +5,7 @@
 function(ov_gpu_set_runtime_interface_for TARGET_NAME)
     if(GPU_RT_TYPE STREQUAL "L0")
         target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_ZE_RT=1)
-        target_link_libraries(${TARGET_NAME} PUBLIC LevelZero::LevelZero ze_compute_runtime_headers)
+        target_link_libraries(${TARGET_NAME} PUBLIC LevelZero::LevelZero)
     elseif(GPU_RT_TYPE STREQUAL "OCL")
         target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_OCL_RT=1)
         # Do not link OpenCL as It is already linked to the targets that require it
