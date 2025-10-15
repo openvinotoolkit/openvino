@@ -103,12 +103,8 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     auto compute_queue_props = std::find_if(queue_properties.begin(), queue_properties.end(), [](const ze_command_queue_group_properties_t& qp) {
         return (qp.flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) != 0;
     });
-    auto copy_queue_props = std::find_if(queue_properties.begin(), queue_properties.end(), [](const ze_command_queue_group_properties_t& qp) {
-        return (qp.flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COPY) != 0 && (qp.flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) == 0;
-    });
 
     OPENVINO_ASSERT(compute_queue_props != queue_properties.end());
-    OPENVINO_ASSERT(copy_queue_props != queue_properties.end());
 
     uint32_t memory_properties_count = 0;
     ZE_CHECK(zeDeviceGetMemoryProperties(device, &memory_properties_count, nullptr));
@@ -200,7 +196,6 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.kernel_timestamp_valid_bits  = device_properties.kernelTimestampValidBits;
     info.timer_resolution  = device_properties.timerResolution;
     info.compute_queue_group_ordinal = std::distance(queue_properties.begin(), compute_queue_props);
-    info.copy_queue_group_ordinal = std::distance(queue_properties.begin(), copy_queue_props);
 
     static_assert(ZE_MAX_DEVICE_UUID_SIZE == ov::device::UUID::MAX_UUID_SIZE, "");
     static_assert(ZE_MAX_DEVICE_LUID_SIZE_EXT == ov::device::LUID::MAX_LUID_SIZE, "");

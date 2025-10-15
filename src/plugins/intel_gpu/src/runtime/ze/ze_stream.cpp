@@ -202,9 +202,15 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     command_queue_desc.mode = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
     command_queue_desc.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
 
+    zex_intel_queue_copy_operations_offload_hint_exp_desc_t cp_offload_desc = {};
+    cp_offload_desc.stype = ZEX_INTEL_STRUCTURE_TYPE_QUEUE_COPY_OPERATIONS_OFFLOAD_HINT_EXP_PROPERTIES;
+    cp_offload_desc.copyOffloadEnabled = true;
+    cp_offload_desc.pNext = nullptr;
+    if (info.supports_cp_offload) {
+        command_queue_desc.pNext = &cp_offload_desc;
+    }
+
     ZE_CHECK(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_command_list));
-    command_queue_desc.ordinal = info.copy_queue_group_ordinal;
-    ZE_CHECK(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_copy_command_list));
     if (m_queue_type == QueueTypes::in_order && info.supports_cb_events) {
         m_ev_factory = std::make_unique<ze_cb_event_factory>(engine, config.get_enable_profiling());
     } else {
@@ -219,8 +225,6 @@ ze_stream::~ze_stream() {
 #endif
     if (m_command_list != nullptr)
         zeCommandListDestroy(m_command_list);
-    if (m_copy_command_list != nullptr)
-        zeCommandListDestroy(m_copy_command_list);
 }
 
 void ze_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
