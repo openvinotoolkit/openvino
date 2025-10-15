@@ -11,8 +11,8 @@ namespace kernel_selector {
 
 static const size_t sub_group_size = 16;
 static const size_t feature_block_size = 16;
-// Large conv threshold is huristically set to 1B
-constexpr size_t ONE_BILLION = 1000000000LL;
+// Large conv threshold is heuristically set to 1B
+constexpr float large_conv_threshold = 1.0e9f;
 
 namespace {
 FusedOpsConfiguration GenerateFusedOpsConfiguration_f16(size_t conf_id, std::string input_name, Datatype dt,
@@ -117,10 +117,10 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
         ((out.GetDType() == Datatype::F16 && b % 32 == 0) ||
         (out.GetDType() == Datatype::F32 && b % 16 == 0));
     // Use 32 pixel per work item for large conv for performance in fp32 1d conv
-    const bool is_1d_large_conv = !ver_16mb16c &&
-                                  (out.GetDType() == Datatype::F32) &&
+    float workload = static_cast<float>(f * std::sqrt(y) * std::pow(params.filterSize.y, 1.5));
+    const bool is_1d_large_conv = (out.GetDType() == Datatype::F32 && b % 32 == 0) &&
                                   (x == 1 && z == 1) && // check 1d conv
-                                  (f * y * params.weights.Y().v > ONE_BILLION); // check large conv
+                                  (workload > large_conv_threshold); // check large conv
 
     if (is_1stconv) {
         auto oh_block = 1;
@@ -254,9 +254,10 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     const bool ver_16mb16c = !is_1stconv && ((output.GetDType() == Datatype::F16 && output.Batch().v % 32 == 0) ||
                                              (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
     // Use 32 pixel per work item for large conv for performance in fp32 1d conv
+    float workload = static_cast<float>(output.Feature().v * std::sqrt(output.Y().v) * std::pow(params.filterSize.y, 1.5));
     const bool is_1d_large_conv = (output.GetDType() == Datatype::F32 && output.Batch().v % 32 == 0) &&
                                   (output.X().v == 1 && output.Z().v == 1) && // check 1d conv
-                                  (output.Feature().v * output.Y().v * params.weights.Y().v > ONE_BILLION); // check large conv
+                                  (workload > large_conv_threshold); // check large conv
 
     if (is_1d_large_conv) {
         jit.AddConstant(MakeJitConstant("VER_32MB_LARGE_1D", 1));
@@ -316,21 +317,12 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
 
     if (ver_16mb16c && !params.fused_ops.empty()) {
         const auto dims_num = DataTensor::ChannelsCount(input.GetLayout());
-        if (output.GetDType() != Datatype::F16) {
+        if (output.GetDType() != Datatype::F16 && !is_1d_large_conv) {
             FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num, true);
             FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num, true);
             FusedOpsConfiguration conf_scalar0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num, false);
             FusedOpsConfiguration conf_scalar1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num, false);
-            if (!is_1d_large_conv) {
-                jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_scalar0, conf_scalar1}));
-            } else {
-                FusedOpsConfiguration conf_vec2 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num, true);
-                FusedOpsConfiguration conf_vec3 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num, true);
-                FusedOpsConfiguration conf_scalar2 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num, false);
-                FusedOpsConfiguration conf_scalar3 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num, false);
-                jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_vec2, conf_vec3,
-                                                        conf_scalar0, conf_scalar1, conf_scalar2, conf_scalar3}));
-            }
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_scalar0, conf_scalar1}));
         } else {
             FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "C0", input_dt, dims_num, true);
             FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "C0", input_dt, dims_num, true);

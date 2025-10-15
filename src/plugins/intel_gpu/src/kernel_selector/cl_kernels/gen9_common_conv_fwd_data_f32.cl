@@ -1190,7 +1190,7 @@ const float sum_scale = 1;
 
 #if HAS_FUSED_OPS
             { FUSED_OPS_SCALAR0; C00[i] = FUSED_OPS_RESULT_SCALAR0; }
-            { FUSED_OPS_SCALAR1; C00[i] = FUSED_OPS_RESULT_SCALAR1; }
+            { FUSED_OPS_SCALAR1; C01[i] = FUSED_OPS_RESULT_SCALAR1; }
 #endif
             if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED) {
                 dst_write0[i * OC_BLOCK + local_id] = C00[i];
