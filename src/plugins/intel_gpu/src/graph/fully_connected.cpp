@@ -172,9 +172,8 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     auto weights_layout = *impl_param.weights_layout;
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
-    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0]) {
+    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0])
         output_type = *desc->output_data_types[0];
-    }
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
