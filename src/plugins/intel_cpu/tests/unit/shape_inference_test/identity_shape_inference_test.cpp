@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "identity_shape_inference.hpp"
+
 #include <gtest/gtest.h>
 
-#include "identity_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;
@@ -60,7 +61,7 @@ TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_9_9_keep_batch_big_matri
 }
 
 TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_5_3_2_2_complex_multi_dim_matrix) {
-    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(5));
     auto op = make_op(data);
     input_shapes = StaticShapeVector{{10, 5, 3, 2, 2}};
 
