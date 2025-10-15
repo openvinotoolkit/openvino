@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <ov_ops/gather_compressed.hpp>
 #include <set>
 #include <vector>
 
@@ -50,6 +49,8 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "ov_ops/fully_connected.hpp"
+#include "ov_ops/gather_compressed.hpp"
 
 // Common transformations
 #include "openvino/pass/constant_folding.hpp"
@@ -146,6 +147,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
+#include "transformations/cpu_opset/common/pass/convert_batch_gather_matmul_to_compressed.hpp"
 #include "transformations/cpu_opset/common/pass/convert_moe_matmuls.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
@@ -567,6 +569,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_X64(manager, ConvertMoEMatMuls);
+    CPU_REGISTER_PASS_X64(
+        manager,
+        ConvertBatchGatherMatmulToBatchGatherMatmulCompressed,
+        // TODO: create separate helpers (defining supported precisions) for BatchGatherMatmul CPU node
+        ov::intel_cpu::node::FullyConnected::getSupportedCompressedActivationsTypes(),
+        ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(),
+        // TODO: set a plugin configuration predicate when CPU node is implemented
+        nullptr);
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCachePrecision = config.keyCachePrecision;
     cacheConfig.valueCachePrecision = config.valueCachePrecision;

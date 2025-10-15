@@ -52,10 +52,10 @@ void BatchGatherMatmul::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(GroupGatherMatmul_validate_and_infer_types);
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this,
-                          input_size == 4,
+                          input_size >= 4,
                           "Number of inputs is incorrect. Current value is: ",
                           input_size,
-                          ", expected 4.");
+                          ", expected at least 4.");
 
     // Check input B is on constant path
     NODE_VALIDATION_CHECK(this, ov::op::util::is_on_constant_path(input_value(1)), "Input B must be on constant path.");
