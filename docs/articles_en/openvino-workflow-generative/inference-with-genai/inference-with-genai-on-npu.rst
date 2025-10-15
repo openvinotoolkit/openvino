@@ -302,10 +302,10 @@ runs. To do so, specify one of the following options in ``pipeline_config`` for 
 CACHE_DIR
 -----------------------------------------------------------------------------------------------
 
-``CACHE_DIR`` is the default OpenVINO caching mechanism. The standard OpenVINO ``CACHE_MODE``
-hint defines whether the cached blob will contain its weights (``OPTIMIZE_SIZE``, results in
-faster loading for group-quantized models) or not (``OPTIMIZE_SIZE``, produces a weightless blob,
-requires the original model to be present on disk).
+``CACHE_DIR`` is the default OpenVINO caching mechanism. The  ``CACHE_MODE``
+hint defines how the cached blob stores weights. ``OPTIMIZE_SPEED`` includes the weights
+and allows faster loading for group-quantized models.`OPTIMIZE_SIZE`` excludes the weights, 
+producing a weightless blob, and requires the original model to be present on disk.
 
 .. tab-set::
 
