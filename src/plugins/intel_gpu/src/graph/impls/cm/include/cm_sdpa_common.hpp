@@ -367,15 +367,17 @@ void sdpa_kernel_lsc(
     constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
     constexpr uint q_pitch = is_qkv_fused ? ((num_heads + num_kv_heads*2) * head_size * sizeof(half)) : o_pitch;
     constexpr uint kv_pitch = is_qkv_fused ? q_pitch : (num_kv_heads * head_size * sizeof(half));
-
+    // round up head_size to multiple of 16
+    // block_2d_desc will automatically handle the tailing block
+    constexpr int padded_head_size = (head_size + 16 - 1) / 16 * 16;
     vector<float, q_step> cur_max;
     vector<float, q_step> cur_sum;
 
     cur_max = -3e38f;
     cur_sum = 0;
     constexpr int num_P_tiles = REG_N / REG_M;
-    matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
-    matrix <float, head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+    matrix<half, padded_head_size/REG_K, REG_K*REG_N> rQ;
+    matrix <float, padded_head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
 
     auto q_tokens_left = q_len;
     static_assert(q_step == REG_N);
@@ -387,7 +389,7 @@ void sdpa_kernel_lsc(
     if (q_tokens_left > 0) {
         lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_left - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
         #pragma unroll
-        for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
+        for(int k = 0, ri = 0; k < padded_head_size/2; k += REG_K/2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
             rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
         }
@@ -409,7 +411,7 @@ void sdpa_kernel_lsc(
             if (wg_local_id < local_size/2) {
                 vector<half, kv_step * REG_K> temp0;
                 b2dK.set_block_y(kv_pos);
-                for(int k = REG_K*wg_local_id; k < head_size; k += REG_K*(local_size/2)) {
+                for(int k = REG_K*wg_local_id; k < padded_head_size; k += REG_K*(local_size/2)) {
                     cm_load<lsc::Normal>(temp0, b2dK.set_block_x(k));
                     cm_slm_block_write(slm_K, slm_offset + k * kv_step * sizeof(half), temp0);
                 }
@@ -417,7 +419,7 @@ void sdpa_kernel_lsc(
                 vector<half, REG_K*REG_N> temp2;
                 b2dV.set_block_y(kv_pos);
                 #pragma unroll
-                for(int k = REG_N*(wg_local_id-(local_size/2)); k < head_size; k += REG_N*(local_size/2)) {
+                for(int k = REG_N*(wg_local_id-(local_size/2)); k < padded_head_size; k += REG_N*(local_size/2)) {
                     cm_load<lsc::VNNI>(temp2, b2dV.set_block_x(k));
                     cm_slm_block_write(slm_V, slm_offset + k * REG_K * sizeof(half), temp2);
                 }
@@ -494,7 +496,7 @@ void sdpa_kernel_lsc(
     lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_tokens_left - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
 
     #pragma unroll
-    for(int k = 0, ri=0; k < head_size; k += REG_N, ri += num_P_tiles) {
+    for(int k = 0, ri=0; k < padded_head_size; k += REG_N, ri += num_P_tiles) {
         #pragma unroll
         for(int p = 0; p < num_P_tiles; p++) {
             auto cO = rO[ri + p].format<float, REG_M, REG_N>();
@@ -525,6 +527,9 @@ void sdpa_kernel_lsc_prefetch(
     constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
     constexpr uint q_pitch = is_qkv_fused ? ((num_heads + num_kv_heads*2) * head_size * sizeof(half)) : o_pitch;
     constexpr uint kv_pitch = is_qkv_fused ? q_pitch : (num_kv_heads * head_size * sizeof(half));
+    // round up head_size to multiple of 16
+    // block_2d_desc will automatically handle the tailing block
+    constexpr int padded_head_size = (head_size + 16 - 1) / 16 * 16;
 
     vector<float, q_step> cur_max;
     vector<float, q_step> cur_sum;
@@ -532,8 +537,8 @@ void sdpa_kernel_lsc_prefetch(
     cur_max = -3e38f;
     cur_sum = 0;
     constexpr int num_P_tiles = REG_N / REG_M;
-    matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
-    matrix <float, head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+    matrix<half, padded_head_size/REG_K, REG_K*REG_N> rQ;
+    matrix <float, padded_head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
 
     auto q_tokens_left = q_len;// - q_start;
     static_assert(q_step == REG_N);
@@ -545,7 +550,7 @@ void sdpa_kernel_lsc_prefetch(
     if (q_tokens_left > 0) {
         lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_left - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
         #pragma unroll
-        for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
+        for(int k = 0, ri = 0; k < padded_head_size/2; k += REG_K/2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
             rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
         }
@@ -584,7 +589,7 @@ void sdpa_kernel_lsc_prefetch(
                                 Kmat[k].format<int32_t>());
 
             #pragma unroll
-            for(int ri = 1; ri < head_size/REG_K; ri++) {
+            for(int ri = 1; ri < padded_head_size/REG_K; ri++) {
                 //cm_slm_block_read(slm_K, GENX_NONE, slm_offset + ri * Kmat.n_elems() * sizeof(half), Kmat.format<half>());
                 cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(ri*REG_K));
                 cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(ri*REG_K));
@@ -623,7 +628,7 @@ void sdpa_kernel_lsc_prefetch(
             // ugemm_PV0(slm_V, P, rO, slm_offset);
             auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
             #pragma unroll
-            for(int k = 0, ri = 0; k < head_size; k += REG_N, ri += num_P_tiles) {
+            for(int k = 0, ri = 0; k < padded_head_size; k += REG_N, ri += num_P_tiles) {
                 matrix<half, REG_K/2, REG_N*2> Vmat;
                 cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(k));
                 cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(k));
@@ -640,7 +645,7 @@ void sdpa_kernel_lsc_prefetch(
             //ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
             auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
             #pragma unroll
-            for(int k = 0, ri=0; k < head_size; k += REG_N, ri += num_P_tiles) {
+            for(int k = 0, ri=0; k < padded_head_size; k += REG_N, ri += num_P_tiles) {
                 matrix<half, REG_K/2, REG_N*2> Vmat;
 
                 cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(k));
@@ -675,7 +680,7 @@ void sdpa_kernel_lsc_prefetch(
     lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_tokens_left - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
 
     #pragma unroll
-    for(int k = 0, ri=0; k < head_size; k += REG_N, ri += num_P_tiles) {
+    for(int k = 0, ri=0; k < padded_head_size; k += REG_N, ri += num_P_tiles) {
         #pragma unroll
         for(int p = 0; p < num_P_tiles; p++) {
             auto cO = rO[ri + p].format<float, REG_M, REG_N>();
