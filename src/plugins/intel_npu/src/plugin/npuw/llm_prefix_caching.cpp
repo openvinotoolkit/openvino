@@ -7,6 +7,7 @@
 #include "infer_request_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "util.hpp"
 
@@ -312,7 +313,8 @@ uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
         const KVData block_kv_data = retrieved_block->get_block_kv_data();
         LOG_VERB("[PrefixCache] Cache hit for block hash " << block_hash << ", restored tokens start from position "
                                                            << token_start << ".");
-        for (auto kv_per_layer : block_kv_data) {
+        ov::parallel_for(block_kv_data.size(), [&](size_t idx) {
+            auto kv_per_layer = block_kv_data[idx];
             auto kv_out_name = kv_per_layer.first;
             const auto& kv_in_name = input_name_map.at(kv_out_name);
 
@@ -325,7 +327,7 @@ uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
             auto kv_dst_tensor = request.m_prefill_request->get_tensor(request.m_prefill_in_ports.at(kv_in_name));
             auto kv_dst_slice = ov::npuw::util::view(kv_dst_tensor, kv_dim, token_start, block_size);
             ov::npuw::util::copy_tensor_by_dim(kv_tensor, kv_dst_slice, kv_dim, kv_dim);
-        }
+        });
 
         restored_token_num += block_size;
 
