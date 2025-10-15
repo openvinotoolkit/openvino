@@ -119,7 +119,7 @@ The full ``optimum-cli`` command examples are shown below:
 
       .. note::
 
-         Usually, NF4-CW provides a better accuracy compared to INT4-CW even with data-free compression, and data-aware methods can are also available and can further improve the compressed model accuracy.
+         Usually, NF4-CW provides a better accuracy compared to INT4-CW even with data-free compression. Data-aware methods are also available and can further improve the compressed model accuracy.
 
    .. tab-item:: INT4-GQ
 
