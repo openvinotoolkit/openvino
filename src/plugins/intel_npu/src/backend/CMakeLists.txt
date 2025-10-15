@@ -30,7 +30,6 @@ target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../compiler_adapter/include>
-        $<BUILD_INTERFACE:${NPU_PLUGIN_SOURCE_DIR}/thirdparty/jit-tools/mlir-runtime>
 )
 
 target_link_libraries(${TARGET_NAME}

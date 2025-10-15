@@ -9,6 +9,7 @@ file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 if(NOT ENABLE_LLVM_BACKEND)
     list(REMOVE_ITEM SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/include/irgraph.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/npu_mlir_runtime.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/npu_mlir_runtime_api.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/irgraph.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/npu_mlir_runtime_api.cpp
@@ -36,13 +37,6 @@ target_link_libraries(${TARGET_NAME}
         openvino::npu_al
         openvino::npu_common
 )
-
-if(ENABLE_LLVM_BACKEND)
-    target_include_directories(${TARGET_NAME}
-        PUBLIC
-            $<BUILD_INTERFACE:${NPU_PLUGIN_SOURCE_DIR}/thirdparty/jit-tools/mlir-runtime>
-    )
-endif()
 
 #
 # targets install
