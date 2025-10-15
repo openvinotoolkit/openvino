@@ -18,7 +18,6 @@ public:
     // empirically.
     static constexpr int default_multiplier = 32;
 
-public:
     CpuParallel() = delete;
     CpuParallel(CpuParallel&) = delete;
     CpuParallel(ov::intel_cpu::TbbPartitioner partitioner = ov::intel_cpu::TbbPartitioner::STATIC,
