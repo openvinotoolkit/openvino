@@ -503,8 +503,8 @@ Since OpenVINO 2025.1, this is no longer required. Weights can remain in FP16 or
 Run speech-to-text with Whisper
 ***********************************************************************************************
 
-There is no any NPU specifics in running the Whisper GenAI pipeline on NPU, so a standard
-OpenVINO GenAI sample can work without limitations.
+There are no NPU-specific requirements when running the Whisper GenAI pipeline on NPU, so a standard
+OpenVINO GenAI sample works without any limitations.
 
 
 Troubleshooting
