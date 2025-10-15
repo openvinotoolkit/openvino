@@ -18,7 +18,7 @@
 #include "intel_npu/utils/zero/zero_result.hpp"
 
 #ifdef NPU_LLVM_BACKEND
-#include "irgraph.hpp"
+#    include "irgraph.hpp"
 #endif
 
 #include "mem_usage.hpp"
