@@ -75,6 +75,7 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_PREFILL_ATTENTION_HINT>();
     desc.add<NPUW_LLM_GENERATE_ATTENTION_HINT>();
     desc.add<NPUW_LLM_SHARED_HEAD>();
+    desc.add<NPUW_WHISPER>();
 }
 
 std::string ov::npuw::s11n::anyToString(const ov::Any& var) {

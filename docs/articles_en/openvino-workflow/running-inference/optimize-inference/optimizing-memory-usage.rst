@@ -41,7 +41,7 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
     pressure, the following options are available:
 
     * Apply ``malloc_trim(0)``. The function attempts to release free memory even from thread
-      caches, so it may signifficantly decrease and stabilize VMRSS usage
+      caches, so it may significantly decrease and stabilize VMRSS usage
 
     * Use glibc ``Tunables``. A couple of promising options are:
       ``glibc.malloc.trim_threshold`` and `glibc.malloc.arena_max`.
