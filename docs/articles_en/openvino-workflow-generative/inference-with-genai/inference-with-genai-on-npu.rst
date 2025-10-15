@@ -260,10 +260,10 @@ and text generation (subsequent tokens) behavior, respectively.
 * ``STATIC`` -- disables dynamic prompt execution, may provide better performance for specific prompt sizes.
   Default behavior before OpenVINO 2025.3.
 
-``GENERATE_HINT`` -- fine-tune the text generation stage:
+``GENERATE_HINT`` -- fine-tunes the text generation stage:
 
 * ``FAST_COMPILE`` (default) -- enables fast compilation at the expense of performance,
-* ``BEST_PERF`` -- ensures best possible performance at lower compilation speed.
+* ``BEST_PERF`` -- ensures the best possible performance at lower compilation speed.
 
 Use the following code snippet:
 
