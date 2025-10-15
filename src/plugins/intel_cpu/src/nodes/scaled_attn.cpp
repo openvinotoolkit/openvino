@@ -1256,9 +1256,19 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     }
     // sink_input
     if (orginSDPInputNumber > 5) {
-        config.inConfs[nextPortIdx].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getInputShapeAtPort(nextPortIdx)));
-        nextPortIdx++;
+        auto sinkPrecision = getOriginalInputPrecisionAtPort(nextPortIdx);
+        if (sinkPrecision == ov::element::f32) {
+            config.inConfs[nextPortIdx].setMemDesc(
+                creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getInputShapeAtPort(nextPortIdx)));
+            nextPortIdx++;
+        } else {
+            CPU_NODE_THROW("Unexpected sink precision ",
+                           sinkPrecision,
+                           " for node with type: ",
+                           getTypeStr(),
+                           " and name ",
+                           getName());
+        }
     }
 
     if (m_config.config.fuse_concat) {
