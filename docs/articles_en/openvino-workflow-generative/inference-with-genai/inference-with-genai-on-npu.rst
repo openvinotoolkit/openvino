@@ -133,7 +133,7 @@ The full ``optimum-cli`` command examples are shown below:
 .. note::
 
    The NF4 data type is only supported on Intel® Core Ultra Processors Series 2 NPUs (formerly
-   codenamed Lunar Lake) and beyond. Please make sure to use channel-wise quantization with NF4.
+   codenamed Lunar Lake) and beyond. Use channel-wise quantization with NF4.
 
 .. important::
 
