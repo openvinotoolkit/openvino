@@ -215,9 +215,13 @@ add_subdirectory(src/pyopenvino)
 macro(ov_define_setup_py_packaging_vars)
     # Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined inside pybind11
     execute_process(COMMAND ${Python3_EXECUTABLE} -c "import sys; print(f'python{sys.version_info.major}.{sys.version_info.minor}{sys.abiflags}')"
-                    OUTPUT_VARIABLE pyversion OUTPUT_STRIP_TRAILING_WHITESPACE)
-    if(NOT pyversion)
+                    OUTPUT_VARIABLE pyversion OUTPUT_STRIP_TRAILING_WHITESPACE
+                    RESULT_VARIABLE pyversion_result)
+    if(NOT pyversion OR pyversion_result)
         set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
+        message(STATUS "Failed to detect pyversion with abiflags, using fallback: ${pyversion}")
+    else()
+        message(STATUS "Detected pyversion with abiflags: ${pyversion}")
     endif()
 
     # define version (syncronize with tools/openvino_dev/CMakeLists.txt)
