@@ -250,9 +250,9 @@ a larger ``MAX_PROMPT_LEN`` to handle the history properly.
 Performance hints
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-You can configure the NPU LLM pipeline with the ``PREFILL_HINT`` and ``GENERATE_HINT`` options
-to fine-tune the performance behavior. These options impact the prompt processing (first token)
-and text generation (all other tokens) behavior respectively.
+You can configure the NPU LLM pipeline using the ``PREFILL_HINT`` and ``GENERATE_HINT`` options
+to fine-tune performance. These options impact prompt processing (first token)
+and text generation (subsequent tokens) behavior, respectively.
 
 ``PREFILL_HINT`` -- fine-tune the prompt processing stage:
 
