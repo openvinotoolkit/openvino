@@ -1787,7 +1787,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                            head_sum,
                                                                            key_group_size,
                                                                            value_group_size,
-                                                                           quant_key_by_channel);
+                                                                           quant_key_by_channel,
+                                                                           sink_input);
         } else {
             OPENVINO_THROW("Unsupported precision: ", present_key.get_precision());
         }

@@ -44,7 +44,8 @@ void attn_softmax(void* a,
                                          len,
                                          total_size,
                                          attn_mask_prec,
-                                         dst_precision);
+                                         dst_precision,
+                                         sink);
         return;
     }
 #endif

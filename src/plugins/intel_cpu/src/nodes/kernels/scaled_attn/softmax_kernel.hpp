@@ -1211,8 +1211,8 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                              size_t total_size,
                                              ov::element::Type attn_mask_prec,
                                              ov::element::Type dst_precision,
-                                             float alibi_slope,
-                                             const float* sink) {
+                                             const float* sink,
+                                             float alibi_slope) {
     using func_fp32_type = void (*)(ov::float16*,
                                     float,
                                     const ov::float16*,

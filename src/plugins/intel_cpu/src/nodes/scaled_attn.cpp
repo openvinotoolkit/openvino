@@ -701,7 +701,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                              kv_len,
                              precision,
                              precision,
-                             precision);
+                             precision,
+                             nullptr);
             }
             arm_compute::TensorInfo outInfo;
             arm_compute::Tensor outTensor;
