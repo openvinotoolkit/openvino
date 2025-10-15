@@ -21,7 +21,7 @@ const std::vector<ov::element::Type> netPrecisions = {
 };
 
 /**
- * 4D permute tests
+ * 4D Identity tests
  */
 const std::vector<std::vector<ov::Shape>> inputShapes = {
         {{1, 3, 100, 100}},
@@ -39,7 +39,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Identity,
                          IdentityLayerTest::getTestCaseName);
 
 /**
- * 5D permute tests
+ * 5D Identity tests
  */
 const std::vector<std::vector<ov::Shape>> inputShapes5D = {
         {{2, 3, 4, 12, 64}},
