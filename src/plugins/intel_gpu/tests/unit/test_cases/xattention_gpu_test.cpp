@@ -501,50 +501,6 @@ private:
         return data;
     }
 
-static std::vector<ov::float16> generate_input_data_ww(
-    tests::random_generator& rg,
-    size_t num_heads,
-    size_t tokens_num,
-    size_t k_head_size,
-    float stddev = 0.5f,   // 控制数据分布集中程度
-    bool normalize = true   // 是否对每个向量做归一化
-) {
-    const size_t total_elements_num = tokens_num * num_heads * k_head_size;
-    auto data = rg.generate_random_1d<ov::float16>(total_elements_num, -1, 1);
-
-    // 将均匀分布映射到近似正态分布
-    for (size_t i = 0; i < total_elements_num; ++i) {
-        float x = static_cast<float>(data[i]);
-        // Box-Muller transform for simple Gaussian-like distribution
-        float u1 = (x + 1.f) / 2.f; // [0,1]
-        float u2 = rg.generate_random_1d<float>(1, 0.f, 1.f)[0]; // 另一个随机数
-        float r = std::sqrt(-2.f * std::log(u1 + 1e-6f)) * stddev; // 避免 log(0)
-        float theta = 2.f * 3.1415926535f * u2;
-        float val = r * std::cos(theta);
-        data[i] = ov::float16(val);
-    }
-
-    if (normalize) {
-        // 对每个 head 的每个 token 做 L2 归一化
-        for (size_t head_idx = 0; head_idx < num_heads; ++head_idx) {
-            for (size_t token_idx = 0; token_idx < tokens_num; ++token_idx) {
-                float norm = 0.f;
-                for (size_t dim = 0; dim < k_head_size; ++dim) {
-                    float val = static_cast<float>(data[head_idx * tokens_num * k_head_size + token_idx * k_head_size + dim]);
-                    norm += val * val;
-                }
-                norm = std::sqrt(norm) + 1e-6f;
-                for (size_t dim = 0; dim < k_head_size; ++dim) {
-                    size_t idx = head_idx * tokens_num * k_head_size + token_idx * k_head_size + dim;
-                    data[idx] = ov::float16(static_cast<float>(data[idx]) / norm);
-                }
-            }
-        }
-    }
-
-    return data;
-}
-
     static std::vector<int> generate_rotation_deltas_data(tests::random_generator& rg, size_t max_tokens_num, size_t rotated_blocks_num, size_t block_size, bool per_block) {
         const size_t total_elements_num = per_block ? rotated_blocks_num
                                                     : rotated_blocks_num * block_size;
