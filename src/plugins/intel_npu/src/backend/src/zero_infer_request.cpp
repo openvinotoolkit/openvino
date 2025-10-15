@@ -73,11 +73,11 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
 
 }  // namespace
 
-std::optional<size_t> ZeroInferRequest::determine_dynamic_batch_size(const IODescriptor& desc,
-                                                                     const size_t index,
-                                                                     const bool isInput,
-                                                                     const std::shared_ptr<ov::ITensor>& tensor,
-                                                                     const std::optional<size_t> batchSize) {
+std::optional<int64_t> ZeroInferRequest::determine_dynamic_batch_size(const IODescriptor& desc,
+                                                                      const size_t index,
+                                                                      const bool isInput,
+                                                                      const std::shared_ptr<ov::ITensor>& tensor,
+                                                                      const std::optional<int64_t> batchSize) {
     if (tensor == nullptr && !batchSize.has_value()) {
         return std::nullopt;
     }
@@ -204,7 +204,8 @@ void ZeroInferRequest::create_pipeline() {
 
         if (get_level_zero_input(inputIndex)) {
             if (_dynamicBatchValueChanged && batchSize.has_value() &&
-                get_level_zero_input(inputIndex)->get_shape()[utils::BATCH_AXIS] != batchSize.value()) {
+                static_cast<int64_t>(get_level_zero_input(inputIndex)->get_shape()[utils::BATCH_AXIS]) !=
+                    batchSize.value()) {
                 OPENVINO_THROW("Input tensor ",
                                _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
                                " has different batch size than other tensors.");
@@ -227,7 +228,8 @@ void ZeroInferRequest::create_pipeline() {
         if (_levelZeroOutputTensors.at(outputIndex)) {
             if (_dynamicBatchValueChanged) {
                 if (batchSize.has_value() &&
-                    _levelZeroOutputTensors.at(outputIndex)->get_shape()[utils::BATCH_AXIS] == batchSize.value()) {
+                    static_cast<int64_t>(_levelZeroOutputTensors.at(outputIndex)->get_shape()[utils::BATCH_AXIS]) ==
+                        batchSize.value()) {
                     _logger.debug("ZeroInferRequest::create_pipeline - tensor %s was already allocated",
                                   _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
                     continue;
@@ -550,7 +552,8 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
             return userTensor;
         } else {
-            if (batchSize.has_value() && userTensor->get_shape()[utils::BATCH_AXIS] == batchSize.value()) {
+            if (batchSize.has_value() &&
+                static_cast<int64_t>(userTensor->get_shape()[utils::BATCH_AXIS]) == batchSize.value()) {
                 _logger.debug("ZeroInferRequest::get_tensor - tensor by index: %zu is already allocated", ioIndex);
 
                 auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(userTensor._ptr);
@@ -583,7 +586,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
 std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index,
                                                               const bool isInput,
-                                                              const std::optional<std::size_t> batchSize) const {
+                                                              const std::optional<std::int64_t> batchSize) const {
     const auto& descriptor = isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index);
     check_network_precision(descriptor.precision);
 
