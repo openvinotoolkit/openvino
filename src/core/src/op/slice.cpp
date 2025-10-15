@@ -117,7 +117,7 @@ bool Slice::has_evaluate() const {
 }
 
 bool Slice::can_constant_fold(const OutputVector& inputs) const {
-    return inputs.at(0).get_element_type().bitwidth() >= 8;
+    return inputs.at(0).get_element_type().bitwidth() >= 8 && Op::can_constant_fold(inputs);
 }
 
 bool Slice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
