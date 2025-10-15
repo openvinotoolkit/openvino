@@ -218,10 +218,11 @@ token (TTFT) will still be equal to the TTFT as if the full prompt was passed, b
 room in the context for the model to generate more tokens. E.g., if the input prompt is just 30 tokens,
 the model can generate up to :math:`1024 + 128 - 32 = 1120` tokens.
 
-OpenVINO 2025.3 has introduced dynamic input prompts support for NPU. The dynamism granularity is
-regulated by the new property ``NPUW_LLM_PREFILL_CHUNK_SIZE`` (default: 1024).
-If the ``MAX_PROMPT_LEN`` property set to a number greater than the chunk size, the mechanism
-activates automatically. Set ``PREFILL_HINT`` to ``STATIC`` to disable this feature.
+OpenVINO 2025.3 has introduced dynamic input prompt support for NPU. The dynamism granularity is
+controlled by the new property ``NPUW_LLM_PREFILL_CHUNK_SIZE`` (default: 1024).
+
+If the ``MAX_PROMPT_LEN`` property is set to a value greater than the chunk size, the mechanism
+is activated automatically. Set ``PREFILL_HINT`` to ``STATIC`` to disable this feature.
 
 Use the following code snippet to change the default settings:
 
