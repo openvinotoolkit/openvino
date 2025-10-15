@@ -2166,7 +2166,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 }
             }
 
-            _xatt.init(B_token, H, 1, S, Hk, xattention_stride, xattention_block_size, _helper._block_size, q.m_dt);
+            _xatt.init(B_token, H, 1, S, Hk, xattention_stride, xattention_block_size, q.m_dt);
             get_sparse_blocks(q,
                               k,
                               past_lens,
