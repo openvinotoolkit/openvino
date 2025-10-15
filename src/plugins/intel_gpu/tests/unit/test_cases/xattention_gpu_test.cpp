@@ -17,13 +17,592 @@
 #include "openvino/reference/transpose.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-#include "paged_attention_gpu_test.hpp"
 #include "random_generator.hpp"
 #include "test_utils.h"
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
 using namespace ::tests;
+
+/*
+* PagedAttention inputs:
+* [0]: query
+* shape: [batch_size_in_tokens, num_heads * head_size], type: f16
+* [1]: key
+* shape: [batch_size_in_tokens, num_kv_heads * head_size], type: f16
+* [2]: value 
+* shape: [batch_size_in_tokens, num_kv_heads * head_size], type: f16
+* [3]: key_cache
+* shape: [num_blocks, num_kv_heads, head_size, block_size], type: f16
+* [4]: value_cache
+* shape: [num_blocks, num_kv_heads, block_size, head_size], type: f16
+* [5]: past_lens
+* shape: [batch_size_in_sequences], type: i32
+* [6]: subsequence_begins
+* shape: [batch_size_in_sequences + 1], type: i32
+* [7]: block_indices
+* Shape: [num_blocks], type: i32
+* [8]: block_indices_begins
+* Shape: [batch_size_in_sequences + 1], type: i32
+* [9]: scale, optional
+* [10]: sliding_window, optional
+* [11]: alibi_slopes, optional
+* [12]: max_context_len
+* shape: [], type: i32
+* [13]: score_aggregation_window​, optional​, shape: [batch_size_in_sequences]
+* [14]: rotated_block_indices​, optional​
+* shape: [num_rotated_blocks]​, type: i32
+* [15]: rotation_deltas​, optional​
+* shape: [num_rotated_blocks, BLOCK_SIZE]​ || [num_rotated_blocks, 1]​, type: i32
+* [16]: rotation_trig_lut​, optional​
+* shape: [max_num_batched_tokens / BLOCK_SIZE, head_size]​ || [max_num_batched_tokens, head_size], type: f16
+*/
+
+
+enum class ScoresMode {
+    DISABLED = 0,
+    LAST_TOKEN,
+    SNAPKV
+};
+
+struct SubsequenceDescriptor {
+    int num_tokens;
+    int past_len;
+};
+
+struct CacheRotationDescriptor {
+    bool apply_rotation;
+    // configures 2nd dimension of rotation_deltas
+    // if per_block is true, single value is used for all tokens inside the block
+    // otherwise, each token uses an independent value
+    bool per_block;
+};
+
+struct PagedAttentionManager {
+    int num_heads;
+    int k_head_size;
+    int v_head_size;
+    int block_size;
+    int sliding_window_size;
+    bool kv_cache_compression;
+    ov::internal::CacheQuantMode key_cache_quant_mode;
+    bool has_score_aggregation;
+    CacheRotationDescriptor rotation_config;
+    std::vector<SubsequenceDescriptor> subsequence_descs;
+
+    // per-subsequence QKV inputs
+    std::vector<std::vector<ov::float16>> query_data; // {[1, num_tokens, num_heads, k_head_size], ..}
+    std::vector<std::vector<ov::float16>> key_data;   // {[1, past_len + num_tokens, num_heads, k_head_size], ..}
+    std::vector<std::vector<ov::float16>> value_data; // {[1, past_len + num_tokens, num_heads, v_head_size], ..}
+
+    // common PA inputs
+    std::vector<int> past_lens;
+    std::vector<int> subsequence_begins;
+    std::vector<int> block_indices;
+    std::vector<int> block_indices_begins;
+    std::vector<int> max_context_len;
+    std::vector<int> score_aggregation_window;
+
+    // score aggregation related inputs
+    std::vector<int> score_aggregation;
+
+    // rotation related inputs
+    std::vector<int> rotated_block_indices;
+    std::vector<int> rotation_deltas;
+    std::vector<ov::float16> rotation_trig_lut;
+
+    std::vector<ov::float16> xattention_threshold;
+    std::vector<int> xattention_block_size;
+    std::vector<int> xattention_stride;
+
+    cldnn::engine& test_engine;
+    cldnn::stream& test_stream;
+    tests::random_generator& rg;
+
+    PagedAttentionManager(tests::random_generator& rg,
+                          cldnn::engine& engine,
+                          cldnn::stream& stream,
+                          const std::vector<SubsequenceDescriptor>& subsequence_descs,
+                          int num_heads,
+                          int k_head_size,
+                          int v_head_size,
+                          int block_size,
+                          int sliding_window_size,
+                          bool kv_cache_compression,
+                          ov::internal::CacheQuantMode key_cache_quant_mode,
+                          bool has_score_aggregation,
+                          CacheRotationDescriptor rotation_config)
+        : num_heads(num_heads)
+        , k_head_size(k_head_size)
+        , v_head_size(v_head_size)
+        , block_size(block_size)
+        , sliding_window_size(sliding_window_size)
+        , kv_cache_compression(kv_cache_compression)
+        , key_cache_quant_mode(key_cache_quant_mode)
+        , has_score_aggregation(has_score_aggregation)
+        , rotation_config(rotation_config)
+        , subsequence_descs(subsequence_descs)
+        , test_engine(engine)
+        , test_stream(stream)
+        , rg(rg) {
+        // init subsequence_begins and block_indices_begins
+        subsequence_begins.push_back(0);
+        block_indices_begins.push_back(0);
+
+        int max_len = 0;
+        for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
+            const auto& subsequence_desc = subsequence_descs[i];
+            max_len = std::max(max_len, subsequence_desc.num_tokens + subsequence_desc.past_len);
+
+            query_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens, k_head_size));
+            key_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, k_head_size));
+            value_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, v_head_size));
+
+            past_lens.push_back(subsequence_desc.past_len);
+            int subsequence_start_pos = subsequence_begins[i];
+            int subsequence_end_pos = subsequence_start_pos + subsequence_desc.num_tokens;
+            subsequence_begins.push_back(subsequence_end_pos);
+
+            int subsequence_length = subsequence_desc.num_tokens + subsequence_desc.past_len;
+            int required_blocks = ceil_div(subsequence_length, block_size);
+            int start_block_idx = block_indices.empty() ? 0 : block_indices.back() + 1;
+            int end_block_idx = start_block_idx + required_blocks;
+            for (int block_idx = start_block_idx; block_idx < end_block_idx; block_idx++) {
+                block_indices.push_back(block_idx);
+            }
+
+            int block_indices_start_pos = block_indices_begins[i];
+            int block_indices_end_pos = block_indices_start_pos + required_blocks;
+            block_indices_begins.push_back(block_indices_end_pos);
+        }
+        max_context_len.push_back(max_len);
+
+        if (rotation_config.apply_rotation) {
+            // iterate over KV-cache blocks and apply cache rotation to every second
+            // fully occupied block
+            for (size_t i = 0; i < subsequence_descs.size(); i++) {
+                const auto& subsequence_desc = subsequence_descs[i];
+                int past_len = subsequence_desc.past_len;
+                int start_block_idx = block_indices_begins[i];
+                for (int block_idx = 1; block_idx < past_len / block_size; block_idx++) {
+                    if (block_idx % 2 != 0) {
+                        rotated_block_indices.push_back(start_block_idx + block_idx);
+                    }
+                }
+            }
+
+            if (!rotated_block_indices.empty()) {
+                rotation_deltas = generate_rotation_deltas_data(rg,
+                                                                max_context_len[0],
+                                                                rotated_block_indices.size(),
+                                                                block_size,
+                                                                rotation_config.per_block);
+                rotation_trig_lut = generate_rotation_trig_lut_data(rg, max_context_len[0], k_head_size);
+            }
+        }
+
+        if (has_score_aggregation) {
+            for (const auto& subsequence_desc : subsequence_descs) {
+                const auto max_tokens = 10;
+                auto max_window_size = std::min(subsequence_desc.num_tokens, max_tokens);
+                auto window_size = rg.generate_random_val<int>(1, max_window_size);
+                score_aggregation.push_back(window_size);
+            }
+        }
+    }
+
+    memory::ptr get_query_memory() {
+        return get_QKV_memory(query_data, k_head_size, false);
+    }
+
+    memory::ptr get_key_memory() {
+        return get_QKV_memory(key_data, k_head_size, true);
+    }
+
+    memory::ptr get_value_memory() {
+        return get_QKV_memory(value_data, v_head_size, true);
+    }
+
+    memory::ptr get_key_cache_memory() {
+        auto key_cache_dt = data_types::f16;
+        auto adjusted_head_size = k_head_size;
+        if (kv_cache_compression) {
+            key_cache_dt = data_types::i8;
+            adjusted_head_size += 4;
+        }
+
+        auto num_blocks = block_indices.back() + 1;
+        auto key_cache_shape = ov::PartialShape{ num_blocks, num_heads, block_size, adjusted_head_size };
+        auto key_cache_layout = layout{ key_cache_shape, key_cache_dt, format::bfyx };
+        auto memory = test_engine.allocate_memory(key_cache_layout);
+
+        for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
+            int past_len = subsequence_descs[i].past_len;
+            if (past_len != 0) {
+                int blocks_num = ceil_div(past_len + 1, block_size);
+                int start_block_idx = block_indices[block_indices_begins[i]];
+                for (int block_idx = 0; block_idx < blocks_num; block_idx++) {
+                    int last_token_idx = block_idx == blocks_num - 1 ? past_len % block_size
+                                                                     : block_size;
+                    for (int token_idx = 0; token_idx < last_token_idx; token_idx++) {
+                        for (int head_idx = 0; head_idx < num_heads; head_idx++) {
+                            size_t input_token_offset = block_idx * block_size + token_idx;
+                            ov::float16* data_ptr = key_data[i].data() +
+                                                    input_token_offset * num_heads * v_head_size +
+                                                    head_idx * v_head_size;
+                            if (kv_cache_compression) {
+                                auto [quantized_data, scale, zp] = quantize_data(data_ptr, v_head_size);
+                                auto quantized_data_ptr = quantized_data.data();
+
+                                // shape: [num_blocks, num_heads, block_size, adjusted_head_size]
+                                size_t output_block_offset = (start_block_idx + block_idx) * num_heads * block_size * adjusted_head_size +
+                                                             head_idx * block_size * adjusted_head_size;
+                                size_t output_offset = output_block_offset +
+                                                       token_idx * v_head_size;
+                                set_values(test_stream, memory, quantized_data_ptr, v_head_size, output_offset);
+
+                                size_t comp_offset = (output_block_offset + v_head_size * block_size) / 2;
+                                set_values(test_stream, memory, &scale, 1, comp_offset + token_idx);
+                                set_values(test_stream, memory, &zp, 1, comp_offset + block_size + token_idx);
+                            } else {
+                                // shape: [num_blocks, num_heads, block_size, v_head_size]
+                                size_t output_offset = (start_block_idx + block_idx) * num_heads * block_size * v_head_size +
+                                                       head_idx * block_size * v_head_size +
+                                                       token_idx * v_head_size;
+
+                                set_values(test_stream, memory, data_ptr, v_head_size, output_offset);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return memory;
+    }
+
+    memory::ptr get_value_cache_memory() {
+        auto value_cache_dt = data_types::f16;
+        auto adjusted_head_size = v_head_size;
+        if (kv_cache_compression) {
+            value_cache_dt = data_types::i8;
+            adjusted_head_size += 4;
+        }
+
+        auto num_blocks = block_indices.back() + 1;
+        auto value_cache_shape = ov::PartialShape{ num_blocks, num_heads, block_size, adjusted_head_size };
+        auto value_cache_layout = layout{ value_cache_shape, value_cache_dt, format::bfyx };
+        auto memory = test_engine.allocate_memory(value_cache_layout);
+
+        for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
+            int past_len = subsequence_descs[i].past_len;
+            if (past_len != 0) {
+                int blocks_num = ceil_div(past_len + 1, block_size);
+                int start_block_idx = block_indices[block_indices_begins[i]];
+                for (int block_idx = 0; block_idx < blocks_num; block_idx++) {
+                    int last_token_idx = block_idx == blocks_num - 1 ? past_len % block_size
+                                                                     : block_size;
+                    for (int token_idx = 0; token_idx < last_token_idx; token_idx++) {
+                        for (int head_idx = 0; head_idx < num_heads; head_idx++) {
+                            size_t input_token_offset = block_idx * block_size + token_idx;
+                            ov::float16* data_ptr = value_data[i].data() +
+                                                    input_token_offset * num_heads * v_head_size +
+                                                    head_idx * v_head_size;
+                            if (kv_cache_compression) {
+                                auto [quantized_data, scale, zp] = quantize_data(data_ptr, v_head_size);
+                                auto quantized_data_ptr = quantized_data.data();
+
+                                // shape: [num_blocks, num_heads, block_size, adjusted_head_size]
+                                size_t output_block_offset = (start_block_idx + block_idx) * num_heads * block_size * adjusted_head_size +
+                                                             head_idx * block_size * adjusted_head_size;
+                                size_t output_offset = output_block_offset +
+                                                       token_idx * v_head_size;
+                                set_values(test_stream, memory, quantized_data_ptr, v_head_size, output_offset);
+
+                                size_t comp_offset = (output_block_offset + v_head_size * block_size) / 2;
+                                set_values(test_stream, memory, &scale, 1, comp_offset + token_idx);
+                                set_values(test_stream, memory, &zp, 1, comp_offset + block_size + token_idx);
+                            } else {
+                                // shape: [num_blocks, num_heads, block_size, v_head_size]
+                                size_t output_offset = (start_block_idx + block_idx) * num_heads * block_size * v_head_size +
+                                                       head_idx * block_size * v_head_size +
+                                                       token_idx * v_head_size;
+
+                                set_values(test_stream, memory, data_ptr, v_head_size, output_offset);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return memory;
+    }
+
+    memory::ptr get_past_lens_memory() {
+        return get_memory_from_vec(past_lens);
+    }
+
+    memory::ptr get_subsequence_begins_memory() {
+        return get_memory_from_vec(subsequence_begins);
+    }
+
+    memory::ptr get_block_indices_memory() {
+        return get_memory_from_vec(block_indices);
+    }
+
+    memory::ptr get_block_indices_begins_memory() {
+        return get_memory_from_vec(block_indices_begins);
+    }
+
+    memory::ptr get_scale_memory() {
+        std::vector<ov::float16> scale = { ov::float16(get_default_scale()) };
+        return get_memory_from_vec(scale);
+    }
+
+    memory::ptr get_sliding_window_memory() {
+        std::vector<int> sliding_window = { 0 };
+        return get_memory_from_vec(sliding_window);
+    }
+
+    memory::ptr get_alibi_memory() {
+        std::vector<ov::float16> alibi;
+        return get_memory_from_vec(alibi);
+    }
+
+    memory::ptr get_max_context_len_memory() {
+        return get_memory_from_vec(max_context_len);
+    }
+
+    memory::ptr get_score_aggregation() {
+        return get_memory_from_vec(score_aggregation);
+    }
+
+    memory::ptr get_rotated_block_indices_memory() {
+        return get_memory_from_vec(rotated_block_indices);
+    }
+
+    memory::ptr get_rotation_deltas_memory() {
+        auto mem = get_memory_from_vec(rotation_deltas);
+        auto layout = mem->get_layout();
+        auto last_dim = rotation_config.per_block ? 1 : block_size;
+        layout.set_partial_shape(ov::PartialShape{ static_cast<long int>(rotated_block_indices.size()), last_dim });
+
+        return test_engine.reinterpret_buffer(*mem, layout);
+    }
+
+    memory::ptr get_rotation_trig_lut_memory() {
+        auto mem = get_memory_from_vec(rotation_trig_lut);
+        auto layout = mem->get_layout();
+        layout.set_partial_shape(ov::PartialShape{ max_context_len[0], k_head_size });
+
+        if (rotated_block_indices.empty()) {
+            auto empty_layout = mem->get_layout();
+            empty_layout.set_partial_shape(ov::PartialShape{ 0, k_head_size });
+            return test_engine.reinterpret_buffer(*mem, empty_layout);
+        }
+
+        return test_engine.reinterpret_buffer(*mem, layout);
+    }
+
+    memory::ptr get_xattention_threshold_memory() {
+        auto mem = get_memory_from_vec(xattention_threshold);
+        auto layout = mem->get_layout();
+        layout.set_partial_shape(ov::PartialShape{ 1 });
+
+        if (xattention_threshold.empty()) {
+            auto empty_layout = mem->get_layout();
+            empty_layout.set_partial_shape(ov::PartialShape{ 0 });
+            return test_engine.reinterpret_buffer(*mem, empty_layout);
+        }
+
+        return test_engine.reinterpret_buffer(*mem, layout);
+    }
+
+    memory::ptr get_xattention_block_size_memory() {
+        return get_memory_from_vec(xattention_block_size);
+    }
+
+    memory::ptr get_xattention_stride_memory() {
+        return get_memory_from_vec(xattention_stride);
+    }
+
+    float get_default_scale() {
+        return static_cast<float>(1.f / std::sqrt(k_head_size));
+    }
+
+private:
+    template<typename T>
+    memory::ptr get_memory_from_vec(std::vector<T>& input_data) {
+        auto data_size = input_data.empty() ? 1 : input_data.size();
+        auto shape = ov::PartialShape{ static_cast<int>(data_size) };
+        auto layout = cldnn::layout{ shape, ov::element::from<T>(), format::bfyx };
+        auto memory = test_engine.allocate_memory(layout);
+
+        if (input_data.empty()) {
+            auto shape = ov::PartialShape{0};
+            auto layout = cldnn::layout{ shape, ov::element::from<T>(), format::bfyx };
+            return test_engine.reinterpret_buffer(*memory, layout);
+        }
+
+        set_values(test_stream, memory, input_data.data(), input_data.size(), 0);
+
+        return memory;
+    }
+
+    memory::ptr get_QKV_memory(std::vector<std::vector<ov::float16>>& input_data, int k_head_size, bool skip_past_len) {
+        int total_tokens = 0;
+        for (const auto& subsequence_desc : subsequence_descs)
+            total_tokens += subsequence_desc.num_tokens;
+
+        auto query_shape = ov::PartialShape{ total_tokens, num_heads * k_head_size };
+        auto query_layout = layout{ query_shape, data_types::f16, format::bfyx };
+        auto memory = test_engine.allocate_memory(query_layout);
+
+        for (int subsequence_idx = 0; subsequence_idx < static_cast<int>(subsequence_descs.size()); subsequence_idx++) {
+            for (int token_idx = 0; token_idx < subsequence_descs[subsequence_idx].num_tokens; token_idx++) {
+                for (int head_idx = 0; head_idx < num_heads; head_idx++) {
+                    size_t input_token_offset = token_idx;
+                    // as generated data stored in vectors includes past_len, ignore it for KV inputs
+                    if (skip_past_len)
+                        input_token_offset += subsequence_descs[subsequence_idx].past_len;
+
+                    ov::float16* data_ptr = input_data[subsequence_idx].data() +
+                                            input_token_offset * num_heads * k_head_size +
+                                            head_idx * k_head_size;
+
+                    size_t output_token_offset = subsequence_begins[subsequence_idx] + token_idx;
+                    size_t output_offset = output_token_offset * num_heads * k_head_size +
+                                           head_idx * k_head_size;
+
+                    set_values(test_stream, memory, data_ptr, k_head_size, output_offset);
+                }
+            }
+        }
+
+        return memory;
+    }
+
+    template<typename T>
+    static void set_values(stream& stream, memory::ptr mem, T* vals, size_t size, size_t dst_offset) {
+        mem_lock<T> mem_ptr(mem, stream);
+        for (size_t i = 0; i < size; i++) {
+            mem_ptr[dst_offset + i] = vals[i];
+        }
+    }
+
+    static std::vector<ov::float16> generate_input_data(tests::random_generator& rg, size_t num_heads, size_t tokens_num, size_t k_head_size) {
+        const size_t total_elements_num = tokens_num * num_heads * k_head_size;
+        auto data = rg.generate_random_1d<ov::float16>(total_elements_num, -1, 1);
+
+        // test code
+        // auto data = rg.generate_random_1d_fixed<ov::float16>(total_elements_num, 0, 1, 10000);
+
+        return data;
+    }
+
+static std::vector<ov::float16> generate_input_data_ww(
+    tests::random_generator& rg,
+    size_t num_heads,
+    size_t tokens_num,
+    size_t k_head_size,
+    float stddev = 0.5f,   // 控制数据分布集中程度
+    bool normalize = true   // 是否对每个向量做归一化
+) {
+    const size_t total_elements_num = tokens_num * num_heads * k_head_size;
+    auto data = rg.generate_random_1d<ov::float16>(total_elements_num, -1, 1);
+
+    // 将均匀分布映射到近似正态分布
+    for (size_t i = 0; i < total_elements_num; ++i) {
+        float x = static_cast<float>(data[i]);
+        // Box-Muller transform for simple Gaussian-like distribution
+        float u1 = (x + 1.f) / 2.f; // [0,1]
+        float u2 = rg.generate_random_1d<float>(1, 0.f, 1.f)[0]; // 另一个随机数
+        float r = std::sqrt(-2.f * std::log(u1 + 1e-6f)) * stddev; // 避免 log(0)
+        float theta = 2.f * 3.1415926535f * u2;
+        float val = r * std::cos(theta);
+        data[i] = ov::float16(val);
+    }
+
+    if (normalize) {
+        // 对每个 head 的每个 token 做 L2 归一化
+        for (size_t head_idx = 0; head_idx < num_heads; ++head_idx) {
+            for (size_t token_idx = 0; token_idx < tokens_num; ++token_idx) {
+                float norm = 0.f;
+                for (size_t dim = 0; dim < k_head_size; ++dim) {
+                    float val = static_cast<float>(data[head_idx * tokens_num * k_head_size + token_idx * k_head_size + dim]);
+                    norm += val * val;
+                }
+                norm = std::sqrt(norm) + 1e-6f;
+                for (size_t dim = 0; dim < k_head_size; ++dim) {
+                    size_t idx = head_idx * tokens_num * k_head_size + token_idx * k_head_size + dim;
+                    data[idx] = ov::float16(static_cast<float>(data[idx]) / norm);
+                }
+            }
+        }
+    }
+
+    return data;
+}
+
+    static std::vector<int> generate_rotation_deltas_data(tests::random_generator& rg, size_t max_tokens_num, size_t rotated_blocks_num, size_t block_size, bool per_block) {
+        const size_t total_elements_num = per_block ? rotated_blocks_num
+                                                    : rotated_blocks_num * block_size;
+        auto data = rg.generate_random_1d<int>(total_elements_num, 0, static_cast<int>(max_tokens_num - 1));
+
+        return data;
+    }
+
+    static std::vector<ov::float16> generate_rotation_trig_lut_data(tests::random_generator& rg, size_t max_tokens_num, size_t k_head_size) {
+        const size_t total_elements_num = max_tokens_num * k_head_size;
+        auto data = rg.generate_random_1d<ov::float16>(total_elements_num, -1, 1);
+
+        return data;
+    }
+
+    static std::tuple<std::vector<int8_t>, ov::float16, ov::float16> quantize_data(ov::float16* data, size_t size, bool expand_range = false) {
+        float min_value = std::numeric_limits<float>::max();
+        float max_value = std::numeric_limits<float>::lowest();
+
+        for (size_t i = 0; i < size; i++) {
+            min_value = std::min((float)(data[i]), min_value);
+            max_value = std::max((float)(data[i]), max_value);
+        }
+
+        float diff_value = 0.001;
+        if (max_value != min_value)
+            diff_value = max_value - min_value;
+        if (expand_range && std::abs(diff_value) <= std::abs(max_value) * 0.1f) {
+            // compensate too small range
+            diff_value = (max_value - min_value) + std::max(1.0f, max_value * 0.1f);
+        }
+        float scale = (std::numeric_limits<int8_t>::max() - std::numeric_limits<int8_t>::lowest()) / diff_value;
+        float zp = ((float)-min_value * scale) + std::numeric_limits<int8_t>::lowest();
+
+        std::vector<int8_t> quantized_data;
+        quantized_data.resize(size);
+
+        auto convert_char_rte = [](float val) {
+            float rounded = std::nearbyint(val);
+
+            if (rounded > 127.0f) {
+                return static_cast<int8_t>(127);
+            } else if (rounded < -128.0f) {
+                return static_cast<int8_t>(-128);
+            } else {
+                return static_cast<int8_t>(rounded);
+            }
+        };
+
+        for (size_t i = 0; i < size; i++) {
+            quantized_data[i] = convert_char_rte(data[i] * scale + zp);
+        }
+
+        scale = 1.0f / scale;
+
+        return std::make_tuple(quantized_data, scale, zp);
+    }
+};
 
 using Shape = std::vector<size_t>;
 
@@ -39,50 +618,38 @@ public:
         OPENVINO_ASSERT(m_block_size % m_stride == 0);
     }
 
-    void diagonal_reshape(const T* input_data, const Shape& input_shape, T* output_data, const Shape& out_shape, bool is_antidiagonal) {
+    void diagonal_reshape(const T* input_data,
+                            const Shape& input_shape,
+                            T* output_data,
+                            const Shape& output_shape,
+                            bool is_antidiagonal) {
         OPENVINO_ASSERT(input_shape.size() == 3);
-        OPENVINO_ASSERT(out_shape.size() == 3);
-        OPENVINO_ASSERT(input_shape[0] == out_shape[0]);
-        OPENVINO_ASSERT(input_shape[1] % m_stride == 0);
-        OPENVINO_ASSERT(input_shape[1] / m_stride == out_shape[1]);
-        OPENVINO_ASSERT(input_shape[2] * m_stride == out_shape[2]);
-
-        size_t num_stride_steps = input_shape[1] / m_stride;
-        for (size_t head_idx = 0; head_idx < input_shape[0]; head_idx++) {
-            size_t head_offset = head_idx * input_shape[1] * input_shape[2];
-            for (size_t slice_idx = 0; slice_idx < m_stride; slice_idx++) {
-                for (size_t stride_idx = 0; stride_idx < num_stride_steps; stride_idx++) {
-                    size_t input_offset = head_offset;
-                    size_t output_offset = head_offset + stride_idx * out_shape[2] + slice_idx * input_shape[2];
-                    if (is_antidiagonal) {
-                        input_offset += (input_shape[1] - 1 - slice_idx - stride_idx * m_stride) * input_shape[2];
-                    } else {
-                        input_offset += (slice_idx + stride_idx * m_stride) * input_shape[2];
-                    }
-                    std::memcpy(output_data + output_offset, input_data + input_offset, input_shape[2] * sizeof(T));
-                }
-            }
-        }
-    }
-
-    void diagonal_reshape_kdb1_no_batch(const T* input_data,
-                                        const std::vector<size_t>& input_shape,  // [H, Q_orig, dim]
-                                        T* output_data,
-                                        const std::vector<size_t>& output_shape) {
+        OPENVINO_ASSERT(output_shape.size() == 3);
         size_t H = input_shape[0];
         size_t Q_orig = input_shape[1];
-        size_t dim = input_shape[2];
+        size_t D = input_shape[2];
         size_t Q_new = output_shape[1];
 
+        OPENVINO_ASSERT(Q_orig % m_stride == 0);
+        OPENVINO_ASSERT(Q_orig / m_stride == Q_new);
+
         for (size_t h = 0; h < H; ++h) {
-            size_t head_in_offset = h * Q_orig * dim;
-            size_t head_out_offset = h * Q_new * m_stride * dim;
+            size_t head_in_offset = h * Q_orig * D;
+            size_t head_out_offset = h * Q_new * m_stride * D;
 
             for (size_t s = 0; s < m_stride; ++s) {
                 for (size_t q = 0; q < Q_new; ++q) {
-                    size_t in_idx = head_in_offset + (m_stride - 1 - s + q * m_stride) * dim;
-                    size_t out_idx = head_out_offset + q * m_stride * dim + s * dim;
-                    std::memcpy(output_data + out_idx, input_data + in_idx, dim * sizeof(T));
+                    size_t in_idx;
+                    if (is_antidiagonal) {
+                        // Anti-diagonal: (stride - 1 - s + q * stride)
+                        in_idx = head_in_offset + (m_stride - 1 - s + q * m_stride) * D;
+                    } else {
+                        // Normal diagonal: (s + q * stride)
+                        in_idx = head_in_offset + (s + q * m_stride) * D;
+                    }
+
+                    size_t out_idx = head_out_offset + q * m_stride * D + s * D;
+                    std::memcpy(output_data + out_idx, input_data + in_idx, D * sizeof(T));
                 }
             }
         }
@@ -145,8 +712,10 @@ public:
         }
     }
 
-    CMXAttentionRetainedBlockIndicesForAllHeads get_block_indices_to_keep(T* blocked_attention_scores_data, const Shape& blocked_attention_scores_shape) {
-        OPENVINO_ASSERT(blocked_attention_scores_shape.size() == 3, "Expected shape [num_heads, q_block_num, k_block_num]");
+    CMXAttentionRetainedBlockIndicesForAllHeads get_block_indices_to_keep(T* blocked_attention_scores_data,
+                                                                        const Shape& blocked_attention_scores_shape) {
+        OPENVINO_ASSERT(blocked_attention_scores_shape.size() == 3,
+                        "Expected shape [num_heads, q_block_num, k_block_num]");
 
         size_t num_heads = blocked_attention_scores_shape[0];
         size_t q_block_num = blocked_attention_scores_shape[1];
@@ -154,7 +723,9 @@ public:
 
         CMXAttentionRetainedBlockIndicesForAllHeads retval(num_heads);
 
-        std::vector<std::vector<std::vector<bool>>> mask(num_heads, std::vector<std::vector<bool>>(q_block_num, std::vector<bool>(k_block_num, false)));
+        std::vector<std::vector<std::vector<bool>>> mask(
+            num_heads,
+            std::vector<std::vector<bool>>(q_block_num, std::vector<bool>(k_block_num, false)));
 
         for (size_t head_idx = 0; head_idx < num_heads; head_idx++) {
             for (size_t q_block_idx = 0; q_block_idx < q_block_num; q_block_idx++) {
@@ -162,7 +733,7 @@ public:
                 if (diagonal_k < k_block_num) {
                     mask[head_idx][q_block_idx][diagonal_k] = true;
                 }
-                // Step1: Keep the first column
+                // Step1: First column reserved
                 mask[head_idx][q_block_idx][0] = true;
 
                 // Step2: Create other_values（masked_fill）
@@ -182,6 +753,7 @@ public:
                 // Step4: Create cumulative_sum_without_self，cat([0, diagonal_sum, sorted_values[:-1]])
                 std::vector<float> sorted_scores;
                 sorted_scores.push_back(0.0);
+                // diagonal + First column score
                 size_t offset_diag = head_idx * q_block_num * k_block_num + q_block_idx * k_block_num + diagonal_k;
                 float diag_score = static_cast<float>(blocked_attention_scores_data[offset_diag]);
                 float first_col_score = 0.0;
@@ -220,7 +792,7 @@ public:
                     index_mask[i] = (cumsum_without_self[i] < required_sum);
                 }
 
-                // Step8: Ceate index
+                // Step8: Create index
                 std::vector<size_t> index(index_mask.size(), 0);
                 for (size_t i = 0; i < index_mask.size(); i++) {
                     if (index_mask[i]) {
@@ -235,12 +807,14 @@ public:
                     }
                 }
 
+                // Step9: Get retval
                 for (size_t i = 0; i < index.size(); i++) {
                     size_t k_block_idx = index[i];
                     if (index_mask[i] && k_block_idx < k_block_num) {
                         mask[head_idx][q_block_idx][k_block_idx] = true;
                     }
                 }
+
                 for (size_t k_block_idx = 0; k_block_idx < k_block_num; k_block_idx++) {
                     if (mask[head_idx][q_block_idx][k_block_idx])
                         retval[head_idx].insert({q_block_idx, k_block_idx});
@@ -251,104 +825,105 @@ public:
         return retval;
     }
 
-    CMXAttentionRetainedBlockIndicesForAllHeads select_blocks(const T* query_data, const Shape& query_shape, const T* key_data, const Shape& key_shape) {
-        OPENVINO_ASSERT(query_shape.size() == 3);
-        OPENVINO_ASSERT(key_shape.size() == 3);
-        OPENVINO_ASSERT(key_shape[0] == query_shape[0]);
-        OPENVINO_ASSERT(key_shape[2] == query_shape[2]);
-        OPENVINO_ASSERT(query_shape[1] % m_stride == 0);
-        OPENVINO_ASSERT(key_shape[1] % m_stride == 0);
-        OPENVINO_ASSERT(query_shape[1] % m_block_size == 0);
-        OPENVINO_ASSERT(key_shape[1] % m_block_size == 0);
+    CMXAttentionRetainedBlockIndicesForAllHeads select_blocks(const T* query_data,
+                                                            const Shape& query_shape,
+                                                            const T* key_data,
+                                                            const Shape& key_shape,
+                                                            int chunk_size = -1) {
+        OPENVINO_ASSERT(query_shape.size() == 3 && key_shape.size() == 3);
+        OPENVINO_ASSERT(query_shape[0] == key_shape[0] && query_shape[2] == key_shape[2]);
+        OPENVINO_ASSERT(query_shape[1] % m_stride == 0 && key_shape[1] % m_stride == 0);
+        OPENVINO_ASSERT(query_shape[1] % m_block_size == 0 && key_shape[1] % m_block_size == 0);
 
-        size_t chunk_size = query_shape[1];
-        size_t k_len = key_shape[1];
-        size_t head_dim = query_shape[2];
-        size_t num_heads = query_shape[0];
-        size_t k_num_to_pad = ((k_len + chunk_size - 1) / chunk_size) * chunk_size - k_len;
-        Shape pad_key_shape = {num_heads, k_len + k_num_to_pad, head_dim};
-        auto pad_key_buf = allocate_buf(pad_key_shape);
+        const size_t num_heads = query_shape[0];
+        const size_t q_len = query_shape[1];
+        const size_t k_len = key_shape[1];
+        const size_t head_dim = query_shape[2];
+        if (chunk_size == -1) chunk_size = q_len;
 
-        for (size_t h = 0; h < num_heads; h++)
-            for (size_t t = 0; t < k_len; t++)
-                for (size_t d = 0; d < head_dim; d++) {
-                    size_t offset = h * (k_len + k_num_to_pad) * head_dim + t * head_dim + d;
-                    size_t original_offset = h * k_len * head_dim + t * head_dim + d;
-                    pad_key_buf.get()[offset] = key_data[original_offset];
-                }
+        auto pad_seq = [&](const T* src_data, size_t seq_len) {
+            size_t num_to_pad = ((seq_len + chunk_size - 1) / chunk_size) * chunk_size - seq_len;
+            Shape pad_shape = {num_heads, seq_len + num_to_pad, head_dim};
+            auto buf = allocate_buf(pad_shape);
 
-        size_t k_chunk_num = (k_len + k_num_to_pad) / chunk_size;
-        size_t offset_token_chunk_num = k_chunk_num - 1;
-        size_t reshaped_chunk_size = chunk_size / m_stride;
-        size_t k_reshaped_num_to_pad = k_num_to_pad / m_stride;
-        size_t k_reshaped_seq_len = (k_len + k_num_to_pad) / m_stride;
+            for (size_t h = 0; h < num_heads; ++h) {
+                size_t src_off = h * seq_len * head_dim;
+                size_t dst_off = h * (seq_len + num_to_pad) * head_dim;
+                std::memcpy(buf.get() + dst_off, src_data + src_off, seq_len * head_dim * sizeof(T));
+                if (num_to_pad)
+                    std::fill(buf.get() + dst_off + seq_len * head_dim,
+                            buf.get() + dst_off + (seq_len + num_to_pad) * head_dim, T(0));
+            }
+            return std::make_pair(std::move(buf), pad_shape);
+        };
 
-        Shape reshaped_query_shape = {num_heads, query_shape[1] / m_stride, head_dim * m_stride};
-        auto q_buf = allocate_buf(reshaped_query_shape);
-        diagonal_reshape_kdb1_no_batch(query_data, query_shape, q_buf.get(), reshaped_query_shape);
-        Shape reshaped_key_shape = {num_heads, pad_key_shape[1] / m_stride, head_dim * m_stride};
-        auto k_buf = allocate_buf(reshaped_key_shape);
-        diagonal_reshape(pad_key_buf.get(), pad_key_shape, k_buf.get(), reshaped_key_shape, false);
-        Shape transpose_matmul_scaled_shape = {num_heads, query_shape[1] / m_stride, pad_key_shape[1] / m_stride};
-        auto qk_buf = allocate_buf(transpose_matmul_scaled_shape);
+        // ======== Pad Query & Key ========
+        auto [pad_query_buf, pad_query_shape] = pad_seq(query_data, q_len);
+        auto [pad_key_buf, pad_key_shape] = pad_seq(key_data, k_len);
 
-        transpose_matmul_scale(q_buf.get(), k_buf.get(), reshaped_query_shape, reshaped_key_shape, qk_buf.get(), transpose_matmul_scaled_shape);
+        // ======== Diagonal Reshape ========
+        const size_t reshaped_q_len = pad_query_shape[1] / m_stride;
+        const size_t reshaped_k_len = pad_key_shape[1] / m_stride;
+        Shape q_shape_r = {num_heads, reshaped_q_len, head_dim * m_stride};
+        Shape k_shape_r = {num_heads, reshaped_k_len, head_dim * m_stride};
+
+        auto q_buf = allocate_buf(q_shape_r);
+        auto k_buf = allocate_buf(k_shape_r);
+        diagonal_reshape(pad_query_buf.get(), pad_query_shape, q_buf.get(), q_shape_r, true);
+        diagonal_reshape(pad_key_buf.get(), pad_key_shape, k_buf.get(), k_shape_r, false);
+        pad_query_buf.reset();
+        pad_key_buf.reset();
+
+        // ======== QK^T + scale ========
+        Shape qk_shape = {num_heads, reshaped_q_len, reshaped_k_len};
+        auto qk_buf = allocate_buf(qk_shape);
+        transpose_matmul_scale(q_buf.get(), k_buf.get(), q_shape_r, k_shape_r, qk_buf.get(), qk_shape);
         q_buf.reset();
         k_buf.reset();
 
-        Shape causal_mask_shape = {num_heads, reshaped_chunk_size, reshaped_chunk_size * k_chunk_num};
-        auto causal_mask_buf = allocate_buf(causal_mask_shape);
-        std::fill(causal_mask_buf.get(), causal_mask_buf.get() + ov::shape_size(causal_mask_shape), T(0));
-        if (k_reshaped_num_to_pad) {
-            for (size_t h = 0; h < num_heads; h++)
-                for (size_t q = 0; q < reshaped_chunk_size; q++)
-                    for (size_t k = k_reshaped_seq_len - k_reshaped_num_to_pad; k < k_reshaped_seq_len; k++) {
-                        size_t offset = h * reshaped_chunk_size * (reshaped_chunk_size * k_chunk_num) + q * (reshaped_chunk_size * k_chunk_num) + k;
+        // ======== Causal Mask ========
+        auto causal_mask_buf = allocate_buf(qk_shape);
+        std::fill(causal_mask_buf.get(), causal_mask_buf.get() + ov::shape_size(qk_shape), T(0));
+        const size_t reshaped_chunk_size = q_len / m_stride;
+        const size_t k_chunk_num = (k_len + ((k_len + chunk_size - 1) / chunk_size * chunk_size - k_len)) / q_len;
+        const size_t k_reshaped_seq_len = pad_key_shape[1] / m_stride;
+        const size_t k_reshaped_num_to_pad = pad_key_shape[1] / m_stride - k_len / m_stride;
+        const size_t chunk_start = (k_chunk_num - 1) * reshaped_chunk_size;
+        const size_t chunk_end = chunk_start + reshaped_chunk_size;
+        const T neg_inf = std::numeric_limits<T>::lowest();
 
-                        causal_mask_buf.get()[offset] = std::numeric_limits<T>::lowest();
-                    }
-        }
+        for (size_t h = 0; h < num_heads; ++h) {
+            for (size_t q = 0; q < reshaped_chunk_size; ++q) {
+                size_t base = h * reshaped_chunk_size * (reshaped_chunk_size * k_chunk_num)
+                            + q * (reshaped_chunk_size * k_chunk_num);
 
-        size_t chunk_start = offset_token_chunk_num * reshaped_chunk_size;
-        size_t chunk_end = chunk_start + reshaped_chunk_size;
-
-        for (size_t h = 0; h < num_heads; h++) {
-            for (size_t q = 0; q < reshaped_chunk_size; q++) {
-                for (size_t k = q + 1; k < reshaped_chunk_size; k++) {
-                    size_t offset = h * reshaped_chunk_size * (reshaped_chunk_size * k_chunk_num) + q * (reshaped_chunk_size * k_chunk_num) + chunk_start + k;
-                    causal_mask_buf.get()[offset] = std::numeric_limits<T>::lowest();
-                }
+                for (size_t k = k_reshaped_seq_len - k_reshaped_num_to_pad; k < k_reshaped_seq_len; ++k)
+                    causal_mask_buf.get()[base + k] = neg_inf;
+                for (size_t k = q + 1; k < reshaped_chunk_size; ++k)
+                    causal_mask_buf.get()[base + chunk_start + k] = neg_inf;
+                for (size_t k = chunk_end; k < reshaped_chunk_size * k_chunk_num; ++k)
+                    causal_mask_buf.get()[base + k] = neg_inf;
             }
         }
-
-        for (size_t h = 0; h < num_heads; h++) {
-            for (size_t q = 0; q < reshaped_chunk_size; q++) {
-                for (size_t k = chunk_end; k < reshaped_chunk_size * k_chunk_num; k++) {
-                    size_t offset = h * reshaped_chunk_size * (reshaped_chunk_size * k_chunk_num) + q * (reshaped_chunk_size * k_chunk_num) + k;
-                    causal_mask_buf.get()[offset] = std::numeric_limits<T>::lowest();
-                }
-            }
-        }
-        size_t out_size = transpose_matmul_scaled_shape[0] * transpose_matmul_scaled_shape[1] * transpose_matmul_scaled_shape[2];
-
-        for (size_t i = 0; i < out_size; i++) {
+        // ======== qk += mask ========
+        for (size_t i = 0; i < ov::shape_size(qk_shape); ++i)
             qk_buf.get()[i] += causal_mask_buf.get()[i];
-        }
-
         causal_mask_buf.reset();
-        Shape attention_scores_shape = transpose_matmul_scaled_shape;
-        auto attn_score_buf = allocate_buf(attention_scores_shape);
-        softmax(qk_buf.get(), transpose_matmul_scaled_shape, attn_score_buf.get(), attention_scores_shape);
+
+        // ======== softmax ========
+        auto attn_score_buf = allocate_buf(qk_shape);
+        softmax(qk_buf.get(), qk_shape, attn_score_buf.get(), qk_shape);
         qk_buf.reset();
 
-        size_t antidiagonals_per_xattention_block = m_block_size / m_stride;
-        Shape block_sum_shape = {attention_scores_shape[0],
-                                 attention_scores_shape[1] / antidiagonals_per_xattention_block,
-                                 attention_scores_shape[2] / antidiagonals_per_xattention_block};
-
+        // ======== block sum + select ========
+        const size_t blocks_per_axis = m_block_size / m_stride;
+        Shape block_sum_shape = {num_heads,
+                                reshaped_q_len / blocks_per_axis,
+                                reshaped_k_len / blocks_per_axis};
         auto block_sum_buf = allocate_buf(block_sum_shape);
-        block_sum_attention_scores(attn_score_buf.get(), attention_scores_shape, block_sum_buf.get(), block_sum_shape);
+        block_sum_attention_scores(attn_score_buf.get(), qk_shape, block_sum_buf.get(), block_sum_shape);
         attn_score_buf.reset();
+
         auto selected_block_indices = get_block_indices_to_keep(block_sum_buf.get(), block_sum_shape);
         block_sum_buf.reset();
 
@@ -784,11 +1359,7 @@ public:
         query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
         key_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
         value_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.v_head_size });
-#if ENABLE_PA_CM_PATH
         key_cache_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads, p.block_size, p.k_head_size });
-#else
-        key_cache_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads, p.k_head_size, p.block_size });
-#endif
         value_cache_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads, p.block_size, p.v_head_size });
         past_lens_layout.set_partial_shape(ov::PartialShape{ -1 });
         subsequence_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
@@ -1012,8 +1583,6 @@ const auto DISABLE_FA_V2 = true;
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention,
                          xattention_test,
                          ::testing::ValuesIn(std::vector<xattention_test_params>{
-
-#if ENABLE_PA_CM_PATH
     /* without scores output, static input query paddings, single sequence, disable KV cache compression, k_head_size==v_head_size,
     token_size>=32, disable_mix_mode */
     xattention_test_params{ {{32, 0}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
@@ -1021,5 +1590,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention,
 
     xattention_test_params{ {{1, 31}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
     xattention_test_params{ {{1, 32}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-#endif
 }));
