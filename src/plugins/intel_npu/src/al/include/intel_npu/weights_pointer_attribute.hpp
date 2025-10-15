@@ -25,12 +25,12 @@ public:
 
     /**
      * @note The names of the attributes have been kept short in order to save some memory (there may be a lot of
-     * "ov::Constant" nodes in a model). Also, two characters should be sufficient to avoid collisions. "np" stands for
-     * "NPU pointer", "ns" for "NPU size".
+     * "ov::Constant" nodes in a model). Also, two characters should be sufficient to avoid collisions. "mp" stands for
+     * "memory pointer", "ms" for "memory size".
      */
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
-        visitor.on_attribute("np", memory_pointer);
-        visitor.on_attribute("ns", byte_size);
+        visitor.on_attribute("mp", memory_pointer);
+        visitor.on_attribute("ms", byte_size);
         return true;
     }
 

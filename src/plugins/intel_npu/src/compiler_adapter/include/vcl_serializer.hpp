@@ -111,6 +111,21 @@ private:
 };
 
 /**
+ * @brief Serializes the model using a format supported by the "VCL" interface.
+ *
+ * @param supportedOpsetVersion The last operators set version supported by the compiler.
+ * @param useBaseModelSerializer "true" means the legacy serializer will be used (weights will be copied), "false" means
+ * the optimized one is used instead (weights pointers are stored).
+ * @param weightsSizeThreshold Relevant only if "useBaseModelSerializer" is false. The weights smaller than this value
+ * will be copied into a separate buffer. The rest will have only their memory location stored.
+ */
+SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
+                         ze_graph_compiler_version_info_t compilerVersion,
+                         const uint32_t supportedOpsetVersion,
+                         const bool useBaseModelSerializer = true,
+                         const size_t weightsSizeThreshold = 0);
+
+/**
  * @brief Serialize input / output information to string format.
  * @details Format:
  * --inputs_precisions="0:<input1Precision> [1:<input2Precision>]"
@@ -123,18 +138,7 @@ private:
  * Since the layout information is no longer an important part of the metadata values when using the 2.0 OV
  * API, the layout fields shall be filled with default values in order to assure the backward compatibility
  * with the driver.
- *
- * @param useBaseModelSerializer "true" means the legacy serializer will be used (weights will be copied), "false" means
- * the optimized one is used instead (weights pointers are stored).
- * @param weightsSizeThreshold Relevant only if "useBaseModelSerializer" is false. The weights smaller than this value
- * will be copied into a separate buffer. The rest will have only their memory location stored.
  */
-SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
-                         ze_graph_compiler_version_info_t compilerVersion,
-                         const uint32_t supportedOpsetVersion,
-                         const bool useBaseModelSerializer = true,
-                         const size_t weightsSizeThreshold = 0);
-
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
 std::string serializeConfig(const Config& config,
