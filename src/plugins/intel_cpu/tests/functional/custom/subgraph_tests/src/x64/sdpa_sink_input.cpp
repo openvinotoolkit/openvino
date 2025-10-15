@@ -186,7 +186,6 @@ public:
         ov::ParameterVector inputParams;
 
         function = get_model(inType, 64, 8);
-        targetDevice = ov::test::utils::DEVICE_CPU;
     }
 
     virtual void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
