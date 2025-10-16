@@ -10,6 +10,7 @@
 #endif
 
 #include "itt.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/compilation_context.hpp"
@@ -184,9 +185,9 @@ CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion,
 std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     std::string xmlStr;
 
-    auto start = stream.tellg();
+    const auto start = stream.tellg();
     std::getline(stream, xmlStr);
-    auto end = stream.tellg();
+    const auto bytes_read = static_cast<size_t>(stream.tellg() - start);
 
     pugi::xml_document document;
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
@@ -198,10 +199,7 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     header.m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
     header.m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
 
-    if (const uint32_t headerSizeAlignment = header.m_headerSizeAlignment; headerSizeAlignment) {
-        size_t bytes_read = static_cast<size_t>(end - start);
-        size_t pad =
-            (headerSizeAlignment - (bytes_read % headerSizeAlignment)) % headerSizeAlignment;  // 0 if already aligned
+    if (const auto pad = util::align_padding_size(header.m_headerSizeAlignment, bytes_read); pad > 0) {
         stream.seekg(static_cast<std::streamoff>(pad), std::ios::cur);
         OPENVINO_ASSERT(stream.good(), "Failed to seek over padding in compiled blob header");
     }
@@ -218,19 +216,15 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     compiledBlobNode.append_attribute("header_size_alignment")
         .set_value(std::to_string(header.m_headerSizeAlignment).c_str());
 
-    auto start = stream.tellp();
+    const auto start = stream.tellp();
     document.save(stream, nullptr, pugi::format_raw);
     document.reset();
     stream << std::endl;
-    auto end = stream.tellp();
 
     // add padding
-    if (const uint32_t headerSizeAlignment = header.m_headerSizeAlignment; headerSizeAlignment) {
-        size_t bytes_written = static_cast<size_t>(end - start);
-        size_t pad = (headerSizeAlignment - (bytes_written % headerSizeAlignment)) %
-                     headerSizeAlignment;  // 0 if already aligned
-        std::fill_n(std::ostream_iterator<char>(stream), pad, 0);
-    }
+    const auto bytes_written = static_cast<size_t>(stream.tellp() - start);
+    const auto pad = util::align_padding_size(header.get_header_size_alignment(), bytes_written);
+    std::fill_n(std::ostream_iterator<char>(stream), pad, 0);
 
     return stream;
 }
@@ -256,9 +250,8 @@ inline std::string getline_from_buffer(const char* buffer, size_t size, size_t& 
 }  // namespace
 
 void CompiledBlobHeader::read_from_buffer(const char* buffer, size_t buffer_size, size_t& pos) {
-    size_t start = pos;
+    const auto start = pos;
     std::string xmlStr = ov::getline_from_buffer(buffer, buffer_size, pos);
-    size_t end = pos;
 
     pugi::xml_document document;
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
@@ -270,11 +263,6 @@ void CompiledBlobHeader::read_from_buffer(const char* buffer, size_t buffer_size
     m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
     m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
 
-    if (const uint32_t headerSizeAlignment = m_headerSizeAlignment; headerSizeAlignment) {
-        size_t bytes_read = static_cast<size_t>(end - start);
-        size_t pad =
-            (headerSizeAlignment - (bytes_read % headerSizeAlignment)) % headerSizeAlignment;  // 0 if already aligned
-        pos += pad;
-    }
+    pos += util::align_padding_size(m_headerSizeAlignment, pos - start);
 }
 }  // namespace ov
