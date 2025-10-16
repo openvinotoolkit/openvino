@@ -241,7 +241,6 @@ PrefixCacheRestorationContext PrefixCachingHelper::prepare_and_restore(const ov:
                                                                        uint64_t input_prompt_len) {
     PrefixCacheRestorationContext context;
 
-    const uint64_t prefix_caching_block_size = m_request.m_npuw_llm_compiled_model->m_prefix_caching_block_size;
     auto& kvcache_desc = m_request.m_npuw_llm_compiled_model->m_kvcache_desc;
 
     // Calculate input prompts hash
@@ -273,7 +272,6 @@ PrefixCacheRestorationContext PrefixCachingHelper::prepare_and_restore(const ov:
 void PrefixCachingHelper::store_computed_blocks(size_t chunk_size,
                                                 const std::vector<uint64_t>& prompt_hashes,
                                                 size_t& token_idx) {
-    const uint64_t prefix_caching_block_size = m_request.m_npuw_llm_compiled_model->m_prefix_caching_block_size;
     store_blocks(chunk_size, prompt_hashes, token_idx);
 }
 

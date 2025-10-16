@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
