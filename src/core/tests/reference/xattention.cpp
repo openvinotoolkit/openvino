@@ -363,7 +363,6 @@ std::vector<CausalMaskTestData> CAUSAL_MASK_TEST_CASES = {
         },
         // clang-format on
 
-
         // clang-format off
         {
              4.534, -INFINITY, -INFINITY, -INFINITY,
@@ -389,7 +388,6 @@ std::vector<CausalMaskTestData> CAUSAL_MASK_TEST_CASES = {
         },
         // clang-format on
 
-
         // clang-format off
         {
              4.534, -5.908, -9.388,  -INFINITY,
@@ -414,7 +412,6 @@ std::vector<CausalMaskTestData> CAUSAL_MASK_TEST_CASES = {
             -8.248, -9.797, -7.907, -4.513, -9.797, -7.907,
         },
         // clang-format on
-
 
         // clang-format off
         {
@@ -828,7 +825,6 @@ std::vector<E2EBlockSelectTestData> E2E_BLOCK_SELECT_TEST_CASES = {
         // clang-format on
     }};
 
-
 TEST_P(XAttentionE2EBlockSelectTest, SelectsBlocksCorrectlyFromQKData) {
     auto test_struct = GetParam();
     ov::reference::XAttentionBlockSelector<double> selector(test_struct.threshold,
@@ -849,7 +845,11 @@ TEST_P(XAttentionE2EBlockSelectTest, SelectsBlocksCorrectlyFromQKData) {
             const auto& test_set = test_result[head_idx];
             std::cout << "ref has " << ref_set.size() << " elements, test has " << test_set.size() << std::endl;
             std::vector<std::pair<size_t, size_t>> intersection;
-            std::set_intersection(ref_set.begin(), ref_set.end(), test_set.begin(), test_set.end(), std::back_inserter(intersection));
+            std::set_intersection(ref_set.begin(),
+                                  ref_set.end(),
+                                  test_set.begin(),
+                                  test_set.end(),
+                                  std::back_inserter(intersection));
 
             std::cout << "only ref has ";
             for (const auto& idx : ref_set) {
