@@ -64,8 +64,9 @@ size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
 size_t get_partition_size(const bool has_xattention);
 size_t get_partition_num(const size_t kv_len, const bool has_xattention);
 
-const float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
-inline const size_t get_xattn_block_size(const kernel_impl_params& impl_param) {
+float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
+bool bypass_xattn(const kernel_impl_params& impl_param);
+inline size_t get_xattn_block_size(const kernel_impl_params& impl_param) {
     return XATTN_BLOCK_SIZE;
 }
 

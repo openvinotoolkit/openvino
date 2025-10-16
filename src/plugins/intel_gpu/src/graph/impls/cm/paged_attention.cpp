@@ -114,9 +114,7 @@ public:
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) {
-            const float xattn_thresh = get_xattn_thresh(params);
-            const bool validate = xattn_thresh < 1.0;
-            if (has_stage(xattn_estimate_gemmqk) && validate) {  // bypass xattn stages if threshold is larger than 1.0.
+            if (has_stage(xattn_estimate_gemmqk) && !bypass_xattn(params)) {
                 res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk)};
                 res_event = {execute_stage(res_event, instance, xattn_estimate_find_block)};
 #if DUMP_XATTN_BLOCK_MASK
