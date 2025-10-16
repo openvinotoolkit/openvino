@@ -33,17 +33,6 @@ PerfCounters& perf_counters() {
     return counters;
 }
 }  // namespace
-}  // namespace pass
-}  // namespace ov
-
-#endif  // ENABLE_PROFILING_ITT
-
-namespace {
-    
-struct MemoryInfo {
-    size_t vm_rss_bytes = 0;  // Resident set size (RAM in use)
-    size_t vm_size_bytes = 0; // Virtual memory size (address space)
-};
 
 MemoryInfo getProcessMemoryInfo() {
     std::ifstream status("/proc/self/status");
@@ -60,6 +49,13 @@ MemoryInfo getProcessMemoryInfo() {
     }
     return info;
 }
+
+}  // namespace pass
+}  // namespace ov
+
+#endif  // ENABLE_PROFILING_ITT
+
+namespace {
 
 /**
  * @brief EnvVar gets the environment variable value by name.
@@ -393,13 +389,13 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
         
         MemoryInfo mem_info_before = getProcessMemoryInfo();
         std::cout << "Pass: " << pass_name << std::endl;
-        std::cout << "Before mmap: RSS = " << mem_info_before.vm_rss_bytes << ", VM = " << mem_info_before.vm_size_bytes << std::endl;
+        std::cout << "Before: RSS = " << mem_info_before.vm_rss_bytes << ", VM = " << mem_info_before.vm_size_bytes << std::endl;
         
         pass_changed_model = run_pass(pass, model, pass_changed_model);
         
         MemoryInfo mem_info_after = getProcessMemoryInfo();
-        std::cout << "After mmap: RSS = " << mem_info_after.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes << std::endl;
-        std::cout << "Diff mmap: RSS = " << mem_info_after.vm_rss_bytes - mem_info_before.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes - mem_info_before.vm_size_bytes << std::endl;
+        std::cout << "After: RSS = " << mem_info_after.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes << std::endl;
+        std::cout << "Diff: RSS = " << mem_info_after.vm_rss_bytes - mem_info_before.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes - mem_info_before.vm_size_bytes << std::endl;
         if(mem_info_after.vm_rss_bytes > max_vm_consumer.vm_rss) {
             max_vm_consumer.vm_rss = mem_info_after.vm_rss_bytes;
             max_vm_consumer.vm = mem_info_after.vm_size_bytes;
