@@ -607,6 +607,16 @@ static constexpr ov::Property<ov::AnyMap> shared_lm_head_config{"NPUW_LLM_SHARED
 static constexpr ov::Property<ov::AnyMap> additional_shared_lm_head_config{"++NPUW_LLM_SHARED_HEAD_CONFIG"};
 }  // namespace llm
 
+namespace whisper {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass Whisper model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_WHISPER"};
+}  // namespace whisper
+
 }  // namespace npuw
 }  // namespace intel_npu
 }  // namespace ov
