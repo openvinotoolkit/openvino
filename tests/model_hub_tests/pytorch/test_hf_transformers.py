@@ -55,7 +55,7 @@ class TestTransformersModel(TestTorchConvertModel):
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         self.image = Image.open(requests.get(url, stream=True).raw)
 
-    @retry(3, exceptions=(OSError,), delay=1)
+    @retry(10, exceptions=(OSError,), delay=5, exponential_backoff=True, backoff_multiplier=2, max_delay=300)
     def load_model(self, name, type):
         name, _, name_suffix = name.partition(':')
 

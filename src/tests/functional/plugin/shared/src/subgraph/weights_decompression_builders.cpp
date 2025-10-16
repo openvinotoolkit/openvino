@@ -85,11 +85,14 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
         transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
     }
 
-    auto up_to = weights_precision == ov::element::i4 ? 7 : 15;
-    auto weights_tensor = ov::test::utils::create_and_fill_tensor(weights_precision,
-                                                                  transformed_weights_shape,
-                                                                  ov::test::utils::InputGenerateData(1, up_to));
+    auto up_to = weights_precision == ov::element::u2 ? 3 : weights_precision == ov::element::i4 ? 7 : 15;
+    auto start_from = weights_precision == ov::element::u2 ? 0 : 1;
+    auto weights_tensor =
+        ov::test::utils::create_and_fill_tensor(weights_precision,
+                                                transformed_weights_shape,
+                                                ov::test::utils::InputGenerateData(start_from, up_to));
     auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
+
     auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
 
     std::shared_ptr<ov::Node> mul_parent = weights_convert;
@@ -115,9 +118,10 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     if (decompression_subtract_type != DecompressionType::empty) {
         auto subtract_shape =
             decompression_subtract_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});
-        auto shift_const_tensor = ov::test::utils::create_and_fill_tensor(weights_precision,
-                                                                          subtract_shape,
-                                                                          ov::test::utils::InputGenerateData(1, up_to));
+        auto shift_const_tensor =
+            ov::test::utils::create_and_fill_tensor(weights_precision,
+                                                    subtract_shape,
+                                                    ov::test::utils::InputGenerateData(start_from, up_to));
         auto shift_const = std::make_shared<ov::op::v0::Constant>(shift_const_tensor);
 
         std::shared_ptr<ov::Node> shift_convert =

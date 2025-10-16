@@ -47,7 +47,7 @@ void RepackedWeightsBufferExpression::validate() const {
 void RepackedWeightsBufferExpression::init_allocation_size(
     [[maybe_unused]] const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager,
     [[maybe_unused]] size_t allocation_rank) {
-    const auto& parent_expr = get_input_port_connector(0)->get_source().get_expr();
+    const auto& parent_expr = get_input_expr_ptr(0);
     const auto& in_shape = ov::snippets::utils::get_planar_vdims(parent_expr->get_input_port(0));
     OPENVINO_ASSERT(in_shape.size() >= 2 && allocation_rank >= 2, "GemmCopyB should has at least 2 rank tensor");
     const auto& element_type = get_node()->get_input_element_type(0);

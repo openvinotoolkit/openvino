@@ -130,10 +130,15 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto index_add__ShapeOf_14 = wrap_type<ov::op::v3::ShapeOf>({index_add__Slice_1}, {{"output_type", "i32"}});
     auto index_add__Broadcast_16 =
         wrap_type<ov::op::v3::Broadcast>({index_add__Reshape_1, index_add__ShapeOf_14}, {{"mode", "bidirectional"}});
+    auto unsqueeze_Unsqueeze_reshape = wrap_type<ov::op::v1::Reshape>({unsqueeze_Unsqueeze, pattern::any_input()}, {{"special_zero", false}});
     auto index_Gather_2 = wrap_type<ov::op::v8::Gather>(
-        {unsqueeze_Unsqueeze, index_add__Convert_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("1"))},
+        {unsqueeze_Unsqueeze_reshape, index_add__Convert_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
         {{"batch_dims", 0}});
-    auto reshape_Reshape_1 = wrap_type<ov::op::v1::Reshape>({index_Gather_2, shape_const}, {{"special_zero", true}});
+    auto reshape_Reshape_1_0 = wrap_type<ov::op::v1::Reshape>({index_Gather_2, pattern::any_input()}, {{"special_zero", true}});
+    auto reshape_Reshape_1_1 = wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_0, pattern::any_input()}, {{"special_zero", true}});
+    auto reshape_Reshape_1_2 = wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_1, pattern::any_input()}, {{"special_zero", true}});
+
+    auto reshape_Reshape_1 = wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_2, shape_const}, {{"special_zero", true}});
     auto gate_proj_weight = pattern::any_input(pattern::rank_equals(2));
     auto linear_MatMul_gate = wrap_type<ov::op::v0::MatMul>({reshape_Reshape_1, gate_proj_weight},
                                                             {{"transpose_a", false}, {"transpose_b", true}});
@@ -360,7 +365,8 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                 }
 
                 auto fused = ov::op::util::make_try_fold<ov::op::v0::Concat>(inputs, 0);
-
+                // auto fused = std::make_shared<ov::op::v0::Concat>(inputs, 0);
+                // fused->get_rt_info()["postponed_constant"] = true;
                 if (needs_decompress) {
                     auto convert = std::make_shared<ov::op::v0::Convert>(fused, target_type);
                     ov::mark_as_decompression(convert);
@@ -472,6 +478,16 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             auto target_shape = std::make_shared<ov::op::v3::ShapeOf>(view_reshape_node, element::i64);
             auto final_reshape = std::make_shared<ov::op::v1::Reshape>(final_output, target_shape, false);
             auto final_add = std::make_shared<ov::op::v1::Add>(residual_input_node, final_reshape);
+
+            if (last_reshape_node && !last_reshape_node->get_friendly_name().empty()) {
+                final_reshape->set_friendly_name(last_reshape_node->get_friendly_name());
+            }
+            final_add->set_friendly_name(last_add_node->get_friendly_name());
+
+            if (last_reshape_node) {
+                ov::copy_runtime_info(ov::NodeVector{last_reshape_node}, ov::NodeVector{final_reshape});
+            }
+            ov::copy_runtime_info(ov::NodeVector{last_add_node}, ov::NodeVector{final_add});
 
             // Replace the last add node with our new computation
             ov::replace_node(last_add_node, final_add);

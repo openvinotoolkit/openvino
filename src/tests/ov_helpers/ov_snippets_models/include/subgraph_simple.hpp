@@ -155,7 +155,7 @@ public:
                          "Only 4D input shapes are currently supported by this test");
             // todo:
             //  Note that single-element constant are not supported by the test, since they'll be converted
-            //  to snippets::op::Scalar. So a more comlex logics is required to produce reference function.
+            //  to snippets::op::Scalar. So a more complex logics is required to produce reference function.
             OPENVINO_ASSERT(input_shapes[0][1] == input_shapes[1][1], "Channel dimensions must be equal and != 1");
             OPENVINO_ASSERT(input_shapes[0].is_static() && input_shapes[1].is_static(), "This test supports only static shapes");
     }

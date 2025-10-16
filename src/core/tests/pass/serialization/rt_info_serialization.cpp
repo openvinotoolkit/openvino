@@ -4,16 +4,24 @@
 
 #include <gtest/gtest.h>
 
+#include <iostream>
+#include <sstream>
+
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
+#include "transformations/hash.hpp"
 #include "transformations/rt_info/attributes.hpp"
+
+namespace ov::test {
 
 class RTInfoSerializationTest : public ov::test::TestsCommon {
 protected:
@@ -301,3 +309,220 @@ TEST(OvSerializationTests, SerializeRawMeta) {
         EXPECT_EQ(0, serialized_model.compare(ir_with_rt_info));
     }
 }
+
+TEST(RTInfoSerialization, user_data) {
+    std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>
+<net name="UserDataTest" version="11">
+	<layers>
+		<layer id="0" name="node_A" type="Parameter" version="opset1">
+			<data shape="10,10" element_type="f32" />
+			<rt_info>
+				<user_data name="node_info_A" value="v_A" version="" />
+			</rt_info>
+			<output>
+				<port id="0" precision="FP32">
+					<dim>10</dim>
+					<dim>10</dim>
+					<rt_info>
+						<user_data name="output_info_A" value="o_A" version="" />
+					</rt_info>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="node_B" type="Const" version="opset1">
+			<data element_type="f32" shape="1" offset="0" size="4" />
+			<rt_info>
+				<user_data name="node_info_B" value="v_B" version="" />
+			</rt_info>
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<rt_info>
+						<user_data name="output_info_B" value="o_B" version="" />
+					</rt_info>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="node_C" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<rt_info>
+				<user_data name="node_info_C" value="v_C" version="" />
+			</rt_info>
+			<input>
+				<port id="0" precision="FP32">
+					<dim>10</dim>
+					<dim>10</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>10</dim>
+					<dim>10</dim>
+					<rt_info>
+						<user_data name="output_info_C" value="o_C" version="" />
+						<user_data name="output_info_D" value="o_D" version="" />
+					</rt_info>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="node_D" type="Result" version="opset1">
+			<rt_info>
+				<user_data name="node_info_D" value="v_D" version="" />
+			</rt_info>
+			<input>
+				<port id="0" precision="FP32">
+					<dim>10</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="1" />
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{10, 10});
+    const auto one = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{1.f});
+    const auto add = std::make_shared<op::v1::Add>(data, one);
+    const auto result = std::make_shared<op::v0::Result>(add);
+
+    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    uint64_t bare_model_hash;
+    pass::Hash{bare_model_hash}.run_on_model(model);
+
+    model->set_friendly_name("UserDataTest");
+
+    const auto prefix = std::string{"user_data"};
+    const auto add_info = [&prefix](const std::shared_ptr<Node>& node, const std::string& value) {
+        node->set_friendly_name("node_" + value);
+        node->get_rt_info()[prefix + "node_info_" + value] = "v_" + value;
+        node->output(0).get_rt_info()[prefix + "output_info_" + value] = "o_" + value;
+    };
+    add_info(data, "A");
+    add_info(one, "B");
+    add_info(add, "C");
+    add_info(result, "D");
+
+    auto& one_rti = one->get_rt_info();
+    one_rti[prefix] = "stand alone prefix not saved";
+    one_rti["User_data name"] = "non predefined prefix not saved";
+    one_rti["b name"] = "missing prefix not saved";
+
+    std::stringstream model_ss, weights_ss;
+    EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
+    EXPECT_EQ(ref_ir_xml.compare(model_ss.str()), 0);
+
+    uint64_t with_custom_rt_info_hash;
+    pass::Hash{with_custom_rt_info_hash}.run_on_model(model);
+    EXPECT_EQ(bare_model_hash, with_custom_rt_info_hash)
+        << "`ov::pass::Hash' output value must not be affected by custom rt info.";
+}
+
+TEST(RTInfoSerialization, user_AnyMap) {
+    std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>
+<net name="UserDataTest" version="11">
+	<layers>
+		<layer id="0" name="data" type="Parameter" version="opset1">
+			<data shape="111" element_type="f64" />
+			<output>
+				<port id="0" precision="FP64">
+					<dim>111</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="abs" type="Abs" version="opset1">
+			<rt_info>
+				<user_data name="AnyMap" version="">
+					<user_data name="User_data" value="non predefined prefix saved as is" version="" />
+					<user_data name="a" value="b" version="" />
+					<user_data name="i" value="7" version="" />
+					<user_data name="nested" version="">
+						<user_data name="c" value="d" version="" />
+					</user_data>
+					<user_data name="x" value="3.14" version="" />
+				</user_data>
+			</rt_info>
+			<input>
+				<port id="0" precision="FP64">
+					<dim>111</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP64">
+					<dim>111</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="result" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP64">
+					<dim>111</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f64, Shape{111});
+    const auto abs = std::make_shared<op::v0::Abs>(data);
+    const auto result = std::make_shared<op::v0::Result>(abs);
+
+    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    uint64_t bare_model_hash;
+    pass::Hash{bare_model_hash}.run_on_model(model);
+
+    model->set_friendly_name("UserDataTest");
+    data->set_friendly_name("data");
+    abs->set_friendly_name("abs");
+    result->set_friendly_name("result");
+
+    const auto prefix = std::string{"user_data"};
+    const auto empty = AnyMap{};
+    const auto nested = AnyMap{{"c", "d"}};
+    abs->get_rt_info()[prefix + "AnyMap"] = AnyMap{{"a", "b"},
+                                                   {"empty", empty},
+                                                   {"i", 7},
+                                                   {"x", 3.14},
+                                                   {prefix + "nested", nested},
+                                                   {"User_data", "non predefined prefix saved as is"}};
+
+    std::stringstream model_ss, weights_ss;
+    EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
+    EXPECT_EQ(ref_ir_xml.compare(model_ss.str()), 0);
+
+    uint64_t with_custom_rt_info_hash;
+    pass::Hash{with_custom_rt_info_hash}.run_on_model(model);
+    EXPECT_EQ(bare_model_hash, with_custom_rt_info_hash)
+        << "`ov::pass::Hash' output value must not be affected by custom rt info.";
+}
+
+TEST(RTInfoSerialization, nullptr_no_throw) {
+    const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f64, Shape{111});
+    const auto abs = std::make_shared<op::v0::Abs>(data);
+    const auto result = std::make_shared<op::v0::Result>(abs);
+
+    const auto prefix = std::string{"user_data"};
+    abs->get_rt_info()[prefix + "bare"] = ov::Any{nullptr};
+    abs->get_rt_info()[prefix + "void*"] = ov::Any{static_cast<void*>(nullptr)};
+    abs->get_rt_info()[prefix + "shared_ptr"] = ov::Any{std::shared_ptr<void>{}};
+    abs->get_rt_info()[prefix + "RuntimeAttribute"] = ov::Any{std::shared_ptr<ov::RuntimeAttribute>{}};
+
+    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    std::stringstream model_ss, weights_ss;
+    EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
+}
+}  // namespace ov::test

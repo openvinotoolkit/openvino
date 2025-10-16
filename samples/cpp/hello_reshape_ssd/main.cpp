@@ -121,7 +121,7 @@ int main(int argc, char* argv[]) {
         // 6) declare output element type as FP32
         output_info.tensor().set_element_type(ov::element::f32);
 
-        // 7) Apply preprocessing modifing the original 'model'
+        // 7) Apply preprocessing modifying the original 'model'
         model = ppp.build();
         // clang-format on
         // -------------------------------------------------------------------

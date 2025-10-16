@@ -19,7 +19,8 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, host_task_priority, ov::hint::Prio
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM, "Low-level hint that controls the queue throttle level")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_priority, ov::hint::Priority::MEDIUM, "Low-level hint that controls queue priority property")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_sdpa_optimization, true, "Enable/Disable fused SDPA primitive execution")
-OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_lora_operation, true, "Enable/Disable LoRA operation. The separate operation is less versatile, but has better performance.")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_lora_operation, true, "Enable/Disable LoRA operation. The separate operation is less versatile, but has better performance")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_large_allocations, false, "Enable/Disable large buffer allocations (>4gb). Enabling this option may lead to performance degradation")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, enable_loop_unrolling, true, "Enable/Disable Loop/TensorIterator operation unrolling")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, disable_winograd_convolution, false, "Enable/Disable winograd convolution implementation if available")
 OV_CONFIG_RELEASE_OPTION(ov::internal, exclusive_async_requests, false, "")
@@ -37,6 +38,7 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, config_file, "", "Path to custom layers 
 OV_CONFIG_RELEASE_OPTION(ov::hint, model, nullptr, "Shared pointer to the ov::Model")
 OV_CONFIG_RELEASE_OPTION(ov::internal, key_cache_quant_mode, ov::internal::CacheQuantMode::BY_CHANNEL, "AUTO or BY_CHANNEL or BY_TOKEN")
 OV_CONFIG_RELEASE_OPTION(ov::internal, value_cache_quant_mode, ov::internal::CacheQuantMode::BY_TOKEN, "AUTO or BY_CHANNEL or BY_TOKEN")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, mem_pool_util_threshold, 0.5, "Minimum utilization threshold (0.0~1.0) for reusable memory in the pool")
 
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, shape_predictor_settings, {10, 16 * 1024, 2, 1.1f}, "Preallocation settings")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, queue_type, QueueTypes::out_of_order, "Type of the queue that must be used for model execution. May be in-order or out-of-order")
@@ -55,6 +57,8 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, asym_dynamic_quantization, fals
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, could_use_flashattn_v2, true, "Enable/Disable SDPA primitive executing with FlashAttenV2 online softmax tricks.")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_threshold, 64, "Apply dynamic quantization only when batch size is larger than this value in OneDNN")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, weightless_attr, nullptr, "Used to configure ov::WeightlessCacheAttribute for constants that are not loaded from a .bin file. This typically applies to non-IR inputs (e.g., ORT)")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_precomputed_reduction, true, "Precompute reduction of activation for faster dynamic quantization in case of asymmetric weight")
+
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")

@@ -107,6 +107,7 @@ private:
         ov::intel_npu::npuw::partitioning::funcall_for_all.name(),
         ov::intel_npu::npuw::funcall_async.name(),
         ov::intel_npu::npuw::unfold_ireqs.name(),
+        ov::intel_npu::npuw::fallback_exec.name(),
         ov::intel_npu::npuw::llm::enabled.name(),
         ov::intel_npu::npuw::llm::batch_dim.name(),
         ov::intel_npu::npuw::llm::seq_len_dim.name(),
@@ -121,14 +122,17 @@ private:
         ov::intel_npu::npuw::llm::prefill_hint.name(),
         ov::intel_npu::npuw::llm::prefill_config.name(),
         ov::intel_npu::npuw::llm::additional_prefill_config.name(),
+        ov::intel_npu::npuw::llm::prefill_attn_hint.name(),
         ov::intel_npu::npuw::llm::generate_hint.name(),
         ov::intel_npu::npuw::llm::generate_config.name(),
         ov::intel_npu::npuw::llm::additional_generate_config.name(),
+        ov::intel_npu::npuw::llm::generate_attn_hint.name(),
         ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
         ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
-                                                                        ov::internal::caching_with_mmap.name()};
+                                                                        ov::internal::caching_with_mmap.name(),
+                                                                        ov::internal::cache_header_alignment.name()};
 };
 
 }  // namespace intel_npu
