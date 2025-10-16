@@ -1421,6 +1421,12 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                     }
                 }
             }
+        } else { // gemm
+            if (!use_onednn_impls) {
+                // Plain input format is enforced because gemm opt kernels allow only plain formats.
+                expected = format::get_default_format(node.get_input_layout(0).get_rank());
+                node.set_preferred_input_fmt(0, expected);
+            }
         }
     } else if (node.is_type<gather>()) {
         // Gather needs the original input/output rank because

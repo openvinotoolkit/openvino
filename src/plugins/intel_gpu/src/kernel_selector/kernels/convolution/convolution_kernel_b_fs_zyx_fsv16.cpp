@@ -120,7 +120,8 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
     float workload = static_cast<float>(f * std::sqrt(y) * std::pow(params.filterSize.y, 1.5));
     const bool is_1d_large_conv = (out.GetDType() == Datatype::F32 && b % 32 == 0) &&
                                   (x == 1 && z == 1) && // check 1d conv
-                                  (workload > large_conv_threshold); // check large conv
+                                  (workload > large_conv_threshold) && // check large conv
+                                  params.engineInfo.arch == kernel_selector::gpu_arch::xe_hpg; // this case requires in xe microarchitecture only
 
     if (is_1stconv) {
         auto oh_block = 1;
@@ -257,12 +258,13 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     float workload = static_cast<float>(output.Feature().v * std::sqrt(output.Y().v) * std::pow(params.filterSize.y, 1.5));
     const bool is_1d_large_conv = (output.GetDType() == Datatype::F32 && output.Batch().v % 32 == 0) &&
                                   (output.X().v == 1 && output.Z().v == 1) && // check 1d conv
-                                  (workload > large_conv_threshold); // check large conv
+                                  (workload > large_conv_threshold) && // check large conv
+                                  params.engineInfo.arch == kernel_selector::gpu_arch::xe_hpg; // this case requires in xe microarchitecture only
 
-    if (is_1d_large_conv) {
-        jit.AddConstant(MakeJitConstant("VER_32MB_LARGE_1D", 1));
-    } else if (ver_16mb16c) {
+    if (ver_16mb16c) {
         jit.AddConstant(MakeJitConstant("VER_16MB16C", 1));
+        if (is_1d_large_conv)
+            jit.AddConstant(MakeJitConstant("VER_32MB_LARGE_1D", 1));
     } else {
         jit.AddConstant(MakeJitConstant("VER_8OW16C", 1));
     }
@@ -317,12 +319,21 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
 
     if (ver_16mb16c && !params.fused_ops.empty()) {
         const auto dims_num = DataTensor::ChannelsCount(input.GetLayout());
-        if (output.GetDType() != Datatype::F16 && !is_1d_large_conv) {
+        if (output.GetDType() != Datatype::F16) {
             FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num, true);
             FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num, true);
             FusedOpsConfiguration conf_scalar0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num, false);
             FusedOpsConfiguration conf_scalar1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num, false);
-            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_scalar0, conf_scalar1}));
+            if (!is_1d_large_conv) {
+                jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_scalar0, conf_scalar1}));
+            } else {
+                FusedOpsConfiguration conf_vec2 = GenerateFusedOpsConfiguration_bsv16_fsv16(2, "blockC0", input_dt, dims_num, true);
+                FusedOpsConfiguration conf_vec3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "blockC0", input_dt, dims_num, true);
+                FusedOpsConfiguration conf_scalar2 = GenerateFusedOpsConfiguration_bsv16_fsv16(2, "blockC0", input_dt, dims_num, false);
+                FusedOpsConfiguration conf_scalar3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "blockC0", input_dt, dims_num, false);
+                jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_vec2, conf_vec3,
+                                                        conf_scalar0, conf_scalar1, conf_scalar2, conf_scalar3}));
+            }
         } else {
             FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "C0", input_dt, dims_num, true);
             FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "C0", input_dt, dims_num, true);
