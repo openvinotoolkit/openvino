@@ -5241,6 +5241,9 @@ TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int4_group_s
     this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 32, 32, WzpMode::Symmetric, WeightMode::Bit4);
 }
 
+TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int8_group_scale_scalar_zp_gs16) {
+    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 16, 16, WzpMode::Symmetric, WeightMode::Bit8);
+}
 
 using fully_connected_dynamic_test_params = std::tuple<
     std::vector<ov::Dimension::value_type>, // batch_sizes
