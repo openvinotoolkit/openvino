@@ -636,6 +636,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                        updateBatchMode,
                                                        originalBatch,
                                                        _logger);
+    } else {
+        if (model->get_variables().empty()) {
+            intel_npu::batch_helpers::handlePluginBatching(modelForCompilation,
+                                                           localConfig,
+                                                           updateBatchMode,
+                                                           originalBatch,
+                                                           _logger);
+        }
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
