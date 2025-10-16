@@ -111,11 +111,30 @@ class PrefixCacheManager {
 public:
     PrefixCacheManager(size_t max_cache_size) : m_max_cache_size(max_cache_size) {}
 
-    // Add a block to the cache
-    void put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash);
+    /**
+     * @brief Add a block to the cache
+     * @param block The KV block to cache
+     * @param prev_block_hash Hash of the previous block for linking
+     * @return true if the block was successfully added to the cache, false otherwise
+     *
+     * @note This method does not take ownership of the block. The cache and caller
+     *       both hold shared_ptr references. The block's lifetime is managed by
+     *       the shared_ptr reference counting mechanism.
+     *
+     * Reasons for rejection:
+     * - Block is not full (!block->is_full())
+     * - Block already exists in cache (duplicate)
+     * - Previous block is missing and prev_block_hash != 0
+     * - Cache is full and no LRU block can be evicted
+     */
+    bool put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash);
 
-    // Retrieve a block from the cache by hash
-    bool get_block(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block);
+    /**
+     * @brief Retrieve a block from the cache by hash
+     * @param combined_hash Hash value to look up
+     * @return Shared pointer to the KVBlock if found, nullptr otherwise
+     */
+    std::shared_ptr<KVBlock> get_block(uint64_t combined_hash);
 
     // Print the current status of the cache
     void print_cache_status(bool verbose = false) const;

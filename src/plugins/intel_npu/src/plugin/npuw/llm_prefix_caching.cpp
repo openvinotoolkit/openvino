@@ -100,10 +100,11 @@ void KVBlock::print_block_info(bool verbose) const {
     LOG_VERB("  KV cache tensor total size: " << total_size / BYTES_IN_MB << " MB");
 }
 
-void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash) {
+bool PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash) {
     // Do not cache incomplete blocks
     if (!block->is_full()) {
-        return;
+        LOG_VERB("[Cache store] Block rejected: not full");
+        return false;
     }
 
     {
@@ -113,7 +114,8 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
         const auto curr_block = get_block_unsafe(block->get_block_hash());
         if (curr_block != nullptr) {
             update_lru_unsafe(curr_block);
-            return;
+            LOG_VERB("[Cache store] Block already cached, updated LRU");
+            return true;  // Already cached counts as success
         }
 
         // Link current block with previous block
@@ -126,7 +128,8 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
         } else if (prev_block_hash != 0) {
             // If the previous block wasn't added due to full cache capacity,
             // there's no need to add the current block, as it won't be accessed in the cache.
-            return;
+            LOG_VERB("[Cache store] Block rejected: previous block missing");
+            return false;
         }
 
         if (m_cache_map.size() >= m_max_cache_size) {
@@ -135,7 +138,8 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
                 if (prev_block != nullptr) {
                     block->unlink_blocks(prev_block);
                 }
-                return;
+                LOG_VERB("[Cache store] Block rejected: cache full, no eviction candidate");
+                return false;
             }
         }
 
@@ -143,9 +147,11 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
         // New added block is a leaf node
         update_lru_unsafe(block);
 
-        LOG_VERB("[Cache store]Got a full block. Token start: " << block->get_token_start()
-                                                                << " block hash: " << block->get_block_hash());
+        LOG_VERB("[Cache store] Successfully added block. Token start: " << block->get_token_start()
+                                                                         << " block hash: " << block->get_block_hash());
     }
+
+    return true;
 }
 
 void PrefixCacheManager::update_lru_unsafe(const std::shared_ptr<KVBlock>& block) {
@@ -184,15 +190,13 @@ bool PrefixCacheManager::evict_lru_block_unsafe() {
     return eviction_done;
 }
 
-bool PrefixCacheManager::get_block(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block) {
+std::shared_ptr<KVBlock> PrefixCacheManager::get_block(uint64_t combined_hash) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    out_block = get_block_unsafe(combined_hash);
-    if (out_block != nullptr) {
-        update_lru_unsafe(out_block);
-        return true;
+    auto block = get_block_unsafe(combined_hash);
+    if (block != nullptr) {
+        update_lru_unsafe(block);
     }
-
-    return false;
+    return block;
 }
 
 std::shared_ptr<KVBlock> PrefixCacheManager::get_block_unsafe(uint64_t combined_hash) const {
@@ -407,8 +411,8 @@ uint64_t PrefixCachingHelper::restore_blocks(const ov::SoPtr<ov::ITensor>& input
 
         uint64_t block_hash = token_hashes.back();
 
-        std::shared_ptr<KVBlock> retrieved_block;
-        if (!m_cache_manager->get_block(block_hash, retrieved_block)) {
+        auto retrieved_block = m_cache_manager->get_block(block_hash);
+        if (!retrieved_block) {
             LOG_VERB("[PrefixCache] No cache block found for hash " << block_hash);
             break;
         }
@@ -510,6 +514,11 @@ void PrefixCachingHelper::store_blocks(size_t chunk_size,
             prev_block_hash = prompt_hashes[last_token_id_in_prev_block];
         }
 
+        // Note: put_block returns bool but we don't need to check it here.
+        // The block's lifetime is managed by shared_ptr reference counting.
+        // If cache accepts it, both cache and this function hold references.
+        // If cache rejects it, only this function holds reference and block will be destroyed
+        // when it goes out of scope, which is the expected behavior.
         m_cache_manager->put_block(block, prev_block_hash);
     }
 }

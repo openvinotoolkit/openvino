@@ -29,14 +29,16 @@ TEST(PrefixCacheManagerTest, AddAndGetBlock) {
     cache.put_block(block3, block2->get_block_hash());
 
     // Retrieve block from cache adn check block hash
-    std::shared_ptr<ov::npuw::KVBlock> retrieved_block;
-    EXPECT_TRUE(cache.get_block(block1->get_block_hash(), retrieved_block));
+    auto retrieved_block = cache.get_block(block1->get_block_hash());
+    EXPECT_NE(retrieved_block, nullptr);
     EXPECT_EQ(block1->get_block_hash(), 0x2);
 
-    EXPECT_TRUE(cache.get_block(block2->get_block_hash(), retrieved_block));
+    retrieved_block = cache.get_block(block2->get_block_hash());
+    EXPECT_NE(retrieved_block, nullptr);
     EXPECT_EQ(block2->get_block_hash(), 0x4);
 
-    EXPECT_TRUE(cache.get_block(block3->get_block_hash(), retrieved_block));
+    retrieved_block = cache.get_block(block3->get_block_hash());
+    EXPECT_NE(retrieved_block, nullptr);
     EXPECT_EQ(block3->get_block_hash(), 0x6);
 }
 
@@ -56,13 +58,14 @@ TEST(PrefixCacheManagerTest, LinkBlocks) {
     cache.put_block(block2, block1->get_block_hash());
 
     // Check if block1 points to block2
-    std::shared_ptr<ov::npuw::KVBlock> retrieved_block;
-    EXPECT_TRUE(cache.get_block(block1->get_block_hash(), retrieved_block));
+    auto retrieved_block = cache.get_block(block1->get_block_hash());
+    EXPECT_NE(retrieved_block, nullptr);
     EXPECT_EQ(retrieved_block->get_child_block_hashes().size(), 1);
     EXPECT_EQ(*retrieved_block->get_child_block_hashes().begin(), block2->get_block_hash());
 
     // Check if block2 points back to block1
-    EXPECT_TRUE(cache.get_block(block2->get_block_hash(), retrieved_block));
+    retrieved_block = cache.get_block(block2->get_block_hash());
+    EXPECT_NE(retrieved_block, nullptr);
     EXPECT_EQ(retrieved_block->get_parent_block_hash(), block1->get_block_hash());
 }
 
@@ -126,18 +129,17 @@ TEST(PrefixCacheManagerTest, EvictLRUBlock) {
     // This should evict block3 as it is the least recently used and has no children
     cache.put_block(block6, block5->get_block_hash());
 
-    std::shared_ptr<ov::npuw::KVBlock> retrieved_block;
-    EXPECT_TRUE(cache.get_block(block1->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block1->get_block_hash()), nullptr);
 
-    EXPECT_TRUE(cache.get_block(block2->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block2->get_block_hash()), nullptr);
 
-    EXPECT_FALSE(cache.get_block(block3->get_block_hash(), retrieved_block));
+    EXPECT_EQ(cache.get_block(block3->get_block_hash()), nullptr);
 
-    EXPECT_TRUE(cache.get_block(block4->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block4->get_block_hash()), nullptr);
 
-    EXPECT_TRUE(cache.get_block(block5->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block5->get_block_hash()), nullptr);
 
-    EXPECT_TRUE(cache.get_block(block6->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block6->get_block_hash()), nullptr);
 }
 
 TEST(PrefixCacheManagerTest, UpdateLRUList) {
@@ -199,8 +201,8 @@ TEST(PrefixCacheManagerTest, UpdateLRUList) {
     cache.put_block(block5, block2->get_block_hash());
 
     // Get block 3 from the cache to update LRU list
-    std::shared_ptr<ov::npuw::KVBlock> retrieved_block;
-    EXPECT_TRUE(cache.get_block(block3->get_block_hash(), retrieved_block));
+    auto retrieved_block = cache.get_block(block3->get_block_hash());
+    EXPECT_NE(retrieved_block, nullptr);
 
     auto block6 = std::make_shared<ov::npuw::KVBlock>(block_size);
     block6->add_block({0xb, 0xc}, {});
@@ -208,17 +210,17 @@ TEST(PrefixCacheManagerTest, UpdateLRUList) {
     // This should evict block4 as it is the least recently used and has no children
     cache.put_block(block6, block5->get_block_hash());
 
-    EXPECT_TRUE(cache.get_block(block1->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block1->get_block_hash()), nullptr);
 
-    EXPECT_TRUE(cache.get_block(block2->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block2->get_block_hash()), nullptr);
 
-    EXPECT_TRUE(cache.get_block(block3->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block3->get_block_hash()), nullptr);
 
-    EXPECT_FALSE(cache.get_block(block4->get_block_hash(), retrieved_block));
+    EXPECT_EQ(cache.get_block(block4->get_block_hash()), nullptr);
 
-    EXPECT_TRUE(cache.get_block(block5->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block5->get_block_hash()), nullptr);
 
-    EXPECT_TRUE(cache.get_block(block6->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block6->get_block_hash()), nullptr);
 }
 
 TEST(PrefixCacheManagerTest, PreventAddingBlock) {
@@ -272,16 +274,15 @@ TEST(PrefixCacheManagerTest, PreventAddingBlock) {
     cache.put_block(block5, block4->get_block_hash());
     cache.put_block(block6, block5->get_block_hash());
 
-    std::shared_ptr<ov::npuw::KVBlock> retrieved_block;
-    EXPECT_TRUE(cache.get_block(block1->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block1->get_block_hash()), nullptr);
 
-    EXPECT_TRUE(cache.get_block(block2->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block2->get_block_hash()), nullptr);
 
-    EXPECT_TRUE(cache.get_block(block3->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block3->get_block_hash()), nullptr);
 
-    EXPECT_TRUE(cache.get_block(block4->get_block_hash(), retrieved_block));
+    EXPECT_NE(cache.get_block(block4->get_block_hash()), nullptr);
 
-    EXPECT_FALSE(cache.get_block(block5->get_block_hash(), retrieved_block));
+    EXPECT_EQ(cache.get_block(block5->get_block_hash()), nullptr);
 
-    EXPECT_FALSE(cache.get_block(block6->get_block_hash(), retrieved_block));
+    EXPECT_EQ(cache.get_block(block6->get_block_hash()), nullptr);
 }
