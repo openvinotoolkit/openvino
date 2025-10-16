@@ -406,12 +406,12 @@ Datatype ConvolutionKernelBase::GetPackedType(Datatype dt, size_t pack_size) con
     }
 }
 
-Datatype ConvolutionKernelBase::GetPackedInputType(const convolution_params& params) const {
+Datatype ConvolutionKernelBase::GetPackedInputType(const convolution_params& params, size_t pack_size) const {
     return GetPackedType(params.inputs[0].GetDType());
 }
 
-Datatype ConvolutionKernelBase::GetPackedOutputType(const convolution_params& params) const {
-    return GetPackedType(params.outputs[0].GetDType());
+Datatype ConvolutionKernelBase::GetPackedOutputType(const convolution_params& params, size_t pack_size) const {
+    return GetPackedType(params.outputs[0].GetDType(), pack_size);
 }
 
 Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& params) const {

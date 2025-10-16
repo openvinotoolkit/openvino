@@ -65,9 +65,12 @@ bool ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::Validate(const Params& p) cons
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     std::cout << "b" << std::endl;
-    /*
+    /* uncomment
+    if (IsSIMDSizeSupported(params.engineInfo, 8)) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
     if (!IsSIMDSizeSupported(params.engineInfo, 16)) {
-        std::cout << "simd 16 nod supported" << std::endl;
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     */
@@ -96,8 +99,6 @@ ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::AutoTuneOption ConvolutionKernel_mm
         option.blockWidth = 4;
     else
         option.blockWidth = 8;
-    std::cout << "now block width is 16 xxx" << std::endl;
-    option.blockWidth = 16;
     return option;
 }
 
@@ -117,12 +118,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16:
         ow_group--;
     }
 
-    dispatchData.gws[0] = Align(cp.outputs[0].Feature().v, 32) / 4;
-    dispatchData.gws[0] = dispatchData.gws[0] < 16 ? 16 : dispatchData.gws[0];
+    dispatchData.gws[0] = Align(cp.outputs[0].Feature().v, 32) / 2;
     dispatchData.gws[1] = Align(CeilDiv(cp.outputs[0].X().v, dispatchData.cldnnStyle.blockWidth), ow_group) * cp.outputs[0].Y().v * cp.outputs[0].Z().v;
     dispatchData.gws[2] = cp.outputs[0].Batch().v;
 
-    dispatchData.lws[0] = 8;
+    dispatchData.lws[0] = 16;
     dispatchData.lws[1] = ow_group;
     dispatchData.lws[2] = 1;
 
@@ -151,8 +151,8 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::GetJitConstants(const 
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));
 
-    jit.Merge(MakeTypeJitConstants(GetPackedInputType(params), "PACKED_IN"));
-    jit.Merge(MakeTypeJitConstants(GetPackedOutputType(params), "PACKED_OUT"));
+    jit.Merge(MakeTypeJitConstants(GetPackedInputType(params, 4), "PACKED_IN"));
+    jit.Merge(MakeTypeJitConstants(GetPackedOutputType(params, 2), "PACKED_OUT"));
     if (params.weights.GetDType() == WeightsType::INT8) {
         jit.AddConstant(MakeJitConstant("FILTER_TYPE_CHAR", 1));
     } else if (params.weights.GetDType() == WeightsType::UINT8) {
@@ -167,22 +167,16 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::GetJitConstants(const 
         std::vector<std::string> idx_order2;
         std::vector<std::string> idx_order3;
         if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
-            idx_order0 = {"b", "(fg*32 + 4*lid+0)", "y", "(x+i)"};
-            idx_order1 = {"b", "(fg*32 + 4*lid+1)", "y", "(x+i)"};
-            idx_order2 = {"b", "(fg*32 + 4*lid+2)", "y", "(x+i)"};
-            idx_order3 = {"b", "(fg*32 + 4*lid+3)", "y", "(x+i)"};
+            idx_order0 = {"b", "(fg*32 + 2*lid+0)", "y", "(x+i)"};
+            idx_order1 = {"b", "(fg*32 + 2*lid+1)", "y", "(x+i)"};
         } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
-            idx_order0 = {"b", "(fg*32 + 4*lid+0)", "z", "y", "(x+i)"};
-            idx_order1 = {"b", "(fg*32 + 4*lid+1)", "z", "y", "(x+i)"};
-            idx_order2 = {"b", "(fg*32 + 4*lid+2)", "z", "y", "(x+i)"};
-            idx_order3 = {"b", "(fg*32 + 4*lid+3)", "z", "y", "(x+i)"};
+            idx_order0 = {"b", "(fg*32 + 2*lid+0)", "z", "y", "(x+i)"};
+            idx_order1 = {"b", "(fg*32 + 2*lid+1)", "z", "y", "(x+i)"};
         }
 
         FusedOpsConfiguration conf0 = {"_0", idx_order0, "res0", input_dt, 1 };
         FusedOpsConfiguration conf1 = {"_1", idx_order1, "res1", input_dt, 1 };
-        FusedOpsConfiguration conf2 = {"_2", idx_order2, "res2", input_dt, 1 };
-        FusedOpsConfiguration conf3 = {"_3", idx_order3, "res3", input_dt, 1 };
-        jit.Merge(MakeFusedOpsJitConstants(params, {conf0, conf1, conf2, conf3}));
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf0, conf1}));
     }
 
     return jit;
@@ -199,14 +193,12 @@ KernelsData ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::GetKernelsDataForAutoTu
     }
 
     KernelsData res = {};
-    std::cout << "consider " << params.layerID << std::endl;
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }
     }
-    std::cout << "res" << res.size() << std::endl;
     return res;
 }
 
