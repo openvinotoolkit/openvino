@@ -25,7 +25,9 @@ from setuptools.errors import SetupError
 WHEEL_PACKAGE_DIR = "openvino"
 WHEEL_LIBS_INSTALL_DIR = f"{WHEEL_PACKAGE_DIR}/libs"
 WHEEL_LIBS_PACKAGE = "openvino.libs"
-PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}{sys.abiflags}"
+PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
+if hasattr(sys, 'abiflags') and sys.abiflags:
+    PYTHON_VERSION += sys.abiflags
 
 LIBS_DIR = "bin" if platform.system() == "Windows" else "lib"
 
