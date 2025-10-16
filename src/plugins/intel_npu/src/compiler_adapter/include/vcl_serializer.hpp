@@ -6,12 +6,12 @@
 #include <ze_graph_ext.h>
 
 #include <iostream>
-#include <mutex>
 #include <string>
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/pass/manager.hpp"
 #include "ze_graph_ext.h"
 
 namespace intel_npu {
@@ -40,16 +40,7 @@ public:
     virtual ~VCLSerializerBase();
 
 protected:
-    /**
-     * @brief Stores the runtime information required by the compiler inside the model.
-     */
-    void set_model_runtime_information();
-
-    /**
-     * @brief Removes the runtime information stored by "set_model_runtime_information" in order to restore the
-     * "ov:Model" object to its original state.
-     */
-    void remove_model_runtime_information();
+    void serialize_model_to_stream(const std::function<void(ov::pass::Manager&)>& register_serialization_pass);
 
     Logger _logger;
     std::shared_ptr<ov::Model> _model = nullptr;
@@ -72,17 +63,17 @@ private:
     /**
      * @brief Serialize OpenVINO model to target buffer
      */
-    void serializeModelToBuffer(uint8_t* xml, uint8_t* weights);
+    void serialize_model_to_buffer(uint8_t* xml, uint8_t* weights);
 
     /**
      * @brief Serialize OpenVINO model to target stream
      */
-    void serializeModelToStream(std::ostream& xml, std::ostream& weights);
+    void serialize_model_to_stream(std::ostream& xml, std::ostream& weights);
 
     /**
      * @brief Get size of xml and weights from model
      */
-    void countModelSize();
+    void count_model_size();
 
     size_t _xmlSize = 0;
     size_t _weightsSize = 0;
@@ -103,11 +94,11 @@ public:
     SerializedIR serialize() override;
 
 private:
-    void serializeModelToBuffer(uint8_t* buffer);
+    void serialize_model_to_buffer(uint8_t* buffer);
 
-    void serializeModelToStream(std::ostream& stream);
+    void serialize_model_to_stream(std::ostream& stream);
 
-    void countModelSize();
+    void count_model_size();
 
     uint64_t _serializedModelSize = 0;
 };
@@ -146,8 +137,6 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
 std::string serializeConfig(const Config& config,
                             ze_graph_compiler_version_info_t compilerVersion,
                             bool turboSupported = false);
-
-static std::mutex rtInfoMutex;
 
 }  // namespace driver_compiler_utils
 }  // namespace intel_npu
