@@ -8,9 +8,9 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
 endif()
 
 set(pyversion_script "
-import sys
-suffix = 't' if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled() else ''
-print(f'python{sys.version_info.major}.{sys.version_info.minor}{suffix}')
+    import sys
+    suffix = 't' if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled() else ''
+    print(f'python{sys.version_info.major}.{sys.version_info.minor}{suffix}')
 ")
 execute_process(
     COMMAND ${Python3_EXECUTABLE} -c "${pyversion_script}"
