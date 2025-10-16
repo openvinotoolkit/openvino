@@ -34,9 +34,58 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
 
 namespace ov {
 namespace test {
+
+std::shared_ptr<ov::Node> build_matmul_weights(
+    const ov::Shape& weights_shape,
+    const ov::element::Type& weights_precision,
+    const ov::element::Type& data_precision,
+    size_t seed,
+    bool use_weight_decompression,
+    const std::optional<ov::element::Type>& decompression_precision = std::nullopt,
+    const std::optional<ov::element::Type>& scale_precision = std::nullopt,
+    const std::optional<DecompressionType>& decompression_multiply_type = std::nullopt,
+    const std::optional<DecompressionType>& decompression_subtract_type = std::nullopt,
+    const std::optional<bool>& reshape_on_decompression = std::nullopt,
+    const std::optional<int>& decompression_group_size = std::nullopt) {
+    if (!use_weight_decompression) {
+        // Note: builder takes planar weights shape, but it is transposed here
+        // since MoE matmuls are supported only in case of transpose_b=true
+        auto transposed_weights_shape = weights_shape;
+        std::swap(*transposed_weights_shape.rbegin(), *(transposed_weights_shape.rbegin() + 1));
+        return ov::test::utils::make_constant(weights_precision,
+                                              transposed_weights_shape,
+                                              utils::InputGenerateData(0, 10, 1, seed));
+    } else {
+        OPENVINO_ASSERT(decompression_precision.has_value(),
+                        "decompression_precision must be set when use_weight_decompression is true");
+        OPENVINO_ASSERT(scale_precision.has_value(),
+                        "scale_precision must be set when use_weight_decompression is true");
+        OPENVINO_ASSERT(decompression_multiply_type.has_value(),
+                        "decompression_multiply_type must be set when use_weight_decompression is true");
+        OPENVINO_ASSERT(decompression_subtract_type.has_value(),
+                        "decompression_subtract_type must be set when use_weight_decompression is true");
+        OPENVINO_ASSERT(reshape_on_decompression.has_value(),
+                        "reshape_on_decompression must be set when use_weight_decompression is true");
+        OPENVINO_ASSERT(decompression_group_size.has_value(),
+                        "decompression_group_size must be set when use_weight_decompression is true");
+        return initMatMulDecompressionSubgraph(weights_shape,
+                                               decompression_group_size.value(),
+                                               data_precision,
+                                               weights_precision,
+                                               decompression_precision.value(),
+                                               scale_precision.value(),
+                                               true,
+                                               decompression_multiply_type.value(),
+                                               decompression_subtract_type.value(),
+                                               reshape_on_decompression.value(),
+                                               false,
+                                               seed);
+    }
+}
 
 std::shared_ptr<ov::op::v1::ReduceSum> ApplyExpertsSubgraph(const ov::Output<ov::Node>& batched_mm_output,
                                                             const ov::Output<ov::Node>& scatter_bcast_shape,
@@ -49,7 +98,7 @@ std::shared_ptr<ov::op::v1::ReduceSum> ApplyExpertsSubgraph(const ov::Output<ov:
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(number_of_experts)});
 
     // Create broadcast_zero - common to both builders
-    auto zero_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {0});
+    auto zero_const = ov::op::v0::Constant::create(routing_values.get_element_type(), ov::Shape{1}, {0});
     auto broadcast_zero = std::make_shared<ov::op::v3::Broadcast>(zero_const, scatter_bcast_shape);
 
     // Common routing weights processing
@@ -95,13 +144,13 @@ std::shared_ptr<ov::op::v1::ReduceSum> ApplyExpertsSubgraph(const ov::Output<ov:
 std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_params,
                                                 const ov::element::Type data_precision,
                                                 const ov::element::Type weights_precision,
-                                                const ov::element::Type decompression_precision,
-                                                const ov::element::Type scale_precision,
                                                 const bool use_weight_decompression,
-                                                const DecompressionType decompression_multiply_type,
-                                                const DecompressionType decompression_subtract_type,
-                                                const bool reshape_on_decompression,
-                                                const int decompression_group_size) {
+                                                const std::optional<ov::element::Type> decompression_precision,
+                                                const std::optional<ov::element::Type> scale_precision,
+                                                const std::optional<DecompressionType> decompression_multiply_type,
+                                                const std::optional<DecompressionType> decompression_subtract_type,
+                                                const std::optional<bool> reshape_on_decompression,
+                                                const std::optional<int> decompression_group_size) {
     // Use parameters from shape_params - static shapes only
     const auto& data_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -143,19 +192,28 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_para
             std::vector<int64_t>{static_cast<int64_t>(number_of_experts), -1, static_cast<int64_t>(hidden_size)}),
         false);
 
-    // Gate/Up projection
-    auto gate_up_matmul = std::make_shared<ov::op::v0::MatMul>(
-        after_tile_reshape,
-        ov::test::utils::make_constant(ov::element::f32,
-                                       ov::Shape{number_of_experts, intermediate_size * fusion_factor, hidden_size}),
-        false,
-        true);
+    // Note: we need to use different seed to avoid the exact weights generation for the MatMuls with the same shape
+    size_t seed = 1;
+    auto gate_up_weights =
+        build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size * fusion_factor},
+                             weights_precision,
+                             data_precision,
+                             seed++,
+                             use_weight_decompression,
+                             decompression_precision,
+                             scale_precision,
+                             decompression_multiply_type,
+                             decompression_subtract_type,
+                             reshape_on_decompression,
+                             decompression_group_size);
+
+    auto gate_up_matmul = std::make_shared<ov::op::v0::MatMul>(after_tile_reshape, gate_up_weights, false, true);
 
     gate_up_matmul->set_friendly_name("GateUpMatMul");
 
     auto gate_up_add = std::make_shared<ov::op::v1::Add>(
         gate_up_matmul,
-        ov::test::utils::make_constant(ov::element::f32,
+        ov::test::utils::make_constant(data_precision,
                                        ov::Shape{number_of_experts, 1, intermediate_size * fusion_factor}));
 
     // Slice the last axis, every second element
@@ -169,7 +227,7 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_para
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}));
     auto clamp = std::make_shared<ov::op::v0::Clamp>(slice1, -expert_beta, expert_beta);
     auto add1 =
-        std::make_shared<ov::op::v1::Add>(clamp, ov::test::utils::make_constant(ov::element::f32, ov::Shape{1}));
+        std::make_shared<ov::op::v1::Add>(clamp, ov::test::utils::make_constant(data_precision, ov::Shape{1}));
 
     auto slice2 = std::make_shared<ov::op::v8::Slice>(
         gate_up_add,
@@ -181,35 +239,51 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_para
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}));
     auto minimum1 =
         std::make_shared<ov::op::v1::Minimum>(slice2,
-                                              ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {10.0f}));
-    auto swish_beta = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{expert_alpha});
+                                              ov::op::v0::Constant::create(data_precision, ov::Shape{1}, {10.0f}));
+    auto swish_beta = ov::op::v0::Constant::create(data_precision, ov::Shape{}, std::vector<float>{expert_alpha});
     auto swish = std::make_shared<ov::op::v4::Swish>(minimum1, swish_beta);
 
     auto multiply2 = std::make_shared<ov::op::v1::Multiply>(add1, swish);
 
     // Down projection
-    auto down_proj_matmul = std::make_shared<ov::op::v0::MatMul>(
-        multiply2,
-        ov::test::utils::make_constant(ov::element::f32, ov::Shape{number_of_experts, hidden_size, intermediate_size}),
-        false,
-        true);
+    auto down_proj_weights = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
+                                                  weights_precision,
+                                                  data_precision,
+                                                  seed++,
+                                                  use_weight_decompression,
+                                                  decompression_precision,
+                                                  scale_precision,
+                                                  decompression_multiply_type,
+                                                  decompression_subtract_type,
+                                                  reshape_on_decompression,
+                                                  decompression_group_size);
+
+    auto down_proj_matmul = std::make_shared<ov::op::v0::MatMul>(multiply2, down_proj_weights, false, true);
 
     down_proj_matmul->set_friendly_name("DownProjMatMul");
 
     auto down_proj_add = std::make_shared<ov::op::v1::Add>(
         down_proj_matmul,
-        ov::test::utils::make_constant(ov::element::f32, ov::Shape{number_of_experts, 1, hidden_size}));
+        ov::test::utils::make_constant(data_precision, ov::Shape{number_of_experts, 1, hidden_size}));
 
-    // Router subgraph - this is crucial for the MoE pattern recognition
-    auto reshape_2nd_consumer_router_matmul = std::make_shared<ov::op::v0::MatMul>(
-        experts_reshape,
-        ov::test::utils::make_constant(ov::element::f32, ov::Shape{number_of_experts, hidden_size}),
-        false,
-        true);
+    auto router_weights = build_matmul_weights(ov::Shape{hidden_size, number_of_experts},
+                                               weights_precision,
+                                               data_precision,
+                                               seed++,
+                                               use_weight_decompression,
+                                               decompression_precision,
+                                               scale_precision,
+                                               decompression_multiply_type,
+                                               decompression_subtract_type,
+                                               reshape_on_decompression,
+                                               decompression_group_size);
+
+    auto reshape_2nd_consumer_router_matmul =
+        std::make_shared<ov::op::v0::MatMul>(experts_reshape, router_weights, false, true);
 
     auto router_bias = std::make_shared<ov::op::v1::Add>(
         reshape_2nd_consumer_router_matmul,
-        ov::test::utils::make_constant(ov::element::f32, ov::Shape{1, number_of_experts}));
+        ov::test::utils::make_constant(data_precision, ov::Shape{1, number_of_experts}));
 
     auto router_topk_values_and_indices =
         std::make_shared<ov::op::v11::TopK>(router_bias,
@@ -244,13 +318,13 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_para
 std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(const MoePatternParams& moe_params,
                                                 const ov::element::Type data_precision,
                                                 const ov::element::Type weights_precision,
-                                                const ov::element::Type decompression_precision,
-                                                const ov::element::Type scale_precision,
                                                 const bool use_weight_decompression,
-                                                const DecompressionType decompression_multiply_type,
-                                                const DecompressionType decompression_subtract_type,
-                                                const bool reshape_on_decompression,
-                                                const int decompression_group_size) {
+                                                const std::optional<ov::element::Type> decompression_precision,
+                                                const std::optional<ov::element::Type> scale_precision,
+                                                const std::optional<DecompressionType> decompression_multiply_type,
+                                                const std::optional<DecompressionType> decompression_subtract_type,
+                                                const std::optional<bool> reshape_on_decompression,
+                                                const std::optional<int> decompression_group_size) {
     // Use parameters from shape_params - static shapes only
     const auto& data_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -289,14 +363,21 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(const MoePatternParams& moe_para
             std::vector<int64_t>{static_cast<int64_t>(number_of_experts), -1, static_cast<int64_t>(hidden_size)}),
         false);
 
-    // First GEMM (activation gate)
-    auto gate_matmul = std::make_shared<ov::op::v0::MatMul>(
-        after_tile_reshape,
-        ov::test::utils::make_constant(ov::element::f32,
-                                       ov::Shape{number_of_experts, intermediate_size, hidden_size},
-                                       utils::InputGenerateData(0, 10, 1, 1)),
-        false,
-        true);
+    // Note: we need to use different seed to avoid the exact weights generation for the MatMuls with the same shape
+    size_t seed = 1;
+    auto gate_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
+                                             weights_precision,
+                                             data_precision,
+                                             seed++,
+                                             use_weight_decompression,
+                                             decompression_precision,
+                                             scale_precision,
+                                             decompression_multiply_type,
+                                             decompression_subtract_type,
+                                             reshape_on_decompression,
+                                             decompression_group_size);
+
+    auto gate_matmul = std::make_shared<ov::op::v0::MatMul>(after_tile_reshape, gate_weights, false, true);
 
     gate_matmul->set_friendly_name("GateMatMul");
 
@@ -304,13 +385,19 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(const MoePatternParams& moe_para
     auto swish = std::make_shared<ov::op::v4::Swish>(gate_matmul);
 
     // Second GEMM (up_projection)
-    auto up_matmul = std::make_shared<ov::op::v0::MatMul>(
-        after_tile_reshape,
-        ov::test::utils::make_constant(ov::element::f32,
-                                       ov::Shape{number_of_experts, intermediate_size, hidden_size},
-                                       utils::InputGenerateData(0, 10, 1, 2)),
-        false,
-        true);
+    auto up_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
+                                           weights_precision,
+                                           data_precision,
+                                           seed++,
+                                           use_weight_decompression,
+                                           decompression_precision,
+                                           scale_precision,
+                                           decompression_multiply_type,
+                                           decompression_subtract_type,
+                                           reshape_on_decompression,
+                                           decompression_group_size);
+
+    auto up_matmul = std::make_shared<ov::op::v0::MatMul>(after_tile_reshape, up_weights, false, true);
 
     up_matmul->set_friendly_name("UpMatMul");
 
@@ -318,20 +405,37 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(const MoePatternParams& moe_para
     auto swiglu = std::make_shared<ov::op::v1::Multiply>(swish, up_matmul);
 
     // Third GEMM (down_projection)
-    auto down_matmul = std::make_shared<ov::op::v0::MatMul>(
-        swiglu,
-        ov::test::utils::make_constant(ov::element::f32, ov::Shape{number_of_experts, hidden_size, intermediate_size}),
-        false,
-        true);
+    auto down_weights_moe3 = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
+                                                  weights_precision,
+                                                  data_precision,
+                                                  seed++,
+                                                  use_weight_decompression,
+                                                  decompression_precision,
+                                                  scale_precision,
+                                                  decompression_multiply_type,
+                                                  decompression_subtract_type,
+                                                  reshape_on_decompression,
+                                                  decompression_group_size);
+
+    auto down_matmul = std::make_shared<ov::op::v0::MatMul>(swiglu, down_weights_moe3, false, true);
 
     down_matmul->set_friendly_name("DownMatMul");
 
     // Router subgraph - this is crucial for the MoE pattern recognition
-    auto reshape_2nd_consumer_router_matmul = std::make_shared<ov::op::v0::MatMul>(
-        experts_reshape,
-        ov::test::utils::make_constant(ov::element::f32, ov::Shape{number_of_experts, hidden_size}),
-        false,
-        true);
+    auto router_weights_moe3 = build_matmul_weights(ov::Shape{hidden_size, number_of_experts},
+                                                    weights_precision,
+                                                    data_precision,
+                                                    seed++,
+                                                    use_weight_decompression,
+                                                    decompression_precision,
+                                                    scale_precision,
+                                                    decompression_multiply_type,
+                                                    decompression_subtract_type,
+                                                    reshape_on_decompression,
+                                                    decompression_group_size);
+
+    auto reshape_2nd_consumer_router_matmul =
+        std::make_shared<ov::op::v0::MatMul>(experts_reshape, router_weights_moe3, false, true);
 
     auto router_softmax = std::make_shared<ov::op::v1::Softmax>(reshape_2nd_consumer_router_matmul, 1);
 
