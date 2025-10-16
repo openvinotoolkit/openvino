@@ -58,10 +58,10 @@ public:
 
     virtual void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) = 0;
     virtual const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const = 0;
-    virtual void resize_last_submitted_event(int64_t batch) = 0;
-    virtual void set_batch_size(int64_t batch) = 0;
+    virtual void resize_last_submitted_event(size_t batch) = 0;
+    virtual void set_batch_size(std::size_t batch) = 0;
 
-    virtual const std::optional<int64_t> get_batch_size() const = 0;
+    virtual const std::optional<std::size_t> get_batch_size() const = 0;
 
     virtual uint32_t get_unique_id() = 0;
     virtual void set_last_submitted_id(uint32_t id_index) = 0;
