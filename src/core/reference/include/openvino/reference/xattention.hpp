@@ -144,6 +144,11 @@ public:
         }
     }
 
+    /** Applies the softmax causal mask along the last two dimensions of the rank-3 input tensor in-place.
+     * @param in_out_data Pointer to the softmax input values (logits).
+     * @param in_out_shape Shape of the input tensor. Expected shape is [num_heads, num_query_tokens /
+     * stride, num_key_tokens / stride].
+     */
     void apply_causal_mask_(T* in_out_data, const Shape& in_out_shape) {
         OPENVINO_ASSERT(in_out_shape.size() == 3);
         OPENVINO_ASSERT(in_out_shape[1] <= in_out_shape[2]);
@@ -153,7 +158,8 @@ public:
             size_t head_offset = head_idx * in_out_shape[1] * in_out_shape[2];
             for (size_t query_dim_idx = 0; query_dim_idx < in_out_shape[1]; query_dim_idx++) {
                 size_t query_dim_offset = query_dim_idx * in_out_shape[2];
-                for (size_t key_dim_idx = key_dim - query_dim + query_dim_idx + 1; key_dim_idx < key_dim; key_dim_idx++) {
+                for (size_t key_dim_idx = key_dim - query_dim + query_dim_idx + 1; key_dim_idx < key_dim;
+                     key_dim_idx++) {
                     in_out_data[head_offset + query_dim_offset + key_dim_idx] = -INFINITY;
                 }
             }
@@ -222,11 +228,11 @@ public:
     }
 
     /** Selects the elements of the input tensor along the last dimension, independently along the first two dimensions,
-     * so that the elements constitute a smallest subset amounting to a sum portion no less than `threshold` of the
-     * element sum. The last two dimensions are treated as the query-block and key-block dimensions in the context
-     * of attention matrix scores, and the first-in-row, the "diagonal" and "non-causal" elements are
-     * disregarded when calculating the sum. "Non-causal" elements are never preserved, while "diagonal" and
-     * first-in-row elements are always preserved.
+     * so that the selected elements constitute a smallest subset amounting to a sum portion no less than `threshold`
+     * of the total "causal" element sum. "Causal" is understood in the sense of the last two dimensions being
+     * treated as the query-block and key-block dimensions in the context of attention matrix scores. The
+     * first-in-row, the "diagonal" and "non-causal" elements are disregarded when calculating the sum. "Non-causal"
+     * elements are never preserved, while "diagonal" and first-in-row elements are always preserved.
      * @param blocked_scores_data Pointer to the blocked score input.
      * @param blocked_attention_scores_shape Shape of the blocked score input tensor. Expected shape is [num_heads,
      * num_query_tokens / block_size, num_key_tokens / block_size]
@@ -256,27 +262,30 @@ public:
             for (size_t q_block_idx = 0; q_block_idx < blocked_attention_scores_shape[1]; q_block_idx++) {
                 std::priority_queue<IndexAndScore> indices_and_scores_queue;
                 double total_sum = 0.0;
+                double cumsum = 0.0;
                 for (size_t k_block_idx = 0; k_block_idx < blocked_attention_scores_shape[2]; k_block_idx++) {
                     if (k_block_idx >
                         (blocked_attention_scores_shape[2] - blocked_attention_scores_shape[1] + q_block_idx)) {
                         // Disregard non-causal blocks entirely
                         continue;
                     }
+                    size_t target_offset = head_offset + blocked_attention_scores_shape[2] * q_block_idx + k_block_idx;
+                    T current_score = *(blocked_attention_scores_data + target_offset);
+                    total_sum += current_score;
+
                     if ((k_block_idx ==
                          (blocked_attention_scores_shape[2] - blocked_attention_scores_shape[1] + q_block_idx)) ||
                         k_block_idx == 0) {
-                        // We preserve first-in-row and diagonal blocks always, and do not include their score in the
-                        // cumulative sum, i.e. we only preserve the fraction of the non-diagonal blocks' attention mass
+                        // We preserve first-in-row and diagonal blocks always, and include their score in the
+                        // cumulative sum. The target for the rest of the blocks in row is to fill up the
+                        // rest of the attention mass fraction so that with the diagonal and first blocks they
+                        // comprise the `threshold` portion of the entire causal attention mass in this row
                         retval[head_idx].insert({q_block_idx, k_block_idx});
+                        cumsum += current_score;
                     } else {
-                        size_t target_offset =
-                            head_offset + blocked_attention_scores_shape[2] * q_block_idx + k_block_idx;
-                        T current_score = *(blocked_attention_scores_data + target_offset);
-                        total_sum += current_score;
                         indices_and_scores_queue.push({{q_block_idx, k_block_idx}, current_score});
                     }
                 }
-                double cumsum = 0.0;
                 double required_sum = m_threshold * total_sum;
                 while (cumsum < required_sum && !indices_and_scores_queue.empty()) {
                     auto index_and_largest_score = indices_and_scores_queue.top();

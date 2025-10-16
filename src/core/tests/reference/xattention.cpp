@@ -639,10 +639,10 @@ std::vector<double> E2E_Q_DATA_8 = {
 ov::Shape E2E_K_SHAPE_8 = {2, 8, 2};
 std::vector<double> E2E_K_DATA_8 = {
     // clang-format off
-    -1.2870, -1.2179,  0.0316,  0.0080, -0.6171,  1.0622,  0.3085, -0.7751,
-    -1.3612,  0.9485, -0.0803,  0.5752,  0.1925, -0.1113,  1.4693,  0.0673,
-     0.7422,  0.7149, -1.7684, -0.0651, -0.1925, -1.4169,  1.0030, -0.8091,
-    -0.7934,  0.5160, -0.2543,  0.1729, -0.0687, -1.4245,  0.0758,  1.1613
+     0.2980,  0.4959, -0.0834,  0.7015,  1.2516,  0.6656, -2.7873,  1.9731,
+    -0.4817,  1.1117, -0.8096, -0.5397, -1.0528,  0.2869, -1.1274,  1.4849,
+    -0.2468, -1.0449, -1.0085, -0.3389,  0.6750,  0.9095,  0.4674,  2.2321,
+     1.3183, -0.3513, -0.3717,  0.0176, -0.2545, -0.6729, -1.1547,  0.0279
     // clang-format on
 };
 
@@ -746,7 +746,88 @@ std::vector<E2EBlockSelectTestData> E2E_BLOCK_SELECT_TEST_CASES = {
             {{0, 0}, {0, 2}, {0, 4}, {1, 0}, {1, 1}, {1, 3}, {1, 5}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {2, 4}, {2, 6}, {3, 0}, {3, 1}, {3, 4}, {3, 5}, {3, 6}, {3, 7}}
         }
         // clang-format on
+    },
+    {
+        E2E_Q_SHAPE_8,
+        E2E_Q_DATA_8,
+        E2E_K_SHAPE_16,
+        E2E_K_DATA_16,
+        /* threshold = */ 0.45,
+        /* block_size = */ 2,
+        /* stride = */ 2,
+
+        // clang-format off
+        {
+            {{0, 0}, {0, 4}, {1, 0}, {1, 5}, {2, 0}, {2, 1}, {2, 3}, {2, 6}, {3, 0}, {3, 2}, {3, 5}, {3, 7}},
+            {{0, 0}, {0, 2}, {0, 4}, {1, 0}, {1, 5}, {2, 0}, {2, 4}, {2, 6}, {3, 0}, {3, 5}, {3, 7}}
+        }
+        // clang-format on
+    },
+    {
+        E2E_Q_SHAPE_8,
+        E2E_Q_DATA_8,
+        E2E_K_SHAPE_16,
+        E2E_K_DATA_16,
+        /* threshold = */ 0.45,
+        /* block_size = */ 4,
+        /* stride = */ 2,
+
+        // clang-format off
+        {
+            {{0, 0}, {0, 2}, {1, 0}, {1, 1}, {1, 3}},
+            {{0, 0}, {0, 2}, {1, 0}, {1, 3}}
+        }
+        // clang-format on
+    },
+    {
+        E2E_Q_SHAPE_8,
+        E2E_Q_DATA_8,
+        E2E_K_SHAPE_16,
+        E2E_K_DATA_16,
+        /* threshold = */ 0.45,
+        /* block_size = */ 4,
+        /* stride = */ 4,
+
+        // clang-format off
+        {
+            {{0, 0}, {0, 2}, {1, 0}, {1, 3}},
+            {{0, 0}, {0, 2}, {1, 0}, {1, 3}}
+        }
+        // clang-format on
+    },
+    {
+        E2E_Q_SHAPE_8,
+        E2E_Q_DATA_8,
+        E2E_K_SHAPE_8,
+        E2E_K_DATA_8,
+        /* threshold = */ 0.5,
+        /* block_size = */ 2,
+        /* stride = */ 2,
+
+        // clang-format off
+        {
+            {{0, 0}, {1, 0}, {1, 1}, {2, 0}, {2, 1}, {2, 2}, {3, 0}, {3, 1}, {3, 3}},
+            {{0, 0}, {1, 0}, {1, 1}, {2, 0}, {2, 2}, {3, 0}, {3, 3}}
+        }
+        // clang-format on
+    },
+    {
+        E2E_Q_SHAPE_8,
+        E2E_Q_DATA_8,
+        E2E_K_SHAPE_8,
+        E2E_K_DATA_8,
+        /* threshold = */ 0.2,
+        /* block_size = */ 2,
+        /* stride = */ 2,
+
+        // clang-format off
+        {
+            {{0, 0}, {1, 0}, {1, 1}, {2, 0}, {2, 2}, {3, 0}, {3, 3}},
+            {{0, 0}, {1, 0}, {1, 1}, {2, 0}, {2, 2}, {3, 0}, {3, 3}}
+        }
+        // clang-format on
     }};
+
 
 TEST_P(XAttentionE2EBlockSelectTest, SelectsBlocksCorrectlyFromQKData) {
     auto test_struct = GetParam();
@@ -762,8 +843,8 @@ TEST_P(XAttentionE2EBlockSelectTest, SelectsBlocksCorrectlyFromQKData) {
     ASSERT_EQ(test_result.size(), test_struct.ref_retained_block_indices.size());
     EXPECT_EQ(test_result, test_struct.ref_retained_block_indices);
     for (size_t head_idx = 0; head_idx < test_result.size(); head_idx++) {
-        std::cout << "Head " << head_idx << std::endl;
         if (test_result != test_struct.ref_retained_block_indices) {
+            std::cout << "Head " << head_idx << std::endl;
             const auto& ref_set = test_struct.ref_retained_block_indices[head_idx];
             const auto& test_set = test_result[head_idx];
             std::cout << "ref has " << ref_set.size() << " elements, test has " << test_set.size() << std::endl;
