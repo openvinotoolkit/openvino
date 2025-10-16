@@ -10,6 +10,7 @@
 #include <set>
 #include <string>
 
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -61,7 +62,7 @@ bool deBatchModel(std::shared_ptr<ov::Model>& model,
  * @param logger Logger instance for diagnostic messages
  */
 void handlePluginBatching(std::shared_ptr<ov::Model>& model,
-                          Config& localConfig,
+                          FilteredConfig& localConfig,
                           const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
                           std::optional<ov::Dimension>& originalBatch,
                           Logger logger);
