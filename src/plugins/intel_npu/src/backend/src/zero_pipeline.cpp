@@ -21,7 +21,7 @@ Pipeline::Pipeline(const Config& config,
                    const std::shared_ptr<IGraph>& graph,
                    const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                    const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                   int64_t batch_size)
+                   size_t batch_size)
     : _init_structs(init_structs),
       _graph(graph),
       _config(config),

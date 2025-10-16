@@ -706,14 +706,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         OPENVINO_THROW("NPU plugin: got an unexpected exception from compiler");
     }
 
+    std::optional<int64_t> batch = std::nullopt;
     if (originalBatch.has_value()) {
-        auto batch = originalBatch.value().is_static() ? originalBatch.value().get_length() : -1;
-        graph->set_batch_size(batch);
+        batch = originalBatch.value().is_static() ? originalBatch.value().get_length() : -1;
+        graph->set_batch_size(batch.value());
     }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig);
+        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, batch);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -994,7 +995,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
-    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
+    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, batchSize);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};

@@ -53,13 +53,13 @@ private:
      */
     std::shared_ptr<ZeroTensor> allocate_tensor(const size_t index,
                                                 const bool isInput,
-                                                const std::optional<int64_t> batchSize = std::nullopt) const;
+                                                const std::optional<std::size_t> batchSize = std::nullopt) const;
 
-    std::optional<int64_t> determine_dynamic_batch_size(const IODescriptor& desc,
-                                                        const size_t index,
-                                                        const bool isInput,
-                                                        const std::shared_ptr<ov::ITensor>& tensor,
-                                                        const std::optional<int64_t> batchSize);
+    std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
+                                                       const size_t index,
+                                                       const bool isInput,
+                                                       const std::shared_ptr<ov::ITensor>& tensor,
+                                                       const std::optional<size_t> batchSize);
 
     void add_state(const IODescriptor& descriptor, size_t tensorIndex) const;
 

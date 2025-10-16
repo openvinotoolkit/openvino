@@ -19,7 +19,7 @@ public:
              const std::shared_ptr<IGraph>& graph,
              const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
              const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-             int64_t batch_size = 1);
+             size_t batch_size = 1);
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
