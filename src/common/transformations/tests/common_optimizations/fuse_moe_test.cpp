@@ -292,11 +292,10 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto scatter_shape =
         std::make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim_unsqueeze, num_experts_unsqueeze}, 0);
     auto zeros_tensor = std::make_shared<ov::op::v3::Broadcast>(zeros_scalar, scatter_shape);
-    auto scatter =
-        std::make_shared<ov::op::v12::ScatterElementsUpdate>(zeros_tensor,
-                                                             topk_TopK->output(1),
-                                                             normalized_topk,
-                                                             axis1_vector);
+    auto scatter = std::make_shared<ov::op::v12::ScatterElementsUpdate>(zeros_tensor,
+                                                                        topk_TopK->output(1),
+                                                                        normalized_topk,
+                                                                        axis1_vector);
     auto router_transpose = std::make_shared<ov::op::v1::Transpose>(scatter, transpose_axes);
     auto router_shape =
         std::make_shared<ov::op::v0::Concat>(ov::OutputVector{num_experts_unsqueeze, batch_dim_unsqueeze, minus_one},

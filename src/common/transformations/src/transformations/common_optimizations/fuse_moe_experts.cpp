@@ -130,15 +130,21 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto index_add__ShapeOf_14 = wrap_type<ov::op::v3::ShapeOf>({index_add__Slice_1}, {{"output_type", "i32"}});
     auto index_add__Broadcast_16 =
         wrap_type<ov::op::v3::Broadcast>({index_add__Reshape_1, index_add__ShapeOf_14}, {{"mode", "bidirectional"}});
-    auto unsqueeze_Unsqueeze_reshape = wrap_type<ov::op::v1::Reshape>({unsqueeze_Unsqueeze, pattern::any_input()}, {{"special_zero", false}});
-    auto index_Gather_2 = wrap_type<ov::op::v8::Gather>(
-        {unsqueeze_Unsqueeze_reshape, index_add__Convert_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
-        {{"batch_dims", 0}});
-    auto reshape_Reshape_1_0 = wrap_type<ov::op::v1::Reshape>({index_Gather_2, pattern::any_input()}, {{"special_zero", true}});
-    auto reshape_Reshape_1_1 = wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_0, pattern::any_input()}, {{"special_zero", true}});
-    auto reshape_Reshape_1_2 = wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_1, pattern::any_input()}, {{"special_zero", true}});
+    auto unsqueeze_Unsqueeze_reshape =
+        wrap_type<ov::op::v1::Reshape>({unsqueeze_Unsqueeze, pattern::any_input()}, {{"special_zero", false}});
+    auto index_Gather_2 = wrap_type<ov::op::v8::Gather>({unsqueeze_Unsqueeze_reshape,
+                                                         index_add__Convert_1,
+                                                         wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
+                                                        {{"batch_dims", 0}});
+    auto reshape_Reshape_1_0 =
+        wrap_type<ov::op::v1::Reshape>({index_Gather_2, pattern::any_input()}, {{"special_zero", true}});
+    auto reshape_Reshape_1_1 =
+        wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_0, pattern::any_input()}, {{"special_zero", true}});
+    auto reshape_Reshape_1_2 =
+        wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_1, pattern::any_input()}, {{"special_zero", true}});
 
-    auto reshape_Reshape_1 = wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_2, shape_const}, {{"special_zero", true}});
+    auto reshape_Reshape_1 =
+        wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_2, shape_const}, {{"special_zero", true}});
     auto gate_proj_weight = pattern::any_input(pattern::rank_equals(2));
     auto linear_MatMul_gate = wrap_type<ov::op::v0::MatMul>({reshape_Reshape_1, gate_proj_weight},
                                                             {{"transpose_a", false}, {"transpose_b", true}});
