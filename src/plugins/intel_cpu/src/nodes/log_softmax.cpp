@@ -94,6 +94,7 @@ void LogSoftmax::prepareParams() {
     for (int i = 0; i < axis; i++) {
         axisStep *= dims[i];
     }
+    CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(dims.size()), "has out of bound axis.");
     reducedAxisSize = dims[axis];
     for (size_t i = (axis + 1); i < dims.size(); i++) {
         reducedAxisStride *= dims[i];
