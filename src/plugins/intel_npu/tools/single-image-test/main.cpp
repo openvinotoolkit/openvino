@@ -896,7 +896,8 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
         }
     } else {
         if (fileBytes == reqTensorBytes) {
-            OPENVINO_ASSERT(reqTensorBytes <= std::numeric_limits<std::streamsize>::max(), "Requested tensor size is too big to convert to signed streamsize: ", reqTensorBytes);
+            OPENVINO_ASSERT(reqTensorBytes <= std::numeric_limits<std::streamsize>::max(),
+                            "Requested tensor size is too big to convert to signed streamsize: ", reqTensorBytes);
             binaryFile.read(reinterpret_cast<char*>(requestedTensor.data()),
                             static_cast<std::streamsize>(reqTensorBytes));
         } else {
@@ -976,7 +977,9 @@ ov::Tensor loadTensor(const ov::element::Type& precision, const ov::Shape& shape
 
     const auto dataBuffer = reinterpret_cast<char*>(tensor.data());
 
-    OPENVINO_ASSERT(tensor.get_byte_size() <= std::numeric_limits<std::streamsize>::max(), "Tensor size is too big to convert to signed streamsize: ", tensor.get_byte_size());
+    OPENVINO_ASSERT(tensor.get_byte_size() <= std::numeric_limits<std::streamsize>::max(),
+                    "Tensor size is too big to convert to signed streamsize: ", tensor.get_byte_size());
+
     file.read(dataBuffer, static_cast<std::streamsize>(tensor.get_byte_size()));
 
     return tensor;
@@ -988,7 +991,9 @@ void dumpTensor(const ov::Tensor& tensor, const std::string& filePath) {
 
     const auto dataBuffer = reinterpret_cast<const char*>(tensor.data());
 
-    OPENVINO_ASSERT(tensor.get_byte_size() <= std::numeric_limits<std::streamsize>::max(), "Tensor size is too big to convert to signed streamsize: ", tensor.get_byte_size());
+    OPENVINO_ASSERT(tensor.get_byte_size() <= std::numeric_limits<std::streamsize>::max(),
+                    "Tensor size is too big to convert to signed streamsize: ", tensor.get_byte_size());
+
     file.write(dataBuffer, static_cast<std::streamsize>(tensor.get_byte_size()));
 }
 
