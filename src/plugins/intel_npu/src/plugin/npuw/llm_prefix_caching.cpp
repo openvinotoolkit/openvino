@@ -438,10 +438,12 @@ uint64_t PrefixCachingHelper::restore_blocks(const ov::SoPtr<ov::ITensor>& input
 
         restored_token_num += block_size;
 
+        // Ensure the cached tokens can be loaded into infer request
         if (restored_token_num + block_size > max_restored_token_num) {
             break;
         }
 
+        // At least we should infer "1" token to generate "logit"
         if (restored_token_num == actual_token_num) {
             restored_token_num -= block_size;
             break;

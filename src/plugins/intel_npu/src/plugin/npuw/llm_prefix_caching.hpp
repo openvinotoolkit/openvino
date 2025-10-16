@@ -33,7 +33,8 @@ using KVData = std::vector<std::pair<std::string, ov::SoPtr<ov::ITensor>>>;
 
 class KVBlock {
 public:
-    KVBlock(size_t block_size)
+    // block_size is number of tokens per block
+    explicit KVBlock(size_t block_size)
         : m_block_size(block_size),
           m_is_full(false),
           m_token_start(0),
