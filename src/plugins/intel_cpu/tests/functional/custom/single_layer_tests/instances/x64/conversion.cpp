@@ -67,6 +67,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Dynamic, ConvertToBoolea
                                 ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {}))),
                         ConvertToBooleanCPULayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_I32ToU8_Static, ConvertI32ToU8CPULayerTest,
+                         ::testing::Combine(
+                                ::testing::ValuesIn(inShapes_4D_static()),
+                                ::testing::Values(ov::element::i32),
+                                ::testing::Values(ov::element::u8),
+                                ::testing::Values(ov::test::SpecialValue::none),
+                                ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {}))),
+                         ConvertI32ToU8CPULayerTest::getTestCaseName);
+
 }  // namespace
 }  // namespace Conversion
 }  // namespace test

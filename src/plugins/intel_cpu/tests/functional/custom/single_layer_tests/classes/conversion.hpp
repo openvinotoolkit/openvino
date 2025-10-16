@@ -43,6 +43,12 @@ protected:
     void validate_out_prc() const override;
 };
 
+class ConvertI32ToU8CPULayerTest : public ConvertCPULayerTest {
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void validate_out_prc() const override;
+};
+
 namespace Conversion {
 const std::vector<InputShape>& inShapes_4D_static();
 const std::vector<InputShape>& inShapes_4D_dynamic();
