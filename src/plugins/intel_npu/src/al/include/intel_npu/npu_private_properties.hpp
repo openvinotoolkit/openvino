@@ -349,6 +349,21 @@ static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_
 static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
 
 /**
+ * @brief [Only for NPU Plugin]
+ * Type: bool. Default is "true".
+ *
+ * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
+ * passed through the driver.
+ *
+ * The base serializer is the OV implementation of the "XmlSerializer" without any extensions. All weights are copied in
+ * a separate buffer. By turning this off, the NPU extension of the serializer is enabled. This allows optimizing the
+ * process by avoiding copies into a separate weights buffer. However, this solution may be less reliable.
+ *
+ * @note This option doesn't actually do anything right now, it has been registered in advance.
+ */
+static constexpr ov::Property<bool> use_base_model_serializer{"NPU_USE_BASE_MODEL_SERIALIZER"};
+
+/**
  * @brief [Experimental, only for NPU Plugin]
  * Type: integer.
  *

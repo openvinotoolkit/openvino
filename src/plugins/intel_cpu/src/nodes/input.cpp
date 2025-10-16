@@ -88,7 +88,7 @@ protected:
     void foreach (const Xbyak::Reg64& idx,
                   size_t step,
                   const Xbyak::Reg64& end,
-                  std::function<void(const Xbyak::Reg64&)> && fn) {
+                  const std::function<void(const Xbyak::Reg64&)>& fn) {
         Label loop;
         Label exit;
 
@@ -772,6 +772,7 @@ void Input::initSupportedPdDefault() {
 
 void Input::initSupportedPdFromMemDesc() {
     NodeConfig config;
+    CPU_NODE_ASSERT(extMemDesc, "has invalid extMemDesc in initSupportedPdFromMemDesc");
     PortConfig portConfig(extMemDesc, BlockedMemoryDesc::FULL_MASK, m_isInPlace ? 0 : -1, false);
 
     if (any_of(getType(), Type::Input, Type::MemoryInput)) {

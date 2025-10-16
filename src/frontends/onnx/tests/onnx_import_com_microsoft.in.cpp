@@ -1365,6 +1365,22 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x32_zp) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_no_zp_block_size) {
+    const auto model = convert_model("com.microsoft/matmulnbits_no_zp_block_size.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    std::vector<float> input_data(1280);
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        input_data[i] = static_cast<float>(i) / 1000.f;
+    }
+    test_case.add_input<float>(Shape{1, 1280}, input_data);
+
+    test_case.add_expected_output<float>(
+        Shape{1, 10},
+        {403.8f, 404.5f, 413.0f, 403.5f, 418.8f, 415.2f, 407.1f, 420.4f, 415.1f, 398.5f});
+    test_case.run_with_tolerance_as_fp(0.1f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
     const auto model = convert_model("com.microsoft/quick_gelu.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
