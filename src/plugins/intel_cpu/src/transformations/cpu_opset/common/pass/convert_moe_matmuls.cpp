@@ -35,6 +35,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/matmul_experts_fusion.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
@@ -101,9 +102,15 @@ ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
     // Routing weights/mask
     auto router_topk_indices = pattern::any_input();
     auto chosen_experts = pattern::any_input();
+    auto slice_begin = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("0, 0"));
+    auto slice_end = pattern::wrap_type<ov::op::v3::ShapeOf>({pattern::any_input()});
+    auto slice_strides = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("1, 1"));
+    auto slice_axes = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("0, 1"));
+    auto slice = pattern::optional<ov::op::v8::Slice>(
+        {chosen_experts, slice_begin, slice_end, slice_strides, slice_axes});
     auto one_constant = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("1"));
     auto scatter_elements_update = pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>(
-        {broadcasted_const, router_topk_indices, chosen_experts, one_constant},
+        {broadcasted_const, router_topk_indices, slice, one_constant},
         {{"reduction", "none"}});
 
     auto router_transpose = pattern::wrap_type<ov::op::v1::Transpose>({scatter_elements_update, pattern::any_input()});
