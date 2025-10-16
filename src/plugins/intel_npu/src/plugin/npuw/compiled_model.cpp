@@ -1554,7 +1554,7 @@ void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& de
     }
 }
 
-std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infer_request() const {
+std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_base_infer_request() const {
     // Synchronous infer request implementation may vary based on the
     // selected strategy
     auto* non_const_this = const_cast<ov::npuw::CompiledModel*>(this);  // because of const in API
@@ -1582,19 +1582,27 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
         return true;  // no spatial & subgraphs requiring unpack found
     };
 
-    std::shared_ptr<ov::ISyncInferRequest> result;
+    std::shared_ptr<ov::npuw::IBaseInferRequest> result;
     if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack()) {
-        result.reset(new ov::npuw::UnfoldInferRequest(non_const_this_sptr));
+        result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
-        result.reset(new ov::npuw::JustInferRequest(non_const_this_sptr));
+        result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);
     }
     NPUW_ASSERT(result);
     return result;
 }
 
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infer_request() const {
+    return create_base_infer_request();
+}
+
+std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel ::wrap_async_infer_request(
+    std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const {
+    return std::make_shared<ov::IAsyncInferRequest>(internal_request, get_task_executor(), get_callback_executor());
+}
+
 std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_request() const {
-    m_internal_request = create_sync_infer_request();
-    return std::make_shared<ov::IAsyncInferRequest>(m_internal_request, get_task_executor(), get_callback_executor());
+    return wrap_async_infer_request(create_base_infer_request());
 }
 
 void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {

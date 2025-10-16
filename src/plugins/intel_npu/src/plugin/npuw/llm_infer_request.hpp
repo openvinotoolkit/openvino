@@ -84,6 +84,8 @@ protected:
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
+    // Base infer request for prefill, used to update history size for dynamic context
+    std::shared_ptr<ov::npuw::IBaseInferRequest> m_prefill_base_request;
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;

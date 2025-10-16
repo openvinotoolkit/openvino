@@ -180,7 +180,9 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
 
     m_kvcache_request = compiled_model->m_kvcache_compiled->create_infer_request();
-    m_prefill_request = compiled_model->m_prefill_compiled->create_infer_request();
+
+    m_prefill_base_request = compiled_model->m_prefill_compiled->create_base_infer_request();
+    m_prefill_request = compiled_model->m_prefill_compiled->wrap_async_infer_request(m_prefill_base_request);
 
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
         m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
@@ -572,10 +574,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         remaining_prompts = cache_context.remaining_prompts;
     }
 
-    auto internal_request = m_npuw_llm_compiled_model->m_prefill_compiled->get_internal_request();
-    auto base_request = std::dynamic_pointer_cast<ov::npuw::IBaseInferRequest>(internal_request);
-    NPUW_ASSERT(base_request != nullptr);
-
     int64_t present_size = chunk_prompt_len;
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
@@ -635,7 +633,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
         // Update history size for dynamic context:
         // dynamic attention selector needs history size to determin the past KV shape and attention mask shape
-        base_request->update_history_size(kvcache_desc.num_stored_tokens);
+        m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
 
         m_prefill_request->infer();
 
