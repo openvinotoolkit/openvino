@@ -78,7 +78,7 @@ void BorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
 static void OptimizeBorderKernelDispatch(BorderKernelBase::DispatchData& dispatchData,
                                          EngineInfo engine_info,
                                          bool use_predefined_only = true,
-                                         int max_lws = 64) {
+                                         size_t max_lws = 64) {
     using Vec3 = std::array<size_t, 3>;
     using DispatchDataPair = std::pair<Vec3, Vec3>;
 
