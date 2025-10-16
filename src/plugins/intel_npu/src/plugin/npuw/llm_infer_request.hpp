@@ -112,18 +112,10 @@ protected:
     void init_lora_states();
 
     // Support prefix caching
-    std::shared_ptr<PrefixCacheManager> m_prefix_cache;
+    std::unique_ptr<PrefixCachingHelper> m_prefix_caching_helper;
 
-    friend uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
-                                          size_t block_size,
-                                          const std::vector<uint64_t>& prompt_hashes,
-                                          const std::unordered_map<std::string, std::string>& input_name_map,
-                                          LLMInferRequest& request);
-    friend void store_blocks_in_cache(size_t chunk_size,
-                                      size_t block_size,
-                                      const std::vector<uint64_t>& prompt_hashes,
-                                      size_t& token_idx,
-                                      LLMInferRequest& request);
+    // Friend declarations for PrefixCachingHelper to access protected members
+    friend class PrefixCachingHelper;
 };
 
 }  // namespace npuw

@@ -13,6 +13,7 @@ namespace npuw {
 
 class LLMInferRequest;
 class WhisperInferRequest;
+struct PrefixCacheRestorationContext;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -94,16 +95,8 @@ private:
     uint64_t m_prefix_caching_block_size = 0;
     uint64_t m_prefix_caching_max_num_blocks = 0;
 
-    friend uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
-                                          size_t block_size,
-                                          const std::vector<uint64_t>& prompt_hashes,
-                                          const std::unordered_map<std::string, std::string>& input_name_map,
-                                          LLMInferRequest& request);
-    friend void store_blocks_in_cache(size_t chunk_size,
-                                      size_t block_size,
-                                      const std::vector<uint64_t>& prompt_hashes,
-                                      size_t& token_idx,
-                                      LLMInferRequest& request);
+    // Friend declarations for PrefixCachingHelper to access protected members
+    friend class PrefixCachingHelper;
 
     void gemma_transformations(const std::shared_ptr<ov::Model>& model);
     int32_t m_gemma_sliding_window_size = 0;

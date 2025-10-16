@@ -136,96 +136,87 @@ private:
 };
 
 /**
- * @brief Calculate hash values for each token in the input sequence
+ * @brief Context structure for prefix caching restoration
  *
- * This function computes cumulative hash values for tokens in the input tensor.
- * Each token's hash is calculated based on all preceding tokens, creating a
- * unique fingerprint for each position in the sequence that can be used for
- * prefix caching lookup and storage.
- *
- * @param input_ids Input token tensor containing the token sequence
- * @return Vector of hash values, one for each token position
+ * This structure holds the necessary state and metadata for restoring cached blocks
+ * during chunked prefill inference.
  */
-std::vector<uint64_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids);
-
-/**
- * @brief Create mapping from output tensor names to input tensor names for KV cache
- *
- * This function creates a mapping between the output KV cache tensor names from the
- * prefill model and the corresponding input tensor names that will receive the cached
- * data. This mapping is essential for correctly routing cached KV tensors during
- * prefix cache restoration.
- *
- * @param compiled_model The compiled model containing output port information
- * @param in_ports Map of input port names to their corresponding node outputs
- * @return Mapping from output tensor names to input tensor names
- */
-std::unordered_map<std::string, std::string> create_output_to_input_name_mapping(
-    const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
-    const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports);
+struct PrefixCacheRestorationContext {
+    std::vector<uint64_t> prompt_hashes;
+    std::unordered_map<std::string, std::string> input_name_map;
+    size_t token_idx = 0;
+    bool restore_prefix_cache = false;
+    uint64_t restored_token_num = 0;
+    uint64_t remaining_prompts = 0;
+};
 
 class LLMInferRequest;
 
 /**
- * @brief Restore cached KV blocks from prefix cache to avoid redundant computation
+ * @brief Helper class for coordinating prefix caching operations during inference
  *
- * This function attempts to restore previously computed KV cache blocks from the prefix cache
- * based on the input token sequence. It processes tokens in blocks and checks if each block's
- * KV cache data is available in the cache. If found, it copies the cached KV tensors to the
- * corresponding input tensors, significantly reducing computation time for repeated prefixes.
+ * This class encapsulates all prefix caching coordination logic, including:
+ * - Hash calculation for token sequences
+ * - Cache restoration and storage
+ * - Chunk size adjustment for optimal caching
+ * - Coordination between inference request and cache manager
  *
- * @param input_ids Input token tensor containing the token sequence
- * @param block_size Size of each cache block (number of tokens per block)
- * @param prompt_hashes Hash values for each token in the prompt sequence
- * @param input_name_map Mapping from output tensor names to input tensor names for KV cache
- * @param request Reference to LLMInferRequest containing cache manager and model configuration
- * @return Number of tokens successfully restored from cache
- *
- * @note The function processes tokens sequentially in blocks. If a block is not found in cache,
- *       it stops processing and returns the number of tokens restored up to that point.
+ * It serves as a bridge between the LLMInferRequest and PrefixCacheManager,
+ * handling all the complex logic required to integrate prefix caching into
+ * the inference workflow.
  */
-uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
-                               size_t block_size,
-                               const std::vector<uint64_t>& prompt_hashes,
-                               const std::unordered_map<std::string, std::string>& input_name_map,
-                               LLMInferRequest& request);
+class PrefixCachingHelper {
+public:
+    /**
+     * @brief Construct a PrefixCachingHelper
+     * @param request Reference to the LLMInferRequest that owns this helper
+     */
+    explicit PrefixCachingHelper(LLMInferRequest& request);
 
-/**
- * @brief Store computed KV cache blocks into prefix cache for future reuse
- *
- * This function stores the KV cache tensors computed during inference into the prefix cache
- * organized in blocks. It processes the output tensors from the prefill stage and creates
- * cache blocks that can be retrieved later for the same token sequences, enabling prefix
- * caching optimization for LLM inference.
- *
- * @param chunk_size Size of the current chunk being processed
- * @param block_size Size of each cache block (number of tokens per block)
- * @param prompt_hashes Hash values for each token in the prompt sequence
- * @param token_idx Reference to current token index, updated as blocks are processed
- * @param request Reference to LLMInferRequest containing cache manager and model configuration
- *
- * @note The function only processes chunks that are at least as large as the block size.
- *       It creates cache blocks from the KV output tensors and stores them with proper
- *       parent-child relationships for efficient cache management.
- */
-void store_blocks_in_cache(size_t chunk_size,
-                           size_t block_size,
-                           const std::vector<uint64_t>& prompt_hashes,
-                           size_t& token_idx,
-                           LLMInferRequest& request);
+    /**
+     * @brief Prepare and restore prefix cache before inference
+     *
+     * This high-level method coordinates the entire cache restoration process.
+     */
+    PrefixCacheRestorationContext prepare_and_restore(const ov::SoPtr<ov::ITensor>& input_ids,
+                                                      uint64_t input_prompt_len);
 
-/**
- * @brief Adjust chunk size to optimize prefix caching block alignment
- *
- * This utility function adjusts the processing chunk size to ensure optimal alignment
- * with prefix caching block boundaries. It helps maximize cache efficiency by ensuring
- * that chunks are processed in sizes that align well with the cached block structure.
- *
- * @param restored_token_num Number of tokens that were successfully restored from cache
- * @param chunk_len Original chunk length to be adjusted
- * @return Adjusted chunk size optimized for prefix caching
- */
-size_t adjust_chunk_size_for_prefix_caching(size_t restored_token_num, size_t chunk_len);
+    /**
+     * @brief Store computed KV cache blocks after inference
+     */
+    void store_computed_blocks(size_t chunk_size, const std::vector<uint64_t>& prompt_hashes, size_t& token_idx);
+
+    /**
+     * @brief Adjust chunk size for optimal prefix caching alignment
+     */
+    size_t adjust_chunk_size(size_t restored_token_num, size_t chunk_len);
+
+    /**
+     * @brief Print the current status of the prefix cache
+     */
+    void print_cache_status(bool verbose = false) const;
+
+    /**
+     * @brief Populate attention mask for restored prefix cache blocks
+     * @param attention_mask Original full attention mask from user input
+     * @param attn_mask_in_tensor Attention mask tensor for the current inference chunk
+     * @param num_restored_tokens Number of tokens that have been restored from cache
+     */
+    void populate_attention_mask_for_restored_cache(const ov::SoPtr<ov::ITensor>& attention_mask,
+                                                    const ov::SoPtr<ov::ITensor>& attn_mask_in_tensor,
+                                                    size_t num_restored_tokens);
+
+private:
+    LLMInferRequest& m_request;
+    std::shared_ptr<PrefixCacheManager> m_cache_manager;
+
+    std::vector<uint64_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids);
+    std::unordered_map<std::string, std::string> create_name_mapping();
+    uint64_t restore_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
+                            const std::vector<uint64_t>& prompt_hashes,
+                            const std::unordered_map<std::string, std::string>& input_name_map);
+    void store_blocks(size_t chunk_size, const std::vector<uint64_t>& prompt_hashes, size_t& token_idx);
+};
 
 }  // namespace npuw
 }  // namespace ov
