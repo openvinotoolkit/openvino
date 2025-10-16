@@ -14,8 +14,8 @@ size_t DEFAULT_STRIDE = 8;
 TEST(XAttentionBasicTest, SelectsBlocksWithoutThrowing) {
     ov::reference::XAttentionBlockSelector<double> selector(DEFAULT_THRESHOLD, DEFAULT_BLOCK_SIZE, DEFAULT_STRIDE);
 
-    ov::Shape q_shape = {2, 4, 4};
-    ov::Shape k_shape = {2, 8, 4};
+    ov::Shape q_shape = {2, 64, 32};
+    ov::Shape k_shape = {2, 128, 32};
     std::vector<double> q_data(ov::shape_size(q_shape), 1.0);
     std::vector<double> k_data(ov::shape_size(k_shape), 1.0);
     EXPECT_NO_THROW(selector.select_blocks(q_data.data(), q_shape, k_data.data(), k_shape));
@@ -57,11 +57,11 @@ std::vector<DiagonalReshapeTestData> DIAGONAL_RESHAPE_TEST_CASES = {
 
         // clang-format off
         {
-             4.534, -5.908, -9.388,  2.356, -6.624, -8.463,  7.474,  9.879,
              7.889, -5.721,  5.507,  4.295,  3.144,  8.512,  8.518, -8.386,
+             4.534, -5.908, -9.388,  2.356, -6.624, -8.463,  7.474,  9.879,
 
-            -7.173,  4.450,  6.705, -7.035,  3.469,  7.633,  7.244, -6.844,
             -8.248, -9.797, -7.907, -4.513,  7.497,  8.186, -8.658, -4.796,
+            -7.173,  4.450,  6.705, -7.035,  3.469,  7.633,  7.244, -6.844,
         },
         // clang-format on
     },
@@ -129,13 +129,13 @@ std::vector<DiagonalReshapeTestData> DIAGONAL_RESHAPE_TEST_CASES = {
 
         // clang-format off
         {
-            -8.410,  6.247,  0.264,  7.095, 1.354, -7.748,
-            -7.413,  5.855, -4.142,  2.837, 3.930, -2.122,
              3.664, -2.459,  3.530, -1.083, 1.110, -4.244,
+            -7.413,  5.855, -4.142,  2.837, 3.930, -2.122,
+            -8.410,  6.247,  0.264,  7.095, 1.354, -7.748,
 
-            -9.869, -7.636, -5.892,  7.820, 9.438, -2.421,
-             3.568,  8.530, -0.841,  1.935, 1.767,  5.950,
             -5.429,  7.854, -7.414, -3.682, -7.832,  9.163,
+             3.568,  8.530, -0.841,  1.935, 1.767,  5.950,
+            -9.869, -7.636, -5.892,  7.820, 9.438, -2.421,
         },
         // clang-format on
     },
@@ -328,7 +328,7 @@ TEST_P(XAttentionSoftmaxTest, SoftmaxIsCorrect) {
                                                             DEFAULT_BLOCK_SIZE,
                                                             DEFAULT_STRIDE);
     std::vector<double> test_out_data(test_struct.ref_out_data.size());
-    selector.softmax_causal(test_struct.in_data.data(), test_struct.in_shape, test_out_data.data(), test_struct.out_shape);
+    selector.softmax(test_struct.in_data.data(), test_struct.in_shape, test_out_data.data(), test_struct.out_shape);
 
     EXPECT_THAT(test_out_data, ::testing::Pointwise(::testing::DoubleNear(1e-5), test_struct.ref_out_data));
 }
@@ -414,16 +414,32 @@ std::vector<BlockSelectTestData> BLOCK_SELECT_TEST_CASES = {
             0.5151, 0.4323, 0.5014, 0.5513,
             0.4557, 0.4876, 0.5870, 0.4697,
 
-            0.5118, 0.4507, 0.5180, 0.5194,
+            0.3118, 0.4507, 0.5180, 0.5194,
             0.5315, 0.4446, 0.4929, 0.5310
         },
      // clang-format on
      /* threshold = */ 0.25,
      {
-         {{1, 2}, {0, 3}},
-         {{1, 0}, {1, 3}},
+         {{0, 2}, {1, 3}, {0, 0}, {1, 2}},
+         {{0, 2}, {1, 3}, {0, 1}, {1, 0}},
      }},
 
+    {{2, 2, 4},
+     // clang-format off
+        {
+            // larger values in non-causal area should have no impact
+            0.5151, 0.4323, 0.5014, 1337.0,
+            0.4557, 0.4876, 0.5870, 0.4697,
+
+            0.5118, 0.4507, 0.5180, 42.0,
+            0.5315, 0.4446, 0.4929, 0.5310
+        },
+     // clang-format on
+     /* threshold = */ 0.45,
+     {
+         {{0, 2}, {1, 3}, {0, 0}, {1, 1}, {1, 2}},
+         {{0, 2}, {1, 3}, {0, 0}, {1, 0}, {1, 2}},
+     }},
     {{2, 2, 4},
      // clang-format off
         {
@@ -431,28 +447,13 @@ std::vector<BlockSelectTestData> BLOCK_SELECT_TEST_CASES = {
             0.4557, 0.4876, 0.5870, 0.4697,
 
             0.5118, 0.4507, 0.5180, 0.5194,
-            0.5315, 0.4446, 0.4929, 0.5310
+            0.1234, 0.4446, 0.4929, 0.5310
         },
      // clang-format on
-     /* threshold = */ 0.35,
+     /* threshold = */ 0.8,
      {
-         {{1, 2}, {0, 3}, {0, 0}},
-         {{1, 0}, {1, 3}, {0, 3}},
-     }},
-    {{2, 2, 4},
-     // clang-format off
-        {
-            0.5151, 0.4323, 0.5014, 0.5513,
-            0.4557, 0.4876, 0.5870, 0.4697,
-
-            0.5118, 0.4507, 0.5180, 0.5194,
-            0.5315, 0.4446, 0.4929, 0.5310
-        },
-     // clang-format on
-     /* threshold = */ 0.1,
-     {
-         {{1, 2}},
-         {{1, 0}},
+         {{0, 2}, {1, 3}, {0, 0}, {0, 1}, {1, 0}, {1, 1}, {1, 2}, {1, 3}},
+         {{0, 2}, {1, 3}, {0, 0}, {0, 1}, {1, 1}, {1, 2}},
      }},
     {{2, 2, 4},
      // clang-format off
@@ -466,8 +467,8 @@ std::vector<BlockSelectTestData> BLOCK_SELECT_TEST_CASES = {
      // clang-format on
      /* threshold = */ 0.0,
      {
-         {},
-         {},
+         {{0, 2}, {1, 3}},
+         {{0, 2}, {1, 3}},
      }},
     {{2, 2, 4},
      // clang-format off
@@ -481,8 +482,8 @@ std::vector<BlockSelectTestData> BLOCK_SELECT_TEST_CASES = {
      // clang-format on
      /* threshold = */ 1.0,
      {
-         {{1, 2}, {0, 3}, {0, 0}, {0, 2}, {1, 1}, {1, 3}, {1, 0}, {0, 1}},
-         {{1, 0}, {1, 3}, {0, 3}, {0, 2}, {0, 0}, {1, 2}, {0, 1}, {1, 1}},
+         {{1, 2}, {0, 0}, {0, 2}, {1, 1}, {1, 3}, {1, 0}, {0, 1}},
+         {{1, 0}, {1, 3}, {0, 2}, {0, 0}, {1, 2}, {0, 1}, {1, 1}},
      }},
 };
 
@@ -512,8 +513,9 @@ struct E2EBlockSelectTestData {
 using XAttentionE2EBlockSelectTest = ::testing::TestWithParam<E2EBlockSelectTestData>;
 
 std::vector<E2EBlockSelectTestData> E2E_BLOCK_SELECT_TEST_CASES = {
-    {{2, 4, 4},
-     // clang-format off
+    {
+        {2, 4, 4},
+        // clang-format off
         {
              3.144,  8.512,  8.518, -8.386,
              7.889, -5.721,  5.507,  4.295,
@@ -525,9 +527,9 @@ std::vector<E2EBlockSelectTestData> E2E_BLOCK_SELECT_TEST_CASES = {
              3.469,  7.633,  7.244, -6.844,
             -7.173,  4.450,  6.705, -7.035
         },
-     // clang-format on
-     {2, 4, 4},
-     // clang-format off
+        // clang-format on
+        {2, 4, 4},
+        // clang-format off
         {
              3.144,  8.512,  8.518, -8.386,
              7.889, -5.721,  5.507,  4.295,
@@ -539,12 +541,23 @@ std::vector<E2EBlockSelectTestData> E2E_BLOCK_SELECT_TEST_CASES = {
              3.469,  7.633,  7.244, -6.844,
             -7.173,  4.450,  6.705, -7.035
         },
-     // clang-format on
+        // clang-format on
 
-     /* threshold = */ 0.8,
-     /* block_size = */ 2,
-     /* stride = */ 2,
-     {{{0, 0}, {1, 0}, {0, 1}}, {{0, 0}, {1, 0}, {0, 1}}}}};
+        /* threshold = */ 0.8,
+        /* block_size = */ 2,
+        /* stride = */ 2,
+
+        // clang-format off
+     {
+         {{0, 0}, {1, 1}, {1, 0}},
+         {{0, 0}, {1, 1}, {1, 0}}
+     }
+        // clang-format on
+    },
+    {
+
+    }
+};
 
 TEST_P(XAttentionE2EBlockSelectTest, SelectsBlocksCorrectlyFromQKData) {
     auto test_struct = GetParam();
