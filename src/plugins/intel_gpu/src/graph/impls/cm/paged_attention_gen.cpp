@@ -115,12 +115,24 @@ size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx) {
 
 // TODO: change xattn_thresh from scaler to memory... once we remove the converter node
 // between parameter node "xattention_threshold.xxx" and paged_attention node.
-const float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
+float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
     const auto& input_mem = params.memory_deps;
     const auto threshold_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
     mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm);  // converted
     const auto thresh = static_cast<float>(lock[seq_idx]);
     return thresh;
+}
+
+ // Bypass xattn stages in the following conditions -
+ // either threshold is larger than 1.0, or, q_len is too small
+ // to compute xattn block_mask.
+bool bypass_xattn(const kernel_impl_params& params) {
+    auto xattn_thresh = get_xattn_thresh(params);
+    bool bypass = xattn_thresh >= 1.0;
+
+    auto q_len = params.output_layouts[0].get_shape()[0];
+    bypass |= q_len < static_cast<size_t>(STRIDE);  //# will slient drop the tails which is less than `stride`
+    return bypass;
 }
 
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param) {
@@ -383,8 +395,7 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
             scalars[2].v.s32 = static_cast<int32_t>(rtp->xattn_k_block_pad);
 
             scalars[3].t = ScalarDescriptor::Types::UINT8;
-            const float xattn_thresh = get_xattn_thresh(params);
-            const bool validate = xattn_thresh < 1.0;
+            const bool validate = !bypass_xattn(params);
             scalars[3].v.u8 = static_cast<uint8_t>(validate);  // validate depending on xattn_threshold
         }
     }};
