@@ -35,7 +35,7 @@ public:
 
     GraphDescriptor getGraphDescriptor(SerializedIR serializedIR,
                                        const std::string& buildFlags,
-                                       const uint32_t& flags) const;
+                                       const Config& config) const;
 
     GraphDescriptor getGraphDescriptor(void* data, size_t size) const;
 
@@ -60,6 +60,9 @@ public:
     bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
 
 private:
+    std::unordered_set<std::string> getQueryResultFromSupportedLayers(
+        ze_graph_query_network_handle_t& hGraphQueryNetwork) const;
+
     void getMetadata(ze_graph_handle_t graphHandle,
                      uint32_t index,
                      std::vector<IODescriptor>& inputs,

@@ -101,15 +101,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
-    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-    uint32_t flags = ZE_GRAPH_FLAG_NONE;
-    const auto set_cache_dir = config.get<CACHE_DIR>();
-    if (!set_cache_dir.empty() || config.get<BYPASS_UMD_CACHING>()) {
-        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
-    }
-
     _logger.debug("compile start");
-    auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, flags);
+    auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, config);
     _logger.debug("compile end");
 
     OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
@@ -161,13 +154,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
     FilteredConfig updatedConfig = *plgConfig;
 
-    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-    uint32_t flags = ZE_GRAPH_FLAG_NONE;
-    const auto set_cache_dir = config.get<CACHE_DIR>();
-    if (!set_cache_dir.empty() || config.get<BYPASS_UMD_CACHING>()) {
-        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
-    }
-
     // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
     // the current call iteration.
     std::vector<NetworkMetadata> initNetworkMetadata;
@@ -191,7 +177,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
         buildFlags += irSerializer.serializeConfig(updatedConfig, compilerVersion);
 
         _logger.debug("compile start");
-        auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, flags);
+        auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, config);
         _logger.debug("compile end");
 
         OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
