@@ -458,6 +458,15 @@ static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENS
 
 /**
  * @brief
+ * FIXME: Should be removed.
+ * Type: bool.
+ * Tell NPUW to apply fp8 static quantisation pass from openvino low_precision library
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> optimize_fp8{"NPUW_LLM_OPTIMIZE_FP8E4M3"};
+
+/**
+ * @brief
  * Type: boolean
  * Substitute part of the RoPE with compile-time precalculation in higher precision
  * Default value: true.
