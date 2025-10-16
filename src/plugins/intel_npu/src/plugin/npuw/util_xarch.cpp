@@ -1621,3 +1621,93 @@ void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t r
     OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
+
+// f8e4m3 -> f16 (16x float8_e4m3 packed in __m128i -> 16x f16 packed in __m256i)
+inline __m256i avx2_f8e4m3tof16(__m128i vf8) {
+    // 1. Extend to 16 uint16_t elements
+    __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8); // 16 x uint16_t
+
+    // 2. Extract each part
+    const __m256i sign_mask = _mm256_set1_epi16(0x80);
+    const __m256i exp_mask  = _mm256_set1_epi16(0x78);
+    const __m256i man_mask  = _mm256_set1_epi16(0x07);
+
+    __m256i sign = _mm256_and_si256(vf8_16, sign_mask);
+    __m256i exp  = _mm256_and_si256(vf8_16, exp_mask);
+    __m256i man  = _mm256_and_si256(vf8_16, man_mask);
+
+    // 3. Calculate f16 exponent and mantissa
+    // f8 bias = 7, f16 bias = 15, so f16_exp = f8_exp - 7 + 15 = f8_exp + 8
+    __m256i exp16 = _mm256_srli_epi16(exp, 3); // shift right 3 bits to get raw exponent
+    exp16 = _mm256_add_epi16(exp16, _mm256_set1_epi16(8)); // add 8
+
+    // f16 format: |S|EEEEE|MMMMMMMMMM| (1|5|10)
+    // shift f8's 3-bit mantissa left by 7 to align with f16's high bits
+    __m256i man16 = _mm256_slli_epi16(man, 7);
+
+    // Compose f16: sign(1) << 15 | exp16(5) << 10 | man16(10)
+    __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15); // move sign to bit 15
+    __m256i exp16w = _mm256_slli_epi16(exp16, 10);                      // move exponent to bits 10~14
+
+    __m256i f16 = _mm256_or_si256(sign16, _mm256_or_si256(exp16w, man16));
+
+    return f16;
+}
+
+// f8e5m2 -> f16 (16x float8_e5m2 packed in __m128i -> 16x f16 packed in __m256i)
+inline __m256i avx2_f8e5m2tof16(__m128i vf8) {
+    // 1. Extend to 16 uint16_t elements
+    __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8);
+
+    // 2. Extract each part
+    const __m256i sign_mask = _mm256_set1_epi16(0x80); // 1000 0000
+    const __m256i exp_mask  = _mm256_set1_epi16(0x7C); // 0111 1100
+    const __m256i man_mask  = _mm256_set1_epi16(0x03); // 0000 0011
+
+    __m256i sign = _mm256_and_si256(vf8_16, sign_mask);
+    __m256i exp  = _mm256_and_si256(vf8_16, exp_mask);
+    __m256i man  = _mm256_and_si256(vf8_16, man_mask);
+
+    // 3. Calculate f16 exponent and mantissa
+    // f8 bias = 15, f16 bias = 15, so f16_exp = f8_exp - 15 + 15 = f8_exp
+    __m256i exp16 = _mm256_srli_epi16(exp, 2); // shift right 2 bits to get raw exponent
+
+    // f16: |S|EEEEE|MMMMMMMMMM| (1|5|10)
+    // shift f8's 2-bit mantissa left by 8 to align with f16's high bits
+    __m256i man16 = _mm256_slli_epi16(man, 8);
+
+    // Compose f16: sign(1) << 15 | exp16(5) << 10 | man16(10)
+    __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15);
+    __m256i exp16w = _mm256_slli_epi16(exp16, 10);
+
+    __m256i f16 = _mm256_or_si256(sign16, _mm256_or_si256(exp16w, man16));
+    return f16;
+}
+
+// f8e8m0 -> f16 (16x float8_e8m0 packed in __m128i -> 16x f16 packed in __m256i)
+inline __m256i avx2_f8e8m0tof16(__m128i vf8) {
+    // 1. Extend to 16 uint16_t elements
+    __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8);
+
+    // 2. Extract each part
+    const __m256i sign_mask = _mm256_set1_epi16(0x80); // 1000 0000
+    const __m256i exp_mask  = _mm256_set1_epi16(0x7F); // 0111 1111
+    // No mantissa
+
+    __m256i sign = _mm256_and_si256(vf8_16, sign_mask);
+    __m256i exp  = _mm256_and_si256(vf8_16, exp_mask);
+
+    // 3. Calculate f16 exponent
+    // f8 bias = 127, f16 bias = 15, so f16_exp = f8_exp - 127 + 15 = f8_exp - 112
+    __m256i exp16 = _mm256_sub_epi16(exp, _mm256_set1_epi16(112)); // exp - 112
+
+    // No mantissa, so man16 = 0
+    // __m256i man16 = _mm256_setzero_si256();
+
+    // Compose f16: sign(1) << 15 | exp16(5) << 10 | man16(10)
+    __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15);
+    __m256i exp16w = _mm256_slli_epi16(exp16, 10);
+
+    __m256i f16 = _mm256_or_si256(sign16, exp16w);
+    return f16;
+}
