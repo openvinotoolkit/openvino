@@ -519,15 +519,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
 #ifdef GPU_DEBUG_CONFIG
                         if (!config.get_use_cm()) {
-                            OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
+                            OPENVINO_WARN("You may miss XAttention optimization,"
                                         "as CM for usage is disabled. Enable it by setting environment variable OV_GPU_USE_CM=ON.");
                             return false;
                         }
 #endif
 
                         if (!check_cm_jit_support(engine, config)) {
-                            OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
-                                        "as current IGC version is not compatible to the CM kernel used. Enable it by update IGC."
+                            OPENVINO_WARN("You may miss XAttention optimization,"
+                                        "as current IGC version is not compatible to the CM kernel used. Enable it by updating IGC."
                                         "Please also make sure clangFEWrapper for CM is present by checking environment varibles like "
                                         "CM_FE_DIR or LD_LIBRARY_PATH if you are using Linux.");
                             return false;
@@ -547,9 +547,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
             }
 
-            // Fallback to dense attention if xattn is not supported by either GPU archieture or compiler.
-            if (use_xattention)
-                use_xattention = check_xattn_gpu_compatibility();
+            if (use_xattention) {
+                // Throw exception if xattn is not supported by either GPU archieture or compiler.
+                OPENVINO_ASSERT(check_xattn_gpu_compatibility(), "XAttention is not supported by either GPU archieture or IGC you are using.");
+            }
 
             // KVCache layout with default attention -
             // k: [num_blocks, num_kv_heads, head_size, block_size(16)]
