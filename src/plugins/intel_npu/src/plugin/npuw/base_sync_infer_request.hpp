@@ -78,7 +78,7 @@ public:
     }
 
 protected:
-    int64_t m_history_size;
+    int64_t m_history_size = 0;
 
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
     using RqPtrs = std::vector<RqPtr>;
