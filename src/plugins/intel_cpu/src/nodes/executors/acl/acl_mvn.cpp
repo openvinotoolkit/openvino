@@ -67,11 +67,12 @@ bool ACLMVNExecutor::supports(const MVNConfig& config) {
     VERIFY(srcPlanar == dstPlanar && srcChannelLast == dstChannelLast, MEMORY_FORMAT_MISMATCH);
     VERIFY(srcPlanar || srcChannelLast, MEMORY_FORMAT_MISMATCH);
 
-    // Axes must be canonical; ACL supports normalization along channels or across-channels, not arbitrary axes
+    // Axes must be canonical; ACL supports normalization along channels or across-channels, not arbitrary axes.
+    // For low ranks (<=2), be permissive: treat empty axes as canonical for MVN-0 semantics.
     const auto& inDims = srcDesc->getShape().getDims();
     const size_t rank = inDims.size();
-    std::vector<size_t> expected;
-    if (rank >= 3) {
+    if (rank > 2) {
+        std::vector<size_t> expected;
         if (config.attrs.initAcrossChannels_) {
             for (size_t a = 1; a < rank; ++a)
                 expected.push_back(a);
@@ -79,16 +80,11 @@ bool ACLMVNExecutor::supports(const MVNConfig& config) {
             for (size_t a = 2; a < rank; ++a)
                 expected.push_back(a);
         }
-    } else if (rank == 2) {
-        if (config.attrs.initAcrossChannels_)
-            expected = {1};
-    } else if (rank == 1) {
-        expected = {0};
+        auto axes = config.attrs.reductionAxes;
+        std::sort(axes.begin(), axes.end());
+        std::sort(expected.begin(), expected.end());
+        VERIFY(axes == expected, UNSUPPORTED_ATTRIBUTE);
     }
-    auto axes = config.attrs.reductionAxes;
-    std::sort(axes.begin(), axes.end());
-    std::sort(expected.begin(), expected.end());
-    VERIFY(axes == expected, UNSUPPORTED_ATTRIBUTE);
 
     return true;
 }
