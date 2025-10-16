@@ -1296,7 +1296,7 @@ bool Deconvolution::canFuseBias() const {
 }
 
 void Deconvolution::initSupportedPrimitiveDescriptors() {
-    // Prefer AArch64 JIT deconv for 5D FP16 on ARM64 regardless of ACL
+    // Prefer AArch64 JIT deconv for 5D FP16/FP32 on ARM64 regardless of ACL
 #if defined(OPENVINO_ARCH_ARM64)
     {
         const auto rank = getInputShapeAtPort(0).getRank();
@@ -1304,7 +1304,10 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
         const bool fp16_ok = getOriginalInputPrecisionAtPort(0) == ov::element::f16 &&
                              getOriginalInputPrecisionAtPort(1) == ov::element::f16 &&
                              getOriginalOutputPrecisionAtPort(0) == ov::element::f16;
-        if (is5D && fp16_ok) {
+        const bool fp32_ok = getOriginalInputPrecisionAtPort(0) == ov::element::f32 &&
+                             getOriginalInputPrecisionAtPort(1) == ov::element::f32 &&
+                             getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
+        if (is5D && (fp16_ok || fp32_ok)) {
             auto [inDims, outDims] = makeDummyInOutShape();
             auto tmpInShape = Shape(inDims);
             auto tmpOutShape = Shape(outDims);
@@ -1344,7 +1347,7 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
         }
     }
 #endif
-    // If ACL path is not selected, try AArch64 JIT factory for 5D FP16
+    // If ACL path is not selected, try AArch64 JIT factory for 5D FP16/FP32
     if (!useACL) {
 #if defined(OPENVINO_ARCH_ARM64)
         const auto rank = getInputShapeAtPort(0).getRank();
@@ -1352,7 +1355,10 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
         const bool fp16_ok = getOriginalInputPrecisionAtPort(0) == ov::element::f16 &&
                              getOriginalInputPrecisionAtPort(1) == ov::element::f16 &&
                              getOriginalOutputPrecisionAtPort(0) == ov::element::f16;
-        if (is5D && fp16_ok) {
+        const bool fp32_ok = getOriginalInputPrecisionAtPort(0) == ov::element::f32 &&
+                             getOriginalInputPrecisionAtPort(1) == ov::element::f32 &&
+                             getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
+        if (is5D && (fp16_ok || fp32_ok)) {
             auto [inDims, outDims] = makeDummyInOutShape();
             auto tmpInShape = Shape(inDims);
             auto tmpOutShape = Shape(outDims);

@@ -105,12 +105,11 @@ template <>
 const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<ConvAttrs>> convolutionImplementations {
     OV_CPU_INSTANCE_ARM64(
-            "convolution_jit_aarch64_3d_fp16_ncsp", ExecutorType::Jit, OperationType::Convolution,
-            // supports: prefer our AArch64 JIT whenever attrs/shapes permit
+            "convolution_jit_aarch64_3d_ncsp", ExecutorType::Jit, OperationType::Convolution,
             [](const ConvConfig& config, [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 return JitConv3DExecutor::supports(config);
             },
-            // Ask for plain ncsp layouts to avoid being filtered out
+            // Request plain ncsp layouts
             CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
             AcceptsAnyShape<ConvAttrs>,
             CreateDefault<JitConv3DExecutor, ConvAttrs>{}
