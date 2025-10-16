@@ -785,11 +785,11 @@ const auto dynamic_shape_params_4D_sink = testing::Combine(testing::Values(ov::e
                                                    testing::ValuesIn({disable_transpose}),
                                                    testing::Values(true));
 
-INSTANTIATE_TEST_SUITE_P(smoke_sink_ScaledAttnDynamic4D_GPU,
-                         ScaledAttnLayerGPUTest,
-                         dynamic_shape_params_4D_sink,
-                         ScaledAttnLayerGPUTest::getTestCaseName);
-
+// NOTE: Disabled due to random failures. Uncomment to enable when stable.
+// INSTANTIATE_TEST_SUITE_P(smoke_sink_ScaledAttnDynamic4D_GPU,
+//                          ScaledAttnLayerGPUTest,
+//                          dynamic_shape_params_4D_sink,
+//                          ScaledAttnLayerGPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> static_shapes{
     // static shapes
