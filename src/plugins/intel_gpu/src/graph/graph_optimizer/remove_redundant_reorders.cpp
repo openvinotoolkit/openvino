@@ -477,11 +477,12 @@ void remove_redundant_reorders::run(program& p) {
             if (input.type()->has_impl_for(input)) {
                 // Add fused_primitive_desc of reorder to the previous node which propagates original output layout
                 // during shape inference
+                const bool is_onednn_fc = (input.get_preferred_impl_type() == impl_types::onednn) && input.is_type<fully_connected>();
                 if ((input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
                     input.is_type<broadcast>() || input.is_type<select>() || input.is_type<eltwise>() ||
                     input.is_type<rms>() ||
                     (input.is_dynamic() && (input.is_type<group_normalization>() || input.is_type<permute>()))) ||
-                    (input.get_preferred_impl_type() == impl_types::onednn && input.is_type<fully_connected>())) {
+                    is_onednn_fc) {
                     fused_primitive_desc local_desc(node.get_primitive());
                     local_desc.f_param = node.get_fuse_params();
                     local_desc.total_num_deps = node.get_dependencies().size();
@@ -490,7 +491,6 @@ void remove_redundant_reorders::run(program& p) {
                     input.add_fused_primitive(local_desc);
                 }
 
-                GPU_DEBUG_TRACE_DETAIL << "Remove Reorder " << node.id() << " by updating dep data-type " << input.id() << std::endl;
                 node.can_be_optimized(true);
                 p.add_optimized_primitive_info(node.id());
 

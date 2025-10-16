@@ -48,9 +48,6 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
     auto input0_layout = impl_param.get_input_layout(0);
 
     auto output_type = input0_layout.data_type;
-    if (desc->output_data_types[0].has_value()) {
-        output_type = desc->output_data_types[0].value();
-    }
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
     }

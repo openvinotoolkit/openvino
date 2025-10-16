@@ -357,6 +357,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
             return true;
         }
 
+        // case for precision-change in onednn FC
         auto prev_layout = prev.get_output_layout();
         auto output_layout = node.get_output_layout();
         if (prev.is_type<fully_connected>() && (prev.get_preferred_impl_type() == cldnn::impl_types::onednn) &&
