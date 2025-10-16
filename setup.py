@@ -25,7 +25,11 @@ from setuptools.errors import SetupError
 WHEEL_PACKAGE_DIR = "openvino"
 WHEEL_LIBS_INSTALL_DIR = f"{WHEEL_PACKAGE_DIR}/libs"
 WHEEL_LIBS_PACKAGE = "openvino.libs"
-PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}{sys.abiflags}"
+
+python_version_suffix = ""
+if hasattr(sys, "_is_gil_enabled") and not sys._is_gil_enabled():
+    python_version_suffix = "t"
+PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}{python_version_suffix}"
 
 LIBS_DIR = "bin" if platform.system() == "Windows" else "lib"
 
