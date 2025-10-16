@@ -694,10 +694,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _logger.debug("performing compile");
 
         if (!localConfig.get<WEIGHTLESS_BLOB>()) {
-            graph = compiler->compile(modelForCompilation->clone(), localConfig);
+            graph = compiler->compile(modelForCompilation, localConfig);
         } else {
             check_weightless_cache_attribute_occurrence(model);
-            graph = compiler->compileWS(modelForCompilation->clone(), localConfig);
+            graph = compiler->compileWS(modelForCompilation, localConfig);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
