@@ -271,12 +271,6 @@ inline void ugemm_PV0(uint slm_V, matrix_ref<half, REG_N, REG_K> P, matrix_ref<f
                             0,
                             Vmat.format<int32_t>(),
                             P2.row(p).format<int32_t>());
-            // if (cm_local_id(1) == 0 && cm_group_id(0) == 0) {
-            //     printf("Vmat\n");
-            //     show(Vmat);
-            //     // printf("P2\n");
-            //     // show(P2.row(p).format<half, REG_M, REG_N>());
-            // }
         }
     }
 }
