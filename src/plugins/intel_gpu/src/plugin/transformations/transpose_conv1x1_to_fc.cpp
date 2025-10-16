@@ -171,7 +171,7 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
             auto zero_adjusted_weight = weight_sub->clone_with_new_inputs({weight_squeezed_convert, zp_squeezed_convert});
             ov::copy_runtime_info(weight_sub, zero_adjusted_weight);
             scaled_weight = weight_mult->clone_with_new_inputs({zero_adjusted_weight, Reshape_scale});
-        } 
+        }
         ov::copy_runtime_info(weight_mult, scaled_weight);
         ov::disable_constant_folding(scaled_weight);
 
