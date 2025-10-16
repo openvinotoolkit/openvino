@@ -26,10 +26,8 @@ WHEEL_PACKAGE_DIR = "openvino"
 WHEEL_LIBS_INSTALL_DIR = f"{WHEEL_PACKAGE_DIR}/libs"
 WHEEL_LIBS_PACKAGE = "openvino.libs"
 
-python_version_suffix = ""
-if hasattr(sys, "_is_gil_enabled") and not sys._is_gil_enabled():
-    python_version_suffix = "t"
-PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}{python_version_suffix}"
+suffix = 't' if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled() else ''
+PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}{suffix}"
 
 LIBS_DIR = "bin" if platform.system() == "Windows" else "lib"
 
