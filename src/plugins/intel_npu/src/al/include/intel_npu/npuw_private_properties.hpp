@@ -236,6 +236,22 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 
 /**
  * @brief
+ * Type: boolean.
+ * Enable dynamic dispatch for the attention block, if detected
+ * Default value: true
+ */
+static constexpr ov::Property<bool> attn_dyn{"NPUW_ATTN_DYN"};
+
+/**
+ * @brief
+ * Type: boolean.
+ * Force no-copy mode for the attention block, if detected
+ * Default value: false
+ */
+static constexpr ov::Property<bool> attn_no_copy{"NPUW_ATTN_NO_COPY"};
+
+/**
+ * @brief
  * Type: boolean
  * Force subgraph interconnect tensors to f16 precision if those are in f32
  * Default value: false
@@ -302,6 +318,14 @@ static constexpr ov::Property<bool> funcall_async{"NPUW_FUNCALL_ASYNC"};
  * Default value: false.
  */
 static constexpr ov::Property<bool> unfold_ireqs{"NPUW_UNFOLD_IREQS"};
+
+/**
+ * @brief
+ * Type: boolean
+ * Fallback in case of runtime failure
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> fallback_exec{"NPUW_FALLBACK_EXEC"};
 
 namespace accuracy {
 /**
@@ -582,6 +606,16 @@ static constexpr ov::Property<ov::AnyMap> shared_lm_head_config{"NPUW_LLM_SHARED
  */
 static constexpr ov::Property<ov::AnyMap> additional_shared_lm_head_config{"++NPUW_LLM_SHARED_HEAD_CONFIG"};
 }  // namespace llm
+
+namespace whisper {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass Whisper model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_WHISPER"};
+}  // namespace whisper
 
 }  // namespace npuw
 }  // namespace intel_npu
