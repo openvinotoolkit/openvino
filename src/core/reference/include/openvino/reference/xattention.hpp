@@ -29,10 +29,11 @@ template <typename T>
 class XAttentionBlockSelector {
 public:
     /** @param threshold Defines a threshold for introduced block sparsity - XAttention attempts to preserve the
-     * smallest subset of attention score matrix blocks so that the ratio of the attention score sum to the total sum of
-     * attention score matrix elements is no less than `threshold`. In other words, `threshold` defines a fraction of
-     * the attention score mass which is to be preserved by most "important" blocks. Valid range is 0.0-1.0, with 0.0
-     * corresponding to 0% of the blocks retained, and 1.0 corresponding to 100% of the blocks retained.
+     * smallest subset of causal non-diagonal attention score matrix blocks so that the ratio of their attention score
+     * sum to the total sum of causal non-diagonal attention score matrix blocks in the same K-row is no less than
+     * `threshold`. In other words, `threshold` defines a fraction of the block non-diagonal causal attention score mass
+     * which is to be preserved by most "important" blocks. Valid range is 0.0-1.0, with 0.0 corresponding to 0% of the
+     * non-diagonal causal blocks retained, and 1.0 corresponding to 100% of the non-diagonal causal blocks retained.
      * @param block_size The size of blocks into which the attention score matrix [num_heads, query_token_dimension,
      * key_token_dimension] will be subdivided for purposes of determining the subset of the most important blocks
      * according to `threshold`. This subdivision occurs on query and key dimensions of the attention score matrix with
@@ -220,9 +221,12 @@ public:
         }
     }
 
-    /** Selects the elements of the input tensor along the last two dimensions, independently along the first dimension,
-     * so that the elements constitute a smallest subset constituting a sum portion no less than `threshold` of the
-     * total element sum.
+    /** Selects the elements of the input tensor along the last dimension, independently along the first two dimensions,
+     * so that the elements constitute a smallest subset amounting to a sum portion no less than `threshold` of the
+     * element sum. The last two dimensions are treated as the query-block and key-block dimensions in the context
+     * of attention matrix scores, and the first-in-row, the "diagonal" and "non-causal" elements are
+     * disregarded when calculating the sum. "Non-causal" elements are never preserved, while "diagonal" and
+     * first-in-row elements are always preserved.
      * @param blocked_scores_data Pointer to the blocked score input.
      * @param blocked_attention_scores_shape Shape of the blocked score input tensor. Expected shape is [num_heads,
      * num_query_tokens / block_size, num_key_tokens / block_size]
@@ -253,17 +257,20 @@ public:
                 std::priority_queue<IndexAndScore> indices_and_scores_queue;
                 double total_sum = 0.0;
                 for (size_t k_block_idx = 0; k_block_idx < blocked_attention_scores_shape[2]; k_block_idx++) {
-                    if (k_block_idx > (blocked_attention_scores_shape[2] - blocked_attention_scores_shape[1] + q_block_idx)) {
+                    if (k_block_idx >
+                        (blocked_attention_scores_shape[2] - blocked_attention_scores_shape[1] + q_block_idx)) {
                         // Disregard non-causal blocks entirely
                         continue;
                     }
-                    if (q_block_idx == k_block_idx) {
-                        // We preserve diagonal blocks always, and do not include their score in the cumulative sum,
-                        // i.e. we only preserve the fraction of the non-diagonal blocks' attention mass
-                        retval[head_idx].insert({q_block_idx, q_block_idx});
-                    }
-                    else {
-                        size_t target_offset = head_offset + blocked_attention_scores_shape[2] * q_block_idx + k_block_idx;
+                    if ((k_block_idx ==
+                         (blocked_attention_scores_shape[2] - blocked_attention_scores_shape[1] + q_block_idx)) ||
+                        k_block_idx == 0) {
+                        // We preserve first-in-row and diagonal blocks always, and do not include their score in the
+                        // cumulative sum, i.e. we only preserve the fraction of the non-diagonal blocks' attention mass
+                        retval[head_idx].insert({q_block_idx, k_block_idx});
+                    } else {
+                        size_t target_offset =
+                            head_offset + blocked_attention_scores_shape[2] * q_block_idx + k_block_idx;
                         T current_score = *(blocked_attention_scores_data + target_offset);
                         total_sum += current_score;
                         indices_and_scores_queue.push({{q_block_idx, k_block_idx}, current_score});
@@ -281,7 +288,6 @@ public:
         }
         return retval;
     }
-
 
     /** Applies XAttention to the provided query and key matrices, returning the subset of the most important blocks for
      * each attention head, according to the configured block size and threshold, which are to be preserved in the
