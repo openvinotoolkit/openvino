@@ -11,12 +11,12 @@
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
+
 #include "openvino/reference/divide.hpp"
 #include "openvino/reference/matmul.hpp"
 #include "openvino/reference/softmax.hpp"
 #include "openvino/reference/transpose.hpp"
 #include "openvino/runtime/tensor.hpp"
-
 #include "random_generator.hpp"
 #include "test_utils.h"
 
@@ -24,53 +24,14 @@ using namespace cldnn;
 using namespace ov::intel_gpu;
 using namespace ::tests;
 
-/*
-* PagedAttention inputs:
-* [0]: query
-* shape: [batch_size_in_tokens, num_heads * head_size], type: f16
-* [1]: key
-* shape: [batch_size_in_tokens, num_kv_heads * head_size], type: f16
-* [2]: value 
-* shape: [batch_size_in_tokens, num_kv_heads * head_size], type: f16
-* [3]: key_cache
-* shape: [num_blocks, num_kv_heads, head_size, block_size], type: f16
-* [4]: value_cache
-* shape: [num_blocks, num_kv_heads, block_size, head_size], type: f16
-* [5]: past_lens
-* shape: [batch_size_in_sequences], type: i32
-* [6]: subsequence_begins
-* shape: [batch_size_in_sequences + 1], type: i32
-* [7]: block_indices
-* Shape: [num_blocks], type: i32
-* [8]: block_indices_begins
-* Shape: [batch_size_in_sequences + 1], type: i32
-* [9]: scale, optional
-* [10]: sliding_window, optional
-* [11]: alibi_slopes, optional
-* [12]: max_context_len
-* shape: [], type: i32
-* [13]: score_aggregation_window​, optional​, shape: [batch_size_in_sequences]
-* [14]: rotated_block_indices​, optional​
-* shape: [num_rotated_blocks]​, type: i32
-* [15]: rotation_deltas​, optional​
-* shape: [num_rotated_blocks, BLOCK_SIZE]​ || [num_rotated_blocks, 1]​, type: i32
-* [16]: rotation_trig_lut​, optional​
-* shape: [max_num_batched_tokens / BLOCK_SIZE, head_size]​ || [max_num_batched_tokens, head_size], type: f16
-*/
+enum class XAttentionScoresMode { DISABLED = 0, LAST_TOKEN, SNAPKV };
 
-
-enum class ScoresMode {
-    DISABLED = 0,
-    LAST_TOKEN,
-    SNAPKV
-};
-
-struct SubsequenceDescriptor {
+struct XAttentionSubsequenceDescriptor {
     int num_tokens;
     int past_len;
 };
 
-struct CacheRotationDescriptor {
+struct XAttentionCacheRotationDescriptor {
     bool apply_rotation;
     // configures 2nd dimension of rotation_deltas
     // if per_block is true, single value is used for all tokens inside the block
@@ -78,7 +39,7 @@ struct CacheRotationDescriptor {
     bool per_block;
 };
 
-struct PagedAttentionManager {
+struct XAttentionManager {
     int num_heads;
     int k_head_size;
     int v_head_size;
@@ -87,13 +48,13 @@ struct PagedAttentionManager {
     bool kv_cache_compression;
     ov::internal::CacheQuantMode key_cache_quant_mode;
     bool has_score_aggregation;
-    CacheRotationDescriptor rotation_config;
-    std::vector<SubsequenceDescriptor> subsequence_descs;
+    XAttentionCacheRotationDescriptor rotation_config;
+    std::vector<XAttentionSubsequenceDescriptor> subsequence_descs;
 
     // per-subsequence QKV inputs
-    std::vector<std::vector<ov::float16>> query_data; // {[1, num_tokens, num_heads, k_head_size], ..}
-    std::vector<std::vector<ov::float16>> key_data;   // {[1, past_len + num_tokens, num_heads, k_head_size], ..}
-    std::vector<std::vector<ov::float16>> value_data; // {[1, past_len + num_tokens, num_heads, v_head_size], ..}
+    std::vector<std::vector<ov::float16>> query_data;  // {[1, num_tokens, num_heads, k_head_size], ..}
+    std::vector<std::vector<ov::float16>> key_data;    // {[1, past_len + num_tokens, num_heads, k_head_size], ..}
+    std::vector<std::vector<ov::float16>> value_data;  // {[1, past_len + num_tokens, num_heads, v_head_size], ..}
 
     // common PA inputs
     std::vector<int> past_lens;
@@ -111,40 +72,42 @@ struct PagedAttentionManager {
     std::vector<int> rotation_deltas;
     std::vector<ov::float16> rotation_trig_lut;
 
-    std::vector<ov::float16> xattention_threshold;
+    std::vector<ov::float16> xattention_threshold = {0.9};
     std::vector<int> xattention_block_size;
     std::vector<int> xattention_stride;
+
+    std::vector<ov::float16> sinks;
 
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
     tests::random_generator& rg;
 
-    PagedAttentionManager(tests::random_generator& rg,
-                          cldnn::engine& engine,
-                          cldnn::stream& stream,
-                          const std::vector<SubsequenceDescriptor>& subsequence_descs,
-                          int num_heads,
-                          int k_head_size,
-                          int v_head_size,
-                          int block_size,
-                          int sliding_window_size,
-                          bool kv_cache_compression,
-                          ov::internal::CacheQuantMode key_cache_quant_mode,
-                          bool has_score_aggregation,
-                          CacheRotationDescriptor rotation_config)
-        : num_heads(num_heads)
-        , k_head_size(k_head_size)
-        , v_head_size(v_head_size)
-        , block_size(block_size)
-        , sliding_window_size(sliding_window_size)
-        , kv_cache_compression(kv_cache_compression)
-        , key_cache_quant_mode(key_cache_quant_mode)
-        , has_score_aggregation(has_score_aggregation)
-        , rotation_config(rotation_config)
-        , subsequence_descs(subsequence_descs)
-        , test_engine(engine)
-        , test_stream(stream)
-        , rg(rg) {
+    XAttentionManager(tests::random_generator& rg,
+                      cldnn::engine& engine,
+                      cldnn::stream& stream,
+                      const std::vector<XAttentionSubsequenceDescriptor>& subsequence_descs,
+                      int num_heads,
+                      int k_head_size,
+                      int v_head_size,
+                      int block_size,
+                      int sliding_window_size,
+                      bool kv_cache_compression,
+                      ov::internal::CacheQuantMode key_cache_quant_mode,
+                      bool has_score_aggregation,
+                      XAttentionCacheRotationDescriptor rotation_config)
+        : num_heads(num_heads),
+          k_head_size(k_head_size),
+          v_head_size(v_head_size),
+          block_size(block_size),
+          sliding_window_size(sliding_window_size),
+          kv_cache_compression(kv_cache_compression),
+          key_cache_quant_mode(key_cache_quant_mode),
+          has_score_aggregation(has_score_aggregation),
+          rotation_config(rotation_config),
+          subsequence_descs(subsequence_descs),
+          test_engine(engine),
+          test_stream(stream),
+          rg(rg) {
         // init subsequence_begins and block_indices_begins
         subsequence_begins.push_back(0);
         block_indices_begins.push_back(0);
@@ -192,11 +155,7 @@ struct PagedAttentionManager {
             }
 
             if (!rotated_block_indices.empty()) {
-                rotation_deltas = generate_rotation_deltas_data(rg,
-                                                                max_context_len[0],
-                                                                rotated_block_indices.size(),
-                                                                block_size,
-                                                                rotation_config.per_block);
+                rotation_deltas = generate_rotation_deltas_data(rg, max_context_len[0], rotated_block_indices.size(), block_size, rotation_config.per_block);
                 rotation_trig_lut = generate_rotation_trig_lut_data(rg, max_context_len[0], k_head_size);
             }
         }
@@ -232,8 +191,8 @@ struct PagedAttentionManager {
         }
 
         auto num_blocks = block_indices.back() + 1;
-        auto key_cache_shape = ov::PartialShape{ num_blocks, num_heads, block_size, adjusted_head_size };
-        auto key_cache_layout = layout{ key_cache_shape, key_cache_dt, format::bfyx };
+        auto key_cache_shape = ov::PartialShape{num_blocks, num_heads, block_size, adjusted_head_size};
+        auto key_cache_layout = layout{key_cache_shape, key_cache_dt, format::bfyx};
         auto memory = test_engine.allocate_memory(key_cache_layout);
 
         for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
@@ -242,23 +201,19 @@ struct PagedAttentionManager {
                 int blocks_num = ceil_div(past_len + 1, block_size);
                 int start_block_idx = block_indices[block_indices_begins[i]];
                 for (int block_idx = 0; block_idx < blocks_num; block_idx++) {
-                    int last_token_idx = block_idx == blocks_num - 1 ? past_len % block_size
-                                                                     : block_size;
+                    int last_token_idx = block_idx == blocks_num - 1 ? past_len % block_size : block_size;
                     for (int token_idx = 0; token_idx < last_token_idx; token_idx++) {
                         for (int head_idx = 0; head_idx < num_heads; head_idx++) {
                             size_t input_token_offset = block_idx * block_size + token_idx;
-                            ov::float16* data_ptr = key_data[i].data() +
-                                                    input_token_offset * num_heads * v_head_size +
-                                                    head_idx * v_head_size;
+                            ov::float16* data_ptr = key_data[i].data() + input_token_offset * num_heads * v_head_size + head_idx * v_head_size;
                             if (kv_cache_compression) {
                                 auto [quantized_data, scale, zp] = quantize_data(data_ptr, v_head_size);
                                 auto quantized_data_ptr = quantized_data.data();
 
                                 // shape: [num_blocks, num_heads, block_size, adjusted_head_size]
-                                size_t output_block_offset = (start_block_idx + block_idx) * num_heads * block_size * adjusted_head_size +
-                                                             head_idx * block_size * adjusted_head_size;
-                                size_t output_offset = output_block_offset +
-                                                       token_idx * v_head_size;
+                                size_t output_block_offset =
+                                    (start_block_idx + block_idx) * num_heads * block_size * adjusted_head_size + head_idx * block_size * adjusted_head_size;
+                                size_t output_offset = output_block_offset + token_idx * v_head_size;
                                 set_values(test_stream, memory, quantized_data_ptr, v_head_size, output_offset);
 
                                 size_t comp_offset = (output_block_offset + v_head_size * block_size) / 2;
@@ -267,8 +222,7 @@ struct PagedAttentionManager {
                             } else {
                                 // shape: [num_blocks, num_heads, block_size, v_head_size]
                                 size_t output_offset = (start_block_idx + block_idx) * num_heads * block_size * v_head_size +
-                                                       head_idx * block_size * v_head_size +
-                                                       token_idx * v_head_size;
+                                                       head_idx * block_size * v_head_size + token_idx * v_head_size;
 
                                 set_values(test_stream, memory, data_ptr, v_head_size, output_offset);
                             }
@@ -290,8 +244,8 @@ struct PagedAttentionManager {
         }
 
         auto num_blocks = block_indices.back() + 1;
-        auto value_cache_shape = ov::PartialShape{ num_blocks, num_heads, block_size, adjusted_head_size };
-        auto value_cache_layout = layout{ value_cache_shape, value_cache_dt, format::bfyx };
+        auto value_cache_shape = ov::PartialShape{num_blocks, num_heads, block_size, adjusted_head_size};
+        auto value_cache_layout = layout{value_cache_shape, value_cache_dt, format::bfyx};
         auto memory = test_engine.allocate_memory(value_cache_layout);
 
         for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
@@ -300,23 +254,19 @@ struct PagedAttentionManager {
                 int blocks_num = ceil_div(past_len + 1, block_size);
                 int start_block_idx = block_indices[block_indices_begins[i]];
                 for (int block_idx = 0; block_idx < blocks_num; block_idx++) {
-                    int last_token_idx = block_idx == blocks_num - 1 ? past_len % block_size
-                                                                     : block_size;
+                    int last_token_idx = block_idx == blocks_num - 1 ? past_len % block_size : block_size;
                     for (int token_idx = 0; token_idx < last_token_idx; token_idx++) {
                         for (int head_idx = 0; head_idx < num_heads; head_idx++) {
                             size_t input_token_offset = block_idx * block_size + token_idx;
-                            ov::float16* data_ptr = value_data[i].data() +
-                                                    input_token_offset * num_heads * v_head_size +
-                                                    head_idx * v_head_size;
+                            ov::float16* data_ptr = value_data[i].data() + input_token_offset * num_heads * v_head_size + head_idx * v_head_size;
                             if (kv_cache_compression) {
                                 auto [quantized_data, scale, zp] = quantize_data(data_ptr, v_head_size);
                                 auto quantized_data_ptr = quantized_data.data();
 
                                 // shape: [num_blocks, num_heads, block_size, adjusted_head_size]
-                                size_t output_block_offset = (start_block_idx + block_idx) * num_heads * block_size * adjusted_head_size +
-                                                             head_idx * block_size * adjusted_head_size;
-                                size_t output_offset = output_block_offset +
-                                                       token_idx * v_head_size;
+                                size_t output_block_offset =
+                                    (start_block_idx + block_idx) * num_heads * block_size * adjusted_head_size + head_idx * block_size * adjusted_head_size;
+                                size_t output_offset = output_block_offset + token_idx * v_head_size;
                                 set_values(test_stream, memory, quantized_data_ptr, v_head_size, output_offset);
 
                                 size_t comp_offset = (output_block_offset + v_head_size * block_size) / 2;
@@ -325,8 +275,7 @@ struct PagedAttentionManager {
                             } else {
                                 // shape: [num_blocks, num_heads, block_size, v_head_size]
                                 size_t output_offset = (start_block_idx + block_idx) * num_heads * block_size * v_head_size +
-                                                       head_idx * block_size * v_head_size +
-                                                       token_idx * v_head_size;
+                                                       head_idx * block_size * v_head_size + token_idx * v_head_size;
 
                                 set_values(test_stream, memory, data_ptr, v_head_size, output_offset);
                             }
@@ -356,12 +305,12 @@ struct PagedAttentionManager {
     }
 
     memory::ptr get_scale_memory() {
-        std::vector<ov::float16> scale = { ov::float16(get_default_scale()) };
+        std::vector<ov::float16> scale = {ov::float16(get_default_scale())};
         return get_memory_from_vec(scale);
     }
 
     memory::ptr get_sliding_window_memory() {
-        std::vector<int> sliding_window = { 0 };
+        std::vector<int> sliding_window = {0};
         return get_memory_from_vec(sliding_window);
     }
 
@@ -386,7 +335,7 @@ struct PagedAttentionManager {
         auto mem = get_memory_from_vec(rotation_deltas);
         auto layout = mem->get_layout();
         auto last_dim = rotation_config.per_block ? 1 : block_size;
-        layout.set_partial_shape(ov::PartialShape{ static_cast<long int>(rotated_block_indices.size()), last_dim });
+        layout.set_partial_shape(ov::PartialShape{static_cast<long int>(rotated_block_indices.size()), last_dim});
 
         return test_engine.reinterpret_buffer(*mem, layout);
     }
@@ -394,11 +343,11 @@ struct PagedAttentionManager {
     memory::ptr get_rotation_trig_lut_memory() {
         auto mem = get_memory_from_vec(rotation_trig_lut);
         auto layout = mem->get_layout();
-        layout.set_partial_shape(ov::PartialShape{ max_context_len[0], k_head_size });
+        layout.set_partial_shape(ov::PartialShape{max_context_len[0], k_head_size});
 
         if (rotated_block_indices.empty()) {
             auto empty_layout = mem->get_layout();
-            empty_layout.set_partial_shape(ov::PartialShape{ 0, k_head_size });
+            empty_layout.set_partial_shape(ov::PartialShape{0, k_head_size});
             return test_engine.reinterpret_buffer(*mem, empty_layout);
         }
 
@@ -408,11 +357,10 @@ struct PagedAttentionManager {
     memory::ptr get_xattention_threshold_memory() {
         auto mem = get_memory_from_vec(xattention_threshold);
         auto layout = mem->get_layout();
-        layout.set_partial_shape(ov::PartialShape{ 1 });
-
+        layout.set_partial_shape(ov::PartialShape{1});
         if (xattention_threshold.empty()) {
             auto empty_layout = mem->get_layout();
-            empty_layout.set_partial_shape(ov::PartialShape{ 0 });
+            empty_layout.set_partial_shape(ov::PartialShape{0});
             return test_engine.reinterpret_buffer(*mem, empty_layout);
         }
 
@@ -427,21 +375,35 @@ struct PagedAttentionManager {
         return get_memory_from_vec(xattention_stride);
     }
 
+    memory::ptr get_sinks_memory() {
+        auto mem = get_memory_from_vec(sinks);
+        auto layout = mem->get_layout();
+        layout.set_partial_shape(ov::PartialShape{1, num_heads, 1, 1});
+
+        if (sinks.empty()) {
+            auto empty_layout = mem->get_layout();
+            empty_layout.set_partial_shape(ov::PartialShape{0, 0, 0, 0});
+            return test_engine.reinterpret_buffer(*mem, empty_layout);
+        }
+
+        return test_engine.reinterpret_buffer(*mem, layout);
+    }
+
     float get_default_scale() {
         return static_cast<float>(1.f / std::sqrt(k_head_size));
     }
 
 private:
-    template<typename T>
+    template <typename T>
     memory::ptr get_memory_from_vec(std::vector<T>& input_data) {
         auto data_size = input_data.empty() ? 1 : input_data.size();
-        auto shape = ov::PartialShape{ static_cast<int>(data_size) };
-        auto layout = cldnn::layout{ shape, ov::element::from<T>(), format::bfyx };
+        auto shape = ov::PartialShape{static_cast<int>(data_size)};
+        auto layout = cldnn::layout{shape, ov::element::from<T>(), format::bfyx};
         auto memory = test_engine.allocate_memory(layout);
 
         if (input_data.empty()) {
             auto shape = ov::PartialShape{0};
-            auto layout = cldnn::layout{ shape, ov::element::from<T>(), format::bfyx };
+            auto layout = cldnn::layout{shape, ov::element::from<T>(), format::bfyx};
             return test_engine.reinterpret_buffer(*memory, layout);
         }
 
@@ -455,8 +417,8 @@ private:
         for (const auto& subsequence_desc : subsequence_descs)
             total_tokens += subsequence_desc.num_tokens;
 
-        auto query_shape = ov::PartialShape{ total_tokens, num_heads * k_head_size };
-        auto query_layout = layout{ query_shape, data_types::f16, format::bfyx };
+        auto query_shape = ov::PartialShape{total_tokens, num_heads * k_head_size};
+        auto query_layout = layout{query_shape, data_types::f16, format::bfyx};
         auto memory = test_engine.allocate_memory(query_layout);
 
         for (int subsequence_idx = 0; subsequence_idx < static_cast<int>(subsequence_descs.size()); subsequence_idx++) {
@@ -467,13 +429,10 @@ private:
                     if (skip_past_len)
                         input_token_offset += subsequence_descs[subsequence_idx].past_len;
 
-                    ov::float16* data_ptr = input_data[subsequence_idx].data() +
-                                            input_token_offset * num_heads * k_head_size +
-                                            head_idx * k_head_size;
+                    ov::float16* data_ptr = input_data[subsequence_idx].data() + input_token_offset * num_heads * k_head_size + head_idx * k_head_size;
 
                     size_t output_token_offset = subsequence_begins[subsequence_idx] + token_idx;
-                    size_t output_offset = output_token_offset * num_heads * k_head_size +
-                                           head_idx * k_head_size;
+                    size_t output_offset = output_token_offset * num_heads * k_head_size + head_idx * k_head_size;
 
                     set_values(test_stream, memory, data_ptr, k_head_size, output_offset);
                 }
@@ -483,7 +442,7 @@ private:
         return memory;
     }
 
-    template<typename T>
+    template <typename T>
     static void set_values(stream& stream, memory::ptr mem, T* vals, size_t size, size_t dst_offset) {
         mem_lock<T> mem_ptr(mem, stream);
         for (size_t i = 0; i < size; i++) {
@@ -495,15 +454,15 @@ private:
         const size_t total_elements_num = tokens_num * num_heads * k_head_size;
         auto data = rg.generate_random_1d<ov::float16>(total_elements_num, -1, 1);
 
-        // test code
-        // auto data = rg.generate_random_1d_fixed<ov::float16>(total_elements_num, 0, 1, 10000);
-
         return data;
     }
 
-    static std::vector<int> generate_rotation_deltas_data(tests::random_generator& rg, size_t max_tokens_num, size_t rotated_blocks_num, size_t block_size, bool per_block) {
-        const size_t total_elements_num = per_block ? rotated_blocks_num
-                                                    : rotated_blocks_num * block_size;
+    static std::vector<int> generate_rotation_deltas_data(tests::random_generator& rg,
+                                                          size_t max_tokens_num,
+                                                          size_t rotated_blocks_num,
+                                                          size_t block_size,
+                                                          bool per_block) {
+        const size_t total_elements_num = per_block ? rotated_blocks_num : rotated_blocks_num * block_size;
         auto data = rg.generate_random_1d<int>(total_elements_num, 0, static_cast<int>(max_tokens_num - 1));
 
         return data;
@@ -562,8 +521,7 @@ private:
 
 using Shape = std::vector<size_t>;
 
-using CMXAttentionBlockIndex =
-    std::pair<size_t, size_t>;  // .first is the *query* dimension block index, .second is *key*
+using CMXAttentionBlockIndex = std::pair<size_t, size_t>;  // .first is the *query* dimension block index, .second is *key*
 using CMXAttentionRetainedBlockIndices = std::set<CMXAttentionBlockIndex>;
 using CMXAttentionRetainedBlockIndicesForAllHeads = std::vector<CMXAttentionRetainedBlockIndices>;
 
@@ -574,11 +532,7 @@ public:
         OPENVINO_ASSERT(m_block_size % m_stride == 0);
     }
 
-    void diagonal_reshape(const T* input_data,
-                            const Shape& input_shape,
-                            T* output_data,
-                            const Shape& output_shape,
-                            bool is_antidiagonal) {
+    void diagonal_reshape(const T* input_data, const Shape& input_shape, T* output_data, const Shape& output_shape, bool is_antidiagonal) {
         OPENVINO_ASSERT(input_shape.size() == 3);
         OPENVINO_ASSERT(output_shape.size() == 3);
         size_t H = input_shape[0];
@@ -668,10 +622,8 @@ public:
         }
     }
 
-    CMXAttentionRetainedBlockIndicesForAllHeads get_block_indices_to_keep(T* blocked_attention_scores_data,
-                                                                        const Shape& blocked_attention_scores_shape) {
-        OPENVINO_ASSERT(blocked_attention_scores_shape.size() == 3,
-                        "Expected shape [num_heads, q_block_num, k_block_num]");
+    CMXAttentionRetainedBlockIndicesForAllHeads get_block_indices_to_keep(T* blocked_attention_scores_data, const Shape& blocked_attention_scores_shape) {
+        OPENVINO_ASSERT(blocked_attention_scores_shape.size() == 3, "Expected shape [num_heads, q_block_num, k_block_num]");
 
         size_t num_heads = blocked_attention_scores_shape[0];
         size_t q_block_num = blocked_attention_scores_shape[1];
@@ -679,9 +631,7 @@ public:
 
         CMXAttentionRetainedBlockIndicesForAllHeads retval(num_heads);
 
-        std::vector<std::vector<std::vector<bool>>> mask(
-            num_heads,
-            std::vector<std::vector<bool>>(q_block_num, std::vector<bool>(k_block_num, false)));
+        std::vector<std::vector<std::vector<bool>>> mask(num_heads, std::vector<std::vector<bool>>(q_block_num, std::vector<bool>(k_block_num, false)));
 
         for (size_t head_idx = 0; head_idx < num_heads; head_idx++) {
             for (size_t q_block_idx = 0; q_block_idx < q_block_num; q_block_idx++) {
@@ -782,10 +732,10 @@ public:
     }
 
     CMXAttentionRetainedBlockIndicesForAllHeads select_blocks(const T* query_data,
-                                                            const Shape& query_shape,
-                                                            const T* key_data,
-                                                            const Shape& key_shape,
-                                                            int chunk_size = -1) {
+                                                              const Shape& query_shape,
+                                                              const T* key_data,
+                                                              const Shape& key_shape,
+                                                              int chunk_size = -1) {
         OPENVINO_ASSERT(query_shape.size() == 3 && key_shape.size() == 3);
         OPENVINO_ASSERT(query_shape[0] == key_shape[0] && query_shape[2] == key_shape[2]);
         OPENVINO_ASSERT(query_shape[1] % m_stride == 0 && key_shape[1] % m_stride == 0);
@@ -795,7 +745,8 @@ public:
         const size_t q_len = query_shape[1];
         const size_t k_len = key_shape[1];
         const size_t head_dim = query_shape[2];
-        if (chunk_size == -1) chunk_size = q_len;
+        if (chunk_size == -1)
+            chunk_size = static_cast<int>(q_len);
 
         auto pad_seq = [&](const T* src_data, size_t seq_len) {
             size_t num_to_pad = ((seq_len + chunk_size - 1) / chunk_size) * chunk_size - seq_len;
@@ -807,8 +758,7 @@ public:
                 size_t dst_off = h * (seq_len + num_to_pad) * head_dim;
                 std::memcpy(buf.get() + dst_off, src_data + src_off, seq_len * head_dim * sizeof(T));
                 if (num_to_pad)
-                    std::fill(buf.get() + dst_off + seq_len * head_dim,
-                            buf.get() + dst_off + (seq_len + num_to_pad) * head_dim, T(0));
+                    std::fill(buf.get() + dst_off + seq_len * head_dim, buf.get() + dst_off + (seq_len + num_to_pad) * head_dim, T(0));
             }
             return std::make_pair(std::move(buf), pad_shape);
         };
@@ -850,8 +800,7 @@ public:
 
         for (size_t h = 0; h < num_heads; ++h) {
             for (size_t q = 0; q < reshaped_chunk_size; ++q) {
-                size_t base = h * reshaped_chunk_size * (reshaped_chunk_size * k_chunk_num)
-                            + q * (reshaped_chunk_size * k_chunk_num);
+                size_t base = h * reshaped_chunk_size * (reshaped_chunk_size * k_chunk_num) + q * (reshaped_chunk_size * k_chunk_num);
 
                 for (size_t k = k_reshaped_seq_len - k_reshaped_num_to_pad; k < k_reshaped_seq_len; ++k)
                     causal_mask_buf.get()[base + k] = neg_inf;
@@ -873,9 +822,7 @@ public:
 
         // ======== block sum + select ========
         const size_t blocks_per_axis = m_block_size / m_stride;
-        Shape block_sum_shape = {num_heads,
-                                reshaped_q_len / blocks_per_axis,
-                                reshaped_k_len / blocks_per_axis};
+        Shape block_sum_shape = {num_heads, reshaped_q_len / blocks_per_axis, reshaped_k_len / blocks_per_axis};
         auto block_sum_buf = allocate_buf(block_sum_shape);
         block_sum_attention_scores(attn_score_buf.get(), qk_shape, block_sum_buf.get(), block_sum_shape);
         attn_score_buf.reset();
@@ -902,7 +849,7 @@ public:
 };
 
 struct xAttentionReference {
-    xAttentionReference(PagedAttentionManager& pam) : pam(pam), test_engine(pam.test_engine), test_stream(pam.test_stream) {}
+    xAttentionReference(XAttentionManager& pam) : pam(pam), test_engine(pam.test_engine), test_stream(pam.test_stream) {}
 
     std::pair<std::vector<ov::float16>, std::vector<ov::float16>> get_reference() {
         std::vector<ov::float16> ref_data_output;
@@ -1042,7 +989,7 @@ private:
             CMXAttentionBlockSelector<float> selector(threshold, block_size, stride);
             retained_blocks = selector.select_blocks(query_padded_f32.data(), query_shape_padded, key_padded_f32.data(), key_shape_padded);
         }
-        auto mask_mem = get_mask_mem_combined_multi_head(num_queries, num_keys, num_heads, sliding_window_size, retained_blocks, block_size);
+        auto mask_mem = get_mask_mem_combined_multi_head(num_queries, num_keys, num_heads, sliding_window_size, retained_blocks, static_cast<int>(block_size));
 
         topology topology;
         topology.add(input_layout("query", query_layout),
@@ -1227,7 +1174,7 @@ private:
         }
     }
 
-    PagedAttentionManager& pam;
+    XAttentionManager& pam;
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
 };
@@ -1244,19 +1191,19 @@ public:
     }
 
     void execute(T& p) {
-        PagedAttentionManager pam(rg,
-                                  get_test_engine(),
-                                  get_test_stream(),
-                                  p.subsequences,
-                                  p.num_heads,
-                                  p.k_head_size,
-                                  p.v_head_size,
-                                  p.block_size,
-                                  p.sliding_window_size,
-                                  p.kv_cache_compression,
-                                  p.key_cache_quant_mode,
-                                  p.scores_mode == ScoresMode::SNAPKV,
-                                  p.rotation_config);
+        XAttentionManager pam(rg,
+                              get_test_engine(),
+                              get_test_stream(),
+                              p.subsequences,
+                              p.num_heads,
+                              p.k_head_size,
+                              p.v_head_size,
+                              p.block_size,
+                              p.sliding_window_size,
+                              p.kv_cache_compression,
+                              p.key_cache_quant_mode,
+                              p.scores_mode == XAttentionScoresMode::SNAPKV,
+                              p.rotation_config);
 
         if (p.kv_cache_compression)
             tolerance = 25e-3;
@@ -1289,6 +1236,7 @@ public:
         auto xattention_threshold_mem = pam.get_xattention_threshold_memory();
         auto xattention_block_size_mem = pam.get_xattention_block_size_memory();
         auto xattention_stride_mem = pam.get_xattention_stride_memory();
+        auto sinks_mem = pam.get_sinks_memory();
 
         auto query_layout = query_mem->get_layout();
         auto key_layout = key_mem->get_layout();
@@ -1310,22 +1258,23 @@ public:
         auto xattention_threshold_layout = xattention_threshold_mem->get_layout();
         auto xattention_block_size_layout = xattention_block_size_mem->get_layout();
         auto xattention_stride_layout = xattention_stride_mem->get_layout();
+        auto sinks_layout = sinks_mem->get_layout();
 
         // make layouts dynamic
-        query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
-        key_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
-        value_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.v_head_size });
-        key_cache_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads, p.block_size, p.k_head_size });
-        value_cache_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads, p.block_size, p.v_head_size });
-        past_lens_layout.set_partial_shape(ov::PartialShape{ -1 });
-        subsequence_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
-        block_indices_layout.set_partial_shape(ov::PartialShape{ -1 });
-        block_indices_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
-        score_aggregation_window_layout.set_partial_shape(ov::PartialShape{ -1 });
-        rotated_block_indices_layout.set_partial_shape(ov::PartialShape{ -1 });
-        rotation_deltas_layout.set_partial_shape(ov::PartialShape{ -1, -1 });
-        rotation_trig_lut_layout.set_partial_shape(ov::PartialShape{ -1, p.k_head_size });
-        xattention_threshold_layout.set_partial_shape(ov::PartialShape{ -1 });
+        query_layout.set_partial_shape(ov::PartialShape{-1, p.num_heads * p.k_head_size});
+        key_layout.set_partial_shape(ov::PartialShape{-1, p.num_heads * p.k_head_size});
+        value_layout.set_partial_shape(ov::PartialShape{-1, p.num_heads * p.v_head_size});
+        key_cache_layout.set_partial_shape(ov::PartialShape{-1, p.num_heads, p.block_size, p.k_head_size});
+        value_cache_layout.set_partial_shape(ov::PartialShape{-1, p.num_heads, p.block_size, p.v_head_size});
+        past_lens_layout.set_partial_shape(ov::PartialShape{-1});
+        subsequence_begins_layout.set_partial_shape(ov::PartialShape{-1});
+        block_indices_layout.set_partial_shape(ov::PartialShape{-1});
+        block_indices_begins_layout.set_partial_shape(ov::PartialShape{-1});
+        score_aggregation_window_layout.set_partial_shape(ov::PartialShape{-1});
+        rotated_block_indices_layout.set_partial_shape(ov::PartialShape{-1});
+        rotation_deltas_layout.set_partial_shape(ov::PartialShape{-1, -1});
+        rotation_trig_lut_layout.set_partial_shape(ov::PartialShape{-1, p.k_head_size});
+        xattention_threshold_layout.set_partial_shape(ov::PartialShape{-1});
 
         if (p.dynamic_paddings) {
             const auto padding_axis = 1;
@@ -1347,8 +1296,7 @@ public:
             auto query_data_shape = query_data_layout.get_shape();
             for (size_t b = 0; b < query_data_shape[0]; b++) {
                 for (size_t f = 0; f < query_data_shape[1]; f++) {
-                    auto input_offset =
-                        query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
+                    auto input_offset = query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
                     auto output_offset =
                         padded_query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
 
@@ -1379,6 +1327,7 @@ public:
             input_info("xattention_threshold"),
             input_info("xattention_block_size"),
             input_info("xattention_stride"),
+            input_info("sinks"),
         };
 
         auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -1389,34 +1338,33 @@ public:
         pa_prim.heads_num = p.num_heads;
         pa_prim.scale_val = pam.get_default_scale();
         pa_prim.has_alibi = false;
-        pa_prim.num_outputs = p.scores_mode == ScoresMode::DISABLED ? 1 : 2;
+        pa_prim.num_outputs = p.scores_mode == XAttentionScoresMode::DISABLED ? 1 : 2;
         pa_prim.has_rotated_blocks = p.rotation_config.apply_rotation;
-        pa_prim.has_score_aggregation = p.scores_mode == ScoresMode::SNAPKV;
+        pa_prim.has_score_aggregation = p.scores_mode == XAttentionScoresMode::SNAPKV;
         pa_prim.sliding_window = p.sliding_window_size;
         pa_prim.is_key_by_channel = (p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
+        pa_prim.has_xattention = true;
 
         topology topology;
 
-        topology.add(
-            input_layout("query", query_layout),
-            input_layout("key", key_layout),
-            input_layout("value", value_layout),
-            input_layout("key_cache", key_cache_layout),
-            input_layout("value_cache", value_cache_layout),
-            input_layout("past_lens", past_lens_layout),
-            input_layout("subsequence_begins", subsequence_begins_layout),
-            input_layout("block_indices", block_indices_layout),
-            input_layout("block_indices_begins", block_indices_begins_layout),
-            input_layout("scale", scale_layout),
-            input_layout("sliding_window", sliding_window_layout),
-            input_layout("alibi", alibi_layout),
-            input_layout("max_context_len", max_context_len_layout),
-            input_layout("score_aggregation_window", score_aggregation_window_layout),
-            pa_prim,
-            reorder("output_data", input_info("paged_attention", 0), format::bfyx, data_types::f16)
-        );
+        topology.add(input_layout("query", query_layout),
+                     input_layout("key", key_layout),
+                     input_layout("value", value_layout),
+                     input_layout("key_cache", key_cache_layout),
+                     input_layout("value_cache", value_cache_layout),
+                     input_layout("past_lens", past_lens_layout),
+                     input_layout("subsequence_begins", subsequence_begins_layout),
+                     input_layout("block_indices", block_indices_layout),
+                     input_layout("block_indices_begins", block_indices_begins_layout),
+                     input_layout("scale", scale_layout),
+                     input_layout("sliding_window", sliding_window_layout),
+                     input_layout("alibi", alibi_layout),
+                     input_layout("max_context_len", max_context_len_layout),
+                     input_layout("score_aggregation_window", score_aggregation_window_layout),
+                     pa_prim,
+                     reorder("output_data", input_info("paged_attention", 0), format::bfyx, data_types::f16));
 
-        if (p.scores_mode != ScoresMode::DISABLED) {
+        if (p.scores_mode != XAttentionScoresMode::DISABLED) {
             topology.add(reorder("output_scores", input_info("paged_attention", 1), format::bfyx, data_types::f16));
         }
 
@@ -1431,6 +1379,7 @@ public:
             topology.add(input_layout("xattention_threshold", xattention_threshold_layout));
             topology.add(input_layout("xattention_block_size", xattention_block_size_layout));
             topology.add(input_layout("xattention_stride", xattention_stride_layout));
+            topology.add(input_layout("sinks", sinks_layout));
         }
 
         ExecutionConfig config = get_test_default_config(get_test_engine());
@@ -1460,6 +1409,7 @@ public:
         network->set_input_data("xattention_threshold", xattention_threshold_mem);
         network->set_input_data("xattention_block_size", xattention_block_size_mem);
         network->set_input_data("xattention_stride", xattention_stride_mem);
+        network->set_input_data("sinks", sinks_mem);
 
         auto outputs = network->execute();
 
@@ -1467,7 +1417,7 @@ public:
         cldnn::memory::ptr output_scores_mem = nullptr;
 
         output_data_mem = outputs.at("output_data").get_memory();
-        if (p.scores_mode != ScoresMode::DISABLED) {
+        if (p.scores_mode != XAttentionScoresMode::DISABLED) {
             output_scores_mem = outputs.at("output_scores").get_memory();
         }
         auto ref_data = xAttentionReference(pam).get_reference();
@@ -1502,7 +1452,7 @@ public:
 };
 
 struct xattention_test_params {
-    std::vector<SubsequenceDescriptor> subsequences;
+    std::vector<XAttentionSubsequenceDescriptor> subsequences;
     int num_heads;
     int k_head_size;
     int v_head_size;
@@ -1511,8 +1461,8 @@ struct xattention_test_params {
     bool kv_cache_compression;
     ov::internal::CacheQuantMode key_cache_quant_mode;
     bool dynamic_paddings;
-    ScoresMode scores_mode;
-    CacheRotationDescriptor rotation_config;
+    XAttentionScoresMode scores_mode;
+    XAttentionCacheRotationDescriptor rotation_config;
     bool disable_flashattn_v2;
 };
 
@@ -1525,12 +1475,12 @@ TEST_P(xattention_test, basic) {
 
 const auto ENABLE_CACHE_COMPRESSION = true;
 const auto DISABLE_CACHE_COMPRESSION = false;
-const auto DISABLE_SCORES = ScoresMode::DISABLED;
-const auto ENABLE_SCORES = ScoresMode::LAST_TOKEN;
-const auto ENABLE_SCORES_SNAPKV = ScoresMode::SNAPKV;
-const auto PER_BLOCK_ROTATION = CacheRotationDescriptor{true, true};
-const auto PER_TOKEN_ROTATION = CacheRotationDescriptor{true, false};
-const auto DISABLE_ROTATION = CacheRotationDescriptor{false, false};
+const auto DISABLE_SCORES = XAttentionScoresMode::DISABLED;
+const auto ENABLE_SCORES = XAttentionScoresMode::LAST_TOKEN;
+const auto ENABLE_SCORES_SNAPKV = XAttentionScoresMode::SNAPKV;
+const auto PER_BLOCK_ROTATION = XAttentionCacheRotationDescriptor{true, true};
+const auto PER_TOKEN_ROTATION = XAttentionCacheRotationDescriptor{true, false};
+const auto DISABLE_ROTATION = XAttentionCacheRotationDescriptor{false, false};
 const auto STATIC_INPUT_PAD = false;
 const auto DYNAMIC_INPUT_PAD = true;
 const auto ENABLE_FA_V2 = false;
