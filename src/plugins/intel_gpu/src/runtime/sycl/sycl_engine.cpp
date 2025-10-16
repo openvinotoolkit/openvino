@@ -202,15 +202,7 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
             OPENVINO_NOT_IMPLEMENTED;
         } else {
-            auto buffer = downcast<const sycl::gpu_buffer>(memory).get_buffer();
-            auto sub_buffer = ::sycl::buffer<std::byte, 1>(buffer,
-                                                           ::sycl::id<1>(byte_offset),
-                                                           ::sycl::range<1>(new_layout.get_linear_size()));
-
-            return std::make_shared<sycl::gpu_buffer>(this,
-                                     new_layout,
-                                     sub_buffer,
-                                     memory.get_mem_tracker());
+            return downcast<const sycl::gpu_buffer>(memory).create_subbuffer(new_layout, byte_offset);
         }
     } catch (const ::sycl::exception& e) {
         OPENVINO_THROW("[GPU] SYCL subbuffer creation failed: ", e.what());
@@ -228,10 +220,7 @@ memory::ptr sycl_engine::reinterpret_buffer(const memory& memory, const layout& 
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
             OPENVINO_NOT_IMPLEMENTED;
         } else {
-            return std::make_shared<sycl::gpu_buffer>(this,
-                                    new_layout,
-                                    reinterpret_cast<const sycl::gpu_buffer&>(memory).get_buffer(),
-                                    memory.get_mem_tracker());
+            return downcast<const sycl::gpu_buffer>(memory).reinterpret(new_layout);
         }
     } catch (const ::sycl::exception& e) {
         OPENVINO_THROW("[GPU] SYCL buffer reinterpretation failed: ", e.what());

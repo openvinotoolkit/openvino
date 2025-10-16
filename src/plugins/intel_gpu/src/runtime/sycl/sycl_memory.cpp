@@ -34,7 +34,7 @@ static inline cldnn::event::ptr create_event(sycl_stream& stream, ::sycl::event&
 gpu_buffer::gpu_buffer(sycl_engine* engine,
                        const layout& layout)
     : lockable_gpu_mem(), memory(engine, layout, allocation_type::sycl_buffer, nullptr)
-    , _buffer(::sycl::range<1>(size())) {
+    , _byte_offset(0), _root_buffer(::sycl::range<1>(size())), _buffer(_root_buffer) {
     GPU_DEBUG_TRACE_DETAIL << "gpu_buffer: " << &_buffer << ", size: " << size() << std::endl;
 
     // TODO: remove this if possible
@@ -61,12 +61,25 @@ gpu_buffer::gpu_buffer(sycl_engine* engine,
 
 gpu_buffer::gpu_buffer(sycl_engine* engine,
                        const layout& new_layout,
-                       const ::sycl::buffer<std::byte, 1>& buffer,
+                       const ::sycl::buffer<std::byte, 1>& root_buffer,
                        std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::sycl_buffer, mem_tracker)
-    , _buffer(buffer) {
-        GPU_DEBUG_TRACE_DETAIL << "gpu_buffer: " << &_buffer << ", size: " << size() << std::endl;
-    }
+    , _byte_offset(0), _root_buffer(root_buffer), _buffer(root_buffer) {
+        GPU_DEBUG_TRACE_DETAIL << "create gpu_buffer(buffer: " << &_buffer << ", size: " << size()
+                               << ", offset: " << _byte_offset << ", root_buffer: " << &_root_buffer << std::endl;
+}
+
+gpu_buffer::gpu_buffer(sycl_engine* engine,
+                       const layout& new_layout,
+                       const size_t byte_offset,
+                       const ::sycl::buffer<std::byte, 1>& root_buffer,
+                       std::shared_ptr<MemoryTracker> mem_tracker)
+    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::sycl_buffer, mem_tracker)
+    , _byte_offset(byte_offset), _root_buffer(root_buffer)
+    , _buffer(const_cast<::sycl::buffer<std::byte, 1>&>(root_buffer), ::sycl::id<1>(byte_offset), ::sycl::range<1>(new_layout.bytes_count())) {
+        GPU_DEBUG_TRACE_DETAIL << "create gpu_buffer(buffer: " << &_buffer << ", size: " << size()
+                               << ", offset: " << _byte_offset << ", root_buffer: " << &_root_buffer << std::endl;
+}
 
 void* gpu_buffer::lock(const stream& stream, mem_lock_type type) {
     std::lock_guard<std::mutex> locker(_mutex);
@@ -138,11 +151,10 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t sr
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
-    auto dst_buffer = ::sycl::buffer<std::byte, 1>(_buffer, ::sycl::id<1>(dst_offset), ::sycl::range<1>(size));
 
     try {
         auto event = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
-            ::sycl::accessor dst_acc(dst_buffer, cgh, ::sycl::write_only);
+            ::sycl::accessor<std::byte, 1, ::sycl::access::mode::write> dst_acc(_buffer, cgh, ::sycl::range<1>(size), ::sycl::id<1>(dst_offset));
             cgh.copy(src_ptr, dst_acc);
         });
         if (blocking) {
@@ -176,15 +188,12 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
 
             auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
             // const qualifier should be removed to construct ::sycl::accessor
-            auto src_buffer = ::sycl::buffer<std::byte, 1>(const_cast<gpu_buffer&>(downcast<const gpu_buffer>(src_mem)).get_buffer(),
-                                                           ::sycl::id<1>(src_offset),
-                                                           ::sycl::range<1>(size));
-            auto dst_buffer = ::sycl::buffer<std::byte, 1>(_buffer, ::sycl::id<1>(dst_offset), ::sycl::range<1>(size));
+            auto& src_buffer = const_cast<::sycl::buffer<std::byte, 1>&>(downcast<const gpu_buffer>(src_mem).get_buffer());
 
             try {
                 auto event = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
-                    ::sycl::accessor src_acc(src_buffer, cgh, ::sycl::read_only);
-                    ::sycl::accessor dst_acc(dst_buffer, cgh, ::sycl::write_only);
+                    ::sycl::accessor<std::byte, 1, ::sycl::access::mode::read> src_acc(src_buffer, cgh, ::sycl::range<1>(size), ::sycl::id<1>(src_offset));
+                    ::sycl::accessor<std::byte, 1, ::sycl::access::mode::write> dst_acc(_buffer, cgh, ::sycl::range<1>(size), ::sycl::id<1>(dst_offset));
                     cgh.copy(src_acc, dst_acc);
                 });
                 if (blocking) {
@@ -211,14 +220,12 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     // const qualifier should be removed to construct ::sycl::accessor
-    auto src_buffer = ::sycl::buffer<std::byte, 1>(const_cast<::sycl::buffer<std::byte, 1>&>(_buffer),
-                                                   ::sycl::id<1>(src_offset),
-                                                   ::sycl::range<1>(size));
+    auto& src_buffer = const_cast<::sycl::buffer<std::byte, 1>&>(_buffer);
     auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
 
     try {
         auto event = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
-            auto src_acc = src_buffer.get_access<::sycl::access::mode::read>(cgh);
+            ::sycl::accessor<std::byte, 1, ::sycl::access::mode::read> src_acc(src_buffer, cgh, ::sycl::range<1>(size), ::sycl::id<1>(src_offset));
             cgh.copy(src_acc, dst_ptr);
         });
 
@@ -233,11 +240,50 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset
     }
 }
 
+std::shared_ptr<gpu_buffer> gpu_buffer::create_subbuffer(const layout& new_layout, size_t byte_offset) const {
+    auto new_layout_bytes_count = new_layout.bytes_count();
+    OPENVINO_ASSERT(new_layout_bytes_count + byte_offset <= size(),
+                    "Sub-buffer size (", new_layout_bytes_count, ") + offset (", byte_offset,
+                    ") exceeds parent buffer size (", size(), ")");
+    auto sycl_engine = downcast<sycl::sycl_engine>(_engine);
+    auto mem_tracker = get_mem_tracker();
+
+    // if new buffer is the same as root buffer, just copy root buffer
+    if (new_layout_bytes_count == _root_buffer.byte_size() && _byte_offset + byte_offset == 0) {
+        return std::make_shared<gpu_buffer>(sycl_engine, new_layout, _root_buffer, mem_tracker);
+    }
+
+    return std::make_shared<gpu_buffer>(sycl_engine, new_layout, _byte_offset + byte_offset, _root_buffer, mem_tracker);
+}
+
+std::shared_ptr<gpu_buffer> gpu_buffer::reinterpret(const layout& new_layout) const {
+    // The reinterpreted GPU buffer can use a larger buffer size than the current one, as long as it does not exceed the root buffer size.
+    // If the current buffer has offset, the reinterpreted buffer also keeps the offset.
+    // |<-------------root buffer----------->|
+    // |<-offset->|<--current buffer-->|
+    // |<-offset->|<--reinterpreted buffer-->|
+    auto new_layout_bytes_count = new_layout.bytes_count();
+    OPENVINO_ASSERT(new_layout_bytes_count + _byte_offset <= _root_buffer.byte_size(),
+                    "Reinterpret buffer size (", new_layout_bytes_count, ") + offset (", _byte_offset,
+                    ") exceeds parent buffer size (", _root_buffer.byte_size(), ")");
+    auto sycl_engine = downcast<sycl::sycl_engine>(_engine);
+    auto mem_tracker = get_mem_tracker();
+
+    // if new buffer is the same as root buffer, just copy root buffer
+    if (new_layout_bytes_count == _root_buffer.byte_size() && _byte_offset == 0) {
+        return std::make_shared<gpu_buffer>(sycl_engine, new_layout, _root_buffer, mem_tracker);
+    }
+
+    return std::make_shared<gpu_buffer>(sycl_engine, new_layout, _byte_offset, _root_buffer, mem_tracker);
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
+    OPENVINO_ASSERT(offset + _byte_offset == 0, "get_onednn_memory with offset is not supported for sycl_buffer");
+
     auto onednn_engine = _engine->get_onednn_engine();
     dnnl::memory dnnl_mem(desc, onednn_engine, DNNL_MEMORY_NONE);
-    dnnl::sycl_interop::set_mem_object(dnnl_mem, _buffer);
+    dnnl::sycl_interop::set_buffer(dnnl_mem, const_cast<::sycl::buffer<std::byte, 1>&>(_root_buffer));
     return dnnl_mem;
 }
 #endif
