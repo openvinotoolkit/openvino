@@ -412,7 +412,8 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          const bool useBaseModelSerializer,
                          const size_t weightsSizeThreshold) {
     if (!useBaseModelSerializer) {
-        // non-constness required for adding & removing weights pointer attributes
+        // Non-constness required for adding & removing weights pointer attributes. The current instance is already a
+        // clone (or should be one), we are not modifying the original model.
         const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
         storeWeightsPointerAttribute(nonConstantModel, weightsSizeThreshold);
 
