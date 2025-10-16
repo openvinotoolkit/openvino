@@ -11,66 +11,15 @@ double DEFAULT_THRESHOLD = 0.8;
 size_t DEFAULT_BLOCK_SIZE = 32;
 size_t DEFAULT_STRIDE = 8;
 
-struct E2EBlockSelectTestData {
-    ov::Shape q_shape;
-    std::vector<double> q_data;
-    ov::Shape k_shape;
-    std::vector<double> k_data;
-    double threshold;
-    size_t block_size;
-    size_t stride;
+TEST(XAttentionBasicTest, SelectsBlocksWithoutThrowing) {
+    ov::reference::XAttentionBlockSelector<double> selector(DEFAULT_THRESHOLD, DEFAULT_BLOCK_SIZE, DEFAULT_STRIDE);
+
+    ov::Shape q_shape = {2, 4, 4};
+    ov::Shape k_shape = {2, 8, 4};
+    std::vector<double> q_data(ov::shape_size(q_shape), 1.0);
+    std::vector<double> k_data(ov::shape_size(k_shape), 1.0);
+    EXPECT_NO_THROW(selector.select_blocks(q_data.data(), q_shape, k_data.data(), k_shape));
 };
-
-using XAttentionE2EBlockSelectTest = ::testing::TestWithParam<E2EBlockSelectTestData>;
-
-std::vector<E2EBlockSelectTestData> E2E_BLOCK_SELECT_TEST_CASES = {{
-    {2, 4, 4},
-    // clang-format off
-        {
-             3.144,  8.512,  8.518, -8.386,
-             7.889, -5.721,  5.507,  4.295,
-            -6.624, -8.463,  7.474,  9.879,
-             4.534, -5.908, -9.388,  2.356,
-
-             7.497,  8.186, -8.658, -4.796,
-            -8.248, -9.797, -7.907, -4.513,
-             3.469,  7.633,  7.244, -6.844,
-            -7.173,  4.450,  6.705, -7.035
-        },
-    // clang-format on
-    {2, 4, 4},
-    // clang-format off
-        {
-             3.144,  8.512,  8.518, -8.386,
-             7.889, -5.721,  5.507,  4.295,
-            -6.624, -8.463,  7.474,  9.879,
-             4.534, -5.908, -9.388,  2.356,
-
-             7.497,  8.186, -8.658, -4.796,
-            -8.248, -9.797, -7.907, -4.513,
-             3.469,  7.633,  7.244, -6.844,
-            -7.173,  4.450,  6.705, -7.035
-        },
-    // clang-format on
-
-    /* threshold = */ 0.8,
-    /* block_size = */ 2,
-    /* stride = */ 2,
-}};
-
-TEST_P(XAttentionE2EBlockSelectTest, SelectsBlocksWithoutThrowing) {
-    auto test_struct = GetParam();
-    ov::reference::XAttentionBlockSelector<double> selector(test_struct.threshold,
-                                                            test_struct.block_size,
-                                                            test_struct.stride);
-
-    EXPECT_NO_THROW(selector.select_blocks(test_struct.q_data.data(),
-                                           test_struct.q_shape,
-                                           test_struct.k_data.data(),
-                                           test_struct.k_shape));
-};
-
-INSTANTIATE_TEST_SUITE_P(VariousInputs, XAttentionE2EBlockSelectTest, ::testing::ValuesIn(E2E_BLOCK_SELECT_TEST_CASES));
 
 struct DiagonalReshapeTestData {
     ov::Shape in_shape;
@@ -379,7 +328,7 @@ TEST_P(XAttentionSoftmaxTest, SoftmaxIsCorrect) {
                                                             DEFAULT_BLOCK_SIZE,
                                                             DEFAULT_STRIDE);
     std::vector<double> test_out_data(test_struct.ref_out_data.size());
-    selector.softmax(test_struct.in_data.data(), test_struct.in_shape, test_out_data.data(), test_struct.out_shape);
+    selector.softmax_causal(test_struct.in_data.data(), test_struct.in_shape, test_out_data.data(), test_struct.out_shape);
 
     EXPECT_THAT(test_out_data, ::testing::Pointwise(::testing::DoubleNear(1e-5), test_struct.ref_out_data));
 }
@@ -548,3 +497,67 @@ TEST_P(XAttentionBlockSelectTest, BlockSelectionIsCorrect) {
 }
 
 INSTANTIATE_TEST_SUITE_P(VariousInputs, XAttentionBlockSelectTest, ::testing::ValuesIn(BLOCK_SELECT_TEST_CASES));
+
+struct E2EBlockSelectTestData {
+    ov::Shape q_shape;
+    std::vector<double> q_data;
+    ov::Shape k_shape;
+    std::vector<double> k_data;
+    double threshold;
+    size_t block_size;
+    size_t stride;
+    ov::reference::XAttentionRetainedBlockIndicesForAllHeads ref_retained_block_indices;
+};
+
+using XAttentionE2EBlockSelectTest = ::testing::TestWithParam<E2EBlockSelectTestData>;
+
+std::vector<E2EBlockSelectTestData> E2E_BLOCK_SELECT_TEST_CASES = {
+    {{2, 4, 4},
+     // clang-format off
+        {
+             3.144,  8.512,  8.518, -8.386,
+             7.889, -5.721,  5.507,  4.295,
+            -6.624, -8.463,  7.474,  9.879,
+             4.534, -5.908, -9.388,  2.356,
+
+             7.497,  8.186, -8.658, -4.796,
+            -8.248, -9.797, -7.907, -4.513,
+             3.469,  7.633,  7.244, -6.844,
+            -7.173,  4.450,  6.705, -7.035
+        },
+     // clang-format on
+     {2, 4, 4},
+     // clang-format off
+        {
+             3.144,  8.512,  8.518, -8.386,
+             7.889, -5.721,  5.507,  4.295,
+            -6.624, -8.463,  7.474,  9.879,
+             4.534, -5.908, -9.388,  2.356,
+
+             7.497,  8.186, -8.658, -4.796,
+            -8.248, -9.797, -7.907, -4.513,
+             3.469,  7.633,  7.244, -6.844,
+            -7.173,  4.450,  6.705, -7.035
+        },
+     // clang-format on
+
+     /* threshold = */ 0.8,
+     /* block_size = */ 2,
+     /* stride = */ 2,
+     {{{0, 0}, {1, 0}, {0, 1}}, {{0, 0}, {1, 0}, {0, 1}}}}};
+
+TEST_P(XAttentionE2EBlockSelectTest, SelectsBlocksCorrectlyFromQKData) {
+    auto test_struct = GetParam();
+    ov::reference::XAttentionBlockSelector<double> selector(test_struct.threshold,
+                                                            test_struct.block_size,
+                                                            test_struct.stride);
+
+    auto test_result = selector.select_blocks(test_struct.q_data.data(),
+                                              test_struct.q_shape,
+                                              test_struct.k_data.data(),
+                                              test_struct.k_shape);
+
+    EXPECT_EQ(test_result, test_struct.ref_retained_block_indices);
+};
+
+INSTANTIATE_TEST_SUITE_P(VariousInputs, XAttentionE2EBlockSelectTest, ::testing::ValuesIn(E2E_BLOCK_SELECT_TEST_CASES));
