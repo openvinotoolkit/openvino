@@ -198,7 +198,7 @@ bool isRuleInverted(std::string& rule) {
 /** Reads multiple rules from specified categories:
  *      - "Backend" rule category
  *      - "Device" rule category
- *      - "Driver Verison" rule category
+ *      - "Driver Version" rule category
  *      - "Operating System" rule category
  *
  *  When a rule is found it will get inverted if it starts with "!"
