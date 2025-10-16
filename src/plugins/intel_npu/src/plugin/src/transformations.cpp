@@ -188,19 +188,26 @@ void handlePluginBatching(std::shared_ptr<ov::Model>& model,
                           const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
                           std::optional<ov::Dimension>& originalBatch,
                           Logger logger) {
-    const auto batchMode = localConfig.get<BATCH_MODE>();
-    const auto isAutoOrPluginBatch =
-        (batchMode == ov::intel_npu::BatchMode::PLUGIN || batchMode == ov::intel_npu::BatchMode::AUTO);
+    auto batchModeIsAvailable = localConfig.isAvailable(ov::intel_npu::batch_mode.name());
+    ov::intel_npu::BatchMode batchMode;
+    if (batchModeIsAvailable) {
+        batchMode = localConfig.get<BATCH_MODE>();
+        const auto isAutoOrPluginBatch =
+            (batchMode == ov::intel_npu::BatchMode::PLUGIN || batchMode == ov::intel_npu::BatchMode::AUTO);
 
-    if (!isAutoOrPluginBatch) {
-        return;
+        if (!isAutoOrPluginBatch) {
+            return;
+        }
+    } else {
+        // If the compiler doesn't support BATCH_MODE, we can still try using the PLUGIN batch
+        batchMode = ov::intel_npu::BatchMode::PLUGIN;
     }
 
     try {
         const auto pluginBatchingIsSupported = validateModelBatch(model, logger);
 
         if (!pluginBatchingIsSupported) {
-            if (batchMode == ov::intel_npu::BatchMode::AUTO) {
+            if (batchModeIsAvailable && batchMode == ov::intel_npu::BatchMode::AUTO) {
                 logger.info("Batching will be handled by compiler.");
                 updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
             }
@@ -221,6 +228,11 @@ void handlePluginBatching(std::shared_ptr<ov::Model>& model,
                 OPENVINO_THROW("Cannot debatch a model");
             }
             logger.info("The model has been debatched successfully");
+        }
+        if (batchModeIsAvailable) {
+            // If we have successfully debatched the model on the PLUGIN side, we should
+            // avoid repeating the same in the compiler by resetting the batch mode
+            updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
         }
     } catch (const std::exception& ex) {
         logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
