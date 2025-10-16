@@ -709,7 +709,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::optional<int64_t> batch = std::nullopt;
     if (originalBatch.has_value()) {
         batch = originalBatch.value().is_static() ? originalBatch.value().get_length() : -1;
-        graph->set_batch_size(batch.value());
+        if (batch > 0) {
+            // Initial batch setup for static cases
+            graph->set_batch_size(batch.value());
+        }
     }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
@@ -990,7 +993,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs, batchSize);
 
     if (batchSize.has_value()) {
-        graph->set_batch_size(batchSize.value());
+        if (batchSize.value() > 0) {
+            // Initial batch setup for static cases
+            graph->set_batch_size(batchSize.value());
+        }
     }
 
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
