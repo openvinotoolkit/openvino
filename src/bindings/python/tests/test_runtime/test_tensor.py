@@ -167,10 +167,12 @@ def test_init_with_node_output_port():
         param2 = ops.parameter(ov.Shape([1, 3, 32, 32]), dtype=np.float64)
         param3 = ops.parameter(ov.PartialShape.dynamic(), dtype=np.float64)
         ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float64)
-        assert sys.getrefcount(ones_arr) == 2
+        # Account for changes to refcount in Python 3.14+
+        expected_refcount_offset = 1 if sys.version_info >= (3, 14) else 0
+        assert sys.getrefcount(ones_arr) == 2 - expected_refcount_offset
         tensor1 = ov.Tensor(param1.output(0))
         tensor2 = ov.Tensor(param2.output(0), ones_arr)
-        assert sys.getrefcount(ones_arr) == 3
+        assert sys.getrefcount(ones_arr) == 3 - expected_refcount_offset
         tensor3 = ov.Tensor(param3.output(0))
         tensor4 = ov.Tensor(param3.output(0), ones_arr)
         assert tensor1.shape == param1.shape
@@ -195,11 +197,13 @@ def test_init_with_node_constoutput_port(device):
         compiled_model = generate_relu_compiled_model(device)
         output = compiled_model.output(0)
         ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
-        assert sys.getrefcount(ones_arr) == 2
+        # Account for changes to refcount in Python 3.14+
+        expected_refcount_offset = 1 if sys.version_info >= (3, 14) else 0
+        assert sys.getrefcount(ones_arr) == 2 - expected_refcount_offset
 
         tensor1 = ov.Tensor(output)
         tensor2 = ov.Tensor(output, ones_arr)
-        assert sys.getrefcount(ones_arr) == 3
+        assert sys.getrefcount(ones_arr) == 3 - expected_refcount_offset
 
         output_node = output.get_node()
         assert tensor1.shape == output_node.shape
@@ -607,11 +611,13 @@ def test_init_from_list(init_value):
 def test_tensor_keeps_memory():
     def get_tensor():
         arr = np.ones((8, 16, 300), dtype=np.float32)
-        assert sys.getrefcount(arr) == 2
+        # Account for changes to refcount in Python 3.14+
+        expected_refcount_offset = 1 if sys.version_info >= (3, 14) else 0
+        assert sys.getrefcount(arr) == 2 - expected_refcount_offset
 
         shared_tensor = ov.Tensor(arr, shared_memory=True)
         arr[0][0][0:2] = 0
-        assert sys.getrefcount(arr) == 3
+        assert sys.getrefcount(arr) == 3 - expected_refcount_offset
 
         del arr
         return shared_tensor
