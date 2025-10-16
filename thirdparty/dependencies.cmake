@@ -453,6 +453,7 @@ if(ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU)
             set(flatbuffers_root "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/flatbuffers/flatbuffers")
             ov_developer_package_export_targets(TARGET flatbuffers
                     INSTALL_INCLUDE_DIRECTORIES "${flatbuffers_root}/include/flatbuffers")
+            ov_developer_package_export_targets(TARGET ProjectConfig)
             install(TARGETS flatc DESTINATION "developer_package/bin" COMPONENT developer_package EXCLUDE_FROM_ALL)
         endif()
     endif()
