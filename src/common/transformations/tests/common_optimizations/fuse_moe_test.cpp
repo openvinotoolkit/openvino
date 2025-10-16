@@ -64,6 +64,9 @@ std::shared_ptr<ov::Model> BuildMOE(int expert_num, int topk) {
     auto transpose_axes = makeConst(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0});
 
     auto hidden_states = makeOP<opset1::Unsqueeze>({hidden_states_, axis0_scalar});
+    auto hidden_states_reshape_shape = makeConst(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 2048});
+    auto hidden_states_reshaped =
+        makeOP<opset1::Reshape>({hidden_states, hidden_states_reshape_shape}, {{"special_zero", false}});
 
     auto unsqueeze_Unsqueeze_1 = makeOP<opset1::Unsqueeze>({div__Divide, 2});
     auto index_ShapeOf_1 = makeOP<opset3::ShapeOf>({unsqueeze_Unsqueeze_1}, {{"output_type", "i32"}});
@@ -110,9 +113,13 @@ std::shared_ptr<ov::Model> BuildMOE(int expert_num, int topk) {
         original_shape_node = index_add__ShapeOf_22;
         auto index_add__Broadcast_25 =
             makeOP<opset3::Broadcast>({index_add__Reshape_2, index_add__ShapeOf_22}, {{"mode", "bidirectional"}});
-        auto index_Gather_4 = makeOP<opset8::Gather>({hidden_states /*unsqueeze_Unsqueeze*/, index_add__Convert_2, 1},
-                                                     {{"batch_dims", 0}});
-        auto reshape_Reshape_2 = makeOP<opset1::Reshape>({index_Gather_4, {-1, 2048}}, {{"special_zero", true}});
+        auto index_Gather_4 =
+            makeOP<opset8::Gather>({hidden_states_reshaped /*unsqueeze_Unsqueeze_reshape*/, index_add__Convert_2, 0},
+                                   {{"batch_dims", 0}});
+        auto reshape_Reshape_2_0 = makeOP<opset1::Reshape>({index_Gather_4, {-1, 2048}}, {{"special_zero", true}});
+        auto reshape_Reshape_2_1 = makeOP<opset1::Reshape>({reshape_Reshape_2_0, {-1, 2048}}, {{"special_zero", true}});
+        auto reshape_Reshape_2_2 = makeOP<opset1::Reshape>({reshape_Reshape_2_1, {-1, 2048}}, {{"special_zero", true}});
+        auto reshape_Reshape_2 = makeOP<opset1::Reshape>({reshape_Reshape_2_2, {-1, 2048}}, {{"special_zero", true}});
         std::shared_ptr<ov::Node> gate_linear_Convert, up_linear_Convert, down_linear_Convert;
         // FP16 weights only
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight =
