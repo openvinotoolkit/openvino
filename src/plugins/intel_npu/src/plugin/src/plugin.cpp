@@ -633,6 +633,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
         intel_npu::batch_helpers::handlePluginBatching(modelForCompilation,
                                                        localConfig,
+                                                       updateBatchMode,
                                                        originalBatch,
                                                        _logger);
     }

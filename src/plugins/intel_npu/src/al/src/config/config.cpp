@@ -321,22 +321,6 @@ void Config::fromString(const std::string& str) {
     update(config);
 }
 
-Config Config::createFromConfigMap(const ConfigMap& configMap) const {
-    Config newConfig(_desc);
-    newConfig.update(configMap);
-    return newConfig;
-}
-
-Config Config::getFilteredConfigMap(const std::set<std::string>& keysToRemove) const {
-    ConfigMap result;
-    for (const auto& [key, value] : _impl) {
-        if (keysToRemove.find(key) == keysToRemove.end()) {
-            result[key] = value->toString();
-        }
-    }
-    return createFromConfigMap(result);
-}
-
 //
 // envVarStrToBool
 //

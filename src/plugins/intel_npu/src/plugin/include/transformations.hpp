@@ -62,6 +62,7 @@ bool deBatchModel(std::shared_ptr<ov::Model>& model,
  */
 void handlePluginBatching(std::shared_ptr<ov::Model>& model,
                           Config& localConfig,
+                          const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
                           std::optional<ov::Dimension>& originalBatch,
                           Logger logger);
 

@@ -164,20 +164,19 @@ bool deBatchModel(std::shared_ptr<ov::Model>& model,
                   std::optional<ov::Dimension>& originalBatch) {
     try {
         std::map<std::string, ov::PartialShape> newShapes;
+        auto shapeChanged = false;
         for (auto&& item : model->get_parameters()) {
             auto layout = item->get_layout();
             auto partShape = item->get_partial_shape();
             if (ov::layout::has_batch(layout)) {
+                shapeChanged = true;
                 originalBatch = partShape[ov::layout::batch_idx(layout)];
                 partShape[ov::layout::batch_idx(layout)] = newBatch;
-            } else {
-                originalBatch = partShape[intel_npu::utils::BATCH_AXIS];
-                partShape[intel_npu::utils::BATCH_AXIS] = newBatch;
             }
             newShapes.emplace(item->get_friendly_name(), partShape);
         }
         model->reshape(newShapes);
-        return true;
+        return shapeChanged;
     } catch (const std::exception&) {
         // Don't throw - let caller handle the failure
         return false;
@@ -186,6 +185,7 @@ bool deBatchModel(std::shared_ptr<ov::Model>& model,
 
 void handlePluginBatching(std::shared_ptr<ov::Model>& model,
                           Config& localConfig,
+                          const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
                           std::optional<ov::Dimension>& originalBatch,
                           Logger logger) {
     const auto batchMode = localConfig.get<BATCH_MODE>();
@@ -200,7 +200,10 @@ void handlePluginBatching(std::shared_ptr<ov::Model>& model,
         const auto pluginBatchingIsSupported = validateModelBatch(model, logger);
 
         if (!pluginBatchingIsSupported) {
-            logger.info("Batching will be handled by compiler.");
+            if (batchMode == ov::intel_npu::BatchMode::AUTO) {
+                logger.info("Batching will be handled by compiler.");
+                updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+            }
             return;
         }
 
