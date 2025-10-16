@@ -18,7 +18,7 @@ static void CreateIdentityOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1
     std::vector<uint16_t> order;
     int rank = std::max(4, static_cast<int>(op->get_input_partial_shape(0).size()));
 
-    // if order size is less than 4 - fill the rest with just copy
+    // Create an identity permutation order of size 'rank' (at least 4)
     for (int o = 0; o < rank; o++) {
         order.push_back((uint16_t)o);
     }
