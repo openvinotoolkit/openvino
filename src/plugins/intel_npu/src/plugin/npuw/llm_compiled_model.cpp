@@ -986,14 +986,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         manager.register_pass<ConvertTypeRelaxedToRegular>();
         manager.register_pass<FakeConvertDestinationTypeExtractor>(fcTypesRemained);
         manager.run_passes(model);
-        if (!fcTypesRemained.empty()) {
-            LOG_WARN("FakeConvert layers not decomposed - leaving kv-cache in low precision");
+        if (fcTypesInput.empty() || !fcTypesRemained.empty()) {
+            LOG_WARN("FakeConvert layers not decomposed - leaving kv-cache in "<< kv_kache_storage_type <<" precision");
         } else if (fcTypesInput.size() > 1) {
             auto it2 = std::next(fcTypesInput.begin(), 1);
-            LOG_WARN("FakeConvert layers had several percision(" << fcTypesInput.size() << ") - supported only one precision so far"
-                << *fcTypesInput.begin() << ", " << *it2 << ", ..");
+            LOG_WARN("FakeConvert layers had several precisions (" << fcTypesInput.size() << ")-"
+                << *fcTypesInput.begin() << ", " << *it2 << ", ... " << "supported only single precision");
         } else {
             kv_kache_storage_type = *fcTypesInput.begin();
+            LOG_DEBUG("FakeConvert quantisation to " << kv_kache_storage_type);
         }
     }
 //    ov::save_model(model, "lpt-passes-applied.xml");
@@ -1144,9 +1145,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("redirect kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
     {
-        LOG_DEBUG("Converting KV-cache in kvcache model to" << kv_kache_storage_type);
+        LOG_DEBUG("Converting KV-cache in kvcache model to: " << kv_kache_storage_type << " precision");
         kvcache_model = cvt_kvcache_to_low_precision(kvcache_model, kv_kache_storage_type);
-        LOG_DEBUG("Converting KV-cache in prefill model to " << kv_kache_storage_type);
+        LOG_DEBUG("Converting KV-cache in prefill model to: " << kv_kache_storage_type << " precision");
         prefill_model = cvt_kvcache_to_low_precision(prefill_model, kv_kache_storage_type);
     }
 
