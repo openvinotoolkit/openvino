@@ -192,8 +192,8 @@ loading it from the cache. Currently, this property can be set only in ``compile
          :language: cpp
          :fragment: [ov:caching:part5]
 
-If model caching is enabled in the GPU Plugin, the model topology can be encrypted while it is saved to the cache and decrypted when it is loaded from the cache. Cache size for full encryption with ``CacheMode`` property set to ``OPTIMIZE_SPEED`` may incur significant memory overhead, use it only if the aditional memory cost is acceptable.
-When enabled with OPTIMIZE_SPEED, the runtime memory footprint may increase by up to 2x, as the encryption algorithm maintains both encrypted and decrypted data in memory. This impact is most pronounced with models having large cache files (in GBs).
+If model caching is enabled in the GPU Plugin, the model topology can be encrypted while it is saved to the cache and decrypted when it is loaded from the cache. Cache size for full encryption with ``CacheMode`` property set to ``OPTIMIZE_SPEED`` may incur significant memory overhead, use it only if the additional memory cost is acceptable.
+When enabled with ``OPTIMIZE_SPEED``, the runtime memory footprint can temporarily rise by an amount approximately equal to the model size. This impact is most pronounced with models having large cache files.
 
 .. tab-set::
 
