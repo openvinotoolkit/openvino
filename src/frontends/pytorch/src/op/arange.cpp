@@ -26,12 +26,17 @@ OutputVector make_arange(const NodeContext& context,
                          const element::Type& dtype,
                          const Output<Node>& ref_tensor = {}) {
     auto range_dtype = element::i64;
+    auto is_real_tensor = [](const auto& o) {
+        return o.get_element_type().is_real();
+    };
+    auto is_dynamic_tensor = [](const auto& o) {
+        return o.get_element_type().is_dynamic();
+    };
     if ((dtype.is_dynamic() || dtype.is_real()) &&
-        (start.get_element_type().is_real() || end.get_element_type().is_real() || step.get_element_type().is_real())) {
+        (is_real_tensor(start) || is_real_tensor(end) || is_real_tensor(step))) {
         range_dtype = element::f32;
     }
-    if (start.get_element_type().is_dynamic() || end.get_element_type().is_dynamic() ||
-        step.get_element_type().is_dynamic()) {
+    if (is_dynamic_tensor(start) || is_dynamic_tensor(end) || is_dynamic_tensor(step)) {
         // use f32 in dynamic case
         range_dtype = element::f32;
     }
@@ -46,7 +51,7 @@ OutputVector make_arange(const NodeContext& context,
     } else if (dtype != range_dtype && dtype.is_static()) {
         range = context.mark_node(std::make_shared<v0::Convert>(range, dtype));
     }
-    return {range};
+    return {std::move(range)};
 }
 }  // namespace
 
