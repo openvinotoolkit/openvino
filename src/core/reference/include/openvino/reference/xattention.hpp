@@ -153,7 +153,7 @@ public:
             size_t head_offset = head_idx * in_out_shape[1] * in_out_shape[2];
             for (size_t query_dim_idx = 0; query_dim_idx < in_out_shape[1]; query_dim_idx++) {
                 size_t query_dim_offset = query_dim_idx * in_out_shape[2];
-                for (size_t key_dim_idx = query_dim + 1; key_dim_idx < key_dim; key_dim_idx++) {
+                for (size_t key_dim_idx = key_dim - query_dim + query_dim_idx + 1; key_dim_idx < key_dim; key_dim_idx++) {
                     in_out_data[head_offset + query_dim_offset + key_dim_idx] = -INFINITY;
                 }
             }

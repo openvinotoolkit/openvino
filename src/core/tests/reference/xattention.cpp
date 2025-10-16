@@ -5,6 +5,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <iterator>
 #include <openvino/reference/xattention.hpp>
 
 double DEFAULT_THRESHOLD = 0.8;
@@ -337,6 +338,117 @@ INSTANTIATE_TEST_SUITE_P(VariousInputs,
                          XAttentionSoftmaxTest,
                          ::testing::ValuesIn(SOFTMAX_TEST_CASES));
 
+struct CausalMaskTestData {
+    ov::Shape in_shape;
+    std::vector<double> in_data;
+    std::vector<double> ref_out_data;
+};
+
+using XAttentionCausalMaskTest = ::testing::TestWithParam<CausalMaskTestData>;
+
+std::vector<CausalMaskTestData> CAUSAL_MASK_TEST_CASES = {
+    {
+        {2, 4, 4},
+        // clang-format off
+        {
+             4.534, -5.908, -9.388,  2.356,
+             7.889, -5.721,  5.507,  4.295,
+             4.534, -5.908, -9.388,  2.356,
+             7.889, -5.721,  5.507,  4.295,
+
+            -7.173,  4.450,  6.705, -7.035,
+            -8.248, -9.797, -7.907, -4.513,
+            -7.173,  4.450,  6.705, -7.035,
+            -8.248, -9.797, -7.907, -4.513
+        },
+        // clang-format on
+
+
+        // clang-format off
+        {
+             4.534, -INFINITY, -INFINITY, -INFINITY,
+             7.889, -5.721, -INFINITY, -INFINITY,
+             4.534, -5.908, -9.388,  -INFINITY,
+             7.889, -5.721,  5.507,  4.295,
+
+            -7.173, -INFINITY, -INFINITY, -INFINITY,
+            -8.248, -9.797, -INFINITY, -INFINITY,
+            -7.173,  4.450,  6.705, -INFINITY,
+            -8.248, -9.797, -7.907, -4.513
+        },
+    },
+    {
+        {2, 2, 4},
+        // clang-format off
+        {
+             4.534, -5.908, -9.388,  2.356,
+             7.889, -5.721,  5.507,  4.295,
+
+            -7.173,  4.450,  6.705, -7.035,
+            -8.248, -9.797, -7.907, -4.513
+        },
+        // clang-format on
+
+
+        // clang-format off
+        {
+             4.534, -5.908, -9.388,  -INFINITY,
+             7.889, -5.721,  5.507,  4.295,
+
+            -7.173,  4.450,  6.705, -INFINITY,
+            -8.248, -9.797, -7.907, -4.513
+        },
+    },
+    {
+        {2, 4, 6},
+        // clang-format off
+        {
+             4.534, -5.908, -9.388,  2.356, -5.908, -9.388,
+             7.889, -5.721,  5.507,  4.295, -5.721,  5.507,
+             4.534, -5.908, -9.388,  2.356, -5.908, -9.388,
+             7.889, -5.721,  5.507,  4.295, -5.721,  5.507,
+
+            -7.173,  4.450,  6.705, -7.035,  4.450,  6.705,
+            -8.248, -9.797, -7.907, -4.513, -9.797, -7.907,
+            -7.173,  4.450,  6.705, -7.035,  4.450,  6.705,
+            -8.248, -9.797, -7.907, -4.513, -9.797, -7.907,
+        },
+        // clang-format on
+
+
+        // clang-format off
+        {
+             4.534, -5.908, -9.388,  -INFINITY, -INFINITY, -INFINITY,
+             7.889, -5.721,  5.507,  4.295, -INFINITY,  -INFINITY,
+             4.534, -5.908, -9.388,  2.356, -5.908, -INFINITY,
+             7.889, -5.721,  5.507,  4.295, -5.721,  5.507,
+
+            -7.173,  4.450,  6.705, -INFINITY,  -INFINITY, -INFINITY,
+            -8.248, -9.797, -7.907, -4.513,  -INFINITY, -INFINITY,
+            -7.173,  4.450,  6.705, -7.035,  4.450,  -INFINITY,
+            -8.248, -9.797, -7.907, -4.513, -9.797, -7.907,
+        },
+    },
+};
+
+TEST_P(XAttentionCausalMaskTest, CausalMaskIsCorrect) {
+    auto test_struct = GetParam();
+    ASSERT_EQ(test_struct.in_data.size(), ov::shape_size(test_struct.in_shape));
+    ASSERT_EQ(test_struct.ref_out_data.size(), ov::shape_size(test_struct.in_shape));
+
+    ov::reference::XAttentionBlockSelector<double> selector(DEFAULT_THRESHOLD,
+                                                            DEFAULT_BLOCK_SIZE,
+                                                            DEFAULT_STRIDE);
+    std::vector<double> test_out_data = test_struct.in_data;
+    selector.apply_causal_mask_(test_out_data.data(), test_struct.in_shape);
+
+    EXPECT_THAT(test_out_data, ::testing::Pointwise(::testing::DoubleNear(1e-5), test_struct.ref_out_data));
+}
+
+INSTANTIATE_TEST_SUITE_P(VariousInputs,
+                         XAttentionCausalMaskTest,
+                         ::testing::ValuesIn(CAUSAL_MASK_TEST_CASES));
+
 struct BlockSumTestData {
     ov::Shape in_shape;
     std::vector<double> in_data;
@@ -514,8 +626,8 @@ struct E2EBlockSelectTestData {
 
 using XAttentionE2EBlockSelectTest = ::testing::TestWithParam<E2EBlockSelectTestData>;
 
-ov::Shape E2E_Q_SHAPE = {2, 8, 2};
-std::vector<double> E2E_Q_DATA = {
+ov::Shape E2E_Q_SHAPE_8 = {2, 8, 2};
+std::vector<double> E2E_Q_DATA_8 = {
     // clang-format off
     -1.2870, -1.2179,  0.0316,  0.0080, -0.6171,  1.0622,  0.3085, -0.7751,
     -1.3612,  0.9485, -0.0803,  0.5752,  0.1925, -0.1113,  1.4693,  0.0673,
@@ -524,8 +636,18 @@ std::vector<double> E2E_Q_DATA = {
     // clang-format on
 };
 
-ov::Shape E2E_K_SHAPE = {2, 16, 2};
-std::vector<double> E2E_K_DATA = {
+ov::Shape E2E_K_SHAPE_8 = {2, 8, 2};
+std::vector<double> E2E_K_DATA_8 = {
+    // clang-format off
+    -1.2870, -1.2179,  0.0316,  0.0080, -0.6171,  1.0622,  0.3085, -0.7751,
+    -1.3612,  0.9485, -0.0803,  0.5752,  0.1925, -0.1113,  1.4693,  0.0673,
+     0.7422,  0.7149, -1.7684, -0.0651, -0.1925, -1.4169,  1.0030, -0.8091,
+    -0.7934,  0.5160, -0.2543,  0.1729, -0.0687, -1.4245,  0.0758,  1.1613
+    // clang-format on
+};
+
+ov::Shape E2E_K_SHAPE_16 = {2, 16, 2};
+std::vector<double> E2E_K_DATA_16 = {
     // clang-format off
     -0.9049, -1.9274, -0.3687, -1.1156,  0.1343,  1.1119,  0.7139,  1.0958,
      0.7644,  1.9416,  0.9911,  0.8628,  0.4935, -0.3232, -1.1748,  0.0462,
@@ -582,10 +704,10 @@ std::vector<E2EBlockSelectTestData> E2E_BLOCK_SELECT_TEST_CASES = {
     },
 
     {
-        E2E_Q_SHAPE,
-        E2E_Q_DATA,
-        E2E_K_SHAPE,
-        E2E_K_DATA,
+        E2E_Q_SHAPE_8,
+        E2E_Q_DATA_8,
+        E2E_K_SHAPE_16,
+        E2E_K_DATA_16,
         /* threshold = */ 0.0,
         /* block_size = */ 2,
         /* stride = */ 2,
@@ -593,34 +715,35 @@ std::vector<E2EBlockSelectTestData> E2E_BLOCK_SELECT_TEST_CASES = {
          {{0, 0}, {0, 4}, {1, 0}, {1, 5}, {2, 0}, {2, 6}, {3, 0}, {3, 7}}},
     },
     {
-        E2E_Q_SHAPE,
-        E2E_Q_DATA,
-        E2E_K_SHAPE,
-        E2E_K_DATA,
+        E2E_Q_SHAPE_8,
+        E2E_Q_DATA_8,
+        E2E_K_SHAPE_16,
+        E2E_K_DATA_16,
         /* threshold = */ 1.0,
         /* block_size = */ 2,
         /* stride = */ 2,
 
         // clang-format off
         {
-            {{0, 0}, {0, 4}, {1, 0}, {1, 4}, {1, 5}, {2, 0}, {2, 4}, {2, 5}, {2, 6}, {3, 0}, {3, 4}, {3, 5}, {3, 6}, {3, 7}},
-            {{0, 0}, {0, 4}, {1, 0}, {1, 4}, {1, 5}, {2, 0}, {2, 4}, {2, 5}, {2, 6}, {3, 0}, {3, 4}, {3, 5}, {3, 6}, {3, 7}},
+            {{0, 0}, {0, 1}, {0, 2}, {0, 3}, {0, 4}, {1, 0}, {1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {2, 4}, {2, 5}, {2, 6}, {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 4}, {3, 5}, {3, 6}, {3, 7}},
+            {{0, 0}, {0, 1}, {0, 2}, {0, 3}, {0, 4}, {1, 0}, {1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {2, 4}, {2, 5}, {2, 6}, {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 4}, {3, 5}, {3, 6}, {3, 7}}
         }
         // clang-format on
     },
     {
-        E2E_Q_SHAPE,
-        E2E_Q_DATA,
-        E2E_K_SHAPE,
-        E2E_K_DATA,
+        E2E_Q_SHAPE_8,
+        E2E_Q_DATA_8,
+        E2E_K_SHAPE_16,
+        E2E_K_DATA_16,
         /* threshold = */ 0.8,
         /* block_size = */ 2,
         /* stride = */ 2,
 
         // clang-format off
         {
-            {{0, 0}, {0, 4}, {1, 0}, {1, 4}, {1, 5}, {2, 0}, {2, 4}, {2, 5}, {2, 6}, {3, 0}, {3, 4}, {3, 5}, {3, 7}},
-            {{0, 0}, {0, 4}, {1, 0}, {1, 5}, {2, 0}, {2, 4}, {2, 5}, {2, 6}, {3, 0}, {3, 4}, {3, 5}, {3, 6}, {3, 7}},
+
+            {{0, 0}, {0, 3}, {0, 4}, {1, 0}, {1, 1}, {1, 3}, {1, 4}, {1, 5}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {2, 5}, {2, 6}, {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 4}, {3, 5}, {3, 7}},
+            {{0, 0}, {0, 2}, {0, 4}, {1, 0}, {1, 1}, {1, 3}, {1, 5}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {2, 4}, {2, 6}, {3, 0}, {3, 1}, {3, 4}, {3, 5}, {3, 6}, {3, 7}}
         }
         // clang-format on
     }};
@@ -636,7 +759,34 @@ TEST_P(XAttentionE2EBlockSelectTest, SelectsBlocksCorrectlyFromQKData) {
                                               test_struct.k_data.data(),
                                               test_struct.k_shape);
 
+    ASSERT_EQ(test_result.size(), test_struct.ref_retained_block_indices.size());
     EXPECT_EQ(test_result, test_struct.ref_retained_block_indices);
-};
+    for (size_t head_idx = 0; head_idx < test_result.size(); head_idx++) {
+        std::cout << "Head " << head_idx << std::endl;
+        if (test_result != test_struct.ref_retained_block_indices) {
+            const auto& ref_set = test_struct.ref_retained_block_indices[head_idx];
+            const auto& test_set = test_result[head_idx];
+            std::cout << "ref has " << ref_set.size() << " elements, test has " << test_set.size() << std::endl;
+            std::vector<std::pair<size_t, size_t>> intersection;
+            std::set_intersection(ref_set.begin(), ref_set.end(), test_set.begin(), test_set.end(), std::back_inserter(intersection));
+
+            std::cout << "only ref has ";
+            for (const auto& idx : ref_set) {
+                if (test_set.find(idx) == test_set.end()) {
+                    std::cout << "(" << idx.first << ", " << idx.second << ")" << std::endl;
+                }
+            }
+            std::cout << std::endl;
+            std::cout << "only test has ";
+            for (const auto& idx : test_set) {
+                if (ref_set.find(idx) == ref_set.end()) {
+                    std::cout << "(" << idx.first << ", " << idx.second << ")" << std::endl;
+                }
+            }
+            std::cout << std::endl;
+            std::cout << std::endl;
+        }
+    }
+}
 
 INSTANTIATE_TEST_SUITE_P(VariousInputs, XAttentionE2EBlockSelectTest, ::testing::ValuesIn(E2E_BLOCK_SELECT_TEST_CASES));
