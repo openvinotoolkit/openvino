@@ -116,17 +116,17 @@ struct Xattn {
     size_t _q_num_blocks = 0;
     size_t _k_num_blocks = 0;
     size_t _num_per_block = 0;
-    size_t _n_block_size = 32;
+    const size_t _n_block_size = 32;
     size_t _kv_head_groups = 0;
-    size_t _m_block_size = 32;
+    const size_t _m_block_size = 32;
 
     void sum_blocks_ref(const float* a,
-                        size_t M,
-                        size_t N,
-                        size_t a_stride,
+                        const size_t M,
+                        const size_t N,
+                        const size_t a_stride,
                         float* dst,
-                        size_t out_stride,
-                        size_t num_per_block) {
+                        const size_t out_stride,
+                        const size_t num_per_block) {
         size_t row_block_num = div_up(M, num_per_block);
         size_t col_block_num = div_up(N, num_per_block);
         for (size_t row = 0; row < row_block_num; row++) {
@@ -148,7 +148,12 @@ struct Xattn {
     }
 
 #    if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
-    void sum_blocks8x8(const float* a, size_t M, size_t N, size_t a_stride, float* out, size_t out_stride) {
+    void sum_blocks8x8(const float* a,
+                       const size_t M,
+                       const size_t N,
+                       const size_t a_stride,
+                       float* out,
+                       const size_t out_stride) {
         size_t col_num = rnd_up(N, 8);  // The src in the column direction must be aligned to 8.
         size_t i = 0;
         for (; i + 8 <= M; i += 8) {
@@ -195,14 +200,14 @@ struct Xattn {
     }
 #    endif
 
-    void init(size_t B,
-              size_t H,
-              size_t L,
-              size_t S,
-              size_t K_H,
-              size_t xattn_stride,
-              size_t xattn_block_size,
-              ov::element::Type in_type) {
+    void init(const size_t B,
+              const size_t H,
+              const size_t L,
+              const size_t S,
+              const size_t K_H,
+              const size_t xattn_stride,
+              const size_t xattn_block_size,
+              const ov::element::Type in_type) {
         _kv_head_groups = H / K_H;
         // The k length should first divided by stride, and the result should be divisible by 32 since block
         // size in brgemm computation is 32. Therefore align k to multiple of xattn_stride * 32.
@@ -241,27 +246,27 @@ struct Xattn {
             _wsp.assign(wsp_size * max_threads_num, 0.0f);
 
             _attn_sum_temp.resize({H, L, _q_num_strided, _k_num_strided}, sizeof(float), ov::element::Type_t::f32);
-            ov::parallel_for3d(_q_num_strided, H, L, [&](size_t b, size_t h, size_t l) {
-                memset(_attn_sum_temp.ptr<float>(h, l, b, 0), 0, _k_num_strided * sizeof(float));
-            });
-
             _attn_sum.resize({H, L, _q_num_blocks, _k_num_blocks}, _attn_sum_temp.m_element_size, _attn_sum_temp.m_dt);
-
             _key_repack.resize({K_H, L, S * n_num_blocks, _n_block_size}, sizeof(float), ov::element::Type_t::f32);
         }
+
+        // Set brgemm output buffer each time before use.
+        ov::parallel_for3d(_q_num_strided, H, L, [&](size_t b, size_t h, size_t l) {
+            memset(_attn_sum_temp.ptr<float>(h, l, b, 0), 0, _k_num_strided * sizeof(float));
+        });
     }
 
     void estimate(const PlainTensor& query,
                   const PlainTensor& key,
-                  size_t block_size,
-                  size_t stride,
-                  float threshold,
+                  const size_t block_size,
+                  const size_t stride,
+                  const float threshold,
                   PlainTensor& mask) {
-        auto B = query.size(0);
-        auto H = query.size(1);
-        auto L = query.size(2);
-        auto S = query.size(3);
-        auto K_H = key.size(1);
+        const auto B = query.size(0);
+        const auto H = query.size(1);
+        const auto L = query.size(2);
+        const auto S = query.size(3);
+        const auto K_H = key.size(1);
         OPENVINO_ASSERT(query.size(0) == key.size(0));
 
         const auto m_num_blocks = div_up(_q_num_strided, _m_block_size);
@@ -366,8 +371,8 @@ struct Xattn {
                                        0);
         });
 
-        size_t src_stride = _attn_sum_temp.size(3);
-        size_t dst_stride = _attn_sum.size(3);
+        const size_t src_stride = _attn_sum_temp.size(3);
+        const size_t dst_stride = _attn_sum.size(3);
         size_t row_num = _q_num_strided;
         size_t col_num = div_up(key.size(0), stride);
         parallel_for2d(H, L, [&](size_t h, size_t l) {
