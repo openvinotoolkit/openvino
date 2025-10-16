@@ -211,7 +211,16 @@ void JitConv3DKernelF16::generate() {
         ld1(VReg(0).h[5], ptr(reg_src)); add(reg_src, reg_src, reg_src_stride);
         ld1(VReg(0).h[6], ptr(reg_src)); add(reg_src, reg_src, reg_src_stride);
         ld1(VReg(0).h[7], ptr(reg_src));
-        // Load wei lanes for oc0 (v1) and oc1 (v2)
+        // Load wei lanes for oc0 (v1) and oc1 (v2) — vector fast path if wei_stride==2
+        Label Ldw_np_d, Ldw_done_d;
+        cmp(reg_wei_stride, 2);
+        b(NE, Ldw_np_d);
+        ld1(VReg8H(1), ptr(reg_wei));
+        ld1(VReg8H(2), ptr(reg_wei2));
+        add(reg_wei, reg_wei, 16);
+        add(reg_wei2, reg_wei2, 16);
+        b(Ldw_done_d);
+        L(Ldw_np_d);
         ld1(VReg(1).h[0], ptr(reg_wei)); add(reg_wei, reg_wei, reg_wei_stride);
         ld1(VReg(2).h[0], ptr(reg_wei2)); add(reg_wei2, reg_wei2, reg_wei_stride);
         ld1(VReg(1).h[1], ptr(reg_wei)); add(reg_wei, reg_wei, reg_wei_stride);
@@ -227,6 +236,7 @@ void JitConv3DKernelF16::generate() {
         ld1(VReg(1).h[6], ptr(reg_wei)); add(reg_wei, reg_wei, reg_wei_stride);
         ld1(VReg(2).h[6], ptr(reg_wei2)); add(reg_wei2, reg_wei2, reg_wei_stride);
         ld1(VReg(1).h[7], ptr(reg_wei)); ld1(VReg(2).h[7], ptr(reg_wei2));
+        L(Ldw_done_d);
         // MAC into v20/v21
         fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
         fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
@@ -389,7 +399,14 @@ void JitConv3DKernelF16::generate() {
         ld1(VReg(0).h[5], ptr(reg_src)); add(reg_src, reg_src, reg_src_stride);
         ld1(VReg(0).h[6], ptr(reg_src)); add(reg_src, reg_src, reg_src_stride);
         ld1(VReg(0).h[7], ptr(reg_src));
-        // wei lanes
+        // wei lanes — vector fast path if wei_stride==2
+        Label Ldw_np_s, Ldw_done_s;
+        cmp(reg_wei_stride, 2);
+        b(NE, Ldw_np_s);
+        ld1(VReg8H(1), ptr(reg_wei));
+        add(reg_wei, reg_wei, 16);
+        b(Ldw_done_s);
+        L(Ldw_np_s);
         ld1(VReg(1).h[0], ptr(reg_wei)); add(reg_wei, reg_wei, reg_wei_stride);
         ld1(VReg(1).h[1], ptr(reg_wei)); add(reg_wei, reg_wei, reg_wei_stride);
         ld1(VReg(1).h[2], ptr(reg_wei)); add(reg_wei, reg_wei, reg_wei_stride);
@@ -398,6 +415,7 @@ void JitConv3DKernelF16::generate() {
         ld1(VReg(1).h[5], ptr(reg_wei)); add(reg_wei, reg_wei, reg_wei_stride);
         ld1(VReg(1).h[6], ptr(reg_wei)); add(reg_wei, reg_wei, reg_wei_stride);
         ld1(VReg(1).h[7], ptr(reg_wei));
+        L(Ldw_done_s);
         fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
         fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
         sub(reg_reps, reg_reps, 1);
