@@ -161,7 +161,6 @@ private:
  */
 struct PrefixCacheRestorationContext {
     std::vector<uint64_t> prompt_hashes;
-    std::unordered_map<std::string, std::string> input_name_map;
     size_t token_idx = 0;
     bool restore_prefix_cache = false;
     uint64_t restored_token_num = 0;
@@ -228,11 +227,12 @@ private:
     LLMInferRequest& m_request;
     std::shared_ptr<PrefixCacheManager> m_cache_manager;
 
+    // Cached name mapping from output to input ports (initialized once in constructor)
+    std::unordered_map<std::string, std::string> m_cached_input_name_map;
+
     std::vector<uint64_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids);
-    std::unordered_map<std::string, std::string> create_name_mapping();
-    uint64_t restore_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
-                            const std::vector<uint64_t>& prompt_hashes,
-                            const std::unordered_map<std::string, std::string>& input_name_map);
+    void create_name_mapping();
+    uint64_t restore_blocks(const ov::SoPtr<ov::ITensor>& input_ids, const std::vector<uint64_t>& prompt_hashes);
     void store_blocks(size_t chunk_size, const std::vector<uint64_t>& prompt_hashes, size_t& token_idx);
 };
 
