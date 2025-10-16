@@ -35,7 +35,6 @@ class KVBlock {
 public:
     KVBlock(size_t block_size)
         : m_block_size(block_size),
-          m_ref_count(0),
           m_is_full(false),
           m_token_start(0),
           m_block_hash(0),
@@ -96,7 +95,6 @@ private:
 
     size_t m_block_size;
     std::vector<uint64_t> m_token_hashes;
-    size_t m_ref_count;
     bool m_is_full;
     size_t m_token_start;
     uint64_t m_block_hash;

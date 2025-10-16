@@ -27,8 +27,7 @@ bool KVBlock::add_block(const std::vector<uint64_t>& token_hashes, const KVData&
 
     m_token_hashes = token_hashes;
     m_kv_data = kv_tensors;
-    m_ref_count = token_hashes.size();
-    m_is_full = (m_ref_count == m_block_size);
+    m_is_full = (token_hashes.size() == m_block_size);
 
     // Compute the block's hash value
     m_block_hash = compute_block_hash(token_hashes);
@@ -59,7 +58,7 @@ void KVBlock::print_block_info(bool verbose) const {
     LOG_VERB("Block information: ");
     LOG_VERB("  Block size: " << m_block_size);
     LOG_VERB("  Block hash: " << m_block_hash);
-    LOG_VERB("  Ref Count: " << m_ref_count);
+    LOG_VERB("  Token count: " << m_token_hashes.size());
     LOG_VERB("  Status: " << (m_is_full ? "Full" : "Not Full"));
     LOG_VERB("  Token start: " << m_token_start);
 
