@@ -17,6 +17,7 @@
 #include "openvino/reference/softmax.hpp"
 #include "openvino/reference/transpose.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "primitive_inst.h"
 #include "random_generator.hpp"
 #include "test_utils.h"
 
@@ -72,7 +73,7 @@ struct XAttentionManager {
     std::vector<int> rotation_deltas;
     std::vector<ov::float16> rotation_trig_lut;
 
-    std::vector<ov::float16> xattention_threshold = {0.9};
+    std::vector<ov::float16> xattention_threshold;
     std::vector<int> xattention_block_size;
     std::vector<int> xattention_stride;
 
@@ -94,7 +95,8 @@ struct XAttentionManager {
                       bool kv_cache_compression,
                       ov::internal::CacheQuantMode key_cache_quant_mode,
                       bool has_score_aggregation,
-                      XAttentionCacheRotationDescriptor rotation_config)
+                      XAttentionCacheRotationDescriptor rotation_config,
+                      std::vector<float> threshold)
         : num_heads(num_heads),
           k_head_size(k_head_size),
           v_head_size(v_head_size),
@@ -111,15 +113,18 @@ struct XAttentionManager {
         // init subsequence_begins and block_indices_begins
         subsequence_begins.push_back(0);
         block_indices_begins.push_back(0);
+        for (int i = 0; i < static_cast<int>(threshold.size()); i++) {
+            xattention_threshold.emplace_back(static_cast<ov::float16>(threshold[i]));
+        }
 
         int max_len = 0;
         for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
             const auto& subsequence_desc = subsequence_descs[i];
             max_len = std::max(max_len, subsequence_desc.num_tokens + subsequence_desc.past_len);
 
-            query_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens, k_head_size));
-            key_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, k_head_size));
-            value_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, v_head_size));
+            query_data.push_back(generate_realistic_data(rg, num_heads, subsequence_desc.num_tokens, k_head_size));
+            key_data.push_back(generate_realistic_data(rg, num_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, k_head_size));
+            value_data.push_back(generate_realistic_data(rg, num_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, v_head_size));
 
             past_lens.push_back(subsequence_desc.past_len);
             int subsequence_start_pos = subsequence_begins[i];
@@ -453,6 +458,26 @@ private:
     static std::vector<ov::float16> generate_input_data(tests::random_generator& rg, size_t num_heads, size_t tokens_num, size_t k_head_size) {
         const size_t total_elements_num = tokens_num * num_heads * k_head_size;
         auto data = rg.generate_random_1d<ov::float16>(total_elements_num, -1, 1);
+
+        return data;
+    }
+
+    static std::vector<ov::float16> generate_realistic_data(tests::random_generator& rg, size_t num_heads, size_t tokens_num, size_t k_head_size) {
+        std::vector<ov::float16> data(num_heads * tokens_num * k_head_size);
+
+        std::mt19937 gen(1234);
+        std::normal_distribution<float> dist(0.0f, 0.1f);
+
+        for (size_t h = 0; h < num_heads; ++h) {
+            for (size_t t = 0; t < tokens_num; ++t) {
+                for (size_t d = 0; d < k_head_size; ++d) {
+                    float val = dist(gen);
+                    if (t > 0)
+                        val = 0.8f * val + 0.2f * static_cast<float>(data[h * tokens_num * k_head_size + (t - 1) * k_head_size + d]);
+                    data[h * tokens_num * k_head_size + t * k_head_size + d] = static_cast<ov::float16>(val);
+                }
+            }
+        }
 
         return data;
     }
@@ -849,55 +874,56 @@ public:
 };
 
 struct xAttentionReference {
-    xAttentionReference(XAttentionManager& pam) : pam(pam), test_engine(pam.test_engine), test_stream(pam.test_stream) {}
+    xAttentionReference(XAttentionManager& xam) : xam(xam), test_engine(xam.test_engine), test_stream(xam.test_stream) {}
 
-    std::pair<std::vector<ov::float16>, std::vector<ov::float16>> get_reference() {
+    std::pair<std::vector<ov::float16>, std::vector<ov::float16>> get_reference(std::vector<float> threshold) {
         std::vector<ov::float16> ref_data_output;
         std::vector<ov::float16> ref_scores_output;
 
-        for (size_t i = 0; i < pam.subsequence_descs.size(); i++) {
-            const auto& subsequence_desc = pam.subsequence_descs[i];
+        for (size_t i = 0; i < xam.subsequence_descs.size(); i++) {
+            const auto& subsequence_desc = xam.subsequence_descs[i];
             const auto kv_seq_len = subsequence_desc.num_tokens + subsequence_desc.past_len;
 
-            auto key_data = pam.key_data[i];
-            if (pam.rotation_config.apply_rotation) {
-                auto blocks_start = pam.block_indices_begins[i];
-                auto blocks_end = pam.block_indices_begins[i + 1];
+            auto key_data = xam.key_data[i];
+            if (xam.rotation_config.apply_rotation) {
+                auto blocks_start = xam.block_indices_begins[i];
+                auto blocks_end = xam.block_indices_begins[i + 1];
 
-                std::vector<int> block_indices(pam.block_indices.begin() + blocks_start, pam.block_indices.begin() + blocks_end);
+                std::vector<int> block_indices(xam.block_indices.begin() + blocks_start, xam.block_indices.begin() + blocks_end);
 
                 for (const auto& block_idx : block_indices) {
-                    auto it = std::find(pam.rotated_block_indices.begin(), pam.rotated_block_indices.end(), block_idx);
-                    if (it != pam.rotated_block_indices.end()) {
-                        int index = std::distance(pam.rotated_block_indices.begin(), it);
+                    auto it = std::find(xam.rotated_block_indices.begin(), xam.rotated_block_indices.end(), block_idx);
+                    if (it != xam.rotated_block_indices.end()) {
+                        int index = std::distance(xam.rotated_block_indices.begin(), it);
                         int subsequence_rotated_block_idx = *it - blocks_start;
 
                         rotate_block(key_data,
-                                     pam.rotation_deltas,
-                                     pam.rotation_trig_lut,
+                                     xam.rotation_deltas,
+                                     xam.rotation_trig_lut,
                                      index,
                                      subsequence_rotated_block_idx,
-                                     pam.num_heads,
-                                     pam.k_head_size,
-                                     pam.block_size,
-                                     pam.rotation_config.per_block);
+                                     xam.num_heads,
+                                     xam.k_head_size,
+                                     xam.block_size,
+                                     xam.rotation_config.per_block);
                     }
                 }
             }
 
-            auto window_size = pam.has_score_aggregation ? pam.score_aggregation[i] : 1;
+            auto window_size = xam.has_score_aggregation ? xam.score_aggregation[i] : 1;
 
-            auto subsequence_ref_results = run_reference(pam.query_data[i],
+            auto subsequence_ref_results = run_reference(xam.query_data[i],
                                                          key_data,
-                                                         pam.value_data[i],
+                                                         xam.value_data[i],
                                                          subsequence_desc.num_tokens,
                                                          kv_seq_len,
-                                                         pam.num_heads,
-                                                         pam.k_head_size,
-                                                         pam.v_head_size,
+                                                         xam.num_heads,
+                                                         xam.k_head_size,
+                                                         xam.v_head_size,
                                                          window_size,
-                                                         pam.sliding_window_size,
-                                                         pam.get_default_scale());
+                                                         xam.sliding_window_size,
+                                                         xam.get_default_scale(),
+                                                         static_cast<double>(threshold[i]));
 
             // concatenate all subsequences into one vector
             ref_data_output.insert(ref_data_output.end(), subsequence_ref_results.first.begin(), subsequence_ref_results.first.end());
@@ -922,13 +948,9 @@ private:
                                                                                 double threshold = 0.9,
                                                                                 size_t block_size = 128,
                                                                                 size_t stride = 16) {
-        auto query_shape_bfyx = ov::PartialShape{1, num_queries, num_heads, k_head_size};
-        auto key_shape_bfyx = ov::PartialShape{1, num_keys, num_heads, k_head_size};
-        auto value_shape_bfyx = ov::PartialShape{1, num_keys, num_heads, v_head_size};
-
-        auto query_layout = layout{query_shape_bfyx, data_types::f16, format::bfyx};
-        auto key_layout = layout{key_shape_bfyx, data_types::f16, format::bfyx};
-        auto value_layout = layout{value_shape_bfyx, data_types::f16, format::bfyx};
+        auto query_layout = layout{{1, num_queries, num_heads, k_head_size}, data_types::f16, format::bfyx};
+        auto key_layout = layout{{1, num_keys, num_heads, k_head_size}, data_types::f16, format::bfyx};
+        auto value_layout = layout{{1, num_keys, num_heads, v_head_size}, data_types::f16, format::bfyx};
 
         OPENVINO_ASSERT(query_layout.count() == query_data.size());
         OPENVINO_ASSERT(key_layout.count() == key_data.size());
@@ -942,52 +964,47 @@ private:
         set_values(key_mem, key_data);
         set_values(value_mem, value_data);
 
-        std::vector<ov::float16> query_data_3d(num_heads * num_queries * k_head_size);
-        std::vector<ov::float16> key_data_3d(num_heads * num_keys * k_head_size);
-
-        for (int h = 0; h < num_heads; h++) {
-            for (int q = 0; q < num_queries; q++) {
-                for (int d = 0; d < k_head_size; d++) {
-                    query_data_3d[h * num_queries * k_head_size + q * k_head_size + d] = query_data[q * num_heads * k_head_size + h * k_head_size + d];
+        auto reorder_qhk_to_hqd = [&](const std::vector<ov::float16>& src, int outer_len, int num_heads, int head_dim) {
+            std::vector<ov::float16> dst(num_heads * outer_len * head_dim);
+            for (int h = 0; h < num_heads; ++h) {
+                size_t dst_h_off = static_cast<size_t>(h) * outer_len * head_dim;
+                for (int i = 0; i < outer_len; ++i) {
+                    size_t src_off = static_cast<size_t>(i) * num_heads * head_dim + static_cast<size_t>(h) * head_dim;
+                    std::copy_n(&src[src_off], head_dim, &dst[dst_h_off + static_cast<size_t>(i) * head_dim]);
                 }
             }
-        }
+            return dst;
+        };
 
-        for (int h = 0; h < num_heads; h++) {
-            for (int k = 0; k < num_keys; k++) {
-                for (int d = 0; d < k_head_size; d++) {
-                    key_data_3d[h * num_keys * k_head_size + k * k_head_size + d] = key_data[k * num_heads * k_head_size + h * k_head_size + d];
-                }
-            }
-        }
-
-        ov::Shape query_shape_3d = {static_cast<size_t>(num_heads), static_cast<size_t>(num_queries), static_cast<size_t>(k_head_size)};
-        ov::Shape key_shape_3d = {static_cast<size_t>(num_heads), static_cast<size_t>(num_keys), static_cast<size_t>(k_head_size)};
+        const auto query_data_3d = reorder_qhk_to_hqd(query_data, num_queries, num_heads, k_head_size);
+        const auto key_data_3d = reorder_qhk_to_hqd(key_data, num_keys, num_heads, k_head_size);
 
         CMXAttentionRetainedBlockIndicesForAllHeads retained_blocks;
         if (num_queries >= static_cast<int>(block_size)) {
-            size_t padded_q = ((num_queries + block_size - 1) / block_size) * block_size;
-            size_t padded_k = ((num_keys + block_size - 1) / block_size) * block_size;
-            std::vector<ov::float16> query_padded(num_heads * padded_q * k_head_size, ov::float16(0));
-            std::vector<ov::float16> key_padded(num_heads * padded_k * k_head_size, ov::float16(0));
+            const size_t padded_q = ((num_queries + block_size - 1) / block_size) * block_size;
+            const size_t padded_k = ((num_keys + block_size - 1) / block_size) * block_size;
+
+            std::vector<float> query_padded(num_heads * padded_q * k_head_size, 0.f);
+            std::vector<float> key_padded(num_heads * padded_k * k_head_size, 0.f);
 
             for (int h = 0; h < num_heads; ++h) {
-                std::copy_n(&query_data_3d[h * num_queries * k_head_size], num_queries * k_head_size, &query_padded[h * padded_q * k_head_size]);
-                std::copy_n(&key_data_3d[h * num_keys * k_head_size], num_keys * k_head_size, &key_padded[h * padded_k * k_head_size]);
+                const auto* q_src = &query_data_3d[h * num_queries * k_head_size];
+                const auto* k_src = &key_data_3d[h * num_keys * k_head_size];
+                auto* q_dst = &query_padded[h * padded_q * k_head_size];
+                auto* k_dst = &key_padded[h * padded_k * k_head_size];
+
+                std::transform(q_src, q_src + num_queries * k_head_size, q_dst, [](ov::float16 v) {
+                    return static_cast<float>(v);
+                });
+                std::transform(k_src, k_src + num_keys * k_head_size, k_dst, [](ov::float16 v) {
+                    return static_cast<float>(v);
+                });
             }
-
-            ov::Shape query_shape_padded = {static_cast<size_t>(num_heads), padded_q, static_cast<size_t>(k_head_size)};
-            ov::Shape key_shape_padded = {static_cast<size_t>(num_heads), padded_k, static_cast<size_t>(k_head_size)};
-
-            std::vector<float> query_padded_f32(query_padded.size());
-            std::vector<float> key_padded_f32(key_padded.size());
-            for (size_t i = 0; i < query_padded.size(); ++i)
-                query_padded_f32[i] = static_cast<float>(query_padded[i]);
-            for (size_t i = 0; i < key_padded.size(); ++i)
-                key_padded_f32[i] = static_cast<float>(key_padded[i]);
-
             CMXAttentionBlockSelector<float> selector(threshold, block_size, stride);
-            retained_blocks = selector.select_blocks(query_padded_f32.data(), query_shape_padded, key_padded_f32.data(), key_shape_padded);
+            retained_blocks = selector.select_blocks(query_padded.data(),
+                                                     {static_cast<size_t>(num_heads), padded_q, static_cast<size_t>(k_head_size)},
+                                                     key_padded.data(),
+                                                     {static_cast<size_t>(num_heads), padded_k, static_cast<size_t>(k_head_size)});
         }
         auto mask_mem = get_mask_mem_combined_multi_head(num_queries, num_keys, num_heads, sliding_window_size, retained_blocks, static_cast<int>(block_size));
 
@@ -1174,7 +1191,7 @@ private:
         }
     }
 
-    XAttentionManager& pam;
+    XAttentionManager& xam;
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
 };
@@ -1191,7 +1208,7 @@ public:
     }
 
     void execute(T& p) {
-        XAttentionManager pam(rg,
+        XAttentionManager xam(rg,
                               get_test_engine(),
                               get_test_stream(),
                               p.subsequences,
@@ -1203,40 +1220,41 @@ public:
                               p.kv_cache_compression,
                               p.key_cache_quant_mode,
                               p.scores_mode == XAttentionScoresMode::SNAPKV,
-                              p.rotation_config);
+                              p.rotation_config,
+                              p.threshold);
 
         if (p.kv_cache_compression)
             tolerance = 25e-3;
 
-        auto query_mem = pam.get_query_memory();
-        auto key_mem = pam.get_key_memory();
-        auto value_mem = pam.get_value_memory();
+        auto query_mem = xam.get_query_memory();
+        auto key_mem = xam.get_key_memory();
+        auto value_mem = xam.get_value_memory();
 
-        auto key_cache_mem = pam.get_key_cache_memory();
-        auto value_cache_mem = pam.get_value_cache_memory();
+        auto key_cache_mem = xam.get_key_cache_memory();
+        auto value_cache_mem = xam.get_value_cache_memory();
 
-        auto past_lens_mem = pam.get_past_lens_memory();
-        auto subsequence_begins_mem = pam.get_subsequence_begins_memory();
-        auto block_indices_mem = pam.get_block_indices_memory();
-        auto block_indices_begins_mem = pam.get_block_indices_begins_memory();
+        auto past_lens_mem = xam.get_past_lens_memory();
+        auto subsequence_begins_mem = xam.get_subsequence_begins_memory();
+        auto block_indices_mem = xam.get_block_indices_memory();
+        auto block_indices_begins_mem = xam.get_block_indices_begins_memory();
 
-        auto scale_mem = pam.get_scale_memory();
-        auto sliding_window_mem = pam.get_sliding_window_memory();
-        auto alibi_mem = pam.get_alibi_memory();
-        auto max_context_len_mem = pam.get_max_context_len_memory();
+        auto scale_mem = xam.get_scale_memory();
+        auto sliding_window_mem = xam.get_sliding_window_memory();
+        auto alibi_mem = xam.get_alibi_memory();
+        auto max_context_len_mem = xam.get_max_context_len_memory();
 
         // scores calculation related memory buffers
-        auto score_aggregation_mem = pam.get_score_aggregation();
+        auto score_aggregation_mem = xam.get_score_aggregation();
 
         // cache rotation related memory buffers
-        auto rotated_block_indices_mem = pam.get_rotated_block_indices_memory();
-        auto rotation_deltas_mem = pam.get_rotation_deltas_memory();
-        auto rotation_trig_lut_mem = pam.get_rotation_trig_lut_memory();
+        auto rotated_block_indices_mem = xam.get_rotated_block_indices_memory();
+        auto rotation_deltas_mem = xam.get_rotation_deltas_memory();
+        auto rotation_trig_lut_mem = xam.get_rotation_trig_lut_memory();
 
-        auto xattention_threshold_mem = pam.get_xattention_threshold_memory();
-        auto xattention_block_size_mem = pam.get_xattention_block_size_memory();
-        auto xattention_stride_mem = pam.get_xattention_stride_memory();
-        auto sinks_mem = pam.get_sinks_memory();
+        auto xattention_threshold_mem = xam.get_xattention_threshold_memory();
+        auto xattention_block_size_mem = xam.get_xattention_block_size_memory();
+        auto xattention_stride_mem = xam.get_xattention_stride_memory();
+        auto sinks_mem = xam.get_sinks_memory();
 
         auto query_layout = query_mem->get_layout();
         auto key_layout = key_mem->get_layout();
@@ -1336,7 +1354,7 @@ public:
         pa_prim.v_head_size = p.v_head_size;
         pa_prim.kv_heads_num = p.num_heads;
         pa_prim.heads_num = p.num_heads;
-        pa_prim.scale_val = pam.get_default_scale();
+        pa_prim.scale_val = xam.get_default_scale();
         pa_prim.has_alibi = false;
         pa_prim.num_outputs = p.scores_mode == XAttentionScoresMode::DISABLED ? 1 : 2;
         pa_prim.has_rotated_blocks = p.rotation_config.apply_rotation;
@@ -1420,7 +1438,7 @@ public:
         if (p.scores_mode != XAttentionScoresMode::DISABLED) {
             output_scores_mem = outputs.at("output_scores").get_memory();
         }
-        auto ref_data = xAttentionReference(pam).get_reference();
+        auto ref_data = xAttentionReference(xam).get_reference(p.threshold);
         compare(output_data_mem, output_scores_mem, ref_data);
     }
 
@@ -1449,6 +1467,16 @@ public:
             EXPECT_LE(mismatch_count, int(scores_output_mem->count() * 0.04));
         }
     }
+
+    static bool check_xattention_available() {
+        auto& engine = get_test_engine();
+        ExecutionConfig config = get_test_default_config(engine);
+        if (!cldnn::check_cm_jit_support(engine, config) || !engine.get_device_info().supports_immad) {
+            return false;
+        }
+
+        return true;
+    }
 };
 
 struct xattention_test_params {
@@ -1457,6 +1485,7 @@ struct xattention_test_params {
     int k_head_size;
     int v_head_size;
     int block_size;
+    std::vector<float> threshold;
     int sliding_window_size;
     bool kv_cache_compression;
     ov::internal::CacheQuantMode key_cache_quant_mode;
@@ -1468,6 +1497,8 @@ struct xattention_test_params {
 
 class xattention_test : public xAttentionTest<xattention_test_params> {};
 TEST_P(xattention_test, basic) {
+    if (!check_xattention_available())
+        GTEST_SKIP();
     auto p = GetParam();
 
     execute(p);
@@ -1491,15 +1522,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention,
                          ::testing::ValuesIn(std::vector<xattention_test_params>{
     /* without scores output, static input query paddings, single sequence, disable KV cache compression, k_head_size==v_head_size,
     token_size>=32, disable_mix_mode */
-    xattention_test_params{ {{32, 0}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    xattention_test_params{ {{4096, 0}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    xattention_test_params{ {{32, 0}},   2, 64, 64, 256, {0.9}, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    xattention_test_params{ {{1024, 0}},   2, 64, 64, 256, {0.9}, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    xattention_test_params{ {{2048, 0}},   2, 64, 64, 256, {0.9}, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
 
-    xattention_test_params{ {{1, 31}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    xattention_test_params{ {{1, 32}},   2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    xattention_test_params{ {{1, 1023}}, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    xattention_test_params{ {{1, 1024}}, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    xattention_test_params{ {{1, 127}},  2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    xattention_test_params{ {{1, 128}},  2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    xattention_test_params{ {{1, 129}},  2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    xattention_test_params{ {{1, 32}},  28, 128, 128, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    xattention_test_params{ {{1, 31}},   2, 64, 64, 256, {0.9}, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    xattention_test_params{ {{1, 32}},   2, 64, 64, 256, {0.9}, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    xattention_test_params{ {{1, 1023}}, 2, 64, 64, 256, {0.9}, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    xattention_test_params{ {{1, 1024}}, 2, 64, 64, 256, {0.9}, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    xattention_test_params{ {{1, 127}},  2, 64, 64, 256, {0.9}, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    xattention_test_params{ {{1, 128}},  2, 64, 64, 256, {0.9}, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    xattention_test_params{ {{1, 129}},  2, 64, 64, 256, {0.9}, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    xattention_test_params{ {{1, 32}},  28, 128, 128, 256, {0.9}, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
 }));
