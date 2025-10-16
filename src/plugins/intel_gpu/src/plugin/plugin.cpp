@@ -168,11 +168,9 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
 
-    ov::CacheMode cache_mode = config.get_cache_mode();
-
     // Set weighless cache attribute only for non IR (e.g. onnxruntime) models
     // This is a temporary solution. A common way of handling weightless caching will be defined later.
-    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
+    if (ov::internal::is_weightless_enabled(config.get_user_properties())) {
         const std::string& weights_path = config.get_weights_path();
 
         if (!ov::util::validate_weights_path(weights_path) && !is_weightless_cache_attributes_set(cloned_model))
@@ -414,7 +412,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         return nullptr;
     }
 
-    if (config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
+    if (ov::internal::is_weightless_enabled(config.get_user_properties())) {
         const std::string& weights_path = config.get_weights_path();
 
         if (!ov::util::validate_weights_path(weights_path)) {
