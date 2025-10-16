@@ -782,6 +782,11 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
 void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
 
+    // Wait for closures evaluation
+    if (m_weights_bank_evaluation.valid()) {
+        m_weights_bank_evaluation.wait();
+    }
+
     // Identify encryption flow
     bool encryption_required = false;
     EncryptionCallbacks enc_callbacks;
@@ -911,11 +916,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
 
         if (is_weightless) {
             compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
-            compiled->m_weights_bank_evaluation = std::async(std::launch::async, [&]{
-                compiled->finalize_weights_bank();
-                compiled->m_import_weights_ctx.reset();
-                return;
-            });
+            compiled->finalize_weights_bank();
         } else {
             compiled->m_weights_bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
@@ -1243,57 +1244,61 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
-    // Register lazy tensors
-    for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
-        auto& comp_model_desc = m_compiled_submodels[idx];
+    m_weights_bank_evaluation = std::async(std::launch::async, [&]() {
+        // Register lazy tensors
+        for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+            auto& comp_model_desc = m_compiled_submodels[idx];
 
-        // Skip optimized out and non-functions
-        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
-            continue;
-        }
-
-        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-        auto& func_desc = m_compiled_submodels[real_idx];
-
-        for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
-            if (comp_model_desc.closure[tidx]) {
-                continue;  // host-side closure
-            }
-            comp_model_desc.closure_uid[tidx] =
-                m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
-        }
-    }
-
-    // Evaluate and allocate all LazyTensors inside the bank
-    m_profile["weights bank"].record([&]() {
-        m_weights_bank->evaluate_and_allocate();
-    });
-
-    // Set evaluated and allocated ov::Tensors to closures
-    for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
-        auto& comp_model_desc = m_compiled_submodels[idx];
-
-        // Skip optimized out and non-functions
-        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
-            continue;
-        }
-
-        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-        auto& func_desc = m_compiled_submodels[real_idx];
-
-        for (std::size_t tidx = 0; tidx < comp_model_desc.closure.size(); ++tidx) {
-            if (comp_model_desc.closure[tidx]) {
-                // host-side closure - already set, do nothing
-                comp_model_desc.is_remote[tidx] = false;
+            // Skip optimized out and non-functions
+            if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
                 continue;
             }
-            const auto& uid = comp_model_desc.closure_uid[tidx];
-            NPUW_ASSERT(uid != -1);  // All tensors should be registered at this point
-            comp_model_desc.closure[tidx] = m_weights_bank->get(uid, *func_desc.device_it);
-            // FIXME: find a more reliable way to do so
-            comp_model_desc.is_remote[tidx] = m_weights_bank->is_remote(uid);
+
+            const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+            auto& func_desc = m_compiled_submodels[real_idx];
+
+            for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
+                if (comp_model_desc.closure[tidx]) {
+                    continue;  // host-side closure
+                }
+                comp_model_desc.closure_uid[tidx] =
+                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
+            }
         }
-    }
+
+        // Evaluate and allocate all LazyTensors inside the bank
+        m_profile["weights bank"].record([&]() {
+            m_weights_bank->evaluate_and_allocate();
+        });
+
+        // Set evaluated and allocated ov::Tensors to closures
+        for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+            auto& comp_model_desc = m_compiled_submodels[idx];
+
+            // Skip optimized out and non-functions
+            if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+                continue;
+            }
+
+            const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+            auto& func_desc = m_compiled_submodels[real_idx];
+
+            for (std::size_t tidx = 0; tidx < comp_model_desc.closure.size(); ++tidx) {
+                if (comp_model_desc.closure[tidx]) {
+                    // host-side closure - already set, do nothing
+                    comp_model_desc.is_remote[tidx] = false;
+                    continue;
+                }
+                const auto& uid = comp_model_desc.closure_uid[tidx];
+                NPUW_ASSERT(uid != -1);  // All tensors should be registered at this point
+                comp_model_desc.closure[tidx] = m_weights_bank->get(uid, *func_desc.device_it);
+                // FIXME: find a more reliable way to do so
+                comp_model_desc.is_remote[tidx] = m_weights_bank->is_remote(uid);
+            }
+        }
+
+        m_import_weights_ctx.reset();
+    });
 
     LOG_INFO("Done.");
 }

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <optional>
 #include <future>
+#include <optional>
 
 #include "attention.hpp"
 #include "common.hpp"
