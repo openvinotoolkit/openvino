@@ -1621,3 +1621,72 @@ void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t r
     OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
+
+void ov::npuw::util::XARCH::copy(const ov::Tensor& from, ov::Tensor& to) {
+#if defined(HAVE_AVX2)
+    const auto et = from.get_element_type();
+    const size_t elem_size = et.size();
+    size_t bytes_total;
+
+    if (et == ov::element::u4 || et == ov::element::i4 ||
+        et == ov::element::f4e2m1 || et == ov::element::nf4) {
+        // 4bit: 2 elements / byte
+        OPENVINO_ASSERT((from.get_size() & 1) == 0, "4-bit tensor element count must be even.");
+        bytes_total = from.get_size() / 2;
+    } else {
+        bytes_total = from.get_size() * elem_size;
+    }
+
+    if (bytes_total == 0) return;
+
+    if (bytes_total < 1024) {
+        std::memcpy(to.data(), from.data(), bytes_total);
+        return;
+    }
+
+    const uint8_t* src = static_cast<const uint8_t*>(from.data());
+    uint8_t* dst = static_cast<uint8_t*>(to.data());
+
+    const size_t parallel_threshold = 256 * 1024;
+    const size_t block_bytes = 32;
+    const size_t big_block = 1024 * 1024;
+
+    auto vec_copy_range = [&](size_t off, size_t len) {
+        const uint8_t* ps = src + off;
+        uint8_t* pd = dst + off;
+        size_t i = 0;
+
+        bool aligned = ((reinterpret_cast<uintptr_t>(ps) | reinterpret_cast<uintptr_t>(pd)) & 31) == 0;
+
+        if (aligned) {
+            for (; i + block_bytes <= len; i += block_bytes) {
+                __m256i v = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + i));
+                _mm256_store_si256(reinterpret_cast<__m256i*>(pd + i), v);
+            }
+        } else {
+            for (; i + block_bytes <= len; i += block_bytes) {
+                __m256i v = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + i));
+                _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + i), v);
+            }
+        }
+        if (i < len) {
+            std::memcpy(pd + i, ps + i, len - i);
+        }
+    };
+
+    if (bytes_total < parallel_threshold) {
+        vec_copy_range(0, bytes_total);
+        return;
+    }
+
+    size_t n_blocks = (bytes_total + big_block - 1) / big_block;
+    ov::parallel_for(n_blocks, [&](size_t b) {
+        size_t off = b * big_block;
+        if (off >= bytes_total) return;
+        size_t len = std::min(big_block, bytes_total - off);
+        vec_copy_range(off, len);
+    });
+#else
+    from.copy_to(to);
+#endif
+}
