@@ -25,11 +25,18 @@ public:
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    void prepareParams() override;
+    bool needPrepareParams() const override;
 
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
+    static bool isSupportedCompressedOperation(const std::shared_ptr<ov::Node>& op,
+                                               size_t IC,
+                                               size_t OC,
+                                               size_t G,
+                                               const Config& config) noexcept;
+    static ov::element::TypeVector getSupportedCompressedWeightsTypes(bool apply_fp8 = false);
 
 private:
     enum class Algorithm : uint8_t { GatherMatmulDefault, GatherMatmulCompressed };
@@ -43,8 +50,19 @@ private:
         WEIGHT_ZERO_POINTS,
     };
 
+    class onednn_matmul;
+
+    using GemvImplPtr = std::shared_ptr<onednn_matmul>;
+
+private:
+
     Algorithm algorithm = Algorithm::GatherMatmulDefault;
     MemoryArgs memory;
+    GemvImplPtr gemv_impl = nullptr;
+
+    MemoryPtr m_weightsMemory = nullptr;
+    MemoryPtr m_scalesMemory = nullptr;
+    MemoryPtr m_zpMemory = nullptr;
 };
 
 }  // namespace ov::intel_cpu::node
