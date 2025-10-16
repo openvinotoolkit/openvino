@@ -245,6 +245,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::RoundHalfToEven) ||
             (activation_type == utils::ActivationTypes::PReLu) ||
             (activation_type == utils::ActivationTypes::Sigmoid) ||
+            (activation_type == utils::ActivationTypes::SoftSign) ||
             (activation_type == utils::ActivationTypes::Sqrt) ||
             (activation_type == utils::ActivationTypes::Tanh))
             return "jit";
