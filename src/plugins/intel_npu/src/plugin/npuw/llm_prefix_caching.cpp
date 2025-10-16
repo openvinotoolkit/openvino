@@ -154,39 +154,50 @@ bool PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
 }
 
 void PrefixCacheManager::update_lru_unsafe(const std::shared_ptr<KVBlock>& block) {
-    m_lru_list.remove(block);
-    m_lru_list.push_front(block);
+    uint64_t block_hash = block->get_block_hash();
+
+    // Remove from current position if exists (O(1) with iterator)
+    auto iter_it = m_lru_iter_map.find(block_hash);
+    if (iter_it != m_lru_iter_map.end()) {
+        m_lru_list.erase(iter_it->second);
+    }
+
+    // Add to front (most recently used)
+    m_lru_list.push_front(block_hash);
+    m_lru_iter_map[block_hash] = m_lru_list.begin();
 }
 
 bool PrefixCacheManager::evict_lru_block_unsafe() {
-    bool eviction_done = false;
-
     // Evict the least recently used block which does not have any child block
+    // LRU list is ordered: front = most recent, back = least recent
     for (auto lru_it = m_lru_list.rbegin(); lru_it != m_lru_list.rend(); ++lru_it) {
-        auto lru_block = *lru_it;
-        if (!lru_block->get_child_block_hashes().empty()) {
+        uint64_t lru_block_hash = *lru_it;
+        auto lru_block = get_block_unsafe(lru_block_hash);
+
+        if (!lru_block || !lru_block->get_child_block_hashes().empty()) {
             continue;
         }
 
         LOG_VERB("Cache is full, evict LRU block");
         lru_block->print_block_info(false);
 
-        // Unlink LRU blocks
+        // Unlink from parent block
         const auto lru_prev_block_hash = lru_block->get_parent_block_hash();
         const auto lru_prev_block = get_block_unsafe(lru_prev_block_hash);
         if (lru_prev_block != nullptr) {
             lru_block->unlink_blocks(lru_prev_block);
         }
 
-        m_cache_map.erase(lru_block->get_block_hash());
+        // Remove from all data structures
+        m_cache_map.erase(lru_block_hash);
+        m_lru_iter_map.erase(lru_block_hash);
         // Convert reverse iterator to regular iterator for erase
         m_lru_list.erase(std::next(lru_it).base());
 
-        eviction_done = true;
-        break;  // Exit after evicting one block
+        return true;  // Successfully evicted one block
     }
 
-    return eviction_done;
+    return false;  // No eviction candidate found
 }
 
 std::shared_ptr<KVBlock> PrefixCacheManager::get_block(uint64_t combined_hash) {

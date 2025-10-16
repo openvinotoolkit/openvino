@@ -143,8 +143,10 @@ private:
     std::mutex m_mutex;
     // Mapping from hash to KV blocks
     std::unordered_map<uint64_t, std::shared_ptr<KVBlock>> m_cache_map;
-    // LRU list to track the least recently used blocks
-    std::list<std::shared_ptr<KVBlock>> m_lru_list;
+    // LRU list to track the least recently used blocks (most recent at front)
+    std::list<uint64_t> m_lru_list;
+    // Mapping from hash to LRU list iterator for O(1) access
+    std::unordered_map<uint64_t, std::list<uint64_t>::iterator> m_lru_iter_map;
 
     // Retrieve a block from the cache by hash without holding a mutex
     std::shared_ptr<KVBlock> get_block_unsafe(uint64_t combined_hash) const;
