@@ -12,7 +12,7 @@ GRUCell
 
 **Short description**: *GRUCell* represents a single GRU Cell that computes the output using the formula described in the `paper <https://arxiv.org/abs/1406.1078>`__.
 
-**Detailed description**: *GRUCell* computes the output *Ht* for the current time step based on the followint formula:
+**Detailed description**: *GRUCell* computes the output *Ht* for the current time step based on the following formula:
 
 .. code-block:: sh
 

@@ -153,9 +153,11 @@ def main():
                     else:
                         raise RuntimeError("Incorrect performance hint. Please set -hint option to"
                             "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.")
+                elif device in config and properties.hint.performance_mode() in config[device]:
+                    return
                 else:
                     perf_hint = properties.hint.PerformanceMode.LATENCY if benchmark.api_type == "sync" else properties.hint.PerformanceMode.THROUGHPUT
-                    logger.warning(f"Performance hint was not explicitly specified in command line. " +
+                    logger.warning(f"Performance hint was not explicitly specified in command line or config file. " +
                     f"Device({device}) performance hint will be set to {perf_hint}.")
                 config[device][properties.hint.performance_mode()] = perf_hint
             else:
