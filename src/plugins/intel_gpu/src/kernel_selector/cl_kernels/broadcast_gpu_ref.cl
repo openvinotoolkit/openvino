@@ -345,16 +345,15 @@ KERNEL(broadcast_gpu_ref)(
             INPUT0_VTYPE input_vec = VLOAD(0, &input[idx_pos]);
             unroll_for(uint i = 0; i < y_nums; i++) {
                 OUTPUT_VTYPE out_v;
-                for (int j = 0; j < VEC_SIZE; ++j) {
-                    out_v[j] = TO_OUTPUT_TYPE(input_vec[j]);
-                }
-                #if HAS_FUSED_OPS
-                    for (int offset = 0; offset < VEC_SIZE; ++offset) {
-                        res = out_v[offset];
+                for (int offset = 0; offset < VEC_SIZE; ++offset) {
+                    #if HAS_FUSED_OPS
+                        res = TO_OUTPUT_TYPE(input_vec[offset]);
                         FUSED_OPS
                         out_v[offset] = FUSED_OPS_RESULT;
-                    }
-                #endif
+                    #else
+                        out_v[offset] = TO_OUTPUT_TYPE(input_vec[offset]);
+                    #endif
+                }
                 VSTORE(out_v, 0, &output[output_idx]);
                 output_idx += OUTPUT_SIZE_X;
             }
