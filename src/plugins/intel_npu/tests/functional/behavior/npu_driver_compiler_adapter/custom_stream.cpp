@@ -17,6 +17,7 @@ using CompilationParams = std::tuple<std::string,  // Device name
                                      >;
 
 using VCLSerializerWithWeightsCopy = intel_npu::driver_compiler_utils::VCLSerializerWithWeightsCopy;
+using VCLSerializerWithoutWeightsCopy = intel_npu::driver_compiler_utils::VCLSerializerWithoutWeightsCopy;
 
 namespace ov::test::behavior {
 
@@ -58,11 +59,18 @@ protected:
     ov::AnyMap configuration;
 };
 
-TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
+TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelWeightsCopy) {
     auto model = createModelWithLargeSize();
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
-    VCLSerializerWithWeightsCopy VCLSerializerWithWeightsCopy(model, dummyCompilerVersion, 11);
-    EXPECT_NO_THROW(VCLSerializerWithWeightsCopy.serialize());
+    VCLSerializerWithWeightsCopy serializer(model, dummyCompilerVersion, 11);
+    EXPECT_NO_THROW(serializer.serialize());
+}
+
+TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
+    auto model = createModelWithLargeSize();
+    const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
+    VCLSerializerWithoutWeightsCopy serializer(model, dummyCompilerVersion, 11);
+    EXPECT_NO_THROW(serializer.serialize());
 }
 
 const std::vector<ov::AnyMap> configs = {
