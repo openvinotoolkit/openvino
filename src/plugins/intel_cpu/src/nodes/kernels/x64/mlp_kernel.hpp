@@ -575,7 +575,7 @@ public:
                 args.prefetch_dst = (m + 2 < num_rows) ? (args.dst + 2 * dst_stride) : (args.dst);
                 (*this)(&args);
             }
-        } else if (one_of(m_output_type, ov::element::bf16, ov::element::f16)) {
+        } else if (any_of(m_output_type, ov::element::bf16, ov::element::f16)) {
             CallArgs<int16_t> args;
             args.src0 = src0;
             args.src1 = src1;
@@ -599,7 +599,7 @@ public:
         args.src0 = src0;
         args.dst = reinterpret_cast<int16_t*>(pf16_dst);
         args.num_cols = num_cols;
-        if (one_of(m_output_type, ov::element::bf16, ov::element::f16)) {
+        if (any_of(m_output_type, ov::element::bf16, ov::element::f16)) {
             for (int m = 0; m < num_rows; m++, args.src0 += src_stride, args.dst += dst_stride) {
                 // the prefetch distance is increased to ensure by the time store happens
                 // prefetch has done and no HW prefetcher is triggered

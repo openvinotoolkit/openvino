@@ -650,7 +650,7 @@ void ReduceAdd2bh::generate() {
             mov(dst, ptr[abi_param1 + offsetof(CallArgs<float>, dst)]);
             mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs<float>, prefetch_dst)]);
             mov(BN, ptr[abi_param1 + offsetof(CallArgs<float>, num_cols)]);
-        } else if (one_of(m_output_type, ov::element::bf16, ov::element::f16)) {
+        } else if (any_of(m_output_type, ov::element::bf16, ov::element::f16)) {
             mov(src0, ptr[abi_param1 + offsetof(CallArgs<int16_t>, src0)]);
             mov(src1, ptr[abi_param1 + offsetof(CallArgs<int16_t>, src1)]);
             mov(dst, ptr[abi_param1 + offsetof(CallArgs<int16_t>, dst)]);
@@ -705,7 +705,7 @@ void ReduceAdd2bh::generate() {
             mov(dst, ptr[abi_param1 + offsetof(CallArgs<float>, dst)]);
             mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs<float>, prefetch_dst)]);
             mov(BN, ptr[abi_param1 + offsetof(CallArgs<float>, num_cols)]);
-        } else if (one_of(m_output_type, ov::element::bf16, ov::element::f16)) {
+        } else if (any_of(m_output_type, ov::element::bf16, ov::element::f16)) {
             mov(src0, ptr[abi_param1 + offsetof(CallArgs<int16_t>, src0)]);
             mov(dst, ptr[abi_param1 + offsetof(CallArgs<int16_t>, dst)]);
             mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs<int16_t>, prefetch_dst)]);

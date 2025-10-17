@@ -642,7 +642,8 @@ void LLMMLP::createPrimitive() {
     }
 #endif
     if (!m_executor) {
-        CPU_NODE_THROW("Executor creation fails with precision " + rtPrecision.to_string() + ", output precision " + outPrecision.to_string());
+        CPU_NODE_THROW("Executor creation fails with precision " + rtPrecision.to_string() + ", output precision " +
+                       outPrecision.to_string());
     }
 }
 

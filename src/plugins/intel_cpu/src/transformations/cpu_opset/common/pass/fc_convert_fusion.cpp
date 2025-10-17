@@ -6,6 +6,7 @@
 
 #include <utils/general_utils.h>
 
+#include <openvino/core/graph_util.hpp>
 #include <openvino/core/rt_info.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
@@ -50,8 +51,8 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
         const auto& m_convert = pattern_map.at(convert).get_node_shared_ptr();
         auto output_type = m_convert->get_output_element_type(0);
 
-        if (!one_of(m_data->get_output_element_type(0), ov::element::f16, ov::element::bf16, ov::element::f32) &&
-            !one_of(m_weights->get_output_element_type(0), ov::element::f16, ov::element::bf16, ov::element::f32)) {
+        if (!any_of(m_data->get_output_element_type(0), ov::element::f16, ov::element::bf16, ov::element::f32) &&
+            !any_of(m_weights->get_output_element_type(0), ov::element::f16, ov::element::bf16, ov::element::f32)) {
             return false;
         }
 
@@ -94,8 +95,8 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
         }
 
         new_fc->set_friendly_name(m_convert->get_friendly_name());
-        copy_runtime_info(m.get_matched_nodes(), new_fc);
-        replace_node(m_convert, new_fc);
+        ov::copy_runtime_info(m.get_matched_nodes(), new_fc);
+        ov::replace_node(m_convert, new_fc);
         return true;
     };
 

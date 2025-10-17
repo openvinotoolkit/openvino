@@ -147,12 +147,12 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
     }
 
     auto in_precision = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(in_precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+    if (!any_of(in_precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         in_precision = ov::element::f32;
     }
 
     auto out_precision = getOriginalOutputPrecisionAtPort(0);
-    if (!one_of(out_precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+    if (!any_of(out_precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         out_precision = ov::element::f32;
     }
 
@@ -190,14 +190,9 @@ void RMSNorm::createPrimitive() {
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
-<<<<<<< HEAD
-    OPENVINO_ASSERT(result.first, "RMSNorm Executor creation fails with precision " + precision.to_string());
-=======
-    if (!result.first) {
-        OPENVINO_THROW("RMSNorm Executor creation fails with input precision " + in_precision.to_string() +
-                       " and output precision " + out_precision.to_string());
-    }
->>>>>>> ef64418045 (remove more convert nodes)
+    OPENVINO_ASSERT(result.first,
+                    "RMSNorm Executor creation fails with input precision " + in_precision.to_string() +
+                        " and output precision " + out_precision.to_string());
     m_executor = result.first;
 }
 
