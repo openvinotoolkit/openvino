@@ -43,6 +43,7 @@
 #include "reduce_inst.h"
 #include "group_normalization_inst.h"
 #include "lora_inst.h"
+#include "broadcast_inst.h"
 #include <vector>
 #include <map>
 #include <list>
@@ -751,6 +752,23 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return lora_is_single_user && is_simple_lora;
         };
 
+        auto broadcast_supports_fusings = [&](broadcast_node& bcast_node) -> bool {
+            if (bcast_node.get_outputs_count() != 1)
+                return false;
+
+            bool out_eltw = bcast_node.get_users().front()->is_type<eltwise>();
+            if (!out_eltw)
+                return false;
+
+            auto input_layout = bcast_node.get_output_layout();
+            auto output_layout = bcast_node.get_users().front()->get_output_layout();
+            if (input_layout.data_type != output_layout.data_type) {
+                return false;
+            }
+
+            return true;
+        };
+
         auto fuse_activation_f = [&](activation_node& activation_node) {
             GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
                 GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 11)
@@ -1055,7 +1073,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
                                       (parents[i].first->is_type<lrn>()) ||
                                       (parents[i].first->is_type<lora>() &&
-                                       lora_supports_fusings(parents[i].first->as<lora>()));
+                                       lora_supports_fusings(parents[i].first->as<lora>())) ||
+                                       (parents[i].first->is_type<broadcast>() &&
+                                       broadcast_supports_fusings(parents[i].first->as<broadcast>()));
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
