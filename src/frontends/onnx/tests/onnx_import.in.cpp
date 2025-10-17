@@ -7036,8 +7036,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_implicit_split) {
     const auto model = convert_model("sequence_at_3x2_position0.onnx");
     auto test_case = test::TestCase(model, s_device);
 
-    test_case.add_input<float>(Shape{3, 2}, {1.,  2., 3., 4., 5.,  6.});
-    test_case.add_expected_output<float>(Shape{1, 2}, {1.,  2.});
+    test_case.add_input<float>(Shape{3, 2}, {1., 2., 3., 4., 5., 6.});
+    test_case.add_expected_output<float>(Shape{1, 2}, {1., 2.});
 
     test_case.run();
 }
