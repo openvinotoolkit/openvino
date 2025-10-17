@@ -69,7 +69,17 @@ public:
     virtual std::size_t total_subrequests() const;
     virtual bool supports_async_pipeline() const = 0;
 
+    void update_history_size(int64_t history_size) {
+        m_history_size = history_size;
+    }
+
+    int64_t get_history_size() const {
+        return m_history_size;
+    }
+
 protected:
+    int64_t m_history_size = 0;
+
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
     using RqPtrs = std::vector<RqPtr>;
 
