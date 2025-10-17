@@ -453,12 +453,16 @@ bool GatherMatmul::needPrepareParams() const {
     return false;  // the operation is shape agnostic
 }
 
+bool GatherMatmul::isExecutable() const {
+    return !isInputTensorAtPortEmpty(0); // only data shape matters
+}
+
 void GatherMatmul::execute(const dnnl::stream& strm) {
     class OffsetHelper {
     public:
         static OffsetHelper createOffsetHelper(const MemoryPtr& mem) {
             static VectorDims empty_dims;
-            if (mem == nullptr) {
+            if (nullptr == mem || mem->getDesc().empty()) {
                 return {nullptr, empty_dims, 0};
             }
             auto* base_ptr = static_cast<uint8_t*>(mem->getData());
