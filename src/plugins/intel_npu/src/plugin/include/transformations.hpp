@@ -61,11 +61,12 @@ bool deBatchModel(std::shared_ptr<ov::Model>& model,
  * @param originalBatch Output parameter to store original batch dimension
  * @param logger Logger instance for diagnostic messages
  */
-void handlePluginBatching(std::shared_ptr<ov::Model>& model,
-                          FilteredConfig& localConfig,
-                          const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
-                          std::optional<ov::Dimension>& originalBatch,
-                          Logger logger);
+std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
+    std::shared_ptr<const ov::Model> model,
+    FilteredConfig& localConfig,
+    const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
+    std::optional<ov::Dimension>& originalBatch,
+    Logger logger);
 
 }  // namespace batch_helpers
 }  // namespace intel_npu
