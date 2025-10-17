@@ -110,14 +110,16 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
         {{"batch_dims", 0}});
     auto squeeze_Squeeze_1 =
         wrap_type<ov::op::v0::Squeeze>({select_Gather_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))});
-    auto ListUnpack_NonZero_1 = wrap_type<ov::op::v3::NonZero>({squeeze_Squeeze_1}, {{"output_type", "i64"}});
+    // NonZero output_type relaxed to accept both i32 and i64
+    auto ListUnpack_NonZero_1 = wrap_type<ov::op::v3::NonZero>({squeeze_Squeeze_1});
     auto ListUnpack_Split_1 = wrap_type<ov::op::v1::Split>(
         {ListUnpack_NonZero_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
         {{"num_splits", 2}});
     ListUnpack_Split_1->set_output_size(2);
     auto ListUnpack_Squeeze_0_1 = wrap_type<ov::op::v0::Squeeze>(
         {ListUnpack_Split_1->output(1), wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))});
-    auto index_add__Convert_1 = wrap_type<ov::op::v0::Convert>({ListUnpack_Squeeze_0_1}, {{"destination_type", "i32"}});
+    // Convert is optional - pattern matches both with and without type conversion
+    auto index_add__Convert_1 = wrap_type<ov::op::v0::Convert>({ListUnpack_Squeeze_0_1}) | ListUnpack_Squeeze_0_1;
     auto index_add__Reshape_1 = wrap_type<ov::op::v1::Reshape>(
         {index_add__Convert_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("-1, 1"))},
         {{"special_zero", false}});
@@ -158,7 +160,8 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
                                                             {{"transpose_a", false}, {"transpose_b", true}});
     auto ListUnpack_Squeeze_1 = wrap_type<ov::op::v0::Squeeze>(
         {ListUnpack_Split_1->output(0), wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))});
-    auto index_Convert_4 = wrap_type<ov::op::v0::Convert>({ListUnpack_Squeeze_1}, {{"destination_type", "i32"}});
+    // Convert is optional - pattern matches both with and without type conversion
+    auto index_Convert_4 = wrap_type<ov::op::v0::Convert>({ListUnpack_Squeeze_1}) | ListUnpack_Squeeze_1;
     auto index_Multiply_1 =
         wrap_type<ov::op::v1::Multiply>({index_add__Convert_1, index_Split_out_1}, {{"auto_broadcast", "numpy"}});
     auto index_Add_1 = wrap_type<ov::op::v1::Add>({index_Convert_4, index_Multiply_1}, {{"auto_broadcast", "numpy"}});
@@ -223,11 +226,13 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     auto permute_Transpose = wrap_type<ov::op::v1::Transpose>({one_hot_OneHot, transpose_perm});
     auto select_Gather = wrap_type<ov::op::v8::Gather>({permute_Transpose, axis0, axis0}, {{"batch_dims", 0}});
     auto squeeze_Squeeze = wrap_type<ov::op::v0::Squeeze>({select_Gather, axis0});
-    auto ListUnpack_NonZero = wrap_type<ov::op::v3::NonZero>({squeeze_Squeeze}, {{"output_type", "i64"}});
+    // NonZero output_type relaxed to accept both i32 and i64
+    auto ListUnpack_NonZero = wrap_type<ov::op::v3::NonZero>({squeeze_Squeeze});
     auto ListUnpack_Split = wrap_type<ov::op::v1::Split>({ListUnpack_NonZero, axis0}, {{"num_splits", 2}});
     ListUnpack_Split->set_output_size(2);
     auto ListUnpack_Squeeze_0 = wrap_type<ov::op::v0::Squeeze>({ListUnpack_Split->output(1), axis0});
-    auto index_add__Convert = wrap_type<ov::op::v0::Convert>({ListUnpack_Squeeze_0}, {{"destination_type", "i32"}});
+    // Convert is optional - pattern matches both with and without type conversion
+    auto index_add__Convert = wrap_type<ov::op::v0::Convert>({ListUnpack_Squeeze_0}) | ListUnpack_Squeeze_0;
     auto index_add__Reshape =
         wrap_type<ov::op::v1::Reshape>({index_add__Convert, reshape_shape}, {{"special_zero", false}});
     auto index_add__Slice =
