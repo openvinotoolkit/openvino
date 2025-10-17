@@ -104,7 +104,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
     const int input_z_pitch = (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) * input_y_pitch;
     const int input_fs_pitch = (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) * input_z_pitch;
     int in_addr = input_offset + input_x * input_x_pitch + input_y * input_y_pitch + input_z * input_z_pitch;
-    
+
     for (int icb = 0; icb < IFM_BLOCKS; ++icb) {
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
         uchar4 m;
@@ -178,18 +178,19 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
                                      + kd * ISV_SIZE * OSV_SIZE * FILTER_SIZE_X * FILTER_SIZE_Y
                                      + kh * ISV_SIZE * OSV_SIZE * FILTER_SIZE_X
                                      + kw * ISV_SIZE * OSV_SIZE;
-                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data0;
-                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data1;
-                    if (lid % 2 == 0) { 
-                        weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(vload8(f_off + 0*8*ISV_SIZE + lid/2, (const __global uint*)weights));
-                        weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(vload8(f_off + 1*8*ISV_SIZE + lid/2, (const __global uint*)weights));
-                    } else {
-                        weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(vload8(f_off + 2*8*ISV_SIZE + lid/2, (const __global uint*)weights));
-                        weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(vload8(f_off + 3*8*ISV_SIZE + lid/2, (const __global uint*)weights));
+                    uint8 raw0;
+                    uint8 raw1;
+                    for (int i = 0; i < 8; i++) {
+                        raw0[i] = ((const __global ushort*)(weights + f_off + 0*8*ISV_SIZE))[lid + i*16];
                     }
+                    for (int i = 0; i < 8; i++) {
+                        raw1[i] = ((const __global ushort*)(weights + f_off + 1*8*ISV_SIZE))[lid + i*16];
+                    }
+                    printf("max sg size %u\n", get_max_sub_group_size());
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(raw0);
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(raw1);
                     acc[0] = MMAD(src, weights_data0, acc[0]); // 8 elements in 2*lid+0 out channel
                     acc[1] = MMAD(src, weights_data1, acc[1]); // 8 elements in 2*lid+1 out channel
-
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
                     acc_assym_weights = MMAD(src, multiplier, acc_assym_weights);
 #endif
@@ -290,6 +291,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
     const bool full_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + OUTPUT_X_BLOCK_SIZE <= OUTPUT_SIZE_X;
     const bool full_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || (fg + 1) * OSV_SIZE <= OUTPUT_FEATURE_NUM;
     if (full_x && full_f) {
+        print("full_x"\n);
 #if OUTPUT_DIMS == 5
         const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, z, y, x)) / 2;
 #elif OUTPUT_DIMS <= 4
@@ -297,6 +299,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
 #endif
         BLOCK_WRITE(output + dst_index, dst);
     } else {
+        print("not full_x"\n);
 #if OUTPUT_FEATURE_NUM % 2 == 0
         for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
             const bool full_it_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + i < OUTPUT_SIZE_X;
