@@ -1,6 +1,6 @@
 {
   "name": "openvino-node",
-  "version": "2025.3.0",
+  "version": "2025.4.0",
   "description": "OpenVINO™ utils for using from Node.js environment",
   "repository": {
     "url": "git+https://github.com/openvinotoolkit/openvino.git",
@@ -46,7 +46,7 @@
   "dependencies": {
     "gunzip-maybe": "^1.4.2",
     "https-proxy-agent": "^7.0.2",
-    "tar-fs": "^3.0.9"
+    "tar-fs": "^3.1.1"
   },
   "binary": {
     "module_path": "./bin/",
