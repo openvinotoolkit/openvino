@@ -550,7 +550,7 @@ NodeDebugHelper::~NodeDebugHelper() {
             for (size_t i = 0; i < m_inst.get_intermediates_memories().size(); i++) {
                 std::string name = get_file_prefix() + "_intermediates_" + std::to_string(i);
                 auto output_mem = m_inst.get_intermediates_memories()[i];
-                if (output_mem == nullptr) {
+                if (output_mem == nullptr || output_mem->size() == 0) {
                     GPU_DEBUG_COUT << " intermediates_mem is nullptr. Nothing to dump." << std::endl;
                     continue;
                 }
