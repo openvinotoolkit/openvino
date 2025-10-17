@@ -1264,9 +1264,6 @@ public:
         if (data_output_mem) {
             ASSERT_EQ(data_output_mem->count(), ref_data.first.size());
             mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, get_test_stream());
-            // for (size_t i = 0; i < data_output_mem->count(); i++) {
-            //     std::cout << i << ": result = " << mem_ptr[i] << ", reference = " << ref_data.first[i] << std::endl;
-            // }
             for (size_t i = 0; i < data_output_mem->count(); i++) {
                 ASSERT_NEAR(mem_ptr[i], ref_data.first[i], tolerance) << " at index=" << i;
             }
