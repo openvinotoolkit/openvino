@@ -560,7 +560,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
-    auto modelForCompilation = model->clone();
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
@@ -617,6 +616,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // Handle batch mode configuration
     std::optional<ov::Dimension> originalBatch = std::nullopt;
+    std::shared_ptr<ov::Model> batchedModel;
+
+    bool shouldHandleBatching = false;
+    bool successfullyDebatched = false;
+
     if (localConfig.isAvailable(ov::intel_npu::batch_mode.name())) {
         // Set default batch mode if not configured
         if (!localConfig.has(ov::intel_npu::batch_mode.name())) {
@@ -631,19 +635,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             }
             updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
         }
-        intel_npu::batch_helpers::handlePluginBatching(modelForCompilation,
-                                                       localConfig,
-                                                       updateBatchMode,
-                                                       originalBatch,
-                                                       _logger);
+        shouldHandleBatching = true;
     } else {
-        if (model->get_variables().empty()) {
-            intel_npu::batch_helpers::handlePluginBatching(modelForCompilation,
-                                                           localConfig,
-                                                           updateBatchMode,
-                                                           originalBatch,
-                                                           _logger);
-        }
+        // If the model contains states, it is not supported when handling batching on the plugin
+        shouldHandleBatching = model->get_variables().empty();
+    }
+
+    if (shouldHandleBatching) {
+        // Process batching
+        std::tie(batchedModel, successfullyDebatched) =
+            intel_npu::batch_helpers::handlePluginBatching(model, localConfig, updateBatchMode, originalBatch, _logger);
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
@@ -694,10 +695,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _logger.debug("performing compile");
 
         if (!localConfig.get<WEIGHTLESS_BLOB>()) {
-            graph = compiler->compile(modelForCompilation, localConfig);
+            graph = compiler->compile(successfullyDebatched ? batchedModel : model->clone(), localConfig);
         } else {
             check_weightless_cache_attribute_occurrence(model);
-            graph = compiler->compileWS(modelForCompilation, localConfig);
+            graph = compiler->compileWS(successfullyDebatched ? batchedModel : model->clone(), localConfig);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());

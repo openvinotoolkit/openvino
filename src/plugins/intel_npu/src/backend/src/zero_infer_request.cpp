@@ -72,7 +72,7 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
 }
 
 std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
-                                                   const ov::PartialShape ioShape,
+                                                   const ov::PartialShape& ioShape,
                                                    const std::shared_ptr<ov::ITensor>& tensor,
                                                    const std::optional<size_t> batchSize) {
     if (tensor == nullptr && !batchSize.has_value()) {

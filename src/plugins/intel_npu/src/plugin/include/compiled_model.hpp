@@ -34,7 +34,7 @@ public:
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
                   const FilteredConfig& config,
-                  std::optional<int64_t> batchSize);
+                  const std::optional<int64_t>& batchSize);
 
     CompiledModel(const CompiledModel&) = delete;
 
