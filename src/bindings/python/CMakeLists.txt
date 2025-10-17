@@ -213,22 +213,9 @@ add_subdirectory(src/pyopenvino)
 #
 
 macro(ov_define_setup_py_packaging_vars)
-    set(pyversion_script "
-        import sys
-        suffix = 't' if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled() else ''
-        print(f'python{sys.version_info.major}.{sys.version_info.minor}{suffix}')
-    ")
-    execute_process(
-        COMMAND ${Python3_EXECUTABLE} -c "${pyversion_script}"
-        OUTPUT_VARIABLE pyversion
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        RESULT_VARIABLE pyversion_result
-    )
-    if(NOT pyversion OR pyversion_result)
-        # Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined inside pybind11
-        # But pybind11 doesn't tell us about GIL status
-        set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
-        message(STATUS "Failed to detect pyversion using interpreter, using fallback: ${pyversion}")
+    set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
+    if(Python3_SOABI AND Python3_SOABI MATCHES "cpython-[0-9]+t-")
+        set(pyversion "${pyversion}t")
     endif()
 
     # define version (syncronize with tools/openvino_dev/CMakeLists.txt)
