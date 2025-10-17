@@ -794,6 +794,31 @@ inline uint get_os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4_index(uint o, uint i,
     return idx;
 }
 
+inline uint get_os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_4_index(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
+{
+    const uint o_swizzled = (o % 4) * 8 + ((o % 32) / 4) + (o / 32) * 32;
+    const uint isv_idx = i % 4;
+    const uint isa_idx = (i / 4) % 8;
+    const uint is_idx = (i / 32);
+    const uint osv_idx = o_swizzled % 16;
+    const uint osa_idx = (o_swizzled / 16) % 4;
+    const uint os_idx = (o / 32);
+
+    const uint f_32_aligned = ((size_ifm + 31)/32);
+
+    size_t idx = offset +
+                 isv_idx +
+                 osv_idx * 2 +
+                 isa_idx * 8 * 4 +
+                 osa_idx * 16 * 32 +
+                 x * 32 * 32 +
+                 y * size_x * 32 * 32 +
+                 is_idx * 32 * 32 * size_x * size_y +
+                 os_idx * 32 * 32 * f_32_aligned * size_x * size_y;
+
+    return idx;
+}
+
 inline uint get_os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4_index(uint o, uint i, uint z, uint y, uint x,
                                                                         uint size_x, uint size_y, uint size_z,
                                                                         uint size_ifm, uint size_ofm, uint offset)
@@ -968,6 +993,15 @@ inline uint get_g_is_os_yx_isa4_osa8_isv8_osv4(uint g, uint o, uint i, uint z, u
 
 #define GET_FILTER_OS_IS_YX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4_INDEX(prefix, o, i, y, x) \
     get_os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4_index(                               \
+        o, i, y, x,                                                                     \
+        CAT(prefix, _SIZE_X),                                                           \
+        CAT(prefix, _SIZE_Y),                                                           \
+        CAT(prefix, _IFM_NUM),                                                          \
+        CAT(prefix, _OFM_NUM),                                                          \
+        CAT(prefix, _OFFSET))
+
+#define GET_FILTER_OS_IS_YX_OSA2_ISA8_OSV16_ISV4_SWIZZLED_BY_4_INDEX(prefix, o, i, y, x) \
+    get_os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_4_index(                               \
         o, i, y, x,                                                                     \
         CAT(prefix, _SIZE_X),                                                           \
         CAT(prefix, _SIZE_Y),                                                           \

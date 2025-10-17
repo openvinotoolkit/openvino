@@ -178,15 +178,21 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
                                      + kd * ISV_SIZE * OSV_SIZE * FILTER_SIZE_X * FILTER_SIZE_Y
                                      + kh * ISV_SIZE * OSV_SIZE * FILTER_SIZE_X
                                      + kw * ISV_SIZE * OSV_SIZE;
+                    int8 raw0;
+                    int8 raw1;
+
+                    for (int i = 0; i < 8; i++) {
+                        raw0[i] = ((const __global uint*)(weights + f_off + 0*ISV_SIZE + lid*ISV_SIZE*16))[i*8];
+                    }
+                    for (int i = 0; i < 8; i++) {
+                        raw1[i] = ((const __global uint*)(weights + f_off + 1*8*ISV_SIZE + lid*ISV_SIZE*16))[i*8];
+                    }
+
                     MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data0;
                     MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data1;
-                    if (lid % 2 == 0) { 
-                        weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(vload8(f_off + 0*8*ISV_SIZE + lid/2, (const __global uint*)weights));
-                        weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(vload8(f_off + 1*8*ISV_SIZE + lid/2, (const __global uint*)weights));
-                    } else {
-                        weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(vload8(f_off + 2*8*ISV_SIZE + lid/2, (const __global uint*)weights));
-                        weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(vload8(f_off + 3*8*ISV_SIZE + lid/2, (const __global uint*)weights));
-                    }
+                    weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(raw0);
+                    weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(raw1);
+
                     acc[0] = MMAD(src, weights_data0, acc[0]); // 8 elements in 2*lid+0 out channel
                     acc[1] = MMAD(src, weights_data1, acc[1]); // 8 elements in 2*lid+1 out channel
 

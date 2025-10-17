@@ -174,9 +174,18 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                                      + kd * ISV_SIZE * OSV_SIZE * FILTER_SIZE_X * FILTER_SIZE_Y
                                      + kh * ISV_SIZE * OSV_SIZE * FILTER_SIZE_X
                                      + kw * ISV_SIZE * OSV_SIZE;
+                    uint8 raw0;
+                    uint8 raw1;
 
-                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 0*8*ISV_SIZE)));
-                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 1*8*ISV_SIZE)));
+                    for (int i = 0; i < 8; i++) {
+                        raw0[i] = ((const __global uint*)(weights + f_off + 0*8*ISV_SIZE))[lid + i*8];
+                    }
+                    for (int i = 0; i < 8; i++) {
+                        raw1[i] = ((const __global uint*)(weights + f_off + 1*8*ISV_SIZE))[lid + i*8];
+                    }
+                    printf("max sg size %u\n", get_max_sub_group_size());
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(raw0);
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(raw1);
                     MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data2 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 2*8*ISV_SIZE)));
                     MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data3 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 3*8*ISV_SIZE)));
 

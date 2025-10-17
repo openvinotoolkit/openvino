@@ -30,7 +30,8 @@ protected:
 
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &p) const override {
         if (DataTensor::ChannelsCount(p.outputs[0].GetLayout()) <= 4) {
-            return WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
+            std::cout << "swizzled 4" << std::endl;
+            return WeightsLayout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_4;
         } else {
             return WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
         }
