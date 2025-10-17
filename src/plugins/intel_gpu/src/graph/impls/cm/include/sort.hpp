@@ -144,17 +144,6 @@ CM_INLINE void sort(uint slm, svmptr_t src, svmptr_t sorted_value, svmptr_t sort
                 cm_slm_write(slm, addr, total);
             }
         }
-        // {
-        //     // prefix sum
-        //     vector<ushort, 16 * THREADS> data;
-        //     cm_slm_block_read(slm, 0, data);
-        //     for (int i = 1; i < 16 * THREADS; i++) {
-        //         data[i] += data[i - 1];
-        //     }
-        //     data.select<16 * THREADS - 1, 1>(1) = data.select<16 * THREADS - 1, 1>(0);
-        //     data[0] = 0;
-        //     cm_slm_block_write(slm, 0, data);
-        // }
         {
             // prefix sum
             vector<ushort, 16> local_prefix = 0;
