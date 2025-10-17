@@ -77,10 +77,6 @@ jobs:
         with:
           submodules: 'true'
 
-      # - name: Fix git config safe directory
-      #   run: |
-      #     git config --global --add safe.directory $GITHUB_WORKSPACE
-
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
       # - -DENABLE_SNIPPETS_LIBXSMM_TPP to cover snippets TPP adaptation
@@ -106,15 +102,12 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
       volumes:
         - /mount:/mount
+      options: --user 1001
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           submodules: 'true'
-
-      - name: Fix git config safe directory
-        run: |
-          git config --global --add safe.directory $GITHUB_WORKSPACE
 
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
@@ -141,15 +134,12 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
       volumes:
         - /mount:/mount
+      options: --user 1001
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           submodules: 'true'
-
-      - name: Fix git config safe directory
-        run: |
-          git config --global --add safe.directory $GITHUB_WORKSPACE
 
       - name: CMake configure
         run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -B build_riscv64
@@ -173,15 +163,12 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_code_style }}
       volumes:
         - /mount:/mount
+      options: --user 1001
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           submodules: 'true'
-
-      - name: Fix git config safe directory
-        run: |
-          git config --global --add safe.directory $GITHUB_WORKSPACE
 
       - name: CMake configure
         run: cmake -B build
@@ -209,15 +196,12 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_code_style }}
       volumes:
         - /mount:/mount
+      options: --user 1001
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           submodules: 'true'
-
-      - name: Fix git config safe directory
-        run: |
-          git config --global --add safe.directory $GITHUB_WORKSPACE
 
       - name: CMake configure
         run: cmake -B build
