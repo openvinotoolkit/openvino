@@ -5,6 +5,7 @@ import shutil
 import tempfile
 
 import pytest
+from huggingface_hub import snapshot_download
 from optimum.intel.openvino import (OVModelForCausalLM,
                                     OVWeightQuantizationConfig)
 from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
@@ -100,8 +101,9 @@ def setup_model(model_id):
     logger.info(f"Setting up model: {model_id}")
 
     # Download original model
-    model = AutoModelForCausalLM.from_pretrained(model_id)
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    model = AutoModelForCausalLM.from_pretrained(model_cached)
+    tokenizer = AutoTokenizer.from_pretrained(model_cached)
 
     # Save original model
     model_path = get_model_path(model_id, "org")
