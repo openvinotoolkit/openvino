@@ -70,12 +70,8 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         auto result = zeMemAllocHost(_init_structs->getContext(), &desc, _size, utils::STANDARD_PAGE_SIZE, &_ptr);
 
         if (result != ZE_RESULT_SUCCESS) {
-            _logger.info("Importing memory through zeMemAllocHost failed, result: %s, code %#X - %s",
-                         ze_result_to_string(result).c_str(),
-                         uint64_t(result),
-                         ze_result_to_description(result).c_str());
-
-            throw ZeroMemException("Importing memory failed");
+            throw ZeroMemException("Importing memory failed with result " + ze_result_to_string(result) + " - " +
+                                   ze_result_to_description(result).c_str());
         }
     } else {
         OPENVINO_ASSERT(_init_structs->isExternalMemoryFdWin32Supported(),
