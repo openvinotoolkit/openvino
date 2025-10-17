@@ -23,9 +23,6 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::cm {
 
-// constexpr auto get_pa_build_options() {
-//     return " -cmc -Qxcm_register_file_size=256 -mdump_asm -g2 ";
-// }
 constexpr auto get_pa_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
 }
@@ -41,7 +38,8 @@ constexpr uint32_t SG_N = 8;
 constexpr uint32_t BLOCK_WG_M = BLOCK_SG_M * SG_M;
 constexpr uint32_t BLOCK_WG_N = BLOCK_SG_N * SG_N;
 constexpr int STRIDE = 16;
-constexpr size_t XATTN_BLOCK_SIZE = 128;
+constexpr uint32_t XATTN_BLOCK_SIZE = 128;
+constexpr uint32_t MERGED_Q_NUM = PA_KV_CACHE_BLOCK_SIZE_XATTN / XATTN_BLOCK_SIZE;  // for xattn post_proc
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {

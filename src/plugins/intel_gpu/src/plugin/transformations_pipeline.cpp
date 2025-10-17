@@ -366,17 +366,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
 #ifdef GPU_DEBUG_CONFIG
                     if (!config.get_use_cm()) {
-                        OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
-                                    "as CM for usage is disabled. Enable it by setting environment variable OV_GPU_USE_CM=ON.");
+                        OPENVINO_WARN("XAttention optimization is disabled because CM is not enabled. "
+                                    "To enable, set environment variable OV_GPU_USE_CM=ON.");
                         return true;
                     }
 #endif
 
                     if (!check_cm_jit_support(engine, config)) {
-                        OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
-                                    "as current IGC version is not compatible to the CM kernel used. Enable it by update IGC."
-                                    "Please also make sure clangFEWrapper for CM is present by checking environment varibles like "
-                                    "CM_FE_DIR or LD_LIBRARY_PATH if you are using Linux.");
+                        OPENVINO_WARN("SDPAToVLSDPA optimization for QWenVL model unavailable: IGC version incompatible with CM kernel. "
+                                    "Update IGC and ensure clangFEWrapper for CM is available (check CM_FE_DIR or LD_LIBRARY_PATH on Linux).");
                         return true;
                     }
 
@@ -521,25 +519,25 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
 #ifdef GPU_DEBUG_CONFIG
                         if (!config.get_use_cm()) {
-                            OPENVINO_WARN("You may miss XAttention optimization,"
-                                        "as CM for usage is disabled. Enable it by setting environment variable OV_GPU_USE_CM=ON.");
+                            OPENVINO_WARN("XAttention optimization is disabled because CM is not enabled. "
+                                        "To enable, set environment variable OV_GPU_USE_CM=ON.");
                             return false;
                         }
 #endif
 
                         if (!check_cm_jit_support(engine, config)) {
-                            OPENVINO_WARN("You may miss XAttention optimization,"
-                                        "as current IGC version is not compatible to the CM kernel used. Enable it by updating IGC."
-                                        "Please also make sure clangFEWrapper for CM is present by checking environment varibles like "
-                                        "CM_FE_DIR or LD_LIBRARY_PATH if you are using Linux.");
+                            OPENVINO_WARN("XAttention optimization unavailable: IGC version incompatible with CM kernel. "
+                                        "Update IGC and ensure clangFEWrapper for CM is available (check CM_FE_DIR or LD_LIBRARY_PATH on Linux).");
                             return false;
                         }
 
                         return true;
                     };
 
-            // Determine if XAttention is enabled by user (via GENAI) by checking if model parameters contains
-            // xattention configurations, which are added in SDPAToPagedAttention pass.
+
+            // Check if XAttention is enabled by the user via GENAI.
+            // This is determined by inspecting the model parameters for XAttention configurations,
+            // which are introduced during the SDPAToPagedAttention pass.
             bool use_xattention = false;
             const auto& parameters = func->get_parameters();
             for (const auto& param : parameters) {
@@ -551,7 +549,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             if (use_xattention) {
                 // Throw exception if xattn is not supported by either GPU archieture or compiler.
-                OPENVINO_ASSERT(check_xattn_gpu_compatibility(), "XAttention is not supported by either GPU archieture or IGC you are using.");
+                if (!check_xattn_gpu_compatibility())
+                    OPENVINO_THROW("XAttention is not supported by your current GPU architecture or IGC version. "
+                                "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
+                                "architecture and ensure the latest IGC is installed.");
             }
 
             // KVCache layout with default attention -
@@ -576,6 +577,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
             if (use_xattention) {
+                if (kv_cache_config.keyCacheQuantBychannel)
+                    OPENVINO_THROW("XAttention does not currently support per-channel quantized key cache.");
+
                 kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size_xattn;
                 kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
             } else {

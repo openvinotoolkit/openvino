@@ -825,7 +825,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
 JitConstants XAttentionEstimatePostProc::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = XAttentionEstimateGeneratorBase::get_jit_constants(params);
 
-    jit.make("MERGED_Q_NUM", 2);  // TODO
+    jit.make("MERGED_Q_NUM", MERGED_Q_NUM);
 
     return jit;
 }
@@ -871,8 +871,6 @@ DispatchDataFunc XAttentionEstimatePostProc::get_dispatch_data_func() const {
         const uint32_t k_block_in_group = static_cast<uint32_t>(BLOCK_WG_N / sum_per_token_in_block);
         const uint32_t k_block_pad = k_block_in_group * N_kq_groups;
         const uint32_t q_block_pad = ceil_div(q_len, block_size);
-
-        const uint32_t MERGED_Q_NUM = 2;  // TODO
         const uint32_t q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
 
         wgs.global = {q_block_pad_merged, heads_num, 1};
