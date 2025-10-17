@@ -195,65 +195,97 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
     return block;
 }
 
+// Helper function to create commonly used axis constants
+struct AxisPatterns {
+    std::shared_ptr<Node> axis0 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
+    std::shared_ptr<Node> axis1 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("1"));
+    std::shared_ptr<Node> axis2 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("2"));
+};
+
+// Helper function to create router pattern (Softmax -> TopK -> OneHot -> Transpose)
+// This pattern identifies the expert selection logic from router logits
+std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::shared_ptr<Node>> create_router_pattern(
+    const AxisPatterns& axes) {
+    auto linear_MatMul = pattern::any_input();
+    auto expert_num = wrap_type<ov::op::v0::Constant>();
+    auto num_topk = wrap_type<ov::op::v0::Constant>();
+    auto one_hot_on = wrap_type<ov::op::v0::Constant>(pattern::value_matches("1"));
+    auto one_hot_off = wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
+    auto transpose_perm = wrap_type<ov::op::v0::Constant>(pattern::value_matches("2, 1, 0"));
+
+    auto softmax = wrap_type<ov::op::v8::Softmax>({linear_MatMul}, {{"axis", 1}});
+    auto topk = wrap_type<ov::op::v11::TopK>(
+        {softmax, num_topk},
+        {{"axis", -1}, {"mode", "max"}, {"sort", "value"}, {"index_element_type", "i64"}, {"stable", false}});
+    topk->set_output_size(2);
+    auto one_hot = wrap_type<ov::op::v1::OneHot>({topk->output(1), expert_num, one_hot_on, one_hot_off}, {{"axis", 2}});
+    auto permute = wrap_type<ov::op::v1::Transpose>({one_hot, transpose_perm});
+
+    return {topk, permute, expert_num};
+}
+
+// Helper function to create expert indexing pattern (NonZero -> Split -> Convert)
+// This extracts indices of tokens assigned to each expert
+std::shared_ptr<Node> create_expert_indexing_pattern(const std::shared_ptr<Node>& permute_transpose,
+                                                     const AxisPatterns& axes) {
+    auto select_gather =
+        wrap_type<ov::op::v8::Gather>({permute_transpose, axes.axis0, axes.axis0}, {{"batch_dims", 0}});
+    auto squeeze = wrap_type<ov::op::v0::Squeeze>({select_gather, axes.axis0});
+    // NonZero output_type relaxed to accept both i32 and i64
+    auto non_zero = wrap_type<ov::op::v3::NonZero>({squeeze});
+    auto split = wrap_type<ov::op::v1::Split>({non_zero, axes.axis0}, {{"num_splits", 2}});
+    split->set_output_size(2);
+    auto squeeze_indices = wrap_type<ov::op::v0::Squeeze>({split->output(1), axes.axis0});
+    // Convert is optional - pattern matches both with and without type conversion
+    auto convert = wrap_type<ov::op::v0::Convert>({squeeze_indices}) | squeeze_indices;
+    return convert;
+}
+
+// Helper function to create routing weights pattern
+// This normalizes TopK values and prepares them for weighting expert outputs
+std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> create_routing_weights_pattern(
+    const std::shared_ptr<Node>& topk,
+    const AxisPatterns& axes) {
+    auto reduce_neg1 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("-1"));
+    auto sum_reduce = wrap_type<ov::op::v1::ReduceSum>({topk->output(0), reduce_neg1}, {{"keep_dims", true}});
+    auto normalized = wrap_type<ov::op::v1::Divide>({topk->output(0), sum_reduce},
+                                                    {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+    auto unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({normalized, axes.axis2});
+    auto shape_of = wrap_type<ov::op::v3::ShapeOf>({unsqueeze}, {{"output_type", "i32"}});
+    auto split = wrap_type<ov::op::v1::Split>({shape_of, axes.axis0}, {{"num_splits", 3}});
+    split->set_output_size(3);
+    auto reshape = wrap_type<ov::op::v1::Reshape>({unsqueeze, pattern::any_input()}, {{"special_zero", true}});
+
+    return {split, reshape};
+}
+
 }  // namespace
 
 ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
-    auto axis0 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
-    auto axis1 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("1"));
-    auto axis2 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("2"));
-    auto slice_start = wrap_type<ov::op::v0::Constant>(pattern::value_matches("0, 0"));
-    auto slice_end = wrap_type<ov::op::v0::Constant>();
-    auto slice_step = wrap_type<ov::op::v0::Constant>(pattern::value_matches("1, 1"));
-    auto slice_axes = wrap_type<ov::op::v0::Constant>(pattern::value_matches("0, 1"));
-    auto reshape_shape = wrap_type<ov::op::v0::Constant>(pattern::value_matches("-1, 1"));
-    auto reduce_neg1 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("-1"));
-    auto transpose_perm = wrap_type<ov::op::v0::Constant>(pattern::value_matches("2, 1, 0"));
-    auto one_hot_on = wrap_type<ov::op::v0::Constant>(pattern::value_matches("1"));
-    auto one_hot_off = wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
+    // Create axis patterns
+    AxisPatterns axes;
 
+    // Create router pattern: Softmax -> TopK -> OneHot -> Transpose
+    auto [topk_TopK, permute_Transpose, expert_num] = create_router_pattern(axes);
+
+    // Create expert indexing pattern for the first expert (used in outer loop)
+    auto index_add__Convert = create_expert_indexing_pattern(permute_Transpose, axes);
+
+    // Prepare additional patterns for expert computation
     auto view_Reshape = pattern::any_input();
     auto shape_const = wrap_type<ov::op::v0::Constant>();
-    auto expert_num = wrap_type<ov::op::v0::Constant>();
-    auto num_topk = wrap_type<ov::op::v0::Constant>();
-    auto linear_MatMul = pattern::any_input();
-    auto softmax_Softmax = wrap_type<ov::op::v8::Softmax>({linear_MatMul}, {{"axis", 1}});
-    auto topk_TopK = wrap_type<ov::op::v11::TopK>(
-        {softmax_Softmax, num_topk},
-        {{"axis", -1}, {"mode", "max"}, {"sort", "value"}, {"index_element_type", "i64"}, {"stable", false}});
-    topk_TopK->set_output_size(2);
-    auto one_hot_OneHot =
-        wrap_type<ov::op::v1::OneHot>({topk_TopK->output(1), expert_num, one_hot_on, one_hot_off}, {{"axis", 2}});
-    auto permute_Transpose = wrap_type<ov::op::v1::Transpose>({one_hot_OneHot, transpose_perm});
-    auto select_Gather = wrap_type<ov::op::v8::Gather>({permute_Transpose, axis0, axis0}, {{"batch_dims", 0}});
-    auto squeeze_Squeeze = wrap_type<ov::op::v0::Squeeze>({select_Gather, axis0});
-    // NonZero output_type relaxed to accept both i32 and i64
-    auto ListUnpack_NonZero = wrap_type<ov::op::v3::NonZero>({squeeze_Squeeze});
-    auto ListUnpack_Split = wrap_type<ov::op::v1::Split>({ListUnpack_NonZero, axis0}, {{"num_splits", 2}});
-    ListUnpack_Split->set_output_size(2);
-    auto ListUnpack_Squeeze_0 = wrap_type<ov::op::v0::Squeeze>({ListUnpack_Split->output(1), axis0});
-    // Convert is optional - pattern matches both with and without type conversion
-    auto index_add__Convert = wrap_type<ov::op::v0::Convert>({ListUnpack_Squeeze_0}) | ListUnpack_Squeeze_0;
-    auto index_add__Reshape =
-        wrap_type<ov::op::v1::Reshape>({index_add__Convert, reshape_shape}, {{"special_zero", false}});
-    auto index_add__Slice =
-        wrap_type<ov::op::v8::Slice>({pattern::any_input(), slice_start, slice_end, slice_step, slice_axes});
-    auto index_add__ShapeOf_6 = wrap_type<ov::op::v3::ShapeOf>({index_add__Slice}, {{"output_type", "i32"}});
-    auto index_add__Broadcast_7 =
-        wrap_type<ov::op::v3::Broadcast>({index_add__Reshape, index_add__ShapeOf_6}, {{"mode", "bidirectional"}});
-    auto unsqueeze_Unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({view_Reshape, axis0});
-    auto index_Gather =
-        wrap_type<ov::op::v8::Gather>({unsqueeze_Unsqueeze, index_add__Convert, axis1}, {{"batch_dims", 0}});
-    auto reshape_Reshape = wrap_type<ov::op::v1::Reshape>({index_Gather, shape_const}, {{"special_zero", true}});
-    auto sum_ReduceSum = wrap_type<ov::op::v1::ReduceSum>({topk_TopK->output(0), reduce_neg1}, {{"keep_dims", true}});
-    auto div__Divide = wrap_type<ov::op::v1::Divide>({topk_TopK->output(0), sum_ReduceSum},
-                                                     {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-    auto unsqueeze_Unsqueeze_1 = wrap_type<ov::op::v0::Unsqueeze>({div__Divide, axis2});
-    auto index_ShapeOf_1 = wrap_type<ov::op::v3::ShapeOf>({unsqueeze_Unsqueeze_1}, {{"output_type", "i32"}});
-    auto index_Split = wrap_type<ov::op::v1::Split>({index_ShapeOf_1, axis0}, {{"num_splits", 3}});
-    index_Split->set_output_size(3);
-    auto index_Reshape =
-        wrap_type<ov::op::v1::Reshape>({unsqueeze_Unsqueeze_1, pattern::any_input()}, {{"special_zero", true}});
+    auto slice_end = wrap_type<ov::op::v0::Constant>();  // Used in callback for slice validation
 
+    // Pattern for hidden states preparation
+    auto unsqueeze_Unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({view_Reshape, axes.axis0});
+    auto index_Gather =
+        wrap_type<ov::op::v8::Gather>({unsqueeze_Unsqueeze, index_add__Convert, axes.axis1}, {{"batch_dims", 0}});
+    auto reshape_Reshape = wrap_type<ov::op::v1::Reshape>({index_Gather, shape_const}, {{"special_zero", true}});
+
+    // Create routing weights pattern
+    auto [index_Split, index_Reshape] = create_routing_weights_pattern(topk_TopK, axes);
+
+    // Create expert computation pattern (3-GEMM SwiGLU block)
     auto expert_scatter =
         mlp3_no_bias_swiglu_block(permute_Transpose, unsqueeze_Unsqueeze, index_Split->output(1), index_Reshape);
 
