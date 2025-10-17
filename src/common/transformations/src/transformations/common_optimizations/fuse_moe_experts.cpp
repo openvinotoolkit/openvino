@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <limits>
 #include <string>
 #include <unordered_map>
@@ -92,6 +91,7 @@ struct expert_data {
     std::shared_ptr<Node> permute_node;
 };
 
+// Pattern matching for individual expert computation block with SwiGLU activation
 std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
     const Output<Node>& permute_Transpose,    // Transpose -> OneHot -> TopK -> Softmax -> MatMul -> Hidden States
     const Output<Node>& unsqueeze_Unsqueeze,  // Unsqueeze -> Reshape -> Hidden States
@@ -103,7 +103,6 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto shape_const = wrap_type<ov::op::v0::Constant>();
     auto expert_id = wrap_type<ov::op::v0::Constant>();
     auto slice_end_const = wrap_type<ov::op::v0::Constant>();
-    // Gather input 1 is expert IDx
     auto select_Gather_1 = wrap_type<ov::op::v8::Gather>(
         {permute_Transpose, expert_id, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
         {{"batch_dims", 0}});
@@ -120,7 +119,6 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto index_add__Reshape_1 = wrap_type<ov::op::v1::Reshape>(
         {index_add__Convert_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("-1, 1"))},
         {{"special_zero", false}});
-    // Input 0 - any scatter or broadcast?
     auto index_add__Slice_1 =
         wrap_type<ov::op::v8::Slice>({index_add__ScatterElementsUpdate_2,
                                       wrap_type<ov::op::v0::Constant>(pattern::value_matches("0, 0")),
@@ -172,7 +170,6 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
         wrap_type<ov::op::v1::Multiply>({linear_MatMul_down, index_Reshape_8_1}, {{"auto_broadcast", "numpy"}});
     auto index_add__Broadcast_17 =
         wrap_type<ov::op::v3::Broadcast>({mul_Multiply_2, index_add__ShapeOf_14}, {{"mode", "bidirectional"}});
-    // Input 0 - any scatter or broadcast?
     auto index_add__ScatterElementsUpdate_5 =
         wrap_type<ov::op::v12::ScatterElementsUpdate>({index_add__ScatterElementsUpdate_2,
                                                        index_add__Broadcast_16,
@@ -210,12 +207,9 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     auto one_hot_off = wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
 
     auto view_Reshape = pattern::any_input();
-    auto self_model_layers_1_mlp_gate_weight = pattern::any_input();
     auto shape_const = wrap_type<ov::op::v0::Constant>();
     auto expert_num = wrap_type<ov::op::v0::Constant>();
     auto num_topk = wrap_type<ov::op::v0::Constant>();
-    // auto linear_MatMul = wrap_type<ov::op::v0::MatMul>({view_Reshape, self_model_layers_1_mlp_gate_weight},
-    // {{"transpose_a", false}, {"transpose_b", true}});
     auto linear_MatMul = pattern::any_input();
     auto softmax_Softmax = wrap_type<ov::op::v8::Softmax>({linear_MatMul}, {{"axis", 1}});
     auto topk_TopK = wrap_type<ov::op::v11::TopK>(
@@ -256,9 +250,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     auto expert_scatter =
         mlp3_no_bias_swiglu_block(permute_Transpose, unsqueeze_Unsqueeze, index_Split->output(1), index_Reshape);
 
-    // Pattern to match the operations after all experts - this captures the final scatter operation
-    // that accumulates results from all experts, followed by reshape and residual add
-    // auto final_scatter = wrap_type<ov::op::v12::ScatterElementsUpdate>();
+    // Match the final reshape and residual add after all expert computations
     auto original_shape = pattern::any_input();
     auto last_reshape = wrap_type<ov::op::v1::Reshape>({expert_scatter, original_shape}, {{"special_zero", false}});
     auto residual_input = pattern::any_input();
@@ -268,10 +260,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
         auto num_expert_scatter = matches.at(expert_scatter).size();
         auto num_last_add = matches.at(last_add).size();
 
-        std::cout << "Found " << num_last_add << " MoE layers with " << num_expert_scatter << " total experts"
-                  << std::endl;
-
-        // Collect all experts first
+        // Collect expert data from all matched patterns
         std::vector<expert_data> all_experts;
         all_experts.reserve(matches.at(expert_scatter).size());
         for (const auto& pm : matches.at(expert_scatter)) {
@@ -296,6 +285,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                                    permute_node});
         }
 
+        // Group experts by their permute node to identify which MoE layer they belong to
         std::unordered_map<const ov::Node*, std::vector<expert_data>> experts_by_permute;
         for (const auto& expert : all_experts) {
             experts_by_permute[expert.permute_node.get()].push_back(expert);
@@ -303,7 +293,6 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
 
         // Process each MoE layer separately
         for (size_t moe_idx = 0; moe_idx < num_last_add; moe_idx++) {
-            // Get the pattern match for this specific MoE layer
             const auto& last_add_match = matches.at(last_add)[moe_idx];
             std::shared_ptr<Node> slice_end_node = nullptr;
             auto slice_end_it = last_add_match.find(slice_end);
@@ -330,28 +319,23 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                 return a.expert_id < b.expert_id;
             });
 
-            std::cout << "Processing MoE layer " << moe_idx + 1 << "/" << num_last_add << " with " << experts.size()
-                      << " experts" << std::endl;
-
-            // Concatenate weights incrementally to reduce memory usage
+            // Build fused weight tensors by concatenating individual expert weights along expert dimension
             auto const_0 = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
 
-            // Helper function to detect decompression Convert pattern and get original weight
+            // Detect if weights have decompression pattern and extract original compressed weights
             auto get_original_weight_and_decompress_info =
                 [](const std::shared_ptr<Node>& weight) -> std::pair<std::shared_ptr<Node>, bool> {
-                // Check if the current weight is a Convert op with decompression attribute
                 if (auto convert_op = ov::as_type_ptr<ov::op::v0::Convert>(weight)) {
                     if (ov::is_decompression(convert_op)) {
-                        // Get the original Constant input to this Convert
                         auto convert_input = convert_op->get_input_node_shared_ptr(0);
                         if (ov::as_type_ptr<ov::op::v0::Constant>(convert_input)) {
-                            return {convert_input, true};  // Original weight, needs decompression
+                            return {convert_input, true};
                         }
                     }
                 }
-                return {weight, false};  // No decompression needed
+                return {weight, false};
             };
-
+            // Build concatenated weight tensor for all experts, preserving decompression if present
             auto build_fused_weight =
                 [&](const std::function<std::shared_ptr<Node>(const expert_data&)>& getter) -> Output<Node> {
                 OutputVector inputs;
@@ -371,8 +355,6 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                 }
 
                 auto fused = ov::op::util::make_try_fold<ov::op::v0::Concat>(inputs, 0);
-                // auto fused = std::make_shared<ov::op::v0::Concat>(inputs, 0);
-                // fused->get_rt_info()["postponed_constant"] = true;
                 if (needs_decompress) {
                     auto convert = std::make_shared<ov::op::v0::Convert>(fused, target_type);
                     ov::mark_as_decompression(convert);
@@ -392,12 +374,11 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                 return expert.down_proj_weight;
             });
 
-            // Debug output for the collected operations
-            // Get input from the pattern - this should be the post-attention layernorm output
+            // Extract input and residual nodes from the pattern match
             auto view_reshape_node = last_add_match.at(view_Reshape).get_node_shared_ptr();
             auto residual_input_node = last_add_match.at(residual_input).get_node_shared_ptr();
 
-            // Extract dynamic values from the collected experts
+            // Build the fused MoE computation
             const size_t num_experts = experts.size();
 
             auto axis0_scalar = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
@@ -407,14 +388,14 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             auto axis_minus_one_vector = ov::op::v0::Constant::create(element::i64, Shape{1}, {-1});
             auto transpose_perm = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 0});
 
-            // Hidden dimension from gate weight
+            // Extract hidden dimension from gate weight shape
             auto gate_weight_shape_op =
                 std::make_shared<ov::op::v3::ShapeOf>(experts[0].gate_proj_weight, element::i64);
             auto hidden_dim_scalar =
                 std::make_shared<ov::op::v8::Gather>(gate_weight_shape_op, axis1_scalar, axis0_scalar);
             auto hidden_dim = std::make_shared<ov::op::v0::Unsqueeze>(hidden_dim_scalar, axis0_vector);
 
-            // Batch dimension derived from router TopK indices shape
+            // Extract batch dimension from router TopK output shape
             auto topk = last_add_match.at(topk_TopK).get_node_shared_ptr();
             auto topk_indices_output = topk->output(1);
             auto topk_indices_shape = std::make_shared<ov::op::v3::ShapeOf>(topk_indices_output, element::i64);
@@ -426,7 +407,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                 ov::op::v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(num_experts)});
             auto num_experts_dim = std::make_shared<ov::op::v0::Unsqueeze>(num_experts_const, axis0_vector);
 
-            // Create the fused MoE computation following the 3-GEMM pattern
+            // Tile and reshape input to prepare for batched expert computation
             auto tile_shape =
                 ov::op::v0::Constant::create(element::i64,
                                              Shape{2},
@@ -441,6 +422,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                 std::make_shared<ov::op::v0::Concat>(OutputVector{num_experts_dim, batch_dim, hidden_dim}, 0);
             auto batched_input = std::make_shared<ov::op::v1::Reshape>(repeated_input, batched_shape, false);
 
+            // Execute three-GEMM SwiGLU pattern: gate_proj, up_proj, and down_proj
             auto gate_bmm = std::make_shared<ov::op::v0::MatMul>(batched_input, fused_gate_weights, false, true);
             auto gate_swish = std::make_shared<ov::op::v4::Swish>(gate_bmm);
 
@@ -455,7 +437,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                 0);
             auto expert_outputs = std::make_shared<ov::op::v1::Reshape>(down_bmm, expert_output_shape, false);
 
-            // Routing tensor built via ScatterElementsUpdate to match MOE fusion pattern
+            // Build routing weights tensor from TopK outputs
             auto topk_values = topk->output(0);
             auto sum_reduce =
                 std::make_shared<ov::op::v1::ReduceSum>(topk_values,
@@ -477,6 +459,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             auto router_reshape = std::make_shared<ov::op::v1::Reshape>(router_transpose, router_shape, true);
             auto routing_weights = std::make_shared<ov::op::v0::Unsqueeze>(router_reshape, axis_minus_one_vector);
 
+            // Apply routing weights and reduce across expert dimension
             auto weighted_outputs = std::make_shared<ov::op::v1::Multiply>(expert_outputs, routing_weights);
             auto final_output = std::make_shared<ov::op::v1::ReduceSum>(weighted_outputs, axis0_vector, false);
 
@@ -495,9 +478,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             }
             ov::copy_runtime_info(ov::NodeVector{last_add_node}, ov::NodeVector{final_add});
 
-            // Replace the last add node with our new computation
             ov::replace_node(last_add_node, final_add);
-            std::cout << "MoE layer " << moe_idx + 1 << "/" << num_last_add << " fused successfully." << std::endl;
         }
 
         return true;
@@ -510,7 +491,6 @@ bool ov::pass::FuseMOE::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(FuseMOE);
     ov::pass::Manager manager(get_pass_config(), "FuseMOE");
 
-    // Use the unified FuseMOE transformation
     manager.register_pass<ov::pass::FuseMOEExperts>();
     manager.run_passes(model);
     return false;
