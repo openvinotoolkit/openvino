@@ -44,12 +44,18 @@ constexpr uint32_t MERGED_Q_NUM = PA_KV_CACHE_BLOCK_SIZE_XATTN / XATTN_BLOCK_SIZ
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
-    size_t num_of_partitions;
-    size_t partition_size;
     size_t max_context_len;
-    size_t paged_attention_aligned_seq_len;
-    size_t xattn_q_block_pad;
-    size_t xattn_k_block_pad;
+    // below are rt params for decoding
+    size_t num_of_partitions;
+    // below are rt params for xattn
+    size_t q_block_pad;
+    size_t k_block_pad;
+    size_t q_stride_pad;
+    uint32_t q_block_pad_merged;
+    size_t N_kq_groups;
+    size_t M;
+    size_t N;
+    size_t K;
 };
 
 enum PagedAttentionInternBuffIdx {
@@ -71,7 +77,6 @@ PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_par
 size_t get_max_context_len(const kernel_impl_params& params);
 size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
 size_t get_partition_size(const bool has_xattention);
-size_t get_partition_num(const size_t kv_len, const bool has_xattention);
 
 float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
 bool bypass_xattn(const kernel_impl_params& impl_param);
