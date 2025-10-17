@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/node.hpp"
@@ -13,16 +17,13 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "utils/common.hpp"
-#include <cstdint>
-#include <memory>
-#include <vector>
 
 namespace {
 
-ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, const ov::OutputVector &inputs) {
-    const auto &input = inputs[0];
-    const auto &split = inputs[1];
-    const auto axis =node.get_attribute_value<std::int64_t>("axis", 0);
+ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs) {
+    const auto& input = inputs[0];
+    const auto& split = inputs[1];
+    const auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
 
     const auto split_values = ov::util::get_constant_from_source(split)->cast_vector<std::int64_t>();
     OPENVINO_ASSERT(!split_values.empty(), "SplitToSequence: 'split' input cannot be empty");
@@ -36,7 +37,7 @@ ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, c
                     "SplitToSequence: scalar 'split' requires static dimension on the split axis");
 
     const std::int64_t axis_length = partial_shape[axis].get_length();
-    
+
     std::vector<std::int64_t> lengths;
     lengths.reserve(static_cast<std::size_t>((axis_length + chunk - 1) / chunk));
 
@@ -50,18 +51,18 @@ ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, c
     return {std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths)};
 }
 
-ov::OutputVector split_with_1d_split(const ov::frontend::onnx::Node& node, const ov::OutputVector &inputs) {
-    const auto &input = inputs[0];
-    const auto &split = inputs[1];
+ov::OutputVector split_with_1d_split(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs) {
+    const auto& input = inputs[0];
+    const auto& split = inputs[1];
     const auto axis = node.get_attribute_as_constant<std::int64_t>("axis", 0);
 
     return {std::make_shared<ov::op::v1::VariadicSplit>(input, axis, split)};
 }
 
 ov::OutputVector split_with_explicit_split(const ov::frontend::onnx::Node& node) {
-    const auto &inputs = node.get_ov_inputs();
+    const auto& inputs = node.get_ov_inputs();
 
-    const auto &split = inputs[1];
+    const auto& split = inputs[1];
 
     const auto split_const = ov::util::get_constant_from_source(split);
     OPENVINO_ASSERT(split_const, "SplitToSequence: 'split' input must be constant");
@@ -78,17 +79,16 @@ ov::OutputVector split_with_explicit_split(const ov::frontend::onnx::Node& node)
 }
 
 ov::OutputVector split_with_default_split(const ov::frontend::onnx::Node& node) {
-    const auto &inputs = node.get_ov_inputs();
+    const auto& inputs = node.get_ov_inputs();
 
-    const auto &input = inputs[0];
+    const auto& input = inputs[0];
 
     const auto input_rank = input.get_partial_shape().rank();
 
-    OPENVINO_ASSERT(input_rank.is_static(),
-                "SplitToSequence: default 'split' input requires static input rank");
+    OPENVINO_ASSERT(input_rank.is_static(), "SplitToSequence: default 'split' input requires static input rank");
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
-    
+
     if (axis < 0) {
         axis += input_rank.get_length();
     }
@@ -114,7 +114,7 @@ ov::OutputVector split_with_default_split(const ov::frontend::onnx::Node& node) 
     auto split_op = std::make_shared<ov::op::v1::Split>(input, axis_const, static_cast<std::size_t>(axis_length));
 
     const auto keepdims = node.get_attribute_value<std::int64_t>("keepdims", 1) == 1;
-    
+
     const auto squeeze_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {axis});
 
     for (std::int64_t axis_index = 0; axis_index < axis_length; ++axis_index) {
@@ -129,7 +129,7 @@ ov::OutputVector split_with_default_split(const ov::frontend::onnx::Node& node) 
     return output_sequence;
 }
 
-} // namespace
+}  // namespace
 
 namespace ov {
 namespace frontend {
@@ -138,15 +138,15 @@ namespace ai_onnx {
 namespace opset_11 {
 
 ov::OutputVector split_to_sequence(const ov::frontend::onnx::Node& node) {
-
     constexpr auto input_only = 1;
     constexpr auto input_and_split = 2;
 
     common::default_op_checks(node, input_only, input_and_split);
-    
+
     constexpr auto split_input_index = 1;
 
-    const auto output_sequence = common::is_input_valid(node, split_input_index) ? split_with_explicit_split(node) : split_with_default_split(node);
+    const auto output_sequence = common::is_input_valid(node, split_input_index) ? split_with_explicit_split(node)
+                                                                                 : split_with_default_split(node);
 
     return {std::make_shared<ov::frontend::SequenceMark>(output_sequence)};
 }
