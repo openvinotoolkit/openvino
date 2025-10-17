@@ -66,19 +66,6 @@ void BatchGatherMatmulCompressed::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           ov::is_type<ov::op::v0::Constant>(weight_zero_points),
                           "Input weight_zero_points must be a Constant node.");
-
-    // check wight_scales and weight_zero_points are either per channel or per tensor
-    const auto& weight_scales_shape = weight_scales->get_output_partial_shape(0);
-    const auto& weight_zero_points_shape = weight_zero_points->get_output_partial_shape(0);
-    auto weight_shape = get_input_partial_shape(1);
-
-    using ov::op::AutoBroadcastType;
-    NODE_VALIDATION_CHECK(
-        this,
-        PartialShape::broadcast_merge_into(weight_shape, weight_scales_shape, AutoBroadcastType::NUMPY) &&
-            PartialShape::broadcast_merge_into(weight_shape, weight_zero_points_shape, AutoBroadcastType::NUMPY),
-        "Input weight_scales and weight_zero_points shapes are not compatible with weight shape.");
-
     BatchGatherMatmul::validate_and_infer_types();
 }
 }  // namespace ov::intel_cpu

@@ -56,7 +56,9 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     const bool transpose_weights,
     const DecompressionType decompression_multiply_type,
     const DecompressionType decompression_subtract_type,
-    const bool reshape_on_decompression_constant) {
+    const bool reshape_on_decompression_constant,
+    const std::optional<bool>& insert_transpose_node,
+    const size_t seed) {
     auto transpose_if_necessary = [&](const ov::Shape& shape) {
         auto result_shape = shape;
         if (transpose_weights)
@@ -72,16 +74,17 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     // N - number of groups
     // G - group size
     auto transformed_weights_shape = transpose_if_necessary(weights_shape);
+    const auto IC = *(weights_shape.rbegin() + 1);
     if (group_decompression) {
-        OPENVINO_ASSERT(weights_shape[0] % group_size == 0,
+        OPENVINO_ASSERT(IC % group_size == 0,
                         "Weights output channels count (",
-                        weights_shape[0],
+                        IC,
                         ") must be divisible by decompression group size (",
                         group_size,
                         ").");
         auto in_channel_idx =
             transpose_weights ? transformed_weights_shape.size() - 1 : transformed_weights_shape.size() - 2;
-        transformed_weights_shape[in_channel_idx] = weights_shape[0] / group_size;
+        transformed_weights_shape[in_channel_idx] = IC / group_size;
         transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
     }
 
@@ -90,25 +93,29 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     auto weights_tensor =
         ov::test::utils::create_and_fill_tensor(weights_precision,
                                                 transformed_weights_shape,
-                                                ov::test::utils::InputGenerateData(start_from, up_to));
+                                                ov::test::utils::InputGenerateData(start_from, up_to, 1, seed));
     auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
 
     auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
 
     std::shared_ptr<ov::Node> mul_parent = weights_convert;
-    auto output_channels = *weights_shape.rbegin();
 
+    const auto OC = weights_shape.back();
     // Decompression constants shape:
     // Ordinary decompression: [O, 1]
     // Group decompression: [O, N, 1]
-    ov::Shape scaleshift_target_shape{output_channels};
+    ov::Shape scaleshift_target_shape{OC};
     scaleshift_target_shape.insert(scaleshift_target_shape.begin(),
-                                    group_decompression ? weights_shape[0] / group_size : 1);
+                                    group_decompression ? IC / group_size : 1);
     scaleshift_target_shape = transpose_if_necessary(scaleshift_target_shape);
     if (group_decompression) {
         auto in_channel_idx =
             transpose_weights ? scaleshift_target_shape.size() - 1 : scaleshift_target_shape.size() - 2;
         scaleshift_target_shape.insert(scaleshift_target_shape.begin() + in_channel_idx + 1, 1);
+    }
+    const bool with_batch = weights_shape.size() == 3;
+    if (with_batch) {
+        scaleshift_target_shape.insert(scaleshift_target_shape.begin(), weights_shape[0]);
     }
 
     auto scaleshift_const_shape = scaleshift_target_shape;
@@ -121,7 +128,7 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
         auto shift_const_tensor =
             ov::test::utils::create_and_fill_tensor(weights_precision,
                                                     subtract_shape,
-                                                    ov::test::utils::InputGenerateData(start_from, up_to));
+                                                    ov::test::utils::InputGenerateData(start_from, up_to, 1, seed));
         auto shift_const = std::make_shared<ov::op::v0::Constant>(shift_const_tensor);
 
         std::shared_ptr<ov::Node> shift_convert =
@@ -148,7 +155,7 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
                                                                                             multiply_shape,
                                                                                             0.001f,
                                                                                             0.01f,
-                                                                                            1);
+                                                                                            seed);
         std::shared_ptr<ov::Node> scale_const = std::make_shared<ov::op::v0::Constant>(scale_const_tensor);
 
         if (scale_prc != decompression_precision) {
@@ -169,8 +176,10 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     }
 
     if (group_decompression) {
-        auto reshape_target_shape = transpose_weights ? std::vector<int>{-1, static_cast<int>(weights_shape[0])}
-                                                        : std::vector<int>{static_cast<int>(weights_shape[0]), -1};
+        auto reshape_target_shape = transpose_weights ? std::vector<int>{-1, static_cast<int>(IC)}
+                                                        : std::vector<int>{static_cast<int>(IC), -1};
+        if (with_batch)
+            reshape_target_shape.insert(reshape_target_shape.begin(), weights_shape[0]);
         auto target_shape_node =
             ov::opset10::Constant::create(ov::element::i32, {reshape_target_shape.size()}, reshape_target_shape);
         last_node = std::make_shared<ov::opset10::Reshape>(last_node, target_shape_node, false);
@@ -179,7 +188,8 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
         last_node = std::make_shared<ov::opset10::Convert>(last_node, data_precision);
         ov::mark_as_decompression(last_node);
     }
-    if (transpose_weights) {
+    const bool insert_transpose = insert_transpose_node.value_or(transpose_weights);
+    if (insert_transpose) {
         const size_t rank = last_node->get_output_partial_shape(0).size();
         std::vector<int> order(rank);
         std::iota(order.begin(), order.end(), 0);
