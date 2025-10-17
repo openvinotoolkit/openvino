@@ -85,7 +85,6 @@ bool is_slice_to_end(const std::shared_ptr<Node>& node) {
 }
 
 struct expert_data {
-    std::shared_ptr<ov::pass::pattern::op::Block> expert_block;
     std::shared_ptr<Node> gate_proj_weight;
     std::shared_ptr<Node> up_proj_weight;
     std::shared_ptr<Node> down_proj_weight;
@@ -202,10 +201,20 @@ struct AxisPatterns {
     std::shared_ptr<Node> axis2 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("2"));
 };
 
+// Helper function to extract a dimension from a tensor shape
+// Returns ShapeOf -> Gather(axis_index) -> Unsqueeze as a dimension vector
+std::shared_ptr<Node> extract_shape_dim(const Output<Node>& input, size_t axis_index) {
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(input, element::i64);
+    auto axis_scalar = ov::op::v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(axis_index)});
+    auto axis0_scalar = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto dim_scalar = std::make_shared<ov::op::v8::Gather>(shape_of, axis_scalar, axis0_scalar);
+    auto axis0_vector = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+    return std::make_shared<ov::op::v0::Unsqueeze>(dim_scalar, axis0_vector);
+}
+
 // Helper function to create router pattern (Softmax -> TopK -> OneHot -> Transpose)
 // This pattern identifies the expert selection logic from router logits
-std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::shared_ptr<Node>> create_router_pattern(
-    const AxisPatterns& axes) {
+std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>> create_router_pattern(const AxisPatterns& axes) {
     auto linear_MatMul = pattern::any_input();
     auto expert_num = wrap_type<ov::op::v0::Constant>();
     auto num_topk = wrap_type<ov::op::v0::Constant>();
@@ -221,7 +230,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::shared_ptr<Node>> 
     auto one_hot = wrap_type<ov::op::v1::OneHot>({topk->output(1), expert_num, one_hot_on, one_hot_off}, {{"axis", 2}});
     auto permute = wrap_type<ov::op::v1::Transpose>({one_hot, transpose_perm});
 
-    return {topk, permute, expert_num};
+    return {topk, permute};
 }
 
 // Helper function to create expert indexing pattern (NonZero -> Split -> Convert)
@@ -266,21 +275,17 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     AxisPatterns axes;
 
     // Create router pattern: Softmax -> TopK -> OneHot -> Transpose
-    auto [topk_TopK, permute_Transpose, expert_num] = create_router_pattern(axes);
+    auto [topk_TopK, permute_Transpose] = create_router_pattern(axes);
 
     // Create expert indexing pattern for the first expert (used in outer loop)
     auto index_add__Convert = create_expert_indexing_pattern(permute_Transpose, axes);
 
     // Prepare additional patterns for expert computation
     auto view_Reshape = pattern::any_input();
-    auto shape_const = wrap_type<ov::op::v0::Constant>();
     auto slice_end = wrap_type<ov::op::v0::Constant>();  // Used in callback for slice validation
 
     // Pattern for hidden states preparation
     auto unsqueeze_Unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({view_Reshape, axes.axis0});
-    auto index_Gather =
-        wrap_type<ov::op::v8::Gather>({unsqueeze_Unsqueeze, index_add__Convert, axes.axis1}, {{"batch_dims", 0}});
-    auto reshape_Reshape = wrap_type<ov::op::v1::Reshape>({index_Gather, shape_const}, {{"special_zero", true}});
 
     // Create routing weights pattern
     auto [index_Split, index_Reshape] = create_routing_weights_pattern(topk_TopK, axes);
@@ -302,8 +307,6 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
         std::vector<expert_data> all_experts;
         all_experts.reserve(matches.at(expert_scatter).size());
         for (const auto& pm : matches.at(expert_scatter)) {
-            auto block_node =
-                ov::as_type_ptr<ov::pass::pattern::op::Block>(pm.at(expert_scatter).get_node_shared_ptr());
             auto slice_end_anchor = expert_scatter->get_anchor("slice_end_const", pm);
             if (!slice_end_anchor.has_value() || !is_slice_to_end(slice_end_anchor.value().get_node_shared_ptr())) {
                 return false;
@@ -315,8 +318,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             auto expert_id_const = ov::as_type_ptr<ov::op::v0::Constant>(expert_id_node);
             auto permute_node = expert_scatter->get_anchor("permute_Transpose", pm).value().get_node_shared_ptr();
             auto expert_id_values = expert_id_const->cast_vector<int64_t>();
-            all_experts.push_back({block_node,
-                                   gate_proj_node,
+            all_experts.push_back({gate_proj_node,
                                    up_proj_node,
                                    down_proj_node,
                                    static_cast<std::size_t>(expert_id_values.at(0)),
@@ -419,27 +421,18 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             // Build the fused MoE computation
             const size_t num_experts = experts.size();
 
-            auto axis0_scalar = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
-            auto axis1_scalar = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
+            // Create commonly used constants
             auto axis0_vector = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
             auto axis1_vector = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
             auto axis_minus_one_vector = ov::op::v0::Constant::create(element::i64, Shape{1}, {-1});
             auto transpose_perm = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 0});
 
-            // Extract hidden dimension from gate weight shape
-            auto gate_weight_shape_op =
-                std::make_shared<ov::op::v3::ShapeOf>(experts[0].gate_proj_weight, element::i64);
-            auto hidden_dim_scalar =
-                std::make_shared<ov::op::v8::Gather>(gate_weight_shape_op, axis1_scalar, axis0_scalar);
-            auto hidden_dim = std::make_shared<ov::op::v0::Unsqueeze>(hidden_dim_scalar, axis0_vector);
+            // Extract dimensions from shapes
+            auto hidden_dim = extract_shape_dim(experts[0].gate_proj_weight, 1);
 
-            // Extract batch dimension from router TopK output shape
             auto topk = last_add_match.at(topk_TopK).get_node_shared_ptr();
             auto topk_indices_output = topk->output(1);
-            auto topk_indices_shape = std::make_shared<ov::op::v3::ShapeOf>(topk_indices_output, element::i64);
-            auto batch_dim_scalar =
-                std::make_shared<ov::op::v8::Gather>(topk_indices_shape, axis0_scalar, axis0_scalar);
-            auto batch_dim = std::make_shared<ov::op::v0::Unsqueeze>(batch_dim_scalar, axis0_vector);
+            auto batch_dim = extract_shape_dim(topk_indices_output, 0);
 
             auto num_experts_const =
                 ov::op::v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(num_experts)});
