@@ -17,6 +17,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_iplugin.hpp"
 
 #ifdef __GLIBC__
 #    include <gnu/libc-version.h>
@@ -92,8 +93,10 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
     std::atomic<int> index{0};
     auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                           std::string("mock_engine") + OV_BUILD_POSTFIX);
+    ov::test::utils::MockIPluginInjector<ov::test::utils::MockPlugin> mock{};
     runParallel(
         [&]() {
+            mock.inject_plugin();
             const std::string deviceName = std::to_string(index++);
             core.register_plugin(plugin_path, deviceName);
             core.get_versions(deviceName);
@@ -130,8 +133,10 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
         return std::tie(pluginsXML, indexStr);
     };
 
+    ov::test::utils::MockIPluginInjector<ov::test::utils::MockPlugin> mock{};
     runParallel(
         [&]() {
+            mock.inject_plugin();
             const auto& [fileName, deviceName] = getPluginXml();
             core.register_plugins(fileName.string());
             core.get_versions(deviceName);

@@ -19,7 +19,7 @@
 
 class MockInternalPlugin : public ov::IPlugin {
     ov::IPlugin* m_plugin = nullptr;
-    ov::AnyMap config;
+    ov::AnyMap config{};
 
 public:
     explicit MockInternalPlugin(ov::IPlugin* target) : m_plugin(target) {}
@@ -203,10 +203,9 @@ std::mutex targets_mutex;
 
 OPENVINO_PLUGIN_API void create_plugin_engine(std::shared_ptr<ov::IPlugin>& plugin) {
     std::shared_ptr<ov::IPlugin> internal_plugin;
-    if (targets.empty()) {
+    if (std::lock_guard<std::mutex> lock(targets_mutex); targets.empty()) {
         internal_plugin = std::make_shared<MockInternalPlugin>();
     } else {
-        std::lock_guard<std::mutex> lock(targets_mutex);
         internal_plugin = targets.front();
         targets.pop();
     }

@@ -9,6 +9,7 @@
 #include <map>
 #include <string>
 
+#include "common_test_utils/file_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/version.hpp"
@@ -50,5 +51,24 @@ public:
                 (const std::shared_ptr<const ov::Model>&, const ov::AnyMap&),
                 (const));
 };
+
+namespace test::utils {
+template <class TPlugin>
+struct MockIPluginInjector {
+    template <class... Args>
+    MockIPluginInjector(Args&&... args)
+        : m_so{ov::util::load_shared_object(get_mock_engine_path().c_str())},
+          m_plugin_impl{std::make_unique<TPlugin>(std::forward<Args>(args)...)} {}
+
+    void inject_plugin() const {
+        const auto inject = make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
+        inject(m_plugin_impl.get());
+    }
+
+private:
+    std::shared_ptr<void> m_so;
+    std::unique_ptr<TPlugin> m_plugin_impl;
+};
+}  // namespace test::utils
 
 }  // namespace ov

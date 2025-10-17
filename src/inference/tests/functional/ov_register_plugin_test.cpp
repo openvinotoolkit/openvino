@@ -211,6 +211,8 @@ TEST(RegisterPluginTests, registerPluginsXMLUnicodePath) {
             GTEST_COUT << "Test " << testIndex << std::endl;
 
             ov::Core core;
+            ov::test::utils::MockIPluginInjector<ov::test::utils::MockPlugin> mock{};
+            mock.inject_plugin();
 
             GTEST_COUT << "Core created " << testIndex << std::endl;
             OV_ASSERT_NO_THROW(core.register_plugins(::ov::util::wstring_to_string(pluginsXmlW)));

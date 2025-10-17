@@ -12,6 +12,7 @@
 #include "functional_test_utils/test_model/test_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_iplugin.hpp"
 
 class CoreBaseTest : public testing::Test {
 protected:
@@ -127,6 +128,8 @@ TEST_F(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
         ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(cwd_file_path);
     create_plugin_xml(ov_file_path, "2");
+    ov::test::utils::MockIPluginInjector<ov::test::utils::MockPlugin> mock{};
+    mock.inject_plugin();
     ov::Core core(xml_file_name);
     auto version = core.get_versions("2");
     EXPECT_EQ(1, version.size());
