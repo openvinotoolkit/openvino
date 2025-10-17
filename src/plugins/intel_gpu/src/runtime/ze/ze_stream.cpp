@@ -212,7 +212,7 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
         GPU_DEBUG_INFO << "Copy offload hint is not supported" << std::endl;
     }
 
-    ZE_CHECK(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_command_list));
+    OV_ZE_EXPECT(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_command_list));
     if (m_queue_type == QueueTypes::in_order && info.supports_cb_events) {
         m_ev_factory = std::make_unique<ze_cb_event_factory>(engine, config.get_enable_profiling());
     } else {
@@ -266,8 +266,8 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     auto global = to_group_count(args_desc.workGroups.global);
     auto local = to_group_count(args_desc.workGroups.local);
     ze_group_count_t args = { global.groupCountX / local.groupCountX, global.groupCountY / local.groupCountY, global.groupCountZ / local.groupCountZ };
-    ZE_CHECK(zeKernelSetGroupSize(kern, local.groupCountX, local.groupCountY, local.groupCountZ));
-    ZE_CHECK(zeCommandListAppendLaunchKernel(m_command_list,
+    OV_ZE_EXPECT(zeKernelSetGroupSize(kern, local.groupCountX, local.groupCountY, local.groupCountZ));
+    OV_ZE_EXPECT(zeCommandListAppendLaunchKernel(m_command_list,
                                              kern,
                                              &args,
                                              set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle() : nullptr,
@@ -278,13 +278,13 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
 }
 
 void ze_stream::enqueue_barrier() {
-    ZE_CHECK(zeCommandListAppendBarrier(m_command_list, nullptr, 0, nullptr));
+    OV_ZE_EXPECT(zeCommandListAppendBarrier(m_command_list, nullptr, 0, nullptr));
 }
 
 event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, bool is_output) {
     if (deps.empty()) {
         auto ev = create_base_event();
-        ZE_CHECK(zeCommandListAppendBarrier(m_command_list, std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle(), 0, nullptr));
+        OV_ZE_EXPECT(zeCommandListAppendBarrier(m_command_list, std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle(), 0, nullptr));
         return ev;
     }
 
@@ -300,7 +300,7 @@ event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, boo
             return create_user_event(true);
 
         auto ev = create_base_event();
-        ZE_CHECK(zeCommandListAppendBarrier(m_command_list,
+        OV_ZE_EXPECT(zeCommandListAppendBarrier(m_command_list,
                                             std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle(),
                                             static_cast<uint32_t>(dep_events.size()),
                                             &dep_events.front()));
@@ -339,7 +339,7 @@ void ze_stream::flush() const {
 }
 
 void ze_stream::finish() const {
-    ZE_CHECK(zeCommandListHostSynchronize(m_command_list, default_timeout));
+    OV_ZE_EXPECT(zeCommandListHostSynchronize(m_command_list, default_timeout));
 }
 
 void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
@@ -374,9 +374,9 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
         if (is_output) {
             m_last_barrier_ev = std::dynamic_pointer_cast<ze_event>(create_base_event());
             m_last_barrier_ev->set_queue_stamp(m_queue_counter.load());
-            ZE_CHECK(zeCommandListAppendBarrier(m_command_list, m_last_barrier_ev->get_handle(), 0, nullptr));
+            OV_ZE_EXPECT(zeCommandListAppendBarrier(m_command_list, m_last_barrier_ev->get_handle(), 0, nullptr));
         } else {
-            ZE_CHECK(zeCommandListAppendBarrier(m_command_list, nullptr, 0, nullptr));
+            OV_ZE_EXPECT(zeCommandListAppendBarrier(m_command_list, nullptr, 0, nullptr));
         }
         m_last_barrier = ++m_queue_counter;
     }

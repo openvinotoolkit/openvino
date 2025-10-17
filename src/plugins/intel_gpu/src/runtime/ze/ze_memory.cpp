@@ -44,7 +44,7 @@ std::vector<ze_event_handle_t> get_ze_events(const std::vector<event::ptr>& even
 allocation_type gpu_usm::detect_allocation_type(const ze_engine* engine, const void* mem_ptr) {
     ze_memory_allocation_properties_t props{ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES};
     ze_device_handle_t device = nullptr;
-    ZE_CHECK(zeMemGetAllocProperties(engine->get_context(), mem_ptr, &props, &device));
+    OV_ZE_EXPECT(zeMemGetAllocProperties(engine->get_context(), mem_ptr, &props, &device));
 
     switch (props.type) {
         case ZE_MEMORY_TYPE_DEVICE: return allocation_type::usm_device;
@@ -111,14 +111,14 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type = mem_lock_type::re
             }
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
-            ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
+            OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
                                     _host_buffer.get(),
                                     _buffer.get(),
                                     _bytes_count,
                                     nullptr,
                                     0,
                                     nullptr));
-            ZE_CHECK(zeCommandListHostSynchronize(_ze_stream.get_queue(), default_timeout));
+            OV_ZE_EXPECT(zeCommandListHostSynchronize(_ze_stream.get_queue(), default_timeout));
             _mapped_ptr = _host_buffer.get();
         } else {
             _mapped_ptr = _buffer.get();
@@ -145,7 +145,7 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vecto
     auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get_handle();
     std::vector<unsigned char> temp_buffer(_bytes_count, pattern);
     auto ze_dep_events = get_ze_events(dep_events);
-    ZE_CHECK(zeCommandListAppendMemoryFill(_ze_stream.get_queue(),
+    OV_ZE_EXPECT(zeCommandListAppendMemoryFill(_ze_stream.get_queue(),
         _buffer.get(),
         temp_buffer.data(),
         1,
@@ -174,7 +174,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_o
     auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
     auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
 
-    ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
+    OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
                                            dst_ptr,
                                            src_ptr,
                                            _bytes_count,
@@ -202,7 +202,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
     auto src_ptr = reinterpret_cast<const char*>(usm_mem->buffer_ptr()) + src_offset;
     auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
 
-    ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
+    OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
                                            dst_ptr,
                                            src_ptr,
                                            _bytes_count,
@@ -226,7 +226,7 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
     auto src_ptr = reinterpret_cast<const char*>(buffer_ptr()) + src_offset;
     auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
 
-    ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
+    OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
                                            dst_ptr,
                                            src_ptr,
                                            _bytes_count,

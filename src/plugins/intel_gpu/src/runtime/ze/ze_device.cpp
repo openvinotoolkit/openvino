@@ -65,13 +65,13 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     device_info info;
 
     uint32_t num_ext = 0;
-    ZE_CHECK(zeDriverGetExtensionProperties(driver, &num_ext, nullptr));
+    OV_ZE_EXPECT(zeDriverGetExtensionProperties(driver, &num_ext, nullptr));
 
     std::vector<ze_driver_extension_properties_t> extensions(num_ext);
-    ZE_CHECK(zeDriverGetExtensionProperties(driver, &num_ext, &extensions[0]));
+    OV_ZE_EXPECT(zeDriverGetExtensionProperties(driver, &num_ext, &extensions[0]));
 
     ze_driver_properties_t driver_properties{ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES};
-    ZE_CHECK(zeDriverGetProperties(driver, &driver_properties));
+    OV_ZE_EXPECT(zeDriverGetProperties(driver, &driver_properties));
 
     bool supports_luid = supports_extension(extensions, ZE_DEVICE_LUID_EXT_NAME, ZE_DEVICE_LUID_EXT_VERSION_1_0);
     bool supports_ip_version = supports_extension(extensions, ZE_DEVICE_IP_VERSION_EXT_NAME, ZE_DEVICE_IP_VERSION_VERSION_1_0);
@@ -85,20 +85,20 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     ze_device_ip_version_ext_t ip_version_properties = {ZE_STRUCTURE_TYPE_DEVICE_IP_VERSION_EXT, nullptr, 0};
     ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES_1_2, supports_ip_version ? &ip_version_properties : nullptr};
-    ZE_CHECK(zeDeviceGetProperties(device, &device_properties));
+    OV_ZE_EXPECT(zeDeviceGetProperties(device, &device_properties));
 
     ze_device_compute_properties_t device_compute_properties{ZE_STRUCTURE_TYPE_DEVICE_COMPUTE_PROPERTIES};
-    ZE_CHECK(zeDeviceGetComputeProperties(device, &device_compute_properties));
+    OV_ZE_EXPECT(zeDeviceGetComputeProperties(device, &device_compute_properties));
 
     uint32_t queue_properties_count = 0;
-    ZE_CHECK(zeDeviceGetCommandQueueGroupProperties(device, &queue_properties_count, nullptr));
+    OV_ZE_EXPECT(zeDeviceGetCommandQueueGroupProperties(device, &queue_properties_count, nullptr));
 
     std::vector<ze_command_queue_group_properties_t> queue_properties(queue_properties_count);
     for (auto& mp : queue_properties) {
         mp.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES;
     }
 
-    ZE_CHECK(zeDeviceGetCommandQueueGroupProperties(device, &queue_properties_count, &queue_properties[0]));
+    OV_ZE_EXPECT(zeDeviceGetCommandQueueGroupProperties(device, &queue_properties_count, &queue_properties[0]));
 
     auto compute_queue_props = std::find_if(queue_properties.begin(), queue_properties.end(), [](const ze_command_queue_group_properties_t& qp) {
         return (qp.flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) != 0;
@@ -107,16 +107,16 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     OPENVINO_ASSERT(compute_queue_props != queue_properties.end());
 
     uint32_t memory_properties_count = 0;
-    ZE_CHECK(zeDeviceGetMemoryProperties(device, &memory_properties_count, nullptr));
+    OV_ZE_EXPECT(zeDeviceGetMemoryProperties(device, &memory_properties_count, nullptr));
 
     std::vector<ze_device_memory_properties_t> device_memory_properties(memory_properties_count);
     for (auto& mp : device_memory_properties) {
         mp.stype = ZE_STRUCTURE_TYPE_DEVICE_MEMORY_PROPERTIES;
     }
-    ZE_CHECK(zeDeviceGetMemoryProperties(device, &memory_properties_count, &device_memory_properties[0]));
+    OV_ZE_EXPECT(zeDeviceGetMemoryProperties(device, &memory_properties_count, &device_memory_properties[0]));
 
     ze_device_memory_access_properties_t device_memory_access_properties{ZE_STRUCTURE_TYPE_DEVICE_MEMORY_ACCESS_PROPERTIES};
-    ZE_CHECK(zeDeviceGetMemoryAccessProperties(device, &device_memory_access_properties));
+    OV_ZE_EXPECT(zeDeviceGetMemoryAccessProperties(device, &device_memory_access_properties));
 
     auto mem_properties = std::find_if(device_memory_properties.begin(), device_memory_properties.end(), [](const ze_device_memory_properties_t& p) {
         auto name = std::string(p.name);
@@ -128,10 +128,10 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     if (supports_dp_properties) {
         device_module_properties.pNext = &dp_properties;
     }
-    ZE_CHECK(zeDeviceGetModuleProperties(device, &device_module_properties));
+    OV_ZE_EXPECT(zeDeviceGetModuleProperties(device, &device_module_properties));
 
     ze_device_image_properties_t device_image_properties{ZE_STRUCTURE_TYPE_DEVICE_IMAGE_PROPERTIES};
-    ZE_CHECK(zeDeviceGetImageProperties(device, &device_image_properties));
+    OV_ZE_EXPECT(zeDeviceGetImageProperties(device, &device_image_properties));
 
     info.vendor_id = device_properties.vendorId;
     info.dev_name = device_properties.name;
@@ -240,7 +240,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     // Create temporary context just for OneDNN HW detection
     ze_context_desc_t context_desc = { ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0 };
     ze_context_handle_t context;
-    ZE_CHECK(zeContextCreate(driver, &context_desc, &context));
+    OV_ZE_EXPECT(zeContextCreate(driver, &context_desc, &context));
     ngen::Product product = ngen::LevelZeroCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context, device);
     zeContextDestroy(context);
     info.arch = convert_ngen_arch(ngen::getCore(product.family));
@@ -259,7 +259,7 @@ memory_capabilities init_memory_caps(ze_device_handle_t device, const device_inf
     std::vector<allocation_type> memory_caps;
 
     ze_device_memory_access_properties_t device_memory_access_properties{ZE_STRUCTURE_TYPE_DEVICE_MEMORY_ACCESS_PROPERTIES};
-    ZE_CHECK(zeDeviceGetMemoryAccessProperties(device, &device_memory_access_properties));
+    OV_ZE_EXPECT(zeDeviceGetMemoryAccessProperties(device, &device_memory_access_properties));
 
     if (info.supports_usm) {
         if (device_memory_access_properties.hostAllocCapabilities) {
@@ -294,7 +294,7 @@ void ze_device::initialize() {
         return;
 
     ze_context_desc_t context_desc = { ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0 };
-    ZE_CHECK(zeContextCreate(_driver, &context_desc, &_context));
+    OV_ZE_EXPECT(zeContextCreate(_driver, &context_desc, &_context));
     _is_initialized = true;
 }
 

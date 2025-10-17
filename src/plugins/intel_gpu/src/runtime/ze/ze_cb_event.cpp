@@ -13,7 +13,7 @@ using namespace cldnn;
 using namespace ze;
 
 void ze_cb_event::wait_impl() {
-    ZE_CHECK(zeEventHostSynchronize(m_event, default_timeout));
+    OV_ZE_EXPECT(zeEventHostSynchronize(m_event, default_timeout));
 }
 
 void ze_cb_event::set_impl() {
@@ -44,7 +44,7 @@ std::optional<ze_kernel_timestamp_result_t> ze_cb_event::query_timestamp() {
         return std::nullopt;
     }
     ze_kernel_timestamp_result_t timestamp{};
-    ZE_CHECK(zeEventQueryKernelTimestamp(m_event, &timestamp));
+    OV_ZE_EXPECT(zeEventQueryKernelTimestamp(m_event, &timestamp));
     return timestamp;
 }
 
@@ -68,5 +68,5 @@ bool ze_cb_event::get_profiling_info_impl(std::list<instrumentation::profiling_i
 }
 
 ze_cb_event::~ze_cb_event() {
-    ZE_WARN(zeEventDestroy(m_event));
+    OV_ZE_WARN(zeEventDestroy(m_event));
 }

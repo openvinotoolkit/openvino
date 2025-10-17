@@ -40,7 +40,7 @@ public:
             descriptor.pNext = nullptr;
             descriptor.flags = 0;
             descriptor.pKernelName = _kernel_id.c_str();
-            ZE_CHECK(zeKernelCreate(_module, &descriptor, &cloned_handle));
+            OV_ZE_EXPECT(zeKernelCreate(_module, &descriptor, &cloned_handle));
             return std::make_shared<ze_kernel>(cloned_handle, _module, _kernel_id);
         }
     }
@@ -49,10 +49,10 @@ public:
 
     std::vector<uint8_t> get_binary() const override {
         size_t binary_size = 0;
-        ZE_CHECK(zeModuleGetNativeBinary(_module, &binary_size, nullptr));
+        OV_ZE_EXPECT(zeModuleGetNativeBinary(_module, &binary_size, nullptr));
 
         std::vector<uint8_t> binary(binary_size);
-        ZE_CHECK(zeModuleGetNativeBinary(_module, &binary_size, &binary[0]));
+        OV_ZE_EXPECT(zeModuleGetNativeBinary(_module, &binary_size, &binary[0]));
 
         return binary;
     }

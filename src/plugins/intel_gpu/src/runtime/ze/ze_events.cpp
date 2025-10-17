@@ -14,7 +14,7 @@ using namespace ze;
 
 void ze_events::wait_impl() {
     if (m_last_event) {
-        ZE_CHECK(zeEventHostSynchronize(m_last_event, default_timeout));
+        OV_ZE_EXPECT(zeEventHostSynchronize(m_last_event, default_timeout));
     }
 }
 

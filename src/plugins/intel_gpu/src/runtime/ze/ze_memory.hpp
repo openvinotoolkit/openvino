@@ -68,7 +68,7 @@ public:
         host_desc.pNext = nullptr;
 
         void* memory = nullptr;
-        ZE_CHECK(zeMemAllocHost(_context, &host_desc, size, 1, &memory));
+        OV_ZE_EXPECT(zeMemAllocHost(_context, &host_desc, size, 1, &memory));
         _allocate(memory);
     }
 
@@ -85,7 +85,7 @@ public:
         host_desc.pNext = nullptr;
 
         void* memory = nullptr;
-        ZE_CHECK(zeMemAllocShared(_context, &device_desc, &host_desc, size, 1, _device, &memory));
+        OV_ZE_EXPECT(zeMemAllocShared(_context, &device_desc, &host_desc, size, 1, _device, &memory));
         _allocate(memory);
     }
 
@@ -97,7 +97,7 @@ public:
         device_desc.pNext = nullptr;
 
         void* memory = nullptr;
-        ZE_CHECK(zeMemAllocDevice(_context, &device_desc, size, 4096, _device, &memory));
+        OV_ZE_EXPECT(zeMemAllocDevice(_context, &device_desc, size, 4096, _device, &memory));
         _allocate(memory);
     }
 

@@ -33,7 +33,7 @@ event::ptr ze_event_factory::create_event(uint64_t queue_stamp) {
         ZE_EVENT_SCOPE_FLAG_HOST,
         0
     };
-    ZE_CHECK(zeEventCreate(m_current_pool->m_handle, &event_desc, &event));
+    OV_ZE_EXPECT(zeEventCreate(m_current_pool->m_handle, &event_desc, &event));
 
     return std::make_shared<ze_event>(queue_stamp, *this, event, m_current_pool);
 }

@@ -14,15 +14,15 @@ using namespace ze;
 
 void ze_event::reset() {
     event::reset();
-    ZE_CHECK(zeEventHostReset(m_event));
+    OV_ZE_EXPECT(zeEventHostReset(m_event));
 }
 
 void ze_event::wait_impl() {
-    ZE_CHECK(zeEventHostSynchronize(m_event, default_timeout));
+    OV_ZE_EXPECT(zeEventHostSynchronize(m_event, default_timeout));
 }
 
 void ze_event::set_impl() {
-    ZE_CHECK(zeEventHostSignal(m_event));
+    OV_ZE_EXPECT(zeEventHostSignal(m_event));
 }
 
 bool ze_event::is_set_impl() {
@@ -45,7 +45,7 @@ std::optional<ze_kernel_timestamp_result_t> ze_event::query_timestamp() {
         return std::nullopt;
     }
     ze_kernel_timestamp_result_t timestamp{};
-    ZE_CHECK(zeEventQueryKernelTimestamp(m_event, &timestamp));
+    OV_ZE_EXPECT(zeEventQueryKernelTimestamp(m_event, &timestamp));
     return timestamp;
 }
 
@@ -73,5 +73,5 @@ bool ze_event::get_profiling_info_impl(std::list<instrumentation::profiling_inte
 }
 
 ze_event::~ze_event() {
-    ZE_WARN(zeEventDestroy(m_event));
+    OV_ZE_WARN(zeEventDestroy(m_event));
 }

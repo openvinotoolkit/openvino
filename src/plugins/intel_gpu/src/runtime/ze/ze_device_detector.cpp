@@ -16,13 +16,13 @@ namespace ze {
 
 static std::vector<ze_device_handle_t> get_sub_devices(ze_device_handle_t root_device) {
     uint32_t n_subdevices = 0;
-    ZE_CHECK(zeDeviceGetSubDevices(root_device, &n_subdevices, nullptr));
+    OV_ZE_EXPECT(zeDeviceGetSubDevices(root_device, &n_subdevices, nullptr));
     if (n_subdevices == 0)
         return {};
 
     std::vector<ze_device_handle_t> subdevices(n_subdevices);
 
-    ZE_CHECK(zeDeviceGetSubDevices(root_device, &n_subdevices, &subdevices[0]));
+    OV_ZE_EXPECT(zeDeviceGetSubDevices(root_device, &n_subdevices, &subdevices[0]));
 
     return subdevices;
 }
@@ -72,25 +72,25 @@ std::map<std::string, device::ptr> ze_device_detector::get_available_devices(voi
 std::vector<device::ptr> ze_device_detector::create_device_list(bool initialize_devices) const {
     std::vector<device::ptr> ret;
 
-    ZE_CHECK(zeInit(ZE_INIT_FLAG_GPU_ONLY));
+    OV_ZE_EXPECT(zeInit(ZE_INIT_FLAG_GPU_ONLY));
 
     uint32_t driver_count = 0;
-    ZE_CHECK(zeDriverGet(&driver_count, nullptr));
+    OV_ZE_EXPECT(zeDriverGet(&driver_count, nullptr));
 
     std::vector<ze_driver_handle_t> all_drivers(driver_count);
-    ZE_CHECK(zeDriverGet(&driver_count, &all_drivers[0]));
+    OV_ZE_EXPECT(zeDriverGet(&driver_count, &all_drivers[0]));
 
     for (uint32_t i = 0; i < driver_count; ++i) {
         uint32_t device_count = 0;
-        ZE_CHECK(zeDeviceGet(all_drivers[i], &device_count, nullptr));
+        OV_ZE_EXPECT(zeDeviceGet(all_drivers[i], &device_count, nullptr));
 
         std::vector<ze_device_handle_t> all_devices(device_count);
-        ZE_CHECK(zeDeviceGet(all_drivers[i], &device_count, &all_devices[0]));
+        OV_ZE_EXPECT(zeDeviceGet(all_drivers[i], &device_count, &all_devices[0]));
 
         for (uint32_t d = 0; d < device_count; ++d) {
             try {
                 ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES};
-                ZE_CHECK(zeDeviceGetProperties(all_devices[d], &device_properties));
+                OV_ZE_EXPECT(zeDeviceGetProperties(all_devices[d], &device_properties));
 
                 if (ZE_DEVICE_TYPE_GPU == device_properties.type) {
                     ret.emplace_back(std::make_shared<ze_device>(all_drivers[i], all_devices[d], initialize_devices));

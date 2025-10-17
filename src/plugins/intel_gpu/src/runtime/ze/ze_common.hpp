@@ -7,7 +7,8 @@
 
 #include <limits>
 
-#define ZE_CHECK(f) \
+// Expect success of level zero command, throw runtime error otherwise
+#define OV_ZE_EXPECT(f) \
     do { \
         ze_result_t res_ = (f); \
         if (res_ != ZE_RESULT_SUCCESS) { \
@@ -15,7 +16,8 @@
         } \
     } while (false)
 
-#define ZE_WARN(f) \
+// Prints warning if level zero command does not return success result
+#define OV_ZE_WARN(f) \
     do { \
         ze_result_t res_ = (f); \
         if (res_ != ZE_RESULT_SUCCESS) { \
