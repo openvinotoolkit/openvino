@@ -44,6 +44,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool has_evaluate() const override;
+    bool can_constant_fold(const OutputVector& inputs) const override;
     bool evaluate(TensorVector&, const TensorVector&) const override;
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
