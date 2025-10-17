@@ -289,6 +289,10 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
         else
             mb_block = (is_1stconv && output.Batch().v % 16 == 0) ? 16 : 1;
 
+        // If batch dim of output layout is not blocked format, mb_block should be set as 1.
+        if (mb_block == 16 && output.GetLayout() == DataLayout::b_fs_zyx_fsv16)
+            mb_block = 1;
+
         jit.AddConstant(MakeJitConstant("MB_BLOCK", mb_block));
     }
 
