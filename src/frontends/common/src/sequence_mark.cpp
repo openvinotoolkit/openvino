@@ -7,8 +7,7 @@
 namespace ov {
 namespace frontend {
 
-std::shared_ptr<Node> SequenceMark::clone_with_new_inputs(const OutputVector& inputs) const
-{
+std::shared_ptr<Node> SequenceMark::clone_with_new_inputs(const OutputVector& inputs) const {
     return std::make_shared<SequenceMark>(inputs);
 }
 

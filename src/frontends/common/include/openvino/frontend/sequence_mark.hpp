@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include <vector>
+
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include <vector>
 
 namespace ov {
 namespace frontend {
@@ -27,8 +28,7 @@ public:
     ov::OutputVector get_sequence() const;
 };
 
-inline ov::OutputVector SequenceMark::get_sequence() const
-{
+inline ov::OutputVector SequenceMark::get_sequence() const {
     return input_values();
 }
 
