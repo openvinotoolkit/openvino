@@ -401,6 +401,10 @@ uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
 }
 
+bool is_aligned_to(uint32_t value, uint32_t alignment) {
+    return value % alignment == 0;
+}
+
 std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>& model) {
     ov::preprocess::PrePostProcessor ppp(model);
 
@@ -420,8 +424,8 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>&
 }
 
 std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
-    const auto kStartOutputKVCacheLayers = 1u;
-    for (std::size_t i = kStartOutputKVCacheLayers; i < model->outputs().size(); ++i) {
+    for (std::size_t i = ov::npuw::LLMInferRequest::layer_ids::kStartOutputKVCacheLayers; i < model->outputs().size();
+         ++i) {
         auto kvout = model->output(i);
         auto kvrslt = kvout.get_node();
         auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
@@ -1054,6 +1058,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             }
             max_prompt_len = align_to(max_prompt_len, static_cast<uint32_t>(m_prefill_chunk_size));
         }
+
+        m_enable_prefix_caching = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>();
+        if (m_enable_prefix_caching) {
+            LOG_INFO("Prefix caching is enabled");
+            m_prefix_caching_block_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE>();
+            if (!is_aligned_to(static_cast<uint32_t>(m_prefill_chunk_size),
+                               static_cast<uint32_t>(m_prefix_caching_block_size))) {
+                LOG_INFO("Prefix caching block size is adjusted to " << m_prefill_chunk_size);
+                m_prefix_caching_block_size = m_prefill_chunk_size;
+            }
+            m_prefix_caching_max_num_blocks = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS>();
+            LOG_INFO("Prefix caching block size: " << m_prefix_caching_block_size);
+            LOG_INFO("Prefix caching maximum number of blocks: " << m_prefix_caching_max_num_blocks);
+        }
     }
 
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
@@ -1363,6 +1381,9 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
         write(model_stream, m_max_lora_rank);
+        write(model_stream, m_enable_prefix_caching);
+        write(model_stream, m_prefix_caching_block_size);
+        write(model_stream, m_prefix_caching_max_num_blocks);
         write(model_stream, m_gemma_sliding_window_size);
         write(model_stream, m_is_whisper);
 
@@ -1575,6 +1596,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
         read(model_stream, compiled->m_max_lora_rank);
+        read(model_stream, compiled->m_enable_prefix_caching);
+        read(model_stream, compiled->m_prefix_caching_block_size);
+        read(model_stream, compiled->m_prefix_caching_max_num_blocks);
         read(model_stream, compiled->m_gemma_sliding_window_size);
         read(model_stream, compiled->m_is_whisper);
 
