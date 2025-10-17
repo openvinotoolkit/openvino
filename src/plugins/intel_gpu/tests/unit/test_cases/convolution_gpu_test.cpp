@@ -10038,6 +10038,58 @@ TEST(convolution_gpu_onednn, spatial_1d) {
     }
 }
 
+TEST(convolution_gpu_onednn, spatial_1d_quantize_post_ops_blocked_format) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto in_layout = layout{{ov::Dimension(), 29, 50}, data_types::f32, format::bfyx};
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    layout input_mem_layout{ {1, 29, 50}, data_types::f32, format::bfyx };
+    auto input_mem_data = rg.generate_random_1d<float>(input_mem_layout.count(), -1, 1);
+    auto input_mem = engine.allocate_memory(input_mem_layout);
+    set_values(input_mem, input_mem_data);
+
+    layout weights_layout{ {64, 29, 3}, data_types::i8, format::bfyx };
+    auto weights_data = rg.generate_random_1d<int8_t>(weights_layout.count(), -125, 125);
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, weights_data);
+
+    auto input_low   = engine.allocate_memory({ {1, 64, 1}, data_types::f32, format::bfyx });
+    auto input_high  = engine.allocate_memory({ {1, 64, 1}, data_types::f32, format::bfyx });
+    auto output_low  = engine.allocate_memory({ {1, 1, 1}, data_types::f32, format::bfyx });
+    auto output_high = engine.allocate_memory({ {1, 1, 1}, data_types::f32, format::bfyx });
+    set_values(input_low,  { 0.0f });
+    set_values(input_high, { 40.0f });
+    set_values(output_low,  { 0.0f });
+    set_values(output_high, { 255.0f });
+
+    topology t(input_layout("input", in_layout),
+        data("weights", weights_mem),
+        reorder("reorder_fsv32", input_info("input"), format::b_fs_yx_fsv32, data_types::u8),
+        convolution("conv", input_info("reorder_fsv32"), "weights", "", "", "", "",
+                            0, ov::Strides{1}, ov::Strides{1}, ov::CoordinateDiff{0}, ov::CoordinateDiff{0}, false, data_types::f32),
+        data("in_lo", input_low),
+        data("in_hi", input_high),
+        data("out_lo", output_low),
+        data("out_hi", output_high),
+        quantize("quantize", input_info("conv"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::u8),
+        reorder("reorder", input_info("quantize"), format::bfyx, data_types::f32 ));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_test_blocked = { format::b_fs_yx_fsv32, "", impl_types::onednn };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_test_blocked } }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network_test_blocked(engine, t, config);
+    network_test_blocked.set_input_data("input", input_mem);
+    network_test_blocked.execute();
+}
+
 struct convolution_gpu_onednn_both_shapes : public ::testing::TestWithParam<bool> {
 };
 
