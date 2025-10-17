@@ -5,6 +5,7 @@
 #include "openvino/reference/reshape.hpp"
 
 #include <cstring>
+#include <limits>
 #include <numeric>
 
 #include "openvino/core/except.hpp"
@@ -17,7 +18,12 @@ namespace reference {
 namespace {
 static size_t get_threshold() {
     // TODO: find a better way, not hardcoded value
+#if 0  // CVS-174461: Temporarily disable parallel execution under TSAN
     return (1 << 9) * parallel_get_num_threads();
+#else
+    // Return max value to always use sequential execution
+    return std::numeric_limits<size_t>::max();
+#endif
 }
 
 static inline void copy_element(char* out, const char* in, size_t elem_size) {
@@ -415,7 +421,6 @@ void reshape(const char* in,
         copy_element(out, in, elem_size);
         return;
     }
-
     switch (in_shape.size()) {
     case 0:
         copy_element(out, in, elem_size);
