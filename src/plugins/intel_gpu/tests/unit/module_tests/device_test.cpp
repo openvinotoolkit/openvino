@@ -150,6 +150,9 @@ TEST(devices_test, is_same_device) {
 
     ASSERT_TRUE(new_device->is_same(orig_device));
 
+    // To disable the short path in sameness check
+    new_device->get_device() = cl::Device();
+
     auto new_device_info = new_device->get_info();
     auto orig_uuid = new_device_info.uuid.uuid;
     new_device_info.uuid.uuid[0] += 1;
@@ -197,7 +200,7 @@ TEST(devices_test, on_demand_initialization) {
         auto ocl_device = std::dynamic_pointer_cast<ocl::ocl_device>(device.second);
         auto should_be_initialized = ocl_device->get_info().vendor_id == cldnn::INTEL_VENDOR_ID;
         ASSERT_EQ(ocl_device->is_initialized(), should_be_initialized);
-        ASSERT_EQ(ocl_device->get_device().get() != nullptr, should_be_initialized);
+        ASSERT_EQ(ocl_device->get_device().get() != nullptr, true);
         ASSERT_EQ(ocl_device->get_context().get() != nullptr, should_be_initialized);
         ASSERT_FALSE(ocl_device->get_info().execution_units_count == 0);
         ASSERT_FALSE(ocl_device->get_info().vendor_id == 0);

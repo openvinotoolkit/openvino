@@ -70,5 +70,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          RoPETestChatGLM2DRoPEStridedSlice::getTestCaseName);
 
+const std::vector<std::string> vit_param = {"VariadicSplit", "Slice", "StridedSlice"};
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestQwenVL,
+                         RoPETestQwenVL,
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f32),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                            ::testing::ValuesIn(vit_param)),
+                         RoPETestQwenVL::getTestCaseName);
+
 }  // namespace test
 }  // namespace ov
