@@ -66,6 +66,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 
     uint sg_i = sub_group_broadcast(get_local_id(0)/SUBGROUP_SIZE, 0);
     uint sg_j = sub_group_broadcast(get_local_id(1), 0);
+    uint sg_k = sub_group_broadcast(get_local_id(2), 0);
 
     // start points of this sg
     uint wg_i0 = get_group_id(0) * ugemm_moe_wg_tile_m;
@@ -75,7 +76,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 
     if (wg_j0 >= cur_n_tokens) // if I set it as sg_j0 >= 0 : it hangs
         return;     /* early exit if outside batch */
-    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, slm
+    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, sg_k, slm
 #ifdef WEIGHT_COMPRESSED_INT4
                                         , weight_scales
 #ifdef WEIGHT_ZP_DT
@@ -84,6 +85,8 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
                                         , NUM_GROUPS
 #endif
 );
+    if (sg_k > 0)
+        return;
     //printf("gid : %d, %d, %d batch : %d wg_i0 : %d wg_j0 : %d input_offset: %d weight_offset :%d m : %d, n : %d k : %d c_tile %f\n", \
     //            get_global_id(0), get_global_id(1), get_global_id(2), batch, wg_i0, wg_j0, input_offsets[batch], weight_offsets[batch], m,  n, k, c_tile.x[0][0]); // debug
 //    printf("sg(%d, %d), gid:%d, %d, %d) n : %d, input[0]:%f weight[0]:%f, c[0]:%f\n",sg_i, sg_j, get_global_id(0), get_global_id(1), get_global_id(2), n, input_ptr[0], weight_ptr[0], c_tile.x[0][0]);
