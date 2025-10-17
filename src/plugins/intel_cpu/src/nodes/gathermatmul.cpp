@@ -315,6 +315,13 @@ ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes([[maybe
 #endif
 }
 
+ov::element::TypeVector GatherMatmul::getSupportedCompressedActivationsTypes() {
+    using ov::element::Type_t;
+    // @todo enable for bf16 as well
+    // after EnforceInferencePrecision is replaced with ConvertPrecision
+    return {Type_t::f32};
+}
+
 GatherMatmul::GatherMatmul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, GatherMatmulShapeInferFactory(op)) {
     std::string errorMessage;

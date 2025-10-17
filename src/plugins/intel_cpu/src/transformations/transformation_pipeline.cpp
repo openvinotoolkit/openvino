@@ -20,6 +20,7 @@
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/quantization_details.hpp"
 #include "nodes/fullyconnected.h"
+#include "nodes/gathermatmul.h"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
@@ -70,6 +71,7 @@
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
+#include "transformations/common_optimizations/matmul_experts_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -78,9 +80,9 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
-#include "transformations/common_optimizations/matmul_experts_fusion.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
@@ -572,11 +574,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_X64(
         manager,
         ConvertBatchGatherMatmulToBatchGatherMatmulCompressed,
-        // TODO: create separate helpers (defining supported precisions) for BatchGatherMatmul CPU node
-        ov::intel_cpu::node::FullyConnected::getSupportedCompressedActivationsTypes(),
-        ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(),
-        // TODO: set a plugin configuration predicate when CPU node is implemented
-        nullptr);
+        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
+        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
+        [&](const std::shared_ptr<ov::intel_cpu::BatchGatherMatmulCompressed>& gather_matmul,
+                  size_t IC,
+                  size_t OC,
+                  size_t G) {
+            return ov::intel_cpu::node::GatherMatmul::isSupportedCompressedOperation(gather_matmul, IC, OC, G, config);
+        });
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCachePrecision = config.keyCachePrecision;
     cacheConfig.valueCachePrecision = config.valueCachePrecision;

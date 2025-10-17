@@ -39,6 +39,7 @@ public:
                                                size_t G,
                                                const Config& config) noexcept;
     static ov::element::TypeVector getSupportedCompressedWeightsTypes(bool apply_fp8 = false);
+    static ov::element::TypeVector getSupportedCompressedActivationsTypes();
 
 private:
     enum class Algorithm : uint8_t { GatherMatmulDefault, GatherMatmulCompressed };
