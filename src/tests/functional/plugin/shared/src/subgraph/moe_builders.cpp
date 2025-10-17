@@ -346,7 +346,7 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(const MoePatternParams& moe_para
     auto router_topk_values_reduce = std::make_shared<ov::op::v1::ReduceSum>(
         router_topk_values_and_indices->output(0),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1}),
-        false);
+        true);
     auto router_topk_values_normalization =
         std::make_shared<ov::op::v1::Divide>(router_topk_values_and_indices->output(0), router_topk_values_reduce);
     auto router_topk_indices = router_topk_values_and_indices->output(1);
