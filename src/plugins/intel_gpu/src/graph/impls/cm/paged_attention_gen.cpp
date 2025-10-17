@@ -89,13 +89,6 @@ size_t get_partition_size(const bool has_xattention) {
     }
 }
 
-size_t get_partition_num(const size_t kv_len, const bool has_xattention) {
-    const size_t partition_size = get_partition_size(has_xattention);
-    const size_t partition_num = (kv_len + partition_size - 1) / partition_size;
-
-    return partition_num;
-}
-
 // max_context_len = max(past_lens + prompt_lens)
 size_t get_max_context_len(const kernel_impl_params& params) {
     const auto& input_mem = params.memory_deps;
@@ -228,7 +221,7 @@ Arguments PagedAttentionGeneratorKVCacheUpdate::get_arguments_desc(const kernel_
 
 DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() const {
     return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-        assert(!params.is_dynamic());
+        OPENVINO_ASSERT(!params.is_dynamic());
         auto& wgs = kd.params.workGroups;
         const auto desc = params.typed_desc<paged_attention>();
 
@@ -360,7 +353,7 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         auto& scalars = kd.params.scalars;
         auto desc = params.typed_desc<paged_attention>();
         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-        // assert(rt_params != nullptr);
+        // OPENVINO_ASSERT(rt_params != nullptr);
         const size_t heads_num = desc->heads_num;
         auto query_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
 
@@ -389,10 +382,10 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         scalars[0].v.s32 = static_cast<int32_t>(q_len);
         if (num_scalers > 1) {
             scalars[1].t = ScalarDescriptor::Types::INT32;
-            scalars[1].v.s32 = static_cast<int32_t>(rtp->xattn_q_block_pad);
+            scalars[1].v.s32 = static_cast<int32_t>(rtp->q_block_pad);
 
             scalars[2].t = ScalarDescriptor::Types::INT32;
-            scalars[2].v.s32 = static_cast<int32_t>(rtp->xattn_k_block_pad);
+            scalars[2].v.s32 = static_cast<int32_t>(rtp->k_block_pad);
 
             scalars[3].t = ScalarDescriptor::Types::UINT8;
             const bool validate = !bypass_xattn(params);
@@ -460,16 +453,16 @@ Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_im
 
 DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() const {
     return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-        assert(!params.is_dynamic());
+        OPENVINO_ASSERT(!params.is_dynamic());
         auto& wgs = kd.params.workGroups;
         const auto desc = params.typed_desc<paged_attention>();
         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-        assert(rt_params != nullptr);
+        OPENVINO_ASSERT(rt_params != nullptr);
 
         const size_t batch = params.input_layouts[0].get_partial_shape()[0].get_length();
         const size_t heads_num = desc->heads_num;
         const size_t kv_heads_num = desc->kv_heads_num;
-        const size_t partition_num = rtp->num_of_partitions;  // get_partition_num(rtp->max_context_len);
+        const size_t partition_num = rtp->num_of_partitions;
 
         wgs.global = {batch, kv_heads_num, partition_num};
         wgs.local = {1, 1, 1};
@@ -512,7 +505,8 @@ JitConstants PagedAttentionGeneratorSingleTokenFinalization::get_jit_constants(c
 Arguments PagedAttentionGeneratorSingleTokenFinalization::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
     const auto has_scores_output = params.output_layouts.size() > 1;
-    OPENVINO_ASSERT(!has_scores_output, "[GPU][CM] PagedAttentionGeneratorSingleTokenFinalization with scores output is not supported yet");
+    if (has_scores_output)
+        OPENVINO_THROW("[GPU][CM] PagedAttentionGeneratorSingleTokenFinalization with scores output is not supported yet");
 
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});  // partition data
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});           // output
@@ -526,13 +520,13 @@ Arguments PagedAttentionGeneratorSingleTokenFinalization::get_arguments_desc(con
 
 DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_data_func() const {
     return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-        assert(!params.is_dynamic());
+        OPENVINO_ASSERT(!params.is_dynamic());
         auto& wgs = kd.params.workGroups;
 
         const auto desc = params.typed_desc<paged_attention>();
         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
-        assert(rt_params != nullptr);
+        OPENVINO_ASSERT(rt_params != nullptr);
 
         const size_t batch = params.input_layouts[0].get_partial_shape()[0].get_length();
         const size_t heads_num = desc->heads_num;
@@ -541,7 +535,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
-        const size_t partition_num = rtp->num_of_partitions;  // get_partition_num(rtp->max_context_len);
+        const size_t partition_num = rtp->num_of_partitions;
         std::vector<size_t> scaler_value = {partition_num};
         scalars.resize(scaler_value.size());
 
@@ -575,6 +569,12 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     int scale_factor_i;
     std::memcpy(static_cast<void*>(&scale_factor_i), &scale_factor, sizeof(scale_factor));
 
+    const uint32_t wg_k = BLOCK_WG_M;
+    const uint32_t wg_q = BLOCK_WG_N;
+    const size_t block_size = get_xattn_block_size(params);
+    OPENVINO_ASSERT(wg_k % block_size == 0, "wg_k should be multiple of block_size then there is no tails from block_size");
+    OPENVINO_ASSERT(wg_q % block_size == 0, "wg_q should be multiple of block_size then there is no tails from block_size");
+
     jit.make("STRIDE", STRIDE);
     jit.make("HQ", desc->heads_num);
     jit.make("HK", desc->kv_heads_num);
@@ -583,7 +583,7 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("SG_N", SG_N);
     jit.make("BLOCK_SG_M", BLOCK_SG_M);
     jit.make("BLOCK_SG_N", BLOCK_SG_N);
-    jit.make("BLOCK_SIZE", get_xattn_block_size(params));
+    jit.make("BLOCK_SIZE", block_size);
     jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     jit.add(make_jit_constant("INV_S", scale_factor_i));
     jit.make("BLOCK_SHARE_MAX", BLOCK_WG_N);
@@ -631,49 +631,15 @@ Arguments XAttentionEstimateGEMMQK::get_arguments_desc(const kernel_impl_params&
 
 DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
     return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-        assert(!params.is_dynamic());
+        OPENVINO_ASSERT(!params.is_dynamic());
+        OPENVINO_ASSERT(rt_params != nullptr);
+        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         const auto desc = params.typed_desc<paged_attention>();
 
-        // XAttention estimate is following afer kvcache_update.
-        const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
-        // const size_t kv_heads_num = desc->kv_heads_num;
-        const size_t heads_num = desc->heads_num;
-        const size_t head_size = desc->k_head_size;
+        const auto M = rtp->M;
+        const auto N = rtp->N;
+        const auto K = rtp->K;
 
-        auto querry_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
-        auto key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
-
-        if (DEBUG_ENABLED) {  // Debug
-            std::cout << "XAttentionEstimateGEMMQK::get_dispatch_data_func: "
-                      << "key_layout: " << key_layout.to_string() << ", querry_layout: " << querry_layout.to_string() << std::endl;
-            std::cout << "\tkey_dims = [";
-            for (auto& it : key_layout.get_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-            std::cout << "\tkey_pads = [";
-            for (auto& it : key_layout.get_padded_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-            std::cout << "\tquery_dims = [";
-            for (auto& it : querry_layout.get_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-            std::cout << "\tquery_pads = [";
-            for (auto& it : querry_layout.get_padded_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-        }
-
-        auto out_shape = params.output_layouts[0].get_shape();
-        const size_t q_len = out_shape[0];
-
-        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);  //# will slient drop the tails which is less than `stride`
-        const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
-        const uint32_t K = static_cast<uint32_t>(STRIDE * head_size);
         auto get_simple_pitch = [](const layout& layout) {
             size_t pitch = 1;
             auto dims_padding = layout.get_padded_dims();
@@ -685,17 +651,15 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
             }
             return pitch;
         };
+        auto querry_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
         const size_t query_pitch = get_simple_pitch(querry_layout) * STRIDE;
         const size_t slice_no = 0, slice = 0;
-
-        const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
-        const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
 
         //# loop order walks HQ first and the step is WALK_HQ, 1 means not walk HQ, 2 means walks 2 heads first. Valid value: 1, 2, 4...
         const size_t WALK_HQ = desc->heads_num != desc->kv_heads_num ? 2 : 1;
 
         auto& wgs = kd.params.workGroups;
-        wgs.global = {N_kq_groups * (q_stride_pad / BLOCK_WG_M) * SG_N * WALK_HQ, SG_M, heads_num / WALK_HQ};
+        wgs.global = {rtp->N_kq_groups * (rtp->q_stride_pad / BLOCK_WG_M) * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
         wgs.local = {SG_N, SG_M, 1};
 
         const uint32_t q_start_strided = N - M;
@@ -704,17 +668,6 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         auto& scalars = kd.params.scalars;
         std::vector<size_t> scaler_value = {M, N, K, query_pitch, slice_no, slice, q_start_strided};
         scalars.resize(scaler_value.size());
-
-        if (DEBUG_ENABLED) {  // Debug
-            size_t kv_len = get_kv_len(params, PagedAttentionStage::PREFILL);
-            size_t max_context_len = get_max_context_len(params);
-            size_t past_len = get_past_len(params, 0);
-            std::cout << "XAttentionEstimateGEMMQK::get_dispatch_data_func: "
-                      << "N_kq_groups: " << N_kq_groups << ", q_stride_pad: " << q_stride_pad << ", scaler_value: " << PartialShape(scaler_value)
-                      << ", kv_len: " << kv_len << ", max_context_len = " << max_context_len << ", past_len = " << past_len << ", gws: [" << wgs.global[0]
-                      << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
-                      << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
-        }
 
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             if (i == 4 || i == 5) {
@@ -755,60 +708,31 @@ Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_para
 
 DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
     return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-        assert(!params.is_dynamic());
+        OPENVINO_ASSERT(!params.is_dynamic());
+        OPENVINO_ASSERT(rt_params != nullptr);
+        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        const auto desc = params.typed_desc<paged_attention>();
+
         auto& wgs = kd.params.workGroups;
 
-        const auto desc = params.typed_desc<paged_attention>();
-        // auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-
-        assert(rt_params != nullptr);
-
-        const uint32_t wg_k = BLOCK_WG_M;
-        const uint32_t wg_q = BLOCK_WG_N;
-        const size_t block_size = get_xattn_block_size(params);
-        OPENVINO_ASSERT(wg_k % block_size == 0, "wg_k should be multiple of block_size then there is no tails from block_size");
-        OPENVINO_ASSERT(wg_q % block_size == 0, "wg_q should be multiple of block_size then there is no tails from block_size");
-
-        const size_t sum_per_n_token_in_block = static_cast<size_t>(block_size / STRIDE);
-
-        // const size_t batch = params.input_layouts[PagedAttentionInputIdx::QUERY].get_partial_shape()[0].get_length();
         const size_t heads_num = desc->heads_num;
-        // const size_t head_size = desc->k_head_size;
 
         auto out_shape = params.output_layouts[0].get_shape();
-        const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
         const size_t q_len = out_shape[0];
-        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);  //# will slient drop the tails which is less than `stride`
-        const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
-        const uint32_t q_stride = M;
-        const uint32_t k_stride = N;
-        const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
-        const uint32_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
 
-        const uint32_t sum_per_token_in_block = static_cast<uint32_t>(block_size / STRIDE);
-        const uint32_t k_block_in_group = static_cast<uint32_t>(BLOCK_WG_N / sum_per_token_in_block);
-        const uint32_t k_block_pad = k_block_in_group * N_kq_groups;
-        const uint32_t q_block_pad = ceil_div(q_len, block_size);
-
-        const uint32_t q_block = ceil_div(q_stride, sum_per_n_token_in_block);
-        const uint32_t k_block = ceil_div(k_stride, sum_per_n_token_in_block);
+        const size_t block_size = get_xattn_block_size(params);
+        const size_t sum_per_n_token_in_block = static_cast<size_t>(block_size / STRIDE);
+        const uint32_t q_block = ceil_div(rtp->M, sum_per_n_token_in_block);
+        const uint32_t k_block = ceil_div(rtp->N, sum_per_n_token_in_block);
 
         const float xattn_thresh = get_xattn_thresh(params);
 
-        wgs.global = {q_block_pad, heads_num, 1};
+        wgs.global = {rtp->q_block_pad, heads_num, 1};
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {q_len, q_stride, q_stride_pad, q_block_pad, k_block_pad, k_block - q_block};
+        std::vector<size_t> scaler_value = {q_len, rtp->M, rtp->q_stride_pad, rtp->q_block_pad, rtp->k_block_pad, k_block - q_block};
         scalars.resize(scaler_value.size() + 1);
-
-        if (DEBUG_ENABLED) {  // Debug
-            std::cout << "XAttentionEstimateFindBlock::get_dispatch_data_func: "
-                      << "xattn_thresh : " << xattn_thresh << " k_block: " << k_block << ", q_block: " << q_block << " q_stride: " << q_stride
-                      << ", q_stride_pad: " << q_stride_pad << ", k_block_pad: " << k_block_pad << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", "
-                      << wgs.global[2] << "]"
-                      << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
-        }
 
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::UINT32;
@@ -849,35 +773,20 @@ Arguments XAttentionEstimatePostProc::get_arguments_desc(const kernel_impl_param
 
 DispatchDataFunc XAttentionEstimatePostProc::get_dispatch_data_func() const {
     return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-        assert(!params.is_dynamic());
-        auto& wgs = kd.params.workGroups;
-
+        OPENVINO_ASSERT(!params.is_dynamic());
+        OPENVINO_ASSERT(rt_params != nullptr);
+        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         const auto desc = params.typed_desc<paged_attention>();
 
-        assert(rt_params != nullptr);
+        auto& wgs = kd.params.workGroups;
 
-        const size_t block_size = get_xattn_block_size(params);
-        const size_t heads_num = desc->heads_num;
+        const uint32_t q_block_pad_merged = ceil_div(rtp->q_block_pad, MERGED_Q_NUM);
 
-        auto out_shape = params.output_layouts[0].get_shape();
-        const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
-        const size_t q_len = out_shape[0];
-        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);  //# will slient drop the tails which is less than `stride`
-        const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
-        const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
-        const uint32_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
-
-        const uint32_t sum_per_token_in_block = static_cast<uint32_t>(block_size / STRIDE);
-        const uint32_t k_block_in_group = static_cast<uint32_t>(BLOCK_WG_N / sum_per_token_in_block);
-        const uint32_t k_block_pad = k_block_in_group * N_kq_groups;
-        const uint32_t q_block_pad = ceil_div(q_len, block_size);
-        const uint32_t q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
-
-        wgs.global = {q_block_pad_merged, heads_num, 1};
+        wgs.global = {q_block_pad_merged, desc->heads_num, 1};
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {q_stride_pad, q_block_pad, k_block_pad};
+        std::vector<size_t> scaler_value = {rtp->q_stride_pad, rtp->q_block_pad, rtp->k_block_pad};
         scalars.resize(scaler_value.size());
 
         for (size_t i = 0; i < scaler_value.size(); ++i) {

@@ -54,6 +54,8 @@ public:
 
     void update_xattn_rt_params(const primitive_inst& instance) {
         const auto& params = *instance.get_impl_params();
+        OPENVINO_ASSERT(!params.is_dynamic());
+        const auto desc = params.typed_desc<paged_attention>();
 
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t block_size = get_xattn_block_size(params);
@@ -68,8 +70,24 @@ public:
         const auto k_block_pad = k_block_in_group * N_kq_groups;
 
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
-        rt_params->xattn_q_block_pad = q_block_pad;
-        rt_params->xattn_k_block_pad = k_block_pad;
+        rt_params->q_block_pad = q_block_pad;
+        rt_params->k_block_pad = k_block_pad;
+
+        // XAttention estimate is following afer kvcache_update.
+        const size_t head_size = desc->k_head_size;
+
+        auto querry_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
+
+        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);  //# will slient drop the tails which is less than `stride`
+        const uint32_t K = static_cast<uint32_t>(STRIDE * head_size);
+
+        const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
+
+        rt_params->N_kq_groups = N_kq_groups;
+        rt_params->M = M;
+        rt_params->N = N;
+        rt_params->K = K;
+        rt_params->q_stride_pad = q_stride_pad;
     }
 
     void update_rt_params(const primitive_inst& instance) override {
@@ -77,22 +95,30 @@ public:
         if (m_rt_params == nullptr) {
             m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
         }
-        GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::update_rt_params()" << std::endl;
+
         const auto& params = *instance.get_impl_params();
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         const auto& desc = params.typed_desc<paged_attention>();
 
+        rt_params->stage = get_paged_attention_stage(params);
         const auto max_context_len = get_max_context_len(params);
         rt_params->max_context_len = max_context_len;
-        rt_params->partition_size = get_partition_size(desc->has_xattention);
-        rt_params->num_of_partitions = ceil_div(max_context_len, rt_params->partition_size);
-        rt_params->stage = get_paged_attention_stage(params);
-        if (desc->has_xattention) {
-            update_xattn_rt_params(instance);
+        GPU_DEBUG_TRACE_DETAIL << "update_rt_params for stage: " << static_cast<size_t>(rt_params->stage)
+                        << "  max_context_len: " << rt_params->max_context_len << std::endl;
+
+        if (rt_params->stage == PagedAttentionStage::GENERATE) {
+            auto partition_size = get_partition_size(desc->has_xattention);
+            rt_params->num_of_partitions = ceil_div(max_context_len, partition_size);
+
+            GPU_DEBUG_TRACE_DETAIL << "  partition_size: " << partition_size
+                                << "  num_of_partitions: " << rt_params->num_of_partitions << std::endl;
+        } else {
+            if (desc->has_xattention) {
+                update_xattn_rt_params(instance);
+            }
         }
 
-        GPU_DEBUG_TRACE_DETAIL << "  max_context_len: " << rt_params->max_context_len << "  partition_size: " << rt_params->partition_size
-                               << "  num_of_partitions: " << rt_params->num_of_partitions << ", stage: " << static_cast<size_t>(rt_params->stage) << std::endl;
+
     }
 
     // update impl_parameter and rt_parameter
@@ -107,7 +133,7 @@ public:
 
         update_stages_flags(instance);
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
-        assert(rt_params != nullptr);
+        OPENVINO_ASSERT(rt_params != nullptr);
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
         std::vector<event::ptr> res_event = events;
@@ -162,25 +188,16 @@ public:
         std::vector<BufferDescriptor> internal_buffers;
 
         const auto desc = params.typed_desc<paged_attention>();
-        const auto indexes_dt = ov::element::f32;
-        auto stage = PagedAttentionStage::UNKNOWN;
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        // Assume rt_params are updated, because get_internal_buffer_descs surely occurs after update_rt_params.
+        OPENVINO_ASSERT(rt_params != nullptr);
 
-        size_t partition_size = PA_KV_CACHE_BLOCK_SIZE;
-        size_t num_of_partitions = 1;
-        if (rt_params != nullptr && rt_params->num_of_partitions != 0) {
-            stage = rt_params->stage;
-            partition_size = rt_params->partition_size;
-            num_of_partitions = rt_params->num_of_partitions;
-        } else {
-            stage = get_paged_attention_stage(params);
-            const auto max_context_len = get_max_context_len(params);
-            partition_size = get_partition_size(desc->has_xattention);
-            num_of_partitions = ceil_div(max_context_len, partition_size);
-        }
-        GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::get_internal_buffer_descs(): stage = " << static_cast<int>(stage)
-                               << "  partition_size: " << partition_size << "  num_of_partitions: " << num_of_partitions << std::endl;
+        const auto stage = rt_params->stage;
+        GPU_DEBUG_TRACE_DETAIL << " stage = " << static_cast<int>(stage) << std::endl;
         if (stage == PagedAttentionStage::GENERATE) {
+            OPENVINO_ASSERT(rt_params->num_of_partitions != 0);
+            size_t num_of_partitions = rt_params->num_of_partitions;
+
             const auto& input = params.input_layouts[0];
             const int64_t total_tokens = input.get_partial_shape()[0].get_length();
             auto buf_elements_count = static_cast<int64_t>(total_tokens * desc->heads_num * num_of_partitions);
@@ -189,39 +206,30 @@ public:
             internal_buffers.emplace_back(tmp_out_elements_count, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(buf_elements_count, ov::element::f32);      // 1: softmax exp_sums
 
-            GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 4 << "  exp_sums=" << buf_elements_count * 4 << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 4
+                                << "  exp_sums=" << buf_elements_count * 4 << std::endl;
         } else {
-            internal_buffers.emplace_back(16, indexes_dt);  // 0: intermediate partition output
-            internal_buffers.emplace_back(16, indexes_dt);  // 1: softmax exp_sums
+            internal_buffers.emplace_back(16, ov::element::f32);  // 0: intermediate partition output
+            internal_buffers.emplace_back(16, ov::element::f32);  // 1: softmax exp_sums
 
             // internal buffer for XAttention
             if (desc->has_xattention) {
-                auto out_shape = params.output_layouts[0].get_shape();
-                const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
-                const size_t q_len = out_shape[0];
-                const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);  //# will slient drop the tails which is less than `stride`
-                const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
-                const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
-                const uint32_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
-
-                auto count_kq_max_wg = static_cast<int64_t>(desc->heads_num * N_kq_groups * q_stride_pad);
+                auto count_kq_max_wg = static_cast<int64_t>(desc->heads_num * rt_params->N_kq_groups * rt_params->q_stride_pad);
                 internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);  // 2: kq_max_wg
 
-                const size_t block_size = get_xattn_block_size(params);
-                OPENVINO_ASSERT(block_size % STRIDE == 0, "sparse block_size must be devidable by stride.");
-                const uint32_t q_block_pad = ceil_div(q_len, block_size);
-                const uint32_t sum_per_token_in_block = static_cast<uint32_t>(block_size / STRIDE);
-                const uint32_t k_block_in_group = static_cast<uint32_t>(BLOCK_WG_N / sum_per_token_in_block);
-                const uint32_t k_block_pad = k_block_in_group * N_kq_groups;
-                auto count_kq_exp_partial_sum = static_cast<int64_t>(desc->heads_num * q_stride_pad * k_block_pad);
+                auto count_kq_exp_partial_sum = static_cast<int64_t>(desc->heads_num * rt_params->q_stride_pad * rt_params->k_block_pad);
                 internal_buffers.emplace_back(count_kq_exp_partial_sum, ov::element::f32);  // 3: kq_exp_partial_sum
 
-                auto count_elements_mask = static_cast<int64_t>(desc->heads_num * q_block_pad * k_block_pad);
+                auto count_elements_mask = static_cast<int64_t>(desc->heads_num * rt_params->q_block_pad * rt_params->k_block_pad);
                 internal_buffers.emplace_back(count_elements_mask, ov::element::boolean);  // 4: sparse_block_mask
 
-                const uint32_t q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
-                auto count_elements_mask_merged = static_cast<int64_t>(desc->heads_num * q_block_pad_merged * k_block_pad);
+                auto count_elements_mask_merged = static_cast<int64_t>(desc->heads_num * rt_params->q_block_pad_merged * rt_params->k_block_pad);
                 internal_buffers.emplace_back(count_elements_mask_merged, ov::element::boolean);  // 5: sparse_block_mask_wg
+
+                GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4
+                                << "  count_kq_exp_partial_sum=" << count_kq_exp_partial_sum * 4
+                                << "  count_elements_mask=" << count_elements_mask * 1
+                                << "  count_elements_mask_merged=" << count_kq_exp_partial_sum * 1 << std::endl;
             }
         }
 
@@ -234,7 +242,7 @@ public:
 };
 
 std::unique_ptr<primitive_impl> PagedAttentionImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
-    assert(node.is_type<paged_attention>());
+    OPENVINO_ASSERT(node.is_type<paged_attention>());
     try {
         return std::make_unique<PagedAttentionCmImpl>(params);
     } catch (const std::exception& e) {
