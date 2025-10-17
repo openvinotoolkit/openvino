@@ -4,6 +4,7 @@
 
 #include "gathermatmul.h"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <cstddef>
@@ -12,7 +13,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
-#include <oneapi/dnnl/dnnl_common_types.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -32,14 +32,15 @@
 #include "node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/node.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "shape_inference/custom/gathermatmul.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -458,28 +459,44 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
         static OffsetHelper createOffsetHelper(const MemoryPtr& mem) {
             static VectorDims empty_dims;
             if (mem == nullptr) {
-                return {nullptr, empty_dims};
+                return {nullptr, empty_dims, 0};
             }
             auto* base_ptr = static_cast<uint8_t*>(mem->getData());
             auto desc = mem->getDescWithType<BlockedMemoryDesc>();
             const auto& strides = desc->getStrides();
-            return {base_ptr, strides};
+            const auto prc = desc->getPrecision();
+            return {base_ptr, strides, prc.bitwidth()};
         }
 
         void* operator()(size_t i0) const {
-            return m_base_ptr ? m_base_ptr + i0 * m_strides[0] : nullptr;
+            if (!m_base_ptr) {
+                return nullptr;
+            }
+            const size_t offset_bits = i0 * m_strides[0] * m_num_bits;
+            const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
+            return m_base_ptr + offset;
         }
 
         void* operator()(size_t i0, size_t i1) const {
-            return m_base_ptr ? m_base_ptr + i0 * m_strides[0] + i1 * m_strides[1] : nullptr;
+            if (!m_base_ptr) {
+                return nullptr;
+            }
+            const size_t offset_bits =
+                i0 * m_strides[0] * m_num_bits + i1 * m_strides[1] * m_num_bits;
+            const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
+            return m_base_ptr + offset;
         }
 
     private:
-        OffsetHelper(uint8_t* base_ptr, const VectorDims& strides) : m_base_ptr(base_ptr), m_strides(strides) {}
+        OffsetHelper(uint8_t* base_ptr, const VectorDims& strides, size_t num_bits)
+            : m_base_ptr(base_ptr),
+              m_strides(strides),
+              m_num_bits(num_bits) {}
 
     private:
         uint8_t* m_base_ptr = nullptr;
         const VectorDims& m_strides;
+        size_t m_num_bits;
     };
 
     const auto& srcMem = getParentEdgeAt(DATA)->getMemoryPtr();
