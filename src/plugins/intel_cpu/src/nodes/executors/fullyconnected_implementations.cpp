@@ -30,6 +30,7 @@
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/arch_macros.h"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
