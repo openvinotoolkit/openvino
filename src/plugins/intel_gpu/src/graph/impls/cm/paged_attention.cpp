@@ -197,7 +197,6 @@ public:
                 auto count_elements_mask = static_cast<int64_t>(desc->heads_num * q_block_pad * k_block_pad);
                 internal_buffers.emplace_back(count_elements_mask, ov::element::boolean);  // 4: sparse_block_mask
 
-                const uint32_t MERGED_Q_NUM = 2;  // TODO
                 const uint32_t q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
                 auto count_elements_mask_merged = static_cast<int64_t>(desc->heads_num * q_block_pad_merged * k_block_pad);
                 internal_buffers.emplace_back(count_elements_mask_merged, ov::element::boolean);  // 5: sparse_block_mask_wg
