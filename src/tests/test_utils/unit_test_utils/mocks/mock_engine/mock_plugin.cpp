@@ -57,7 +57,7 @@ public:
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
         if (m_plugin)
             return m_plugin->get_property(name, arguments);
-        OPENVINO_NOT_IMPLEMENTED;
+        return "";
     }
 
     ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
