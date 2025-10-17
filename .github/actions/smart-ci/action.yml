@@ -71,7 +71,7 @@ runs:
         sparse-checkout: .github/actions/wait-for-check-completion
         sparse-checkout-cone-mode: false
 
-    - name: Wait for labeler to finish
+    - name: Wait for ${{ inputs.check_names_to_wait }} to finish
       uses: ./.github/actions/wait-for-check-completion
       if: ${{ github.event_name == 'pull_request' }}
       with:
