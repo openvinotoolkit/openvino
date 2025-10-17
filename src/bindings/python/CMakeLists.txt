@@ -213,6 +213,7 @@ add_subdirectory(src/pyopenvino)
 #
 
 macro(ov_define_setup_py_packaging_vars)
+    # Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined by FindPython3
     set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
     if(Python3_SOABI AND Python3_SOABI MATCHES "cpython-[0-9]+t-")
         set(pyversion "${pyversion}t")
