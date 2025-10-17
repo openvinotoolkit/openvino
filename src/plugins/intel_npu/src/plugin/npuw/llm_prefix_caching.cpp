@@ -112,7 +112,8 @@ bool PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
         // Check if the block is already cached
         const auto curr_block = get_block_unsafe(block->get_block_hash());
         if (curr_block != nullptr) {
-            update_lru_unsafe(curr_block);
+            // Update LRU position if block is evictable
+            update_evictable_lru_unsafe(curr_block->get_block_hash(), true);
             LOG_VERB("[Cache store] Block already cached, updated LRU");
             return true;  // Already cached counts as success
         }
@@ -124,6 +125,8 @@ bool PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
             // When the cache is full and all preceding blocks have child dependencies (e.g., A -> B -> C -> D),
             // linking ensures no eviction candidates are available, preventing block E from being added.
             block->link_blocks(prev_block);
+            // Previous block now has a child, so it's no longer evictable
+            update_evictable_lru_unsafe(prev_block_hash, false);
         } else if (prev_block_hash != 0) {
             // If the previous block wasn't added due to full cache capacity,
             // there's no need to add the current block, as it won't be accessed in the cache.
@@ -136,6 +139,10 @@ bool PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
                 // New block is not added into the cache
                 if (prev_block != nullptr) {
                     block->unlink_blocks(prev_block);
+                    // Restore previous block's evictable status if it has no other children
+                    if (prev_block->get_child_block_hashes().empty()) {
+                        update_evictable_lru_unsafe(prev_block_hash, true);
+                    }
                 }
                 LOG_VERB("[Cache store] Block rejected: cache full, no eviction candidate");
                 return false;
@@ -143,8 +150,8 @@ bool PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
         }
 
         m_cache_map[block->get_block_hash()] = block;
-        // New added block is a leaf node
-        update_lru_unsafe(block);
+        // New added block is a leaf node - mark as evictable (automatically adds to LRU list)
+        update_evictable_lru_unsafe(block->get_block_hash(), true);
 
         LOG_VERB("[Cache store] Successfully added block. Token start: " << block->get_token_start()
                                                                          << " block hash: " << block->get_block_hash());
@@ -153,58 +160,80 @@ bool PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
     return true;
 }
 
-void PrefixCacheManager::update_lru_unsafe(const std::shared_ptr<KVBlock>& block) {
-    uint64_t block_hash = block->get_block_hash();
+void PrefixCacheManager::update_evictable_lru_unsafe(uint64_t block_hash, bool is_evictable) {
+    auto evictable_iter_it = m_evictable_lru_iter_map.find(block_hash);
+    bool currently_evictable = (evictable_iter_it != m_evictable_lru_iter_map.end());
 
-    // Remove from current position if exists (O(1) with iterator)
-    auto iter_it = m_lru_iter_map.find(block_hash);
-    if (iter_it != m_lru_iter_map.end()) {
-        m_lru_list.erase(iter_it->second);
+    // Case 1: Block should not be evictable
+    if (!is_evictable) {
+        if (currently_evictable) {
+            // Remove from evictable LRU list
+            m_evictable_lru_list.erase(evictable_iter_it->second);
+            m_evictable_lru_iter_map.erase(evictable_iter_it);
+        }
+        return;  // Nothing to do if already non-evictable
     }
 
-    // Add to front (most recently used)
-    m_lru_list.push_front(block_hash);
-    m_lru_iter_map[block_hash] = m_lru_list.begin();
+    // Case 2: Block should be evictable
+    if (currently_evictable) {
+        // Already evictable - remove from current position to move to front
+        m_evictable_lru_list.erase(evictable_iter_it->second);
+    }
+    // Add/move block to front (most recently used)
+    m_evictable_lru_list.push_front(block_hash);
+    m_evictable_lru_iter_map[block_hash] = m_evictable_lru_list.begin();
 }
 
 bool PrefixCacheManager::evict_lru_block_unsafe() {
-    // Evict the least recently used block which does not have any child block
-    // LRU list is ordered: front = most recent, back = least recent
-    for (auto lru_it = m_lru_list.rbegin(); lru_it != m_lru_list.rend(); ++lru_it) {
-        uint64_t lru_block_hash = *lru_it;
-        auto lru_block = get_block_unsafe(lru_block_hash);
+    // O(1) eviction: directly access the least recently used evictable block
+    if (m_evictable_lru_list.empty()) {
+        return false;  // No evictable blocks available
+    }
 
-        if (!lru_block || !lru_block->get_child_block_hashes().empty()) {
-            continue;
-        }
+    // Get LRU evictable block (from back of list)
+    uint64_t lru_block_hash = m_evictable_lru_list.back();
 
-        LOG_VERB("Cache is full, evict LRU block");
-        lru_block->print_block_info(false);
+    const auto lru_block = get_block_unsafe(lru_block_hash);
+    if (lru_block == nullptr) {
+        // Data inconsistency - clean up and return false
+        m_evictable_lru_list.pop_back();
+        m_evictable_lru_iter_map.erase(lru_block_hash);
+        return false;
+    }
 
-        // Unlink from parent block
-        const auto lru_prev_block_hash = lru_block->get_parent_block_hash();
+    LOG_VERB("Cache is full, evict LRU block");
+
+    lru_block->print_block_info(false);
+
+    // Unlink from parent block and update parent's evictable status
+    const auto lru_prev_block_hash = lru_block->get_parent_block_hash();
+    if (lru_prev_block_hash != 0) {
         const auto lru_prev_block = get_block_unsafe(lru_prev_block_hash);
         if (lru_prev_block != nullptr) {
             lru_block->unlink_blocks(lru_prev_block);
+            // Parent might now be evictable if it has no other children
+            if (lru_prev_block->get_child_block_hashes().empty()) {
+                update_evictable_lru_unsafe(lru_prev_block_hash, true);
+            }
         }
-
-        // Remove from all data structures
-        m_cache_map.erase(lru_block_hash);
-        m_lru_iter_map.erase(lru_block_hash);
-        // Convert reverse iterator to regular iterator for erase
-        m_lru_list.erase(std::next(lru_it).base());
-
-        return true;  // Successfully evicted one block
     }
 
-    return false;  // No eviction candidate found
+    // Remove from cache
+    m_cache_map.erase(lru_block_hash);  // O(1)
+
+    // Remove from evictable LRU list
+    m_evictable_lru_list.pop_back();                 // O(1) - we know it's at the back
+    m_evictable_lru_iter_map.erase(lru_block_hash);  // O(1)
+
+    return true;  // Successfully evicted one block
 }
 
 std::shared_ptr<KVBlock> PrefixCacheManager::get_block(uint64_t combined_hash) {
     std::lock_guard<std::mutex> lock(m_mutex);
     auto block = get_block_unsafe(combined_hash);
     if (block != nullptr) {
-        update_lru_unsafe(block);
+        // Update LRU position if block is evictable
+        update_evictable_lru_unsafe(block->get_block_hash(), true);
     }
     return block;
 }

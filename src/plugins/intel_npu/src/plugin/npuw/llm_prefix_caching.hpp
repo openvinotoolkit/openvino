@@ -143,14 +143,15 @@ private:
     std::mutex m_mutex;
     // Mapping from hash to KV blocks
     std::unordered_map<uint64_t, std::shared_ptr<KVBlock>> m_cache_map;
-    // LRU list to track the least recently used blocks (most recent at front)
-    std::list<uint64_t> m_lru_list;
-    // Mapping from hash to LRU list iterator for O(1) access
-    std::unordered_map<uint64_t, std::list<uint64_t>::iterator> m_lru_iter_map;
+    // LRU list for evictable blocks only (leaf nodes with no children, most recent at front)
+    std::list<uint64_t> m_evictable_lru_list;
+    // Mapping from hash to evictable LRU list iterator for O(1) access
+    std::unordered_map<uint64_t, std::list<uint64_t>::iterator> m_evictable_lru_iter_map;
 
     // Retrieve a block from the cache by hash without holding a mutex
     std::shared_ptr<KVBlock> get_block_unsafe(uint64_t combined_hash) const;
-    void update_lru_unsafe(const std::shared_ptr<KVBlock>& block);
+    // Update evictable LRU list: mark block as evictable/non-evictable and update its LRU position
+    void update_evictable_lru_unsafe(uint64_t block_hash, bool is_evictable);
     // Evict the least recently used blocks with no children
     bool evict_lru_block_unsafe();
 };
