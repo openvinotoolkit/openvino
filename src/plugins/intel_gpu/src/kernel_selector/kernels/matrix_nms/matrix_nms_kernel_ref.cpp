@@ -88,9 +88,25 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
     const size_t box_info_num = batches_num * classes_num * max_boxes_per_class;
 
     const size_t box_info_buffer_size = box_info_num * BOX_INFO_SIZE;
+    const size_t sorted_score_indices_buffer_size = batches_num * classes_num * max_boxes_per_class * sizeof(int);
+
+    size_t datatype_size = 0;
+    switch (new_params.inputs[1].GetDType()) {
+    case Datatype::F16:
+        datatype_size = sizeof(float) / 2;
+        break;
+    case Datatype::F32:
+    default:
+        datatype_size = sizeof(float);
+    }
+    const size_t iou_matrix_buffer_size = batches_num * classes_num * max_boxes_per_class * datatype_size;
+    const size_t iou_max_buffer_size = iou_matrix_buffer_size;
     const size_t sel_boxes_num_buffer_size = batches_num * classes_num * sizeof(int);
 
     kernel_data.internalBuffers.push_back(box_info_buffer_size);
+    kernel_data.internalBuffers.push_back(sorted_score_indices_buffer_size);
+    kernel_data.internalBuffers.push_back(iou_matrix_buffer_size);
+    kernel_data.internalBuffers.push_back(iou_max_buffer_size);
     kernel_data.internalBuffers.push_back(sel_boxes_num_buffer_size);
     kernel_data.internalBufferDataType = Datatype::F32;
 
@@ -167,6 +183,9 @@ void MatrixNmsKernelRef::SetKernelArguments(const matrix_nms_params& params, clK
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});
         break;
 
     case 1:
