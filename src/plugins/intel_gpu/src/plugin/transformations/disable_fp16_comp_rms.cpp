@@ -1,24 +1,14 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "disable_fp16_comp_rms.hpp"
 
 #include "ov_ops/rms.hpp"
-#include "openvino/op/clamp.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/softmax.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/select.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
