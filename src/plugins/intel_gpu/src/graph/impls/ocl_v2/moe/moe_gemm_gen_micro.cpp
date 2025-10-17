@@ -136,6 +136,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     micro::GEMMProblem problem_moe;
     micro::GEMMProtocol::Options opts_moe;
     opts_moe.slmPtr = true;
+    opts_moe.kParallelLocal = true;
 
     if (moe_cfg.is_weight_quantized) {
         problem_moe.Ta = micro::Type::f16; // weight register
@@ -205,6 +206,7 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         const auto& gemm_p = kd.micro_kernels[0]->p;
         auto sg_per_wg_n = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_n"));
         auto sg_per_wg_m = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_m"));
+        auto sg_per_wg_k = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_k"));
         auto sg_tile_m = gemm_p.getSetting("sg_tile_m");
         auto sg_tile_n = gemm_p.getSetting("sg_tile_n");
 
@@ -226,10 +228,10 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         std::cout << "m : " << m << " n : " << n << " k : " << k << std::endl;
         wgs.local = { sg_per_wg_m * get_subgroup_size(device_info.arch),
                       sg_per_wg_n,
-                      1};
+                      sg_per_wg_k};
         wgs.global = { align_to(ceil_div(m, sg_tile_m), sg_per_wg_m) * get_subgroup_size(device_info.arch),
                        align_to(ceil_div(n, sg_tile_n), sg_per_wg_n),
-                       static_cast<size_t>(rtp->num_actual_used_experts)};
+                       static_cast<size_t>(rtp->num_actual_used_experts) * sg_per_wg_k};
         std::cout << "output layout : " << output_layout.to_short_string() << std::endl;
         std::cout << "gws : " << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << std::endl;
         std::cout << "lws : " << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << std::endl;
