@@ -1679,6 +1679,17 @@ void program_node::create_onednn_primitive_attributes(
             // ********************************* Common case with output range usage ********************************* //
             const auto& q_param = desc.get_typed_fuse_params<QuantizeFuseParams>();
             if (q_param->_per_tensor_output_range && q_param->_out_lo < q_param->_out_hi) {
+                auto generate_onednn_memory_desc = [this](const cldnn::layout& lay) -> dnnl::memory::desc {
+                    if (this->is_type<gemm>() || this->is_type<fully_connected>()) {
+                        return onednn::layout_to_memory_desc(lay, onednn::get_default_data_format(lay));
+                    } else {
+                        auto mem_flag = cldnn::format::is_blocked(this->get_output_layout().format) ?
+                            onednn::mem_flags::need_blocked : onednn::mem_flags::None;
+                        return onednn::layout_to_memory_desc(lay, dnnl::memory::format_tag::undef, mem_flag);
+                    }
+                };
+
+
                 // 1. pre-scale & pre-shift
                 {
                     if (q_param->_per_tensor_input_scale && q_param->_per_tensor_input_shift) {
@@ -1692,14 +1703,7 @@ void program_node::create_onednn_primitive_attributes(
                             auto in_scale = get_input_layout(dep_idx++);
                             resize_layout_for_fc(this, in_scale);
 
-                            dnnl::memory::desc in_scale_desc;
-                            if (is_type<gemm>() || is_type<fully_connected>()) {
-                                in_scale_desc = onednn::layout_to_memory_desc(in_scale, onednn::get_default_data_format(in_scale));
-                            } else {
-                                auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ?
-                                    onednn::mem_flags::need_blocked : onednn::mem_flags::None;
-                                in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::undef, mem_flag);
-                            }
+                            dnnl::memory::desc in_scale_desc = generate_onednn_memory_desc(in_scale);
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                             update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, onednn::get_default_data_format(in_scale), false,
                                                        in_scale_desc.get_dims(), in_scale_desc.get_data_type());
@@ -1713,14 +1717,7 @@ void program_node::create_onednn_primitive_attributes(
                                 auto in_shift = get_input_layout(dep_idx++);
                                 resize_layout_for_fc(this, in_shift);
 
-                                dnnl::memory::desc in_shift_desc;
-                                if (is_type<gemm>() || is_type<fully_connected>()) {
-                                    in_shift_desc = onednn::layout_to_memory_desc(in_shift, onednn::get_default_data_format(in_shift));
-                                } else {
-                                    auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ?
-                                        onednn::mem_flags::need_blocked : onednn::mem_flags::None;
-                                    in_shift_desc = onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::undef, mem_flag);
-                                }
+                                dnnl::memory::desc in_shift_desc = generate_onednn_memory_desc(in_shift);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, onednn::get_default_data_format(in_shift), false,
                                                            in_shift_desc.get_dims(), in_shift_desc.get_data_type());
@@ -1754,14 +1751,7 @@ void program_node::create_onednn_primitive_attributes(
                                 auto out_scale = get_input_layout(dep_idx++);
                                 resize_layout_for_fc(this, out_scale);
 
-                                dnnl::memory::desc out_scale_desc;
-                                if (is_type<gemm>() || is_type<fully_connected>()) {
-                                    out_scale_desc = onednn::layout_to_memory_desc(out_scale, onednn::get_default_data_format(out_scale));
-                                } else {
-                                    auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ?
-                                        onednn::mem_flags::need_blocked : onednn::mem_flags::None;
-                                    out_scale_desc = onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::undef, mem_flag);
-                                }
+                                dnnl::memory::desc out_scale_desc = generate_onednn_memory_desc(out_scale);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, onednn::get_default_data_format(out_scale), false,
                                                            out_scale_desc.get_dims(), out_scale_desc.get_data_type());
