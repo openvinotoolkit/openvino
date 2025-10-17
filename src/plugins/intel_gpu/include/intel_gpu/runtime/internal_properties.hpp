@@ -178,6 +178,7 @@ static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> 
 static constexpr Property<bool, ov::PropertyMutability::RW> could_use_flashattn_v2{"GPU_COULD_USE_FLASHATTN_V2"};
 static constexpr Property<bool, ov::PropertyMutability::RW> validate_output_buffer{"GPU_VALIDATE_OUTPUT_BUFFER"};
 static constexpr Property<float, ov::PropertyMutability::RW> mem_pool_util_threshold{"GPU_MEM_POOL_UTIL_THRESHOLD"};
+static constexpr Property<bool, ov::PropertyMutability::RW> dump_src_after_exec{"GPU_DUMP_SRC_TENSORS_AFTER_EXEC"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> xattention_block_size{"GPU_XATTN_BLOCK_SIZE"};
 }  // namespace ov::intel_gpu
 
