@@ -287,7 +287,7 @@ TEST_P(SDPACpuShapeInferenceWrongSinkThrowExceptionTest, wrong_sink_input) {
 }
 
 auto wrongSinkParams = []() -> std::vector<SDPATestParams> {
-    unit_test::ShapeVector attn_mask_vec = {{1, 16, 47, 47}, {47}, {1}, {9, 47, 1}, {3, 1, 47, 1}, {1, 1, 1, 1, 1}};
+    unit_test::ShapeVector attn_mask_vec = {{1, 16, 47, 47}, {47}, {1}, {1, 1, 1, 1}, {9, 47, 1}, {3, 1, 47, 1}, {1, 1, 1, 1, 1}};
     auto tuple = std::make_tuple(
     unit_test::ShapeVector{{1, 16, 47, 56},
         {1, 8, 47, 56},
@@ -310,7 +310,7 @@ auto wrongSinkParams = []() -> std::vector<SDPATestParams> {
         }
     };
     createParams();
-    attn_mask_vec = {{3, 16, 1, 1}, {1}, {32, 1, 1}, {3, 1, 1, 6}, {1, 1}};
+    attn_mask_vec = {{3, 16, 1, 1}, {1}, {32, 1, 1}, {3, 1, 1, 6}, {1, 1}, {3, 1, 1, 1}};
     tuple = make_tuple(unit_test::ShapeVector{{3, 1, 32, 128},
         {3, 1, 32, 128},
         {3, 1, 32, 128},

@@ -100,9 +100,9 @@ public:
                 auto check_broadcast = [](const size_t& target, const size_t& to) -> bool {
                     return any_of(target, to, 1U);
                 };
-                for (size_t i = 0; i < weight_dims_size - 2; i++) {
-                    sink_ok = sink_ok && check_broadcast(sink_dims[i], weight_dims[i]);
-                }
+                sink_ok = sink_ok && check_broadcast(sink_dims[0], weight_dims[0]);
+                sink_ok = sink_ok && (sink_dims[1] == weight_dims[1]);
+                sink_ok = sink_ok && check_broadcast(sink_dims[2], weight_dims[2]);
                 if (sink_dims[weight_dims_size - 1] != 1) {
                     sink_ok = false;
                 };
