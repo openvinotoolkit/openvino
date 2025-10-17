@@ -173,18 +173,18 @@ public:
             internal_buffers.emplace_back(16, indexes_dt);  // 1: softmax exp_sums
 
             // internal buffer for XAttention
-            auto out_shape = params.output_layouts[0].get_shape();
-            const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
-            const size_t q_len = out_shape[0];
-            const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);  //# will slient drop the tails which is less than `stride`
-            const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
-            const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
-            const uint32_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
-
-            auto count_kq_max_wg = static_cast<int64_t>(desc->heads_num * N_kq_groups * q_stride_pad);
-            internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);  // 2: kq_max_wg
-
             if (desc->has_xattention) {
+                auto out_shape = params.output_layouts[0].get_shape();
+                const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
+                const size_t q_len = out_shape[0];
+                const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);  //# will slient drop the tails which is less than `stride`
+                const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
+                const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
+                const uint32_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
+
+                auto count_kq_max_wg = static_cast<int64_t>(desc->heads_num * N_kq_groups * q_stride_pad);
+                internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);  // 2: kq_max_wg
+
                 const size_t block_size = get_xattn_block_size(params);
                 OPENVINO_ASSERT(block_size % STRIDE == 0, "sparse block_size must be devidable by stride.");
                 const uint32_t q_block_pad = ceil_div(q_len, block_size);

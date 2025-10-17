@@ -52,6 +52,17 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t xattn_k_block_pad;
 };
 
+enum PagedAttentionInternBuffIdx {
+    // for decoding kernels
+    DECODE_PARTITIONOUT = 0,      // 0: intermediate partition output
+    DECODE_EXPSUMS = 1,           // 1: softmax exp_sums
+    // for xattn kernels
+    XATTN_GEMMQK_MAX = 2,         // 2: kq_max_wg
+    XATTN_GEMMQK_EXPSUMS = 3,     // 3: kq_exp_partial_sum
+    XATTN_BLOCKMASK = 4,          // 4: sparse_block_mask
+    XATTN_BLOCKMASK_MERGED = 5,   // 5: sparse_block_mask_wg
+};
+
 //-----------------------------------------------------------------------------------------------------------------
 // Helpers of XAttention
 //-----------------------------------------------------------------------------------------------------------------
@@ -124,7 +135,6 @@ public:
 class XAttentionEstimateGEMMQK : public XAttentionEstimateGeneratorBase {
 public:
     XAttentionEstimateGEMMQK() : XAttentionEstimateGeneratorBase("xattn_gemm_qk") {}
-    // [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 };
@@ -132,7 +142,6 @@ public:
 class XAttentionEstimateFindBlock : public XAttentionEstimateGeneratorBase {
 public:
     XAttentionEstimateFindBlock() : XAttentionEstimateGeneratorBase("xattn_find_block") {}
-    // [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 };

@@ -311,8 +311,8 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
     if (desc->has_xattention) {
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // sparse_block_mask
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});  // sparse_block_mask_wg
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});  // sparse_block_mask
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
     }
 
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
@@ -449,8 +449,8 @@ Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_im
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence begins
 
     // outputs
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});  // partition output
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});  // lse output
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});  // partition output
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});  // lse output
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len==1
@@ -514,9 +514,9 @@ Arguments PagedAttentionGeneratorSingleTokenFinalization::get_arguments_desc(con
     const auto has_scores_output = params.output_layouts.size() > 1;
     OPENVINO_ASSERT(!has_scores_output, "[GPU][CM] PagedAttentionGeneratorSingleTokenFinalization with scores output is not supported yet");
 
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});  // partition data
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});  // partition data
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});           // output
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});  // lse
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});  // lse
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // kv_partition_num
@@ -614,8 +614,8 @@ Arguments XAttentionEstimateGEMMQK::get_arguments_desc(const kernel_impl_params&
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block indices begins
 
     // outputs
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});  // kq_max_wg
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // kq_exp_partial_sum
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX});  // kq_max_wg
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS});  // kq_exp_partial_sum
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // M
@@ -735,11 +735,11 @@ Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_para
     Arguments args;
 
     // inputs
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});  // kq_max_wg
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // kq_exp_partial_sum
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX});  // kq_max_wg
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS});  // kq_exp_partial_sum
 
     // outputs
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // block_mask
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});  // sparse_block_mask
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
@@ -834,10 +834,10 @@ Arguments XAttentionEstimatePostProc::get_arguments_desc(const kernel_impl_param
     Arguments args;
 
     // inputs
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // block_mask
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});  // sparse_block_mask
 
     // outputs
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});  // block_mask_merged
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_stride_pad
