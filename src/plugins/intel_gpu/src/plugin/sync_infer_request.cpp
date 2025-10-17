@@ -718,6 +718,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(size_t in
             cldnn::mem_lock<uint8_t> dst_lock(merged_memory, stream);
             for (size_t i = 0; i < user_tensors.size(); i++) {
                 auto input_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensors[i]._ptr);
+                OPENVINO_ASSERT(input_tensor != nullptr, "[GPU] Failed to cast user tensor to RemoteTensorImpl");
                 cldnn::mem_lock<uint8_t> src_lock(input_tensor->get_memory(), stream);
                 std::memcpy(dst_lock.data() + i * input_tensor->get_byte_size(), src_lock.data(), input_tensor->get_byte_size());
             }
