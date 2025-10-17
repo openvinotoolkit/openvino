@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
+
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/type.hpp"
@@ -11,7 +13,6 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
-#include <memory>
 
 namespace ov {
 namespace frontend {
@@ -20,7 +21,6 @@ namespace ai_onnx {
 namespace opset_11 {
 
 ov::OutputVector sequence_at(const ov::frontend::onnx::Node& node) {
-
     constexpr auto input_sequence_and_position = 2;
 
     common::default_op_checks(node, input_sequence_and_position, input_sequence_and_position);
@@ -31,8 +31,7 @@ ov::OutputVector sequence_at(const ov::frontend::onnx::Node& node) {
     OPENVINO_ASSERT(input_sequence, "SequenceAt: 'input' must be a sequence");
 
     auto position = inputs[1];
-    OPENVINO_ASSERT(position.get_partial_shape().rank().compatible(0),
-                    "SequenceAt: 'position' input must be a scalar");
+    OPENVINO_ASSERT(position.get_partial_shape().rank().compatible(0), "SequenceAt: 'position' input must be a scalar");
 
     const auto position_const = ov::util::get_constant_from_source(position);
     OPENVINO_ASSERT(position_const, "SequenceAt: 'position' input must be constant");
