@@ -786,6 +786,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                     kvcache_desc.max_generation_token_len - input_tokens_len,
                     0);
     }
+    // FIXME: Should we take this information from the user's mask also?
     std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len, input_tokens_len, 1);
 
     auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));

@@ -307,6 +307,82 @@ public:
     }
 };
 
+class CutLMHead : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::CutLMHead");
+    CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) {
+        // We are interested at first input to MatMul as a cut point
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
+
+        // There are several patterns for matmul we are looking for:
+        // Matmul -> Result
+        // Matmul -> Add -> Result
+        auto matmul_add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
+        // Matmul -> Transpose -> Result
+        auto matmul_transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
+        //  Matmul -> Convert -> Result
+        auto matmul_convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
+        // MatMul -> Divide -> Tanh -> Multiply -> Result
+        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
+        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
+        auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
+
+        auto last_op = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{matmul->output(0),
+                                                                                    matmul_add->output(0),
+                                                                                    matmul_transpose->output(0),
+                                                                                    matmul_convert->output(0),
+                                                                                    matmul_multiply->output(0)});
+        auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
+
+        auto callback = [=, &lm_head_model](ov::pass::pattern::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+
+            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+            std::shared_ptr<ov::Node> matched_node_last_op = nullptr;
+            if (node_to_output.count(matmul_add)) {
+                matched_node_last_op = node_to_output[matmul_add].get_node_shared_ptr();
+            } else if (node_to_output.count(matmul_transpose)) {
+                matched_node_last_op = node_to_output[matmul_transpose].get_node_shared_ptr();
+            } else if (node_to_output.count(matmul_convert)) {
+                matched_node_last_op = node_to_output[matmul_convert].get_node_shared_ptr();
+            } else if (node_to_output.count(matmul_multiply)) {
+                matched_node_last_op = node_to_output[matmul_multiply].get_node_shared_ptr();
+            } else {
+                matched_node_last_op = matched_node_matmul;
+            }
+            auto matched_node_result = node_to_output.at(res).get_node_shared_ptr();
+
+            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+            auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
+
+            // Cut point:
+            auto matmul_first_source = matched_matmul->input(0).get_source_output();
+
+            // Cut original model:
+            matched_result->input(0).replace_source_output(matmul_first_source);
+            // FIXME: Somehow for KVCache model result output gets renamed in
+            //        ICompiledModel::ICompiledModel().
+            //        As a WA, setting the same name to output from MatMul
+            //        avoids the issue.
+            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::output_embeds});
+            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::output_embeds});
+            matched_result->validate_and_infer_types();
+
+            // Create an additional model after cut point:
+            auto new_param = std::make_shared<ov::op::v0::Parameter>(matmul_first_source.get_element_type(),
+                                                                     matmul_first_source.get_partial_shape());
+            new_param->output(0).add_names({ov::npuw::LLMCompiledModel::output_embeds});
+            matched_matmul->input(0).replace_source_output(new_param);
+            auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
+            lm_head_model =
+                std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)}, ov::ParameterVector{new_param});
+
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(res, "CutLMHead"), std::move(callback));
+    }
+};
+
 class GemmaSlidingMask : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::GemmaSlidingMask");
@@ -396,6 +472,137 @@ public:
     }
 };
 
+class Phi3SlidingMask : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::Phi3SlidingMask");
+
+    explicit Phi3SlidingMask() {
+        // Searching for Phi3 sliding mask pattern to extend it to work with right-padded
+        // past tokens and left-padded present tokens.
+        //
+        // Mask creation is simply done via "less_equal" and "greater" operations between
+        // row K range: [0,... mask_len] and column Q range: [current_pos_id,... mask_len].T
+        // and sliding window length.
+        // Due to broadcasting rules these two operation form two triangular masks.
+        //
+        // -  "less_equal" forms a sliding window mask, more precisely, it has following expression:
+        //
+        //        row range [0,... mask_len] <= column range [current_pos_id - sliding_window_size,
+        //                                                    ...,
+        //                                                    mask_len    -    sliding_window_size]
+        //
+        //       forming, under example conditions, the mask below:
+        //        past tokens = 3
+        //        present tokens = 5 (starting with current_pos_id = 3)
+        //        sliding window len = 4
+        //                    K0 K1 K2 K3 K4 K5 K6 K7
+        //                   [ 0  1  2  3  4  5  6  7 ]
+        //        Q3[ 3 - 4 ]  0  0  0  0  0  0  0  0
+        //        Q4[ 4 - 4 ]  1  0  0  0  0  0  0  0
+        //        Q5[ 5 - 4 ]  1  1  0  0  0  0  0  0
+        //        Q6[ 6 - 4 ]  1  1  1  0  0  0  0  0
+        //        Q7[ 7 - 4 ]  1  1  1  1  0  0  0  0
+        //       where 1 at [i, j] means that j token should be forgotten as it can't fit into the sliding
+        //       window from the left of i-th token.
+        //
+        // -   "greater" forms a similar to self-attention mask:
+        //
+        //        row range [0,... mask_len] > column range [current_pos_id,
+        //                                                   ...,
+        //                                                   mask_len]
+        //
+        //       forming, under example conditions, the mask below:
+        //        past tokens = 3
+        //        present tokens = 5 (starting with current_pos_id = 3)
+        //                K0 K1 K2 K3 K4 K5 K6 K7
+        //               [ 0  1  2  3  4  5  6  7 ]
+        //        Q3[ 3 ]  0  0  0  0  1  1  1  1
+        //        Q4[ 4 ]  0  0  0  0  0  1  1  1
+        //        Q5[ 5 ]  0  0  0  0  0  0  1  1
+        //        Q6[ 6 ]  0  0  0  0  0  0  0  1
+        //        Q7[ 7 ]  0  0  0  0  0  0  0  0
+        //       where 1 at [i, j] means that j token is a future token for i-th token, that we shouldn't attend to.
+        //
+        // Together, via "bitwise_or" this two masks forms the inverted sliding attention mask:
+        //        past tokens = 3
+        //        present tokens = 5 (starting with current_pos_id = 3)
+        //        sliding window len = 4
+        //                    K0 K1 K2 K3 K4 K5 K6 K7
+        //                   [ 0  1  2  3  4  5  6  7 ]
+        //        Q3[ 3 - 4 ]  0  0  0  0  1  1  1  1
+        //        Q4[ 4 - 4 ]  1  0  0  0  0  1  1  1
+        //        Q5[ 5 - 4 ]  1  1  0  0  0  0  1  1
+        //        Q6[ 6 - 4 ]  1  1  1  0  0  0  0  1
+        //        Q7[ 7 - 4 ]  1  1  1  1  0  0  0  0
+        //
+        // Issue with sliding attention mask appears when we work with static shapes and different paddings for
+        // past and present tokens.
+        // More precisely, issue appears with sliding window mask, as Q column range is created from length of
+        // past key/values tensor (2175 for 2K case) as start point and the length of attention mask (2176 for 2K)
+        // as an end point. This is okay for inverted self-attention mask by means of "greater" operation,
+        // as our present tokens exactly left-padded and located on the right in the attention mask.
+        // However, for the sliding window mask created by means of "less_equal" operation, given Q range will behave
+        // as if position ids of new Q tokens will start from 2175 and not from 3 as in example above and therefore,
+        // 2175 - 2047 = 128 first tokens should be forgotten. As a fix, in "less_equal" operation, we can compare
+        // row K range [0, ...2175] with passed correct "position_ids" as a Q range, but again, shifted right on the
+        // length of window size and transposed to form a column.
+
+        auto past_kv_len = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
+        auto pos_ids_param = opp::wrap_type<ov::op::v0::Parameter>();
+        auto pos_ids_shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({pos_ids_param});
+        auto pos_ids_len = opp::wrap_type<ov::op::v8::Gather>({pos_ids_shape_of, opp::any_input(), opp::any_input()});
+        auto full_ctx_len = opp::wrap_type<ov::op::v1::Add>({past_kv_len, pos_ids_len});
+        auto query_range = opp::wrap_type<ov::op::v4::Range>({past_kv_len, full_ctx_len, opp::any_input()});
+        auto column_shape = opp::wrap_type<ov::op::v0::Constant>();
+        auto query_range_column = opp::wrap_type<ov::op::v1::Reshape>({query_range, column_shape});
+
+        auto zero_const = opp::wrap_type<ov::op::v0::Constant>();
+        auto atten_mask_len =
+            opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
+        auto key_range = opp::wrap_type<ov::op::v4::Range>({zero_const, atten_mask_len, opp::any_input()});
+        auto key_range_i64 = opp::wrap_type<ov::op::v0::Convert>({key_range});
+        auto key_range_f32 = opp::wrap_type<ov::op::v0::Convert>({key_range_i64});
+
+        auto neg_window_size = opp::wrap_type<ov::op::v0::Constant>();
+        auto query_left_bound_range = opp::wrap_type<ov::op::v1::Add>({query_range_column, neg_window_size});
+        // False in mask means that we shouldn't forget this token
+        auto forget_left_tokens_mask = opp::wrap_type<ov::op::v1::LessEqual>({key_range_f32, query_left_bound_range});
+        // Basically it is a reference triangle self-attention mask that
+        // forbids tokens to attend to future ones, but values are inverted:
+        auto look_only_future_mask = opp::wrap_type<ov::op::v1::Greater>({key_range_f32, query_range_column});
+
+        auto inv_sliding_attention_mask =
+            opp::wrap_type<ov::op::v13::BitwiseOr>({look_only_future_mask, forget_left_tokens_mask});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+            auto node_pos_ids_param = node_to_output.at(pos_ids_param).get_node_shared_ptr();
+            auto node_query_left_bound_range = node_to_output.at(query_left_bound_range).get_node_shared_ptr();
+            auto node_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
+
+            auto matched_pos_ids = std::static_pointer_cast<ov::op::v0::Parameter>(node_pos_ids_param);
+            auto matched_query_left_bound = std::static_pointer_cast<ov::op::v1::Add>(node_query_left_bound_range);
+            auto matched_neg_window_size = std::static_pointer_cast<ov::op::v0::Constant>(node_neg_window_size);
+            OPENVINO_ASSERT(matched_neg_window_size->get_output_size() == 1,
+                            "Sliding window size constant must be of size 1, but got " +
+                                std::to_string(matched_neg_window_size->get_output_size()));
+
+            auto query_range_as_pos_ids = std::make_shared<ov::op::v0::Convert>(matched_pos_ids, ov::element::f32);
+            std::vector<int64_t> vector_shape{-1, 1};
+            auto vector_shape_const =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, vector_shape);
+            auto query_range_as_pos_ids_col =
+                std::make_shared<ov::op::v1::Reshape>(query_range_as_pos_ids, vector_shape_const, false);
+
+            matched_query_left_bound->input(0).replace_source_output(query_range_as_pos_ids_col);
+
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(inv_sliding_attention_mask, "Phi3SlidingMask"),
+                         std::move(callback));
+    }
+};
+
 namespace {
 uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
@@ -451,92 +658,7 @@ void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
     rewr.add_matcher<GroupQueryAttentionDecomposition>(is_prefill_model);
     rewr.run_on_model(model);
 }
-}  // namespace
 
-namespace {
-struct KVAxesPosition {
-    uint32_t batch;
-    uint32_t seq_len;
-};
-}  // anonymous namespace
-
-class CutLMHead : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::CutLMHead");
-    CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) {
-        // We are interested at first input to MatMul as a cut point
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
-
-        // There are several patterns for matmul we are looking for:
-        // Matmul -> Result
-        // Matmul -> Add -> Result
-        auto matmul_add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
-        // Matmul -> Transpose -> Result
-        auto matmul_transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
-        //  Matmul -> Convert -> Result
-        auto matmul_convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
-        // MatMul -> Divide -> Tanh -> Multiply -> Result
-        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
-        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
-        auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
-
-        auto last_op = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{matmul->output(0),
-                                                                                    matmul_add->output(0),
-                                                                                    matmul_transpose->output(0),
-                                                                                    matmul_convert->output(0),
-                                                                                    matmul_multiply->output(0)});
-        auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
-
-        auto callback = [=, &lm_head_model](ov::pass::pattern::Matcher& m) {
-            auto& node_to_output = m.get_pattern_value_map();
-
-            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
-            std::shared_ptr<ov::Node> matched_node_last_op = nullptr;
-            if (node_to_output.count(matmul_add)) {
-                matched_node_last_op = node_to_output[matmul_add].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_transpose)) {
-                matched_node_last_op = node_to_output[matmul_transpose].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_convert)) {
-                matched_node_last_op = node_to_output[matmul_convert].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_multiply)) {
-                matched_node_last_op = node_to_output[matmul_multiply].get_node_shared_ptr();
-            } else {
-                matched_node_last_op = matched_node_matmul;
-            }
-            auto matched_node_result = node_to_output.at(res).get_node_shared_ptr();
-
-            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
-            auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
-
-            // Cut point:
-            auto matmul_first_source = matched_matmul->input(0).get_source_output();
-
-            // Cut original model:
-            matched_result->input(0).replace_source_output(matmul_first_source);
-            // FIXME: Somehow for KVCache model result output gets renamed in
-            //        ICompiledModel::ICompiledModel().
-            //        As a WA, setting the same name to output from MatMul
-            //        avoids the issue.
-            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_result->validate_and_infer_types();
-
-            // Create an additional model after cut point:
-            auto new_param = std::make_shared<ov::op::v0::Parameter>(matmul_first_source.get_element_type(),
-                                                                     matmul_first_source.get_partial_shape());
-            new_param->output(0).add_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_matmul->input(0).replace_source_output(new_param);
-            auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
-            lm_head_model =
-                std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)}, ov::ParameterVector{new_param});
-
-            return true;
-        };
-        register_matcher(std::make_shared<opp::Matcher>(res, "CutLMHead"), std::move(callback));
-    }
-};
-
-namespace {
 std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
@@ -550,6 +672,102 @@ std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
     return lm_head_model;
 }
 
+int32_t gemma_transformations(const std::shared_ptr<ov::Model>& model) {
+    // For now only do transformations for gemma3 which has token_type_ids input.
+    bool token_type_ids_found = false;
+    for (const auto& input : model->inputs()) {
+        const auto& input_name = input.get_any_name();
+        if (input_name.find("token_type_ids") != std::string::npos) {
+            token_type_ids_found = true;
+            break;
+        }
+    }
+
+    if (token_type_ids_found) {
+        ov::pass::GraphRewrite rewr;
+        auto RewrRes = std::make_unique<GemmaSlidingMask::Result>();
+        rewr.add_matcher<GemmaSlidingMask>(RewrRes.get());
+        rewr.run_on_model(model);
+
+        if (RewrRes->found) {
+            OPENVINO_ASSERT(
+                RewrRes->window_size > 0,
+                "Gemma sliding window size must be strictly positive, but got " + std::to_string(RewrRes->window_size));
+
+            auto mask_input = RewrRes->mask_input;
+            model->add_parameters({mask_input});
+            for (auto&& input : model->inputs()) {
+                if (input.get_node() == mask_input.get()) {
+                    input.set_names({mask_input->get_friendly_name()});
+                }
+            }
+            model->validate_nodes_and_infer_types();
+            return RewrRes->window_size;
+        }
+    }
+
+    return 0;
+}
+
+void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<Phi3SlidingMask>();
+    rewr.run_on_model(model);
+    model->validate_nodes_and_infer_types();
+}
+
+void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model) {
+    typedef std::shared_ptr<ov::op::util::AssignBase> PAssign;
+    typedef std::shared_ptr<ov::op::util::ReadValueBase> PReadValue;
+    std::vector<PReadValue> readValues;
+    std::vector<PAssign> assigns;
+    auto sinks = model->get_sinks();
+    for (size_t i = 0; i < sinks.size(); ++i) {
+        if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sinks[i])) {
+            auto variable_name = assign->get_variable_id();
+            if (!ov::npuw::util::matchLoRAMatMulAString(variable_name) &&
+                !ov::npuw::util::matchLoRAMatMulBString(variable_name) &&
+                !ov::npuw::util::matchLoRAMatMulAlphaString(variable_name)) {
+                continue;
+            }
+
+            auto read_value = ov::as_type_ptr<ov::op::util::ReadValueBase>(assign->get_input_node_shared_ptr(0));
+            OPENVINO_ASSERT(read_value, "Can't find ReadValue");
+            readValues.push_back(read_value);
+            assigns.push_back(assign);
+        }
+    }
+
+    ov::ParameterVector new_parameters;
+    new_parameters.reserve(readValues.size());
+    for (size_t i = 0; i < readValues.size(); ++i) {
+        auto read_value = readValues[i];
+        auto variable_name = read_value->get_variable_id();
+        const auto element_type = read_value->get_output_element_type(0);
+        const auto shape = read_value->get_output_partial_shape(0);
+
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(element_type, shape);
+        ov::op::util::set_name(*parameter, variable_name);
+        replace_node(read_value, parameter);
+
+        auto assign = assigns[i];
+        model->remove_sink(assign);
+        model->remove_variable(model->get_variable_by_id(variable_name));
+        new_parameters.push_back(parameter);
+    }
+
+    model->add_parameters(new_parameters);
+}
+}  // namespace
+
+namespace {
+struct KVAxesPosition {
+    uint32_t batch;
+    uint32_t seq_len;
+};
+}  // anonymous namespace
+
+namespace {
 void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t input_size,
                        const uint32_t kvcache_size,
@@ -873,84 +1091,6 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 }
 }  // namespace
 
-void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model) {
-    typedef std::shared_ptr<ov::op::util::AssignBase> PAssign;
-    typedef std::shared_ptr<ov::op::util::ReadValueBase> PReadValue;
-    std::vector<PReadValue> readValues;
-    std::vector<PAssign> assigns;
-    auto sinks = model->get_sinks();
-    for (size_t i = 0; i < sinks.size(); ++i) {
-        if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sinks[i])) {
-            auto variable_name = assign->get_variable_id();
-            if (!ov::npuw::util::matchLoRAMatMulAString(variable_name) &&
-                !ov::npuw::util::matchLoRAMatMulBString(variable_name) &&
-                !ov::npuw::util::matchLoRAMatMulAlphaString(variable_name)) {
-                continue;
-            }
-
-            auto read_value = ov::as_type_ptr<ov::op::util::ReadValueBase>(assign->get_input_node_shared_ptr(0));
-            OPENVINO_ASSERT(read_value, "Can't find ReadValue");
-            readValues.push_back(read_value);
-            assigns.push_back(assign);
-        }
-    }
-
-    ov::ParameterVector new_parameters;
-    new_parameters.reserve(readValues.size());
-    for (size_t i = 0; i < readValues.size(); ++i) {
-        auto read_value = readValues[i];
-        auto variable_name = read_value->get_variable_id();
-        const auto element_type = read_value->get_output_element_type(0);
-        const auto shape = read_value->get_output_partial_shape(0);
-
-        auto parameter = std::make_shared<ov::op::v0::Parameter>(element_type, shape);
-        ov::op::util::set_name(*parameter, variable_name);
-        replace_node(read_value, parameter);
-
-        auto assign = assigns[i];
-        model->remove_sink(assign);
-        model->remove_variable(model->get_variable_by_id(variable_name));
-        new_parameters.push_back(parameter);
-    }
-
-    model->add_parameters(new_parameters);
-}
-
-void ov::npuw::LLMCompiledModel::gemma_transformations(const std::shared_ptr<ov::Model>& model) {
-    // For now only do transformations for gemma3 which has token_type_ids input.
-    bool token_type_ids_found = false;
-    for (const auto& input : model->inputs()) {
-        const auto& input_name = input.get_any_name();
-        if (input_name.find("token_type_ids") != std::string::npos) {
-            token_type_ids_found = true;
-            break;
-        }
-    }
-
-    if (token_type_ids_found) {
-        ov::pass::GraphRewrite rewr;
-        auto RewrRes = std::make_unique<GemmaSlidingMask::Result>();
-        rewr.add_matcher<GemmaSlidingMask>(RewrRes.get());
-        rewr.run_on_model(model);
-
-        if (RewrRes->found) {
-            OPENVINO_ASSERT(
-                RewrRes->window_size > 0,
-                "Gemma sliding window size must be strictly positive, but got " + std::to_string(RewrRes->window_size));
-
-            m_gemma_sliding_window_size = RewrRes->window_size;
-            auto mask_input = RewrRes->mask_input;
-            model->add_parameters({mask_input});
-            for (auto&& input : model->inputs()) {
-                if (input.get_node() == mask_input.get()) {
-                    input.set_names({mask_input->get_friendly_name()});
-                }
-            }
-            model->validate_nodes_and_infer_types();
-        }
-    }
-}
-
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties)
@@ -1017,6 +1157,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_INFO("Two-model pipeline will be created.");
     }
+
+    LOG_DEBUG("Try patch Phi-3 sliding window mask, if it exists.");
+    patch_phi3_sliding_mask(kvcache_model);
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
@@ -1099,7 +1242,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                       axes,
                       m_max_lora_rank,
                       whisper_lhs_seq_size);
-    gemma_transformations(kvcache_model);
+
+    LOG_DEBUG("Try replace Gemma-3 Sliding window mask for generate model with parameter, if it exists");
+    m_gemma_sliding_window_size = gemma_transformations(kvcache_model);
 
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
