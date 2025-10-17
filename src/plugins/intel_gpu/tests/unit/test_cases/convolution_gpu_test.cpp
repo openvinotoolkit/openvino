@@ -14,6 +14,8 @@
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 
+#include "openvino/reference/convolution.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -11899,3 +11901,57 @@ TEST(group_convolution_f16_fw_gpu, with_weights_as_input) {
     }
 }
 
+TEST(convolution_f16_fw_gpu, basic_bfzyx_b_fs_zyx_fsv16) {
+    auto& engine = get_test_engine();
+
+    if (engine.get_device_info().supports_immad) {
+        // This test is only for non-XMX platforms
+        GTEST_SKIP();
+    }
+
+    const ov::Shape input_shape = {32, 3, 2, 14, 14};
+    const ov::Shape weight_shape = {32, 3, 2, 14, 14};
+    const ov::Shape output_shape = {32, 32, 1, 1, 1};
+    auto in_layout = layout{input_shape, data_types::f32, format::bfzyx};
+    auto weight_layout = layout{weight_shape, data_types::f32, format::bfzyx};
+
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto weight_mem = engine.allocate_memory(weight_layout);
+
+    tests::random_generator rg{"convolution_f16_fw_gpu_basic_bfzyx_b_fs_zyx_fsv16"};
+
+    std::vector<float> input_vals = rg.generate_random_1d<float>(ov::shape_size(input_shape), -1, 1);
+    std::vector<float> weight_vals = rg.generate_random_1d<float>(ov::shape_size(weight_shape), -1, 1);
+
+    set_values(input_mem, input_vals);
+    set_values(weight_mem, weight_vals);
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weight_mem),
+        reorder("input_f16", input_info("input"), format::bfzyx, data_types::f16),
+        reorder("weights_f16", input_info("weights"), format::bfzyx, data_types::f16),
+        convolution("conv", { input_info("input_f16") }, "weights_f16", no_bias, 1, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, false),
+        reorder("output", input_info("conv"), format::bfzyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::b_fs_zyx_fsv16, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", conv_impl} }));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_mem_lock(output, get_test_stream());
+
+    std::vector<float> reference_output(output_mem_lock.size());
+    ov::reference::convolution(input_vals.data(), weight_vals.data(), reference_output.data(),
+                               input_shape, weight_shape, output_shape,
+                               {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0});
+
+    for (std::size_t i = 0; i < reference_output.size(); i++) {
+        ASSERT_NEAR(reference_output[i], output_mem_lock[i], 1.0);
+    }
+}
