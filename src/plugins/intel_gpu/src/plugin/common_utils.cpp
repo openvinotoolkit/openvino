@@ -25,10 +25,15 @@ void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
         dst[i] = static_cast<dst_t>(src[i]);
 }
 
+#define MAX_NUM_AXES 6
+
 template <typename src_t, typename dst_t>
 void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout layout) {
     cldnn::tensor axes_start_point, axes_end_point;
-    layout.setup_fast_liner_offset(axes_start_point, axes_end_point);
+    int64_t padded_sizes[MAX_NUM_AXES], axes_map[MAX_NUM_AXES];
+    int8_t map_len = MAX_NUM_AXES;
+
+    layout.get_linear_offset_params(axes_start_point, axes_end_point, padded_sizes, axes_map, map_len);
 
     for (int64_t b = axes_start_point.batch[0]; b < axes_end_point.batch[0]; b++) {
         for (int64_t f = axes_start_point.feature[0]; f < axes_end_point.feature[0]; f++) {
@@ -36,8 +41,13 @@ void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout 
                 for (int64_t z = axes_start_point.spatial[2]; z < axes_end_point.spatial[2]; z++) {
                     for (int64_t y = axes_start_point.spatial[1]; y < axes_end_point.spatial[1]; y++) {
                         for (int64_t x = axes_start_point.spatial[0]; x < axes_end_point.spatial[0]; x++) {
-                            int64_t element_sizes[6] = {b, f, x, y, z, w};
-                            *dst++ = static_cast<dst_t>(src[layout.get_linear_offset_fast(element_sizes)]);
+                            int64_t element_sizes[MAX_NUM_AXES] = {b, f, x, y, z, w};
+                            size_t offset = element_sizes[axes_map[0]];
+
+                            for (size_t i = 1; i < map_len; i++)
+                                offset = offset * padded_sizes[i] + element_sizes[axes_map[i]];
+
+                            *dst++ = static_cast<dst_t>(src[offset]);
                         }
                     }
                 }

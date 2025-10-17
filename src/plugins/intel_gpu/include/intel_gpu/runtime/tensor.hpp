@@ -433,24 +433,6 @@ public:
         return sizes;
     }
 
-    /// @brief Returns a vector of position mapping to map output order to internal order for a format
-    std::vector<value_type> get_axes_size_map(cldnn::format fmt) const {
-        const auto& output_order = fmt.order();
-        const auto& internal_order = fmt.internal_order();
-        std::vector<value_type> sizes_map(output_order.size(), 0);
-
-        for (size_t i = 0; i < sizes_map.size(); ++i) {
-            auto c = output_order[i];
-            auto pos = internal_order.find(c);
-            if (pos == std::string::npos)
-                throw std::domain_error(std::string("Unknown coord type: ") + c);
-
-            sizes_map[i] = pos;
-        }
-
-        return sizes_map;
-    }
-
     /// @brief Returns a vector of tensors values, ordered batch, feature, spatial_x, spatial_y.
     std::vector<value_type> sizes() const {
         std::vector<value_type> sizes(sizeof(_sizes) / sizeof(_sizes[0]), 0);
