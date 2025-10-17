@@ -257,7 +257,6 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     auto last_add = wrap_type<ov::op::v1::Add>({residual_input, last_reshape}, {{"auto_broadcast", "numpy"}});
 
     auto callback = [=](const std::unordered_map<std::shared_ptr<Node>, std::vector<PatternValueMap>>& matches) {
-        auto num_expert_scatter = matches.at(expert_scatter).size();
         auto num_last_add = matches.at(last_add).size();
 
         // Collect expert data from all matched patterns
