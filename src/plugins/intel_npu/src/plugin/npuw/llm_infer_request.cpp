@@ -879,7 +879,12 @@ void ov::npuw::LLMInferRequest::infer() {
     if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] > 1 && position_ids->data<int64_t>()[0] == m_first_position_id) {
         infer_prefill(input_ids, attention_mask, position_ids, token_type_ids);
     } else {
-        trim_kvcache_for_speculative_decoding(position_ids);
+        auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+        // Need to reconsider the solution. Some model like Qwen2.5VL, doesn't use speculative decoding,
+        // but it may have repeated position ids, then it will trigger kvcache trim and cause AC issue.
+        if (kvcache_desc.max_generation_token_len > 1) {
+            trim_kvcache_for_speculative_decoding(position_ids);
+        }
         infer_generate(input_ids, attention_mask, position_ids, token_type_ids);
     }
 }
