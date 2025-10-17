@@ -26,7 +26,9 @@ std::shared_ptr<ZeroMem> ZeroMemPool::allocate_zero_memory(const std::shared_ptr
         });
 
     std::lock_guard<std::mutex> lock(_mutex);
+    std::unique_lock<std::mutex> deleter_lock(_deleter_mutex);
     update_pool(zero_memory);
+    deleter_lock.unlock();
 
     return zero_memory;
 }
@@ -40,7 +42,9 @@ std::shared_ptr<ZeroMem> ZeroMemPool::import_shared_memory(const std::shared_ptr
         });
 
     std::lock_guard<std::mutex> lock(_mutex);
+    std::unique_lock<std::mutex> deleter_lock(_deleter_mutex);
     update_pool(zero_memory);
+    deleter_lock.unlock();
 
     return zero_memory;
 }
