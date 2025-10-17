@@ -275,7 +275,9 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     AxisPatterns axes;
 
     // Create router pattern: Softmax -> TopK -> OneHot -> Transpose
-    auto [topk_TopK, permute_Transpose] = create_router_pattern(axes);
+    auto router_result = create_router_pattern(axes);
+    auto topk_TopK = router_result.first;
+    auto permute_Transpose = router_result.second;
 
     // Create expert indexing pattern for the first expert (used in outer loop)
     auto index_add__Convert = create_expert_indexing_pattern(permute_Transpose, axes);
@@ -288,7 +290,9 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     auto unsqueeze_Unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({view_Reshape, axes.axis0});
 
     // Create routing weights pattern
-    auto [index_Split, index_Reshape] = create_routing_weights_pattern(topk_TopK, axes);
+    auto routing_result = create_routing_weights_pattern(topk_TopK, axes);
+    auto index_Split = std::get<0>(routing_result);
+    auto index_Reshape = std::get<1>(routing_result);
 
     // Create expert computation pattern (3-GEMM SwiGLU block)
     auto expert_scatter =
