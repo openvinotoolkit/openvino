@@ -550,7 +550,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (use_xattention) {
                 // Throw exception if xattn is not supported by either GPU archieture or compiler.
                 if (!check_xattn_gpu_compatibility())
-                    OPENVINO_THROW("XAttention is not supported by your current GPU architecture or IGC version. "
+                    OPENVINO_THROW("[GPU] XAttention is not supported by your current GPU architecture or IGC version. "
                                 "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
                                 "architecture and ensure the latest IGC is installed.");
             }
@@ -577,8 +577,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
             if (use_xattention) {
-                if (kv_cache_config.keyCacheQuantBychannel)
-                    OPENVINO_THROW("XAttention does not currently support per-channel quantized key cache.");
+                if (kv_cache_config.keyCacheQuantBychannel &&
+                    ((kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::u8)) )
+                    OPENVINO_THROW("[GPU] XAttention does not currently support per-channel quantized key cache.");
 
                 kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size_xattn;
                 kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
