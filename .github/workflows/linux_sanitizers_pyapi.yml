@@ -270,7 +270,7 @@ jobs:
     # todo: remove
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
-    timeout-minutes: 180
+    timeout-minutes: 580
     runs-on: aks-linux-8-cores-64gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
