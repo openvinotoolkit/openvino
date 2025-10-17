@@ -235,12 +235,14 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
             logger.info("The model has been debatched successfully");
             successfullyDebatched = true;
         }
+        if (batchModeIsAvailable) {
+            // If we have successfully debatched the model on the PLUGIN side, we should
+            // avoid repeating the same in the compiler by resetting the batch mode
+            updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+        }
     } catch (const std::exception& ex) {
         logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
                     ex.what());
-    }
-    if (batchModeIsAvailable) {
-        updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
     }
     return {reshapedModel, successfullyDebatched};
 }
