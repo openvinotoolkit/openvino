@@ -55,6 +55,10 @@ using namespace ov::pass::pattern;
 
 namespace {
 
+// Check if a Slice operation's end parameter matches one found in model.
+// The pattern expects a 2-element constant [1, MAX] where.
+// This pattern matches Slice operations like: Slice(input, [0,0], [1,INT_MAX], [1,1], [0,1])
+// index_add__Slice_2 = makeOP<opset8::Slice>({index_add__ScatterElementsUpdate_5, {0,0}, {1,INT_MAX}, {1,1}, {0,1}});
 bool is_slice_to_end(const std::shared_ptr<Node>& node) {
     auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
     if (!constant || !constant->get_element_type().is_integral_number()) {
@@ -62,15 +66,13 @@ bool is_slice_to_end(const std::shared_ptr<Node>& node) {
     }
 
     const auto values = constant->cast_vector<int64_t>();
+    // Expect exactly 2 values: [1, MAX] where first dimension ends at 1
     if (values.size() != 2 || values[0] != 1) {
         return false;
     }
 
+    // Second dimension should use maximum value to indicate slicing to the end
     const auto end_value = values[1];
-    if (end_value == -1) {
-        return true;
-    }
-
     if (constant->get_element_type() == element::i32) {
         return end_value == std::numeric_limits<int32_t>::max();
     }
