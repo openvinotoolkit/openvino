@@ -228,7 +228,10 @@ struct MHAKernel {
                     }
                 }
 
-                auto* sink = sink_input.safe_ptr<float>(b, h, m, 0);
+                float* sink = nullptr;
+                if (sink_input) {
+                    sink = &sink_input.at<float>({b, h, m, 0}, true);
+                }
                 // softmax
                 softmax(attn_score.data(), ncausal, sink);
 
@@ -467,7 +470,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
                 auto* score = weight_score.ptr<float>(ithr, 0, m - m_start);
-                auto* sink = sink_input.safe_ptr<float>(b, h, m, 0);
+                float* sink = nullptr;
+                if (sink_input) {
+                    sink = &sink_input.at<float>({b, h, m, 0}, true);
+                }
 
                 attn_softmax(reinterpret_cast<void*>(score),
                              reinterpret_cast<T*>(score),
@@ -870,7 +876,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                auto* sink = sink_input.safe_ptr<float>(b, h, m, 0);
+                float* sink = nullptr;
+                if (sink_input) {
+                    sink = &sink_input.at<float>({b, h, m, 0}, true);
+                }
                 attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * qk_m_stride),
                              qk + (m - m_start) * qk_m_stride,
                              d_scale,
@@ -1089,14 +1098,6 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         auto Hk = k_input.size(1);
         if (input_num > 5) {
             sink_input.reset(inputs[5]);
-            // reshape the shape to match q
-            if (sink_input.m_rank < q_input.m_rank) {
-                auto sink_shape = sink_input.shape();
-                for (size_t i = 0; i < q_input.m_rank - sink_input.m_rank; i++) {
-                    sink_shape.push_back(1);
-                }
-                sink_input = sink_input.reshape(sink_shape);
-            }
         }
 
         if (fuse_concat) {
