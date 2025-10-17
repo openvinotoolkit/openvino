@@ -1311,8 +1311,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                             push_node_queue(user, current_node.second+1);
                     }
                 } while (node_queue.size() > 1);
+            } else if (fused_node->is_type<convolution>() && peer_node->get_output_layout().data_type != cldnn::data_types::f32) {
+                // For convolution, peer_node can be a parent of fused_node in case of skip connections
+                // For f32, fusing results in poorer performance
+                merge_allowed = fused_node->get_users().size() == 1;
             } else {
                 merge_allowed = fused_node->get_users().size() == 1;
+                for (auto& parent : fused_node->get_dependencies())
+                    if (parent.first->id() == peer_node->id())
+                        merge_allowed = false;
             }
 
             if (!merge_allowed)
