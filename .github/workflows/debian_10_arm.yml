@@ -112,6 +112,7 @@ jobs:
         -DENABLE_LTO=ON
         -DENABLE_TESTS=ON
         -DENABLE_PYTHON=OFF
+        -DTHREADING=SEQ
         -DCMAKE_TOOLCHAIN_FILE=cmake/arm.toolchain.cmake
 
   CXX_Unit_Tests:
