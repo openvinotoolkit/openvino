@@ -252,6 +252,129 @@ INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
                          SDPACpuShapeInferenceCorrectAttnMaskTest,
                          ValuesIn(correctAttnmaskParams()),
                          SDPACpuShapeInferenceCorrectAttnMaskTest::getTestCaseName);
+
+using SDPACpuShapeInferenceWrongSinkThrowExceptionTest = SDPACpuShapeInferenceTest;
+TEST_P(SDPACpuShapeInferenceWrongSinkThrowExceptionTest, wrong_sink_input) {
+    ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
+    config.permute_axes = permute_axes;
+    config.is_causal = causal;
+    const auto op = make_op(args, config);
+    std::ostringstream os;
+    os << "sink input do not match q and k,";
+    auto set_input_shape_str = [&os](std::string name, const StaticShape & input_shape) {
+        os << name;
+        os << "(";
+        for (size_t i = 0; i < input_shape.size(); i++) {
+            os << input_shape[i];
+            if (i < input_shape.size() - 1) {
+                os << ".";
+            }
+        }
+        os << ")";
+    };
+    set_input_shape_str(" query_dims:", input_shapes[0]);
+    set_input_shape_str(" cur_k_dims:", input_shapes[1]);
+    set_input_shape_str(" cur_v_dims:", input_shapes[2]);
+    set_input_shape_str(" attn_mask_dims:", input_shapes[3]);
+    set_input_shape_str(" scale_dims:", input_shapes[4]);
+    set_input_shape_str(" sink_dims:", input_shapes[5]);
+    set_input_shape_str(" beam_idx_dims:", input_shapes[6]);
+    set_input_shape_str(" cache_k_dims:", input_shapes[7]);
+    set_input_shape_str(" cache_v_dims:", input_shapes[8]);
+    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes),
+                    ov::Exception,
+                    HasSubstr(os.str()));
+}
+
+auto wrongSinkParams = []() -> std::vector<SDPATestParams> {
+    unit_test::ShapeVector attn_mask_vec = {{1, 16, 47, 47}, {47}, {1}, {1, 1, 1, 1}, {9, 47, 1}, {3, 1, 47, 1}, {1, 1, 1, 1, 1}};
+    auto tuple = std::make_tuple(
+    unit_test::ShapeVector{{1, 16, 47, 56},
+        {1, 8, 47, 56},
+        {1, 8, 47, 56},
+        {1, 1, 47, 94},
+        {1},
+        {1, 16, 1, 1},
+        {1},
+        {1, 8, 47, 56},
+        {1, 8, 47, 56}},
+    std::vector<size_t> {},
+    unit_test::ShapeVector{{1, 16, 47, 56}, {1, 8, 94, 56}, {1, 8, 94, 56}},
+    false);
+    std::vector<SDPATestParams> params;
+    auto createParams = [&attn_mask_vec, &tuple, &params]() {
+        for (auto& item : attn_mask_vec) {
+            auto& input_shapes = std::get<0>(tuple);
+            input_shapes[5] = item;
+            params.push_back(tuple);
+        }
+    };
+    createParams();
+    attn_mask_vec = {{3, 16, 1, 1}, {1}, {32, 1, 1}, {3, 1, 1, 6}, {1, 1}, {3, 1, 1, 1}};
+    tuple = make_tuple(unit_test::ShapeVector{{3, 1, 32, 128},
+        {3, 1, 32, 128},
+        {3, 1, 32, 128},
+        {3, 1, 1, 5},
+        {1},
+        {3, 32, 1, 1},
+        {3},
+        {3, 4, 32, 128},
+        {3, 4, 32, 128}},
+    std::vector<size_t> {0, 2, 1, 3},
+    unit_test::ShapeVector{{3, 32, 1, 128}, {3, 5, 32, 128}, {3, 5, 32, 128}},
+    false);
+    createParams();
+    return params;
+};
+
+INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
+                         SDPACpuShapeInferenceWrongSinkThrowExceptionTest,
+                         ValuesIn(wrongSinkParams()),
+                         SDPACpuShapeInferenceWrongSinkThrowExceptionTest::getTestCaseName);
+
+using SDPACpuShapeInferenceCorrectSinkTest = SDPACpuShapeInferenceTest;
+TEST_P(SDPACpuShapeInferenceCorrectSinkTest, shape_inference) {
+    ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
+    config.is_causal = causal;
+    config.permute_axes = permute_axes;
+    const auto op = make_op(args, config);
+    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
+}
+
+auto correctSinkParams = []() -> std::vector<SDPATestParams> {
+    std::vector<SDPATestParams> params;
+    auto tuple = std::make_tuple(unit_test::ShapeVector{{1, 16, 47, 56},
+        {1, 8, 47, 56},
+        {1, 8, 47, 56},
+        {1, 1, 47, 94},
+        {1},
+        {1, 16, 1, 1},
+        {1},
+        {1, 8, 47, 56},
+        {1, 8, 47, 56}},
+    std::vector<size_t> {},
+    unit_test::ShapeVector{{1, 16, 47, 56}, {1, 8, 94, 56}, {1, 8, 94, 56}},
+    false);
+    params.push_back(tuple);
+    tuple = make_tuple(unit_test::ShapeVector{{3, 1, 32, 128},
+        {3, 1, 32, 128},
+        {3, 1, 32, 128},
+        {3, 1, 1, 5},
+        {1},
+        {3, 32, 1, 1},
+        {3},
+        {3, 4, 32, 128},
+        {3, 4, 32, 128}},
+    std::vector<size_t> {0, 2, 1, 3},
+    unit_test::ShapeVector{{3, 32, 1, 128}, {3, 5, 32, 128}, {3, 5, 32, 128}},
+    false);
+    params.push_back(tuple);
+    return params;
+};
+INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
+                         SDPACpuShapeInferenceCorrectSinkTest,
+                         ValuesIn(correctSinkParams()),
+                         SDPACpuShapeInferenceCorrectSinkTest::getTestCaseName);
 }  // namespace cpu_shape_infer
 }  // namespace unit_test
 }  // namespace intel_cpu
