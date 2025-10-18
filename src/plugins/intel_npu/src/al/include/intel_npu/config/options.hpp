@@ -442,6 +442,7 @@ struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPE
     }
 };
 
+// BATCH_MODE is required to maintain backward/forward compatibility
 struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     static std::string_view key() {
         return ov::intel_npu::batch_mode.name();
