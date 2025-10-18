@@ -23,7 +23,7 @@
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
-#ifdef ENABLE_PROFILING_ITT
+#ifdef ENABLE_PROFILING_ITT_FULL
 
 namespace ov {
 namespace pass {
@@ -36,7 +36,7 @@ PerfCounters& perf_counters() {
 }  // namespace pass
 }  // namespace ov
 
-#endif  // ENABLE_PROFILING_ITT
+#endif  // ENABLE_PROFILING_ITT_FULL
 
 namespace {
 
