@@ -19,17 +19,20 @@ class PluginCompilerAdapter final : public ICompilerAdapter {
 public:
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
 
-    std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
+                                    const FilteredConfig& config) const override;
 
-    std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model, const Config& config) const override;
+    std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model,
+                                      const FilteredConfig& config) const override;
 
     std::shared_ptr<IGraph> parse(
         ov::Tensor mainBlob,
-        const Config& config,
+        const FilteredConfig& config,
         std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
         const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt) const override;
 
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
+                              const FilteredConfig& config) const override;
 
     std::vector<std::string> get_supported_options() const override;
 
