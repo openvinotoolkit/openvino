@@ -14,6 +14,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
+#include "vcl_api.hpp"
 
 namespace {
 constexpr std::string_view INPUTS_PRECISIONS_KEY = "--inputs_precisions";
