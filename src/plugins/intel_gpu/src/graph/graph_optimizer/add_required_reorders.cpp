@@ -40,6 +40,10 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
     }
 
     if (use_onednn) {
+        // In case of implicit onednn concat, padding should not be removed.
+        if (node.can_be_optimized()) {
+            return;
+        }
         for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
             auto node_and_port = node.get_dependency_with_port(idx);
             auto& input = *node_and_port.first;
