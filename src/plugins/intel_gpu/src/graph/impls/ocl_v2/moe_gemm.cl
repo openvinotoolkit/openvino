@@ -76,7 +76,11 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 
     if (wg_j0 >= cur_n_tokens) // if I set it as sg_j0 >= 0 : it hangs
         return;     /* early exit if outside batch */
+    #ifdef SG_PER_WG_K
     ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, sg_k, slm
+    #else
+    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, slm
+    #endif
 #ifdef WEIGHT_COMPRESSED_INT4
                                         , weight_scales
 #ifdef WEIGHT_ZP_DT
