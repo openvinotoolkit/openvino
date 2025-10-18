@@ -16,6 +16,11 @@ struct MoEGemm : public ImplementationManager {
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
 
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
+        const auto& device_info = node.get_program().get_engine().get_device_info();
+        // TODO: only micro kernel is available now for moe_gemm
+        if (!device_info.supports_immad)
+            return false;
+
         static const std::vector<format> supported_fmts = {
             format::bfyx,
         };
@@ -23,11 +28,11 @@ struct MoEGemm : public ImplementationManager {
         static const std::vector<ov::element::Type_t> supported_types = {
             ov::element::f32,
             ov::element::f16,
-            ov::element::i32,
             ov::element::u4,
             ov::element::i4,
             ov::element::i8,
             ov::element::u8,
+            ov::element::i32,
         };
 
         for (const auto& input_layout : node.get_input_layouts()) {
