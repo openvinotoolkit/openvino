@@ -33,7 +33,8 @@ jobs:
       volumes:
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "-e HF_TOKEN" # Needed for HuggingFace cache authentication
+        - /run/secrets/hf:/run/secrets/hf:ro # Needed for HuggingFace cache authentication
+      options: "-e HF_TOKEN_PATH=/run/secrets/hf/token" # Needed for HuggingFace cache authentication
     defaults:
       run:
         shell: bash
