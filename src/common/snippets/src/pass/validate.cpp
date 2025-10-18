@@ -15,7 +15,6 @@
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -28,6 +27,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/op/convert_truncation.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/utils/utils.hpp"
@@ -49,9 +49,8 @@ bool Validate::is_supported_constant(const std::shared_ptr<const ov::Node>& op) 
     const auto consumers = op->get_output_target_inputs(0);
     return constant && (ov::shape_size(constant->get_output_shape(0)) == 1 ||
                         std::all_of(consumers.cbegin(), consumers.cend(), [](const ov::Input<ov::Node>& in) {
-                            return ov::is_type_any_of<const ov::op::v1::Transpose,
-                                                      const ov::op::v1::Broadcast,
-                                                      const ov::op::v3::Broadcast>(in.get_node());
+                            return ov::snippets::op::Subgraph::constant_input_should_be_inside_body(
+                                in.get_node()->shared_from_this());
                         }));
 }
 
