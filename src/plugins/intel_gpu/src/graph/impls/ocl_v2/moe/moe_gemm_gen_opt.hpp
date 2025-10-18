@@ -17,22 +17,47 @@ namespace ov::intel_gpu::ocl {
 
 using RuntimeParams = kernel_impl_params;
 
+struct moe_config {
+    bool has_bias = false;
+    bool is_activation_quantized = false;
+    bool is_activation_symmetric_quantized = false;
+    bool is_weight_quantized = false;
+    bool is_weight_symmetric_quantized = false;
+    int32_t weight_group_size = -1;
+    int32_t weight_scale_idx = -1;
+    int32_t weight_zp_idx = -1;
+};
+
 class MoEGemmOptGeneratorBase : public MoEGemmBase {
 public:
     MoEGemmOptGeneratorBase(std::string_view name, std::string_view stage) : MoEGemmBase(name, stage) {}
 
-
-    [[nodiscard]] JitConstants get_jit_constants_base(const RuntimeParams& params) const;
-    [[nodiscard]] Arguments get_arguments_desc_impl(const RuntimeParams& params) const;
-
-};
-
-class MoEGemmOptGeneratorMultiToken : public MoEGemmOptGeneratorBase {
-public:
-    explicit MoEGemmOptGeneratorMultiToken() : MoEGemmOptGeneratorBase("moe_gemm_opt", "_prefill") {}
-
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override;
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override;
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+    static moe_config get_moe_cfg(const kernel_impl_params& params) {
+        moe_config moe_cfg;
+        auto desc = params.typed_desc<moe_gemm>();
+        std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u8, data_types::i8};
+        moe_cfg.has_bias = desc->has_bias;
+        if (std::any_of(quantized_types.begin(), quantized_types.end(), [=](const cldnn::data_types& t) -> bool {
+                return t == params.input_layouts[1].data_type;
+            })) {
+            moe_cfg.is_weight_quantized = true;
+            if (desc->has_bias) {
+                moe_cfg.weight_scale_idx = moe_gemm::MoEGemmInputIdx::WEIGHT_SCALE;
+                moe_cfg.weight_zp_idx = moe_gemm::MoEGemmInputIdx::WEIGHT_ZP;
+            } else {
+                moe_cfg.weight_scale_idx = moe_gemm::MoEGemmInputIdx::WEIGHT_SCALE - 1;
+                moe_cfg.weight_zp_idx = moe_gemm::MoEGemmInputIdx::WEIGHT_ZP - 1;
+            }
+            auto k = params.input_layouts[moe_gemm::MoEGemmInputIdx::WEIGHT].get_shape().back();
+            auto num_scale_groups = params.input_layouts[moe_cfg.weight_scale_idx].get_shape().back();
+            moe_cfg.weight_group_size = k / num_scale_groups;
+            if (static_cast<int32_t>(params.input_layouts.size()) > moe_cfg.weight_zp_idx) {
+                moe_cfg.is_weight_symmetric_quantized = false;
+            } else {
+                moe_cfg.is_weight_symmetric_quantized = true;
+            }
+        }
+        return moe_cfg;
+    }
 };
 }  // namespace ov::intel_gpu::ocl

@@ -13,15 +13,15 @@
 
 namespace ov::intel_gpu::ocl {
     struct MoEGemmRuntimeParams : public ImplRuntimeParams {
-        int32_t num_actual_used_experts = 0;
+        int32_t num_actually_used_experts = 0;
     };
 
 struct MoEGemmBase : public KernelGenerator {
     MoEGemmBase(std::string_view name, std::string_view suffix) : KernelGenerator(name, suffix) {}
     
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override;
-    Arguments get_arguments_desc(const RuntimeParams& params) const override;
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override = 0;
+    Arguments get_arguments_desc(const RuntimeParams& params) const override = 0;
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override = 0;
 };
 } // namespace ov::intel_gpu::ocl
 

@@ -7,17 +7,27 @@
 
 namespace cldnn {
 
-/// @brief
+/// @brief    gemm for moe_pattern which selectively executes experts.
 /// @details
+/// This primitive implements the GEMM operation for the Mixture of Experts (MoE) pattern,
+/// allowing for efficient execution of a subset of experts based on the input data.
+/// @param input         Input data tensor.
+/// @param weight        Weights tensor containing expert weights.
+/// @param experts_ids   Tensor containing the IDs of the experts that are actually used at each time.
+/// @param inputs_offset_per_expert   Tensor containing the offsets information of inputs per expert.
+/// @param input_tokens_lens   Tensor containing the lengths of input tokens used by each expert.
+/// @param num_experts_per_token  Number of experts per token selected by router.
 struct moe_gemm : public primitive_base<moe_gemm> {
     CLDNN_DECLARE_PRIMITIVE(moe_gemm)
 
     enum MoEGemmInputIdx {
+        // required
         INPUT = 0,
         WEIGHT = 1,
         EXPERTS_IDS = 2,
         INPUT_OFFSET_PER_EXPERT = 3,
         INPUT_TOKENS_LENS = 4,
+        // optional
         BIAS = 5,
         WEIGHT_SCALE = 6,
         WEIGHT_ZP = 7
@@ -33,11 +43,9 @@ struct moe_gemm : public primitive_base<moe_gemm> {
              const input_info& experts_ids,
              const input_info& inputs_offset_per_expert,
              const input_info& input_tokens_lens,
-             const int32_t num_active_experts)
+             const int32_t num_experts_per_token)
           : primitive_base(id, {input, weight, experts_ids, inputs_offset_per_expert, input_tokens_lens}),
-            weight(weight), experts_ids(experts_ids), inputs_offset_per_expert(inputs_offset_per_expert),
-            input_tokens_lens(input_tokens_lens), bias(""), weight_scale(""), weight_zp(""),
-            num_active_experts(num_active_experts) {}
+            num_experts_per_token(num_experts_per_token) {}
 
     moe_gemm(const primitive_id& id,
              const input_info& input,
@@ -48,11 +56,9 @@ struct moe_gemm : public primitive_base<moe_gemm> {
              const primitive_id& bias,
              const input_info& weight_scale,
              const input_info& weight_zp,
-             const int32_t num_active_experts)
+             const int32_t num_experts_per_token)
           : primitive_base(id, {input, weight, experts_ids, inputs_offset_per_expert, input_tokens_lens, weight_scale, weight_zp}),
-            weight(weight), experts_ids(experts_ids), inputs_offset_per_expert(inputs_offset_per_expert),
-            input_tokens_lens(input_tokens_lens), bias(bias), weight_scale(weight_scale), weight_zp(weight_zp),
-            num_active_experts(num_active_experts) {}
+            num_experts_per_token(num_experts_per_token) {}
 
     moe_gemm(const primitive_id& id,
              const input_info& input,
@@ -63,43 +69,39 @@ struct moe_gemm : public primitive_base<moe_gemm> {
              const primitive_id& bias,
              const input_info& weight_scale,
              const primitive_id& weight_zp,
-             const int32_t num_active_experts)
+             const int32_t num_experts_per_token)
           : primitive_base(id, {input, weight, experts_ids, inputs_offset_per_expert, input_tokens_lens, weight_scale}),
-            weight(weight), experts_ids(experts_ids), inputs_offset_per_expert(inputs_offset_per_expert),
-            input_tokens_lens(input_tokens_lens), bias(bias), weight_scale(weight_scale), weight_zp(weight_zp),
-            num_active_experts(num_active_experts) {
+            num_experts_per_token(num_experts_per_token) {
             }
 
-
-    input_info weight;
-    input_info experts_ids;
-    input_info inputs_offset_per_expert;
-    input_info input_tokens_lens;
-    input_info bias;
-    input_info weight_scale;
-    input_info weight_zp;
-
     bool has_bias = false;
-    bool has_weight_scale = false;
-    bool has_weight_zp = false;
+    int32_t num_experts_per_token = 0;
 
-    int32_t num_active_experts = 0;
     size_t hash() const override {
-        return primitive::hash();
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, has_bias);
+        seed = hash_combine(seed, num_experts_per_token);
+        return seed;
     }
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
             return false;
-        return true;
+        auto rhs_casted = downcast<const moe_gemm>(rhs);
+        return has_bias == rhs_casted.has_bias &&
+               num_experts_per_token == rhs_casted.num_experts_per_token;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<moe_gemm>::save(ob);
+        ob << has_bias;
+        ob << num_experts_per_token;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<moe_gemm>::load(ib);
+        ib >> has_bias;
+        ib >> num_experts_per_token;
     }
 };
 }
