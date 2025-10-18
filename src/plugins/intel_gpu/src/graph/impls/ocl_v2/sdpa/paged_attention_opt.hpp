@@ -10,6 +10,7 @@
 
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
+#include "paged_attention_inst.h"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
@@ -29,6 +30,12 @@ struct PagedAttentionOpt : public ImplementationManager {
             ov::element::f16,
             ov::element::i8,
         };
+
+        auto desc = node.as<paged_attention>().get_primitive();
+        if (desc->has_xattention) {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because XAttention is not supported with ocl. " << std::endl;
+            return false;
+        }
 
         const auto& q_layout = node.get_input_layout(0);
         const auto& k_layout = node.get_input_layout(1);
