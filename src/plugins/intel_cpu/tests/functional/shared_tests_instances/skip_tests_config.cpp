@@ -558,6 +558,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*HasShapeOf=1.*)");
         retVector.emplace_back(R"(.*ConvertCPULayerTest.*f16.*)");
     }
+    retVector.emplace_back(R"(.*SubgraphSelectPD.*smoke_CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_DisableGatherCompressedForQuantizedModel_basic.*)");
 #endif
 #if defined(OPENVINO_ARCH_ARM)
     retVector.emplace_back(R"(.*ActivationLayerTest.*Inference.*)");

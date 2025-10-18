@@ -22,7 +22,6 @@ add_library(cpuUtils STATIC
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.cpp
     ${CPU_ISA_TRAITS_RV64})
 set(CPU_UTILS_LINK_LIBRARIES openvino::runtime::dev)
-set(CPU_UTILS_INCLUDE_PATHS)
 if(OV_CPU_WITH_ACL)
     list(APPEND CPU_UTILS_LINK_LIBRARIES arm_compute::arm_compute)
     list(APPEND CPU_UTILS_INCLUDE_PATHS $<TARGET_PROPERTY:arm_compute::arm_compute,SOURCE_DIR>)
@@ -72,42 +71,41 @@ if(NOT (ARM OR AARCH64))
          ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/low_precision_transformations/aarch64
          ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm)
 else()
-    # temporary disable all custom tests for ARM
+    # temporary disable all custom tests for ARM except explicitly enabled ones
     list(APPEND EXCLUDED_SOURCE_PATHS
         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests)
-    # except ones which already enabled
-    file(GLOB_RECURSE TMP_LIST_OF_TEST_CLASSES          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_COMMON_TEST_INSTANCES ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/common/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_ARM_TEST_INSTANCES    ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/arm/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_ARM_SUBGRAPH_TESTS    ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/arm/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_COMMON_SUBGRAPH_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/common/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_SUBGRAPH_TEST_CLASSES ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/*.*)
-
-    list(APPEND TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS
-        ${TMP_LIST_OF_TEST_CLASSES} ${TMP_LIST_OF_COMMON_TEST_INSTANCES} ${TMP_LIST_OF_ARM_TEST_INSTANCES} ${TMP_LIST_OF_ARM_SUBGRAPH_TESTS} ${TMP_LIST_OF_COMMON_SUBGRAPH_TESTS} ${TMP_LIST_OF_SUBGRAPH_TEST_CLASSES})
-    set(TMP_EXPLICITLY_ENABLED_TESTS "${TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS}")
 endif()
 
-if(NOT X86_64)
-    list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/low_precision_transformations/x64)
-endif()
+# Reset global accumulators before diving into subdirectories
+set_property(GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES "")
+set_property(GLOBAL PROPERTY OV_CPU_FUNC_REQUIRED_OBJECTS "")
+
+# Natural shallow recursion — each subdir lists only its own files and recurses to its children
+add_subdirectory(utils)
+add_subdirectory(shared_tests_instances)
+add_subdirectory(custom)
+
+# Retrieve aggregated list
+get_property(CPU_FUNC_TEST_SRCS GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
+
+# Keep IDE structure
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${CPU_FUNC_TEST_SRCS})
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES ${INCLUDES}
-        EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
-        OBJECT_FILES ${TMP_EXPLICITLY_ENABLED_TESTS}
+        EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR} ${EXCLUDED_SOURCE_PATHS}
         DEFINES ${DEFINES}
         DEPENDENCIES ${DEPENDENCIES}
         LINK_LIBRARIES ${LINK_LIBRARIES}
         ADD_CPPLINT
         LABELS OV CPU
 )
+
+# Attach explicit sources to the target directly
+target_sources(${TARGET_NAME} PRIVATE ${CPU_FUNC_TEST_SRCS})
 
 ov_set_threading_interface_for(${TARGET_NAME})
 
