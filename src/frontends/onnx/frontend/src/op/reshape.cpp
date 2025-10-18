@@ -6,6 +6,7 @@
 
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "utils/common.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
@@ -23,6 +24,9 @@ ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
     // Since opset 5 the target shape is provided as input
     if (ov_inputs.size() == 2) {
         pattern = ov_inputs.at(1);
+        if (common::is_failsafe_node(pattern.get_node_shared_ptr())) {
+            pattern = op::v0::Constant::create(element::Type_t::u64, {0}, {});
+        }
     } else {
         // Added in onnx reshape version 14
         special_zero = !node.get_attribute_value<int64_t>("allowzero", 0);

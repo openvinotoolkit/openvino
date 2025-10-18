@@ -291,10 +291,17 @@ public:
 private:
     bool has_external_data() const {
         if (m_tensor_place != nullptr) {
-            return m_tensor_place->get_data_location() != nullptr;
+            return m_tensor_place->get_data_location() != nullptr && m_tensor_place->get_data() != nullptr;
         }
-        return m_tensor_proto->has_data_location() &&
-               m_tensor_proto->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL;
+        if (m_tensor_proto->has_data_location() &&
+            m_tensor_proto->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL) {
+            for (const auto& entry : m_tensor_proto->external_data()) {
+                if (entry.key() == "offset") {
+                    return (0 != std::stoull(entry.value()));
+                }
+            }
+        }
+        return false;
     }
 
     template <typename T>
