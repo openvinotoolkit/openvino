@@ -192,7 +192,7 @@ loading it from the cache. Currently, this property can be set only in ``compile
          :language: cpp
          :fragment: [ov:caching:part5]
 
-If model caching is enabled in the GPU Plugin, the model topology can be encrypted while it is saved to the cache and decrypted when it is loaded from the cache. Full encryption only works when the ``CacheMode`` property is set to ``OPTIMIZE_SIZE``.
+If model caching is enabled in the GPU Plugin, the model topology can be encrypted while it is saved to the cache and decrypted when it is loaded from the cache with the property ``CacheMode`` is set to ``OPTIMIZE_SIZE``. The weights will be encrypted only with the property ``CacheMode`` is set to  ``OPTIMIZE_SPEED``. Please note that weights encryption will require extra disk space (the size of weights) and can introduce run time memory usage overhead for decryption (depends on encryption algorithm).
 
 .. tab-set::
 
