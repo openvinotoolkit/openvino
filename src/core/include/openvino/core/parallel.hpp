@@ -22,6 +22,18 @@
 #define OV_THREAD_SEQ      2
 #define OV_THREAD_TBB_AUTO 3
 
+#if (OV_THREAD == OV_THREAD_TBB)
+#    define OV_THREAD_NAME "TBB"
+#elif (OV_THREAD == OV_THREAD_OMP)
+#    define OV_THREAD_NAME "OMP"
+#elif (OV_THREAD == OV_THREAD_SEQ)
+#    define OV_THREAD_NAME "SEQ"
+#elif (OV_THREAD == OV_THREAD_TBB_AUTO)
+#    define OV_THREAD_NAME "TBB_AUTO"
+#else
+#    define OV_THREAD_NAME "UNKNOWN"
+#endif
+
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    ifndef NOMINMAX
 #        define NOMINMAX
