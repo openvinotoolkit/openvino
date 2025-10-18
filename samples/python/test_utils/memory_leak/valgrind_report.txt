@@ -1,0 +1,62 @@
+==567403== Memcheck, a memory error detector
+==567403== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==567403== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
+==567403== Command: /home/dipayan/openvino/openvino_env/bin/python samples/python/test_utils/memory_leak_31383/reproduce_leak_31383.py
+==567403== Parent PID: 559767
+==567403== 
+==567403== 
+==567403== HEAP SUMMARY:
+==567403==     in use at exit: 393,984 bytes in 3 blocks
+==567403==   total heap usage: 3,307 allocs, 3,304 frees, 1,809,014 bytes allocated
+==567403== 
+==567403== 768 bytes in 1 blocks are still reachable in loss record 1 of 3
+==567403==    at 0x484DB80: realloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==567403==    by 0x586F3C: ??? (in /usr/bin/python3.12)
+==567403==    by 0x5869C2: PyObject_Malloc (in /usr/bin/python3.12)
+==567403==    by 0x61BA11: _PyObject_GC_New (in /usr/bin/python3.12)
+==567403==    by 0x5721C9: PyDict_New (in /usr/bin/python3.12)
+==567403==    by 0x67B09E: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6B0684: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6B0279: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6AFFF0: Py_InitializeFromConfig (in /usr/bin/python3.12)
+==567403==    by 0x6BC804: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6BC734: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6BC71C: Py_BytesMain (in /usr/bin/python3.12)
+==567403== 
+==567403== 131,072 bytes in 1 blocks are still reachable in loss record 2 of 3
+==567403==    at 0x484D953: calloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==567403==    by 0x6756B8: ??? (in /usr/bin/python3.12)
+==567403==    by 0x586E0D: ??? (in /usr/bin/python3.12)
+==567403==    by 0x5869C2: PyObject_Malloc (in /usr/bin/python3.12)
+==567403==    by 0x61BA11: _PyObject_GC_New (in /usr/bin/python3.12)
+==567403==    by 0x5721C9: PyDict_New (in /usr/bin/python3.12)
+==567403==    by 0x67B09E: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6B0684: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6B0279: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6AFFF0: Py_InitializeFromConfig (in /usr/bin/python3.12)
+==567403==    by 0x6BC804: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6BC734: ??? (in /usr/bin/python3.12)
+==567403== 
+==567403== 262,144 bytes in 1 blocks are still reachable in loss record 3 of 3
+==567403==    at 0x484D953: calloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==567403==    by 0x675632: ??? (in /usr/bin/python3.12)
+==567403==    by 0x586E0D: ??? (in /usr/bin/python3.12)
+==567403==    by 0x5869C2: PyObject_Malloc (in /usr/bin/python3.12)
+==567403==    by 0x61BA11: _PyObject_GC_New (in /usr/bin/python3.12)
+==567403==    by 0x5721C9: PyDict_New (in /usr/bin/python3.12)
+==567403==    by 0x67B09E: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6B0684: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6B0279: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6AFFF0: Py_InitializeFromConfig (in /usr/bin/python3.12)
+==567403==    by 0x6BC804: ??? (in /usr/bin/python3.12)
+==567403==    by 0x6BC734: ??? (in /usr/bin/python3.12)
+==567403== 
+==567403== LEAK SUMMARY:
+==567403==    definitely lost: 0 bytes in 0 blocks
+==567403==    indirectly lost: 0 bytes in 0 blocks
+==567403==      possibly lost: 0 bytes in 0 blocks
+==567403==    still reachable: 393,984 bytes in 3 blocks
+==567403==         suppressed: 0 bytes in 0 blocks
+==567403== 
+==567403== For lists of detected and suppressed errors, rerun with: -s
+==567403== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
