@@ -502,7 +502,7 @@ inline void scale_add2_reduce_max(float* a,
     }
     max = vmaxvq_f32(v_max);
 
-#else
+#endif
     for (; i < size; i++) {
         a[i] *= scale;
         if (has_alibi) {
@@ -533,7 +533,6 @@ inline void scale_add2_reduce_max(float* a,
 
         max = a[i] > max ? a[i] : max;
     }
-#endif
 }
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
