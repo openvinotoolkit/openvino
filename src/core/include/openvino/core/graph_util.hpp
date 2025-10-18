@@ -277,6 +277,16 @@ bool compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<No
 OPENVINO_API
 bool replace_output_update_name(Output<Node> node, const Output<Node>& node_input);
 
+/// \brief Replace output with another output and properly clean up connections (fix for issue #107966)
+/// \param output The output to be replaced
+/// \param replacement The output to replace with
+///
+/// This function performs the replacement and removes any incorrect connections
+/// where the original node remains in the replacement's target inputs.
+/// This solves the issue where output.get_target_inputs().size() incorrectly increases.
+OPENVINO_API
+void replace_output_and_clean_up(Output<Node> output, const Output<Node>& replacement);
+
 OPENVINO_API
 bool replace_node_update_name(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement);
 
