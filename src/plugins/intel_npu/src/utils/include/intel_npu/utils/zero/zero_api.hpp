@@ -19,6 +19,7 @@ namespace intel_npu {
 
 // clang-format off
 #define symbols_list()                                        \
+    symbol_statement(zeInit)                                  \
     symbol_statement(zeCommandListAppendBarrier)              \
     symbol_statement(zeCommandListAppendEventReset)           \
     symbol_statement(zeCommandListAppendMemoryCopy)           \
@@ -54,7 +55,6 @@ namespace intel_npu {
     symbol_statement(zeFenceDestroy)                          \
     symbol_statement(zeFenceHostSynchronize)                  \
     symbol_statement(zeFenceReset)                            \
-    symbol_statement(zeInit)                                  \
     symbol_statement(zeMemAllocDevice)                        \
     symbol_statement(zeMemAllocHost)                          \
     symbol_statement(zeMemFree)                               \
@@ -80,6 +80,8 @@ public:
 
     static const std::shared_ptr<ZeroApi>& getInstance();
 
+    const uint32_t getVersion();
+
 #define symbol_statement(symbol) decltype(&::symbol) symbol;
     symbols_list();
     weak_symbols_list();
@@ -87,6 +89,8 @@ public:
 
 private:
     std::shared_ptr<void> lib;
+
+    uint32_t version = 0;
 };
 
 #define symbol_statement(symbol)                                                                            \

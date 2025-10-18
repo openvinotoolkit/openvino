@@ -27,6 +27,10 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime::dev)
 
+if(WIN32)
+target_link_libraries(${TARGET_NAME} PRIVATE Version.lib)
+endif()
+
 #
 # targets install
 #
