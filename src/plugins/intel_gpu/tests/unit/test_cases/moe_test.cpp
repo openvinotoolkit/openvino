@@ -1358,9 +1358,9 @@ TEST(moe_unit, moe_gemm_test_small_u4_generate_up) {
     for (size_t m = 0; m < num_tokens; m++) {
         for (size_t n = 0; n < experts_out_N; n++) {
             auto ref_u4 = out_ref_u4[m * experts_out_N + n];
-//            std::cout << "c[" << m << "][" << n << "] compute_u4: " << (float)output_ptr[m * experts_out_N + n]
-//                      << ", compute_f16 : " << (float)output_f16_ptr[m * experts_out_N + n] << ", ref_u4: " << ref_u4 
-//                      << ", ref_f16:" << out_ref_f16[m * experts_out_N + n] << std::endl;
+            std::cout << "c[" << m << "][" << n << "] compute_u4: " << (float)output_ptr[m * experts_out_N + n]
+                      << ", compute_f16 : " << (float)output_f16_ptr[m * experts_out_N + n] << ", ref_u4: " << ref_u4 
+                      << ", ref_f16:" << out_ref_f16[m * experts_out_N + n] << std::endl;
             auto tolerance = std::max(std::abs(ref_u4 * 0.01f), 0.1f); 
             ASSERT_NEAR(output_ptr[m * experts_out_N + n], ref_u4, tolerance);
 //            if (std::abs(output_ptr[m * experts_out_N + n] - out_ref_u4[m * experts_out_N + n]) > 0.1f) {
