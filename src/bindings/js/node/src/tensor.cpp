@@ -45,6 +45,7 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
                         InstanceMethod("isContinuous", &TensorWrap::is_continuous),
+                        InstanceMethod("copyTo", &TensorWrap::copy_to),
                         InstanceMethod("setShape", &TensorWrap::set_shape)});
 }
 
@@ -182,6 +183,38 @@ Napi::Value TensorWrap::set_shape(const Napi::CallbackInfo& info) {
     }
 
     return info.Env().Undefined();
+}
+
+Napi::Value TensorWrap::copy_to(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    if (info.Length() != 1) {
+        reportError(env, "copyTo() must receive one argument, which is the destination Tensor.");
+        return env.Undefined();
+    }
+
+    if (!info[0].IsObject()) {
+        reportError(env, "Invalid argument");
+        return env.Undefined();
+    }
+
+    try {
+        auto dst_tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].As<Napi::Object>());
+
+        if (!dst_tensor_wrap) {
+            reportError(env, "Invalid argument");
+            return env.Undefined();
+        }
+
+        ov::Tensor dst_tensor = dst_tensor_wrap->get_tensor();
+        _tensor.copy_to(dst_tensor);
+
+    } catch (const std::exception& e) {
+        reportError(env, e.what());
+        return env.Undefined();
+    }
+
+    return env.Undefined();
 }
 
 Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info) {
