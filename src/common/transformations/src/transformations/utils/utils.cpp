@@ -32,6 +32,7 @@
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -356,11 +357,14 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
     auto mul_inputs = node.get_node()->input_values();
     Node* sub = nullptr;
     Node* convert = nullptr;
+    Node* transpose = nullptr;
 
     if (is_type<ov::op::v1::Subtract>(mul_inputs[0].get_node())) {
         sub = mul_inputs[0].get_node();
     } else if (is_type<ov::op::v0::Convert>(mul_inputs[0].get_node())) {
         convert = mul_inputs[0].get_node();
+    } else if (is_type<ov::op::v1::Transpose>(mul_inputs[0].get_node())) {
+        transpose = mul_inputs[0].get_node();
     } else {
         return false;
     }
@@ -369,6 +373,13 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
         auto sub_inputs = sub->input_values();
         if (is_type<ov::op::v0::Convert>(sub_inputs[0].get_node())) {
             convert = sub_inputs[0].get_node();
+        }
+    }
+
+    if (transpose) {
+        auto transpose_inputs = transpose->input_values();
+        if (is_type<ov::op::v0::Convert>(transpose_inputs[0].get_node())) {
+            convert = transpose_inputs[0].get_node();
         }
     }
 
