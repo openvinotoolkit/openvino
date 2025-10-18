@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <ov_ops/gather_compressed.hpp>
 #include <set>
 #include <vector>
 
@@ -21,6 +20,7 @@
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/quantization_details.hpp"
 #include "nodes/fullyconnected.h"
+#include "nodes/gathermatmul.h"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
@@ -50,6 +50,8 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "ov_ops/fully_connected.hpp"
+#include "ov_ops/gather_compressed.hpp"
 
 // Common transformations
 #include "openvino/pass/constant_folding.hpp"
@@ -69,6 +71,7 @@
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
+#include "transformations/common_optimizations/matmul_experts_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -79,6 +82,7 @@
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
@@ -145,6 +149,8 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
+#include "transformations/cpu_opset/common/pass/convert_batch_gather_matmul_to_compressed.hpp"
+#include "transformations/cpu_opset/common/pass/convert_moe_matmuls.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
@@ -564,6 +570,18 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
+    CPU_REGISTER_PASS_X64(manager, ConvertMoEMatMuls);
+    CPU_REGISTER_PASS_X64(
+        manager,
+        ConvertBatchGatherMatmulToBatchGatherMatmulCompressed,
+        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
+        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
+        [&](const std::shared_ptr<ov::intel_cpu::BatchGatherMatmulCompressed>& gather_matmul,
+                  size_t IC,
+                  size_t OC,
+                  size_t G) {
+            return ov::intel_cpu::node::GatherMatmul::isSupportedCompressedOperation(gather_matmul, IC, OC, G, config);
+        });
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCachePrecision = config.keyCachePrecision;
     cacheConfig.valueCachePrecision = config.valueCachePrecision;
