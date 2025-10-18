@@ -1,3 +1,4 @@
 *
 !install_build_dependencies.sh
 !scripts/install_dependencies/install_openvino_dependencies.sh
+!cmake/developer_package/ncc_naming_style/requirements_dev.txt
