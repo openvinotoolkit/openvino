@@ -65,6 +65,20 @@ int main(int argc, char** argv, char** envp) {
     const bool dryRun = ::testing::GTEST_FLAG(list_tests) || ::testing::internal::g_help_flag;
 
     if (!dryRun) {
+        // Check if device available, exit if not found.
+        std::vector<std::string> availableDevices;
+        const auto core = ov::test::utils::PluginCache::get().core();
+        if (core != nullptr) {
+            availableDevices = core->get_available_devices();
+            auto it = std::find(availableDevices.begin(), availableDevices.end(), "NPU");
+            if (it == availableDevices.end()) {
+                std::cerr << "Driver not found, exiting." << std::endl;
+                return -1;
+            }
+        } else {
+            std::cerr << "Failed to get OpenVINO Core from cache!" << std::endl;
+        }
+
         const std::string noFetch{"<not fetched>"};
         std::string backend{noFetch}, arch{noFetch}, full{noFetch};
         try {
