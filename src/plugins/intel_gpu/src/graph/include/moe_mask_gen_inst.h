@@ -54,7 +54,7 @@ struct typed_program_node<moe_mask_gen_reshape> : public typed_program_node_base
 public:
     using parent::parent;
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {0}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {4}; }
     program_node& input() const { return get_dependency(0); }
 };
 
