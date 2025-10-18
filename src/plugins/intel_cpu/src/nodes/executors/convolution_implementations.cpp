@@ -32,6 +32,9 @@
 #if defined(OV_CPU_WITH_ACL)
 #    include "nodes/executors/acl/acl_conv.hpp"
 #endif
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/executors/aarch64/jit_conv3d.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -101,6 +104,16 @@ struct CreateOptimalConfigAclLowp {
 template <>
 const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<ConvAttrs>> convolutionImplementations {
+    OV_CPU_INSTANCE_ARM64(
+            "convolution_jit_aarch64_3d_ncsp", ExecutorType::Jit, OperationType::Convolution,
+            [](const ConvConfig& config, [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                return JitConv3DExecutor::supports(config);
+            },
+            // Request plain ncsp layouts
+            CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
+            AcceptsAnyShape<ConvAttrs>,
+            CreateDefault<JitConv3DExecutor, ConvAttrs>{}
+        )
         OV_CPU_INSTANCE_DNNL_X64(
             "convolution_dnnl_nspc_nspc", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
