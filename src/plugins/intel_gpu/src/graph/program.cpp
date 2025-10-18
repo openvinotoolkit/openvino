@@ -746,9 +746,12 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
                     if (lhs_layout.is_dynamic())
                         return false;
 
-                    if (lhs_layout.bytes_count() == rhs_layout.bytes_count()) {
+					// this condition affects the allocation order and might cause regression
+					// this is not real cause of the issue - it will be investigated further, but we can comment
+					// it now and see if that brings back the initial accuracy numbers.
+                    /*if (lhs_layout.bytes_count() == rhs_layout.bytes_count()) {
                         return lhs->get_unique_id() < rhs->get_unique_id();
-                    }
+                    }*/
 
                     return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
             });
