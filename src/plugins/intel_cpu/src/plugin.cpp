@@ -702,17 +702,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 static std::string get_origin_weights_path(const ov::AnyMap& config) {
-    ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
     std::string origin_weights_path;
 
-    auto cm_it = config.find(ov::cache_mode.name());
-    if (cm_it != config.end()) {
-        cache_mode = cm_it->second.as<ov::CacheMode>();
-        if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
-            auto wp_it = config.find(ov::weights_path.name());
-            if (wp_it != config.end()) {
-                origin_weights_path = wp_it->second.as<std::string>();
-            }
+    if (ov::internal::is_weightless_enabled(config)) {
+        auto wp_it = config.find(ov::weights_path.name());
+        if (wp_it != config.end()) {
+            origin_weights_path = wp_it->second.as<std::string>();
         }
     }
 
