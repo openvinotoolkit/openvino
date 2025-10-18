@@ -13,34 +13,37 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(moe_gemm)
 
 layout moe_gemm_inst::calc_output_layout(moe_gemm_node const& node, kernel_impl_params const& impl_param) {
-    // TODO
-    std::cout << "static shape!!! calc_output_layout" << std::endl;
-    return impl_param.input_layouts[0];
+    return calc_output_layouts<ov::PartialShape>(node, impl_param)[1];
 }
 
 template<typename ShapeType>
 std::vector<layout> moe_gemm_inst::calc_output_layouts(moe_gemm_node const& /*node*/, const kernel_impl_params& impl_param) {
+    const auto& desc = impl_param.typed_desc<moe_gemm>();
+    size_t num_experts_per_token = desc->num_experts_per_token;
     auto input_layout = impl_param.get_input_layout(0);
-    auto experts_layout = impl_param.get_input_layout(1); // [experts, N, K]
-
-//    size_t total_experts = experts_layout.get_shape()[0];
-//    auto m = input_layout.get_partial_shape()[1]; // [experts, seq_len, K]
-//    size_t n = experts_layout.get_shape()[1];
-    size_t n = experts_layout.get_shape()[1];
-
-//    ov::PartialShape output_shape = { ov::Dimension(total_experts), m, ov::Dimension(n) };
-    ov::PartialShape output_shape;
-    if (input_layout.is_dynamic()) {
-        output_shape = { ov::Dimension::dynamic(), ov::Dimension(n) };
-    } else {
-        auto m = input_layout.get_shape()[0]; // [num_actual_experts * seq_len, K]
-        if (m == 1) // first gemm in the generate phase
-            output_shape = {ov::Dimension(impl_param.get_input_layout(3).get_shape()[0]), ov::Dimension(n)};
-        else
-            output_shape = { ov::Dimension(m), ov::Dimension(n) };
+    auto experts_layout = impl_param.get_input_layout(1);
+    auto input_rank = input_layout.get_partial_shape().size();
+    auto experts_rank = experts_layout.get_partial_shape().size();
+    auto out_m_dim = input_rank - 2;
+    auto out_n_dim = input_rank - 1;
+    auto output_shape = input_layout.get_partial_shape();
+    for (auto& o : output_shape) {
+        o = ov::Dimension::dynamic();
     }
-    std::cout << "calc_output_layouts" << std::endl;
-    auto output_layout = layout{ output_shape, data_types::f16, format::bfyx };
+    size_t n = experts_layout.get_shape()[experts_rank - 2];
+    output_shape[out_n_dim] = ov::Dimension(n);
+
+    if (!input_layout.is_dynamic()) {
+        auto m = input_layout.get_shape()[input_rank - 2];
+        output_shape[0] = input_layout.get_shape()[0];
+        if (m == 1) {
+            // first gemm (up/gate) in the generate phase
+            output_shape[out_m_dim] = ov::Dimension(num_experts_per_token);
+        } else {
+            output_shape[out_m_dim] = ov::Dimension(m);
+        }
+    }
+    auto output_layout = layout{ output_shape, input_layout.data_type, input_layout.format};
     std::cout << output_layout.to_short_string() << std::endl;
     return {output_layout};
 }

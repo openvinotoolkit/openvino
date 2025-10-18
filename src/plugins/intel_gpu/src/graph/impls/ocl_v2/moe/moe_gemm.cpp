@@ -56,8 +56,8 @@ public:
         }
         update_stages_flags(instance);
         auto rtp = static_cast<MoEGemmRuntimeParams*>(m_rt_params.get());
-        rtp->num_actual_used_experts = instance.get_input_layout(moe_gemm::MoEGemmInputIdx::INPUT_OFFSET_PER_EXPERT).get_shape()[0];
-        std::cout << "update_rt_params: " << " num_actual_used_experts: " << rtp->num_actual_used_experts << std::endl;
+        rtp->num_actually_used_experts = instance.get_input_layout(moe_gemm::MoEGemmInputIdx::EXPERTS_IDS).get_shape()[0];
+        GPU_DEBUG_TRACE_DETAIL << "moe_gemm :: num_actually_used_experts = " << rtp->num_actually_used_experts << "\n";
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
@@ -69,10 +69,8 @@ public:
         const auto& params = *instance.get_impl_params();
         bool is_prefill = is_prefill_stage(params);
         if (is_prefill && has_stage(regular_micro_multi_tokens)) {
-            std::cout << "Execute kernel : is prefill" << std::endl;
             return execute_stage(events, instance, regular_micro_multi_tokens);
         } else {
-            std::cout << "Execute kernel : is generate phase" << std::endl;
             return execute_stage(events, instance, regular_micro_single_token);
         }
 
@@ -83,11 +81,9 @@ public:
 
 std::unique_ptr<primitive_impl> MoEGemm::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<moe_gemm>());
-    std::cout << __FILE__ << " : " << __LINE__ << std::endl;
-    std::cout << "create impl " << std::endl;
     return std::make_unique<MoEGemmImpl>(params);
 }
 }  // namespace ov::intel_gpu::ocl
 
-//BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_gemm)
-//BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::MoEGemmImpl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_gemm)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::MoEGemmImpl)
