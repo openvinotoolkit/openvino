@@ -55,19 +55,16 @@ struct moe_mask_gen_impl : public typed_primitive_impl<moe_mask_gen> {
         std::vector<memory::ptr> input_mem_ptrs;
         input_mem_ptrs.push_back(instance.dep_memory_ptr(0));
 
-        // [seqlen:30, active_expert:2]
-//        std::cout << "topk layout " << instance.get_input_layout(0).to_short_string() << std::endl;
-        auto num_tokens = instance.get_input_layout(0).get_shape()[0];
+        auto num_tokens            = instance.get_input_layout(0).get_shape()[0];
         auto num_experts_per_token = instance.get_node().as<moe_mask_gen>().get_primitive()->num_experts_per_token;
-        auto num_total_experts = instance.get_node().as<moe_mask_gen>().get_primitive()->num_total_experts;
+        auto num_total_experts     = instance.get_node().as<moe_mask_gen>().get_primitive()->num_total_experts;
 
-        auto topk_idx_mem_ptr = instance.dep_memory_ptr(0);
-        //auto gather_info_mem_ptr = instance.output_memory_ptr(0);
-        auto num_actual_used_experts_mem_ptr = instance.output_memory_ptr(0);
-        auto tokens_per_expert_mem_ptr = instance.output_memory_ptr(1);
-        auto experts_info_start_idx_mem_ptr = instance.output_memory_ptr(2);
-        auto experts_id_mem_ptr = instance.output_memory_ptr(3);
-        auto tokens_lens_per_expert_mem_ptr = instance.output_memory_ptr(4);
+        auto topk_idx_mem_ptr                 = instance.dep_memory_ptr(0);
+        auto tokens_per_expert_mem_ptr        = instance.output_memory_ptr(0);
+        auto experts_info_start_idx_mem_ptr   = instance.output_memory_ptr(1);
+        auto experts_id_mem_ptr               = instance.output_memory_ptr(2);
+        auto tokens_lens_per_expert_mem_ptr   = instance.output_memory_ptr(3);
+        auto num_actual_used_experts_mem_ptr  = instance.output_memory_ptr(4);
 
         cldnn::mem_lock<int32_t, mem_lock_type::read> topk_idx_lock(topk_idx_mem_ptr, stream);
         cldnn::mem_lock<int32_t, mem_lock_type::read_write> num_actual_used_experts_lock(num_actual_used_experts_mem_ptr, stream);
@@ -76,12 +73,12 @@ struct moe_mask_gen_impl : public typed_primitive_impl<moe_mask_gen> {
         cldnn::mem_lock<int32_t, mem_lock_type::read_write> experts_id_lock(experts_id_mem_ptr, stream);
         cldnn::mem_lock<int32_t, mem_lock_type::read_write> tokens_lens_per_expert_lock(tokens_lens_per_expert_mem_ptr, stream);
 
-        auto topk_idx_ptr = topk_idx_lock.data();
-        auto num_actually_used_experts_ptr = num_actual_used_experts_lock.data();
-        auto tokens_per_expert_ptr = tokens_per_expert_lock.data();
-        auto experts_info_start_idx_ptr = experts_info_start_idx_lock.data();
-        auto experts_id_ptr = experts_id_lock.data();
-        auto tokens_lens_per_expert_ptr = tokens_lens_per_expert_lock.data();
+        auto topk_idx_ptr                   = topk_idx_lock.data();
+        auto num_actually_used_experts_ptr  = num_actual_used_experts_lock.data();
+        auto tokens_per_expert_ptr          = tokens_per_expert_lock.data();
+        auto experts_info_start_idx_ptr     = experts_info_start_idx_lock.data();
+        auto experts_id_ptr                 = experts_id_lock.data();
+        auto tokens_lens_per_expert_ptr     = tokens_lens_per_expert_lock.data();
 
         // make mask for gather
         std::vector<std::vector<int32_t>> tokens_per_expert(num_total_experts, std::vector<int32_t>());
@@ -112,7 +109,6 @@ struct moe_mask_gen_impl : public typed_primitive_impl<moe_mask_gen> {
         if (pass_through_events) {
             return stream.group_events(events);
         }
-
         return make_output_event(stream, instance.is_output());
     }
 

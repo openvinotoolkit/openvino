@@ -19,13 +19,10 @@ layout moe_mask_gen_inst::calc_output_layout(moe_mask_gen_node const& node, kern
 
 template<typename ShapeType>
 std::vector<layout> moe_mask_gen_inst::calc_output_layouts(moe_mask_gen_node const& /*node*/, const kernel_impl_params& impl_param) {
-    // TODO
     std::vector<layout> output_layouts;
     const auto& num_total_experts = impl_param.typed_desc<moe_mask_gen>()->num_total_experts;
     const auto& num_experts_per_token = impl_param.typed_desc<moe_mask_gen>()->num_experts_per_token;
-    auto num_actual_used_experts_shape = ov::Shape{static_cast<size_t>(1)};
-    // out0: num_actual_expert
-    output_layouts.emplace_back(num_actual_used_experts_shape, data_types::i32, format::bfyx);
+
     if (impl_param.get_input_layout(0).is_dynamic()) {
         // out1: tokens_per_expert
         auto tokens_per_expert_shape = ov::PartialShape::dynamic();
@@ -45,6 +42,9 @@ std::vector<layout> moe_mask_gen_inst::calc_output_layouts(moe_mask_gen_node con
     // out4: tokens_lens_per_expert
     auto tokens_lens_per_expert = ov::Shape{static_cast<size_t>(num_total_experts)};
     output_layouts.emplace_back(tokens_lens_per_expert, data_types::i32, format::bfyx);
+    // out0: num_actual_expert
+    auto num_actual_used_experts_shape = ov::Shape{static_cast<size_t>(1)};
+    output_layouts.emplace_back(num_actual_used_experts_shape, data_types::i32, format::bfyx);
     return output_layouts;
 }
 
@@ -56,8 +56,11 @@ std::string moe_mask_gen_inst::to_string(moe_mask_gen_node const& node) {
     std::stringstream primitive_description;
 
     json_composite moe_mask_gen_info;
-    if (desc->output_data_types[0].has_value())
-        moe_mask_gen_info.add("out dt: ", dt_to_str(*desc->output_data_types[0]));
+    for (auto o : desc->output_data_types) {
+        if (o.has_value())
+            moe_mask_gen_info.add("out dt: ", dt_to_str(*o));
+    }
+
     node_info->dump(primitive_description);
 
     return primitive_description.str();
@@ -74,25 +77,26 @@ layout moe_mask_gen_reshape_inst::calc_output_layout(moe_mask_gen_reshape_node c
 template<typename ShapeType>
 std::vector<layout> moe_mask_gen_reshape_inst::calc_output_layouts(moe_mask_gen_reshape_node const& /*node*/, const kernel_impl_params& impl_param) {
     std::vector<layout> output_layouts;
-    if (!impl_param.memory_deps.count(0)) {
+    if (!impl_param.memory_deps.count(4)) {
+        output_layouts.emplace_back(impl_param.get_input_layout(0));
         output_layouts.emplace_back(impl_param.get_input_layout(1));
         output_layouts.emplace_back(impl_param.get_input_layout(2));
         output_layouts.emplace_back(impl_param.get_input_layout(3));
-        output_layouts.emplace_back(impl_param.get_input_layout(4));
         return output_layouts;
     }
-    auto num_actually_used_experts = read_vector<int32_t>(impl_param.memory_deps.at(0), impl_param.get_stream())[0];
+    auto num_actually_used_experts =
+        read_vector<int32_t>(impl_param.memory_deps.at(moe_mask_gen::MoEMaskGenOutputIdx::NUM_ACTUALLY_USED_EXPERTS), impl_param.get_stream())[0];
     // tokens_per_expert
-    output_layouts.emplace_back(impl_param.get_input_layout(1));
+    output_layouts.emplace_back(impl_param.get_input_layout(0));
     // experts_info_start_idx
     auto experts_info_start_idx_shape = ov::Shape{static_cast<size_t>(num_actually_used_experts)};
     output_layouts.emplace_back(experts_info_start_idx_shape, data_types::i32, format::bfyx);
     // experts_id
-    auto experts_ids = ov::Shape{static_cast<size_t>(num_actually_used_experts)};
-    output_layouts.emplace_back(experts_ids, data_types::i32, format::bfyx);
+    auto experts_ids_shape = ov::Shape{static_cast<size_t>(num_actually_used_experts)};
+    output_layouts.emplace_back(experts_ids_shape, data_types::i32, format::bfyx);
     // tokens_lens_per_expert
-    auto tokens_lens_per_expert = ov::Shape{static_cast<size_t>(num_actually_used_experts)};
-    output_layouts.emplace_back(tokens_lens_per_expert, data_types::i32, format::bfyx);
+    auto tokens_lens_per_expert_shape = ov::Shape{static_cast<size_t>(num_actually_used_experts)};
+    output_layouts.emplace_back(tokens_lens_per_expert_shape, data_types::i32, format::bfyx);
     return output_layouts;
 }
 
@@ -104,8 +108,10 @@ std::string moe_mask_gen_reshape_inst::to_string(moe_mask_gen_reshape_node const
     std::stringstream primitive_description;
 
     json_composite moe_mask_gen_reshape_info;
-    if (desc->output_data_types[0].has_value())
-        moe_mask_gen_reshape_info.add("out dt: ", dt_to_str(*desc->output_data_types[0]));
+    for (auto o : desc->output_data_types) {
+        if (o.has_value())
+            moe_mask_gen_reshape_info.add("out dt: ", dt_to_str(*o));
+    }
     node_info->dump(primitive_description);
 
     return primitive_description.str();
@@ -132,10 +138,10 @@ void moe_mask_gen_reshape_inst::update_output_memory() {
     }
 
     _outputs = {
-        _network.get_engine().reinterpret_buffer(input_memory(1), _impl_params->get_output_layout(0)),
-        _network.get_engine().reinterpret_buffer(input_memory(2), _impl_params->get_output_layout(1)),
-        _network.get_engine().reinterpret_buffer(input_memory(3), _impl_params->get_output_layout(2)),
-        _network.get_engine().reinterpret_buffer(input_memory(4), _impl_params->get_output_layout(3))
+        _network.get_engine().reinterpret_buffer(input_memory(0), _impl_params->get_output_layout(0)),
+        _network.get_engine().reinterpret_buffer(input_memory(1), _impl_params->get_output_layout(1)),
+        _network.get_engine().reinterpret_buffer(input_memory(2), _impl_params->get_output_layout(2)),
+        _network.get_engine().reinterpret_buffer(input_memory(3), _impl_params->get_output_layout(3))
     };
     _mem_allocated = false;
 }

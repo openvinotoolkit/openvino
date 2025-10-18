@@ -13,11 +13,11 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
     CLDNN_DECLARE_PRIMITIVE(moe_mask_gen)
 
     enum MoEMaskGenOutputIdx {
-        NUM_ACTUALLY_USED_EXPERTS = 0,
-        TOKENS_PER_EXPERT = 1,
-        EXPERTS_INFO_START_IDX = 2,
-        EXPERTS_ID = 3,
-        TOKENS_LENS_PER_EXPERT = 4
+        TOKENS_PER_EXPERT         = 0,
+        EXPERTS_INFO_START_IDX    = 1,
+        EXPERTS_ID                = 2,
+        TOKENS_LENS_PER_EXPERT    = 3,
+        NUM_ACTUALLY_USED_EXPERTS = 4
     };
 
     moe_mask_gen() : primitive_base("", {}) {}
@@ -26,11 +26,11 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
     ///
     /// @param id                   This primitive id.
     /// @param router_idx           TopK output:1
-    /// @param output0 :            num actually used experts
-    /// @param output1 :            tokens_per_expert
-    /// @param output2 :            experts_info_start_idx
-    /// @param output3 :            experts_id
-    /// @param output4 :            tokens_lens_per_expert
+    /// @param output0 :            tokens_per_expert
+    /// @param output1 :            experts_info_start_idx
+    /// @param output2 :            experts_id
+    /// @param output3 :            tokens_lens_per_expert
+    /// @param output4 :            num actually used experts
 
     moe_mask_gen(const primitive_id& id,
               const input_info& router_idx,
@@ -44,6 +44,9 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
     int32_t num_experts_per_token = 0;
 
     size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, num_total_experts);
+        seed = hash_combine(seed, num_experts_per_token);
         return primitive::hash();
     }
 
@@ -55,10 +58,14 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<moe_mask_gen>::save(ob);
+        ob << num_total_experts;
+        ob << num_experts_per_token;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<moe_mask_gen>::load(ib);
+        ib >> num_total_experts;
+        ib >> num_experts_per_token;
     }
 };
 
@@ -66,9 +73,9 @@ struct moe_mask_gen_reshape : public primitive_base<moe_mask_gen_reshape> {
     CLDNN_DECLARE_PRIMITIVE(moe_mask_gen_reshape)
 
     enum MoEMaskGenReshapeOutputIdx {
-        TOKENS_PER_EXPERT = 0,
+        TOKENS_PER_EXPERT      = 0,
         EXPERTS_INFO_START_IDX = 1,
-        EXPERTS_ID = 2,
+        EXPERTS_ID             = 2,
         TOKENS_LENS_PER_EXPERT = 3
     };
 
@@ -89,12 +96,12 @@ struct moe_mask_gen_reshape : public primitive_base<moe_mask_gen_reshape> {
     /// @param output3 :            tokens_lens_per_expert
 
     moe_mask_gen_reshape(const primitive_id& id,
-                         const input_info& num_actual_used_experts,
                          const input_info& tokens_per_expert,
                          const input_info& experts_info_start_idx,
                          const input_info& experts_id,
-                         const input_info& tokens_lens_per_expert)
-        : primitive_base(id, {num_actual_used_experts, tokens_per_expert, experts_info_start_idx, experts_id, tokens_lens_per_expert}, 4) {}
+                         const input_info& tokens_lens_per_expert,
+                         const input_info& num_actual_used_experts)
+        : primitive_base(id, {tokens_per_expert, experts_info_start_idx, experts_id, tokens_lens_per_expert, num_actual_used_experts}, 4) {}
 
     size_t hash() const override {
         return primitive::hash();
