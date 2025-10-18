@@ -8,7 +8,6 @@
 #include <iterator>
 #include <optional>
 
-#include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
@@ -57,61 +56,59 @@ size_t OpenvinoVersion::get_openvino_version_size() const {
     return sizeof(_major) + sizeof(_minor) + sizeof(_patch);
 }
 
-MetadataBase::MetadataBase(uint32_t version, uint64_t blobDataSize) : _version(version), _blobDataSize(blobDataSize) {}
+MetadataBase::MetadataBase(uint32_t version, uint64_t blobDataSize)
+    : _version(version),
+      _blobDataSize(blobDataSize),
+      _logger("NPUBlobMetadata", Logger::global().level()),
+      _source(ov::Tensor()) {}
 
-Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion)
+Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion)
     : MetadataBase{METADATA_VERSION_2_0, blobSize},
       _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)} {}
 
 Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
-                                         std::optional<OpenvinoVersion> ovVersion,
-                                         const std::optional<std::vector<uint64_t>> initSizes)
+                                         const std::optional<OpenvinoVersion>& ovVersion,
+                                         const std::optional<std::vector<uint64_t>>& initSizes)
     : Metadata<METADATA_VERSION_2_0>{blobSize, ovVersion},
       _initSizes{initSizes} {
     _version = METADATA_VERSION_2_1;
 }
 
-void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
-    _ovVersion.read(stream);
+Metadata<METADATA_VERSION_2_2>::Metadata(uint64_t blobSize,
+                                         const std::optional<OpenvinoVersion>& ovVersion,
+                                         const std::optional<std::vector<uint64_t>>& initSizes,
+                                         const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                         const std::optional<std::vector<ov::Layout>>& outputLayouts)
+    : Metadata<METADATA_VERSION_2_1>{blobSize, ovVersion, initSizes},
+      _inputLayouts{inputLayouts},
+      _outputLayouts{outputLayouts} {
+    _version = METADATA_VERSION_2_2;
 }
 
-void Metadata<METADATA_VERSION_2_0>::read(const ov::Tensor& tensor) {
-    _ovVersion.read(tensor);
+MetadataBase::Source::Source(std::istream& source) : stream(source) {}
+
+MetadataBase::Source::Source(const ov::Tensor& source) : tensor(source) {}
+
+void MetadataBase::read(std::istream& tensor) {
+    _source = Source(tensor);
+    _isStream = true;
+    read();
 }
 
-void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
-    Metadata<METADATA_VERSION_2_0>::read(stream);
+void MetadataBase::read(const ov::Tensor& tensor) {
+    _source = Source(tensor);
+    _isStream = false;
+    read();
+}
 
-    uint64_t numberOfInits;
-    stream.read(reinterpret_cast<char*>(&numberOfInits), sizeof(numberOfInits));
-
-    if (numberOfInits) {
-        _initSizes = std::vector<uint64_t>(numberOfInits);
-        for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
-            stream.read(reinterpret_cast<char*>(&_initSizes->at(initIndex)), sizeof(_initSizes->at(initIndex)));
-        }
+void MetadataBase::read_data_from_source(char* destination, const size_t size) {
+    if (_isStream) {
+        _source.stream.get().read(destination, size);
+        return;
     }
-}
 
-void Metadata<METADATA_VERSION_2_1>::read(const ov::Tensor& tensor) {
-    Metadata<METADATA_VERSION_2_0>::read(tensor);
-    auto roiTensor = ov::Tensor(tensor,
-                                ov::Coordinate{sizeof(decltype(std::declval<OpenvinoVersion>().get_major())) +
-                                               sizeof(decltype(std::declval<OpenvinoVersion>().get_minor())) +
-                                               sizeof(decltype(std::declval<OpenvinoVersion>().get_patch()))},
-                                ov::Coordinate{tensor.get_byte_size()});
-
-    uint64_t numberOfInits;
-    numberOfInits = *reinterpret_cast<const decltype(numberOfInits)*>(roiTensor.data<const char>());
-
-    if (numberOfInits) {
-        _initSizes = std::vector<uint64_t>(numberOfInits);
-        for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
-            _initSizes->at(initIndex) =
-                reinterpret_cast<const std::remove_reference_t<decltype(_initSizes->at(initIndex))>*>(
-                    roiTensor.data<const char>() + sizeof(numberOfInits))[initIndex];
-        }
-    }
+    std::memcpy(destination, _source.tensor.get().data<const char>() + _coursorOffset, size);
+    _coursorOffset += size;
 }
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
@@ -124,6 +121,81 @@ void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
 
     stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
+}
+
+void Metadata<METADATA_VERSION_2_0>::read() {
+    if (_isStream) {
+        _ovVersion.read(_source.stream);
+    } else {
+        _ovVersion.read(_source.tensor);
+        _coursorOffset = _ovVersion.get_openvino_version_size();
+    }
+}
+
+void Metadata<METADATA_VERSION_2_1>::read() {
+    Metadata<METADATA_VERSION_2_0>::read();
+
+    uint64_t numberOfInits;
+    read_data_from_source(reinterpret_cast<char*>(&numberOfInits), sizeof(numberOfInits));
+
+    if (numberOfInits) {
+        _initSizes = std::vector<uint64_t>(numberOfInits);
+        for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
+            read_data_from_source(reinterpret_cast<char*>(&_initSizes->at(initIndex)),
+                                  sizeof(_initSizes->at(initIndex)));
+        }
+    }
+}
+
+void Metadata<METADATA_VERSION_2_2>::read() {
+    Metadata<METADATA_VERSION_2_1>::read();
+
+    uint64_t numberOfInputLayouts, numberOfOutputLayouts;
+    read_data_from_source(reinterpret_cast<char*>(&numberOfInputLayouts), sizeof(numberOfInputLayouts));
+    read_data_from_source(reinterpret_cast<char*>(&numberOfOutputLayouts), sizeof(numberOfOutputLayouts));
+
+    uint16_t stringLength;
+
+    if (numberOfInputLayouts) {
+        _inputLayouts = std::vector<ov::Layout>();
+        _inputLayouts->reserve(numberOfInputLayouts);
+        for (uint64_t inputIndex = 0; inputIndex < numberOfInputLayouts; ++inputIndex) {
+            read_data_from_source(reinterpret_cast<char*>(&stringLength), sizeof(stringLength));
+
+            std::string layoutString(stringLength, 0);
+            read_data_from_source(const_cast<char*>(layoutString.c_str()), stringLength);
+
+            try {
+                _inputLayouts->push_back(ov::Layout(std::move(layoutString)));
+            } catch (const ov::Exception&) {
+                _logger.warning("Error encountered while constructing an ov::Layout object. Input index: %d. Value "
+                                "read from blob: %s. A default value will be used instead.",
+                                inputIndex,
+                                layoutString.c_str());
+                _inputLayouts->push_back(ov::Layout());
+            }
+        }
+    }
+    if (numberOfOutputLayouts) {
+        _outputLayouts = std::vector<ov::Layout>();
+        _outputLayouts->reserve(numberOfOutputLayouts);
+        for (uint64_t outputIndex = 0; outputIndex < numberOfOutputLayouts; ++outputIndex) {
+            read_data_from_source(reinterpret_cast<char*>(&stringLength), sizeof(stringLength));
+
+            std::string layoutString(stringLength, 0);
+            read_data_from_source(const_cast<char*>(layoutString.c_str()), stringLength);
+
+            try {
+                _outputLayouts->push_back(ov::Layout(std::move(layoutString)));
+            } catch (const ov::Exception&) {
+                _outputLayouts->push_back(ov::Layout());
+                _logger.warning("Error encountered while constructing an ov::Layout object. Input index: %d. Value "
+                                "read from blob: %s. A default value will be used instead.",
+                                outputIndex,
+                                layoutString.c_str());
+            }
+        }
+    }
 }
 
 void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
@@ -142,44 +214,78 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
             stream.write(reinterpret_cast<const char*>(&initSize), sizeof(initSize));
         }
     }
+}
+
+void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_1>::write(stream);
+
+    const uint64_t numberOfInputLayouts = _inputLayouts.has_value() ? _inputLayouts->size() : 0;
+    const uint64_t numberOfOutputLayouts = _outputLayouts.has_value() ? _outputLayouts->size() : 0;
+    stream.write(reinterpret_cast<const char*>(&numberOfInputLayouts), sizeof(numberOfInputLayouts));
+    stream.write(reinterpret_cast<const char*>(&numberOfOutputLayouts), sizeof(numberOfOutputLayouts));
+
+    if (_inputLayouts.has_value()) {
+        for (const ov::Layout& layout : _inputLayouts.value()) {
+            const std::string layoutString = layout.to_string();
+            const uint16_t stringLength = layoutString.size();
+            stream.write(reinterpret_cast<const char*>(&stringLength), sizeof(stringLength));
+            stream.write(layoutString.c_str(), stringLength);
+        }
+    }
+    if (_outputLayouts.has_value()) {
+        for (const ov::Layout& layout : _outputLayouts.value()) {
+            const std::string layoutString = layout.to_string();
+            const uint16_t stringLength = layoutString.size();
+            stream.write(reinterpret_cast<const char*>(&stringLength), sizeof(stringLength));
+            stream.write(layoutString.c_str(), stringLength);
+        }
+    }
 
     append_padding_blob_size_and_magic(stream);
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
     if (MetadataBase::get_major(version) == CURRENT_METADATA_MAJOR_VERSION &&
-        MetadataBase::get_minor(version) > CURRENT_METADATA_MINOR_VERSION) {
-        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(blobSize, std::nullopt);
+        MetadataBase::get_minor(version) >= CURRENT_METADATA_MINOR_VERSION) {
+        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(blobSize);
     }
 
     switch (version) {
     case METADATA_VERSION_2_0:
-        return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize, std::nullopt);
+        return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize);
     case METADATA_VERSION_2_1:
-        return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize, std::nullopt);
+        return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize);
+    case METADATA_VERSION_2_2:
+        return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
     default:
-        OPENVINO_THROW("Metadata version is not supported!");
+        OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
+                       MetadataBase::get_major(version),
+                       ".",
+                       MetadataBase::get_minor(version),
+                       " but the current version is: ",
+                       CURRENT_METADATA_MAJOR_VERSION,
+                       ".",
+                       CURRENT_METADATA_MINOR_VERSION);
     }
 }
 
 bool Metadata<METADATA_VERSION_2_0>::is_compatible() {
-    auto logger = Logger::global().clone("NPUBlobMetadata");
     // checking if we can import the blob
     if (_ovVersion != CURRENT_OPENVINO_VERSION) {
-        logger.error("Imported blob OpenVINO version: %d.%d.%d, but the current OpenVINO version is: %d.%d.%d",
-                     _ovVersion.get_major(),
-                     _ovVersion.get_minor(),
-                     _ovVersion.get_patch(),
-                     OPENVINO_VERSION_MAJOR,
-                     OPENVINO_VERSION_MINOR,
-                     OPENVINO_VERSION_PATCH);
+        _logger.error("Imported blob OpenVINO version: %d.%d.%d, but the current OpenVINO version is: %d.%d.%d",
+                      _ovVersion.get_major(),
+                      _ovVersion.get_minor(),
+                      _ovVersion.get_patch(),
+                      OPENVINO_VERSION_MAJOR,
+                      OPENVINO_VERSION_MINOR,
+                      OPENVINO_VERSION_PATCH);
         return false;
     }
     return true;
 }
 
 std::streampos MetadataBase::getFileSize(std::istream& stream) {
-    auto log = intel_npu::Logger::global().clone("getFileSize");
+    auto log = Logger::global().clone("getFileSize");
     if (!stream) {
         OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
     }
@@ -226,22 +332,9 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     stream.read(reinterpret_cast<char*>(&metaVersion), sizeof(metaVersion));
 
     std::unique_ptr<MetadataBase> storedMeta;
-    try {
-        storedMeta = create_metadata(metaVersion, blobDataSize);
-        storedMeta->read(stream);
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what(),
-                       "Imported blob metadata version: ",
-                       MetadataBase::get_major(metaVersion),
-                       ".",
-                       MetadataBase::get_minor(metaVersion),
-                       " but the current version is: ",
-                       CURRENT_METADATA_MAJOR_VERSION,
-                       ".",
-                       CURRENT_METADATA_MINOR_VERSION);
-    } catch (...) {
-        OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
-    }
+    storedMeta = create_metadata(metaVersion, blobDataSize);
+    storedMeta->read(stream);
+
     stream.seekg(-stream.tellg() + currentStreamPos, std::ios::cur);
 
     return storedMeta;
@@ -291,7 +384,7 @@ uint64_t MetadataBase::get_blob_size() const {
     return _blobDataSize;
 }
 
-std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_0>::get_init_sizes() const {
+std::optional<std::vector<uint64_t>> MetadataBase::get_init_sizes() const {
     return std::nullopt;
 }
 
@@ -307,12 +400,39 @@ size_t Metadata<METADATA_VERSION_2_1>::get_metadata_size() const {
     size_t metadataSize = Metadata<METADATA_VERSION_2_0>::get_metadata_size() + sizeof(_numberOfInits);
 
     if (_initSizes.has_value()) {
-        for (size_t initSize : _initSizes.value()) {
-            metadataSize += sizeof(initSize);
+        metadataSize += _initSizes->size() * sizeof(uint64_t);
+    }
+
+    return metadataSize;
+}
+
+size_t Metadata<METADATA_VERSION_2_2>::get_metadata_size() const {
+    size_t metadataSize = Metadata<METADATA_VERSION_2_1>::get_metadata_size() + 2 * sizeof(uint64_t);  // I/O counts
+
+    if (_inputLayouts.has_value()) {
+        for (const ov::Layout& layout : _inputLayouts.value()) {
+            // Length followed by the layout value as string
+            metadataSize += sizeof(uint16_t) * layout.to_string().size();
         }
     }
 
     return metadataSize;
+}
+
+std::optional<std::vector<ov::Layout>> MetadataBase::get_input_layouts() const {
+    return std::nullopt;
+}
+
+std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_2_2>::get_input_layouts() const {
+    return _inputLayouts;
+}
+
+std::optional<std::vector<ov::Layout>> MetadataBase::get_output_layouts() const {
+    return std::nullopt;
+}
+
+std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_2_2>::get_output_layouts() const {
+    return _outputLayouts;
 }
 
 }  // namespace intel_npu
