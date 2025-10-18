@@ -25,7 +25,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
@@ -197,6 +196,7 @@ void DetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* priorData = getSrcDataAtPortAs<const float>(ID_PRIOR);
     const float* ARMConfData = inputShapes.size() > 3 ? getSrcDataAtPortAs<const float>(ID_ARM_CONF) : nullptr;
     const float* ARMLocData = inputShapes.size() > 4 ? getSrcDataAtPortAs<const float>(ID_ARM_LOC) : nullptr;
+    const auto& cpu_parallel = context->getCpuParallel();
 
     float* reorderedConfData = reorderedConf.data();
     auto* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConf.data());
@@ -356,7 +356,7 @@ void DetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
     for (int n = 0; n < imgNum; ++n) {
         if (!decreaseClassId) {
             // Caffe style
-            parallel_for(classesNum, [&](int c) {
+            cpu_parallel->parallel_for(classesNum, [&](int c) {
                 if (c != backgroundClassId) {  // Ignore background class
                     const int off = n * priorsNum * classesNum + c * priorsNum;
                     const float* pconfReorder = reorderedConfData + off;
@@ -401,7 +401,7 @@ void DetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
         }
 
         int detectionsTotal = 0;
-        detectionsTotal = parallel_sum(classesNum, detectionsTotal, [&](size_t c) -> int {
+        detectionsTotal = cpu_parallel->parallel_sum(classesNum, detectionsTotal, [&](size_t c) -> int {
             return detectionsData[n * classesNum + c];
         });
 
@@ -410,7 +410,7 @@ void DetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
             std::vector<std::pair<float, std::pair<int, int>>> confIndicesClassMap;
 
             std::mutex mtx;
-            parallel_for(classesNum, [&](int c) {
+            cpu_parallel->parallel_for(classesNum, [&](int c) {
                 const int detections = detectionsData[n * classesNum + c];
                 int* pindices = indicesData + n * classesNum * priorsNum + c * priorsNum;
 
@@ -478,7 +478,8 @@ inline void DetectionOutput::confFilterMX(const float* confData,
                                           int* detectionsData,
                                           const int& n) {
     std::mutex mtx;
-    parallel_for(numPriorsActual[n], [&](size_t p) {
+    const auto& cpu_parallel = context->getCpuParallel();
+    cpu_parallel->parallel_for(numPriorsActual[n], [&](size_t p) {
         // in:  origin conf
         // out: pindices, detectionCount
         // intentionally code branch from higher level
@@ -553,8 +554,9 @@ inline void DetectionOutput::getActualPriorNum(const float* priorData, int* numP
 inline void DetectionOutput::confReorderDense(const float* confData,
                                               const float* ARMConfData,
                                               float* reorderedConfData) const {
+    const auto& cpu_parallel = context->getCpuParallel();
     if (withAddBoxPred) {
-        parallel_for2d(imgNum, priorsNum, [&](size_t n, size_t p) {
+        cpu_parallel->parallel_for2d(imgNum, priorsNum, [&](size_t n, size_t p) {
             if (ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore) {
                 for (int c = 0; c < classesNum; ++c) {
                     reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] =
@@ -570,7 +572,7 @@ inline void DetectionOutput::confReorderDense(const float* confData,
         return;
     }
     // withAddBoxPred is false
-    parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
+    cpu_parallel->parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
         const int offset = n * priorsNum * classesNum;
         for (int p = 0; p < priorsNum; ++p) {
             reorderedConfData[offset + c * priorsNum + p] = confData[offset + p * classesNum + c];
@@ -584,6 +586,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                                                             [[maybe_unused]] int* indicesData,
                                                             int* indicesBufData,
                                                             int* detectionsData) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConfData);
     for (int n = 0; n < imgNum; ++n) {
         const int off = n * priorsNum * classesNum;
@@ -591,13 +594,13 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
 
         const int offH = n * confInfoLen * classesNum;  // horizontal info
         // reset count
-        parallel_for(classesNum, [&](size_t c) {
+        cpu_parallel->parallel_for(classesNum, [&](size_t c) {
             const int countIdx = offH + c * confInfoLen + priorsNum;
             reorderedConfDataIndices[countIdx] = 0;
         });
 
         std::mutex mtx;
-        parallel_for(numPriorsActual[n], [&](size_t p) {
+        cpu_parallel->parallel_for(numPriorsActual[n], [&](size_t p) {
             // intentionally code branch from higher level
             if (withAddBoxPred) {
                 const bool isARMPrior = ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore;
@@ -649,7 +652,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
             }
         });
         // topk
-        parallel_for(classesNum, [&](size_t c) {
+        cpu_parallel->parallel_for(classesNum, [&](size_t c) {
             // in:  conf_h info
             // out: buffer, detectionCount(k)
             if (c == static_cast<size_t>(backgroundClassId)) {  // Ignore background class
@@ -675,12 +678,13 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
                                                             int* indicesData,
                                                             int* indicesBufData,
                                                             int* detectionsData) {
+    const auto& cpu_parallel = context->getCpuParallel();
     for (int n = 0; n < imgNum; ++n) {
         const int off = n * priorsNum * classesNum;
         const int offV = n * priorsNum;  // vertical info
 
         std::mutex mtx;
-        parallel_for(numPriorsActual[n], [&](size_t p) {
+        cpu_parallel->parallel_for(numPriorsActual[n], [&](size_t p) {
             bool isARMPrior = false;
             if (withAddBoxPred) {
                 isARMPrior = ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore;
@@ -751,13 +755,14 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
                                           const int* confInfoH,
                                           const int* confInfoV) const {
     int prNum = numPriorsActual[n];
+    const auto& cpu_parallel = context->getCpuParallel();
     if (!decodeType) {
         prNum = priorsNum;
     }
     if (isSparsityWorthwhile && !isShareLoc && !decreaseClassId && confInfoH[priorsNum] == 0) {
         return;
     }
-    parallel_for(prNum, [&](int p) {
+    cpu_parallel->parallel_for(prNum, [&](int p) {
         if (isSparsityWorthwhile && isShareLoc && confInfoV[p] == -1) {
             return;
         }
