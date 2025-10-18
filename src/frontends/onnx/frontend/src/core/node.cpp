@@ -800,6 +800,7 @@ Tensor Node::get_attribute_value(const std::string& name) const {
             std::vector<std::string>{*tensor_meta_info.m_tensor_name},
             tensor_meta_info.m_tensor_data,
             tensor_meta_info.m_tensor_data_size,
+            tensor_meta_info.m_tensor_data_any,
             tensor_meta_info.m_external_location,
             tensor_meta_info.m_is_raw);
         return {tensor_place};
@@ -826,6 +827,7 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
             std::vector<std::string>{*values_meta_info.m_tensor_name},
             values_meta_info.m_tensor_data,
             values_meta_info.m_tensor_data_size,
+            values_meta_info.m_tensor_data_any,
             values_meta_info.m_external_location,
             values_meta_info.m_is_raw);
 
@@ -839,6 +841,7 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
             std::vector<std::string>{*indices_meta_info.m_tensor_name},
             indices_meta_info.m_tensor_data,
             indices_meta_info.m_tensor_data_size,
+            indices_meta_info.m_tensor_data_any,
             indices_meta_info.m_external_location,
             indices_meta_info.m_is_raw);
         return {values_place, indices_place, sparse_tensor_info.m_partial_shape};

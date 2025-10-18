@@ -656,6 +656,7 @@ std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_tensor_place(
                                                               std::vector<std::string>{*tensor_meta_info.m_tensor_name},
                                                               tensor_meta_info.m_tensor_data,
                                                               tensor_meta_info.m_tensor_data_size,
+                                                              tensor_meta_info.m_tensor_data_any,
                                                               tensor_meta_info.m_external_location,
                                                               tensor_meta_info.m_is_raw);
     return tensor_place;
@@ -774,19 +775,8 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
                                                    const ov::frontend::InputModel& input_model,
                                                    const std::shared_ptr<TelemetryExtension>& telemetry,
                                                    const bool enable_mmap)
-    : m_graph_iterator(graph_iterator),
-      m_input_model(input_model),
-      m_telemetry(telemetry),
-      m_enable_mmap(enable_mmap) {
-    FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
-    if (m_enable_mmap) {
-        m_mmap_cache = std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>();
-        m_stream_cache = nullptr;
-    } else {
-        m_mmap_cache = nullptr;
-        m_stream_cache = std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>();
-    }
-    load_model();
+    : InputModelONNXImpl(graph_iterator, input_model, enable_mmap) {
+    m_telemetry = telemetry;
 }
 
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
