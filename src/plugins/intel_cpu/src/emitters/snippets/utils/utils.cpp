@@ -11,6 +11,7 @@
 #include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/op/loop.hpp"
@@ -48,6 +49,18 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) 
     OV_CPU_JIT_EMITTER_ASSERT(implication(ov::snippets::utils::is_dynamic_value(offset), id != SIZE_MAX),
                               "In dynamic case Buffer Cluster ID must be known!");
     return id;
+}
+
+size_t get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
+    OPENVINO_ASSERT(expr, "Expression must not be null");
+    OPENVINO_ASSERT(expr->get_input_count() == 1, "MemoryAccess must have one parent");
+    return get_buffer_cluster_id(expr->get_input_port(0));
+}
+
+size_t get_consumer_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
+    OPENVINO_ASSERT(expr, "Expression must not be null");
+    OPENVINO_ASSERT(expr->get_output_count() == 1, "MemoryAccess must have one output");
+    return get_buffer_cluster_id(expr->get_output_port(0));
 }
 
 }  // namespace ov::intel_cpu::utils
