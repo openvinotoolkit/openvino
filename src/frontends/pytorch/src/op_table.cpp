@@ -202,6 +202,7 @@ OP_CONVERTER(translate_permute);
 OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pixel_shuffle);
 OP_CONVERTER(translate_pixel_unshuffle);
+OP_CONVERTER(translate_pop);
 OP_CONVERTER(translate_polar);
 OP_CONVERTER(translate_pow);
 OP_CONVERTER(translate_prod);
@@ -654,6 +655,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::pixel_shuffle", op::translate_pixel_shuffle},
         {"aten::pixel_unshuffle", op::translate_pixel_unshuffle},
         {"aten::prelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
+        {"aten::pop", op::translate_pop},
         {"aten::polar", op::translate_polar},
         {"aten::pow", op::translate_pow},
         {"aten::pow_", op::translate_pow},
