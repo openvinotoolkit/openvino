@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -13,7 +14,7 @@ namespace ov::snippets::pass {
  * @brief The pass removes Reshape operations around Softmax if possible
  * @ingroup snippets
  */
-class SoftmaxReshapeElimination : public ov::pass::MatcherPass {
+class SNIPPETS_API SoftmaxReshapeElimination : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::SoftmaxReshapeElimination");
     SoftmaxReshapeElimination();

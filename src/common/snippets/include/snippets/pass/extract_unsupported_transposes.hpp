@@ -9,6 +9,7 @@
 #include "openvino/core/rtti.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
+#include "snippets/snippets_visibility.hpp"
 #include "subgraph_pass.hpp"
 
 namespace ov::snippets::pass {
@@ -18,7 +19,7 @@ namespace ov::snippets::pass {
  * @brief Moves up unsupported Transposes on Parameter outputs from body
  * @ingroup snippets
  */
-class ExtractUnsupportedTransposes : public CommonOptimizations::SubgraphPass {
+class SNIPPETS_API ExtractUnsupportedTransposes : public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("ExtractUnsupportedTransposes", "0");
     ExtractUnsupportedTransposes() : SubgraphPass("ExtractUnsupportedTransposes") {}

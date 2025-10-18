@@ -11,6 +11,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/op/op.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 
@@ -32,7 +33,7 @@ namespace ov::snippets::op {
  *
  * Note that Buffer must be updated with the Max result only after Sub from control flow perspective.
  */
-class OnlineSoftmaxUpdateMax : public ov::op::Op {
+class SNIPPETS_API OnlineSoftmaxUpdateMax : public ov::op::Op {
 public:
     OPENVINO_OP("OnlineSoftmaxUpdateMax", "SnippetsOpset");
 

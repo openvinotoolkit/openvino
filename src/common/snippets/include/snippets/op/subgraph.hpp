@@ -31,6 +31,7 @@
 #include "snippets/runtime_configurator.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets/snippets_visibility.hpp"
 #include "snippets/utils/debug_caps_config.hpp"
 
 namespace ov::snippets::op {
@@ -40,7 +41,7 @@ namespace ov::snippets::op {
  * @brief An operation that is implemented by a model
  * @ingroup snippets
  */
-class Subgraph : public ov::op::util::SubGraphOp {
+class SNIPPETS_API Subgraph : public ov::op::util::SubGraphOp {
 public:
     OPENVINO_OP("Subgraph", "SnippetsOpset", ov::op::util::SubGraphOp);
     // < 1, 42, 17, 15, 16> < 0, 1, 2, 3, 1>
@@ -225,7 +226,7 @@ private:
      * @brief Config to optimize IR transformation pipeline. It indicates which transformations are necessary
      *       so the irrelevant ones could be skipped.
      */
-    class SubgraphConfig {
+    class SNIPPETS_API SubgraphConfig {
     public:
         // True if Subgraph contains FakeQuantize -> FQ decomposition should be called
         bool m_is_quantized = false;
@@ -242,7 +243,7 @@ private:
 
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
 
-    class OVShapeInfer : public ShapeInferSnippetsNode {
+    class SNIPPETS_API OVShapeInfer : public ShapeInferSnippetsNode {
         std::shared_ptr<ov::Model> m_ov_body;
 
     public:

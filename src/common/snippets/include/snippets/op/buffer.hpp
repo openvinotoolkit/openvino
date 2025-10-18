@@ -17,6 +17,7 @@
 #include "openvino/op/op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets/snippets_visibility.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::op {
@@ -32,7 +33,7 @@ namespace ov::snippets::op {
  * implemented in the field `m_impl`.
  * @ingroup snippets
  */
-class Buffer : public ov::op::Op {
+class SNIPPETS_API Buffer : public ov::op::Op {
 public:
     OPENVINO_OP("Buffer", "SnippetsOpset");
     Buffer() = default;
@@ -50,7 +51,7 @@ public:
         return m_impl->get_allocation_size();
     }
 
-    class ShapeInfer : public IShapeInferSnippets {
+    class SNIPPETS_API ShapeInfer : public IShapeInferSnippets {
         std::shared_ptr<IShapeInferSnippets> m_impl_shape_infer{nullptr};
 
     public:
@@ -60,7 +61,7 @@ public:
 
 private:
     // Base class for implementations of Buffer
-    class BaseImpl {
+    class SNIPPETS_API BaseImpl {
     public:
         BaseImpl() = default;
         virtual ~BaseImpl() = default;
@@ -73,7 +74,7 @@ private:
 
     // IntermediateMemoryImpl represents intermediate memory.
     // The buffers with this implementation must have source (parents)
-    class IntermediateMemoryImpl : public BaseImpl {
+    class SNIPPETS_API IntermediateMemoryImpl : public BaseImpl {
     public:
         IntermediateMemoryImpl() = default;
 
@@ -90,7 +91,7 @@ private:
         }
 
     private:
-        class ShapeInfer : public IShapeInferSnippets {
+        class SNIPPETS_API ShapeInfer : public IShapeInferSnippets {
         public:
             Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
         };
@@ -98,7 +99,7 @@ private:
 
     // NewMemoryImpl represents a new empty memory for allocation with specified shape and element type.
     // The buffers with this implementation mustn't have source (parents)
-    class NewMemoryImpl : public BaseImpl {
+    class SNIPPETS_API NewMemoryImpl : public BaseImpl {
     public:
         explicit NewMemoryImpl(const ov::Shape& shape, ov::element::Type element_type);
 
@@ -111,7 +112,7 @@ private:
         }
 
     private:
-        class ShapeInfer : public IShapeInferSnippets {
+        class SNIPPETS_API ShapeInfer : public IShapeInferSnippets {
             ov::Shape m_shape;
 
         public:

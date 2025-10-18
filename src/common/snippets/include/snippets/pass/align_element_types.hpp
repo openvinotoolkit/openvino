@@ -10,6 +10,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -18,7 +19,7 @@ namespace ov::snippets::pass {
  * @brief Align body precision with expected input/output precision. Insert op::ConvertSaturation if necessary.
  * @ingroup snippets
  */
-class AlignElementTypes : public ov::pass::ModelPass {
+class SNIPPETS_API AlignElementTypes : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::AlignElementTypes");
     AlignElementTypes(std::vector<ov::element::Type> input_precisions,

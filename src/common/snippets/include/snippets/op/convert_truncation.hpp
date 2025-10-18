@@ -12,6 +12,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 
@@ -24,7 +25,7 @@ namespace ov::snippets::op {
  *                       129   --->  -127
  * @ingroup snippets
  */
-class ConvertTruncation : public ov::op::v0::Convert {
+class SNIPPETS_API ConvertTruncation : public ov::op::v0::Convert {
 public:
     OPENVINO_OP("ConvertTruncation", "SnippetsOpset", ov::op::v0::Convert);
 

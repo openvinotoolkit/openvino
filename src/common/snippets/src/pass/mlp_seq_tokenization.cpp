@@ -41,8 +41,6 @@ inline bool has_one_consumer(const std::shared_ptr<ov::Node>& node) {
 }
 }  // namespace
 
-const size_t TokenizeMLPSeqSnippets::m_rank = 2;
-
 bool TokenizeMLPSeqSnippets::is_tensor_supported(const ov::descriptor::Tensor& t) {
     return t.get_partial_shape().rank().is_static() && t.get_partial_shape().size() <= m_rank;
 }
