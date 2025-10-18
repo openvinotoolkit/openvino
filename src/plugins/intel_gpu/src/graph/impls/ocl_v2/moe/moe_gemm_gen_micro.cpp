@@ -37,6 +37,9 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
     const auto& device_info = params.get_device_info();
     auto jit = make_base_jit_constants(params);
     jit.make("SUBGROUP_SIZE", get_subgroup_size(device_info.arch));
+    if (getenv("PETER") != nullptr) {
+        jit.make("SG_PER_WG_K", 1);
+    }
     std::vector<moe_gemm::MoEGemmInputIdx> input_ids = {moe_gemm::MoEGemmInputIdx::INPUT,
                                                         moe_gemm::MoEGemmInputIdx::WEIGHT,
                                                         moe_gemm::MoEGemmInputIdx::EXPERTS_IDS,
@@ -136,7 +139,9 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     micro::GEMMProblem problem_moe;
     micro::GEMMProtocol::Options opts_moe;
     opts_moe.slmPtr = true;
-    opts_moe.kParallelLocal = true;
+    if (getenv("PETER") != nullptr) {
+        opts_moe.kParallelLocal = true;
+    }
 
     if (moe_cfg.is_weight_quantized) {
         problem_moe.Ta = micro::Type::f16; // weight register
@@ -197,7 +202,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     std::cout << "Could create moe micro kernel " << std::endl;
 }
 DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[this](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         assert(!params.is_dynamic());
 
         auto* rtp = static_cast<MoEGemmRuntimeParams*>(rt_params);
@@ -207,6 +212,8 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         auto sg_per_wg_n = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_n"));
         auto sg_per_wg_m = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_m"));
         auto sg_per_wg_k = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_k"));
+        if ((getenv("PETER") == nullptr) || m_is_prefill)
+            sg_per_wg_k = 1;
         auto sg_tile_m = gemm_p.getSetting("sg_tile_m");
         auto sg_tile_n = gemm_p.getSetting("sg_tile_n");
 
