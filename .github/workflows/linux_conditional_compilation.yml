@@ -51,6 +51,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          check_names_to_wait: "triage,clang-format,clang-format-aarch64,clang-format-riscv64,ShellCheck,NamingConventionCheck"
 
       - name: Show affected components
         run: |
