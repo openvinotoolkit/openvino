@@ -50,5 +50,4 @@ public:
                 (const std::shared_ptr<const ov::Model>&, const ov::AnyMap&),
                 (const));
 };
-
 }  // namespace ov

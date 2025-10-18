@@ -444,9 +444,7 @@ private:
                 return res;
             }));
 
-        EXPECT_CALL(plugin, set_property(_)).Times(AnyNumber()).WillRepeatedly(Invoke([](const ov::AnyMap&) {
-            OPENVINO_NOT_IMPLEMENTED;
-        }));
+        EXPECT_CALL(plugin, set_property(_)).Times(AnyNumber());
     }
 };
 
