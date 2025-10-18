@@ -1621,3 +1621,45 @@ void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t r
     OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
+
+void ov::npuw::util::XARCH::copy(const ov::Tensor& from, ov::Tensor& to) {
+#if defined(HAVE_AVX2)
+    const auto et = from.get_element_type();
+    const size_t elem_size = et.size();
+    size_t bytes_total = 0;
+
+    if (et == ov::element::u4 || et == ov::element::i4 ||
+        et == ov::element::f4e2m1 || et == ov::element::nf4) {
+        // 4-bit packed: 2 elements per byte
+        OPENVINO_ASSERT((from.get_size() & 1) == 0, "4-bit tensor element count must be even.");
+        bytes_total = from.get_size() / 2;
+    } else {
+        bytes_total = from.get_size() * elem_size;
+    }
+    if (bytes_total == 0) return;
+
+    const uint8_t* src = static_cast<const uint8_t*>(from.data());
+    uint8_t* dst = static_cast<uint8_t*>(to.data());
+
+    constexpr size_t block_bytes = 32; // 256-bit
+    const size_t blocks = bytes_total / block_bytes;
+    const size_t tail   = bytes_total % block_bytes;
+
+    // Generic parallel: each block moves 256 bits
+    if (blocks) {
+        ov::parallel_for(blocks, [&](size_t i) {
+            const uint8_t* ps = src + i * block_bytes;
+            uint8_t* pd = dst + i * block_bytes;
+            __m256i v = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps));
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd), v);
+        });
+    }
+
+    // Tail handling
+    if (tail) {
+        std::memcpy(dst + blocks * block_bytes, src + blocks * block_bytes, tail);
+    }
+#else
+    from.copy_to(to);
+#endif
+}

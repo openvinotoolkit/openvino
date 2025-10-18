@@ -827,6 +827,10 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
     }
 }
 
+void ov::npuw::util::copy(const ov::Tensor& src, ov::Tensor& dst) {
+    ov::npuw::util::XARCH::copy(src, dst);
+}
+
 void ov::npuw::util::permute_i4d(const ov::SoPtr<ov::ITensor>& src,
                                  ov::SoPtr<ov::ITensor>& dst,
                                  const std::array<int, 4> order) {
