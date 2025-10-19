@@ -49,7 +49,7 @@ public:
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<MoEGemmImpl>(this);
     }
-    
+
     void update_rt_params(const primitive_inst& instance) override {
         if (m_rt_params == nullptr) {
             m_rt_params = std::make_unique<MoEGemmRuntimeParams>();
