@@ -79,6 +79,7 @@ void scaled_dot_product_attention(const T* query,
 
     const T* bias = nullptr;
     Shape bias_shape = {};
+
     std::vector<T> attention_mask_data;
     if (mask && !is_causal) {
         bias_shape = mask_shape;

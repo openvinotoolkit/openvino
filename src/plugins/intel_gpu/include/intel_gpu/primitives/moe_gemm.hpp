@@ -38,41 +38,10 @@ struct moe_gemm : public primitive_base<moe_gemm> {
     /// @brief Constructs moe_gemm primitive.
     ///
     moe_gemm(const primitive_id& id,
-             const input_info& input,
-             const input_info& weight,
-             const input_info& experts_ids,
-             const input_info& inputs_offset_per_expert,
-             const input_info& input_tokens_lens,
+             const std::vector<input_info>& inputs,
              const int32_t num_experts_per_token)
-          : primitive_base(id, {input, weight, experts_ids, inputs_offset_per_expert, input_tokens_lens}),
+          : primitive_base(id, inputs),
             num_experts_per_token(num_experts_per_token) {}
-
-    moe_gemm(const primitive_id& id,
-             const input_info& input,
-             const input_info& weight,
-             const input_info& experts_ids,
-             const input_info& inputs_offset_per_expert,
-             const input_info& input_tokens_lens,
-             const primitive_id& bias,
-             const input_info& weight_scale,
-             const input_info& weight_zp,
-             const int32_t num_experts_per_token)
-          : primitive_base(id, {input, weight, experts_ids, inputs_offset_per_expert, input_tokens_lens, weight_scale, weight_zp}),
-            num_experts_per_token(num_experts_per_token) {}
-
-    moe_gemm(const primitive_id& id,
-             const input_info& input,
-             const input_info& weight,
-             const input_info& experts_ids,
-             const input_info& inputs_offset_per_expert,
-             const input_info& input_tokens_lens,
-             const primitive_id& bias,
-             const input_info& weight_scale,
-             const primitive_id& weight_zp,
-             const int32_t num_experts_per_token)
-          : primitive_base(id, {input, weight, experts_ids, inputs_offset_per_expert, input_tokens_lens, weight_scale}),
-            num_experts_per_token(num_experts_per_token) {
-            }
 
     bool has_bias = false;
     int32_t num_experts_per_token = 0;
