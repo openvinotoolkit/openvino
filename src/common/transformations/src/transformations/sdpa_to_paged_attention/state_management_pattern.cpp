@@ -312,9 +312,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     bool allow_cache_rotation,
     bool allow_score_aggregation,
     bool allow_xattention,
+    bool allow_adaptive_rkv,
     ParameterVector& rotated_block_indices_inputs_for_each_layer,
     ParameterVector& rotation_deltas_inputs_for_each_layer,
     ParameterVector& xattention_threshold_inputs_for_each_layer,
+    ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
+    ParameterVector& adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer,
     const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params) {
     MATCHER_SCOPE(StateManagementPattern);
 
@@ -443,7 +446,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &layer_index,
                                           &rotated_block_indices_inputs_for_each_layer,
                                           &rotation_deltas_inputs_for_each_layer,
-                                          &xattention_threshold_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
+                                          &xattention_threshold_inputs_for_each_layer,
+                                          &adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
+                                          &adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
 
@@ -697,6 +702,34 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         OPENVINO_ASSERT(pa_arguments.size() == 21);
+
+        if (allow_adaptive_rkv) {
+            OPENVINO_ASSERT(
+                optional_model_wide_params.find("adaptive_rkv_start_size") != optional_model_wide_params.end(),
+                "No adaptive_rkv_start_size input found. For using Adaptive R-KV, the model have to contain "
+                "an additional input (Parameter) called adaptive_rkv_start_size.");
+            OPENVINO_ASSERT(optional_model_wide_params.find("adaptive_rkv_evictable_sizes") != optional_model_wide_params.end(),
+                            "No adaptive_rkv_evictable_sizes input found. For using Adaptive R-KV, the model have to contain "
+                            "an additional input (Parameter) called adaptive_rkv_evictable_sizes.");
+            pa_arguments.insert(pa_arguments.begin() + 21, optional_model_wide_params.at("adaptive_rkv_start_size"));
+            pa_arguments.insert(pa_arguments.begin() + 22, optional_model_wide_params.at("adaptive_rkv_evictable_sizes"));
+
+            auto adaptive_rkv_diversity_block_set_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                                                    "adaptive_rkv_diversity_block_set_indices." + std::to_string(layer_index - 1));
+            pa_arguments.insert(pa_arguments.begin() + 23, adaptive_rkv_diversity_block_set_indices);
+            adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer.push_back(adaptive_rkv_diversity_block_set_indices);
+
+            auto adaptive_rkv_diversity_block_set_begins = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                                                    "adaptive_rkv_diversity_block_set_begins." + std::to_string(layer_index - 1));
+            pa_arguments.insert(pa_arguments.begin() + 24, adaptive_rkv_diversity_block_set_begins);
+            adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer.push_back(adaptive_rkv_diversity_block_set_begins);
+        } else {
+            pa_arguments.insert(pa_arguments.begin() + 21, v0::Constant::create(element::i32, Shape{}, {0}));
+            pa_arguments.insert(pa_arguments.begin() + 22, v0::Constant::create(element::i32, Shape{0}, {}));
+            pa_arguments.insert(pa_arguments.begin() + 23, v0::Constant::create(element::i32, Shape{0}, {}));
+            pa_arguments.insert(pa_arguments.begin() + 24, v0::Constant::create(element::i32, Shape{0}, {}));
+        }
+        OPENVINO_ASSERT(pa_arguments.size() == 25);
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;

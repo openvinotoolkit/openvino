@@ -547,6 +547,10 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
         auto xattention_block_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
         auto xattention_stride = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto adaptive_rkv_start_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         auto params = nodes_to_params({score_aggregation_window,
                                        max_context_len,
@@ -619,7 +623,11 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
                                                                              xattention_threshold,
                                                                              xattention_block_size,
                                                                              xattention_stride,
-                                                                             sinks});
+                                                                             sinks,
+                                                                             adaptive_rkv_start_size,
+                                                                             adaptive_rkv_evictable_sizes,
+                                                                             adaptive_rkv_diversity_block_set_indices,
+                                                                             adaptive_rkv_diversity_block_set_begins});
         pa->set_out_type(0, element::i64);
         auto pa_aligned = Qwen7bChatPA::align_pa_layout(pa, head_size_2);
         auto res = makeOP<v0::Result>({pa_aligned});
@@ -910,6 +918,10 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
         auto xattention_block_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
         auto xattention_stride = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto adaptive_rkv_start_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         ParameterVector params = nodes_to_params({max_context_len,
                                                   block_indices_begins,
@@ -1001,7 +1013,11 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
                                                                                xattention_threshold,
                                                                                xattention_block_size,
                                                                                xattention_stride,
-                                                                               sinks});
+                                                                               sinks,
+                                                                               adaptive_rkv_start_size,
+                                                                               adaptive_rkv_evictable_sizes,
+                                                                               adaptive_rkv_diversity_block_set_indices,
+                                                                               adaptive_rkv_diversity_block_set_begins});
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze177 = makeOP<opset1::Unsqueeze>({Gather175, 0});
@@ -1227,6 +1243,10 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
         auto xattention_block_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
         auto xattention_stride = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto adaptive_rkv_start_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         ParameterVector params = nodes_to_params({max_context_len,
                                                   block_indices_begins,
@@ -1364,7 +1384,11 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
                                                                                xattention_threshold,
                                                                                xattention_block_size,
                                                                                xattention_stride,
-                                                                               sinks});
+                                                                               sinks,
+                                                                               adaptive_rkv_start_size,
+                                                                               adaptive_rkv_evictable_sizes,
+                                                                               adaptive_rkv_diversity_block_set_indices,
+                                                                               adaptive_rkv_diversity_block_set_begins});
         auto ShapeOf_51965 = makeOP<opset3::ShapeOf>({Transpose_51955}, {{"output_type", "i64"}});
         auto Gather_51966 = makeOP<opset8::Gather>({ShapeOf_51965, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze_51971 = makeOP<opset1::Unsqueeze>({Gather_51966, 0});
@@ -1564,6 +1588,10 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
         auto xattention_block_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
         auto xattention_stride = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto adaptive_rkv_start_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         auto params = nodes_to_params({max_context_len,
                                        block_indices_begins,
@@ -1683,7 +1711,11 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
                                                                            xattention_threshold,
                                                                            xattention_block_size,
                                                                            xattention_stride,
-                                                                           sinks});
+                                                                           sinks,
+                                                                           adaptive_rkv_start_size,
+                                                                           adaptive_rkv_evictable_sizes,
+                                                                           adaptive_rkv_diversity_block_set_indices,
+                                                                           adaptive_rkv_diversity_block_set_begins});
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<opset1::Unsqueeze>({Gather2, 0});
@@ -1886,6 +1918,10 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
         auto xattention_block_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
         auto xattention_stride = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto adaptive_rkv_start_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         auto params = nodes_to_params({max_context_len,
                                        block_indices_begins,
@@ -2021,7 +2057,11 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
                                                                            xattention_threshold,
                                                                            xattention_block_size,
                                                                            xattention_stride,
-                                                                           sinks});
+                                                                           sinks,
+                                                                           adaptive_rkv_start_size,
+                                                                           adaptive_rkv_evictable_sizes,
+                                                                           adaptive_rkv_diversity_block_set_indices,
+                                                                           adaptive_rkv_diversity_block_set_begins});
         auto ShapeOf2 = makeOP<opset3::ShapeOf>({Transpose7}, {{"output_type", "i64"}});
         auto Gather5 = makeOP<opset8::Gather>({ShapeOf2, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze9 = makeOP<opset1::Unsqueeze>({Gather5, 0});
@@ -2390,6 +2430,10 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
         auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
         auto xattention_block_size = makeConst(element::i32, ov::Shape({}), {0});
         auto xattention_stride = makeConst(element::i32, ov::Shape({}), {0});
+        auto adaptive_rkv_start_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         auto params = nodes_to_params({max_context_len,
                                        block_indices_begins,
@@ -2673,7 +2717,11 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
                                                                            xattention_threshold,
                                                                            xattention_block_size,
                                                                            xattention_stride,
-                                                                           Constant22});
+                                                                           Constant22,
+                                                                           adaptive_rkv_start_size,
+                                                                           adaptive_rkv_evictable_sizes,
+                                                                           adaptive_rkv_diversity_block_set_indices,
+                                                                           adaptive_rkv_diversity_block_set_begins});
         auto ShapeOf3 = makeOP<v3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather4 = makeOP<v8::Gather>({ShapeOf3, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<v0::Unsqueeze>({Gather4, 0});
