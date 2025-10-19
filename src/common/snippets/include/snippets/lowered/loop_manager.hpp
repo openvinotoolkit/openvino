@@ -66,13 +66,6 @@ public:
      */
     static std::vector<size_t> get_outer_expr_loops(const ExpressionPtr& expr, size_t loop_id);
     /**
-     * @brief Get loop IDs of expression that are common outer (upper) than `loop_id`
-     * @param lhs the first expression
-     * @param rhs the second expression
-     * @return vector of common outer loop IDs
-     */
-    static std::vector<size_t> get_common_outer_loops(const ExpressionPtr& lhs, const ExpressionPtr& rhs);
-    /**
      * @brief Get common outer loop IDs of expression set
      * @param exprs vector of expressions
      * @return vector of common outer loop IDs

@@ -6,15 +6,17 @@
 
 #include <memory>
 
+#include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_lora_states.hpp"
+#include "llm_prefix_caching.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
 namespace ov {
 namespace npuw {
 
-class LLMInferRequest final : public ov::ISyncInferRequest {
+class LLMInferRequest : public ov::ISyncInferRequest {
 public:
     struct layer_names {
         static constexpr const char* input_ids = "input_ids";
@@ -24,6 +26,13 @@ public:
         static constexpr const char* past_key_values = "past_key_values";
         static constexpr const char* output_embeds = "npuw_output_embed";
         static constexpr const char* logits = "logits";
+        static constexpr const char* token_type_ids = "token_type_ids";
+        static constexpr const char* gemma_sliding_mask = "npuw_gemma_sliding_mask";
+    };
+
+    struct layer_ids {
+        static constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
+        static constexpr std::size_t kStartOutputKVCacheLayers = 1;
     };
 
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
@@ -39,8 +48,8 @@ public:
     }
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
-private:
-    void prepare_for_new_conversation();
+protected:
+    virtual void prepare_for_new_conversation();
 
     void apply_lora();
 
@@ -49,8 +58,8 @@ private:
     void init_tensor(const ov::Output<const ov::Node>& port);
     void copy_kvcache();
     void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
-                            std::unordered_map<std::string, ov::Output<const ov::Node>> in_ports,
-                            std::unordered_map<std::string, ov::Output<const ov::Node>> out_ports,
+                            const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
+                            const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
                             uint32_t tokens,
                             bool v_transposed);
     void trim_kvcache_for_speculative_decoding(ov::SoPtr<ov::ITensor> position_ids);
@@ -61,18 +70,25 @@ private:
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
-                             ov::SoPtr<ov::ITensor> position_ids);
+                             ov::SoPtr<ov::ITensor> position_ids,
+                             ov::SoPtr<ov::ITensor> input_token_ids);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
-                       ov::SoPtr<ov::ITensor> position_ids);
+                       ov::SoPtr<ov::ITensor> position_ids,
+                       ov::SoPtr<ov::ITensor> input_token_ids);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
-                        ov::SoPtr<ov::ITensor> position_ids);
+                        ov::SoPtr<ov::ITensor> position_ids,
+                        ov::SoPtr<ov::ITensor> input_token_ids);
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
+    // Base infer request for prefill, used to update history size for dynamic context.
+    // NOTE: This is just a casted pointer for convenience. In fact it points to the
+    // same object as m_prefill_request.
+    std::shared_ptr<ov::npuw::IBaseInferRequest> m_prefill_base_request;
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
@@ -89,9 +105,22 @@ private:
 
     bool m_generate_initialized = false;
 
+    bool m_first_run = true;
+
+    int64_t m_first_position_id = 0;
+    int32_t m_gemma_sliding_window_size = 0;
+
+    uint64_t m_tokens_in_present_chunk = 0;
+
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();
+
+    // Support prefix caching
+    std::unique_ptr<PrefixCachingHelper> m_prefix_caching_helper;
+
+    // Friend declarations for PrefixCachingHelper to access protected members
+    friend class PrefixCachingHelper;
 };
 
 }  // namespace npuw
