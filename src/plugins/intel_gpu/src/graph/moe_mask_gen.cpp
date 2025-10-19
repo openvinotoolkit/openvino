@@ -100,7 +100,8 @@ std::vector<layout> moe_mask_gen_reshape_inst::calc_output_layouts(moe_mask_gen_
     return output_layouts;
 }
 
-template std::vector<layout> moe_mask_gen_reshape_inst::calc_output_layouts<ov::PartialShape>(moe_mask_gen_reshape_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> moe_mask_gen_reshape_inst::calc_output_layouts<ov::PartialShape>
+                        (moe_mask_gen_reshape_node const& node, const kernel_impl_params& impl_param);
 
 std::string moe_mask_gen_reshape_inst::to_string(moe_mask_gen_reshape_node const& node) {
     auto node_info = node.desc_to_json();
