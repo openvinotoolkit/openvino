@@ -22,27 +22,27 @@
 namespace ov::intel_cpu {
 
 struct jit_conv3d_call_args {
-    const uint16_t* src;   // f16 base ptr
-    const uint16_t* wei;   // f16 base ptr
-    const uint16_t* wei2;  // optional second oc f16 base ptr (can be null)
-    const uint16_t* wei3;  // optional third oc f16 base ptr (can be null)
-    const uint16_t* wei4;  // optional fourth oc f16 base ptr (can be null)
-    size_t repeats;        // number of full 8-channel blocks
-    size_t tail;           // remaining channels (< 8)
-    size_t src_stride;     // stride between channels in bytes
-    size_t wei_stride;     // stride between channels in bytes
-    size_t src_blk_stride; // stride between successive 8-channel blocks in bytes
-    size_t wei_blk_stride; // stride between successive 8-channel blocks in bytes
-    float* acc;            // f32 accumulator
-    float* acc2;           // optional second f32 accumulator (can be null)
-    size_t kw_cnt;         // number of taps along W to iterate (stride=1 fast path); 0 or 1 -> single
-    size_t src_dx;         // bytes to advance src base between successive kx taps
-    size_t wei_dx;         // bytes to advance weights base between successive kx taps
-    float* acc3;           // optional third f32 accumulator (can be null)
-    float* acc4;           // optional fourth f32 accumulator (can be null)
-    size_t kh_cnt;         // number of taps along H to iterate (stride=1 fast path); 0 or 1 -> single
-    size_t src_dy;         // bytes to advance src base between successive ky taps
-    size_t wei_dy;         // bytes to advance weights base between successive ky taps
+    const uint16_t* src;    // f16 base ptr
+    const uint16_t* wei;    // f16 base ptr
+    const uint16_t* wei2;   // optional second oc f16 base ptr (can be null)
+    const uint16_t* wei3;   // optional third oc f16 base ptr (can be null)
+    const uint16_t* wei4;   // optional fourth oc f16 base ptr (can be null)
+    size_t repeats;         // number of full 8-channel blocks
+    size_t tail;            // remaining channels (< 8)
+    size_t src_stride;      // stride between channels in bytes
+    size_t wei_stride;      // stride between channels in bytes
+    size_t src_blk_stride;  // stride between successive 8-channel blocks in bytes
+    size_t wei_blk_stride;  // stride between successive 8-channel blocks in bytes
+    float* acc;             // f32 accumulator
+    float* acc2;            // optional second f32 accumulator (can be null)
+    size_t kw_cnt;          // number of taps along W to iterate (stride=1 fast path); 0 or 1 -> single
+    size_t src_dx;          // bytes to advance src base between successive kx taps
+    size_t wei_dx;          // bytes to advance weights base between successive kx taps
+    float* acc3;            // optional third f32 accumulator (can be null)
+    float* acc4;            // optional fourth f32 accumulator (can be null)
+    size_t kh_cnt;          // number of taps along H to iterate (stride=1 fast path); 0 or 1 -> single
+    size_t src_dy;          // bytes to advance src base between successive ky taps
+    size_t wei_dy;          // bytes to advance weights base between successive ky taps
 };
 
 class JitConv3DKernelF16 : public dnnl::impl::cpu::aarch64::jit_generator {
@@ -73,11 +73,15 @@ public:
         return true;
     }
     void execute(const MemoryArgs& memory) override;
-    void execute() override { execute(m_memory); }
+    void execute() override {
+        execute(m_memory);
+    }
     void exec([[maybe_unused]] const std::vector<MemoryCPtr>& src,
               [[maybe_unused]] const std::vector<MemoryPtr>& dst) override {}
 
-    [[nodiscard]] impl_desc_type implType() const override { return impl_desc_type::jit_asimd; }
+    [[nodiscard]] impl_desc_type implType() const override {
+        return impl_desc_type::jit_asimd;
+    }
 
     static bool supports(const ConvConfig& cfg);
 

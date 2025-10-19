@@ -1319,30 +1319,37 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
             config.outConfs.resize(getOriginalOutputsNumber());
 
             auto setDesc = [&](size_t port, bool isInput) {
-                const auto prec = isInput ? getOriginalInputPrecisionAtPort(port)
-                                          : getOriginalOutputPrecisionAtPort(port);
+                const auto prec =
+                    isInput ? getOriginalInputPrecisionAtPort(port) : getOriginalOutputPrecisionAtPort(port);
                 const auto& shp = isInput ? getInputShapeAtPort(port) : getOutputShapeAtPort(port);
                 auto d = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, shp);
-                if (isInput) config.inConfs[port].setMemDesc(d);
-                else config.outConfs[port].setMemDesc(d);
+                if (isInput)
+                    config.inConfs[port].setMemDesc(d);
+                else
+                    config.outConfs[port].setMemDesc(d);
             };
             setDesc(0, true);
             setDesc(1, true);
-            for (size_t i = 2; i < getParentEdges().size(); ++i) setDesc(i, true);
+            for (size_t i = 2; i < getParentEdges().size(); ++i)
+                setDesc(i, true);
             setDesc(0, false);
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
             srcMemoryDescs.push_back(config.inConfs[0].getMemDesc()->cloneWithNewDims(tmpInShape.getDims()));
-            for (size_t i = 1; i < config.inConfs.size(); i++) srcMemoryDescs.push_back(config.inConfs[i].getMemDesc()->clone());
+            for (size_t i = 1; i < config.inConfs.size(); i++)
+                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc()->clone());
             std::vector<MemoryDescPtr> dstMemoryDescs;
             dstMemoryDescs.push_back(config.outConfs[0].getMemDesc()->cloneWithNewDims(tmpOutShape.getDims()));
-            for (size_t i = 1; i < config.outConfs.size(); i++) dstMemoryDescs.push_back(config.outConfs[i].getMemDesc()->clone());
+            for (size_t i = 1; i < config.outConfs.size(); i++)
+                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc()->clone());
 
-            auto factory = std::make_shared<DeconvExecutorFactory>(
-                deconvAttrs, srcMemoryDescs, dstMemoryDescs,
-                std::make_shared<ExecutorContext>(context, getImplPriority()));
+            auto factory =
+                std::make_shared<DeconvExecutorFactory>(deconvAttrs,
+                                                        srcMemoryDescs,
+                                                        dstMemoryDescs,
+                                                        std::make_shared<ExecutorContext>(context, getImplPriority()));
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::jit_asimd, factory);
-            useACL = true; // reuse factory-based execution path
+            useACL = true;  // reuse factory-based execution path
             return;
         }
     }
@@ -1370,27 +1377,35 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
             config.outConfs.resize(getOriginalOutputsNumber());
 
             auto setDesc = [&](size_t port, const Shape& shape, bool isInput) {
-                const auto prec = isInput ? getOriginalInputPrecisionAtPort(port)
-                                          : getOriginalOutputPrecisionAtPort(port);
+                const auto prec =
+                    isInput ? getOriginalInputPrecisionAtPort(port) : getOriginalOutputPrecisionAtPort(port);
                 const auto& shp = isInput ? getInputShapeAtPort(port) : getOutputShapeAtPort(port);
                 auto d = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, shp);
-                if (isInput) config.inConfs[port].setMemDesc(d); else config.outConfs[port].setMemDesc(d);
+                if (isInput)
+                    config.inConfs[port].setMemDesc(d);
+                else
+                    config.outConfs[port].setMemDesc(d);
             };
             setDesc(0, tmpInShape, true);
             setDesc(1, Shape(getInputShapeAtPort(1).getStaticDims()), true);
-            for (size_t i = 2; i < getParentEdges().size(); ++i) setDesc(i, Shape(getInputShapeAtPort(i).getStaticDims()), true);
+            for (size_t i = 2; i < getParentEdges().size(); ++i)
+                setDesc(i, Shape(getInputShapeAtPort(i).getStaticDims()), true);
             setDesc(0, tmpOutShape, false);
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
             srcMemoryDescs.push_back(config.inConfs[0].getMemDesc()->cloneWithNewDims(tmpInShape.getDims()));
-            for (size_t i = 1; i < config.inConfs.size(); i++) srcMemoryDescs.push_back(config.inConfs[i].getMemDesc()->clone());
+            for (size_t i = 1; i < config.inConfs.size(); i++)
+                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc()->clone());
             std::vector<MemoryDescPtr> dstMemoryDescs;
             dstMemoryDescs.push_back(config.outConfs[0].getMemDesc()->cloneWithNewDims(tmpOutShape.getDims()));
-            for (size_t i = 1; i < config.outConfs.size(); i++) dstMemoryDescs.push_back(config.outConfs[i].getMemDesc()->clone());
+            for (size_t i = 1; i < config.outConfs.size(); i++)
+                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc()->clone());
 
-            auto factory = std::make_shared<DeconvExecutorFactory>(
-                deconvAttrs, srcMemoryDescs, dstMemoryDescs,
-                std::make_shared<ExecutorContext>(context, getImplPriority()));
+            auto factory =
+                std::make_shared<DeconvExecutorFactory>(deconvAttrs,
+                                                        srcMemoryDescs,
+                                                        dstMemoryDescs,
+                                                        std::make_shared<ExecutorContext>(context, getImplPriority()));
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::jit_asimd, factory);
             return;
         }

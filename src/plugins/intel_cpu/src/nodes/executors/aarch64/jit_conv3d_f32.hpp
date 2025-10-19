@@ -43,7 +43,9 @@ public:
     JitConv3DKernelF32() = default;
 
     void create_ker();
-    inline void operator()(const jit_conv3d_f32_call_args* p) const { ker_(p); }
+    inline void operator()(const jit_conv3d_f32_call_args* p) const {
+        ker_(p);
+    }
 
 private:
     void generate() override;
@@ -61,11 +63,15 @@ public:
         return true;
     }
     void execute(const MemoryArgs& memory) override;
-    void execute() override { execute(m_memory); }
+    void execute() override {
+        execute(m_memory);
+    }
     void exec([[maybe_unused]] const std::vector<MemoryCPtr>& src,
               [[maybe_unused]] const std::vector<MemoryPtr>& dst) override {}
 
-    [[nodiscard]] impl_desc_type implType() const override { return impl_desc_type::jit_asimd; }
+    [[nodiscard]] impl_desc_type implType() const override {
+        return impl_desc_type::jit_asimd;
+    }
 
     static bool supports(const ConvConfig& cfg);
 

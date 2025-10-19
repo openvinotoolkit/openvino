@@ -7,9 +7,9 @@
 #include <memory>
 #include <vector>
 
-#include "nodes/executors/deconv.hpp"
 #include "nodes/executors/aarch64/jit_conv3d.hpp"
 #include "nodes/executors/aarch64/jit_conv3d_f32.hpp"
+#include "nodes/executors/deconv.hpp"
 
 namespace ov::intel_cpu {
 
@@ -27,7 +27,9 @@ public:
               const std::vector<MemoryPtr>& dst,
               const void* post_ops_data_) override;
 
-    [[nodiscard]] impl_desc_type getImplType() const override { return impl_desc_type::jit_asimd; }
+    [[nodiscard]] impl_desc_type getImplType() const override {
+        return impl_desc_type::jit_asimd;
+    }
 
 private:
     std::vector<MemoryDescPtr> m_srcDescs;
@@ -39,7 +41,7 @@ private:
 
     // packed weights
     std::vector<uint16_t> m_wei_packed_f16;
-    std::vector<float>    m_wei_packed_f32;
+    std::vector<float> m_wei_packed_f32;
     bool m_wei_packed_ready_f16{false};
     bool m_wei_packed_ready_f32{false};
     size_t m_padded_IC_f16{0};

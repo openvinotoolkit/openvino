@@ -16,12 +16,7 @@
 
 namespace ov::intel_cpu {
 
-static inline const uint16_t* as_f16(const MemoryPtr& m) {
-    return reinterpret_cast<const uint16_t*>(m->getData());
-}
-static inline uint16_t* as_f16(MemoryPtr& m) {
-    return reinterpret_cast<uint16_t*>(m->getData());
-}
+// removed unused helpers
 
 bool JitDeconv3DExecutor::init(const DeconvAttrs& attrs,
                                const std::vector<MemoryDescPtr>& srcDescs,
@@ -44,10 +39,12 @@ bool JitDeconv3DExecutor::init(const DeconvAttrs& attrs,
 }
 
 void JitDeconv3DExecutor::ensure_weights_packed_f16(const std::vector<MemoryCPtr>& src) {
-    if (m_wei_packed_ready_f16) return;
+    if (m_wei_packed_ready_f16)
+        return;
     // src[1] holds weights for deconv with shape [IC, OC, KD, KH, KW]
     const auto& weiDims = src[1]->getStaticDims();
-    if (weiDims.size() != 5) return;
+    if (weiDims.size() != 5)
+        return;
     const size_t IC = weiDims[0];
     const size_t OC = weiDims[1];
     const size_t KD = weiDims[2], KH = weiDims[3], KW = weiDims[4];
@@ -57,7 +54,7 @@ void JitDeconv3DExecutor::ensure_weights_packed_f16(const std::vector<MemoryCPtr
     const uint16_t* wsrc = reinterpret_cast<const uint16_t*>(src[1]->getData());
 
     auto idx_wei_src = [&](size_t ic, size_t oc, size_t kz, size_t ky, size_t kx) -> size_t {
-        return ((((ic) * OC + oc) * KD + kz) * KH + ky) * KW + kx;
+        return ((((ic)*OC + oc) * KD + kz) * KH + ky) * KW + kx;
     };
     auto idx_wei_pack = [&](size_t oc, size_t ic, size_t kz, size_t ky, size_t kx) -> size_t {
         const size_t base = (((oc * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16;
@@ -81,9 +78,11 @@ void JitDeconv3DExecutor::ensure_weights_packed_f16(const std::vector<MemoryCPtr
 }
 
 void JitDeconv3DExecutor::ensure_weights_packed_f32(const std::vector<MemoryCPtr>& src) {
-    if (m_wei_packed_ready_f32) return;
+    if (m_wei_packed_ready_f32)
+        return;
     const auto& weiDims = src[1]->getStaticDims();
-    if (weiDims.size() != 5) return;
+    if (weiDims.size() != 5)
+        return;
     const size_t IC = weiDims[0];
     const size_t OC = weiDims[1];
     const size_t KD = weiDims[2], KH = weiDims[3], KW = weiDims[4];
@@ -93,7 +92,7 @@ void JitDeconv3DExecutor::ensure_weights_packed_f32(const std::vector<MemoryCPtr
     const float* wsrc = reinterpret_cast<const float*>(src[1]->getData());
 
     auto idx_wei_src = [&](size_t ic, size_t oc, size_t kz, size_t ky, size_t kx) -> size_t {
-        return ((((ic) * OC + oc) * KD + kz) * KH + ky) * KW + kx;
+        return ((((ic)*OC + oc) * KD + kz) * KH + ky) * KW + kx;
     };
     auto idx_wei_pack = [&](size_t oc, size_t ic, size_t kz, size_t ky, size_t kx) -> size_t {
         const size_t base = (((oc * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32;
@@ -126,8 +125,7 @@ void JitDeconv3DExecutor::exec(const std::vector<MemoryCPtr>& src,
     }
 }
 
-void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
-                                    const std::vector<MemoryPtr>& dst) {
+void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     // NCDHW, fp16: compute each output pixel (n, oc, od, oh, ow) as a sum over (ic, kz, ky, kx)
     const auto& srcDims = src[0]->getStaticDims();
     const auto& weiDims = src[1]->getStaticDims();
@@ -161,7 +159,7 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
     };
     // weight [IC, OC, KD, KH, KW]
     auto idx_wei = [&](size_t ic, size_t oc, size_t kz, size_t ky, size_t kx) {
-        return ((((ic) * OC + oc) * KD + kz) * KH + ky) * KW + kx;
+        return ((((ic)*OC + oc) * KD + kz) * KH + ky) * KW + kx;
     };
 
     // Strides in elements
@@ -210,16 +208,15 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
                                     // Compute packed bases for ky_lo
                                     size_t pack_base_z0 = (oc0 * KD + static_cast<size_t>(kz)) * KH;
                                     size_t pack_base_z1 = has_oc1 ? (oc1 * KD + static_cast<size_t>(kz)) * KH : 0;
-                                    size_t pack_base_z2 = has_oc2 ? (oc2 * KD + static_cast<size_t>(kz)) * KH : 0;
-                                    size_t pack_base_z3 = has_oc3 ? (oc3 * KD + static_cast<size_t>(kz)) * KH : 0;
+                                    // oc2/oc3 computed in second dual call; no need for precomputed bases
                                     size_t pack_base_y0 = (pack_base_z0 + static_cast<size_t>(ky_lo)) * KW;
-                                    size_t pack_base_y1 = has_oc1 ? (pack_base_z1 + static_cast<size_t>(ky_lo)) * KW : 0;
-                                    size_t pack_base_y2 = has_oc2 ? (pack_base_z2 + static_cast<size_t>(ky_lo)) * KW : 0;
-                                    size_t pack_base_y3 = has_oc3 ? (pack_base_z3 + static_cast<size_t>(ky_lo)) * KW : 0;
-                                    const size_t pack_base0 = (pack_base_y0 + static_cast<size_t>(kx_lo)) * m_padded_IC_f16;
-                                    const size_t pack_base1 = has_oc1 ? (pack_base_y1 + static_cast<size_t>(kx_lo)) * m_padded_IC_f16 : 0;
-                                    const size_t pack_base2 = has_oc2 ? (pack_base_y2 + static_cast<size_t>(kx_lo)) * m_padded_IC_f16 : 0;
-                                    const size_t pack_base3 = has_oc3 ? (pack_base_y3 + static_cast<size_t>(kx_lo)) * m_padded_IC_f16 : 0;
+                                    size_t pack_base_y1 =
+                                        has_oc1 ? (pack_base_z1 + static_cast<size_t>(ky_lo)) * KW : 0;
+                                    // oc2/oc3 will be handled in the second dual call below
+                                    const size_t pack_base0 =
+                                        (pack_base_y0 + static_cast<size_t>(kx_lo)) * m_padded_IC_f16;
+                                    const size_t pack_base1 =
+                                        has_oc1 ? (pack_base_y1 + static_cast<size_t>(kx_lo)) * m_padded_IC_f16 : 0;
                                     jit_conv3d_call_args a{};
                                     a.src = src_p + s_base0;
                                     a.src_stride = src_c_stride_elems * sizeof(uint16_t);
@@ -234,7 +231,8 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
                                     a.src_dx = sizeof(uint16_t);
                                     a.src_dy = IW * sizeof(uint16_t);
                                     a.wei = m_wei_packed_f16.data() + pack_base0;
-                                    if (has_oc1) a.wei2 = m_wei_packed_f16.data() + pack_base1;
+                                    if (has_oc1)
+                                        a.wei2 = m_wei_packed_f16.data() + pack_base1;
                                     // oc2/oc3 handled in a follow-up dual call
                                     a.wei_stride = sizeof(uint16_t);
                                     a.wei_blk_stride = a.wei_stride * 8;
@@ -259,10 +257,20 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
                                                 a.acc2 = has_oc1 ? &acc1 : nullptr;
                                                 a.repeats = IC / 8;
                                                 a.tail = IC % 8;
-                                                const size_t w_base0 = idx_wei(0, oc0, static_cast<size_t>(kz), static_cast<size_t>(ky), static_cast<size_t>(kx));
-                                                const size_t w_base1 = has_oc1 ? idx_wei(0, oc1, static_cast<size_t>(kz), static_cast<size_t>(ky), static_cast<size_t>(kx)) : 0;
+                                                const size_t w_base0 = idx_wei(0,
+                                                                               oc0,
+                                                                               static_cast<size_t>(kz),
+                                                                               static_cast<size_t>(ky),
+                                                                               static_cast<size_t>(kx));
+                                                const size_t w_base1 = has_oc1 ? idx_wei(0,
+                                                                                         oc1,
+                                                                                         static_cast<size_t>(kz),
+                                                                                         static_cast<size_t>(ky),
+                                                                                         static_cast<size_t>(kx))
+                                                                               : 0;
                                                 a.wei = wei_p + w_base0;
-                                                if (has_oc1) a.wei2 = wei_p + w_base1;
+                                                if (has_oc1)
+                                                    a.wei2 = wei_p + w_base1;
                                                 a.wei_stride = wei_ic_stride_elems * sizeof(uint16_t);
                                                 a.wei_blk_stride = a.wei_stride * 8;
                                                 (*m_ip_kernel_f16)(&a);
@@ -277,10 +285,20 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
                                                 a.acc2 = has_oc3 ? &acc3 : nullptr;
                                                 a.repeats = IC / 8;
                                                 a.tail = IC % 8;
-                                                const size_t w_base2 = idx_wei(0, oc2, static_cast<size_t>(kz), static_cast<size_t>(ky), static_cast<size_t>(kx));
-                                                const size_t w_base3 = has_oc3 ? idx_wei(0, oc3, static_cast<size_t>(kz), static_cast<size_t>(ky), static_cast<size_t>(kx)) : 0;
+                                                const size_t w_base2 = idx_wei(0,
+                                                                               oc2,
+                                                                               static_cast<size_t>(kz),
+                                                                               static_cast<size_t>(ky),
+                                                                               static_cast<size_t>(kx));
+                                                const size_t w_base3 = has_oc3 ? idx_wei(0,
+                                                                                         oc3,
+                                                                                         static_cast<size_t>(kz),
+                                                                                         static_cast<size_t>(ky),
+                                                                                         static_cast<size_t>(kx))
+                                                                               : 0;
                                                 a.wei = wei_p + w_base2;
-                                                if (has_oc3) a.wei2 = wei_p + w_base3;
+                                                if (has_oc3)
+                                                    a.wei2 = wei_p + w_base3;
                                                 a.wei_stride = wei_ic_stride_elems * sizeof(uint16_t);
                                                 a.wei_blk_stride = a.wei_stride * 8;
                                                 (*m_ip_kernel_f16)(&a);
@@ -294,24 +312,38 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
                         // Generic path (stride > 1): keep modulus checks
                         for (size_t kz = 0; kz < KD; ++kz) {
                             const ptrdiff_t iz_num = static_cast<ptrdiff_t>(od) + PD0 - static_cast<ptrdiff_t>(kz);
-                            if (SD == 0) continue;
-                            if (iz_num % static_cast<ptrdiff_t>(SD) != 0) continue;
+                            if (SD == 0)
+                                continue;
+                            if (iz_num % static_cast<ptrdiff_t>(SD) != 0)
+                                continue;
                             const ptrdiff_t id = iz_num / static_cast<ptrdiff_t>(SD);
-                            if (id < 0 || id >= static_cast<ptrdiff_t>(ID)) continue;
+                            if (id < 0 || id >= static_cast<ptrdiff_t>(ID))
+                                continue;
                             for (size_t ky = 0; ky < KH; ++ky) {
                                 const ptrdiff_t iy_num = static_cast<ptrdiff_t>(oh) + PH0 - static_cast<ptrdiff_t>(ky);
-                                if (SH == 0) continue;
-                                if (iy_num % static_cast<ptrdiff_t>(SH) != 0) continue;
+                                if (SH == 0)
+                                    continue;
+                                if (iy_num % static_cast<ptrdiff_t>(SH) != 0)
+                                    continue;
                                 const ptrdiff_t ihh = iy_num / static_cast<ptrdiff_t>(SH);
-                                if (ihh < 0 || ihh >= static_cast<ptrdiff_t>(IH)) continue;
+                                if (ihh < 0 || ihh >= static_cast<ptrdiff_t>(IH))
+                                    continue;
                                 for (size_t kx = 0; kx < KW; ++kx) {
-                                    const ptrdiff_t ix_num = static_cast<ptrdiff_t>(ow_) + PW0 - static_cast<ptrdiff_t>(kx);
-                                    if (SW == 0) continue;
-                                    if (ix_num % static_cast<ptrdiff_t>(SW) != 0) continue;
+                                    const ptrdiff_t ix_num =
+                                        static_cast<ptrdiff_t>(ow_) + PW0 - static_cast<ptrdiff_t>(kx);
+                                    if (SW == 0)
+                                        continue;
+                                    if (ix_num % static_cast<ptrdiff_t>(SW) != 0)
+                                        continue;
                                     const ptrdiff_t iww = ix_num / static_cast<ptrdiff_t>(SW);
-                                    if (iww < 0 || iww >= static_cast<ptrdiff_t>(IW)) continue;
+                                    if (iww < 0 || iww >= static_cast<ptrdiff_t>(IW))
+                                        continue;
 
-                                    const size_t s_base0 = idx_src(n, 0, static_cast<size_t>(id), static_cast<size_t>(ihh), static_cast<size_t>(iww));
+                                    const size_t s_base0 = idx_src(n,
+                                                                   0,
+                                                                   static_cast<size_t>(id),
+                                                                   static_cast<size_t>(ihh),
+                                                                   static_cast<size_t>(iww));
                                     const size_t w_base0 = idx_wei(0, oc0, kz, ky, kx);
                                     const size_t w_base1 = has_oc1 ? idx_wei(0, oc1, kz, ky, kx) : 0;
 
@@ -324,17 +356,20 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
                                     a.repeats = IC / 8;
                                     a.tail = IC % 8;
                                     if (m_wei_packed_ready_f16) {
-                                        const size_t pack_base0 = (((oc0 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16;
+                                        const size_t pack_base0 =
+                                            (((oc0 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16;
                                         a.wei = m_wei_packed_f16.data() + pack_base0;
                                         if (has_oc1) {
-                                            const size_t pack_base1 = (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16;
+                                            const size_t pack_base1 =
+                                                (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16;
                                             a.wei2 = m_wei_packed_f16.data() + pack_base1;
                                         }
                                         a.wei_stride = sizeof(uint16_t);
                                         a.wei_blk_stride = a.wei_stride * 8;
                                     } else {
                                         a.wei = wei_p + w_base0;
-                                        if (has_oc1) a.wei2 = wei_p + w_base1;
+                                        if (has_oc1)
+                                            a.wei2 = wei_p + w_base1;
                                         a.wei_stride = wei_ic_stride_elems * sizeof(uint16_t);
                                         a.wei_blk_stride = a.wei_stride * 8;
                                     }
@@ -349,22 +384,31 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
                         if (bprec == ov::element::f32) {
                             const float* b = reinterpret_cast<const float*>(src[2]->getData());
                             acc0 += b[oc0];
-                            if (has_oc1) acc1 += b[oc1];
-                            if (has_oc2) acc2 += b[oc2];
-                            if (has_oc3) acc3 += b[oc3];
+                            if (has_oc1)
+                                acc1 += b[oc1];
+                            if (has_oc2)
+                                acc2 += b[oc2];
+                            if (has_oc3)
+                                acc3 += b[oc3];
                         } else if (bprec == ov::element::f16) {
                             const uint16_t* b = reinterpret_cast<const uint16_t*>(src[2]->getData());
                             acc0 += static_cast<float>(ov::float16(b[oc0]));
-                            if (has_oc1) acc1 += static_cast<float>(ov::float16(b[oc1]));
-                            if (has_oc2) acc2 += static_cast<float>(ov::float16(b[oc2]));
-                            if (has_oc3) acc3 += static_cast<float>(ov::float16(b[oc3]));
+                            if (has_oc1)
+                                acc1 += static_cast<float>(ov::float16(b[oc1]));
+                            if (has_oc2)
+                                acc2 += static_cast<float>(ov::float16(b[oc2]));
+                            if (has_oc3)
+                                acc3 += static_cast<float>(ov::float16(b[oc3]));
                         }
                     }
 
                     dst_p[idx_dst(n, oc0, od, oh, ow_)] = ov::float16(acc0).to_bits();
-                    if (has_oc1) dst_p[idx_dst(n, oc1, od, oh, ow_)] = ov::float16(acc1).to_bits();
-                    if (has_oc2) dst_p[idx_dst(n, oc2, od, oh, ow_)] = ov::float16(acc2).to_bits();
-                    if (has_oc3) dst_p[idx_dst(n, oc3, od, oh, ow_)] = ov::float16(acc3).to_bits();
+                    if (has_oc1)
+                        dst_p[idx_dst(n, oc1, od, oh, ow_)] = ov::float16(acc1).to_bits();
+                    if (has_oc2)
+                        dst_p[idx_dst(n, oc2, od, oh, ow_)] = ov::float16(acc2).to_bits();
+                    if (has_oc3)
+                        dst_p[idx_dst(n, oc3, od, oh, ow_)] = ov::float16(acc3).to_bits();
                 }
             }
         }
@@ -373,8 +417,7 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
     ov::parallel_for3d(N, (OC + 3) / 4, OD, worker);
 }
 
-void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src,
-                                    const std::vector<MemoryPtr>& dst) {
+void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     // NCDHW, f32
     const auto& srcDims = src[0]->getStaticDims();
     const auto& weiDims = src[1]->getStaticDims();
@@ -406,7 +449,7 @@ void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src,
         return (((n * OC + c) * OD + z) * OH + y) * OW + x;
     };
     auto idx_wei = [&](size_t ic, size_t oc, size_t kz, size_t ky, size_t kx) {
-        return ((((ic) * OC + oc) * KD + kz) * KH + ky) * KW + kx;
+        return ((((ic)*OC + oc) * KD + kz) * KH + ky) * KW + kx;
     };
 
     const size_t src_c_stride_elems = ID * IH * IW;
@@ -447,7 +490,9 @@ void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src,
                                 const size_t ix0 = static_cast<size_t>(tx - kx_lo);
                                 for (ptrdiff_t ky = ky_lo; ky <= ky_hi; ++ky) {
                                     const size_t iy = static_cast<size_t>(ty - ky);
-                                    const size_t ix = ix0; (void)iy0; (void)ky_base;
+                                    const size_t ix = ix0;
+                                    (void)iy0;
+                                    (void)ky_base;
                                     const size_t s_base = idx_src(n, 0, iz, iy, ix);
 
                                     // pair 0
@@ -462,10 +507,18 @@ void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src,
                                         a.tail = IC % 4;
                                         a.kw_cnt = kw_count;
                                         a.src_dx = sizeof(float);
-                                        const size_t base0 = (((oc0 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW + static_cast<size_t>(kx_lo)) * m_padded_IC_f32;
+                                        const size_t base0 =
+                                            (((oc0 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) *
+                                                 KW +
+                                             static_cast<size_t>(kx_lo)) *
+                                            m_padded_IC_f32;
                                         a.wei = m_wei_packed_f32.data() + base0;
                                         if (has_oc1) {
-                                            const size_t base1 = (((oc1 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW + static_cast<size_t>(kx_lo)) * m_padded_IC_f32;
+                                            const size_t base1 =
+                                                (((oc1 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) *
+                                                     KW +
+                                                 static_cast<size_t>(kx_lo)) *
+                                                m_padded_IC_f32;
                                             a.wei2 = m_wei_packed_f32.data() + base1;
                                         }
                                         a.wei_stride = sizeof(float);
@@ -485,10 +538,18 @@ void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src,
                                         a.tail = IC % 4;
                                         a.kw_cnt = kw_count;
                                         a.src_dx = sizeof(float);
-                                        const size_t base2 = (((oc2 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW + static_cast<size_t>(kx_lo)) * m_padded_IC_f32;
+                                        const size_t base2 =
+                                            (((oc2 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) *
+                                                 KW +
+                                             static_cast<size_t>(kx_lo)) *
+                                            m_padded_IC_f32;
                                         a.wei = m_wei_packed_f32.data() + base2;
                                         if (has_oc3) {
-                                            const size_t base3 = (((oc3 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW + static_cast<size_t>(kx_lo)) * m_padded_IC_f32;
+                                            const size_t base3 =
+                                                (((oc3 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) *
+                                                     KW +
+                                                 static_cast<size_t>(kx_lo)) *
+                                                m_padded_IC_f32;
                                             a.wei2 = m_wei_packed_f32.data() + base3;
                                         }
                                         a.wei_stride = sizeof(float);
@@ -503,24 +564,38 @@ void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src,
                         // generic stride path with modulus checks
                         for (size_t kz = 0; kz < KD; ++kz) {
                             const ptrdiff_t iz_num = static_cast<ptrdiff_t>(od) + PD0 - static_cast<ptrdiff_t>(kz);
-                            if (SD == 0) continue;
-                            if (iz_num % static_cast<ptrdiff_t>(SD) != 0) continue;
+                            if (SD == 0)
+                                continue;
+                            if (iz_num % static_cast<ptrdiff_t>(SD) != 0)
+                                continue;
                             const ptrdiff_t id = iz_num / static_cast<ptrdiff_t>(SD);
-                            if (id < 0 || id >= static_cast<ptrdiff_t>(ID)) continue;
+                            if (id < 0 || id >= static_cast<ptrdiff_t>(ID))
+                                continue;
                             for (size_t ky = 0; ky < KH; ++ky) {
                                 const ptrdiff_t iy_num = static_cast<ptrdiff_t>(oh) + PH0 - static_cast<ptrdiff_t>(ky);
-                                if (SH == 0) continue;
-                                if (iy_num % static_cast<ptrdiff_t>(SH) != 0) continue;
+                                if (SH == 0)
+                                    continue;
+                                if (iy_num % static_cast<ptrdiff_t>(SH) != 0)
+                                    continue;
                                 const ptrdiff_t ihh = iy_num / static_cast<ptrdiff_t>(SH);
-                                if (ihh < 0 || ihh >= static_cast<ptrdiff_t>(IH)) continue;
+                                if (ihh < 0 || ihh >= static_cast<ptrdiff_t>(IH))
+                                    continue;
                                 for (size_t kx = 0; kx < KW; ++kx) {
-                                    const ptrdiff_t ix_num = static_cast<ptrdiff_t>(ow_) + PW0 - static_cast<ptrdiff_t>(kx);
-                                    if (SW == 0) continue;
-                                    if (ix_num % static_cast<ptrdiff_t>(SW) != 0) continue;
+                                    const ptrdiff_t ix_num =
+                                        static_cast<ptrdiff_t>(ow_) + PW0 - static_cast<ptrdiff_t>(kx);
+                                    if (SW == 0)
+                                        continue;
+                                    if (ix_num % static_cast<ptrdiff_t>(SW) != 0)
+                                        continue;
                                     const ptrdiff_t iww = ix_num / static_cast<ptrdiff_t>(SW);
-                                    if (iww < 0 || iww >= static_cast<ptrdiff_t>(IW)) continue;
+                                    if (iww < 0 || iww >= static_cast<ptrdiff_t>(IW))
+                                        continue;
 
-                                    const size_t s_base0 = idx_src(n, 0, static_cast<size_t>(id), static_cast<size_t>(ihh), static_cast<size_t>(iww));
+                                    const size_t s_base0 = idx_src(n,
+                                                                   0,
+                                                                   static_cast<size_t>(id),
+                                                                   static_cast<size_t>(ihh),
+                                                                   static_cast<size_t>(iww));
                                     const size_t w_base0 = idx_wei(0, oc0, kz, ky, kx);
                                     const size_t w_base1 = has_oc1 ? idx_wei(0, oc1, kz, ky, kx) : 0;
 
@@ -533,17 +608,20 @@ void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src,
                                     a.repeats = IC / 4;
                                     a.tail = IC % 4;
                                     if (m_wei_packed_ready_f32) {
-                                        const size_t pack_base0 = (((oc0 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32;
+                                        const size_t pack_base0 =
+                                            (((oc0 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32;
                                         a.wei = m_wei_packed_f32.data() + pack_base0;
                                         if (has_oc1) {
-                                            const size_t pack_base1 = (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32;
+                                            const size_t pack_base1 =
+                                                (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32;
                                             a.wei2 = m_wei_packed_f32.data() + pack_base1;
                                         }
                                         a.wei_stride = sizeof(float);
                                         a.wei_blk_stride = a.wei_stride * 4;
                                     } else {
                                         a.wei = wei_p + w_base0;
-                                        if (has_oc1) a.wei2 = wei_p + w_base1;
+                                        if (has_oc1)
+                                            a.wei2 = wei_p + w_base1;
                                         a.wei_stride = wei_ic_stride_elems * sizeof(float);
                                         a.wei_blk_stride = a.wei_stride * 4;
                                     }
@@ -557,20 +635,32 @@ void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src,
                         const auto& bprec = src[2]->getPrecision();
                         if (bprec == ov::element::f32) {
                             const float* b = reinterpret_cast<const float*>(src[2]->getData());
-                            acc0 += b[oc0]; if (has_oc1) acc1 += b[oc1]; if (has_oc2) acc2 += b[oc2]; if (has_oc3) acc3 += b[oc3];
+                            acc0 += b[oc0];
+                            if (has_oc1)
+                                acc1 += b[oc1];
+                            if (has_oc2)
+                                acc2 += b[oc2];
+                            if (has_oc3)
+                                acc3 += b[oc3];
                         } else if (bprec == ov::element::f16) {
                             const uint16_t* b = reinterpret_cast<const uint16_t*>(src[2]->getData());
                             acc0 += static_cast<float>(ov::float16(b[oc0]));
-                            if (has_oc1) acc1 += static_cast<float>(ov::float16(b[oc1]));
-                            if (has_oc2) acc2 += static_cast<float>(ov::float16(b[oc2]));
-                            if (has_oc3) acc3 += static_cast<float>(ov::float16(b[oc3]));
+                            if (has_oc1)
+                                acc1 += static_cast<float>(ov::float16(b[oc1]));
+                            if (has_oc2)
+                                acc2 += static_cast<float>(ov::float16(b[oc2]));
+                            if (has_oc3)
+                                acc3 += static_cast<float>(ov::float16(b[oc3]));
                         }
                     }
 
                     dst_p[idx_dst(n, oc0, od, oh, ow_)] = acc0;
-                    if (has_oc1) dst_p[idx_dst(n, oc1, od, oh, ow_)] = acc1;
-                    if (has_oc2) dst_p[idx_dst(n, oc2, od, oh, ow_)] = acc2;
-                    if (has_oc3) dst_p[idx_dst(n, oc3, od, oh, ow_)] = acc3;
+                    if (has_oc1)
+                        dst_p[idx_dst(n, oc1, od, oh, ow_)] = acc1;
+                    if (has_oc2)
+                        dst_p[idx_dst(n, oc2, od, oh, ow_)] = acc2;
+                    if (has_oc3)
+                        dst_p[idx_dst(n, oc3, od, oh, ow_)] = acc3;
                 }
             }
         }
@@ -581,7 +671,8 @@ bool AArch64JitDeconvExecutorBuilder::isSupported(const DeconvAttrs& attrs,
                                                   const std::vector<MemoryDescPtr>& srcDescs,
                                                   const std::vector<MemoryDescPtr>& dstDescs) const {
     // Support 5D NCDHW, fp16 and fp32
-    if (srcDescs.size() < 2 || dstDescs.empty()) return false;
+    if (srcDescs.size() < 2 || dstDescs.empty())
+        return false;
     if (srcDescs[0]->getShape().getRank() != 5 || srcDescs[1]->getShape().getRank() != 5 ||
         dstDescs[0]->getShape().getRank() != 5) {
         return false;
