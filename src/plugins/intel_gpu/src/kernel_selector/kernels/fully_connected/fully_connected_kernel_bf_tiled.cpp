@@ -324,7 +324,7 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     }
 
     auto wt = weights.GetDType();
-    if ((wt == WeightsType::UINT4 || wt == WeightsType::INT4) && (weights.IFM().v % 2 != 0 || weights.OFM().v % 2 != 0)) {
+    if ((wt == WeightsType::UINT4 || wt == WeightsType::INT4) && (weights.IFM().v % 2 != 0)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
