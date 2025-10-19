@@ -55,7 +55,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     }
 
     bool has_scores_output() const {
-        return num_outputs == 2;
+        return num_outputs >= 2;
     }
 
     bool operator==(const primitive& rhs) const override {

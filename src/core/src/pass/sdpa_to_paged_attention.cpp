@@ -146,6 +146,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ParameterVector adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer;
 
     ResultVector score_results;
+    ResultVector adaptive_rkv_diversity_results;
 
     std::shared_ptr<v0::Parameter> position_ids;
     if (!get_parameter(model, "position_ids")) {
@@ -185,6 +186,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   xattention_threshold_inputs_for_each_layer,
                                                   adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
                                                   adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer,
+                                                  adaptive_rkv_diversity_results,
                                                   optional_model_wide_params);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
@@ -265,6 +267,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->add_parameters({optional_model_wide_params["adaptive_rkv_evictable_sizes"]});
         model->add_parameters(adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer);
         model->add_parameters(adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer);
+        model->add_results(adaptive_rkv_diversity_results);
     }
 
     model->add_parameters(kv_parameters);

@@ -75,6 +75,7 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     }
     // output score may have no child
     m_hasScore = !op->get_output_target_inputs(1).empty();
+    m_has_adaptive_rkv_diversity_output = !op->get_output_target_inputs(2).empty();
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
@@ -258,7 +259,12 @@ void PagedAttention::createPrimitive() {
 void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
-    std::vector<MemoryPtr> outputs(m_hasScore ? 2 : 1);
+    size_t num_outputs = 1;
+    if (m_hasScore) {
+        num_outputs = m_has_adaptive_rkv_diversity_output ? 3 : 2;
+    }
+
+    std::vector<MemoryPtr> outputs(num_outputs);
 
     for (size_t i = 0; i < orginInputNumber; i++) {
         inputs[i] = getSrcMemoryAtPort(i);
@@ -279,6 +285,10 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         //               (num_kv_heads * head_size) = num_heads * v_head_size
         outDims[1] = outDims[1] * valueDims[1] / keyDims[1];
     }
+
+    std::vector<VectorDims> output_dims = {outDims};
+
+
     if (m_hasScore) {
         size_t len = 0;
         const auto& pastLensDims = inputs[5]->getStaticDims();
@@ -288,14 +298,36 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         }
         len += outDims[0];
         VectorDims scoreDims{len};
+        output_dims.push_back(scoreDims);
         redefineOutputMemory({outDims, scoreDims});
+
+        if (m_has_adaptive_rkv_diversity_output) {
+            size_t num_elements_in_output = 0;
+
+            const size_t K_CACHE_IDX = PagedAttentionExecutor::ID_KCACHE;
+            const size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
+
+            const size_t ADAPTIVE_RKV_EVICTABLE_SIZES_IDX = PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES;
+            auto evictable_sizes_dims = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getStaticDims();
+            const auto* evictable_sizes_data = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getDataAs<const int32_t>();
+            for (size_t i = 0; i < evictable_sizes_dims[0]; i++) {
+                // for each sequence the Adaptive R-KV similarity output has shape [ evictable_size / block_size, evictable_size ]
+                // where evictable_size is in general different for different subsequences
+                num_elements_in_output += evictable_sizes_data[i] * evictable_sizes_data[i] / block_size;
+            }
+            output_dims.push_back({num_elements_in_output});
+        }
     } else {
-        redefineOutputMemory({outDims, {0}});
+        output_dims.push_back({0});
     }
+    redefineOutputMemory(output_dims);
 
     outputs[0] = getDstMemoryAtPort(0);
     if (m_hasScore) {
         outputs[1] = getDstMemoryAtPort(1);
+        if (m_has_adaptive_rkv_diversity_output) {
+            outputs[2] = getDstMemoryAtPort(2);
+        }
     }
 
     m_executor->execute(inputs, outputs);
