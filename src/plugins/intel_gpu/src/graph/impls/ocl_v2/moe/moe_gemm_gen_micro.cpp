@@ -56,9 +56,9 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
             scale_idx -= 1;
             zp_idx -= 1;
         }
-        input_ids.push_back((moe_gemm::MoEGemmInputIdx)((int)scale_idx));
+        input_ids.push_back((moe_gemm::MoEGemmInputIdx)(static_cast<int32_t>(scale_idx)));
         if (!cfg.is_weight_symmetric_quantized)
-            input_ids.push_back((moe_gemm::MoEGemmInputIdx)((int)zp_idx));
+            input_ids.push_back((moe_gemm::MoEGemmInputIdx)(static_cast<int32_t>(zp_idx)));
 
         jit.make("WEIGHT_SCALE_DT", to_ocl_type(data_types::f16));
         if (cfg.weight_group_size > 0)
