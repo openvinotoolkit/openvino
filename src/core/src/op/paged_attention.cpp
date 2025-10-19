@@ -143,6 +143,11 @@ void PagedAttentionExtension::validate_and_infer_types() {
     } else {
         set_output_type(1, m_output_type[1], {Dimension::dynamic()});
     }
+    if (m_output_type[2].is_dynamic()) {
+        set_output_type(2, get_input_element_type(0), {Dimension::dynamic()});
+    } else {
+        set_output_type(2, m_output_type[2], {Dimension::dynamic()});
+    }
 }
 
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {

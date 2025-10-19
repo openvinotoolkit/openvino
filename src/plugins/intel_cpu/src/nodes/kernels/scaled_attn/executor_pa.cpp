@@ -1876,7 +1876,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               PlainTensor& adaptive_rkv_diversity_block_set_indices,
               PlainTensor& adaptive_rkv_diversity_block_set_begins,
               PlainTensor& output_emb,
-              PlainTensor& output_score) {
+              PlainTensor& output_score,
+              PlainTensor& output_arkv_similarity) {
         q.reset(inputs[ID_Q]);  // [B_token, H * S]
         k.reset(inputs[ID_K]);
         v.reset(inputs[ID_V]);
@@ -1923,23 +1924,21 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         adaptive_rkv_start_size = *inputs[ID_ADAPTIVE_RKV_START_SIZE]->getDataAs<int32_t>();
 
         if (!inputs[ID_ADAPTIVE_RKV_EVICTABLE_SIZES]->getShape().hasZeroDims()) {
+            OPENVINO_ASSERT(!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]->getShape().hasZeroDims());
+            OPENVINO_ASSERT(!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS]->getShape().hasZeroDims());
             adaptive_rkv_evictable_sizes.reset(inputs[ID_ADAPTIVE_RKV_EVICTABLE_SIZES]);  // [B_seq]
-        }
-
-        if (!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]->getShape().hasZeroDims()) {
             adaptive_rkv_diversity_block_set_indices.reset(inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]);  // [num_adaptive_rkv_diversity_blocks]
-        }
-
-        if (!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS]->getShape().hasZeroDims()) {
             adaptive_rkv_diversity_block_set_begins.reset(inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS]);  // [num_adaptive_rkv_diversity_blocks]
+
+            OPENVINO_ASSERT(outputs.size() >= 3);
+            output_arkv_similarity.reset(outputs[2]);
         }
-
-
 
         output_emb.reset(outputs[0]);
-        if (outputs.size() == 2) {
+        if (outputs.size() >= 2) {
             output_score.reset(outputs[1]);
         }
+
 
         auto B_token = q.size(0);
         auto Hk = k_cache.size(1);
@@ -2191,6 +2190,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         PlainTensor output_emb;
         PlainTensor output_score;
+        PlainTensor output_arkv_similarity;
 
         init(inputs,
              outputs,
@@ -2220,7 +2220,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              adaptive_rkv_diversity_block_set_indices,
              adaptive_rkv_diversity_block_set_begins,
              output_emb,
-             output_score);
+             output_score,
+             output_arkv_similarity);
 
         if (rotated_block_indices) {
             // Rotate kv cache currently doesn't support quantized cache.
