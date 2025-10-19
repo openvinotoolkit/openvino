@@ -4,20 +4,22 @@
 
 #include "nodes/executors/aarch64/jit_conv3d.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
 #include <algorithm>
+#include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
 #include <memory>
 #include <vector>
 
 #include "cpu_memory.h"
-#include "memory_desc/cpu_memory_desc.h"
-#include "nodes/executors/implementation_utils.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
-#include "utils/general_utils.h"
 // helper for jit_kernel_cast
 #include "utils/cpu_utils.hpp"
 // no direct NEON intrinsics are used here; we rely on Xbyak_aarch64
@@ -27,642 +29,642 @@ using namespace dnnl::impl::cpu::aarch64;
 namespace ov::intel_cpu {
 
 // --------------------------- JIT kernel (placeholder) ---------------------------
-JitConv3DKernelF16::JitConv3DKernelF16() {}
+JitConv3DKernelF16::JitConv3DKernelF16() = default;
 
 void JitConv3DKernelF16::create_ker() {
     jit_generator::create_kernel();
     ker_ = jit_kernel_cast<jit_fn>(jit_ker());
 }
 
-void JitConv3DKernelF16::generate() {
+void JitConv3DKernelF16::gen_minimal_kernel() {
     using namespace Xbyak_aarch64;
     // Minimal stable kernel (dual-OC, in-kernel kx loop)
+    const XReg reg_args = abi_param1;  // x0
+    // Load essential arguments (absolute offsets from jit_conv3d_call_args)
+    const XReg reg_src = x1;         // const uint16_t* src
+    const XReg reg_wei = x2;         // const uint16_t* wei
+    const XReg reg_wei2 = x3;        // const uint16_t* wei2 (optional)
+    const XReg reg_reps = x4;        // size_t repeats
+    const XReg reg_tail = x5;        // size_t tail
+    const XReg reg_src_stride = x6;  // size_t src_stride (bytes)
+    const XReg reg_wei_stride = x7;  // size_t wei_stride (bytes)
+    const XReg reg_acc = x8;         // float* acc
+    const XReg reg_acc2 = x9;        // float* acc2 (optional)
 
-    {
-        const XReg reg_args = abi_param1;  // x0
-        // Load essential arguments (absolute offsets from jit_conv3d_call_args)
-        const XReg reg_src = x1;         // const uint16_t* src
-        const XReg reg_wei = x2;         // const uint16_t* wei
-        const XReg reg_wei2 = x3;        // const uint16_t* wei2 (optional)
-        const XReg reg_reps = x4;        // size_t repeats
-        const XReg reg_tail = x5;        // size_t tail
-        const XReg reg_src_stride = x6;  // size_t src_stride (bytes)
-        const XReg reg_wei_stride = x7;  // size_t wei_stride (bytes)
-        const XReg reg_acc = x8;         // float* acc
-        const XReg reg_acc2 = x9;        // float* acc2 (optional)
+    ldr(reg_src, ptr(reg_args, 0));
+    ldr(reg_wei, ptr(reg_args, 8));
+    ldr(reg_wei2, ptr(reg_args, 16));
+    ldr(reg_reps, ptr(reg_args, 40));
+    ldr(reg_tail, ptr(reg_args, 48));
+    ldr(reg_src_stride, ptr(reg_args, 56));
+    ldr(reg_wei_stride, ptr(reg_args, 64));
+    ldr(reg_acc, ptr(reg_args, 88));
+    ldr(reg_acc2, ptr(reg_args, 96));
 
-        ldr(reg_src, ptr(reg_args, 0));
-        ldr(reg_wei, ptr(reg_args, 8));
-        ldr(reg_wei2, ptr(reg_args, 16));
-        ldr(reg_reps, ptr(reg_args, 40));
-        ldr(reg_tail, ptr(reg_args, 48));
-        ldr(reg_src_stride, ptr(reg_args, 56));
-        ldr(reg_wei_stride, ptr(reg_args, 64));
-        ldr(reg_acc, ptr(reg_args, 88));
-        ldr(reg_acc2, ptr(reg_args, 96));
+    Label Lsingle, Ldone;
+    // Additional labels for kx-loop variants
+    Label Ldual_kx, Lkx_d, Ltail_prep_d_kx, Ltail_done_d_kx;
+    Label Lsingle_kx, Lkx_s, Ltail_prep_s_kx, Ltail_done_s_kx;
+    cbz(reg_acc2, Lsingle);
+    // Jump to in-kernel kx loop dual-OC path (safe, call-clobbered only)
+    b(Ldual_kx);
 
-        Label Lsingle, Ldone;
-        // Additional labels for kx-loop variants
-        Label Ldual_kx, Lkx_d, Ltail_prep_d_kx, Ltail_done_d_kx;
-        Label Lsingle_kx, Lkx_s, Ltail_prep_s_kx, Ltail_done_s_kx;
-        cbz(reg_acc2, Lsingle);
-        // Jump to in-kernel kx loop dual-OC path (safe, call-clobbered only)
-        b(Ldual_kx);
+    // Dual-OC with in-kernel kx loop (v20 for oc0, v21 for oc1)
+    L(Ldual_kx);
+    eor(VReg16B(20), VReg16B(20), VReg16B(20));
+    eor(VReg16B(21), VReg16B(21), VReg16B(21));
+    // Load kx-loop controls and set bases
+    const XReg reg_kw_cnt = x12;
+    const XReg reg_src_dx = x13;
+    const XReg reg_wei_dx = x14;
+    ldr(reg_kw_cnt, ptr(reg_args, 104));
+    ldr(reg_src_dx, ptr(reg_args, 112));
+    ldr(reg_wei_dx, ptr(reg_args, 120));
+    const XReg q_src_base = x15;
+    const XReg q_wei_base = x16;
+    const XReg q_wei2_base = x17;
+    const XReg reg_wei_blk_stride2 = x10;
+    ldr(reg_wei_blk_stride2, ptr(reg_args, 80));
+    mov(q_src_base, reg_src);
+    mov(q_wei_base, reg_wei);
+    mov(q_wei2_base, reg_wei2);
+    // Treat kw_cnt==0 as 1
+    cbnz(reg_kw_cnt, Lkx_d);
+    mov(reg_kw_cnt, 1);
+    L(Lkx_d);
+    // Reset pointers and repeats for this kx
+    ldr(reg_reps, ptr(reg_args, 40));
+    mov(reg_src, q_src_base);
+    mov(reg_wei, q_wei_base);
+    mov(reg_wei2, q_wei2_base);
+    // Channel repeats over 8-lane blocks
+    Label Lrep_d_kx;
+    L(Lrep_d_kx);
+    cmp(reg_reps, 0);
+    b(EQ, Ltail_prep_d_kx);
+    // Load src lanes into v0
+    ld1(VReg(0).h[0], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[1], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[2], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[3], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[4], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[5], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[6], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[7], ptr(reg_src));
+    // Load weights for oc0/oc1 (vector fast path if stride==2)
+    Label Lw_np_d, Lw_done_d2;
+    cmp(reg_wei_stride, 2);
+    b(NE, Lw_np_d);
+    ld1(VReg8H(1), ptr(reg_wei));
+    ld1(VReg8H(2), ptr(reg_wei2));
+    add(reg_wei, reg_wei, reg_wei_blk_stride2);
+    add(reg_wei2, reg_wei2, reg_wei_blk_stride2);
+    b(Lw_done_d2);
+    L(Lw_np_d);
+    ld1(VReg(1).h[0], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[0], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[1], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[1], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[2], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[2], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[3], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[3], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[4], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[4], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[5], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[5], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[6], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[6], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[7], ptr(reg_wei));
+    ld1(VReg(2).h[7], ptr(reg_wei2));
+    L(Lw_done_d2);
+    // MAC into accumulators
+    fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
+    fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
+    fmlal(VReg4S(21), VReg4H(0), VReg4H(2));
+    fmlal2(VReg4S(21), VReg4H(0), VReg4H(2));
+    sub(reg_reps, reg_reps, 1);
+    b(Lrep_d_kx);
+    // Tail handling per kx
+    L(Ltail_prep_d_kx);
+    eor(VReg16B(0), VReg16B(0), VReg16B(0));
+    eor(VReg16B(1), VReg16B(1), VReg16B(1));
+    eor(VReg16B(2), VReg16B(2), VReg16B(2));
+    cmp(reg_tail, 0);
+    b(LE, Ltail_done_d_kx);
+    ld1(VReg(0).h[0], ptr(reg_src));
+    ld1(VReg(1).h[0], ptr(reg_wei));
+    ld1(VReg(2).h[0], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 1);
+    b(LE, Ltail_done_d_kx);
+    ld1(VReg(0).h[1], ptr(reg_src));
+    ld1(VReg(1).h[1], ptr(reg_wei));
+    ld1(VReg(2).h[1], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 2);
+    b(LE, Ltail_done_d_kx);
+    ld1(VReg(0).h[2], ptr(reg_src));
+    ld1(VReg(1).h[2], ptr(reg_wei));
+    ld1(VReg(2).h[2], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 3);
+    b(LE, Ltail_done_d_kx);
+    ld1(VReg(0).h[3], ptr(reg_src));
+    ld1(VReg(1).h[3], ptr(reg_wei));
+    ld1(VReg(2).h[3], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 4);
+    b(LE, Ltail_done_d_kx);
+    ld1(VReg(0).h[4], ptr(reg_src));
+    ld1(VReg(1).h[4], ptr(reg_wei));
+    ld1(VReg(2).h[4], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 5);
+    b(LE, Ltail_done_d_kx);
+    ld1(VReg(0).h[5], ptr(reg_src));
+    ld1(VReg(1).h[5], ptr(reg_wei));
+    ld1(VReg(2).h[5], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 6);
+    b(LE, Ltail_done_d_kx);
+    ld1(VReg(0).h[6], ptr(reg_src));
+    ld1(VReg(1).h[6], ptr(reg_wei));
+    ld1(VReg(2).h[6], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 7);
+    b(LE, Ltail_done_d_kx);
+    ld1(VReg(0).h[7], ptr(reg_src));
+    ld1(VReg(1).h[7], ptr(reg_wei));
+    ld1(VReg(2).h[7], ptr(reg_wei2));
+    L(Ltail_done_d_kx);
+    fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
+    fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
+    fmlal(VReg4S(21), VReg4H(0), VReg4H(2));
+    fmlal2(VReg4S(21), VReg4H(0), VReg4H(2));
+    // advance bases to next kx and continue
+    sub(reg_kw_cnt, reg_kw_cnt, 1);
+    add(q_src_base, q_src_base, reg_src_dx);
+    add(q_wei_base, q_wei_base, reg_wei_dx);
+    add(q_wei2_base, q_wei2_base, reg_wei_dx);
+    cbnz(reg_kw_cnt, Lkx_d);
+    // reduce and store accumulators
+    faddp(VReg4S(20), VReg4S(20), VReg4S(20));
+    faddp(VReg2S(20), VReg2S(20), VReg2S(20));
+    faddp(VReg4S(21), VReg4S(21), VReg4S(21));
+    faddp(VReg2S(21), VReg2S(21), VReg2S(21));
+    ldr(SReg(0), ptr(reg_acc));
+    fadd(SReg(0), SReg(0), SReg(20));
+    str(SReg(0), ptr(reg_acc));
+    ldr(SReg(1), ptr(reg_acc2));
+    fadd(SReg(1), SReg(1), SReg(21));
+    str(SReg(1), ptr(reg_acc2));
+    b(Ldone);
 
-        // Dual-OC with in-kernel kx loop (v20 for oc0, v21 for oc1)
-        L(Ldual_kx);
-        eor(VReg16B(20), VReg16B(20), VReg16B(20));
-        eor(VReg16B(21), VReg16B(21), VReg16B(21));
-        // Load kx-loop controls and set bases
-        const XReg reg_kw_cnt = x12;
-        const XReg reg_src_dx = x13;
-        const XReg reg_wei_dx = x14;
-        ldr(reg_kw_cnt, ptr(reg_args, 104));
-        ldr(reg_src_dx, ptr(reg_args, 112));
-        ldr(reg_wei_dx, ptr(reg_args, 120));
-        const XReg q_src_base = x15;
-        const XReg q_wei_base = x16;
-        const XReg q_wei2_base = x17;
-        const XReg reg_wei_blk_stride2 = x10;
-        ldr(reg_wei_blk_stride2, ptr(reg_args, 80));
-        mov(q_src_base, reg_src);
-        mov(q_wei_base, reg_wei);
-        mov(q_wei2_base, reg_wei2);
-        // Treat kw_cnt==0 as 1
-        cbnz(reg_kw_cnt, Lkx_d);
-        mov(reg_kw_cnt, 1);
-        L(Lkx_d);
-        // Reset pointers and repeats for this kx
-        ldr(reg_reps, ptr(reg_args, 40));
-        mov(reg_src, q_src_base);
-        mov(reg_wei, q_wei_base);
-        mov(reg_wei2, q_wei2_base);
-        // Channel repeats over 8-lane blocks
-        Label Lrep_d_kx;
-        L(Lrep_d_kx);
-        cmp(reg_reps, 0);
-        b(EQ, Ltail_prep_d_kx);
-        // Load src lanes into v0
-        ld1(VReg(0).h[0], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[1], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[2], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[3], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[4], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[5], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[6], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[7], ptr(reg_src));
-        // Load weights for oc0/oc1 (vector fast path if stride==2)
-        Label Lw_np_d, Lw_done_d2;
-        cmp(reg_wei_stride, 2);
-        b(NE, Lw_np_d);
-        ld1(VReg8H(1), ptr(reg_wei));
-        ld1(VReg8H(2), ptr(reg_wei2));
-        add(reg_wei, reg_wei, reg_wei_blk_stride2);
-        add(reg_wei2, reg_wei2, reg_wei_blk_stride2);
-        b(Lw_done_d2);
-        L(Lw_np_d);
-        ld1(VReg(1).h[0], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[0], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[1], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[1], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[2], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[2], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[3], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[3], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[4], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[4], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[5], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[5], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[6], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[6], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[7], ptr(reg_wei));
-        ld1(VReg(2).h[7], ptr(reg_wei2));
-        L(Lw_done_d2);
-        // MAC into accumulators
-        fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
-        fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
-        fmlal(VReg4S(21), VReg4H(0), VReg4H(2));
-        fmlal2(VReg4S(21), VReg4H(0), VReg4H(2));
-        sub(reg_reps, reg_reps, 1);
-        b(Lrep_d_kx);
-        // Tail handling per kx
-        L(Ltail_prep_d_kx);
-        eor(VReg16B(0), VReg16B(0), VReg16B(0));
-        eor(VReg16B(1), VReg16B(1), VReg16B(1));
-        eor(VReg16B(2), VReg16B(2), VReg16B(2));
-        cmp(reg_tail, 0);
-        b(LE, Ltail_done_d_kx);
-        ld1(VReg(0).h[0], ptr(reg_src));
-        ld1(VReg(1).h[0], ptr(reg_wei));
-        ld1(VReg(2).h[0], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 1);
-        b(LE, Ltail_done_d_kx);
-        ld1(VReg(0).h[1], ptr(reg_src));
-        ld1(VReg(1).h[1], ptr(reg_wei));
-        ld1(VReg(2).h[1], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 2);
-        b(LE, Ltail_done_d_kx);
-        ld1(VReg(0).h[2], ptr(reg_src));
-        ld1(VReg(1).h[2], ptr(reg_wei));
-        ld1(VReg(2).h[2], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 3);
-        b(LE, Ltail_done_d_kx);
-        ld1(VReg(0).h[3], ptr(reg_src));
-        ld1(VReg(1).h[3], ptr(reg_wei));
-        ld1(VReg(2).h[3], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 4);
-        b(LE, Ltail_done_d_kx);
-        ld1(VReg(0).h[4], ptr(reg_src));
-        ld1(VReg(1).h[4], ptr(reg_wei));
-        ld1(VReg(2).h[4], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 5);
-        b(LE, Ltail_done_d_kx);
-        ld1(VReg(0).h[5], ptr(reg_src));
-        ld1(VReg(1).h[5], ptr(reg_wei));
-        ld1(VReg(2).h[5], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 6);
-        b(LE, Ltail_done_d_kx);
-        ld1(VReg(0).h[6], ptr(reg_src));
-        ld1(VReg(1).h[6], ptr(reg_wei));
-        ld1(VReg(2).h[6], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 7);
-        b(LE, Ltail_done_d_kx);
-        ld1(VReg(0).h[7], ptr(reg_src));
-        ld1(VReg(1).h[7], ptr(reg_wei));
-        ld1(VReg(2).h[7], ptr(reg_wei2));
-        L(Ltail_done_d_kx);
-        fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
-        fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
-        fmlal(VReg4S(21), VReg4H(0), VReg4H(2));
-        fmlal2(VReg4S(21), VReg4H(0), VReg4H(2));
-        // advance bases to next kx and continue
-        sub(reg_kw_cnt, reg_kw_cnt, 1);
-        add(q_src_base, q_src_base, reg_src_dx);
-        add(q_wei_base, q_wei_base, reg_wei_dx);
-        add(q_wei2_base, q_wei2_base, reg_wei_dx);
-        cbnz(reg_kw_cnt, Lkx_d);
-        // reduce and store accumulators
-        faddp(VReg4S(20), VReg4S(20), VReg4S(20));
-        faddp(VReg2S(20), VReg2S(20), VReg2S(20));
-        faddp(VReg4S(21), VReg4S(21), VReg4S(21));
-        faddp(VReg2S(21), VReg2S(21), VReg2S(21));
-        ldr(SReg(0), ptr(reg_acc));
-        fadd(SReg(0), SReg(0), SReg(20));
-        str(SReg(0), ptr(reg_acc));
-        ldr(SReg(1), ptr(reg_acc2));
-        fadd(SReg(1), SReg(1), SReg(21));
-        str(SReg(1), ptr(reg_acc2));
-        b(Ldone);
+    // Dual-OC path: v20 (oc0), v21 (oc1)
+    eor(VReg16B(20), VReg16B(20), VReg16B(20));
+    eor(VReg16B(21), VReg16B(21), VReg16B(21));
 
-        // Dual-OC path: v20 (oc0), v21 (oc1)
-        eor(VReg16B(20), VReg16B(20), VReg16B(20));
-        eor(VReg16B(21), VReg16B(21), VReg16B(21));
+    Label Lrep_d, Ltail_prep_d, Ltail_done_d;
+    L(Lrep_d);
+    cmp(reg_reps, 0);
+    b(EQ, Ltail_prep_d);
+    // Load src lanes (v0)
+    ld1(VReg(0).h[0], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[1], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[2], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[3], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[4], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[5], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[6], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[7], ptr(reg_src));
+    // Load wei lanes for oc0 (v1) and oc1 (v2) — vector fast path if wei_stride==2
+    Label Ldw_np_d, Ldw_done_d;
+    cmp(reg_wei_stride, 2);
+    b(NE, Ldw_np_d);
+    ld1(VReg8H(1), ptr(reg_wei));
+    ld1(VReg8H(2), ptr(reg_wei2));
+    add(reg_wei, reg_wei, 16);
+    add(reg_wei2, reg_wei2, 16);
+    b(Ldw_done_d);
+    L(Ldw_np_d);
+    ld1(VReg(1).h[0], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[0], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[1], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[1], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[2], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[2], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[3], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[3], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[4], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[4], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[5], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[5], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[6], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(2).h[6], ptr(reg_wei2));
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    ld1(VReg(1).h[7], ptr(reg_wei));
+    ld1(VReg(2).h[7], ptr(reg_wei2));
+    L(Ldw_done_d);
+    // MAC into v20/v21
+    fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
+    fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
+    fmlal(VReg4S(21), VReg4H(0), VReg4H(2));
+    fmlal2(VReg4S(21), VReg4H(0), VReg4H(2));
+    sub(reg_reps, reg_reps, 1);
+    b(Lrep_d);
 
-        Label Lrep_d, Ltail_prep_d, Ltail_done_d;
-        L(Lrep_d);
-        cmp(reg_reps, 0);
-        b(EQ, Ltail_prep_d);
-        // Load src lanes (v0)
-        ld1(VReg(0).h[0], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[1], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[2], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[3], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[4], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[5], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[6], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[7], ptr(reg_src));
-        // Load wei lanes for oc0 (v1) and oc1 (v2) — vector fast path if wei_stride==2
-        Label Ldw_np_d, Ldw_done_d;
-        cmp(reg_wei_stride, 2);
-        b(NE, Ldw_np_d);
-        ld1(VReg8H(1), ptr(reg_wei));
-        ld1(VReg8H(2), ptr(reg_wei2));
-        add(reg_wei, reg_wei, 16);
-        add(reg_wei2, reg_wei2, 16);
-        b(Ldw_done_d);
-        L(Ldw_np_d);
-        ld1(VReg(1).h[0], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[0], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[1], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[1], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[2], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[2], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[3], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[3], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[4], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[4], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[5], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[5], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[6], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(2).h[6], ptr(reg_wei2));
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        ld1(VReg(1).h[7], ptr(reg_wei));
-        ld1(VReg(2).h[7], ptr(reg_wei2));
-        L(Ldw_done_d);
-        // MAC into v20/v21
-        fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
-        fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
-        fmlal(VReg4S(21), VReg4H(0), VReg4H(2));
-        fmlal2(VReg4S(21), VReg4H(0), VReg4H(2));
-        sub(reg_reps, reg_reps, 1);
-        b(Lrep_d);
+    // Tail handling
+    L(Ltail_prep_d);
+    eor(VReg16B(0), VReg16B(0), VReg16B(0));
+    eor(VReg16B(1), VReg16B(1), VReg16B(1));
+    eor(VReg16B(2), VReg16B(2), VReg16B(2));
+    // lanes 0..7 guarded by tail
+    cmp(reg_tail, 0);
+    b(LE, Ltail_done_d);
+    ld1(VReg(0).h[0], ptr(reg_src));
+    ld1(VReg(1).h[0], ptr(reg_wei));
+    ld1(VReg(2).h[0], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 1);
+    b(LE, Ltail_done_d);
+    ld1(VReg(0).h[1], ptr(reg_src));
+    ld1(VReg(1).h[1], ptr(reg_wei));
+    ld1(VReg(2).h[1], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 2);
+    b(LE, Ltail_done_d);
+    ld1(VReg(0).h[2], ptr(reg_src));
+    ld1(VReg(1).h[2], ptr(reg_wei));
+    ld1(VReg(2).h[2], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 3);
+    b(LE, Ltail_done_d);
+    ld1(VReg(0).h[3], ptr(reg_src));
+    ld1(VReg(1).h[3], ptr(reg_wei));
+    ld1(VReg(2).h[3], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 4);
+    b(LE, Ltail_done_d);
+    ld1(VReg(0).h[4], ptr(reg_src));
+    ld1(VReg(1).h[4], ptr(reg_wei));
+    ld1(VReg(2).h[4], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 5);
+    b(LE, Ltail_done_d);
+    ld1(VReg(0).h[5], ptr(reg_src));
+    ld1(VReg(1).h[5], ptr(reg_wei));
+    ld1(VReg(2).h[5], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 6);
+    b(LE, Ltail_done_d);
+    ld1(VReg(0).h[6], ptr(reg_src));
+    ld1(VReg(1).h[6], ptr(reg_wei));
+    ld1(VReg(2).h[6], ptr(reg_wei2));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
+    cmp(reg_tail, 7);
+    b(LE, Ltail_done_d);
+    ld1(VReg(0).h[7], ptr(reg_src));
+    ld1(VReg(1).h[7], ptr(reg_wei));
+    ld1(VReg(2).h[7], ptr(reg_wei2));
 
-        // Tail handling
-        L(Ltail_prep_d);
-        eor(VReg16B(0), VReg16B(0), VReg16B(0));
-        eor(VReg16B(1), VReg16B(1), VReg16B(1));
-        eor(VReg16B(2), VReg16B(2), VReg16B(2));
-        // lanes 0..7 guarded by tail
-        cmp(reg_tail, 0);
-        b(LE, Ltail_done_d);
-        ld1(VReg(0).h[0], ptr(reg_src));
-        ld1(VReg(1).h[0], ptr(reg_wei));
-        ld1(VReg(2).h[0], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 1);
-        b(LE, Ltail_done_d);
-        ld1(VReg(0).h[1], ptr(reg_src));
-        ld1(VReg(1).h[1], ptr(reg_wei));
-        ld1(VReg(2).h[1], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 2);
-        b(LE, Ltail_done_d);
-        ld1(VReg(0).h[2], ptr(reg_src));
-        ld1(VReg(1).h[2], ptr(reg_wei));
-        ld1(VReg(2).h[2], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 3);
-        b(LE, Ltail_done_d);
-        ld1(VReg(0).h[3], ptr(reg_src));
-        ld1(VReg(1).h[3], ptr(reg_wei));
-        ld1(VReg(2).h[3], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 4);
-        b(LE, Ltail_done_d);
-        ld1(VReg(0).h[4], ptr(reg_src));
-        ld1(VReg(1).h[4], ptr(reg_wei));
-        ld1(VReg(2).h[4], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 5);
-        b(LE, Ltail_done_d);
-        ld1(VReg(0).h[5], ptr(reg_src));
-        ld1(VReg(1).h[5], ptr(reg_wei));
-        ld1(VReg(2).h[5], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 6);
-        b(LE, Ltail_done_d);
-        ld1(VReg(0).h[6], ptr(reg_src));
-        ld1(VReg(1).h[6], ptr(reg_wei));
-        ld1(VReg(2).h[6], ptr(reg_wei2));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        add(reg_wei2, reg_wei2, reg_wei_stride);
-        cmp(reg_tail, 7);
-        b(LE, Ltail_done_d);
-        ld1(VReg(0).h[7], ptr(reg_src));
-        ld1(VReg(1).h[7], ptr(reg_wei));
-        ld1(VReg(2).h[7], ptr(reg_wei2));
+    L(Ltail_done_d);
+    fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
+    fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
+    fmlal(VReg4S(21), VReg4H(0), VReg4H(2));
+    fmlal2(VReg4S(21), VReg4H(0), VReg4H(2));
+    // horizontal add and store
+    faddp(VReg4S(20), VReg4S(20), VReg4S(20));
+    faddp(VReg2S(20), VReg2S(20), VReg2S(20));
+    faddp(VReg4S(21), VReg4S(21), VReg4S(21));
+    faddp(VReg2S(21), VReg2S(21), VReg2S(21));
+    ldr(SReg(0), ptr(reg_acc));
+    fadd(SReg(0), SReg(0), SReg(20));
+    str(SReg(0), ptr(reg_acc));
+    ldr(SReg(1), ptr(reg_acc2));
+    fadd(SReg(1), SReg(1), SReg(21));
+    str(SReg(1), ptr(reg_acc2));
+    b(Ldone);
 
-        L(Ltail_done_d);
-        fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
-        fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
-        fmlal(VReg4S(21), VReg4H(0), VReg4H(2));
-        fmlal2(VReg4S(21), VReg4H(0), VReg4H(2));
-        // horizontal add and store
-        faddp(VReg4S(20), VReg4S(20), VReg4S(20));
-        faddp(VReg2S(20), VReg2S(20), VReg2S(20));
-        faddp(VReg4S(21), VReg4S(21), VReg4S(21));
-        faddp(VReg2S(21), VReg2S(21), VReg2S(21));
-        ldr(SReg(0), ptr(reg_acc));
-        fadd(SReg(0), SReg(0), SReg(20));
-        str(SReg(0), ptr(reg_acc));
-        ldr(SReg(1), ptr(reg_acc2));
-        fadd(SReg(1), SReg(1), SReg(21));
-        str(SReg(1), ptr(reg_acc2));
-        b(Ldone);
+    // Single-OC path
+    L(Lsingle);
+    // Jump to in-kernel kx loop single-OC path
+    b(Lsingle_kx);
+    // Single-OC with in-kernel kx loop
+    L(Lsingle_kx);
+    eor(VReg16B(20), VReg16B(20), VReg16B(20));
+    const XReg s_kw_cnt = x12;
+    const XReg s_src_dx = x13;
+    const XReg s_wei_dx = x14;
+    ldr(s_kw_cnt, ptr(reg_args, 104));
+    ldr(s_src_dx, ptr(reg_args, 112));
+    ldr(s_wei_dx, ptr(reg_args, 120));
+    const XReg s_src_base = x15;
+    const XReg s_wei_base = x16;
+    const XReg s_wei_blk_stride2 = x10;
+    ldr(s_wei_blk_stride2, ptr(reg_args, 80));
+    mov(s_src_base, reg_src);
+    mov(s_wei_base, reg_wei);
+    cbnz(s_kw_cnt, Lkx_s);
+    mov(s_kw_cnt, 1);
+    Label Lrep_s_kx;
+    L(Lkx_s);
+    ldr(reg_reps, ptr(reg_args, 40));
+    mov(reg_src, s_src_base);
+    mov(reg_wei, s_wei_base);
+    L(Lrep_s_kx);
+    cmp(reg_reps, 0);
+    b(EQ, Ltail_prep_s_kx);
+    ld1(VReg(0).h[0], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[1], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[2], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[3], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[4], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[5], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[6], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[7], ptr(reg_src));
+    // weights (vector fast path if stride==2)
+    Label Lw_np_s, Lw_done_s2;
+    cmp(reg_wei_stride, 2);
+    b(NE, Lw_np_s);
+    ld1(VReg8H(1), ptr(reg_wei));
+    add(reg_wei, reg_wei, s_wei_blk_stride2);
+    b(Lw_done_s2);
+    L(Lw_np_s);
+    ld1(VReg(1).h[0], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[1], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[2], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[3], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[4], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[5], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[6], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[7], ptr(reg_wei));
+    L(Lw_done_s2);
+    fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
+    fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
+    sub(reg_reps, reg_reps, 1);
+    b(Lrep_s_kx);
+    L(Ltail_prep_s_kx);
+    eor(VReg16B(0), VReg16B(0), VReg16B(0));
+    eor(VReg16B(1), VReg16B(1), VReg16B(1));
+    cmp(reg_tail, 0);
+    b(LE, Ltail_done_s_kx);
+    ld1(VReg(0).h[0], ptr(reg_src));
+    ld1(VReg(1).h[0], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 1);
+    b(LE, Ltail_done_s_kx);
+    ld1(VReg(0).h[1], ptr(reg_src));
+    ld1(VReg(1).h[1], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 2);
+    b(LE, Ltail_done_s_kx);
+    ld1(VReg(0).h[2], ptr(reg_src));
+    ld1(VReg(1).h[2], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 3);
+    b(LE, Ltail_done_s_kx);
+    ld1(VReg(0).h[3], ptr(reg_src));
+    ld1(VReg(1).h[3], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 4);
+    b(LE, Ltail_done_s_kx);
+    ld1(VReg(0).h[4], ptr(reg_src));
+    ld1(VReg(1).h[4], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 5);
+    b(LE, Ltail_done_s_kx);
+    ld1(VReg(0).h[5], ptr(reg_src));
+    ld1(VReg(1).h[5], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 6);
+    b(LE, Ltail_done_s_kx);
+    ld1(VReg(0).h[6], ptr(reg_src));
+    ld1(VReg(1).h[6], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 7);
+    b(LE, Ltail_done_s_kx);
+    ld1(VReg(0).h[7], ptr(reg_src));
+    ld1(VReg(1).h[7], ptr(reg_wei));
+    L(Ltail_done_s_kx);
+    fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
+    fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
+    // advance bases
+    sub(s_kw_cnt, s_kw_cnt, 1);
+    add(s_src_base, s_src_base, s_src_dx);
+    add(s_wei_base, s_wei_base, s_wei_dx);
+    cbnz(s_kw_cnt, Lkx_s);
+    // reduce/store
+    faddp(VReg4S(20), VReg4S(20), VReg4S(20));
+    faddp(VReg2S(20), VReg2S(20), VReg2S(20));
+    ldr(SReg(0), ptr(reg_acc));
+    fadd(SReg(0), SReg(0), SReg(20));
+    str(SReg(0), ptr(reg_acc));
+    eor(VReg16B(20), VReg16B(20), VReg16B(20));
+    Label Lrep_s, Ltail_prep_s, Ltail_done_s;
+    L(Lrep_s);
+    cmp(reg_reps, 0);
+    b(EQ, Ltail_prep_s);
+    // src lanes
+    ld1(VReg(0).h[0], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[1], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[2], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[3], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[4], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[5], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[6], ptr(reg_src));
+    add(reg_src, reg_src, reg_src_stride);
+    ld1(VReg(0).h[7], ptr(reg_src));
+    // wei lanes — vector fast path if wei_stride==2
+    Label Ldw_np_s, Ldw_done_s;
+    cmp(reg_wei_stride, 2);
+    b(NE, Ldw_np_s);
+    ld1(VReg8H(1), ptr(reg_wei));
+    add(reg_wei, reg_wei, 16);
+    b(Ldw_done_s);
+    L(Ldw_np_s);
+    ld1(VReg(1).h[0], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[1], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[2], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[3], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[4], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[5], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[6], ptr(reg_wei));
+    add(reg_wei, reg_wei, reg_wei_stride);
+    ld1(VReg(1).h[7], ptr(reg_wei));
+    L(Ldw_done_s);
+    fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
+    fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
+    sub(reg_reps, reg_reps, 1);
+    b(Lrep_s);
 
-        // Single-OC path
-        L(Lsingle);
-        // Jump to in-kernel kx loop single-OC path
-        b(Lsingle_kx);
-        // Single-OC with in-kernel kx loop
-        L(Lsingle_kx);
-        eor(VReg16B(20), VReg16B(20), VReg16B(20));
-        const XReg s_kw_cnt = x12;
-        const XReg s_src_dx = x13;
-        const XReg s_wei_dx = x14;
-        ldr(s_kw_cnt, ptr(reg_args, 104));
-        ldr(s_src_dx, ptr(reg_args, 112));
-        ldr(s_wei_dx, ptr(reg_args, 120));
-        const XReg s_src_base = x15;
-        const XReg s_wei_base = x16;
-        const XReg s_wei_blk_stride2 = x10;
-        ldr(s_wei_blk_stride2, ptr(reg_args, 80));
-        mov(s_src_base, reg_src);
-        mov(s_wei_base, reg_wei);
-        cbnz(s_kw_cnt, Lkx_s);
-        mov(s_kw_cnt, 1);
-        Label Lrep_s_kx;
-        L(Lkx_s);
-        ldr(reg_reps, ptr(reg_args, 40));
-        mov(reg_src, s_src_base);
-        mov(reg_wei, s_wei_base);
-        L(Lrep_s_kx);
-        cmp(reg_reps, 0);
-        b(EQ, Ltail_prep_s_kx);
-        ld1(VReg(0).h[0], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[1], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[2], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[3], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[4], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[5], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[6], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[7], ptr(reg_src));
-        // weights (vector fast path if stride==2)
-        Label Lw_np_s, Lw_done_s2;
-        cmp(reg_wei_stride, 2);
-        b(NE, Lw_np_s);
-        ld1(VReg8H(1), ptr(reg_wei));
-        add(reg_wei, reg_wei, s_wei_blk_stride2);
-        b(Lw_done_s2);
-        L(Lw_np_s);
-        ld1(VReg(1).h[0], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[1], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[2], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[3], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[4], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[5], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[6], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[7], ptr(reg_wei));
-        L(Lw_done_s2);
-        fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
-        fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
-        sub(reg_reps, reg_reps, 1);
-        b(Lrep_s_kx);
-        L(Ltail_prep_s_kx);
-        eor(VReg16B(0), VReg16B(0), VReg16B(0));
-        eor(VReg16B(1), VReg16B(1), VReg16B(1));
-        cmp(reg_tail, 0);
-        b(LE, Ltail_done_s_kx);
-        ld1(VReg(0).h[0], ptr(reg_src));
-        ld1(VReg(1).h[0], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 1);
-        b(LE, Ltail_done_s_kx);
-        ld1(VReg(0).h[1], ptr(reg_src));
-        ld1(VReg(1).h[1], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 2);
-        b(LE, Ltail_done_s_kx);
-        ld1(VReg(0).h[2], ptr(reg_src));
-        ld1(VReg(1).h[2], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 3);
-        b(LE, Ltail_done_s_kx);
-        ld1(VReg(0).h[3], ptr(reg_src));
-        ld1(VReg(1).h[3], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 4);
-        b(LE, Ltail_done_s_kx);
-        ld1(VReg(0).h[4], ptr(reg_src));
-        ld1(VReg(1).h[4], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 5);
-        b(LE, Ltail_done_s_kx);
-        ld1(VReg(0).h[5], ptr(reg_src));
-        ld1(VReg(1).h[5], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 6);
-        b(LE, Ltail_done_s_kx);
-        ld1(VReg(0).h[6], ptr(reg_src));
-        ld1(VReg(1).h[6], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 7);
-        b(LE, Ltail_done_s_kx);
-        ld1(VReg(0).h[7], ptr(reg_src));
-        ld1(VReg(1).h[7], ptr(reg_wei));
-        L(Ltail_done_s_kx);
-        fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
-        fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
-        // advance bases
-        sub(s_kw_cnt, s_kw_cnt, 1);
-        add(s_src_base, s_src_base, s_src_dx);
-        add(s_wei_base, s_wei_base, s_wei_dx);
-        cbnz(s_kw_cnt, Lkx_s);
-        // reduce/store
-        faddp(VReg4S(20), VReg4S(20), VReg4S(20));
-        faddp(VReg2S(20), VReg2S(20), VReg2S(20));
-        ldr(SReg(0), ptr(reg_acc));
-        fadd(SReg(0), SReg(0), SReg(20));
-        str(SReg(0), ptr(reg_acc));
-        eor(VReg16B(20), VReg16B(20), VReg16B(20));
-        Label Lrep_s, Ltail_prep_s, Ltail_done_s;
-        L(Lrep_s);
-        cmp(reg_reps, 0);
-        b(EQ, Ltail_prep_s);
-        // src lanes
-        ld1(VReg(0).h[0], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[1], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[2], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[3], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[4], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[5], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[6], ptr(reg_src));
-        add(reg_src, reg_src, reg_src_stride);
-        ld1(VReg(0).h[7], ptr(reg_src));
-        // wei lanes — vector fast path if wei_stride==2
-        Label Ldw_np_s, Ldw_done_s;
-        cmp(reg_wei_stride, 2);
-        b(NE, Ldw_np_s);
-        ld1(VReg8H(1), ptr(reg_wei));
-        add(reg_wei, reg_wei, 16);
-        b(Ldw_done_s);
-        L(Ldw_np_s);
-        ld1(VReg(1).h[0], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[1], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[2], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[3], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[4], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[5], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[6], ptr(reg_wei));
-        add(reg_wei, reg_wei, reg_wei_stride);
-        ld1(VReg(1).h[7], ptr(reg_wei));
-        L(Ldw_done_s);
-        fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
-        fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
-        sub(reg_reps, reg_reps, 1);
-        b(Lrep_s);
+    // Tail (single)
+    L(Ltail_prep_s);
+    eor(VReg16B(0), VReg16B(0), VReg16B(0));
+    eor(VReg16B(1), VReg16B(1), VReg16B(1));
+    cmp(reg_tail, 0);
+    b(LE, Ltail_done_s);
+    ld1(VReg(0).h[0], ptr(reg_src));
+    ld1(VReg(1).h[0], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 1);
+    b(LE, Ltail_done_s);
+    ld1(VReg(0).h[1], ptr(reg_src));
+    ld1(VReg(1).h[1], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 2);
+    b(LE, Ltail_done_s);
+    ld1(VReg(0).h[2], ptr(reg_src));
+    ld1(VReg(1).h[2], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 3);
+    b(LE, Ltail_done_s);
+    ld1(VReg(0).h[3], ptr(reg_src));
+    ld1(VReg(1).h[3], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 4);
+    b(LE, Ltail_done_s);
+    ld1(VReg(0).h[4], ptr(reg_src));
+    ld1(VReg(1).h[4], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 5);
+    b(LE, Ltail_done_s);
+    ld1(VReg(0).h[5], ptr(reg_src));
+    ld1(VReg(1).h[5], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 6);
+    b(LE, Ltail_done_s);
+    ld1(VReg(0).h[6], ptr(reg_src));
+    ld1(VReg(1).h[6], ptr(reg_wei));
+    add(reg_src, reg_src, reg_src_stride);
+    add(reg_wei, reg_wei, reg_wei_stride);
+    cmp(reg_tail, 7);
+    b(LE, Ltail_done_s);
+    ld1(VReg(0).h[7], ptr(reg_src));
+    ld1(VReg(1).h[7], ptr(reg_wei));
+    L(Ltail_done_s);
+    fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
+    fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
+    faddp(VReg4S(20), VReg4S(20), VReg4S(20));
+    faddp(VReg2S(20), VReg2S(20), VReg2S(20));
+    ldr(SReg(0), ptr(reg_acc));
+    fadd(SReg(0), SReg(0), SReg(20));
+    str(SReg(0), ptr(reg_acc));
 
-        // Tail (single)
-        L(Ltail_prep_s);
-        eor(VReg16B(0), VReg16B(0), VReg16B(0));
-        eor(VReg16B(1), VReg16B(1), VReg16B(1));
-        cmp(reg_tail, 0);
-        b(LE, Ltail_done_s);
-        ld1(VReg(0).h[0], ptr(reg_src));
-        ld1(VReg(1).h[0], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 1);
-        b(LE, Ltail_done_s);
-        ld1(VReg(0).h[1], ptr(reg_src));
-        ld1(VReg(1).h[1], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 2);
-        b(LE, Ltail_done_s);
-        ld1(VReg(0).h[2], ptr(reg_src));
-        ld1(VReg(1).h[2], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 3);
-        b(LE, Ltail_done_s);
-        ld1(VReg(0).h[3], ptr(reg_src));
-        ld1(VReg(1).h[3], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 4);
-        b(LE, Ltail_done_s);
-        ld1(VReg(0).h[4], ptr(reg_src));
-        ld1(VReg(1).h[4], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 5);
-        b(LE, Ltail_done_s);
-        ld1(VReg(0).h[5], ptr(reg_src));
-        ld1(VReg(1).h[5], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 6);
-        b(LE, Ltail_done_s);
-        ld1(VReg(0).h[6], ptr(reg_src));
-        ld1(VReg(1).h[6], ptr(reg_wei));
-        add(reg_src, reg_src, reg_src_stride);
-        add(reg_wei, reg_wei, reg_wei_stride);
-        cmp(reg_tail, 7);
-        b(LE, Ltail_done_s);
-        ld1(VReg(0).h[7], ptr(reg_src));
-        ld1(VReg(1).h[7], ptr(reg_wei));
-        L(Ltail_done_s);
-        fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
-        fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
-        faddp(VReg4S(20), VReg4S(20), VReg4S(20));
-        faddp(VReg2S(20), VReg2S(20), VReg2S(20));
-        ldr(SReg(0), ptr(reg_acc));
-        fadd(SReg(0), SReg(0), SReg(20));
-        str(SReg(0), ptr(reg_acc));
+    L(Ldone);
+    ret();
+}
 
-        L(Ldone);
-        ret();
-    }
-
+void JitConv3DKernelF16::gen_optimized_kernel() {
+    using namespace Xbyak_aarch64;
     // abi_param1 -> args pointer
     const XReg reg_args = abi_param1;
     // Use call-clobbered registers to avoid saving/restoring callee-saved regs
@@ -1614,13 +1616,19 @@ void JitConv3DKernelF16::generate() {
     ret();
 }
 
+void JitConv3DKernelF16::generate() {
+    // Keep body small for clang-tidy readability-function-size
+    gen_minimal_kernel();
+    gen_optimized_kernel();
+}
+
 // --------------------------- Executor ---------------------------
 
-static inline const uint16_t* ptr_f16(const MemoryPtr& m) {
-    return reinterpret_cast<const uint16_t*>(m->getData());
+[[maybe_unused]] static inline auto ptr_f16(const MemoryPtr& mem) -> const uint16_t* {
+    return reinterpret_cast<const uint16_t*>(mem->getData());
 }
-[[maybe_unused]] static inline uint16_t* ptr_f16(MemoryPtr& m) {
-    return reinterpret_cast<uint16_t*>(m->getData());
+[[maybe_unused]] static inline auto ptr_f16(MemoryPtr& mem) -> uint16_t* {
+    return reinterpret_cast<uint16_t*>(mem->getData());
 }
 
 JitConv3DExecutor::JitConv3DExecutor(const ConvAttrs& attrs,
@@ -1770,8 +1778,7 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
                         const size_t kw_count = static_cast<size_t>(kx_hi - kx_lo + 1);
                         for (ptrdiff_t kz = kz_lo; kz <= kz_hi; ++kz) {
                             const size_t iz = static_cast<size_t>(iz0 + kz);
-                            const size_t iy = static_cast<size_t>(iy0 + ky_lo);
-                            const size_t ix = static_cast<size_t>(ix0 + kx_lo);
+                            // iy/ix for ky_lo/kx_lo not needed; use iy2/ix2 per ky below
 
                             if (m_wei_packed_ready) {
                                 // Loop over ky in host; kernel handles kx via kw_cnt
@@ -2009,7 +2016,7 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
                     auto bia = memory.at(ARG_BIAS);
                     const auto bprec = bia->getDescPtr()->getPrecision();
                     if (bprec == ov::element::f32) {
-                        const float* b = reinterpret_cast<const float*>(bia->getData());
+                        const auto* b = reinterpret_cast<const float*>(bia->getData());
                         acc0 += b[oc0];
                         if (has_oc1)
                             acc1 += b[oc1];
@@ -2018,7 +2025,7 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
                         if (has_oc3)
                             acc3 += b[oc3];
                     } else if (bprec == ov::element::f16) {
-                        const uint16_t* b = reinterpret_cast<const uint16_t*>(bia->getData());
+                        const auto* b = reinterpret_cast<const uint16_t*>(bia->getData());
                         acc0 += static_cast<float>(ov::float16(b[oc0]));
                         if (has_oc1)
                             acc1 += static_cast<float>(ov::float16(b[oc1]));
@@ -2036,21 +2043,21 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
                                                           : m_prelu_slopes[std::min(oc, m_prelu_slopes.size() - 1)];
                     };
                     const float s0 = slope_at(oc0);
-                    if (acc0 < 0.f)
+                    if (acc0 < 0.0F)
                         acc0 *= s0;
                     if (has_oc1) {
                         const float s1 = slope_at(oc1);
-                        if (acc1 < 0.f)
+                        if (acc1 < 0.0F)
                             acc1 *= s1;
                     }
                     if (has_oc2) {
                         const float s2 = slope_at(oc2);
-                        if (acc2 < 0.f)
+                        if (acc2 < 0.0F)
                             acc2 *= s2;
                     }
                     if (has_oc3) {
                         const float s3 = slope_at(oc3);
-                        if (acc3 < 0.f)
+                        if (acc3 < 0.0F)
                             acc3 *= s3;
                     }
                 }
@@ -2091,7 +2098,7 @@ void JitConv3DExecutor::ensure_weights_packed_f32(const MemoryArgs& memory) {
     m_padded_C_f32 = (C + 3) / 4 * 4;
     const size_t total = OC * KD * KH * KW * m_padded_C_f32;
     m_wei_packed_f32.assign(total, 0.0f);
-    const float* wsrc = reinterpret_cast<const float*>(wei->getData());
+    const auto* wsrc = reinterpret_cast<const float*>(wei->getData());
 
     auto idx_wei_src = [&](size_t oc, size_t c, size_t kz, size_t ky, size_t kx) -> size_t {
         return ((((oc)*C + c) * KD + kz) * KH + ky) * KW + kx;
@@ -2140,9 +2147,9 @@ void JitConv3DExecutor::run_naive_fp32(const MemoryArgs& memory) {
     const ptrdiff_t PH0 = m_attrs.paddingL.size() > 1 ? m_attrs.paddingL[1] : 0;
     const ptrdiff_t PW0 = m_attrs.paddingL.size() > 2 ? m_attrs.paddingL[2] : 0;
 
-    const float* src_p = reinterpret_cast<const float*>(src->getData());
-    const float* wei_p = reinterpret_cast<const float*>(wei->getData());
-    float* dst_p = reinterpret_cast<float*>(dst->getData());
+    const auto* src_p = reinterpret_cast<const float*>(src->getData());
+    const auto* wei_p = reinterpret_cast<const float*>(wei->getData());
+    auto* dst_p = reinterpret_cast<float*>(dst->getData());
 
     auto index_src = [&](size_t n, size_t c, size_t z, size_t y, size_t x) {
         return (((n * C + c) * ID + z) * IH + y) * IW + x;
@@ -2175,7 +2182,7 @@ void JitConv3DExecutor::run_naive_fp32(const MemoryArgs& memory) {
                 for (size_t ow = 0; ow < OW; ++ow) {
                     const ptrdiff_t ix0 = static_cast<ptrdiff_t>(ow) * static_cast<ptrdiff_t>(SW) - PW0;
 
-                    float acc0 = 0.f, acc1 = 0.f, acc2 = 0.f, acc3 = 0.f;
+                    float acc0 = 0.0F, acc1 = 0.0F, acc2 = 0.0F, acc3 = 0.0F;
 
                     if (SD == 1 && SH == 1 && SW == 1) {
                         const ptrdiff_t kz_lo = std::max<ptrdiff_t>(0, -iz0);
@@ -2422,7 +2429,7 @@ void ov::intel_cpu::JitConv3DExecutor::ensure_weights_packed(const MemoryArgs& m
     // Pack layout: [OC, KD, KH, KW, Ct]
     const size_t total = OC * KD * KH * KW * m_padded_C;
     m_wei_packed.assign(total, static_cast<uint16_t>(0));
-    const uint16_t* wsrc = reinterpret_cast<const uint16_t*>(wei->getData());
+    const auto* wsrc = reinterpret_cast<const uint16_t*>(wei->getData());
 
     auto idx_wei_src = [&](size_t oc, size_t c, size_t kz, size_t ky, size_t kx) -> size_t {
         return ((((oc)*C + c) * KD + kz) * KH + ky) * KW + kx;

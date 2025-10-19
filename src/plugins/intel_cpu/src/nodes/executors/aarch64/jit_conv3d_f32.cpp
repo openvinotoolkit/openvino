@@ -4,6 +4,11 @@
 
 #include "nodes/executors/aarch64/jit_conv3d_f32.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -344,8 +349,8 @@ void JitConv3DExecutorF32::ensure_weights_packed(const MemoryArgs& memory) {
     const size_t KD = weiDims[2], KH = weiDims[3], KW = weiDims[4];
     m_padded_C = (C + 3) / 4 * 4;
     const size_t total = OC * KD * KH * KW * m_padded_C;
-    m_wei_packed.assign(total, 0.0f);
-    const float* wsrc = reinterpret_cast<const float*>(wei->getData());
+    m_wei_packed.assign(total, 0.0F);
+    const auto* wsrc = reinterpret_cast<const float*>(wei->getData());
 
     auto idx_wei_src = [&](size_t oc, size_t c, size_t kz, size_t ky, size_t kx) -> size_t {
         return ((((oc)*C + c) * KD + kz) * KH + ky) * KW + kx;
@@ -394,9 +399,9 @@ void JitConv3DExecutorF32::run_naive_fp32(const MemoryArgs& memory) {
     const ptrdiff_t PH0 = m_attrs.paddingL.size() > 1 ? m_attrs.paddingL[1] : 0;
     const ptrdiff_t PW0 = m_attrs.paddingL.size() > 2 ? m_attrs.paddingL[2] : 0;
 
-    const float* src_p = reinterpret_cast<const float*>(src->getData());
-    const float* wei_p = reinterpret_cast<const float*>(wei->getData());
-    float* dst_p = reinterpret_cast<float*>(dst->getData());
+    const auto* src_p = reinterpret_cast<const float*>(src->getData());
+    const auto* wei_p = reinterpret_cast<const float*>(wei->getData());
+    auto* dst_p = reinterpret_cast<float*>(dst->getData());
 
     auto index_src = [&](size_t n, size_t c, size_t z, size_t y, size_t x) {
         return (((n * C + c) * ID + z) * IH + y) * IW + x;
@@ -429,7 +434,7 @@ void JitConv3DExecutorF32::run_naive_fp32(const MemoryArgs& memory) {
                 for (size_t ow = 0; ow < OW; ++ow) {
                     const ptrdiff_t ix0 = static_cast<ptrdiff_t>(ow) * static_cast<ptrdiff_t>(SW) - PW0;
 
-                    float acc0 = 0.f, acc1 = 0.f, acc2 = 0.f, acc3 = 0.f;
+                    float acc0 = 0.0F, acc1 = 0.0F, acc2 = 0.0F, acc3 = 0.0F;
 
                     if (SD == 1 && SH == 1 && SW == 1) {
                         const ptrdiff_t kz_lo = std::max<ptrdiff_t>(0, -iz0);

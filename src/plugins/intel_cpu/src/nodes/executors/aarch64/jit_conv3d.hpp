@@ -60,6 +60,10 @@ public:
 private:
     void generate() override;
 
+    // Split large codegen into smaller helpers to satisfy clang-tidy limits
+    void gen_minimal_kernel();
+    void gen_optimized_kernel();
+
     jit_fn ker_{nullptr};
 };
 
