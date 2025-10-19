@@ -123,9 +123,9 @@ float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
     return thresh;
 }
 
- // Bypass xattn stages in the following conditions -
- // either threshold is larger than 1.0, or, q_len is too small
- // to compute xattn block_mask.
+// Bypass xattn stages in the following conditions -
+// either threshold is larger than 1.0, or, q_len is too small
+// to compute xattn block_mask.
 bool bypass_xattn(const kernel_impl_params& params) {
     auto xattn_thresh = get_xattn_thresh(params);
     bool bypass = xattn_thresh >= 1.0;

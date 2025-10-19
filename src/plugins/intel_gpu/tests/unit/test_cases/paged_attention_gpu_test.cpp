@@ -608,9 +608,6 @@ private:
         const size_t total_elements_num = tokens_num * num_heads * k_head_size;
         auto data = rg.generate_random_1d<ov::float16>(total_elements_num, -1, 1);
 
-        // test code
-        // auto data = rg.generate_random_1d_fixed<ov::float16>(total_elements_num, 0, 1, 10000);
-
         return data;
     }
 
