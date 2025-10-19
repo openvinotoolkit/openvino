@@ -242,24 +242,9 @@ public:
 };
 
 class XmlDeserializer : public ov::util::XmlDeserializer {
-    // Local pugi helpers
-    template <class T>
-    static void str_to_container(const std::string& value, T& res) {
-        std::stringstream ss(value);
-        std::string field;
-        while (getline(ss, field, ',')) {
-            if (field.empty())
-                OPENVINO_THROW("Cannot get vector of parameters! \"", value, "\" is incorrect");
-            std::stringstream fs(field);
-            typename T::value_type val;
-            fs >> val;
-            res.insert(res.end(), val);
-        }
-    }
-
     template <class T>
     static bool getParameters(const pugi::xml_node& node, const std::string& name, std::vector<T>& value) {
-        str_to_container(ov::util::pugixml::get_str_attr(node, name.c_str()), value);
+        ov::util::str_to_container(ov::util::pugixml::get_str_attr(node, name.c_str()), value);
         return true;
     }
 
