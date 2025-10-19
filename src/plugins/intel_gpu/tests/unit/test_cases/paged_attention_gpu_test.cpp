@@ -236,8 +236,8 @@ struct PagedAttentionManager {
         }
 
         auto num_blocks = block_indices.back() + 1;
-        auto key_cache_shape = ov::PartialShape{ num_blocks, num_heads, block_size, adjusted_head_size };
-        auto key_cache_layout = layout{ key_cache_shape, key_cache_dt, format::bfyx };
+        auto key_cache_shape = ov::PartialShape{num_blocks, num_kv_heads, block_size, adjusted_head_size};
+        auto key_cache_layout = layout{key_cache_shape, key_cache_dt, format::bfyx};
         auto memory = test_engine.allocate_memory(key_cache_layout);
 
         for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
@@ -246,33 +246,28 @@ struct PagedAttentionManager {
                 int blocks_num = ceil_div(past_len + 1, block_size);
                 int start_block_idx = block_indices[block_indices_begins[i]];
                 for (int block_idx = 0; block_idx < blocks_num; block_idx++) {
-                    int last_token_idx = block_idx == blocks_num - 1 ? past_len % block_size
-                                                                     : block_size;
+                    int last_token_idx = block_idx == blocks_num - 1 ? (past_len - block_size * block_idx) : block_size;
                     for (int token_idx = 0; token_idx < last_token_idx; token_idx++) {
-                        for (int head_idx = 0; head_idx < num_heads; head_idx++) {
+                        for (int head_idx = 0; head_idx < num_kv_heads; head_idx++) {
                             size_t input_token_offset = block_idx * block_size + token_idx;
-                            ov::float16* data_ptr = key_data[i].data() +
-                                                    input_token_offset * num_heads * v_head_size +
-                                                    head_idx * v_head_size;
+                            ov::float16* data_ptr = key_data[i].data() + input_token_offset * num_kv_heads * v_head_size + head_idx * v_head_size;
                             if (kv_cache_compression) {
                                 auto [quantized_data, scale, zp] = quantize_data(data_ptr, v_head_size);
                                 auto quantized_data_ptr = quantized_data.data();
 
-                                // shape: [num_blocks, num_heads, block_size, adjusted_head_size]
-                                size_t output_block_offset = (start_block_idx + block_idx) * num_heads * block_size * adjusted_head_size +
-                                                             head_idx * block_size * adjusted_head_size;
-                                size_t output_offset = output_block_offset +
-                                                       token_idx * v_head_size;
+                                // shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size]
+                                size_t output_block_offset =
+                                    (start_block_idx + block_idx) * num_kv_heads * block_size * adjusted_head_size + head_idx * block_size * adjusted_head_size;
+                                size_t output_offset = output_block_offset + token_idx * v_head_size;
                                 set_values(test_stream, memory, quantized_data_ptr, v_head_size, output_offset);
 
                                 size_t comp_offset = (output_block_offset + v_head_size * block_size) / 2;
                                 set_values(test_stream, memory, &scale, 1, comp_offset + token_idx);
                                 set_values(test_stream, memory, &zp, 1, comp_offset + block_size + token_idx);
                             } else {
-                                // shape: [num_blocks, num_heads, block_size, v_head_size]
-                                size_t output_offset = (start_block_idx + block_idx) * num_heads * block_size * v_head_size +
-                                                       head_idx * block_size * v_head_size +
-                                                       token_idx * v_head_size;
+                                // shape: [num_blocks, num_kv_heads, block_size, v_head_size]
+                                size_t output_offset = (start_block_idx + block_idx) * num_kv_heads * block_size * v_head_size +
+                                                       head_idx * block_size * v_head_size + token_idx * v_head_size;
 
                                 set_values(test_stream, memory, data_ptr, v_head_size, output_offset);
                             }
