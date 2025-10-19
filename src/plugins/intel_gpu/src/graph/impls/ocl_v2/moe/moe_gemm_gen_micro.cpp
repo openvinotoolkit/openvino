@@ -38,9 +38,6 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
     const auto& device_info = params.get_device_info();
     auto jit = make_base_jit_constants(params);
     jit.make("SUBGROUP_SIZE", get_subgroup_size(device_info.arch));
-    if (getenv("PETER") != nullptr && !m_is_prefill) {
-        jit.make("SG_PER_WG_K", 1);
-    }
     std::vector<moe_gemm::MoEGemmInputIdx> input_ids = {moe_gemm::MoEGemmInputIdx::INPUT,
                                                         moe_gemm::MoEGemmInputIdx::WEIGHT,
                                                         moe_gemm::MoEGemmInputIdx::EXPERTS_IDS,
@@ -134,11 +131,6 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     micro::GEMMProblem problem_moe;
     micro::GEMMProtocol::Options opts_moe;
     opts_moe.slmPtr = true;
-    if (getenv("PETER") != nullptr && !is_prefill) {
-        // need peter's patch
-        //opts_moe.kParallelLocal = true;
-    }
-
     enum class MICRO_DIMENSIONALITY {
         NONE = -1,
         SCALAR = 0,
@@ -227,18 +219,11 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         size_t n = input_layout.get_shape()[0];
         size_t m = experts_weight_layout.get_shape()[1];
         size_t k = experts_weight_layout.get_shape()[2];
-        if (getenv("PETER") != nullptr && m_is_prefill) {
-            auto sg_per_wg_k = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_k"));
-            wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, sg_per_wg_k};
-            wgs.global = {align_to(ceil_div(m, sg_tile_m), sg_per_wg_m) * get_subgroup_size(device_info.arch),
-                          align_to(ceil_div(n, sg_tile_n), sg_per_wg_n),
-                          static_cast<size_t>(rtp->num_actually_used_experts) * sg_per_wg_k};
-        } else {
-            wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, 1};
-            wgs.global = {align_to(ceil_div(m, sg_tile_m), sg_per_wg_m) * get_subgroup_size(device_info.arch),
-                          align_to(ceil_div(n, sg_tile_n), sg_per_wg_n),
-                          static_cast<size_t>(rtp->num_actually_used_experts)};
-        }
+
+        wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, 1};
+        wgs.global = {align_to(ceil_div(m, sg_tile_m), sg_per_wg_m) * get_subgroup_size(device_info.arch),
+            align_to(ceil_div(n, sg_tile_n), sg_per_wg_n),
+            static_cast<size_t>(rtp->num_actually_used_experts)};
 
         ScalarDescriptor s_m{ScalarDescriptor::Types::INT32};
         s_m.v.s32 = m;

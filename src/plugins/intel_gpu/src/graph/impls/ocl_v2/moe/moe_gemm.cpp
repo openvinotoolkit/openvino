@@ -41,7 +41,6 @@ public:
         auto params = impl_param;
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << "\n";
 
-
         add_stage(regular_micro_multi_tokens, params);
         add_stage(regular_micro_single_token, params);
     }
