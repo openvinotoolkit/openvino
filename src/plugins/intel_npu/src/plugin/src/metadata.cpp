@@ -129,9 +129,7 @@ void Metadata<METADATA_VERSION_2_2>::read(std::istream& stream) {
     int64_t batchSize;
     stream.read(reinterpret_cast<char*>(&batchSize), sizeof(batchSize));
 
-    if (batchSize) {
-        _batchSize = std::optional(batchSize);
-    }
+    _batchSize = batchSize != 0 ? std::optional(batchSize) : std::nullopt;
 }
 
 void Metadata<METADATA_VERSION_2_2>::read(const ov::Tensor& tensor) {
@@ -148,9 +146,7 @@ void Metadata<METADATA_VERSION_2_2>::read(const ov::Tensor& tensor) {
     int64_t batchSize;
     batchSize = *reinterpret_cast<const decltype(batchSize)*>(roiTensor.data<const char>());
 
-    if (batchSize) {
-        _batchSize = std::optional(batchSize);
-    }
+    _batchSize = batchSize != 0 ? std::optional(batchSize) : std::nullopt;
 }
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
@@ -186,9 +182,9 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_1>::write(stream);
 
-    if (_batchSize.has_value()) {
-        stream.write(reinterpret_cast<const char*>(&_batchSize), sizeof(_batchSize));
-    }
+    // _batchSize is std::optional, so either the value or std::nullopt will be written
+    int64_t batchValue = _batchSize.value_or(0);
+    stream.write(reinterpret_cast<const char*>(&batchValue), sizeof(batchValue));
 
     append_padding_blob_size_and_magic(stream);
 }
@@ -377,11 +373,7 @@ size_t Metadata<METADATA_VERSION_2_1>::get_metadata_size() const {
 }
 
 size_t Metadata<METADATA_VERSION_2_2>::get_metadata_size() const {
-    size_t metadataSize = Metadata<METADATA_VERSION_2_1>::get_metadata_size();
-
-    if (_batchSize.has_value()) {
-        metadataSize += sizeof(_batchSize);
-    }
+    size_t metadataSize = Metadata<METADATA_VERSION_2_1>::get_metadata_size() + sizeof(int64_t);
 
     return metadataSize;
 }
