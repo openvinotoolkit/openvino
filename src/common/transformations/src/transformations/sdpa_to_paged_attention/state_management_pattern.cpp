@@ -318,6 +318,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     ParameterVector& xattention_threshold_inputs_for_each_layer,
     ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
     ParameterVector& adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer,
+    ResultVector& adaptive_rkv_diversity_results,
     const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params) {
     MATCHER_SCOPE(StateManagementPattern);
 
@@ -448,7 +449,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &rotation_deltas_inputs_for_each_layer,
                                           &xattention_threshold_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
-                                          &adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
+                                          &adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer,
+                                          &adaptive_rkv_diversity_results](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
 
@@ -723,6 +725,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                                                     "adaptive_rkv_diversity_block_set_begins." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 24, adaptive_rkv_diversity_block_set_begins);
             adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer.push_back(adaptive_rkv_diversity_block_set_begins);
+
         } else {
             pa_arguments.insert(pa_arguments.begin() + 21, v0::Constant::create(element::i32, Shape{}, {0}));
             pa_arguments.insert(pa_arguments.begin() + 22, v0::Constant::create(element::i32, Shape{0}, {}));
@@ -757,6 +760,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             auto score_result = std::make_shared<v0::Result>(paged_attention->output(1));
             score_result->get_output_tensor(0).set_names({"scores." + std::to_string(layer_index - 1)});
             score_results.push_back(score_result);
+        }
+
+        if (allow_adaptive_rkv) {
+            auto similarity_result = std::make_shared<v0::Result>(paged_attention->output(2));
+            similarity_result->get_output_tensor(0).set_names({"adaptive_rkv_diversity." + std::to_string(layer_index - 1)});
+            adaptive_rkv_diversity_results.push_back(similarity_result);
         }
 
         // TODO: Complete this part to work with stateless models as well as will stateful

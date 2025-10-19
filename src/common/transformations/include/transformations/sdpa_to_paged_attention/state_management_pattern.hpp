@@ -36,5 +36,6 @@ public:
                            ParameterVector& xattention_threshold_inputs_for_each_layer,
                            ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
                            ParameterVector& adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer,
+                           ResultVector& adaptive_rkv_diversity_results,
                            const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params);
 };
