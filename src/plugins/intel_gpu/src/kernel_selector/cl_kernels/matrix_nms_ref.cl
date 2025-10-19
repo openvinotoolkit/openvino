@@ -166,10 +166,10 @@ KERNEL(matrix_nms_ref_stage_0)
 (const __global INPUT0_TYPE* input_boxes,
  const __global INPUT1_TYPE* input_scores,
  __global uchar* buffer0,
+ __global int* selected_boxes_num,
  __global int* input_score_indices,
  __global INPUT1_TYPE* input_iou_matrix,
- __global INPUT1_TYPE* input_iou_max,
- __global int* selected_boxes_num) {
+ __global INPUT1_TYPE* input_iou_max) {
     const int batchId = get_global_id(0);
     const int classId = get_global_id(1);
 
@@ -184,11 +184,11 @@ KERNEL(matrix_nms_ref_stage_0)
     const int num_blocks = (NUM_BOXES + BLOCK_SIZE - 1) / BLOCK_SIZE;
     for (int i = 0; i < num_blocks; i++) {
         for (int j = 0; j < BLOCK_SIZE; j++) {
-	    const int idx = i * BLOCK_SIZE + j;
+            const int idx = i * BLOCK_SIZE + j;
             if (idx >= NUM_BOXES)
                 break;
             if (input_scores[INPUT1_GET_INDEX(batchId, classId, 0, idx)] > SCORE_THRESHOLD) {
-                sorted_score_indices[valid_boxes_num] = i;
+                sorted_score_indices[valid_boxes_num] = idx;
                 ++valid_boxes_num;
             }
         }
