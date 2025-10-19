@@ -65,9 +65,6 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 
     uint sg_i = sub_group_broadcast(get_local_id(0)/SUBGROUP_SIZE, 0);
     uint sg_j = sub_group_broadcast(get_local_id(1), 0);
-    #ifdef SG_PER_WG_K
-    uint sg_k = sub_group_broadcast(get_local_id(2), 0);
-    #endif
 
     // start points of this sg
     uint wg_i0 = get_group_id(0) * ugemm_moe_wg_tile_m;
@@ -77,11 +74,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 
     if (wg_j0 >= cur_n_tokens) // if I set it as sg_j0 >= 0 : it hangs
         return;     /* early exit if outside batch */
-    #ifdef SG_PER_WG_K
-    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, sg_k, slm
-    #else
     ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, slm
-    #endif
 #ifdef WEIGHT_COMPRESSED_INT4
                                         , weight_scales
 #ifdef WEIGHT_ZP_DT
@@ -90,10 +83,6 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
                                         , NUM_GROUPS
 #endif
 );
-    #ifdef SG_PER_WG_K
-    if (sg_k > 0)
-        return;
-    #endif
     ugemm_moe_c_type_half c_tile_half;
     tile_copy_reblock(c_tile, &c_tile_half);
     tile_store(c_tile_half, out_ptr, m, cur_n_tokens, sg_i0, sg_j0);
