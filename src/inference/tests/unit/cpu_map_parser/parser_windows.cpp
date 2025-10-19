@@ -5297,7 +5297,7 @@ TEST_P(WinCpuMapParserTests, WinCache) {}
 INSTANTIATE_TEST_SUITE_P(CPUMap,
                          WinCpuMapParserTests,
                          testing::Values(_2sockets_104cores_hyperthreading,
-                                         _2sockets_288cores,        
+                                         _2sockets_288cores,
                                          _2sockets_192cores,
                                          _1sockets_172cores,
                                          _1sockets_86cores,
