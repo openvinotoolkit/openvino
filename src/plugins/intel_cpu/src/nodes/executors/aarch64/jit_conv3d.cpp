@@ -36,9 +36,7 @@ void JitConv3DKernelF16::create_ker() {
 
 void JitConv3DKernelF16::generate() {
     using namespace Xbyak_aarch64;
-
-    // Stable minimal kernel: dual-OC or single-OC accumulation over C in 8-lane blocks + tail.
-    // Avoid callee-saved registers and any in-kernel spatial loops to ensure ABI safety on macOS arm64.
+    // Minimal stable kernel (dual-OC, in-kernel kx loop)
 
     {
         const XReg reg_args = abi_param1; // x0
@@ -458,7 +456,6 @@ void JitConv3DKernelF16::generate() {
         L(Ldone);
         ret();
     }
-    return;
 
     // abi_param1 -> args pointer
     const XReg reg_args = abi_param1;
@@ -516,9 +513,8 @@ void JitConv3DKernelF16::generate() {
     ldr(reg_src_dy, ptr(reg_args, 152));        // src dy step in bytes (y dimension)
     ldr(reg_wei_dy, ptr(reg_args, 160));        // wei dy step in bytes (y dimension)
 
-    // Force single-ky iteration inside kernel to simplify and ensure stability
+    // Force single-ky iteration and disable quad-OC for stability on macOS arm64
     mov(reg_kh_cnt, 1);
-    // Disable quad-OC path for stability (use dual or single)
     eor(reg_acc4, reg_acc4, reg_acc4);
 
     Label Lsingle, Lend_all;
@@ -1209,7 +1205,7 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
     // Prepare packed weights once
     ensure_weights_packed(memory);
 
-    ov::parallel_for2d(N, (OC + 3) / 4, [&](size_t n, size_t oc_quad) {
+    auto worker = [&](size_t n, size_t oc_quad, size_t od) {
         const size_t oc0 = oc_quad * 4;
         const size_t oc1 = oc0 + 1;
         const size_t oc2 = oc0 + 2;
@@ -1217,12 +1213,11 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
         const bool has_oc1 = oc1 < OC;
         const bool has_oc2 = oc2 < OC;
         const bool has_oc3 = oc3 < OC;
-        for (size_t od = 0; od < OD; ++od) {
-            const int64_t iz0 = static_cast<int64_t>(od * SD) - static_cast<int64_t>(PD0);
-            for (size_t oh = 0; oh < OH; ++oh) {
-                const int64_t iy0 = static_cast<int64_t>(oh * SH) - static_cast<int64_t>(PH0);
-                for (size_t ow = 0; ow < OW; ++ow) {
-                    const int64_t ix0 = static_cast<int64_t>(ow * SW) - static_cast<int64_t>(PW0);
+        const int64_t iz0 = static_cast<int64_t>(od * SD) - static_cast<int64_t>(PD0);
+        for (size_t oh = 0; oh < OH; ++oh) {
+            const int64_t iy0 = static_cast<int64_t>(oh * SH) - static_cast<int64_t>(PH0);
+            for (size_t ow = 0; ow < OW; ++ow) {
+                const int64_t ix0 = static_cast<int64_t>(ow * SW) - static_cast<int64_t>(PW0);
 
                     float acc0 = 0.f, acc1 = 0.f, acc2 = 0.f, acc3 = 0.f;
 
@@ -1467,8 +1462,9 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
                     if (has_oc3) dst_p[index_dst(n, oc3, od, oh, ow)] = ov::float16(acc3).to_bits();
                 }
             }
-        }
-    });
+    };
+
+    ov::parallel_for3d(N, (OC + 3) / 4, OD, worker);
 }
 
 void JitConv3DExecutor::execute(const MemoryArgs& memory) {
@@ -1743,11 +1739,11 @@ void JitConv3DExecutor::run_naive_fp32(const MemoryArgs& memory) {
                         }
                     }
 
-                    // Store
-                    dst_p[index_dst(n, oc0, od, oh, ow)] = acc0;
-                    if (has_oc1) dst_p[index_dst(n, oc1, od, oh, ow)] = acc1;
-                    if (has_oc2) dst_p[index_dst(n, oc2, od, oh, ow)] = acc2;
-                    if (has_oc3) dst_p[index_dst(n, oc3, od, oh, ow)] = acc3;
+                    // Store (convert FP32 accumulators to FP16 bits)
+                    dst_p[index_dst(n, oc0, od, oh, ow)] = ov::float16(acc0).to_bits();
+                    if (has_oc1) dst_p[index_dst(n, oc1, od, oh, ow)] = ov::float16(acc1).to_bits();
+                    if (has_oc2) dst_p[index_dst(n, oc2, od, oh, ow)] = ov::float16(acc2).to_bits();
+                    if (has_oc3) dst_p[index_dst(n, oc3, od, oh, ow)] = ov::float16(acc3).to_bits();
                 }
             }
         }

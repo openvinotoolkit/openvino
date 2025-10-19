@@ -169,7 +169,7 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
     const size_t wei_ic_stride_elems = OC * KD * KH * KW;
 
     ensure_weights_packed_f16(src);
-    ov::parallel_for2d(N, (OC + 3) / 4, [&](size_t n, size_t oc_quad) {
+    auto worker = [&](size_t n, size_t oc_quad, size_t od) {
         const size_t oc0 = oc_quad * 4;
         const size_t oc1 = oc0 + 1;
         const size_t oc2 = oc0 + 2;
@@ -178,7 +178,7 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
         const bool has_oc2 = oc2 < OC;
         const bool has_oc3 = oc3 < OC;
         const size_t n_base = n * IC * ID * IH * IW;
-        for (size_t od = 0; od < OD; ++od) {
+        {
             for (size_t oh = 0; oh < OH; ++oh) {
                 for (size_t ow_ = 0; ow_ < OW; ++ow_) {
                     float acc0 = 0.f, acc1 = 0.f, acc2 = 0.f, acc3 = 0.f;
@@ -368,7 +368,9 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src,
                 }
             }
         }
-    });
+    };
+
+    ov::parallel_for3d(N, (OC + 3) / 4, OD, worker);
 }
 
 void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src,
