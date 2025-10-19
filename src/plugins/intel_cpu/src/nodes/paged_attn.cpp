@@ -183,6 +183,24 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_SINKS)));
 
+    // adaptive_rkv_start_size, int32, []
+    config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_START_SIZE].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_START_SIZE)));
+    // adaptive_rkv_evictable_sizes, int32, [B_seq]
+    config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_START_SIZE].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES)));
+    // adaptive_rkv_diversity_block_set_indices, int32, [num_adaptive_rkv_diversity_blocks]
+    config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES)));
+    // adaptive_rkv_evictable_sizes, int32, [B_seq + 1]
+    config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS)));
+
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
