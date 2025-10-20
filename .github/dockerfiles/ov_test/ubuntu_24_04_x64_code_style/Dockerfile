@@ -10,9 +10,7 @@ RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
 
 ENV DEBIAN_FRONTEND="noninteractive" \
-    TZ="Europe/London" \
-    https_proxy="http://proxy-dmz.intel.com:912" \
-    http_proxy="http://proxy-dmz.intel.com:912"
+    TZ="Europe/London"
 
 RUN apt-get update && \
     apt-get install software-properties-common && \
