@@ -8,7 +8,7 @@
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
 
-#if ASYMMETRIC_QUANTIZATION && UNSIGNED_OUTPUT
+#if (ASYMMETRIC_QUANTIZATION && UNSIGNED_OUTPUT) || OUTPUT_TYPE == fp8e5m2_t
     #define TO_OUTPUT_TYPE_RTE(val)  convert_uchar_rte(val)
     #define TO_OUTPUT_VEC_TYPE_RTE(val)  convert_uchar8_rte(val)
 #else
@@ -117,7 +117,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
 #else  // !ASYMMETRIC_QUANTIZATION
     max_val = work_group_reduce_max(max_val);
-    OUTPUT1_TYPE scale = 127.0h / max_val;
+    half scale = (half)OUTPUT_MAX_VAL / max_val;
 #endif
 
     for (int b_off = 0; b_off < (GROUP_SIZE_DIM0 == 1 ? 1 : INPUT0_BATCH_NUM); b_off++) {
@@ -159,7 +159,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     }
     }
 
-    output_scale[scale_idx] = 1.0h / scale;
+    output_scale[scale_idx] = TO_OUTPUT1_TYPE(1.0h / scale);
 #if ASYMMETRIC_QUANTIZATION && GROUP_SCALES_WITH_ZP
     output_scale[scale_idx + 1] = zp;
 #elif ASYMMETRIC_QUANTIZATION

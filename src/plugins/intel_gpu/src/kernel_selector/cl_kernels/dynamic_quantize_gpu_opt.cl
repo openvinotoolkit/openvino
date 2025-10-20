@@ -14,6 +14,8 @@
 #define VSTORE_N CAT(vstore, VEC_SIZE)
 #define CONVERT_UCHAR_N CAT(convert_uchar, VEC_SIZE)
 #define CONVERT_CHAR_N CAT(convert_char, VEC_SIZE)
+#define TO_TYPE_N_(type, n, x) _convert_##type##n(x)
+#define TO_TYPE_N(type, n, x) TO_TYPE_N_(type, n, x)
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
@@ -63,17 +65,17 @@ KERNEL(dynamic_quantize_gpu_opt)(
         max_value = fmax(max_value, max[i]);
     }
 
-    half quan_scale = 128.0h / max_value;
+    half quan_scale = (half)OUTPUT_MAX_VAL / max_value;
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
-        quantized_value[i] = convert_char4(input_0[i] * (half4)quan_scale);
+        quantized_value[i] = AS_TYPE_N(char, 4, TO_TYPE_N(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale));
         vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
     }
 
 #if OUTPUT_DIMS == 2
-    output_scale[OUTPUT1_GET_INDEX(b, f_grp, 0, 0)] = 1.0h / quan_scale;
+    output_scale[OUTPUT1_GET_INDEX(b, f_grp, 0, 0)] = TO_OUTPUT1_TYPE(1.0h / quan_scale);
 #else
-    output_scale[OUTPUT1_GET_INDEX(b, f, y_grp, 0)] = 1.0h / quan_scale;
+    output_scale[OUTPUT1_GET_INDEX(b, f, y_grp, 0)] = TO_OUTPUT1_TYPE(1.0h / quan_scale);
 #endif
 }
 
