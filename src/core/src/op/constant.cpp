@@ -216,23 +216,29 @@ Constant::Constant(const Tensor& tensor)
     constructor_validate_and_infer_types();
 }
 
-Constant::Constant(const element::Type& type, const Shape& shape, const std::vector<std::string>& values)
+Constant::Constant(const element::Type& type,
+                   const Shape& shape,
+                   const std::vector<std::string>& values)
     : Constant(false, type, shape) {
+    if (type == element::string && values.size() > 1) {
+        OPENVINO_THROW("String constants with more than one element are not supported.");
+    }
     const auto this_shape_size = shape_size(m_shape);
     const auto values_size = values.size();
     const auto has_single_value = (values_size == 1);
-    NODE_VALIDATION_CHECK(this,
-                          has_single_value || values_size == this_shape_size,
-                          "Did not get the expected number of literals for a constant of shape ",
-                          m_shape,
-                          " (got ",
-                          values_size,
-                          ", expected ",
-                          (this_shape_size == 1 ? "" : "1 or "),
-                          this_shape_size,
-                          ").");
+
+    // ✅ Replace macro with standard runtime check
+    if (!(has_single_value || values_size == this_shape_size)) {
+        std::string msg = "Did not get the expected number of literals for a constant of shape ";
+        msg += shape.to_string();
+        msg += " (got " + std::to_string(values_size);
+        msg += ", expected " + (this_shape_size == 1 ? "" : "1 or ") + std::to_string(this_shape_size) + ").";
+        throw std::runtime_error(msg);
+    }
+
     const auto is_checked_and_identical = has_single_value && (this_shape_size != 1);
 
+   
     if (type == element::string) {
         fill_or_write(is_checked_and_identical, type, values);
     } else if (type.is_real()) {
