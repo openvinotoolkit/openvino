@@ -1013,7 +1013,6 @@ class TestParallelRunner:
         #
         hash_table_path = os.path.join(logs_dir, "hash_table.csv")
         if os.path.isfile(hash_table_path):
-            import csv
             with open(hash_table_path, encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 crashed_tests = [row["Test Name"] for row in reader if row["Dir"] == "crashed"]
