@@ -20,6 +20,10 @@ namespace onnx {
 namespace ai_onnx {
 namespace opset_11 {
 
+/// @brief Implements the SequenceAt operator
+/// @param node Input ONNX node. Must have two inputs: a sequence and a position.
+///             Sequence is represented as a SequenceMark node.
+/// @return The tensor at the specified position in the input sequence
 ov::OutputVector sequence_at(const ov::frontend::onnx::Node& node) {
     constexpr auto input_sequence_and_position = 2;
 
