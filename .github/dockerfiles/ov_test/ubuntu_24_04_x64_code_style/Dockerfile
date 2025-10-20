@@ -10,7 +10,9 @@ RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
 
 ENV DEBIAN_FRONTEND="noninteractive" \
-    TZ="Europe/London"
+    TZ="Europe/London" \
+    https_proxy="http://proxy-dmz.intel.com:912" \
+    http_proxy="http://proxy-dmz.intel.com:912"
 
 RUN apt-get update && \
     apt-get install software-properties-common && \
@@ -43,11 +45,5 @@ RUN adduser --disabled-password --gecos "" --uid 1001 runner \
     && usermod -aG docker runner \
     && echo "%sudo   ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers \
     && echo "Defaults env_keep += \"DEBIAN_FRONTEND\"" >> /etc/sudoers
-
-WORKDIR /home/runner
-
-COPY --chown=runner:docker --from=build /actions-runner .
-
-RUN install -o root -g root -m 755 docker/* /usr/bin/ && rm -rf docker
 
 USER runner

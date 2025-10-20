@@ -33,18 +33,3 @@ ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
-
-# RUN adduser --disabled-password --gecos "" --uid 1001 runner \
-#     && groupadd docker --gid 123 \
-#     && usermod -aG sudo runner \
-#     && usermod -aG docker runner \
-#     && echo "%sudo   ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers \
-#     && echo "Defaults env_keep += \"DEBIAN_FRONTEND\"" >> /etc/sudoers
-
-# WORKDIR /home/runner
-
-# COPY --chown=runner:docker --from=build /actions-runner .
-
-# RUN install -o root -g root -m 755 docker/* /usr/bin/ && rm -rf docker
-
-# USER runner
