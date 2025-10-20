@@ -204,17 +204,20 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
 
         // check mul(x, cos) exists
         Output<Node> v_cos;
-        if (pattern_map.at(x_or_cos1) == pattern_map.at(x)) {
-            v_cos = pattern_map.at(x_or_cos2);
-        } else if (pattern_map.at(x_or_cos2) == pattern_map.at(x)) {
-            v_cos = pattern_map.at(x_or_cos1);
+        const auto& x_or_cos1_val = pattern_map.at(x_or_cos1);
+        const auto& x_or_cos2_val = pattern_map.at(x_or_cos2);
+        const auto& x_val = pattern_map.at(x);
+        if (x_or_cos1_val == x_val) {
+            v_cos = x_or_cos2_val;
+        } else if (x_or_cos2_val == x_val) {
+            v_cos = x_or_cos1_val;
         } else {
             // not a RoPE
             return false;
         }
 
         auto symbols = m.get_symbols();
-        auto half_ndims = symbols["half_ndims"];
+        const auto& half_ndims = symbols["half_ndims"];
         if (!half_ndims.is_integer()) {
             return false;
         }
@@ -226,7 +229,7 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
         }
         config.rotary_ndims = 2ul * static_cast<size_t>(half_ndims.i());
 
-        new_args.push_back(pattern_map.at(x));
+        new_args.push_back(x_val);
         new_args.push_back(v_cos);
         new_args.push_back(pattern_map.at(t_sin));
         auto old_node = root;
