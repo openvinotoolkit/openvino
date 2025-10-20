@@ -42,6 +42,7 @@
 #define AS_TYPE_PREFIX_char as_
 #define AS_TYPE_PREFIX_fp8e5m2_t _as_
 #define AS_TYPE_PREFIX_fp8e4m3_t _as_
+#define AS_TYPE_PREFIX_fp8e8m0_t _as_
 #define AS_TYPE_PREFIX_ushort as_
 #define AS_TYPE_PREFIX_short as_
 #define AS_TYPE_PREFIX_half as_
