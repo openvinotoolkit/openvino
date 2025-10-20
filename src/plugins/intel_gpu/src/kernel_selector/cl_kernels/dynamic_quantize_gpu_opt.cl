@@ -15,6 +15,8 @@
 #define CONVERT_UCHAR_N CAT(convert_uchar, VEC_SIZE)
 #define CONVERT_CHAR_N CAT(convert_char, VEC_SIZE)
 #define CONVERT_INT_N CAT(convert_int, VEC_SIZE)
+#define TO_TYPE_N_(type, n, x) _convert_##type##n(x)
+#define TO_TYPE_N(type, n, x) TO_TYPE_N_(type, n, x)
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
@@ -75,11 +77,11 @@ KERNEL(dynamic_quantize_gpu_opt)(
         max_value = fmax(max_value, max[i]);
     }
 
-    half quan_scale = 127.0h / max_value;
+    half quan_scale = (half)OUTPUT_MAX_VAL / max_value;
     FOR_PRECOMPUTED_REDUCTION(int precomputed_reduction = 0);
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
-        quantized_value[i] = convert_char4_rte(input_0[i] * (half4)quan_scale);
+        quantized_value[i] = AS_TYPE_N(char, 4, TO_TYPE_N(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale));
         FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += quantized_value[i][0] + quantized_value[i][1] + quantized_value[i][2] + quantized_value[i][3]);
         vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
     }
@@ -89,7 +91,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #else
     const uint output_idx = OUTPUT1_GET_INDEX(b, f, y_grp, 0);
 #endif
-    output_scale[output_idx] = 1.0h / quan_scale;
+    output_scale[output_idx] = TO_OUTPUT1_TYPE(1.0h / quan_scale);
 
     FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[output_idx] = precomputed_reduction);
 }
