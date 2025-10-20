@@ -58,7 +58,7 @@ public:
     /**
      * @returns Batch size. Populated in case of plugin batching.
      */
-    virtual std::optional<int64_t> get_batch_size() const = 0;
+    virtual std::optional<int64_t> get_batch_size() const;
 
     virtual ~MetadataBase() = default;
 
@@ -154,11 +154,12 @@ constexpr std::string_view MAGIC_BYTES = "OVNPU";
 constexpr uint32_t METADATA_VERSION_2_0{MetadataBase::make_version(2, 0)};
 constexpr uint32_t METADATA_VERSION_2_1{MetadataBase::make_version(2, 1)};
 constexpr uint32_t METADATA_VERSION_2_2{MetadataBase::make_version(2, 2)};
+constexpr uint32_t METADATA_VERSION_2_3{MetadataBase::make_version(2, 3)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_2};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_3};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -259,13 +260,6 @@ public:
      */
     bool is_compatible() override;
 
-<<<<<<< HEAD
-=======
-    std::optional<std::vector<uint64_t>> get_init_sizes() const override;
-
-    std::optional<int64_t> get_batch_size() const override;
-
->>>>>>> upstream/master
     size_t get_metadata_size() const override;
 
 protected:
@@ -296,8 +290,6 @@ public:
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
-    std::optional<int64_t> get_batch_size() const override;
-
     size_t get_metadata_size() const override;
 
 private:
@@ -306,20 +298,39 @@ private:
 };
 
 /**
-<<<<<<< HEAD
- * @brief Stores the layouts for all inputs and outputs (Parameter and Result nodes).
- * @details The order used for recording the layouts follows the deterministic order in which OV parses the I/O.
-=======
  * @brief The version that adds support for batch value storage.
->>>>>>> upstream/master
  */
 template <>
 class Metadata<METADATA_VERSION_2_2> : public Metadata<METADATA_VERSION_2_1> {
 public:
     Metadata(uint64_t blobSize,
-<<<<<<< HEAD
+             std::optional<OpenvinoVersion> ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
+             const std::optional<int64_t> batchSize = std::nullopt);
+
+    void read() override;
+
+    void write(std::ostream& stream) override;
+
+    std::optional<int64_t> get_batch_size() const override;
+
+    size_t get_metadata_size() const override;
+
+private:
+    std::optional<int64_t> _batchSize;
+};
+
+/**
+ * @brief Stores the layouts for all inputs and outputs (Parameter and Result nodes).
+ * @details The order used for recording the layouts follows the deterministic order in which OV parses the I/O.
+ */
+template <>
+class Metadata<METADATA_VERSION_2_3> : public Metadata<METADATA_VERSION_2_2> {
+public:
+    Metadata(uint64_t blobSize,
              const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
              const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
+             const std::optional<int64_t> batchSize = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt);
 
@@ -336,32 +347,6 @@ public:
 private:
     std::optional<std::vector<ov::Layout>> _inputLayouts;
     std::optional<std::vector<ov::Layout>> _outputLayouts;
-=======
-             std::optional<OpenvinoVersion> ovVersion = std::nullopt,
-             const std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
-             const std::optional<int64_t> batchSize = std::nullopt);
-
-    /**
-     * @details The number of init schedules, along with the size of each init binary object are read in addition to the
-     * information provided by the previous metadata versions.
-     */
-    void read(std::istream& stream) override;
-
-    void read(const ov::Tensor& tensor) override;
-
-    /**
-     * @details The number of init schedules, along with the size of each init binary object are written in addition to
-     * the information registered by the previous metadata versions.
-     */
-    void write(std::ostream& stream) override;
-
-    std::optional<int64_t> get_batch_size() const override;
-
-    size_t get_metadata_size() const override;
-
-private:
-    std::optional<int64_t> _batchSize;
->>>>>>> upstream/master
 };
 
 /**

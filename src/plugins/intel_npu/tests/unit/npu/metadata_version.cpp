@@ -16,9 +16,10 @@ struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
     MetadataTest(uint64_t blobSize,
                  const std::optional<OpenvinoVersion>& ovVersion,
                  const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
+                 const std::optional<int64_t> batchSize = std::nullopt,
                  const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
                  const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt)
-        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion, initSizes, inputLayouts, outputLayouts) {}
+        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion, initSizes, batchSize, inputLayouts, outputLayouts) {}
 
     void set_version(uint32_t newVersion) {
         _version = newVersion;
@@ -102,6 +103,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWeightsSeparation) 
 TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContentAllAttributes) {
     uint64_t blobSize = 64;
     std::vector<uint64_t> initSizes{16, 16};
+    int64_t batchSize = 32;
     std::vector<ov::Layout> inputLayouts{"12345", "1...3?"};
     std::vector<ov::Layout> outputLayouts{"layout"};
 
@@ -109,7 +111,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContentAllAttri
     std::vector<uint8_t> content(blobSize, 0);
     stream.write(reinterpret_cast<const char*>(content.data()), static_cast<std::streamsize>(blobSize));
 
-    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION, initSizes, inputLayouts, outputLayouts);
+    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION, initSizes, batchSize, inputLayouts, outputLayouts);
     OV_ASSERT_NO_THROW(meta.write(stream));
 
     std::unique_ptr<MetadataBase> storedMeta;
@@ -121,6 +123,8 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContentAllAttri
     for (size_t i = 0; i < initSizes.size(); ++i) {
         ASSERT_TRUE(storedMeta->get_init_sizes()->at(i) == initSizes.at(i));
     }
+    ASSERT_TRUE(storedMeta->get_batch_size().has_value());
+    ASSERT_TRUE(storedMeta->get_batch_size() == batchSize);
     ASSERT_TRUE(storedMeta->get_input_layouts().has_value());
     ASSERT_TRUE(storedMeta->get_output_layouts().has_value());
     ASSERT_TRUE(storedMeta->get_input_layouts()->size() == inputLayouts.size());
@@ -144,6 +148,8 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContentAllAttri
     for (size_t i = 0; i < initSizes.size(); ++i) {
         ASSERT_TRUE(storedMeta->get_init_sizes()->at(i) == initSizes.at(i));
     }
+    ASSERT_TRUE(storedMeta->get_batch_size().has_value());
+    ASSERT_TRUE(storedMeta->get_batch_size() == batchSize);
     ASSERT_TRUE(storedMeta->get_input_layouts().has_value());
     ASSERT_TRUE(storedMeta->get_output_layouts().has_value());
     ASSERT_TRUE(storedMeta->get_input_layouts()->size() == inputLayouts.size());

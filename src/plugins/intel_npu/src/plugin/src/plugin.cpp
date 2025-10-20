@@ -55,12 +55,9 @@ constexpr std::string_view ONNX_EXTENSION = ".onnx";
  */
 std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
                                               const std::vector<IODescriptor>& outputDescriptors,
-<<<<<<< HEAD
+                                              const std::optional<int64_t> batchSize,
                                               const std::optional<std::vector<ov::Layout>>& inputLayouts,
                                               const std::optional<std::vector<ov::Layout>>& outputLayouts) {
-=======
-                                              std::optional<int64_t> batchSize) {
->>>>>>> upstream/master
     ov::ParameterVector parameters;
     ov::ResultVector results;
 
@@ -1004,13 +1001,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =
-<<<<<<< HEAD
         create_dummy_model(graph->get_metadata().inputs,
                            graph->get_metadata().outputs,
+                           batchSize,
                            metadata ? metadata->get_input_layouts() : std::nullopt,
                            metadata ? metadata->get_output_layouts() : std::nullopt);
-=======
-        create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs, batchSize);
 
     if (batchSize.has_value()) {
         if (batchSize.value() > 0) {
@@ -1018,7 +1013,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
             graph->set_batch_size(batchSize.value());
         }
     }
->>>>>>> upstream/master
 
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
