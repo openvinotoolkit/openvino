@@ -41,8 +41,8 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data) {
 }
 
 TEST_P(OnnxFeMmapFixture, onnx_external_data_0_size) {
-    const auto path =
-        test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data_0_size.onnx");
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_0_size.onnx");
     Core core;
     core.set_property(enable_mmap(GetParam()));
     const auto model = core.read_model(path);
@@ -52,6 +52,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_0_size) {
 
     test_case.run();
 }
+
 // !!! Experimental feature, it may be changed or removed in the future !!!
 TEST_P(OnnxFeMmapFixture, onnx_external_data_enumerating) {
     const auto path =

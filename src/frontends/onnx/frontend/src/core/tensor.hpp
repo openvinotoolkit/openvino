@@ -293,8 +293,8 @@ private:
         if (m_tensor_place != nullptr) {
             return m_tensor_place->get_data_location() != nullptr && m_tensor_place->get_data() != nullptr;
         }
-        return (m_tensor_proto->has_data_location() &&
-                m_tensor_proto->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL);
+        return m_tensor_proto->has_data_location() &&
+               m_tensor_proto->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL;
     }
 
     template <typename T>
