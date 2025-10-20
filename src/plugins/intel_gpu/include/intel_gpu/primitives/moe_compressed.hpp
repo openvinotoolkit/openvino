@@ -6,11 +6,11 @@
 #include <vector>
 
 #include "intel_gpu/runtime/engine.hpp"
-#include "ov_ops/moe_compressed.hpp"
+#include "intel_gpu/op/moe_compressed.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
-using MOECompressed = ov::op::internal::MOECompressed;
+using MOECompressed = ov::intel_gpu::op::MOECompressed;
 
 /// @brief moe compressed primitive
 /// @details Performs moe compressed
