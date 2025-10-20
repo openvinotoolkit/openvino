@@ -48,7 +48,7 @@ ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, c
     const auto axis_const = ov::op::v0::Constant::create(ov::element::i64, {}, {axis});
     const auto split_lengths = ov::op::v0::Constant::create(ov::element::i64, {lengths.size()}, lengths);
 
-    return {std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths)};
+    return {std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths)->outputs()};
 }
 
 ov::OutputVector split_with_1d_split(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs) {
@@ -56,7 +56,7 @@ ov::OutputVector split_with_1d_split(const ov::frontend::onnx::Node& node, const
     const auto& split = inputs[1];
     const auto axis = node.get_attribute_as_constant<std::int64_t>("axis", 0);
 
-    return {std::make_shared<ov::op::v1::VariadicSplit>(input, axis, split)};
+    return {std::make_shared<ov::op::v1::VariadicSplit>(input, axis, split)->outputs()};
 }
 
 ov::OutputVector split_with_explicit_split(const ov::frontend::onnx::Node& node) {
@@ -64,10 +64,7 @@ ov::OutputVector split_with_explicit_split(const ov::frontend::onnx::Node& node)
 
     const auto& split = inputs[1];
 
-    const auto split_const = ov::util::get_constant_from_source(split);
-    OPENVINO_ASSERT(split_const, "SplitToSequence: 'split' input must be constant");
-
-    const auto split_shape = split_const->get_shape();
+    const auto split_shape = split.get_shape();
 
     if (split_shape.empty()) {
         return split_with_scalar_split(node, inputs);
