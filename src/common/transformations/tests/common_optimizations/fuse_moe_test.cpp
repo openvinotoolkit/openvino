@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/moe.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/opsets/opset12.hpp"
@@ -15,22 +16,13 @@
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "transformations/common_optimizations/fuse_moe_experts.hpp"
+#include "transformations/common_optimizations/matmul_experts_fusion.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 using namespace testing;
 using namespace ov::gen_pattern;
 using namespace ov;
-
-// Local MOE configuration structure to avoid dependency on v16::MOE
-struct MOEConfig {
-    size_t expert_num = 0;
-    size_t hidden_size = 0;
-    size_t intermediate_size = 0;
-    size_t group_size = 0;
-    size_t topk = 0;
-    ov::element::Type weight_type = ov::element::f32;
-};
 
 std::shared_ptr<ov::Model> BuildMOE(int expert_num, int topk) {
     ov::element::Type inType = ov::element::f32;
@@ -322,6 +314,105 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
                                        ov::ParameterVector{final_hidden_states_, router_logits, hidden_states_2d});
 }
 
+static std::shared_ptr<ov::Model> BuildFusedMOEWithInternalOp(const int expert_num, const int topk) {
+    constexpr int64_t hidden_size = 2048;
+    constexpr int64_t intermediate_size = 768;
+
+    ov::element::Type inType = ov::element::f32;
+    auto final_hidden_states_ = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, hidden_size});
+    auto router_logits = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, expert_num});
+    auto hidden_states_2d = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, hidden_size});
+
+    auto residual_input = makeOP<opset1::Convert>({final_hidden_states_}, {{"destination_type", "f32"}});
+    auto hidden_states_ = makeOP<opset1::Convert>({hidden_states_2d}, {{"destination_type", "f32"}});
+
+    auto softmax_Softmax = makeOP<opset8::Softmax>({router_logits}, {{"axis", 1}});
+    auto topk_TopK = makeOP<opset11::TopK>(
+        {softmax_Softmax, topk},
+        {{"axis", -1}, {"mode", "max"}, {"sort", "value"}, {"index_element_type", "i64"}, {"stable", false}});
+
+    auto target_shape = makeOP<opset3::ShapeOf>({hidden_states_}, {{"output_type", "i64"}});
+
+    auto axis_minus_one = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+    auto topk_values = topk_TopK->output(0);
+    auto sum_reduce = makeOP<opset1::ReduceSum>({topk_values, axis_minus_one}, {{"keep_dims", true}});
+    auto normalized_topk =
+        makeOP<opset1::Divide>({topk_values, sum_reduce}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+
+    auto axis0_scalar = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
+    auto axis0_vector = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+    auto axis1_vector = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+    auto transpose_axes = makeConst(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0});
+    auto axis_minus_one_vector = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+    auto minus_one = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+
+    auto router_topk_indices = topk_TopK->output(1);
+    auto topk_indices_shape = makeOP<opset3::ShapeOf>({router_topk_indices}, {{"output_type", "i64"}});
+    auto batch_dim_scalar =
+        makeOP<opset8::Gather>({topk_indices_shape, axis0_scalar, axis0_scalar}, {{"batch_dims", 0}});
+    auto batch_dim_unsqueeze = makeOP<opset1::Unsqueeze>({batch_dim_scalar, axis0_vector});
+
+    auto num_experts_const =
+        makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{static_cast<int64_t>(expert_num)});
+    auto num_experts_unsqueeze = makeOP<opset1::Unsqueeze>({num_experts_const, axis0_vector});
+
+    auto zeros_scalar = makeConst(ov::element::f32, ov::Shape{}, std::vector<float>{0.0f});
+    auto scatter_shape =
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim_unsqueeze, num_experts_unsqueeze}, 0);
+    auto zeros_tensor = std::make_shared<ov::op::v3::Broadcast>(zeros_scalar, scatter_shape);
+    auto scatter = std::make_shared<ov::op::v12::ScatterElementsUpdate>(zeros_tensor,
+                                                                        router_topk_indices,
+                                                                        normalized_topk,
+                                                                        axis1_vector);
+    auto router_transpose = std::make_shared<ov::op::v1::Transpose>(scatter, transpose_axes);
+    auto router_shape =
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{num_experts_unsqueeze, batch_dim_unsqueeze, minus_one},
+                                             0);
+    auto router_reshape = std::make_shared<ov::op::v1::Reshape>(router_transpose, router_shape, true);
+    auto routing_weights = std::make_shared<ov::op::v0::Unsqueeze>(router_reshape, axis_minus_one_vector);
+
+    auto fused_gate_weights_f16 = makeConst(ov::element::f16,
+                                            ov::Shape{static_cast<size_t>(expert_num),
+                                                      static_cast<size_t>(intermediate_size),
+                                                      static_cast<size_t>(hidden_size)},
+                                            {0});
+    auto fused_gate_weights = makeOP<opset1::Convert>({fused_gate_weights_f16}, {{"destination_type", "f32"}});
+    ov::mark_as_decompression(fused_gate_weights);
+
+    auto fused_up_weights_f16 = makeConst(ov::element::f16,
+                                          ov::Shape{static_cast<size_t>(expert_num),
+                                                    static_cast<size_t>(intermediate_size),
+                                                    static_cast<size_t>(hidden_size)},
+                                          {0});
+    auto fused_up_weights = makeOP<opset1::Convert>({fused_up_weights_f16}, {{"destination_type", "f32"}});
+    ov::mark_as_decompression(fused_up_weights);
+
+    auto fused_down_weights_f16 = makeConst(ov::element::f16,
+                                            ov::Shape{static_cast<size_t>(expert_num),
+                                                      static_cast<size_t>(hidden_size),
+                                                      static_cast<size_t>(intermediate_size)},
+                                            {0});
+    auto fused_down_weights = makeOP<opset1::Convert>({fused_down_weights_f16}, {{"destination_type", "f32"}});
+    ov::mark_as_decompression(fused_down_weights);
+
+    ov::OutputVector moe_inputs = {hidden_states_,
+                                   routing_weights,
+                                   router_topk_indices,
+                                   fused_gate_weights,
+                                   fused_up_weights,
+                                   fused_down_weights};
+
+    ov::op::internal::MOE::Config config;
+    config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+
+    auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
+    auto final_reshape = std::make_shared<ov::op::v1::Reshape>(moe, target_shape, false);
+    auto final_add = std::make_shared<ov::op::v1::Add>(residual_input, final_reshape);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{final_add},
+                                       ov::ParameterVector{final_hidden_states_, router_logits, hidden_states_2d});
+}
+
 TEST_F(TransformationTestsF, ConvertMOEToFuseMOE_FP16) {
     disable_rt_info_check();
     disable_result_friendly_names_check();
@@ -332,4 +423,17 @@ TEST_F(TransformationTestsF, ConvertMOEToFuseMOE_FP16) {
     model = BuildMOE(expert_num, topk);
     ov::pass::FuseMOE().run_on_model(model);
     model_ref = BuildFusedMOE(expert_num, topk);
+}
+
+TEST_F(TransformationTestsF, FuseMOEExperts_to_FuseVectorizedMOE3GEMM_Integration) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+
+    int expert_num = 16;
+    int topk = 8;
+
+    model = BuildMOE(expert_num, topk);
+    ov::pass::FuseMOE().run_on_model(model);
+    manager.register_pass<ov::pass::FuseVectorizedMOE3GEMM>();
+    model_ref = BuildFusedMOEWithInternalOp(expert_num, topk);
 }
