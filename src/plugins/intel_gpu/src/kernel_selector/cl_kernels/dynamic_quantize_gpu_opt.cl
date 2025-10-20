@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/common.cl"
 #include "include/batch_headers/f8_utils.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 #if OUTPUT_DIMS != 4 && OUTPUT_DIMS != 2
 #error "dynamic_quantize_gpu_opt.cl: Unsupported output dimension"

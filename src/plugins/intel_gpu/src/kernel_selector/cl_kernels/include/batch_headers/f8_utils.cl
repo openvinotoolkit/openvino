@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstdint>
-
 // TODO: Replace `_intel_convert*` with bultins when ready, current implementations are copied from XeTLA:
 
 uchar _intel_convert_f16_to_bf8(half val) {
@@ -128,8 +126,8 @@ half _intel_convert_hf8_to_f16(char val) {
 
 uchar _intel_convert_f32_fo_e8m0(float val) {
     float val_fp32 = val;
-    uint32_t *p = (uint32_t *)&val_fp32;
-    return static_cast<uchar>((p[0] >> 23) & 0xFF);
+    uint *p = (uint *)&val_fp32;
+    return (uchar)((p[0] >> 23) & 0xFF);
 }
 
 uchar _intel_convert_f32_fo_e8m0_sat(float val) {
@@ -137,9 +135,9 @@ uchar _intel_convert_f32_fo_e8m0_sat(float val) {
 }
 
 float _intel_convert_e8m0_to_f32(uchar val) {
-    uint32_t temp = val;
+    uint temp = val;
     temp = temp << 23;
-    float temp_fp32 = static_cast<float>(temp);
+    float temp_fp32 = (float)temp;
     return temp_fp32;
 }
 
