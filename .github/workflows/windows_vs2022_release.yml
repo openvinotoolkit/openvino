@@ -213,6 +213,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+          cache-dependency-path: ${{ env.OPENVINO_JS_DIR }}/package-lock.json
 
       - name: Configure OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}
