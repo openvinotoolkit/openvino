@@ -102,9 +102,11 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::stri
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_mem_data() const {
-    // Empty node will create shape [0] constant with zero size external data.
-    if ((m_data_location != ORT_MEM_ADDR) || ((m_offset != 0) && (m_data_length == 0)) ||
-        ((m_offset == 0) && (m_data_length != 0))) {
+    if (m_data_location != ORT_MEM_ADDR) {
+        throw error::invalid_external_data{*this};
+    }
+    // Empty node will create a constant with zero shape and zero size external data.
+    if (((m_offset != 0) && (m_data_length == 0)) || ((m_offset == 0) && (m_data_length != 0))) {
         throw error::invalid_external_data{*this};
     }
     char* addr_ptr = reinterpret_cast<char*>(m_offset);
