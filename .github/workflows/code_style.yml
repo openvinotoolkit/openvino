@@ -65,12 +65,11 @@ jobs:
 
   clang-format:
     needs: Docker
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-medium
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
       volumes:
         - /mount:/mount
-      options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -97,12 +96,11 @@ jobs:
 
   clang-format-aarch64:
     needs: Docker
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-medium
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
       volumes:
         - /mount:/mount
-      options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -129,12 +127,11 @@ jobs:
 
   clang-format-riscv64:
     needs: Docker
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-medium
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
       volumes:
         - /mount:/mount
-      options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -158,12 +155,11 @@ jobs:
 
   ShellCheck:
     needs: Docker
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-medium
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_code_style }}
       volumes:
         - /mount:/mount
-      options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -191,17 +187,19 @@ jobs:
 
   NamingConventionCheck:
     needs: Docker
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-medium
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_code_style }}
       volumes:
         - /mount:/mount
-      options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           submodules: 'true'
+
+      - name: Install Python-based dependencies
+        run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
 
       - name: CMake configure
         run: cmake -B build

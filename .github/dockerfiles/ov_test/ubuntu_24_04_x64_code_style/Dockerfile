@@ -36,3 +36,7 @@ RUN apt-get update && \
     ./llvm.sh 18 && \
     apt-get --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && \
     rm -rf /var/lib/apt/lists/*
+
+RUN useradd -u 1001 -m github-actions
+
+USER 1001
