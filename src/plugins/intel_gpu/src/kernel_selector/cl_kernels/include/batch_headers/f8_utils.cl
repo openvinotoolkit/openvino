@@ -125,9 +125,8 @@ half _intel_convert_hf8_to_f16(char val) {
 }
 
 uchar _intel_convert_f32_fo_e8m0(float val) {
-    float val_fp32 = val;
-    uint *p = (uint *)&val_fp32;
-    return (uchar)((p[0] >> 23) & 0xFF);
+    uint val_uint = as_uint(val);
+    return (uchar)((val_uint >> 23) & 0xFF);
 }
 
 uchar _intel_convert_f32_fo_e8m0_sat(float val) {
@@ -135,9 +134,13 @@ uchar _intel_convert_f32_fo_e8m0_sat(float val) {
 }
 
 float _intel_convert_e8m0_to_f32(uchar val) {
-    uint temp = val;
+    if (val == 0xFF) {
+        return as_float(0xFFC00000); // NaN
+    }
+
+    uint temp = (uint)val;
     temp = temp << 23;
-    float temp_fp32 = (float)temp;
+    float temp_fp32 = as_float(temp);
     return temp_fp32;
 }
 
