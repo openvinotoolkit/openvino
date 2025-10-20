@@ -347,7 +347,7 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         type = "fp8e8m0_t";
         max_val = "(fp8e8m0_t){as_uchar((uchar)0xFE)}"; // 2^127
         min_val = "(fp8e8m0_t){as_uchar((uchar)0x00)}"; // 2^(-127)
-        val_one = "(fp8e8m0_t){as_uchar((uchar)0x00)}";
+        val_one = "(fp8e8m0_t){as_uchar((uchar)0x7F)}";
         val_zero = ""; // There is no representation of zero in FP8E8M0
         to_type = "_convert_fp8e8m0_t(v)";
         to_type_sat = "_convert_fp8e8m0_t_sat(v)";
