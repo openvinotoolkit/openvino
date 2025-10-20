@@ -15,7 +15,7 @@
 #define CONVERT_UCHAR_N CAT(convert_uchar, VEC_SIZE)
 #define CONVERT_CHAR_N CAT(convert_char, VEC_SIZE)
 #define TYPE_N_(type, n) type##n
-#define TYPE_N(type, n) TO_TYPE_N_(type, n)
+#define TYPE_N(type, n) TYPE_N_(type, n)
 #define TO_TYPE_N_(type, n, x) _convert_##type##n(x)
 #define TO_TYPE_N(type, n, x) TO_TYPE_N_(type, n, x)
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
