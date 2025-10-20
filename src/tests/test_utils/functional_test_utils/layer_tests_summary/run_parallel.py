@@ -1010,6 +1010,20 @@ class TestParallelRunner:
             test_cnt += test_res
             if (test_st not in ('passed', 'skipped')) and test_res > 0:
                 is_successfull_run = False
+        #
+        hash_table_path = os.path.join(logs_dir, "hash_table.csv")
+        if os.path.isfile(hash_table_path):
+            import csv
+            with open(hash_table_path, encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                crashed_tests = [row["Test Name"] for row in reader if row["Dir"] == "crashed"]
+
+            if crashed_tests:
+                logger.info(f"Crashed test counter is: {len(crashed_tests)}")
+                logger.info("List of crashed tests:")
+                for name in crashed_tests:
+                    logger.info(f"  - {name}")
+        #
         if self._disabled_tests:
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
 
