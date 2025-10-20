@@ -9,7 +9,7 @@
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
 #define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
 
-#if ASYMMETRIC_QUANTIZATION && UNSIGNED_OUTPUT
+#if (ASYMMETRIC_QUANTIZATION && UNSIGNED_OUTPUT) || OUTPUT_TYPE == fp8e5m2_t
     #define TO_OUTPUT_TYPE_RTE(val)  convert_uchar_rte(val)
     #define TO_OUTPUT_VEC_TYPE_RTE(val)  convert_uchar8_rte(val)
 #else
@@ -126,7 +126,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)(scale_tmp);
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
 #else  // !ASYMMETRIC_QUANTIZATION
-    OUTPUT1_TYPE scale = 127.0h / max_val;
+    half scale = (half)OUTPUT_MAX_VAL / max_val;
 #endif
 
     FOR_PRECOMPUTED_REDUCTION(OUTPUT2_TYPE precomputed_reduction = 0);
@@ -176,7 +176,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     }
     }
 
-    output_scale[scale_idx] = 1.0h / scale;
+    output_scale[scale_idx] = TO_OUTPUT1_TYPE(1.0h / scale);
     FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[scale_idx] = precomputed_reduction);
 #if ASYMMETRIC_QUANTIZATION && GROUP_SCALES_WITH_ZP
     output_scale[scale_idx + 1] = zp;
