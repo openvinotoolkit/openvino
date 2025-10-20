@@ -1549,6 +1549,18 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type_size = "1";
             is_fp = true;
             break;
+        case Datatype::F8E8M0:
+            type = "fp8e8m0_t";
+            max_val = "(fp8e8m0_t){as_uchar((uchar)0xFE)}"; // 2^127
+            min_val = "(fp8e8m0_t){as_uchar((uchar)0x00)}"; // 2^(-127)
+            val_one = "(fp8e8m0_t){as_uchar((uchar)0x7F)}";
+            val_zero = ""; // There is no representation of zero in FP8E8M0
+            to_type = "_convert_fp8e8m0_t(v)";
+            to_type_sat = "_convert_fp8e8m0_t_sat(v)";
+            as_type = "as_fp8e8m0_t(v)";
+            type_size = "1";
+            is_fp = true;
+            break;
         default:
             type = "float";
             max_val = "FLT_MAX";
