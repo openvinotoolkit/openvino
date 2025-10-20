@@ -67,7 +67,7 @@ void Identity::initSupportedPrimitiveDescriptors() {
 
 void Identity::prepareParams() {
     VectorDims out_shape = getDstMemoryAtPort(0)->getShape().getStaticDims();
-    m_element_num = std::accumulate(out_shape.begin(), out_shape.end(), 1LU, std::multiplies<>());
+    m_element_num = std::accumulate(out_shape.begin(), out_shape.end(), 1UL, std::multiplies<>());
 }
 
 bool Identity::isExecutable() const {
