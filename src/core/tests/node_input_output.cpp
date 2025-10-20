@@ -247,7 +247,7 @@ TEST(node_input_output, disconnect_output_from_consumers_long_chain_backward) {
     auto convert = make_shared<op::v0::Convert>(mul, element::bf16);
     auto relu = make_shared<op::v0::Relu>(convert);
 
-    ASSERT_EQ(add->output(0).get_target_inputs().size(), 2);  // 2 inputs of mul
+    ASSERT_EQ(add->output(0).get_target_inputs().size(), 2);      // 2 inputs of mul
     ASSERT_EQ(convert->output(0).get_target_inputs().size(), 1);  // relu
 
     // Replace convert with add (going backward in chain), then disconnect
@@ -255,12 +255,9 @@ TEST(node_input_output, disconnect_output_from_consumers_long_chain_backward) {
     disconnect_output_from_consumers(convert->output(0), add->output(0));
 
     // Verify no circular connections exist
-    EXPECT_EQ(relu->input_value(0).get_node(), add.get())
-        << "Relu should connect to add";
-    EXPECT_EQ(add->output(0).get_target_inputs().size(), 3)
-        << "Add should have 3 targets: mul(2 inputs) + relu";
-    EXPECT_EQ(convert->output(0).get_target_inputs().size(), 0)
-        << "Convert should have no targets";
+    EXPECT_EQ(relu->input_value(0).get_node(), add.get()) << "Relu should connect to add";
+    EXPECT_EQ(add->output(0).get_target_inputs().size(), 3) << "Add should have 3 targets: mul(2 inputs) + relu";
+    EXPECT_EQ(convert->output(0).get_target_inputs().size(), 0) << "Convert should have no targets";
 
     // Verify mul still connects to add correctly
     EXPECT_EQ(mul->input_value(0).get_node(), add.get());

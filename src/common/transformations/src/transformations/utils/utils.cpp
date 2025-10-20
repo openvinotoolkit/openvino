@@ -672,8 +672,7 @@ match_multi_query_bcst(const std::shared_ptr<ov::Node>& kv) {
     return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
 }
 
-void disconnect_output_from_consumers(const Output<Node>& output_to_disconnect,
-                                      const Output<Node>& consumer_output) {
+void disconnect_output_from_consumers(const Output<Node>& output_to_disconnect, const Output<Node>& consumer_output) {
     // Remove connections from output_to_disconnect that appear in consumer_output's targets
     // This handles cases where after replace() there are incorrect cyclic connections
 
