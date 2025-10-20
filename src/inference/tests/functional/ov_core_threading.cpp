@@ -99,7 +99,7 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
             core.get_versions(deviceName);
             core.unload_plugin(deviceName);
         },
-        10);
+        4000);
 }
 
 // tested function: RegisterPlugins
@@ -110,28 +110,29 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 #    endif
     ov::Core core;
     std::atomic<unsigned int> index{0};
-    auto file_prefix = ov::test::utils::generateTestFilePrefix();
-    auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                          std::string("mock_engine") + OV_BUILD_POSTFIX);
+    const auto file_prefix = ov::test::utils::generateTestFilePrefix();
+    const auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                                std::string("mock_engine") + OV_BUILD_POSTFIX);
 
-    auto getPluginXml = [&]() -> std::tuple<std::filesystem::path, std::string> {
-        std::string indexStr = std::to_string(index++);
-        std::filesystem::path pluginsXML = file_prefix + indexStr + ".xml";
+    auto getPluginXml =
+        [path = plugin_path, prefix = file_prefix, &index]() -> std::tuple<std::filesystem::path, std::string> {
+        const auto indexStr = std::to_string(index++);
+        std::filesystem::path pluginsXML = prefix + indexStr + ".xml";
         std::ofstream file(pluginsXML);
 
         file << "<ie><plugins><plugin location=\"";
-        file << plugin_path;
+        file << path;
         file << "\" name=\"";
         file << indexStr;
         file << "\"></plugin></plugins></ie>";
         file.flush();
         file.close();
 
-        return std::tie(pluginsXML, indexStr);
+        return std::make_tuple(pluginsXML, indexStr);
     };
 
     runParallel(
-        [&]() {
+        [&getPluginXml, &core]() {
             const auto& [fileName, deviceName] = getPluginXml();
             core.register_plugins(fileName.string());
             core.get_versions(deviceName);
