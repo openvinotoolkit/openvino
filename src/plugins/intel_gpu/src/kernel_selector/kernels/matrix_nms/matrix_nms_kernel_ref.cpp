@@ -109,7 +109,7 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
     kernel_data.internalBuffers.push_back(sorted_score_indices_buffer_size);
     kernel_data.internalBuffers.push_back(iou_matrix_buffer_size);
     kernel_data.internalBuffers.push_back(iou_max_buffer_size);
-    kernel_data.internalBufferDataType = Datatype::F32;
+    kernel_data.internalBufferDataType = new_params.inputs[1].GetDType(); // input_scores
 
     for (size_t i{}; i < kernels_num; ++i) {
         auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, i);
