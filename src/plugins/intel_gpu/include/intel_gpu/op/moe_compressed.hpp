@@ -16,8 +16,12 @@ public:
     MOECompressed() = default;
 
     struct Config {
-        ov::element::Type out_type = ov::element::dynamic;  // fp16
+        size_t hidden_size = 0;
+        size_t inter_size = 0;
+        size_t num_expert = 0;
+        size_t top_k = 0;
         size_t group_size = 0;
+        ov::element::Type out_type = ov::element::dynamic;  // fp16
     };
 
     /// \brief Constructs a MOECompressed operation with config only
@@ -33,13 +37,13 @@ public:
     ///   5: w0_zp - expert zp for first projection for compressed experts,
     ///   shape [num_experts, inter_size, group_num, 1]
     ///   6: w1_weight - expert weights for second projection,
-    ///   shape [num_experts, inter_size, hidden_size]
+    ///   shape [num_experts, inter_size, group_num, group_size]
     ///   7: w1_scale - expert scale for second projection for compressed experts,
     ///   shape [num_experts, inter_size, group_num, 1]
     ///   8: w1_zp - expert zp for second projection for compressed experts,
     ///   shape [num_experts, inter_size, group_num, 1]
     ///   9: w2_weight - expert weights for final projection,
-    ///   shape [num_experts, hidden_size, inter_size]
+    ///   shape [num_experts, hidden_size, group_num, group_size]
     ///   10: w2_scale - expert scale for final projection for compressed experts,
     ///   shape [num_experts, hidden_size, group_num, 1]
     ///   11: w2_zp - expert zp for final projection for compressed experts,
