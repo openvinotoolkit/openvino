@@ -10791,6 +10791,45 @@ TEST(convolution_gpu_onednn, grouped_runtime_weights) {
     ASSERT_EQ(output_layout.get_shape(), ov::Shape({1, 256, 25, 25}));
 }
 
+TEST(convolution_gpu_onednn, grouped_conv_fsv4) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    int64_t input_b = 1, input_f = 4, input_y = 3, input_x = 3;
+    auto input_size = ov::PartialShape{ input_b, input_f, input_y, input_x };
+    auto input_data = rg.generate_random_4d<ov::float16>(input_b, input_f, input_y, input_x, -1, 1);
+    auto input_data_byxf = flatten_4d(format::bfyx, input_data);
+    auto input_mem = engine.allocate_memory({ input_size, data_types::f16, format::bfyx });
+    set_values(input_mem, input_data_byxf);
+
+    int64_t weights_b = 2, weights_f = 2048, weights_y = 2, weights_x = 1;
+    auto weights_size = ov::PartialShape{ weights_b, weights_f, weights_y, weights_x };
+    auto weights_data = rg.generate_random_4d<ov::float16>(weights_b, weights_f, weights_y, weights_x, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = engine.allocate_memory({ weights_size, data_types::f16, format::bfyx });
+    set_values(weights_mem, weights_data_bfyx);
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        reorder("input_fsv", input_info("input"), { input_size, data_types::f16, format::b_fs_yx_fsv4 }),
+        input_layout("weights", weights_mem->get_layout()),
+        reshape("reshaped_weights", input_info("weights"), true, { 2, 2048, 2, 1, 1 }, { 2, 2048, 2, 1, 1 }),
+        convolution("conv", input_info("input_fsv"), "reshaped_weights", no_bias, 2, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, true),
+        reorder("reorder", input_info("conv"), { data_types::f32, format::bfyx, { 1, 4096, 3, 3 } }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    network.set_input_data("weights", weights_mem);
+    network.execute();
+}
+
 TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
