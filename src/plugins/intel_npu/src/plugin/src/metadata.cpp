@@ -173,48 +173,37 @@ void Metadata<METADATA_VERSION_2_3>::read() {
     read_data_from_source(reinterpret_cast<char*>(&numberOfInputLayouts), sizeof(numberOfInputLayouts));
     read_data_from_source(reinterpret_cast<char*>(&numberOfOutputLayouts), sizeof(numberOfOutputLayouts));
 
-    uint16_t stringLength;
+    const auto readNLayouts = [&](const uint64_t numberOfLayouts, const char* loggerAddition) {
+        std::optional<std::vector<ov::Layout>> layouts = std::nullopt;
+        if (!numberOfLayouts) {
+            return layouts;
+        }
 
-    if (numberOfInputLayouts) {
-        _inputLayouts = std::vector<ov::Layout>();
-        _inputLayouts->reserve(numberOfInputLayouts);
-        for (uint64_t inputIndex = 0; inputIndex < numberOfInputLayouts; ++inputIndex) {
+        uint16_t stringLength;
+        layouts = std::vector<ov::Layout>();
+        layouts->reserve(numberOfLayouts);
+        for (uint64_t layoutIndex = 0; layoutIndex < numberOfLayouts; ++layoutIndex) {
             read_data_from_source(reinterpret_cast<char*>(&stringLength), sizeof(stringLength));
 
             std::string layoutString(stringLength, 0);
             read_data_from_source(const_cast<char*>(layoutString.c_str()), stringLength);
 
             try {
-                _inputLayouts->push_back(ov::Layout(std::move(layoutString)));
+                layouts->push_back(ov::Layout(std::move(layoutString)));
             } catch (const ov::Exception&) {
-                _logger.warning("Error encountered while constructing an ov::Layout object. Input index: %d. Value "
+                _logger.warning("Error encountered while constructing an ov::Layout object. %s index: %d. Value "
                                 "read from blob: %s. A default value will be used instead.",
-                                inputIndex,
+                                loggerAddition,
+                                layoutIndex,
                                 layoutString.c_str());
-                _inputLayouts->push_back(ov::Layout());
+                layouts->push_back(ov::Layout());
             }
         }
-    }
-    if (numberOfOutputLayouts) {
-        _outputLayouts = std::vector<ov::Layout>();
-        _outputLayouts->reserve(numberOfOutputLayouts);
-        for (uint64_t outputIndex = 0; outputIndex < numberOfOutputLayouts; ++outputIndex) {
-            read_data_from_source(reinterpret_cast<char*>(&stringLength), sizeof(stringLength));
+        return layouts;
+    };
 
-            std::string layoutString(stringLength, 0);
-            read_data_from_source(const_cast<char*>(layoutString.c_str()), stringLength);
-
-            try {
-                _outputLayouts->push_back(ov::Layout(std::move(layoutString)));
-            } catch (const ov::Exception&) {
-                _outputLayouts->push_back(ov::Layout());
-                _logger.warning("Error encountered while constructing an ov::Layout object. Output index: %d. Value "
-                                "read from blob: %s. A default value will be used instead.",
-                                outputIndex,
-                                layoutString.c_str());
-            }
-        }
-    }
+    _inputLayouts = readNLayouts(numberOfInputLayouts, "Input");
+    _outputLayouts = readNLayouts(numberOfOutputLayouts, "Output");
 }
 
 void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
@@ -250,22 +239,19 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&numberOfInputLayouts), sizeof(numberOfInputLayouts));
     stream.write(reinterpret_cast<const char*>(&numberOfOutputLayouts), sizeof(numberOfOutputLayouts));
 
-    if (_inputLayouts.has_value()) {
-        for (const ov::Layout& layout : _inputLayouts.value()) {
-            const std::string layoutString = layout.to_string();
-            const uint16_t stringLength = layoutString.size();
-            stream.write(reinterpret_cast<const char*>(&stringLength), sizeof(stringLength));
-            stream.write(layoutString.c_str(), stringLength);
+    const auto writeLayouts = [&](const std::optional<std::vector<ov::Layout>>& layouts) {
+        if (layouts.has_value()) {
+            for (const ov::Layout& layout : layouts.value()) {
+                const std::string layoutString = layout.to_string();
+                const uint16_t stringLength = layoutString.size();
+                stream.write(reinterpret_cast<const char*>(&stringLength), sizeof(stringLength));
+                stream.write(layoutString.c_str(), stringLength);
+            }
         }
-    }
-    if (_outputLayouts.has_value()) {
-        for (const ov::Layout& layout : _outputLayouts.value()) {
-            const std::string layoutString = layout.to_string();
-            const uint16_t stringLength = layoutString.size();
-            stream.write(reinterpret_cast<const char*>(&stringLength), sizeof(stringLength));
-            stream.write(layoutString.c_str(), stringLength);
-        }
-    }
+    };
+
+    writeLayouts(_inputLayouts);
+    writeLayouts(_outputLayouts);
 
     append_padding_blob_size_and_magic(stream);
 }
