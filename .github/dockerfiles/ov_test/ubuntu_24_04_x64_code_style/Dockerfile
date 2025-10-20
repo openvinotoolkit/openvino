@@ -36,8 +36,3 @@ RUN apt-get update && \
     ./llvm.sh 18 && \
     apt-get --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && \
     rm -rf /var/lib/apt/lists/*
-
-RUN groupadd -g 1001 runner && \
-    useradd -m -u 1001 -g runner -s /bin/bash runner
-
-USER runner
