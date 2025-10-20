@@ -833,94 +833,126 @@ void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
 }
 }  // namespace
 
-class CutLMHead : public ov::pass::MatcherPass {
+class CutLMHead : public ov::pass::ModelPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::CutLMHead");
-    CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) {
-        // We are interested at first input to MatMul as a cut point
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
+    OPENVINO_MODEL_PASS_RTTI("npuw::patterns::CutLMHead");
 
-        // There are several patterns for matmul we are looking for:
-        // Matmul -> Result
-        // Matmul -> Add -> Result
-        auto matmul_add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
-        // Matmul -> Transpose -> Result
-        auto matmul_transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
-        //  Matmul -> Convert -> Result
-        auto matmul_convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
-        // MatMul -> Divide -> Tanh -> Multiply -> Result
-        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
-        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
-        auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
+    CutLMHead() = default;
 
-        auto last_op = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{matmul->output(0),
-                                                                                    matmul_add->output(0),
-                                                                                    matmul_transpose->output(0),
-                                                                                    matmul_convert->output(0),
-                                                                                    matmul_multiply->output(0)});
-        auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        std::shared_ptr<ov::op::v0::MatMul> best_matmul = nullptr;
+        std::shared_ptr<ov::op::v0::Result> best_result = nullptr;
+        std::shared_ptr<ov::Node> best_last_op = nullptr;
+        size_t max_matrix_size = 0;
 
-        auto callback = [=, &lm_head_model](ov::pass::pattern::Matcher& m) {
-            auto& node_to_output = m.get_pattern_value_map();
+        for (const auto& result : model->get_results()) {
+            auto input_node = result->input(0).get_source_output().get_node_shared_ptr();
 
-            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
-            std::shared_ptr<ov::Node> matched_node_last_op = nullptr;
-            if (node_to_output.count(matmul_add)) {
-                matched_node_last_op = node_to_output[matmul_add].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_transpose)) {
-                matched_node_last_op = node_to_output[matmul_transpose].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_convert)) {
-                matched_node_last_op = node_to_output[matmul_convert].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_multiply)) {
-                matched_node_last_op = node_to_output[matmul_multiply].get_node_shared_ptr();
-            } else {
-                matched_node_last_op = matched_node_matmul;
+            std::shared_ptr<ov::op::v0::MatMul> matmul = nullptr;
+            std::shared_ptr<ov::Node> last_op = nullptr;
+
+            if (auto direct_matmul = ov::as_type_ptr<ov::op::v0::MatMul>(input_node)) {
+                // Pattern 1: MatMul -> Result (direct connection)
+                matmul = direct_matmul;
+                last_op = direct_matmul;
+            } else if (ov::is_type<ov::op::v1::Add>(input_node) || ov::is_type<ov::op::v1::Transpose>(input_node) ||
+                       ov::is_type<ov::op::v0::Convert>(input_node)) {
+                // Patterns 2: MatMul -> (single intermediate op) -> Result
+                if (auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(
+                        input_node->input(0).get_source_output().get_node_shared_ptr())) {
+                    matmul = matmul_node;
+                    last_op = input_node;
+                }
+            } else if (auto multiply_node = ov::as_type_ptr<ov::op::v1::Multiply>(input_node)) {
+                // Pattern 3: MatMul -> Divide -> Tanh -> Multiply -> Result
+                if (auto tanh_node = ov::as_type_ptr<ov::op::v0::Tanh>(
+                        multiply_node->input(0).get_source_output().get_node_shared_ptr())) {
+                    if (auto divide_node = ov::as_type_ptr<ov::op::v1::Divide>(
+                            tanh_node->input(0).get_source_output().get_node_shared_ptr())) {
+                        if (auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(
+                                divide_node->input(0).get_source_output().get_node_shared_ptr())) {
+                            matmul = matmul_node;
+                            last_op = multiply_node;
+                        }
+                    }
+                }
             }
-            auto matched_node_result = node_to_output.at(res).get_node_shared_ptr();
 
-            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
-            auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
+            if (matmul) {
+                auto weight_shape = matmul->input(1).get_source_output().get_partial_shape();
+                size_t current_matrix_size = 0;
+                if (weight_shape.rank().is_static() && weight_shape.rank().get_length() == 2) {
+                    auto dim0 = weight_shape[0];
+                    auto dim1 = weight_shape[1];
+                    if (dim0.is_static() && dim1.is_static()) {
+                        auto size0 = static_cast<size_t>(dim0.get_length());
+                        auto size1 = static_cast<size_t>(dim1.get_length());
+                        current_matrix_size = std::max(size0, size1);
+                    }
+                }
 
+                // Update best candidate if this one is larger
+                if (current_matrix_size > max_matrix_size) {
+                    max_matrix_size = current_matrix_size;
+                    best_matmul = matmul;
+                    best_result = result;
+                    best_last_op = last_op;
+                }
+            }
+        }
+
+        if (best_matmul) {
             // Cut point:
-            auto matmul_first_source = matched_matmul->input(0).get_source_output();
+            auto matmul_first_source = best_matmul->input(0).get_source_output();
 
             // Cut original model:
-            matched_result->input(0).replace_source_output(matmul_first_source);
+            best_result->input(0).replace_source_output(matmul_first_source);
             // FIXME: Somehow for KVCache model result output gets renamed in
             //        ICompiledModel::ICompiledModel().
             //        As a WA, setting the same name to output from MatMul
             //        avoids the issue.
             matmul_first_source.set_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_result->validate_and_infer_types();
+            best_result->output(0).set_names({ov::npuw::LLMCompiledModel::output_embeds});
+            best_result->validate_and_infer_types();
 
             // Create an additional model after cut point:
             auto new_param = std::make_shared<ov::op::v0::Parameter>(matmul_first_source.get_element_type(),
                                                                      matmul_first_source.get_partial_shape());
             new_param->output(0).add_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_matmul->input(0).replace_source_output(new_param);
-            auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
-            lm_head_model =
+            best_matmul->input(0).replace_source_output(new_param);
+            auto new_result = std::make_shared<ov::op::v0::Result>(best_last_op);
+            m_lm_head_model =
                 std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)}, ov::ParameterVector{new_param});
 
+            if (m_lm_head_model) {
+                m_lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
+            }
+            model->validate_nodes_and_infer_types();
+
             return true;
-        };
-        register_matcher(std::make_shared<opp::Matcher>(res, "CutLMHead"), std::move(callback));
+        }
+
+        return false;
     }
+
+    std::shared_ptr<ov::Model> get_lm_head_model() const {
+        return m_lm_head_model;
+    }
+
+private:
+    std::shared_ptr<ov::Model> m_lm_head_model = nullptr;
 };
 
 namespace {
-std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
-    ov::pass::GraphRewrite rewr;
-    std::shared_ptr<ov::Model> lm_head_model = nullptr;
-    rewr.add_matcher<CutLMHead>(lm_head_model);
-    rewr.run_on_model(model);
-    if (lm_head_model) {
-        lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
-    }
-    model->validate_nodes_and_infer_types();
 
-    return lm_head_model;
+std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
+    LOG_DEBUG("Executing LM head cutting transformation using ModelPass");
+    LOG_BLOCK();
+
+    auto cut_pass = std::make_shared<CutLMHead>();
+    cut_pass->run_on_model(model);
+
+    return cut_pass->get_lm_head_model();
 }
 
 void reshape_to_static(std::shared_ptr<ov::Model> model,
