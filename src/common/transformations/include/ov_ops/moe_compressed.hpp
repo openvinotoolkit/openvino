@@ -22,7 +22,11 @@ public:
 
     struct Config {
         ov::element::Type out_type = ov::element::dynamic;  // fp16
-        size_t group_size = 0;
+        size_t group_size{};
+        size_t hidden_size{};
+        size_t inter_size{};
+        size_t num_experts{};
+        size_t topk{};
     };
 
     /// \brief Constructs a MOECompressed operation with config only
