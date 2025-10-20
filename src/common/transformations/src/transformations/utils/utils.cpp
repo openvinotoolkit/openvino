@@ -687,10 +687,11 @@ void disconnect_output_from_consumers(const Output<Node>& output_to_disconnect, 
     }
 
     // In normal cases there should be at most one such connection
-    OPENVINO_ASSERT(to_remove.size() <= 1,
-                    "Internal error: found multiple cyclic connections (",
-                    to_remove.size(),
-                    ") when disconnecting outputs");
+    // This is internal programming error, so check only in debug mode
+    OPENVINO_DEBUG_ASSERT(to_remove.size() <= 1,
+                          "Internal error: found multiple cyclic connections (",
+                          to_remove.size(),
+                          ") when disconnecting outputs");
 
     for (auto& input : to_remove) {
         consumer_output.remove_target_input(input);
