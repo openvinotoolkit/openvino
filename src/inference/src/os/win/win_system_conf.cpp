@@ -89,6 +89,7 @@ void parse_processor_info_win(const char* base_ptr,
     int group_type = initial_core_type;
     int num_package = 0;
     int cur_numa_mask = initial_numa_mask;
+    int max_group_cnt = 0;
 
     _processors = 0;
     _sockets = 0;
@@ -109,6 +110,20 @@ void parse_processor_info_win(const char* base_ptr,
                     break;
                 }
             }
+        }
+    };
+
+    auto add_new_numa_node = [&](const int cur_proc) {
+        _proc_type_table.push_back(proc_init_line);
+        ++_numa_nodes;
+        int next_idx = cur_proc + 1;
+        if (next_idx < static_cast<int>(_cpu_mapping_table.size())) {
+            if (group != static_cast<int>(numa_list.size()) - 1 &&
+                numa_list[group + 1] == _cpu_mapping_table[next_idx][CPU_MAP_NUMA_NODE_ID]) {
+                ++group;
+            }
+            _proc_type_table[_numa_nodes][PROC_NUMA_NODE_ID] = _numa_nodes;
+            _proc_type_table[_numa_nodes][PROC_SOCKET_ID] = _cpu_mapping_table[next_idx][CPU_MAP_SOCKET_ID];
         }
     };
 
@@ -176,8 +191,8 @@ void parse_processor_info_win(const char* base_ptr,
         } else if ((info->Relationship == RelationCache) && (info->Cache.Level == 2)) {
             MaskToList(info->Cache.GroupMask.Mask);
             if (list_len == group_with_1_core) {
-                size_t idx = list[0] + base_proc_socket + base_proc;
-                if (_cpu_mapping_table.size() > idx &&
+                int idx = list[0] + base_proc_socket + base_proc;
+                if (_cpu_mapping_table.size() > static_cast<size_t>(idx) &&
                     _cpu_mapping_table[idx][CPU_MAP_CORE_TYPE] == initial_core_type) {
                     _cpu_mapping_table[idx][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
                     _cpu_mapping_table[idx][CPU_MAP_GROUP_ID] = group++;
@@ -185,7 +200,7 @@ void parse_processor_info_win(const char* base_ptr,
             } else if (_cpu_mapping_table[list[0] + base_proc_socket + base_proc][CPU_MAP_CORE_TYPE] ==
                        initial_core_type) {
                 if (l3_set.empty() || l3_set.count(list[0]) ||
-                    list[0] + base_proc_socket + base_proc > (int)l3_set.size()) {
+                    list[0] + base_proc_socket + base_proc > static_cast<int>(l3_set.size())) {
                     if (_processors <= list[list_len - 1] + base_proc_socket + base_proc) {
                         group_start = list[0] + base_proc_socket + base_proc;
                         group_end = list[list_len - 1] + base_proc_socket + base_proc;
@@ -226,27 +241,34 @@ void parse_processor_info_win(const char* base_ptr,
             l3_set.insert(list.begin(), list.end());
         } else if (info->Relationship == RelationNumaNode) {
             numa_list.push_back(info->NumaNode.GroupMask.Group);
+        } else if (info->Relationship == RelationGroup) {
+            max_group_cnt = info->Group.MaximumGroupCount;
         }
     }
 
-    base_proc = 0;
+    _proc_type_table.push_back(proc_init_line);
+    group_id = 0;
+    group = _cpu_mapping_table[0][CPU_MAP_NUMA_NODE_ID];
 
-    for (int n = 0; n < numa_list.size(); n++) {
-        _proc_type_table.push_back({0, 0, 0, 0, 0, _numa_nodes, _cpu_mapping_table[base_proc][CPU_MAP_SOCKET_ID]});
-        while (base_proc < _processors &&
-               (n == numa_list.size() - 1 || _cpu_mapping_table[base_proc][CPU_MAP_NUMA_NODE_ID] <= numa_list[n + 1])) {
-            _cpu_mapping_table[base_proc][CPU_MAP_NUMA_NODE_ID] = _numa_nodes;
-            if (_cpu_mapping_table[base_proc][CPU_MAP_USED_FLAG] == NOT_USED) {
-                _proc_type_table[_proc_type_table.size() - 1][_cpu_mapping_table[base_proc][CPU_MAP_CORE_TYPE]]++;
-                _proc_type_table[_proc_type_table.size() - 1][ALL_PROC]++;
+    for (int n = 0; n < _processors; n++) {
+        _cpu_mapping_table[n][CPU_MAP_NUMA_NODE_ID] = _numa_nodes;
+        if (_cpu_mapping_table[n][CPU_MAP_USED_FLAG] == NOT_USED) {
+            _proc_type_table[_numa_nodes][_cpu_mapping_table[n][CPU_MAP_CORE_TYPE]]++;
+            _proc_type_table[_numa_nodes][ALL_PROC]++;
+        }
+        if (n != _processors - 1) {
+            if (_cpu_mapping_table[n][CPU_MAP_SOCKET_ID] != _cpu_mapping_table[n + 1][CPU_MAP_SOCKET_ID]) {
+                add_new_numa_node(n);
+                continue;
             }
-            base_proc++;
-            if (base_proc != _processors && _cpu_mapping_table[base_proc][CPU_MAP_SOCKET_ID] !=
-                                                _cpu_mapping_table[base_proc - 1][CPU_MAP_SOCKET_ID]) {
-                break;
+            if (_cpu_mapping_table[_processors - 1][CPU_MAP_NUMA_NODE_ID] <= max_group_cnt &&
+                group < numa_list.size() - 1 &&
+                _cpu_mapping_table[n + 1][CPU_MAP_NUMA_NODE_ID] == numa_list[group + 1] &&
+                _cpu_mapping_table[n + 1][CPU_MAP_NUMA_NODE_ID] != numa_list[group]) {
+                add_new_numa_node(n);
+                continue;
             }
         }
-        _numa_nodes++;
     }
     _processors -= _blocked_cores;
     _cores -= _blocked_cores;
@@ -271,7 +293,8 @@ void parse_processor_info_win(const char* base_ptr,
         _proc_type_table[0][PROC_SOCKET_ID] = 0;
         _proc_type_table[0][PROC_NUMA_NODE_ID] = 0;
     }
-    _sockets++;
+    ++_sockets;
+    ++_numa_nodes;
 }
 
 int get_number_of_cpu_cores(bool bigCoresOnly) {
@@ -295,7 +318,8 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
         phys_cores++;
     } while (offset < sz);
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREA    ++_sockets;
+    ++_numa_nodes;TBB_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         phys_cores = custom::info::default_concurrency(
