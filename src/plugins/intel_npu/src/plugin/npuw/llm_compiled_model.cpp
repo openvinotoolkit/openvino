@@ -539,11 +539,10 @@ public:
 
             // 2. (K range <= (Q range - sliding window).T) & (K range >= shape(past_key_values, 2))
             auto past_kv_len_f32 = std::make_shared<ov::op::v0::Convert>(matched_past_kv_len, ov::element::f32);
-            auto only_present_tokens_mask = std::make_shared<ov::op::v1::GreaterEqual>(matched_key_range_f32,
-            past_kv_len_f32);
-            // unsqueeze?
-            auto bitwise_and = std::make_shared<ov::op::v13::BitwiseAnd>(matched_forget_left_tokens_mask,
-            only_present_tokens_mask);
+            auto only_present_tokens_mask =
+                std::make_shared<ov::op::v1::GreaterEqual>(matched_key_range_f32, past_kv_len_f32);
+            auto bitwise_and =
+                std::make_shared<ov::op::v13::BitwiseAnd>(matched_forget_left_tokens_mask, only_present_tokens_mask);
 
             // 3. Result = 1 | 2
             auto target_inputs = matched_bitwise_or->output(0).get_target_inputs();
@@ -1193,7 +1192,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     LOG_DEBUG("Try patch Phi-3 sliding window mask, if it exists.");
     patch_phi3_sliding_mask(kvcache_model);
-    ov::save_model(kvcache_model, "swa_patched.xml");
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
