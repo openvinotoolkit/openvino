@@ -14,6 +14,8 @@
 #define VSTORE_N CAT(vstore, VEC_SIZE)
 #define CONVERT_UCHAR_N CAT(convert_uchar, VEC_SIZE)
 #define CONVERT_CHAR_N CAT(convert_char, VEC_SIZE)
+#define TYPE_N_(type, n) type##n
+#define TYPE_N(type, n) TO_TYPE_N_(type, n)
 #define TO_TYPE_N_(type, n, x) _convert_##type##n(x)
 #define TO_TYPE_N(type, n, x) TO_TYPE_N_(type, n, x)
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
@@ -52,7 +54,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
     const uint quantize_block = QUANTIZE_GROUP_SIZE / 4;
     half4 input_0[quantize_block];
-    char4 quantized_value[quantize_block];
+    TYPE_N(OUTPUT_TYPE, 4) quantized_value[quantize_block];
     half  max[quantize_block];
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
@@ -68,7 +70,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     half quan_scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
-        quantized_value[i] = AS_TYPE_N(char, 4, TO_TYPE_N(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale));
+        quantized_value[i] = TO_TYPE_N(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale);
         vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
     }
 
