@@ -8513,8 +8513,11 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", { input_format(), "" } } }));
-
+        if (_forced_impl_map.empty()) {
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", { input_format(), "" } } }));
+        } else {
+            config.set_property(ov::intel_gpu::force_implementations(_forced_impl_map));
+        }
         auto prog = program::build_program(engine, topo, config);
 
         cldnn::network net(prog, 0);
@@ -8631,6 +8634,10 @@ public:
         _grouped_weights_shape = grouped_weights_shape;
     }
 
+    void set_forced_impl(const ov::intel_gpu::ImplForcingMap& forced_impl_map) {
+        _forced_impl_map = forced_impl_map;
+    }
+
 protected:
     VVVVF<InputT> _input;
     VVVVF<WeightsT> _weights;
@@ -8646,6 +8653,7 @@ protected:
     bool _padded_input;
     bool _bigger_pad;
     bool _grouped_weights_shape;
+    ov::intel_gpu::ImplForcingMap _forced_impl_map;
 
     size_t batch_num() const { return _input.size(); }
     size_t input_features() const { return _input[0].size(); }
@@ -9250,9 +9258,12 @@ TEST_P(convolution_random_smoke_test, u8s8f32) {
     ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
 }
 
-TEST_P(convolution_random_smoke_test, u8u8f32) {
+TEST_P(convolution_random_smoke_test, u8u8f32_forced_ref) {
     convolution_random_test_u8u8f32 test;
-    ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
+    const auto p = GetParam();
+    ov::intel_gpu::ImplForcingMap force_map{ { "conv", { p.input_format, "convolution_gpu_ref" } } };
+    test.set_forced_impl(force_map);
+    ASSERT_NO_FATAL_FAILURE(test.run_random(p));
 }
 
 TEST_P(convolution_random_smoke_test, u8s8f32_scale) {
