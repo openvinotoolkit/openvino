@@ -30,6 +30,7 @@
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/arch_macros.h"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -402,7 +403,11 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             OperationType::MatMul,
             // supports
             []([[maybe_unused]] const FCConfig& config) -> bool {
-                // TODO: int8, int4, mxfp4 decompression path will be enabled later.
+                CPU_DEBUG_CAP_ENABLE(
+                    if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
+                        VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                        return true;
+                    })
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
