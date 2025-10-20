@@ -61,7 +61,9 @@ ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, c
     const auto axis = get_axis(node, partial_shape);
     const auto& split = inputs[1];
 
-    const auto split_values = ov::util::get_constant_from_source(split)->cast_vector<std::int64_t>();
+    const auto split_const = ov::util::get_constant_from_source(split);
+    OPENVINO_ASSERT(split_const != nullptr, "SplitToSequence: 'split' input must be a constant");
+    const auto split_values = split_const->cast_vector<std::int64_t>();
     OPENVINO_ASSERT(!split_values.empty(), "SplitToSequence: 'split' input cannot be empty");
 
     const std::int64_t chunk = split_values.front();
