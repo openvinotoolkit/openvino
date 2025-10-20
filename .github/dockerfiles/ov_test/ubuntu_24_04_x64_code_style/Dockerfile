@@ -37,11 +37,12 @@ RUN apt-get update && \
     apt-get --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && \
     rm -rf /var/lib/apt/lists/*
 
-RUN adduser --disabled-password --gecos "" --uid 1001 runner \
-    && groupadd docker --gid 123 \
-    && usermod -aG sudo runner \
-    && usermod -aG docker runner \
-    && echo "%sudo   ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers \
-    && echo "Defaults env_keep += \"DEBIAN_FRONTEND\"" >> /etc/sudoers
+# Create runner user with proper permissions for GitHub Actions
+RUN groupadd -g 1001 runner && \
+    useradd -u 1001 -g runner -m -s /bin/bash runner && \
+    echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    mkdir -p /__w && \
+    chown -R runner:runner /__w && \
+    chmod -R 755 /__w
 
 USER runner
