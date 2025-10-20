@@ -123,7 +123,7 @@ private:
     std::vector<uint8_t> m_data;                // Dense data
     ov::element::Type m_target_type;            // Target type
     const uint8_t* m_values = nullptr;          // Sparse values
-    bool m_disabled = true;
+    bool m_disabled = false;
 
     // Unpack sparse tensor and return pointer on unpacked data
     void* densify();
