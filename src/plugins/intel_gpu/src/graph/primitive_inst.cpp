@@ -583,6 +583,49 @@ bool primitive_inst::all_dependencies_cpu_impl() const {
     return check_all_deps_cpu(this);
 }
 
+bool primitive_inst::need_reset_output_memory() const {
+    for (const auto& user_inst : get_user_insts()) {
+        // Check users of optimized_out inst, as the optimized out inst will not be able to
+        // reset it's memory
+        if (user_inst->can_be_optimized()) {
+            if (user_inst->need_reset_output_memory())
+                return true;
+            continue;
+        }
+
+        if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
+            return true;
+
+        // OneDNN requires zero-filled input for padded area
+        const bool is_user_onednn_impl = user_inst->get_node().get_preferred_impl_type() == impl_types::onednn;
+        const bool is_user_conv = user_inst->get_node().is_type<convolution>();
+        if (is_user_conv && is_user_onednn_impl) {
+            auto& output_layout = _impl_params->get_output_layout(0);
+
+            auto get_feature_block_size = [](format fmt) {
+                        int feature_block_size = 1;
+                        for (auto &e: fmt.block_sizes()) {
+                            if (e.first == 1) {
+                                OPENVINO_ASSERT(feature_block_size == 1, "UNSUPPORTED: multi-blocking for feature axis is not considered");
+                                feature_block_size = e.second;
+                            }
+                        }
+                        return feature_block_size;
+                    };
+
+            const auto fmt = output_layout.format;
+            auto feature_block_size = get_feature_block_size(fmt);
+            // if layout is single blocked and feature size is not aligned with the blocking size, need to reset output so that we can guarantee zero-filling
+            // NOTE: We may improve this logic to avoid reset if we are sure that it is not "corrupted" by other layers.
+            if (output_layout.feature() % feature_block_size != 0) {
+                return true;
+            }
+        }
+
+    }
+    return false;
+}
+
 void primitive_inst::clear_output_memory() {
     _outputs[0] = nullptr;
     _max_output_layout_count[0] = 0;
