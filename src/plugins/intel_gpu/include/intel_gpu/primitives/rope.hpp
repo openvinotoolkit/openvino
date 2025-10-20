@@ -84,6 +84,7 @@ struct rope : public primitive_base<rope> {
         ob << config.input_trans0213;
         ob << config.is_chatglm;
         ob << config.support_2d_rope;
+        ob << config.support_3d_rope;
         ob << config.output_trans0213;
         ob << config.is_interleaved;
         ob << config.is_qwen;
@@ -102,6 +103,7 @@ struct rope : public primitive_base<rope> {
         ib >> config.input_trans0213;
         ib >> config.is_chatglm;
         ib >> config.support_2d_rope;
+        ib >> config.support_3d_rope;
         ib >> config.output_trans0213;
         ib >> config.is_interleaved;
         ib >> config.is_qwen;
