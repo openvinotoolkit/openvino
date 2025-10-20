@@ -475,6 +475,8 @@ public:
         // 3. Resulting mask = 1 | 2,
         // where K range and Q range are created by the same rules as before and Q_pos range is
         // a position_ids array.
+        // 4. We also clean mask in places where paddings used instead of real tokens via:
+        //    Clean mask = 3 & (attention_mask_input[past_kv_len:].T)
         auto past_kv_len = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
         auto pos_ids_param = opp::wrap_type<ov::op::v0::Parameter>();
         auto pos_ids_shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({pos_ids_param});
@@ -485,8 +487,10 @@ public:
         auto query_range_column = opp::wrap_type<ov::op::v1::Reshape>({query_range, column_shape});
 
         auto zero_const = opp::wrap_type<ov::op::v0::Constant>();
+        auto atten_mask_param = opp::wrap_type<ov::op::v0::Parameter>();
+        auto atten_mask_shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({atten_mask_param});
         auto atten_mask_len =
-            opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
+            opp::wrap_type<ov::op::v8::Gather>({atten_mask_shape_of, opp::any_input(), opp::any_input()});
         auto key_range = opp::wrap_type<ov::op::v4::Range>({zero_const, atten_mask_len, opp::any_input()});
         auto key_range_i64 = opp::wrap_type<ov::op::v0::Convert>({key_range});
         auto key_range_f32 = opp::wrap_type<ov::op::v0::Convert>({key_range_i64});
@@ -506,6 +510,8 @@ public:
             auto& node_to_output = m.get_pattern_value_map();
             auto node_past_kv_len = node_to_output.at(past_kv_len).get_node_shared_ptr();
             auto node_pos_ids_param = node_to_output.at(pos_ids_param).get_node_shared_ptr();
+            auto node_atten_mask_param = node_to_output.at(atten_mask_param).get_node_shared_ptr();
+            auto node_atten_mask_len = node_to_output.at(atten_mask_len).get_node_shared_ptr();
             auto node_key_range_f32 = node_to_output.at(key_range_f32).get_node_shared_ptr();
             auto node_query_left_bound_range = node_to_output.at(query_left_bound_range).get_node_shared_ptr();
             auto node_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
@@ -513,7 +519,9 @@ public:
             auto node_bitwise_or = node_to_output.at(inv_sliding_attention_mask).get_node_shared_ptr();
 
             auto matched_past_kv_len = std::static_pointer_cast<ov::op::v8::Gather>(node_past_kv_len);
-            auto matched_pos_ids = std::static_pointer_cast<ov::op::v0::Parameter>(node_pos_ids_param);
+            auto matched_pos_ids_input = std::static_pointer_cast<ov::op::v0::Parameter>(node_pos_ids_param);
+            auto matched_atten_mask_input = std::static_pointer_cast<ov::op::v0::Parameter>(node_atten_mask_param);
+            auto matched_atten_mask_len = std::static_pointer_cast<ov::op::v8::Gather>(node_atten_mask_len);
             auto matched_key_range_f32 = std::static_pointer_cast<ov::op::v0::Convert>(node_key_range_f32);
             auto matched_query_left_bound = std::static_pointer_cast<ov::op::v1::Add>(node_query_left_bound_range);
             auto matched_neg_window_size = std::static_pointer_cast<ov::op::v0::Constant>(node_neg_window_size);
@@ -525,7 +533,8 @@ public:
                                 std::to_string(matched_neg_window_size->get_output_size()));
 
             // 1.(K range <= (Q_pos range - sliding window).T) | (K range > Q range.T)
-            auto query_range_as_pos_ids = std::make_shared<ov::op::v0::Convert>(matched_pos_ids, ov::element::f32);
+            auto query_range_as_pos_ids =
+                std::make_shared<ov::op::v0::Convert>(matched_pos_ids_input, ov::element::f32);
             std::vector<int64_t> vector_shape{-1, 1};
             auto vector_shape_const =
                 std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, vector_shape);
@@ -545,11 +554,33 @@ public:
                 std::make_shared<ov::op::v13::BitwiseAnd>(matched_forget_left_tokens_mask, only_present_tokens_mask);
 
             // 3. Result = 1 | 2
+            // Save target inputs first:
             auto target_inputs = matched_bitwise_or->output(0).get_target_inputs();
-            auto final_inv_sliding_mask = std::make_shared<ov::op::v13::BitwiseOr>(matched_bitwise_or, bitwise_and);
+            auto new_inv_sliding_mask = std::make_shared<ov::op::v13::BitwiseOr>(matched_bitwise_or, bitwise_and);
+
+            // 4. Removing extra padding via : 3 & (attention_mask_input[past_kv_len:].T)
+            std::vector<int64_t> shape_1{1};
+            auto shape_1_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, shape_1);
+            auto matched_past_len_shape_1 =
+                std::make_shared<ov::op::v1::Reshape>(matched_past_kv_len, shape_1_const, false);
+            auto matched_atten_len_shape_1 =
+                std::make_shared<ov::op::v1::Reshape>(matched_atten_mask_len, shape_1_const, false);
+            auto const_1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 1);
+            auto present_atten_mask = std::make_shared<ov::op::v8::Slice>(matched_atten_mask_input,
+                                                                          matched_past_len_shape_1,
+                                                                          matched_atten_len_shape_1,
+                                                                          const_1,
+                                                                          const_1);
+            auto present_atten_mask_bool =
+                std::make_shared<ov::op::v0::Convert>(present_atten_mask, ov::element::boolean);
+            auto present_atten_mask_col =
+                std::make_shared<ov::op::v1::Reshape>(present_atten_mask_bool, vector_shape_const, false);
+            auto clean_inv_sliding_mask =
+                std::make_shared<ov::op::v13::BitwiseAnd>(new_inv_sliding_mask, present_atten_mask_col);
             for (auto&& input : target_inputs) {
-                input.replace_source_output(final_inv_sliding_mask);
+                input.replace_source_output(clean_inv_sliding_mask);
             }
+
             return true;
         };
         register_matcher(std::make_shared<opp::Matcher>(inv_sliding_attention_mask, "Phi3SlidingMask"),
