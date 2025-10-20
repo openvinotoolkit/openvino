@@ -228,6 +228,8 @@ Constant::Constant(const element::Type& type,
     const auto has_single_value = (values_size == 1);
 
     // ✅ Replace macro with standard runtime check
+
+    // ✅ Replace macro with standard runtime check
     if (!(has_single_value || values_size == this_shape_size)) {
         std::string msg = "Did not get the expected number of literals for a constant of shape ";
         msg += shape.to_string();
