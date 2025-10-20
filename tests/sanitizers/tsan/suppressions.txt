@@ -10,6 +10,12 @@
 race:libtbb
 mutex:libtbb
 race:libhwloc
+# oneDNN primitive cache destruction race (thirdparty)
+race:dnnl::impl::primitive_cache_t
 # race conditions from std libs
 race:libstdc++
 race:libc
+# CVS-174461: data race in parallel_for4d used by reshape_4D
+# This appears to be a false positive or benign race in parallel iteration
+race:parallel.hpp
+race:reshape_4D
