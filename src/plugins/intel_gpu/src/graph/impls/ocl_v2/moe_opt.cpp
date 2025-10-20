@@ -4,7 +4,6 @@
 
 #include "moe_opt.hpp"
 
-#define ENABLE_ONEDNN_FOR_GPU
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
