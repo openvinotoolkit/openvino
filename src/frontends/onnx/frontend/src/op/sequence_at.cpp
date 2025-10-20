@@ -45,8 +45,9 @@ ov::OutputVector sequence_at(const ov::frontend::onnx::Node& node) {
     const auto input_sequence_length = input_sequence->get_sequence().size();
 
     const auto position_value_normalized = position_value < 0 ? position_value + input_sequence_length : position_value;
-    OPENVINO_ASSERT(position_value_normalized >= 0 && position_value_normalized < static_cast<std::int64_t>(input_sequence_length),
-                    "SequenceAt: 'position' is out of bounds");
+    OPENVINO_ASSERT(
+        position_value_normalized >= 0 && position_value_normalized < static_cast<std::int64_t>(input_sequence_length),
+        "SequenceAt: 'position' is out of bounds");
 
     return {input_sequence->get_sequence().at(position_value_normalized)};
 }
