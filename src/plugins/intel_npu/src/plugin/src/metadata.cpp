@@ -71,6 +71,15 @@ Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
     _version = METADATA_VERSION_2_1;
 }
 
+Metadata<METADATA_VERSION_2_2>::Metadata(uint64_t blobSize,
+                                         std::optional<OpenvinoVersion> ovVersion,
+                                         const std::optional<std::vector<uint64_t>> initSizes,
+                                         const std::optional<int64_t> batchSize)
+    : Metadata<METADATA_VERSION_2_1>{blobSize, ovVersion, initSizes},
+      _batchSize{batchSize} {
+    _version = METADATA_VERSION_2_2;
+}
+
 void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
     _ovVersion.read(stream);
 }
@@ -114,6 +123,32 @@ void Metadata<METADATA_VERSION_2_1>::read(const ov::Tensor& tensor) {
     }
 }
 
+void Metadata<METADATA_VERSION_2_2>::read(std::istream& stream) {
+    Metadata<METADATA_VERSION_2_1>::read(stream);
+
+    int64_t batchSize;
+    stream.read(reinterpret_cast<char*>(&batchSize), sizeof(batchSize));
+
+    _batchSize = batchSize != 0 ? std::optional(batchSize) : std::nullopt;
+}
+
+void Metadata<METADATA_VERSION_2_2>::read(const ov::Tensor& tensor) {
+    Metadata<METADATA_VERSION_2_1>::read(tensor);
+
+    auto roiTensor =
+        ov::Tensor(tensor,
+                   ov::Coordinate{sizeof(decltype(std::declval<OpenvinoVersion>().get_major())) +
+                                  sizeof(decltype(std::declval<OpenvinoVersion>().get_minor())) +
+                                  sizeof(decltype(std::declval<OpenvinoVersion>().get_patch())) + sizeof(uint64_t) +
+                                  sizeof(uint64_t) * (get_init_sizes() ? get_init_sizes()->size() : 0)},
+                   ov::Coordinate{tensor.get_byte_size()});
+
+    int64_t batchSize;
+    batchSize = *reinterpret_cast<const decltype(batchSize)*>(roiTensor.data<const char>());
+
+    _batchSize = batchSize != 0 ? std::optional(batchSize) : std::nullopt;
+}
+
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
     size_t metadataSize = get_metadata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
     size_t size = utils::align_size_to_standard_page_size(metadataSize);
@@ -142,6 +177,14 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
             stream.write(reinterpret_cast<const char*>(&initSize), sizeof(initSize));
         }
     }
+}
+
+void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_1>::write(stream);
+
+    // _batchSize is std::optional, so either the value or std::nullopt will be written
+    int64_t batchValue = _batchSize.value_or(0);
+    stream.write(reinterpret_cast<const char*>(&batchValue), sizeof(batchValue));
 
     append_padding_blob_size_and_magic(stream);
 }
@@ -157,6 +200,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize, std::nullopt);
     case METADATA_VERSION_2_1:
         return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize, std::nullopt);
+    case METADATA_VERSION_2_2:
+        return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize, std::nullopt);
     default:
         OPENVINO_THROW("Metadata version is not supported!");
     }
@@ -299,6 +344,18 @@ std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_si
     return _initSizes;
 }
 
+std::optional<int64_t> Metadata<METADATA_VERSION_2_0>::get_batch_size() const {
+    return std::nullopt;
+}
+
+std::optional<int64_t> Metadata<METADATA_VERSION_2_1>::get_batch_size() const {
+    return std::nullopt;
+}
+
+std::optional<int64_t> Metadata<METADATA_VERSION_2_2>::get_batch_size() const {
+    return _batchSize;
+}
+
 size_t Metadata<METADATA_VERSION_2_0>::get_metadata_size() const {
     return sizeof(_version) + _ovVersion.get_openvino_version_size();
 }
@@ -311,6 +368,12 @@ size_t Metadata<METADATA_VERSION_2_1>::get_metadata_size() const {
             metadataSize += sizeof(initSize);
         }
     }
+
+    return metadataSize;
+}
+
+size_t Metadata<METADATA_VERSION_2_2>::get_metadata_size() const {
+    size_t metadataSize = Metadata<METADATA_VERSION_2_1>::get_metadata_size() + sizeof(int64_t);
 
     return metadataSize;
 }
