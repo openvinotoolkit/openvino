@@ -34,24 +34,20 @@ Result GatherMatmulShapeInfer::infer(const std::vector<std::reference_wrapper<co
     const VectorDims& shapeB = input_shapes[1].get();
     const VectorDims& shapeIndices = input_shapes[2].get();
 
-    const size_t rankA = shapeA.size();
-    const size_t rankB = shapeB.size();
-    const size_t rankIndices = shapeIndices.size();
-
     // Validate input ranks
-    OPENVINO_DEBUG_ASSERT(rankA == 3,
+    OPENVINO_DEBUG_ASSERT(shapeA.size() == 3,
                           "GatherMatmul input A must be 3D, got rank: ",
-                          rankA,
+                          shapeA.size(),
                           " with shape: ",
                           vec2str(shapeA));
-    OPENVINO_DEBUG_ASSERT(rankB == 3,
+    OPENVINO_DEBUG_ASSERT(shapeB.size() == 3,
                           "GatherMatmul input B must be 3D, got rank: ",
-                          rankB,
+                          shapeB.size(),
                           " with shape: ",
                           vec2str(shapeB));
-    OPENVINO_DEBUG_ASSERT(rankIndices == 2,
+    OPENVINO_DEBUG_ASSERT(shapeIndices.size() == 2,
                           "GatherMatmul indices must be 2D, got rank: ",
-                          rankIndices,
+                          shapeIndices.size(),
                           " with shape: ",
                           vec2str(shapeIndices));
 
