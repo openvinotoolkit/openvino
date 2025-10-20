@@ -33,16 +33,20 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoEGemmImpl)
     static constexpr bool prefill = true;
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr regular_micro_single_token = make_stage<MoEGemmMicroGenerator>(!prefill);
     Stage::Ptr regular_micro_multi_tokens = make_stage<MoEGemmMicroGenerator>(prefill);
+#endif
 
     explicit MoEGemmImpl() : PrimitiveImplOCL(MoEGemm::get_type_info_static()) {}
     explicit MoEGemmImpl(const RuntimeParams& impl_param) : MoEGemmImpl() {
         auto params = impl_param;
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << "\n";
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
         add_stage(regular_micro_multi_tokens, params);
         add_stage(regular_micro_single_token, params);
+#endif
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -65,6 +69,7 @@ public:
     }
 
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
+#ifdef ENABLE_ONEDNN_FOR_GPU
         const auto& params = *instance.get_impl_params();
         bool is_prefill = is_prefill_stage(params);
         if (is_prefill && has_stage(regular_micro_multi_tokens)) {
@@ -72,7 +77,9 @@ public:
         } else {
             return execute_stage(events, instance, regular_micro_single_token);
         }
-
+#else
+        OPENVINO_THROW("moe_gemm is only supported on systolic platforms.");
+#endif
         return nullptr;
     }
 };
