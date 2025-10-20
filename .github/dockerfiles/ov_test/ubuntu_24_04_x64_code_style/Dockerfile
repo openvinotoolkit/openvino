@@ -37,11 +37,17 @@ RUN apt-get update && \
     apt-get --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && \
     rm -rf /var/lib/apt/lists/*
 
-# Add a user with id 1001 to match permissions with the github env.
-RUN useradd -u 1001 -M runner && \
-    mkdir -p /runner/home && \
-    chown -R runner:runner /runner && \
-    ln -s /runner/home /home/runner
+RUN adduser --disabled-password --gecos "" --uid 1001 runner \
+    && groupadd docker --gid 123 \
+    && usermod -aG sudo runner \
+    && usermod -aG docker runner \
+    && echo "%sudo   ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers \
+    && echo "Defaults env_keep += \"DEBIAN_FRONTEND\"" >> /etc/sudoers
 
-# Run commands as the runner user by default.
+WORKDIR /home/runner
+
+COPY --chown=runner:docker --from=build /actions-runner .
+
+RUN install -o root -g root -m 755 docker/* /usr/bin/ && rm -rf docker
+
 USER runner
