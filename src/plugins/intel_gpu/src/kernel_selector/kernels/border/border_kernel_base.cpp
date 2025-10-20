@@ -57,6 +57,17 @@ BorderKernelBase::DispatchData BorderKernelBase::SetDefault(const border_params&
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
+    using DispatchDataPair = std::pair<std::array<size_t, 3>, std::array<size_t, 3>>;
+    static const std::array<DispatchDataPair, 4> lws_mapping_table = {{
+            DispatchDataPair{{264, 264,  32}, {1, 1, 32}},
+            DispatchDataPair{{264, 264,  64}, {1, 1, 64}},
+            DispatchDataPair{{132, 132, 128}, {1, 1, 64}},
+            DispatchDataPair{{  3, 336, 336}, {3, 8, 8}}
+        }};
+    std::array<size_t, 3> gws = {dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]};
+    auto it = std::find_if(lws_mapping_table.begin(), lws_mapping_table.end(), [&gws](const DispatchDataPair& ddp) { return ddp.first == gws; });
+    if (it != lws_mapping_table.end()) { dispatchData.lws = {it->second[0], it->second[1], it->second[2]}; }
+
     return dispatchData;
 }
 
@@ -75,60 +86,6 @@ void BorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-static void OptimizeBorderKernelDispatch(BorderKernelBase::DispatchData& dispatchData,
-                                         EngineInfo engine_info,
-                                         bool use_predefined_only = true,
-                                         size_t max_lws = 64) {
-    using Vec3 = std::array<size_t, 3>;
-    using DispatchDataPair = std::pair<Vec3, Vec3>;
-
-    static constexpr std::array<DispatchDataPair, 4> lws_mapping_table = {{
-        DispatchDataPair{{264, 264, 32},  {1, 1, 32}},
-        DispatchDataPair{{264, 264, 64},  {1, 1, 64}},
-        DispatchDataPair{{132, 132, 128}, {1, 1, 64}},
-        DispatchDataPair{{3, 336, 336},   {3, 8, 8}}
-    }};
-
-    Vec3 gws = {dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]};
-
-    auto it = std::find_if(lws_mapping_table.begin(), lws_mapping_table.end(), [&gws](const DispatchDataPair& ddp) {
-        return ddp.first == gws;
-    });
-
-    if (it != lws_mapping_table.end()) {
-        dispatchData.lws = {it->second[0], it->second[1], it->second[2]};
-        return;
-    }
-
-    if (use_predefined_only) return;
-    if (max_lws < 1 || max_lws > engine_info.maxWorkGroupSize) {
-        return;
-    }
-
-    for (size_t prefered_max_lws : {32, 64}) {
-        if (std::find(gws.begin(), gws.end(), prefered_max_lws) != gws.end()) {
-            max_lws = prefered_max_lws;
-            break;
-        }
-    }
-
-    Vec3 lws = {1, 1, 1};
-    size_t tmp = max_lws;
-    for (int i = 2; i >= 0; --i) {
-        size_t best = 1;
-        for (size_t d = std::min(gws[i], tmp); d >= 1; --d) {
-            if (gws[i] % d == 0 && tmp % d == 0) {
-                best = d;
-                break;
-            }
-        }
-        lws[i] = best;
-        tmp /= best;
-    }
-
-    dispatchData.lws = {lws[0], lws[1], lws[2]};
-}
-
 KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::BORDER);
 
@@ -136,7 +93,6 @@ KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params) const {
         static_cast<const border_params&>(params);
 
     auto dispatchData = SetDefault(prim_params);
-    OptimizeBorderKernelDispatch(dispatchData, params.engineInfo);
     KernelData k_data = KernelData::Default<border_params>(params);
     GetUpdateDispatchDataFunc(k_data);
 
