@@ -161,7 +161,7 @@ ov::npuw::runtime::attention::Selector::Ptr ov::npuw::runtime::attention::Positi
     return Selector::Ptr{};
 }
 
-void ov::npuw::runtime::attention::PositionIDs::prepare() {
+void ov::npuw::runtime::attention::PositionIDs::prepare(int64_t past_len) {
     const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
     const auto in_tensor = m_rq.get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
@@ -187,7 +187,7 @@ void ov::npuw::runtime::attention::PositionIDs::prepare() {
             case Case::PREFILL:
                 // chunked prefill case. calculate the past_length in full chunks
                 // FIXME: We know too much about chunking here
-                m_past_length = (m_current_length / m_d.query_size) * m_d.query_size;
+                m_past_length = ((past_len + m_d.query_size - 1) / m_d.query_size) * m_d.query_size;
                 break;
             default:
                 NPUW_ASSERT(false && "Reached the unreachable code");
