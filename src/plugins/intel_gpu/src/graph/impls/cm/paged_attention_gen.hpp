@@ -60,13 +60,13 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
 
 enum PagedAttentionInternBuffIdx {
     // for decoding kernels
-    DECODE_PARTITIONOUT = 0,      // 0: intermediate partition output
-    DECODE_EXPSUMS = 1,           // 1: softmax exp_sums
+    DECODE_PARTITIONOUT = 0,  // 0: intermediate partition output
+    DECODE_EXPSUMS = 1,       // 1: softmax exp_sums
     // for xattn kernels
-    XATTN_GEMMQK_MAX = 2,         // 2: kq_max_wg
-    XATTN_GEMMQK_EXPSUMS = 3,     // 3: kq_exp_partial_sum
-    XATTN_BLOCKMASK = 4,          // 4: sparse_block_mask
-    XATTN_BLOCKMASK_MERGED = 5,   // 5: sparse_block_mask_wg
+    XATTN_GEMMQK_MAX = 2,        // 2: kq_max_wg
+    XATTN_GEMMQK_EXPSUMS = 3,    // 3: kq_exp_partial_sum
+    XATTN_BLOCKMASK = 4,         // 4: sparse_block_mask
+    XATTN_BLOCKMASK_MERGED = 5,  // 5: sparse_block_mask_wg
 };
 
 //-----------------------------------------------------------------------------------------------------------------

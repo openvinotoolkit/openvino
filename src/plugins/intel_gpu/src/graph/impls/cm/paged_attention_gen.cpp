@@ -268,10 +268,10 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
         size_t value_offset = get_simple_offset(value_layout);
 
         if (DEBUG_ENABLED) {  // Debug
-            std::cout << "PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func: "
-                      << "kv_len: " << kv_len << ", key_pitch: " << key_pitch << ", key_offset: " << key_offset << ", value_pitch: " << value_pitch
-                      << ", value_offset: " << value_offset << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
-                      << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+            std::cout << "PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func: " << "kv_len: " << kv_len << ", key_pitch: " << key_pitch
+                      << ", key_offset: " << key_offset << ", value_pitch: " << value_pitch << ", value_offset: " << value_offset << ", gws: [" << wgs.global[0]
+                      << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2]
+                      << "]" << std::endl;
         }
         // TODO: support multiple sequences
         size_t batch_size_in_sequences = 1;
@@ -304,7 +304,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
     if (desc->has_xattention) {
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});  // sparse_block_mask
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});         // sparse_block_mask
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
     }
 
@@ -373,8 +373,7 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
             std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: \n"
                       << "\tbatch: " << batch << ", heads_num: " << heads_num << ", q_len: " << q_len << ", q_step: " << q_step
                       << ", wg_seq_len: " << wg_seq_len << ", wg_count: " << wg_count << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", "
-                      << wgs.global[2] << "]"
-                      << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+                      << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
         auto num_scalers = desc->has_xattention ? 4 : 1;
         scalars.resize(num_scalers);
@@ -443,7 +442,7 @@ Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_im
 
     // outputs
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});  // partition output
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});  // lse output
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});       // lse output
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len==1
@@ -476,11 +475,10 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
             size_t kv_len = get_kv_len(params, PagedAttentionStage::GENERATE);
             size_t max_context_len = get_max_context_len(params);
             size_t past_len = get_past_len(params, 0);
-            std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: "
-                      << "batch: " << batch << ", heads_num: " << heads_num << ", partition_num: " << partition_num << ", kv_len: " << kv_len
-                      << ", max_context_len = " << max_context_len << ", past_len = " << past_len << ", gws: [" << wgs.global[0] << ", " << wgs.global[1]
-                      << ", " << wgs.global[2] << "]"
-                      << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+            std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: " << "batch: " << batch << ", heads_num: " << heads_num
+                      << ", partition_num: " << partition_num << ", kv_len: " << kv_len << ", max_context_len = " << max_context_len
+                      << ", past_len = " << past_len << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: ["
+                      << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
@@ -509,8 +507,8 @@ Arguments PagedAttentionGeneratorSingleTokenFinalization::get_arguments_desc(con
         OPENVINO_THROW("[GPU][CM] PagedAttentionGeneratorSingleTokenFinalization with scores output is not supported yet");
 
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});  // partition data
-    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});           // output
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});  // lse
+    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                                          // output
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});       // lse
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // kv_partition_num
@@ -540,9 +538,8 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
         scalars.resize(scaler_value.size());
 
         if (DEBUG_ENABLED) {  // Debug
-            std::cout << "PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_data_func: "
-                      << "batch: " << batch << ", heads_num: " << heads_num << ", partition_num: " << partition_num << ", gws: [" << wgs.global[0] << ", "
-                      << wgs.global[1] << ", " << wgs.global[2] << "]"
+            std::cout << "PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_data_func: " << "batch: " << batch << ", heads_num: " << heads_num
+                      << ", partition_num: " << partition_num << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
         for (size_t i = 0; i < scaler_value.size(); ++i) {
@@ -614,7 +611,7 @@ Arguments XAttentionEstimateGEMMQK::get_arguments_desc(const kernel_impl_params&
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block indices begins
 
     // outputs
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX});  // kq_max_wg
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX});      // kq_max_wg
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS});  // kq_exp_partial_sum
 
     // scalar
@@ -688,7 +685,7 @@ Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_para
     Arguments args;
 
     // inputs
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX});  // kq_max_wg
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX});      // kq_max_wg
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS});  // kq_exp_partial_sum
 
     // outputs

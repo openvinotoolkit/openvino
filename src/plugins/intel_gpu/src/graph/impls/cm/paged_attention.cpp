@@ -52,14 +52,13 @@ public:
         }
     }
 
-    void update_xattn_rt_params(const primitive_inst& instance) {
-        const auto& params = *instance.get_impl_params();
-        OPENVINO_ASSERT(!params.is_dynamic());
+    void update_xattn_rt_params(const kernel_impl_params& params) {
         const auto desc = params.typed_desc<paged_attention>();
 
+        // XAttention estimate is following afer kvcache_update.
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t block_size = get_xattn_block_size(params);
-        const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
+        const size_t kv_len = get_max_context_len(params);
         const size_t q_len = out_shape[0];
         const size_t N = kv_len / STRIDE;
         const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
@@ -73,13 +72,10 @@ public:
         rt_params->q_block_pad = q_block_pad;
         rt_params->k_block_pad = k_block_pad;
 
-        // XAttention estimate is following afer kvcache_update.
         const size_t head_size = desc->k_head_size;
 
-        auto querry_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
-
-        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);  //# will slient drop the tails which is less than `stride`
-        const uint32_t K = static_cast<uint32_t>(STRIDE * head_size);
+        const auto M = q_len / STRIDE;  //# will slient drop the tails which is less than `stride`
+        const auto K = STRIDE * head_size;
 
         const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
 
@@ -97,28 +93,26 @@ public:
         }
 
         const auto& params = *instance.get_impl_params();
+        OPENVINO_ASSERT(!params.is_dynamic());
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         const auto& desc = params.typed_desc<paged_attention>();
 
         rt_params->stage = get_paged_attention_stage(params);
         const auto max_context_len = get_max_context_len(params);
         rt_params->max_context_len = max_context_len;
-        GPU_DEBUG_TRACE_DETAIL << "update_rt_params for stage: " << static_cast<size_t>(rt_params->stage)
-                        << "  max_context_len: " << rt_params->max_context_len << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "update_rt_params for stage: " << static_cast<size_t>(rt_params->stage) << "  max_context_len: " << rt_params->max_context_len
+                               << std::endl;
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
             auto partition_size = get_partition_size(desc->has_xattention);
             rt_params->num_of_partitions = ceil_div(max_context_len, partition_size);
 
-            GPU_DEBUG_TRACE_DETAIL << "  partition_size: " << partition_size
-                                << "  num_of_partitions: " << rt_params->num_of_partitions << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "  partition_size: " << partition_size << "  num_of_partitions: " << rt_params->num_of_partitions << std::endl;
         } else {
             if (desc->has_xattention) {
-                update_xattn_rt_params(instance);
+                update_xattn_rt_params(params);
             }
         }
-
-
     }
 
     // update impl_parameter and rt_parameter
@@ -184,8 +178,7 @@ public:
             internal_buffers.emplace_back(tmp_out_elements_count, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(buf_elements_count, ov::element::f32);      // 1: softmax exp_sums
 
-            GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 4
-                                << "  exp_sums=" << buf_elements_count * 4 << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 4 << "  exp_sums=" << buf_elements_count * 4 << std::endl;
         } else {
             internal_buffers.emplace_back(16, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(16, ov::element::f32);  // 1: softmax exp_sums
@@ -205,9 +198,8 @@ public:
                 internal_buffers.emplace_back(count_elements_mask_merged, ov::element::boolean);  // 5: sparse_block_mask_wg
 
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4
-                                << "  count_kq_exp_partial_sum=" << count_kq_exp_partial_sum * 4
-                                << "  count_elements_mask=" << count_elements_mask * 1
-                                << "  count_elements_mask_merged=" << count_kq_exp_partial_sum * 1 << std::endl;
+                                       << "  count_kq_exp_partial_sum=" << count_kq_exp_partial_sum * 4 << "  count_elements_mask=" << count_elements_mask * 1
+                                       << "  count_elements_mask_merged=" << count_kq_exp_partial_sum * 1 << std::endl;
             }
         }
 
