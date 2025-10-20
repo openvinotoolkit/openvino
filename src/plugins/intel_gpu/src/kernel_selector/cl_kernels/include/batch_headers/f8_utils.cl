@@ -853,39 +853,39 @@ fp8e4m3_t16 __attribute__((overloadable)) _convert_fp8e4m3_t16_sat(half16 val) {
     return res;
 }
 
-fp8e5m2_t __attribute__((overloadable)) _convert_fp8e5m2_t(float val) {
-    fp8e5m2_t res;
+fp8e8m0_t __attribute__((overloadable)) _convert_fp8e8m0_t(float val) {
+    fp8e8m0_t res;
     res.data = _intel_convert_f32_fo_e8m0(val);
     return res;
 }
-fp8e5m2_t1 __attribute__((overloadable)) _convert_fp8e5m2_t1(float val[1]) {
-    fp8e5m2_t1 res;
+fp8e8m0_t1 __attribute__((overloadable)) _convert_fp8e8m0_t1(float val[1]) {
+    fp8e8m0_t1 res;
     res.data[0] = _intel_convert_f32_fo_e8m0(val[0]);
     return res;
 }
-fp8e5m2_t2 __attribute__((overloadable)) _convert_fp8e5m2_t2(float2 val) {
-    fp8e5m2_t2 res;
+fp8e8m0_t2 __attribute__((overloadable)) _convert_fp8e8m0_t2(float2 val) {
+    fp8e8m0_t2 res;
     res.data[0] = _intel_convert_f32_fo_e8m0(val.x);
     res.data[1] = _intel_convert_f32_fo_e8m0(val.y);
     return res;
 }
-fp8e5m2_t3 __attribute__((overloadable)) _convert_fp8e5m2_t3(float3 val) {
-    fp8e5m2_t3 res;
+fp8e8m0_t3 __attribute__((overloadable)) _convert_fp8e8m0_t3(float3 val) {
+    fp8e8m0_t3 res;
     res.data[0] = _intel_convert_f32_fo_e8m0(val.x);
     res.data[1] = _intel_convert_f32_fo_e8m0(val.y);
     res.data[2] = _intel_convert_f32_fo_e8m0(val.z);
     return res;
 }
-fp8e5m2_t4 __attribute__((overloadable)) _convert_fp8e5m2_t4(float4 val) {
-    fp8e5m2_t4 res;
+fp8e8m0_t4 __attribute__((overloadable)) _convert_fp8e8m0_t4(float4 val) {
+    fp8e8m0_t4 res;
     res.data[0] = _intel_convert_f32_fo_e8m0(val.x);
     res.data[1] = _intel_convert_f32_fo_e8m0(val.y);
     res.data[2] = _intel_convert_f32_fo_e8m0(val.z);
     res.data[3] = _intel_convert_f32_fo_e8m0(val.w);
     return res;
 }
-fp8e5m2_t8 __attribute__((overloadable)) _convert_fp8e5m2_t8(float8 val) {
-    fp8e5m2_t8 res;
+fp8e8m0_t8 __attribute__((overloadable)) _convert_fp8e8m0_t8(float8 val) {
+    fp8e8m0_t8 res;
     res.data[0] = _intel_convert_f32_fo_e8m0(val.s0);
     res.data[1] = _intel_convert_f32_fo_e8m0(val.s1);
     res.data[2] = _intel_convert_f32_fo_e8m0(val.s2);
@@ -896,8 +896,8 @@ fp8e5m2_t8 __attribute__((overloadable)) _convert_fp8e5m2_t8(float8 val) {
     res.data[7] = _intel_convert_f32_fo_e8m0(val.s7);
     return res;
 }
-fp8e5m2_t16 __attribute__((overloadable)) _convert_fp8e5m2_t16(float16 val) {
-    fp8e5m2_t16 res;
+fp8e8m0_t16 __attribute__((overloadable)) _convert_fp8e8m0_t16(float16 val) {
+    fp8e8m0_t16 res;
     res.data[0]  = _intel_convert_f32_fo_e8m0(val.s0);
     res.data[1]  = _intel_convert_f32_fo_e8m0(val.s1);
     res.data[2]  = _intel_convert_f32_fo_e8m0(val.s2);
