@@ -16,9 +16,11 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace std;
+using ov::op::util::disconnect_output_from_consumers;
 
 TEST(node_input_output, input_create) {
     auto x = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
@@ -156,8 +158,8 @@ TEST(node_input_output, create_wrong_input_output) {
     EXPECT_THROW(ov::Input<const ov::Node>(nullptr, 0), ov::Exception);
 }
 
-TEST(node_input_output, replace_output_and_clean_up_basic) {
-    // Test basic functionality of replace_output_and_clean_up
+TEST(node_input_output, disconnect_output_from_consumers_basic) {
+    // Test basic functionality of disconnect_output_from_consumers
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
     auto add = make_shared<op::v1::Add>(param, param);
     auto existing_convert = make_shared<op::v0::Convert>(add, element::bf16);
@@ -171,13 +173,14 @@ TEST(node_input_output, replace_output_and_clean_up_basic) {
 
     size_t size_before = output.get_target_inputs().size();
 
-    // Use the new fixed utility function
-    replace_output_and_clean_up(existing_convert->output(0), output);
+    // Use the new API: replace() then disconnect()
+    existing_convert->output(0).replace(output);
+    disconnect_output_from_consumers(existing_convert->output(0), output);
 
     size_t size_after = output.get_target_inputs().size();
 
     // The fix should prevent size increase
-    EXPECT_EQ(size_after, size_before) << "With replace_output_and_clean_up, size should not increase";
+    EXPECT_EQ(size_after, size_before) << "With disconnect, size should not increase";
     EXPECT_EQ(size_after, 1) << "Size should remain 1";
 
     // Verify graph structure
@@ -185,7 +188,7 @@ TEST(node_input_output, replace_output_and_clean_up_basic) {
     EXPECT_EQ(existing_convert->output(0).get_target_inputs().size(), 0);
 }
 
-TEST(node_input_output, replace_output_and_clean_up_multiple_consumers) {
+TEST(node_input_output, disconnect_output_from_consumers_multiple_consumers) {
     // Test with multiple consumers
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
     auto add = make_shared<op::v1::Add>(param, param);
@@ -199,8 +202,9 @@ TEST(node_input_output, replace_output_and_clean_up_multiple_consumers) {
     ASSERT_EQ(add->output(0).get_target_inputs().size(), 1);      // Only convert
     ASSERT_EQ(convert->output(0).get_target_inputs().size(), 3);  // 3 relus
 
-    // Replace convert's output with add's output
-    replace_output_and_clean_up(convert->output(0), add->output(0));
+    // Replace convert's output with add's output, then disconnect
+    convert->output(0).replace(add->output(0));
+    disconnect_output_from_consumers(convert->output(0), add->output(0));
 
     // All relus should now connect to add, convert should have no connections
     EXPECT_EQ(add->output(0).get_target_inputs().size(), 3);
@@ -212,8 +216,9 @@ TEST(node_input_output, replace_output_and_clean_up_multiple_consumers) {
     EXPECT_EQ(relu3->input_value(0).get_node(), add.get());
 }
 
-TEST(node_input_output, replace_output_and_clean_up_chain) {
-    // Test chain of operations: param -> add -> mul -> convert -> relu
+TEST(node_input_output, disconnect_output_from_consumers_chain) {
+    // Test chain: param -> add -> mul -> convert -> relu
+    // Replace convert with mul (forward neighbor)
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
     auto add = make_shared<op::v1::Add>(param, param);
     auto mul = make_shared<op::v1::Multiply>(add, add);
@@ -222,8 +227,9 @@ TEST(node_input_output, replace_output_and_clean_up_chain) {
 
     ASSERT_EQ(mul->output(0).get_target_inputs().size(), 1);
 
-    // Replace convert's output with mul's output
-    replace_output_and_clean_up(convert->output(0), mul->output(0));
+    // Replace convert's output with mul's output, then disconnect
+    convert->output(0).replace(mul->output(0));
+    disconnect_output_from_consumers(convert->output(0), mul->output(0));
 
     // Verify the graph structure
     EXPECT_EQ(relu->input_value(0).get_node(), mul.get());
@@ -231,7 +237,37 @@ TEST(node_input_output, replace_output_and_clean_up_chain) {
     EXPECT_EQ(convert->output(0).get_target_inputs().size(), 0);
 }
 
-TEST(node_input_output, replace_output_and_clean_up_no_targets) {
+TEST(node_input_output, disconnect_output_from_consumers_long_chain_backward) {
+    // Reviewer question: chain add->mul->convert->relu
+    // Replace convert output with add output (going backward in chain)
+    // Tests that no circular connections are created
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
+    auto add = make_shared<op::v1::Add>(param, param);
+    auto mul = make_shared<op::v1::Multiply>(add, add);
+    auto convert = make_shared<op::v0::Convert>(mul, element::bf16);
+    auto relu = make_shared<op::v0::Relu>(convert);
+
+    ASSERT_EQ(add->output(0).get_target_inputs().size(), 2);  // 2 inputs of mul
+    ASSERT_EQ(convert->output(0).get_target_inputs().size(), 1);  // relu
+
+    // Replace convert with add (going backward in chain), then disconnect
+    convert->output(0).replace(add->output(0));
+    disconnect_output_from_consumers(convert->output(0), add->output(0));
+
+    // Verify no circular connections exist
+    EXPECT_EQ(relu->input_value(0).get_node(), add.get())
+        << "Relu should connect to add";
+    EXPECT_EQ(add->output(0).get_target_inputs().size(), 3)
+        << "Add should have 3 targets: mul(2 inputs) + relu";
+    EXPECT_EQ(convert->output(0).get_target_inputs().size(), 0)
+        << "Convert should have no targets";
+
+    // Verify mul still connects to add correctly
+    EXPECT_EQ(mul->input_value(0).get_node(), add.get());
+    EXPECT_EQ(mul->input_value(1).get_node(), add.get());
+}
+
+TEST(node_input_output, disconnect_output_from_consumers_no_targets) {
     // Test when node being replaced has no targets
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
     auto add1 = make_shared<op::v1::Add>(param, param);
@@ -241,8 +277,9 @@ TEST(node_input_output, replace_output_and_clean_up_no_targets) {
     ASSERT_EQ(add1->output(0).get_target_inputs().size(), 0);
     ASSERT_EQ(add2->output(0).get_target_inputs().size(), 1);
 
-    // Replace add1 (no targets) with add2
-    replace_output_and_clean_up(add1->output(0), add2->output(0));
+    // Replace add1 (no targets) with add2, then disconnect
+    add1->output(0).replace(add2->output(0));
+    disconnect_output_from_consumers(add1->output(0), add2->output(0));
 
     // Nothing should change since add1 had no targets
     EXPECT_EQ(add1->output(0).get_target_inputs().size(), 0);
@@ -250,7 +287,7 @@ TEST(node_input_output, replace_output_and_clean_up_no_targets) {
     EXPECT_EQ(relu->input_value(0).get_node(), add2.get());
 }
 
-TEST(node_input_output, replace_output_and_clean_up_self_reference) {
+TEST(node_input_output, disconnect_output_from_consumers_self_reference) {
     // Test edge case: replacing with itself
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
     auto add = make_shared<op::v1::Add>(param, param);
@@ -258,8 +295,9 @@ TEST(node_input_output, replace_output_and_clean_up_self_reference) {
 
     ASSERT_EQ(add->output(0).get_target_inputs().size(), 1);
 
-    // Replace output with itself
-    replace_output_and_clean_up(add->output(0), add->output(0));
+    // Replace output with itself, then disconnect
+    add->output(0).replace(add->output(0));
+    disconnect_output_from_consumers(add->output(0), add->output(0));
 
     // Should remain unchanged
     EXPECT_EQ(add->output(0).get_target_inputs().size(), 1);
