@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "common/blocked_desc_creator.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -294,7 +295,39 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
                                                   [[maybe_unused]] size_t G,
                                                   [[maybe_unused]] const Config& config) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
-    return FullyConnected::isSupportedCompressedOperation(op, IC, OC, G, config);
+    // copy past from FullyConnected
+    try {
+        std::string errorMessage;
+        if (!isSupportedOperation(op, errorMessage)) {
+            return false;
+        }
+
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+            return false;
+        }
+
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
+            config.inferencePrecision == ov::element::bf16) {
+            // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
+            // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
+            // used since fallback one doesn't support weights decompression feature.
+            size_t simdWidth = 16;
+            size_t vnniFactor = 2;
+            size_t maxSize = 512;
+            auto amxRow = vnniFactor * simdWidth;
+
+            if ((IC <= amxRow && OC <= amxRow) || (IC <= maxSize && OC <= maxSize && IC % amxRow != 0)) {
+                return false;
+            }
+        }
+
+        if (IC % G != 0 || IC / G < 4 || OC == 1) {
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
 #else
     return false;
 #endif
@@ -461,7 +494,7 @@ bool GatherMatmul::needPrepareParams() const {
 }
 
 bool GatherMatmul::isExecutable() const {
-    return !isInputTensorAtPortEmpty(0); // only data shape matters
+    return !isInputTensorAtPortEmpty(0);  // only data shape matters
 }
 
 void GatherMatmul::execute(const dnnl::stream& strm) {
@@ -492,8 +525,7 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
             if (!m_base_ptr) {
                 return nullptr;
             }
-            const size_t offset_bits =
-                i0 * m_strides[0] * m_num_bits + i1 * m_strides[1] * m_num_bits;
+            const size_t offset_bits = i0 * m_strides[0] * m_num_bits + i1 * m_strides[1] * m_num_bits;
             const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
             return m_base_ptr + offset;
         }
