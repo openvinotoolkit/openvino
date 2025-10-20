@@ -102,7 +102,7 @@ void parse_processor_info_win(const char* base_ptr,
         list.clear();
         list_len = 0;
         for (int cnt = 0; mask_input >> cnt; ++cnt) {
-             if ((mask_input >> cnt) & 0x1) {
+            if ((mask_input >> cnt) & 0x1) {
                 list.push_back(cnt);
                 ++list_len;
                 if ((mask_input >> cnt) == 0x1) {
@@ -234,13 +234,17 @@ void parse_processor_info_win(const char* base_ptr,
     for (int n = 0; n < numa_list.size(); n++) {
         _proc_type_table.push_back({0, 0, 0, 0, 0, _numa_nodes, _cpu_mapping_table[base_proc][CPU_MAP_SOCKET_ID]});
         while (base_proc < _processors &&
-               (n == numa_list.size() - 1 || _cpu_mapping_table[base_proc][CPU_MAP_NUMA_NODE_ID] < numa_list[n + 1])) {
+               (n == numa_list.size() - 1 || _cpu_mapping_table[base_proc][CPU_MAP_NUMA_NODE_ID] <= numa_list[n + 1])) {
             _cpu_mapping_table[base_proc][CPU_MAP_NUMA_NODE_ID] = _numa_nodes;
             if (_cpu_mapping_table[base_proc][CPU_MAP_USED_FLAG] == NOT_USED) {
                 _proc_type_table[_proc_type_table.size() - 1][_cpu_mapping_table[base_proc][CPU_MAP_CORE_TYPE]]++;
                 _proc_type_table[_proc_type_table.size() - 1][ALL_PROC]++;
             }
             base_proc++;
+            if (base_proc != _processors && _cpu_mapping_table[base_proc][CPU_MAP_SOCKET_ID] !=
+                                                _cpu_mapping_table[base_proc - 1][CPU_MAP_SOCKET_ID]) {
+                break;
+            }
         }
         _numa_nodes++;
     }
