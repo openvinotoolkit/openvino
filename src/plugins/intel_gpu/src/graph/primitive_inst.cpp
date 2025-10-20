@@ -604,7 +604,7 @@ bool primitive_inst::need_reset_output_memory() const {
 
             auto get_feature_block_size = [](format fmt) {
                         int feature_block_size = 1;
-                        for (auto &e: fmt.block_sizes()) {
+                        for (auto &e : fmt.block_sizes()) {
                             if (e.first == 1) {
                                 OPENVINO_ASSERT(feature_block_size == 1, "UNSUPPORTED: multi-blocking for feature axis is not considered");
                                 feature_block_size = e.second;
@@ -621,7 +621,6 @@ bool primitive_inst::need_reset_output_memory() const {
                 return true;
             }
         }
-
     }
     return false;
 }
