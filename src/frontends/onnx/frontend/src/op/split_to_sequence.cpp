@@ -25,6 +25,8 @@ ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, c
     const auto& split = inputs[1];
     const auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
 
+    OPENVINO_ASSERT(0 <= axis && axis < input_rank.get_length(), "SplitToSequence: axis is out of range");
+
     const auto split_values = ov::util::get_constant_from_source(split)->cast_vector<std::int64_t>();
     OPENVINO_ASSERT(!split_values.empty(), "SplitToSequence: 'split' input cannot be empty");
 
@@ -33,10 +35,12 @@ ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, c
 
     const auto partial_shape = input.get_partial_shape();
     OPENVINO_ASSERT(partial_shape.rank().is_static(), "SplitToSequence: scalar 'split' requires static input rank");
-    OPENVINO_ASSERT(partial_shape[axis].is_static(),
+
+    const auto axis_dimension = partial_shape[axis];
+    OPENVINO_ASSERT(axis_dimension.is_static(),
                     "SplitToSequence: scalar 'split' requires static dimension on the split axis");
 
-    const std::int64_t axis_length = partial_shape[axis].get_length();
+    const std::int64_t axis_length = axis_dimension.get_length();
 
     std::vector<std::int64_t> lengths;
     lengths.reserve(static_cast<std::size_t>((axis_length + chunk - 1) / chunk));
@@ -77,22 +81,20 @@ ov::OutputVector split_with_explicit_split(const ov::frontend::onnx::Node& node)
 
 ov::OutputVector split_with_default_split(const ov::frontend::onnx::Node& node) {
     const auto& inputs = node.get_ov_inputs();
-
     const auto& input = inputs[0];
-
-    const auto input_rank = input.get_partial_shape().rank();
-
-    OPENVINO_ASSERT(input_rank.is_static(), "SplitToSequence: default 'split' input requires static input rank");
-
     auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
 
     if (axis < 0) {
         axis += input_rank.get_length();
     }
-
     OPENVINO_ASSERT(0 <= axis && axis < input_rank.get_length(), "SplitToSequence: axis is out of range");
 
-    const auto axis_dimension = input.get_partial_shape()[axis];
+    const auto partial_shape = input.get_partial_shape();
+
+    OPENVINO_ASSERT(partial_shape.rank().is_static(),
+                    "SplitToSequence: default 'split' input requires static input rank");
+
+    const auto axis_dimension = partial_shape[axis];
     OPENVINO_ASSERT(axis_dimension.is_static(),
                     "SplitToSequence: default 'split' input requires static dimension on the split axis");
 
@@ -114,8 +116,8 @@ ov::OutputVector split_with_default_split(const ov::frontend::onnx::Node& node) 
 
     const auto squeeze_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {axis});
 
-    for (std::int64_t axis_index = 0; axis_index < axis_length; ++axis_index) {
-        auto element = split_op->output(static_cast<std::size_t>(axis_index));
+    for (std::int64_t offset = 0; offset < axis_length; ++offset) {
+        auto element = split_op->output(static_cast<std::size_t>(offset));
 
         if (!keepdims) {
             element = std::make_shared<ov::op::v15::Squeeze>(element, squeeze_axes);
