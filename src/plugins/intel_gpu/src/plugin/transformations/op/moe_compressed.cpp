@@ -2,13 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_ops/moe_compressed.hpp"
+#include "intel_gpu/op/moe_compressed.hpp"
 
-#include "itt.hpp"
-
-namespace ov {
-namespace op {
-namespace internal {
+namespace ov::intel_gpu::op {
 
 MOECompressed::MOECompressed(const OutputVector& args, const Config& config) : Op(args), m_config(config) {
     constructor_validate_and_infer_types();
@@ -41,6 +37,4 @@ bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
-}  // namespace internal
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

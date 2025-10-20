@@ -4,19 +4,14 @@
 
 #pragma once
 
-#include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
-// #include "openvino/op/moe.hpp"
-#include "transformations_visibility.hpp"
 
-namespace ov {
-namespace op {
-namespace internal {
+namespace ov::intel_gpu::op {
 
 /// \brief MOECompressed experts that support compressed weights for GEMM3_SWIGLU MOE.
-class TRANSFORMATIONS_API MOECompressed : public ov::op::Op {
+class MOECompressed : public ov::op::Op {
 public:
-    OPENVINO_OP("MOECompressed", "ie_internal_opset");
+    OPENVINO_OP("MOECompressed", "gpu_opset");
 
     MOECompressed() = default;
 
@@ -50,9 +45,9 @@ public:
     ///   9: w2_weight - expert weights for final projection,
     ///   shape [num_experts, hidden_size, inter_size]
     ///   10: w2_scale - expert scale for final projection for compressed experts,
-    ///   shape [num_experts, inter_size, group_num, 1]
+    ///   shape [num_experts, hidden_size, group_num, 1]
     ///   11: w2_zp - expert zp for final projection for compressed experts,
-    ///   shape [num_experts, inter_size, group_num, 1]
+    ///   shape [num_experts, hidden_size, group_num, 1]
     /// \param config Configuration for the MOE operation
     MOECompressed(const OutputVector& args, const Config& config);
 
@@ -67,6 +62,4 @@ private:
     Config m_config;
 };
 
-}  // namespace internal
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::intel_gpu::op
