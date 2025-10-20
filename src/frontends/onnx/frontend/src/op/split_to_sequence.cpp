@@ -57,7 +57,7 @@ std::int64_t get_axis_length(const ov::PartialShape& partial_shape, std::int64_t
 /// @return A sequence of tensors obtained by splitting the input tensor in form of a SequenceMark node
 ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs) {
     const auto& input = inputs[0];
-    const auto &partial_shape = input.get_partial_shape();
+    const auto& partial_shape = input.get_partial_shape();
     const auto axis = get_axis(node, partial_shape);
     const auto& split = inputs[1];
 
@@ -121,7 +121,7 @@ ov::OutputVector split_with_explicit_split(const ov::frontend::onnx::Node& node)
 ov::OutputVector split_with_default_split(const ov::frontend::onnx::Node& node) {
     const auto& inputs = node.get_ov_inputs();
     const auto& input = inputs[0];
-    const auto &partial_shape = input.get_partial_shape();
+    const auto& partial_shape = input.get_partial_shape();
     const auto axis = get_axis(node, partial_shape);
 
     const std::int64_t axis_length = get_axis_length(partial_shape, axis);
