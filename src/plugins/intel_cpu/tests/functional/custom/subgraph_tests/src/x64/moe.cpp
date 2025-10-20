@@ -184,19 +184,32 @@ protected:
         const bool use_matmul_decompression_impl = std::get<10>(test_param);
 
         const auto runtime_model = compiledModel.get_runtime_model();
-        const auto result = runtime_model->get_result();
-        auto batch_gather_mm = result->get_input_node_shared_ptr(0);
+        const size_t expected_gather_mm_count = [&]() {
+            switch (std::get<1>(test_param)) {
+            case MoEType::MoE2GeMM:
+                return 2;
+            case MoEType::MoE3GeMM:
+                return 3;
+            default:
+                OPENVINO_THROW("Unsupported MoEType");
+            }
+        }();
+        const std::string expected_gather_mm_type =
+            use_matmul_decompression_impl ? "BatchGatherMatmulCompressed" : "BatchGatherMatmul";
+        std::set<std::shared_ptr<ov::Node>> gather_mm_nodes;
+        for (const auto& node : runtime_model->get_ordered_ops()) {
+            if (node->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == expected_gather_mm_type) {
+                gather_mm_nodes.insert(node);
+            }
+        }
+        EXPECT_EQ(gather_mm_nodes.size(), expected_gather_mm_count);
 
-        auto type = batch_gather_mm->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-        if (type == "Reorder" || type == "Convert" || type == "Subgraph")
-            batch_gather_mm = batch_gather_mm->get_input_node_shared_ptr(0);
-
-        type = batch_gather_mm->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-        EXPECT_EQ(type, "BatchGatherMatmul");
-
-        const auto& expected_weights_precision =
-            use_matmul_decompression_impl ? compressed_weights_precision : batch_gather_mm->get_input_element_type(0);
-        EXPECT_EQ(batch_gather_mm->get_input_element_type(1), expected_weights_precision);
+        for (const auto& gather_mm_node : gather_mm_nodes) {
+            const auto& expected_weights_precision = use_matmul_decompression_impl
+                                                         ? compressed_weights_precision
+                                                         : gather_mm_node->get_input_element_type(0);
+            EXPECT_EQ(gather_mm_node->get_input_element_type(1), expected_weights_precision);
+        }
     }
 };
 
