@@ -21,21 +21,44 @@
 
 namespace {
 
+/// @brief Gets and validates the 'axis' attribute from the node
+/// @param node Input ONNX node
+/// @param partial_shape Partial shape of the input tensor to be split
+/// @return The validated axis value
+std::int64_t get_axis(const ov::frontend::onnx::Node& node, const ov::PartialShape& partial_shape) {
+    const auto input_rank = partial_shape.rank();
+    OPENVINO_ASSERT(input_rank.is_static(), "SplitToSequence: requires static input rank");
+
+    auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
+
+    if (axis < 0) {
+        axis += input_rank.get_length();
+    }
+    OPENVINO_ASSERT(0 <= axis && axis < input_rank.get_length(), "SplitToSequence: axis is out of range");
+
+    return axis;
+}
+
+/// @brief Gets and validates the split axis length
+/// @param partial_shape Partial shape of the input tensor to be split
+/// @param axis The split axis
+/// @return The validated axis length
+std::int64_t get_axis_length(const ov::PartialShape& partial_shape, std::int64_t axis) {
+    const auto axis_dimension = partial_shape[axis];
+    OPENVINO_ASSERT(axis_dimension.is_static(),
+                    "SplitToSequence: scalar 'split' input requires static dimension on the split axis");
+
+    return axis_dimension.get_length();
+}
+
 /// @brief Implements the SplitToSequence operator with scalar 'split' input
 /// @param node Input ONNX node
 /// @param inputs Input tensors
 /// @return A sequence of tensors obtained by splitting the input tensor in form of a SequenceMark node
 ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs) {
     const auto& input = inputs[0];
-
-    const auto partial_shape = input.get_partial_shape();
-
-    const auto input_rank = partial_shape.rank();
-    OPENVINO_ASSERT(input_rank.is_static(), "SplitToSequence: scalar 'split' requires static input rank");
-
-    const auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
-    OPENVINO_ASSERT(std::abs(axis) < input_rank.get_length(), "SplitToSequence: axis is out of range");
-
+    const auto &partial_shape = input.get_partial_shape();
+    const auto axis = get_axis(node, partial_shape);
     const auto& split = inputs[1];
 
     const auto split_values = ov::util::get_constant_from_source(split)->cast_vector<std::int64_t>();
@@ -44,11 +67,7 @@ ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, c
     const std::int64_t chunk = split_values.front();
     OPENVINO_ASSERT(chunk > 0, "SplitToSequence: scalar 'split' must be positive");
 
-    const auto axis_dimension = partial_shape[axis];
-    OPENVINO_ASSERT(axis_dimension.is_static(),
-                    "SplitToSequence: scalar 'split' requires static dimension on the split axis");
-
-    const std::int64_t axis_length = axis_dimension.get_length();
+    const std::int64_t axis_length = get_axis_length(partial_shape, axis);
 
     std::vector<std::int64_t> lengths;
     lengths.reserve(static_cast<std::size_t>((axis_length + chunk - 1) / chunk));
@@ -100,25 +119,10 @@ ov::OutputVector split_with_explicit_split(const ov::frontend::onnx::Node& node)
 ov::OutputVector split_with_default_split(const ov::frontend::onnx::Node& node) {
     const auto& inputs = node.get_ov_inputs();
     const auto& input = inputs[0];
+    const auto &partial_shape = input.get_partial_shape();
+    const auto axis = get_axis(node, partial_shape);
 
-    const auto partial_shape = input.get_partial_shape();
-
-    const auto input_rank = partial_shape.rank();
-
-    OPENVINO_ASSERT(input_rank.is_static(), "SplitToSequence: default 'split' input requires static input rank");
-
-    auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
-
-    if (axis < 0) {
-        axis += input_rank.get_length();
-    }
-    OPENVINO_ASSERT(0 <= axis && axis < input_rank.get_length(), "SplitToSequence: axis is out of range");
-
-    const auto axis_dimension = partial_shape[axis];
-    OPENVINO_ASSERT(axis_dimension.is_static(),
-                    "SplitToSequence: default 'split' input requires static dimension on the split axis");
-
-    const std::int64_t axis_length = axis_dimension.get_length();
+    const std::int64_t axis_length = get_axis_length(partial_shape, axis);
 
     ov::OutputVector output_sequence;
 
