@@ -17,7 +17,7 @@ const ov::AnyMap enable_dyn_quant_config_kleidiai = {ov::hint::dynamic_quantizat
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
 const std::vector<fusingSpecificParams> fusing_params{emptyFusingSpec, fusingBias};
 
-const std::vector<ov::test::ElementType> weights_precisions_kleidiai = {ov::element::i8};
+const std::vector<ov::test::ElementType> weights_precisions_kleidiai = {ov::element::i8, ov::element::i4};
 const std::vector<MatMulDecompressionShapeParams> input_shapes_kleidiai = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
     {{{}, {{1, 4, 16}}}, {1, 16, 32}},
