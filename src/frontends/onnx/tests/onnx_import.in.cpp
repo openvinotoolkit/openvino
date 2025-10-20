@@ -7140,7 +7140,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_explicit_split_scalar_posi
 }
 
 /// @brief Testing ONNX SplitToSequence operator with explicit split (num_splits is provided)
-/// Model sequence_at_3x2_explicit_split_scalar.onnx was generated in the following way:
+/// Model sequence_at_3x2_explicit_split_scalar_position1.onnx was generated in the following way:
 /// - input shape: feeding SplitToSequence with a 3x2 tensor
 /// - position: indexing the element 1 with SequenceAt operation
 /// - axis: splitting along first dimension (index 0)
