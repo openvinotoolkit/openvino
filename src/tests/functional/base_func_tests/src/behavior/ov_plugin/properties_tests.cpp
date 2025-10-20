@@ -734,8 +734,26 @@ TEST_P(OVGetMetricPropsTest, GetMetriDeviceFullNameWithoutAdditionalTerminatorCh
 TEST_P(OVClassCompileModelAndCheckSecondaryPropertiesTest, CompileModelAndCheckSecondaryPropertiesTest) {
     ov::Core ie = ov::test::utils::create_core();
     ov::CompiledModel model;
+    if (configuration.count(ov::num_streams.name())) {
+// printf("OVClassCompileModelAndCheckSecondaryPropertiesTest conf num_streams: %d; count: %lu\n",
+//     configuration.at(ov::num_streams.name()).as<int32_t>(), configuration.count(ov::num_streams.name()));
+        std::cout << "OVClassCompileModelAndCheckSecondaryPropertiesTest conf num_streams: "
+                << configuration.at(ov::num_streams.name()).as<int32_t>()
+                << "; count: "
+                << configuration.count(ov::num_streams.name())
+                << "\n";
+    }
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
     ov::AnyMap property = configuration;
+    if (property.count(ov::num_streams.name())) {
+// printf("OVClassCompileModelAndCheckSecondaryPropertiesTest property num_streams: %d; count: %lu\n",
+//     property.at(ov::num_streams.name()).as<int32_t>(), property.count(ov::num_streams.name()));
+        std::cout << "OVClassCompileModelAndCheckSecondaryPropertiesTest property num_streams: "
+                << property.at(ov::num_streams.name()).as<int32_t>()
+                << "; count: "
+                << property.count(ov::num_streams.name())
+                << "\n";
+    }
     ov::AnyMap::iterator it = configuration.end();
     // device properties in form ov::device::properties(DEVICE, ...) has the first priority
     for (it = configuration.begin(); it != configuration.end(); it++) {
@@ -758,6 +776,12 @@ TEST_P(OVClassCompileModelAndCheckSecondaryPropertiesTest, CompileModelAndCheckS
     }
     ASSERT_TRUE(property.count(ov::num_streams.name()));
     auto actual = property.at(ov::num_streams.name()).as<int32_t>();
+    // printf("OVClassCompileModelAndCheckSecondaryPropertiesTest actual num_streams: %d; count: %lu\n", actual, property.count(ov::num_streams.name()));
+    std::cout << "OVClassCompileModelAndCheckSecondaryPropertiesTest actual num_streams: "
+              << actual
+              << "; count: "
+              << property.count(ov::num_streams.name())
+              << "\n";
     ov::Any value;
     //AutoExcutableNetwork GetMetric() does not support key ov::num_streams
     OV_ASSERT_NO_THROW(value = model.get_property(ov::num_streams.name()));
