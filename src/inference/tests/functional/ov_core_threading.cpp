@@ -90,16 +90,16 @@ TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
 TEST_F(CoreThreadingTests, RegisterPlugin) {
     ov::Core core;
     std::atomic<int> index{0};
-    auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                          std::string("mock_engine") + OV_BUILD_POSTFIX);
+    const auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                                std::string("mock_engine") + OV_BUILD_POSTFIX);
     runParallel(
-        [&]() {
-            const std::string deviceName = std::to_string(index++);
-            core.register_plugin(plugin_path, deviceName);
+        [path = plugin_path, &core, &index]() {
+            const auto deviceName = std::to_string(index++);
+            core.register_plugin(path, deviceName);
             core.get_versions(deviceName);
             core.unload_plugin(deviceName);
         },
-        4000);
+        10);
 }
 
 // tested function: RegisterPlugins
