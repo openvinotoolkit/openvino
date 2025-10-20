@@ -739,7 +739,7 @@ void sdpa_kernel(
                 rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
             }
         } else {
-            constexpr int num_full_blocks = (head_size + REG_K - 1) / REG_K;
+            constexpr int num_full_blocks = head_size / REG_K;
             int i = 0;
             #pragma unroll
             for(; i < num_full_blocks; i++) {
