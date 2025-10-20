@@ -77,7 +77,7 @@ void basic_memory_dependencies::run(program& p) {
                     return l.feature() % f_bs == 0;
                 };
 
-                if (!is_feature_aligned(node->get_output_layout())) {
+                if (node->is_dynamic() || (!node->is_dynamic() && !is_feature_aligned(node->get_output_layout()))) {
                     node->can_share_buffer(false);
                     for (auto& dep : node->get_dependencies()) {
                         dep.first->can_share_buffer(false);
