@@ -87,6 +87,11 @@ protected:
         init_input_shapes({shape_params.data_shape});
         inType = outType = ov::element::f32;
 
+        auto itr = configuration.find(ov::hint::inference_precision.name());
+        if (itr != configuration.end() && itr->second == ov::element::bf16) {
+            rel_threshold = 0.05f;
+        }
+
         if (moe_type == MoEType::MoE2GeMM) {
             function = initMoE2GeMMSubgraph(shape_params, ov::element::f32, ov::element::f32);
         } else if (moe_type == MoEType::MoE3GeMM) {
