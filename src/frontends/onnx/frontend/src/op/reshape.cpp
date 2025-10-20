@@ -6,7 +6,6 @@
 
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "utils/common.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
