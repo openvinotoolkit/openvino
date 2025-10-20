@@ -26,6 +26,7 @@ using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
 using OutputStorageType = ov::op::internal::DynamicQuantize::OutputStorageType;
 
 enum class SetInnerMostDimValuesZero { No, Yes };
+enum class TestForSmallInputs { No, Yes };  // Test very small inputs to validate behavior in such small range
 enum class PrecomputeSum { Disabled, Enabled };
 class dynamic_quantization_gpu_tests: public ::testing::Test {
 public:
@@ -39,7 +40,8 @@ public:
                                    OutputStorageType storage_type = OutputStorageType::Planar,
                                    const std::string& impl_name = "",
                                    SetInnerMostDimValuesZero set_inner_most_dim_values_zero = SetInnerMostDimValuesZero::No,
-                                   const PrecomputeSum has_precompute_sum = PrecomputeSum::Disabled) {
+                                   const PrecomputeSum has_precompute_sum = PrecomputeSum::Disabled,
+                                   const TestForSmallInputs test_for_small_inputs = TestForSmallInputs::No) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
@@ -51,6 +53,13 @@ public:
         group_sizes.back() = group_size;
 
         auto input_data = rg.generate_random_1d<float>(ov::shape_size(data_shape), -16.0f, 20.0f);
+
+        // Test for very small values to check the behavior where input values are like 0.001.
+        // In such case, finding max and converting it to int may behave differently due to fp16 range and calculation structure in cl file
+        if (test_for_small_inputs == TestForSmallInputs::Yes)
+            std::transform(input_data.begin(), input_data.end(), input_data.begin(),
+                       [](float val) { return val / 10000.0f; });
+
         if (set_inner_most_dim_values_zero == SetInnerMostDimValuesZero::Yes)
            std::fill(input_data.begin(), input_data.begin() + data_shape[data_shape.size() - 1], 0.0f);
         set_values(input_mem, input_data);
@@ -222,6 +231,20 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_g
                                     "",
                                     SetInnerMostDimValuesZero::No,
                                     PrecomputeSum::Enabled);
+}
+
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_gs128_small_values) {
+    this->test_dynamic_quantization(false, {1, 1, 512},
+                                    {32, 1, 512},
+                                    QuantizationType::Symmetric,
+                                    128,
+                                    data_types::i8,
+                                    data_types::i8,
+                                    OutputStorageType::Planar,
+                                    "",
+                                    SetInnerMostDimValuesZero::No,
+                                    PrecomputeSum::Enabled,
+                                    TestForSmallInputs::Yes);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_asym_act) {
