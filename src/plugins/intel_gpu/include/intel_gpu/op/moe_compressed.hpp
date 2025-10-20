@@ -5,23 +5,26 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
+#include "openvino/op/moe.hpp"
 
 namespace ov::intel_gpu::op {
 
 /// \brief MOECompressed experts that support compressed weights for GEMM3_SWIGLU MOE.
-class MOECompressed : public ov::op::Op {
+class MOECompressed : public ov::op::internal::MOE {
 public:
-    OPENVINO_OP("MOECompressed", "gpu_opset");
+    OPENVINO_OP("MOECompressed", "gpu_opset", ov::op::internal::MOE);
 
     MOECompressed() = default;
 
-    struct Config {
+    struct Config : public MOE::Config {
         size_t hidden_size = 0;
         size_t inter_size = 0;
         size_t num_expert = 0;
         size_t top_k = 0;
         size_t group_size = 0;
         ov::element::Type out_type = ov::element::dynamic;  // fp16
+        Config() = default;
+        Config(const MOE::Config& moe_config) : MOE::Config(moe_config) {}
     };
 
     /// \brief Constructs a MOECompressed operation with config only
