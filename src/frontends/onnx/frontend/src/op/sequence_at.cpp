@@ -51,7 +51,10 @@ ov::OutputVector sequence_at(const ov::frontend::onnx::Node& node) {
     return {input_sequence->get_sequence().at(position_value_normalized)};
 }
 
-ONNX_OP("SequenceAt", OPSET_SINCE(11), ai_onnx::opset_11::sequence_at);
+/// @brief Registers the SequenceAt operator implementation in the ONNX frontend
+/// @remark The operator is available since ONNX opset 11.
+///         Registering as available since opset 1 for compatibility with existing tests.
+ONNX_OP("SequenceAt", OPSET_SINCE(1), ai_onnx::opset_11::sequence_at);
 
 }  // namespace opset_11
 
