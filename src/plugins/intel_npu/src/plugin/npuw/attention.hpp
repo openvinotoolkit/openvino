@@ -139,7 +139,7 @@ public:
 
     using Ptr = std::shared_ptr<Selector>;
     virtual ~Selector() = default;
-    virtual void prepare() = 0;
+    virtual void prepare(int64_t past_len) = 0;
     virtual int64_t length() const = 0;
     virtual int64_t past_length() const = 0;
 
@@ -153,7 +153,7 @@ protected:
 
 // No dynamic dispatch - just run over the whole range
 class All final : public Selector {
-    void prepare() override {}
+    void prepare(int64_t past_len) override {}
     int64_t length() const override {
         return -1;
     }
@@ -172,7 +172,7 @@ class PositionIDs final : public Selector {
     const ov::ISyncInferRequest& m_rq;
 
     PositionIDs(std::size_t param_idx, const compiled::Attention& d, const ov::ISyncInferRequest& rq);
-    void prepare() override;
+    void prepare(int64_t past_len) override;
     int64_t length() const override;
     int64_t past_length() const override;
 
