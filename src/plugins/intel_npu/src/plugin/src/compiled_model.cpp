@@ -84,11 +84,15 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
 
-    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning, CURRENT_OPENVINO_VERSION, initBlobSizes)
+    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
+                                       CURRENT_OPENVINO_VERSION,
+                                       initBlobSizes,
+                                       _graph->get_blob_type())
         .write(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
+    _logger.debug("Call get_runtime_model");
     ov::ParameterVector parameters;
     ov::ResultVector results;
     std::shared_ptr<const ov::Model> dummyModel;
