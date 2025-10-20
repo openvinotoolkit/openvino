@@ -19,7 +19,7 @@ namespace ov::intel_gpu {
 
 // precomputed_reduction is providing partial reduction of activation from dynamic quantization into onednn for faster computation
 // It is used for asymmetric weight.
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric, bool precomputed_reduction)
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric, bool precomputed_reduction, bool use_gs128_for_int8_per_token)
     : ov::pass::MatcherPass() {
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
@@ -46,6 +46,11 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         auto rank = m_fc->get_input_partial_shape(0).size();
         ov::op::internal::DynamicQuantize::Attributes config;
         const bool has_static_wzp = m_fc->get_input_size() > 4 && optional_w_zp->get_output_partial_shape(0).rank().is_static();
+        const bool is_wei_i8_u8 = cldnn::one_of(m_fc->get_input_element_type(1), {ov::element::i8, ov::element::u8});
+
+        if (is_wei_i8_u8 && use_gs128_for_int8_per_token && adj_group_size == UINT64_MAX) {
+            adj_group_size = 128;
+        }
 
         // Add precomputed_reduction connection, if possible
         if (precomputed_reduction && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_static_wzp) {
