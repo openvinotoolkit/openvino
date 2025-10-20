@@ -52,6 +52,8 @@ ov_add_test_target(
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src
                                                   ${CMAKE_CURRENT_SOURCE_DIR})
+# LTO
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
