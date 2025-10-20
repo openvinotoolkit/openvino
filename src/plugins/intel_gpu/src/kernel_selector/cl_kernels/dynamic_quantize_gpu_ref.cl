@@ -117,7 +117,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
 #else  // !ASYMMETRIC_QUANTIZATION
     max_val = work_group_reduce_max(max_val);
-    half scale = (half)OUTPUT_MAX_VAL / max_val;
+    half scale = (half)OUTPUT_VAL_MAX / max_val;
 #endif
 
     for (int b_off = 0; b_off < (GROUP_SIZE_DIM0 == 1 ? 1 : INPUT0_BATCH_NUM); b_off++) {
