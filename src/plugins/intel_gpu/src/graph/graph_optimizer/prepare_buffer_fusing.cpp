@@ -216,15 +216,6 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             if (!pred.first->can_be_optimized())
                 is_onednn_impl = true;
         }
-        // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
-        // Onednn impls can process implicit concat'ed buffer only through buffer pointer manipulation.
-        if ((!concat_node.is_dynamic() || is_runtime) && (concat_params.get_output_layout().batch() > 1)) {
-            for (auto& sib : pred.first->get_users()) {
-                if (sib->get_preferred_impl_type() == impl_types::onednn) {
-                    return false;
-                }
-            }
-        }
         const auto& input_padd = pred.first->get_output_layout().data_padding;
 
         // Check that there isn't already some padding between inputs in concat axis.

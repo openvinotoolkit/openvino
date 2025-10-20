@@ -804,7 +804,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_int8_bias_eltwise_quantize_u
     fully_connected_test_params{ CASE_FC_FP16_3D_INT8_COMP_1, 2, 5 },
 }));
 
-// Check whether dyn_quan_fc can create quantized output. Currently, OneDNN cannot.
 class fc_compressed_dyn_quan_and_quantized : public FullyConnectedFusingTestOneDNN {};
 TEST_P(fc_compressed_dyn_quan_and_quantized, basic) {
     auto p = GetParam();
@@ -831,7 +830,6 @@ TEST_P(fc_compressed_dyn_quan_and_quantized, basic) {
     dyn_quan_attr.scale_dt = ov::element::f16;
     dyn_quan_attr.quantization_dt = ov::element::i8;
 
-    // OneDNN does not support quantized output of dyn_quan_fc
     topology_fused.add(
         input_layout("input", get_input_layout(p)),
         weights, scale, in_lo, in_hi, out_lo, out_hi,
@@ -861,7 +859,7 @@ TEST_P(fc_compressed_dyn_quan_and_quantized, basic) {
 
 #define CASE_FC_FP16_INT8_COMP_DYN_QUAN { 64, 128 }, { 64, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_dyn_quan_and_quantized, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
-    fully_connected_test_params{ CASE_FC_FP16_INT8_COMP_DYN_QUAN, 4, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_INT8_COMP_DYN_QUAN, 3, 3 },
 }));
 
 class fc_compressed_int8_bias_dynamic_onednn : public FullyConnectedFusingTestOneDNN {};
