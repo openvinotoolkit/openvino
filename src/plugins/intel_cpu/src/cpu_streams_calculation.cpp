@@ -857,6 +857,13 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                    int preferred_nthreads_per_stream) {
     OPENVINO_ASSERT(!proc_type_table.empty() && proc_type_table[0][ALL_PROC] != 0,
                     "proc_type_table is empty. No CPU resources available!");
+    printf("[CPU][generate_stream_info] 0 streams: %d; threadsPerStream: %d; enableCpuReservation: %s; "
+           "enableCpuPinning: %s\n",
+           config.streams,
+           config.threadsPerStream,
+           config.enableCpuReservation ? "TRUE" : "FALSE",
+           config.enableCpuPinning ? "TRUE" : "FALSE");
+
     int model_prefer_threads = preferred_nthreads_per_stream;
     proc_type_table = apply_scheduling_core_type(config.schedulingCoreType, proc_type_table);
 
@@ -897,6 +904,12 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                 config.enableCpuReservation,
                                                 streams_info_table);
 
+    printf("[CPU][generate_stream_info] 5 streams: %d; threadsPerStream: %d; enableCpuReservation: %s; "
+           "enableCpuPinning: %s\n",
+           config.streams,
+           config.threadsPerStream,
+           config.enableCpuReservation ? "TRUE" : "FALSE",
+           config.enableCpuPinning ? "TRUE" : "FALSE");
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,
                                                            config.threadsPerStream,
@@ -914,6 +927,16 @@ void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model,
     {
         std::lock_guard<std::mutex> lock{_streams_executor_mutex};
         std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
+        std::string res = "{";
+        for (auto& vec : proc_type_table) {
+            res += "{";
+            for (auto& val : vec) {
+                res += std::to_string(val) + "; ";
+            }
+            res += "}";
+        }
+        res += "}";
+        printf("[CPU][get_num_streams] proc_type_table %s\n", res.data());
 
         generate_stream_info(streams, -1, model, config, proc_type_table);
     }
