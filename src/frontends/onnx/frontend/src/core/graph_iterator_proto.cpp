@@ -6,10 +6,17 @@
 
 #include <onnx/onnx_pb.h>
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <exception>
 #include <fstream>
-#include <openvino/frontend/graph_iterator.hpp>
+#include <map>
+#include <unordered_set>
+#include <vector>
 
 #include "decoder_proto.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
@@ -259,6 +266,11 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->double_data().data()));
             tensor_meta_info.m_tensor_data_size = tensor_info->double_data_size();
             break;
+        case TensorProto_DataType::TensorProto_DataType_STRING:
+            tensor_meta_info.m_tensor_data_any =
+                std::vector<std::string>(tensor_info->string_data().begin(), tensor_info->string_data().end());
+            tensor_meta_info.m_tensor_data_size = tensor_info->string_data_size();
+            break;
         default:
             throw std::runtime_error("Unsupported type " +
                                      ::ONNX_NAMESPACE::TensorProto_DataType_Name(tensor_info->data_type()));
@@ -304,10 +316,10 @@ void GraphIteratorProto::initialize(const std::string& path) {
     m_model_dir = std::make_shared<std::string>(ov::util::get_directory(path).string());
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
-        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: ", path);
 
         m_model = std::make_shared<ModelProto>();
-        m_model->ParseFromIstream(&model_file);
+        FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");
         model_file.close();
         if (m_model->has_graph()) {
             m_graph = &m_model->graph();
@@ -320,6 +332,8 @@ void GraphIteratorProto::initialize(const std::string& path) {
         m_graph = nullptr;
         node_index = 0;
         m_decoders.clear();
+        m_tensors.clear();
+        throw;
     }
 }
 
@@ -445,7 +459,7 @@ void GraphIteratorProto::reset() {
                 output_tensors.push_back(&this->get_tensor(empty_name, &tensor_owner)->get_tensor_info());
             }
         }
-        const std::string& domain = node.has_domain() && node.domain() != "ai.onnx" ? node.domain() : DEFAULT_DOMAIN;
+        const std::string& domain = node.has_domain() ? node.domain() : DEFAULT_DOMAIN;
         int64_t opset = get_opset_version(domain);
         if (opset == -1) {
             // Forcing a first opset instead of failing
@@ -477,7 +491,8 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
               });
 
     for (const auto& opset_import : opset_imports) {
-        if (domain == opset_import.domain()) {
+        if ((domain == DEFAULT_DOMAIN && opset_import.domain() == "ai.onnx") ||
+            (domain == "ai.onnx" && opset_import.domain() == DEFAULT_DOMAIN) || (domain == opset_import.domain())) {
             return opset_import.version();
         }
     }
@@ -485,21 +500,6 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
     return -1;
 }
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
-
-#include <algorithm>
-#include <array>
-#include <cstdint>
-#include <exception>
-#include <map>
-#include <unordered_set>
-#include <vector>
-
-namespace ov {
-namespace frontend {
-namespace onnx {
 namespace detail {
 namespace {
 enum Field {

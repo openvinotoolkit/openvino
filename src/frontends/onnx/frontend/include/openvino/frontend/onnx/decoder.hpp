@@ -16,6 +16,7 @@ struct ONNX_FRONTEND_API TensorMetaInfo {
     ov::PartialShape m_partial_shape;
     ov::element::Type m_element_type;
     const uint8_t* m_tensor_data;
+    ov::Any m_tensor_data_any;
     size_t m_tensor_data_size;
     const std::string* m_tensor_name;
     std::shared_ptr<std::string> m_external_location;
