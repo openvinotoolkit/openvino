@@ -20,21 +20,28 @@
 
 namespace {
 
+/// @brief Implements the SplitToSequence operator with scalar 'split' input
+/// @param node Input ONNX node
+/// @param inputs Input tensors
+/// @return A sequence of tensors obtained by splitting the input tensor in form of a SequenceMark node
 ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs) {
     const auto& input = inputs[0];
-    const auto& split = inputs[1];
-    const auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
 
+    const auto partial_shape = input.get_partial_shape();
+
+    const auto input_rank = partial_shape.rank();
+    OPENVINO_ASSERT(input_rank.is_static(), "SplitToSequence: scalar 'split' requires static input rank");
+
+    const auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
     OPENVINO_ASSERT(0 <= axis && axis < input_rank.get_length(), "SplitToSequence: axis is out of range");
+
+    const auto& split = inputs[1];
 
     const auto split_values = ov::util::get_constant_from_source(split)->cast_vector<std::int64_t>();
     OPENVINO_ASSERT(!split_values.empty(), "SplitToSequence: 'split' input cannot be empty");
 
     const std::int64_t chunk = split_values.front();
     OPENVINO_ASSERT(chunk > 0, "SplitToSequence: scalar 'split' must be positive");
-
-    const auto partial_shape = input.get_partial_shape();
-    OPENVINO_ASSERT(partial_shape.rank().is_static(), "SplitToSequence: scalar 'split' requires static input rank");
 
     const auto axis_dimension = partial_shape[axis];
     OPENVINO_ASSERT(axis_dimension.is_static(),
@@ -55,6 +62,10 @@ ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, c
     return {std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths)->outputs()};
 }
 
+/// @brief Implements the SplitToSequence operator with 1D 'split' input
+/// @param node Input ONNX node
+/// @param inputs Input tensors
+/// @return A sequence of tensors obtained by splitting the input tensor in form of a SequenceMark node
 ov::OutputVector split_with_1d_split(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs) {
     const auto& input = inputs[0];
     const auto& split = inputs[1];
@@ -63,6 +74,9 @@ ov::OutputVector split_with_1d_split(const ov::frontend::onnx::Node& node, const
     return {std::make_shared<ov::op::v1::VariadicSplit>(input, axis, split)->outputs()};
 }
 
+/// @brief Implements the SplitToSequence operator with explicit 'split' input
+/// @param node Input ONNX node
+/// @return A sequence of tensors obtained by splitting the input tensor in form of a SequenceMark node
 ov::OutputVector split_with_explicit_split(const ov::frontend::onnx::Node& node) {
     const auto& inputs = node.get_ov_inputs();
 
@@ -79,20 +93,25 @@ ov::OutputVector split_with_explicit_split(const ov::frontend::onnx::Node& node)
     }
 }
 
+/// @brief Implements the SplitToSequence operator with default 'split' input
+/// @param node Input ONNX node
+/// @return A sequence of tensors obtained by splitting the input tensor in form of a SequenceMark node
 ov::OutputVector split_with_default_split(const ov::frontend::onnx::Node& node) {
     const auto& inputs = node.get_ov_inputs();
     const auto& input = inputs[0];
+
+    const auto partial_shape = input.get_partial_shape();
+
+    const auto input_rank = partial_shape.rank();
+
+    OPENVINO_ASSERT(input_rank.is_static(), "SplitToSequence: default 'split' input requires static input rank");
+
     auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
 
     if (axis < 0) {
         axis += input_rank.get_length();
     }
     OPENVINO_ASSERT(0 <= axis && axis < input_rank.get_length(), "SplitToSequence: axis is out of range");
-
-    const auto partial_shape = input.get_partial_shape();
-
-    OPENVINO_ASSERT(partial_shape.rank().is_static(),
-                    "SplitToSequence: default 'split' input requires static input rank");
 
     const auto axis_dimension = partial_shape[axis];
     OPENVINO_ASSERT(axis_dimension.is_static(),
@@ -136,6 +155,9 @@ namespace onnx {
 namespace ai_onnx {
 namespace opset_11 {
 
+/// @brief Implements the SplitToSequence operator
+/// @param node Input ONNX node
+/// @return A sequence of tensors obtained by splitting the input tensor in form of a SequenceMark node
 ov::OutputVector split_to_sequence(const ov::frontend::onnx::Node& node) {
     constexpr auto input_only = 1;
     constexpr auto input_and_split = 2;
