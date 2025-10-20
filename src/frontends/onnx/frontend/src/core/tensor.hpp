@@ -185,7 +185,7 @@ public:
           m_shape{std::begin(tensor.dims()), std::end(tensor.dims())},
           m_model_dir{model_dir},
           m_mmap_cache{mmap_cache} {
-        if (m_shape == ov::Shape{0}) {
+        if (m_shape == ov::Shape{0} && get_data_size() == 1) {
             // It's possible to construct a tensor in ONNX with "dims: 0" property
             // Such tensor contains a scalar. This results in a ov::Shape{0} stored in m_shape.
             // In OpenVINO a scalar is represented with ov::Shape{} and thus this replacement.
