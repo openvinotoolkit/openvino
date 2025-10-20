@@ -59,13 +59,13 @@ namespace ov::pass {
  *        │    Input     │
  *        └──────┬───────┘
  *               │
- *    ┌───────────────────────┬────────────┐
- *    ▼                       ▼            ▼
+ *      ┌───────────────────────┬────────────┐
+ *      ▼                       ▼            ▼
  * Packed MatMul_Q  Packed MatMul_K  Packed MatMul_V
  *      │                │                │
  *     Add_Q           Add_K            Add_V
  *      │                │                │
- *   ROPE (Q)         ROPE (K)           │
+ *   ROPE (Q)         ROPE (K)          ROPE(V)
  *      │                │                │
  *      └─────────┬──────┴───────┬────────┘
  *                ▼              ▼

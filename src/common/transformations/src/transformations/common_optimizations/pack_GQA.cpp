@@ -226,8 +226,7 @@ PackGQA::PackGQA() : MultiMatcher("PackGQA") {
             const auto* pm = node_to_proj_pm.at(node.get());
 
             if (pm->count(lin_proj_dq)) {
-                auto block =
-                    std::dynamic_pointer_cast<ov::pass::pattern::op::Block>(pm->at(lin_proj_dq).get_node_shared_ptr());
+                auto block = std::dynamic_pointer_cast<ov::pass::pattern::op::Block>(lin_proj_dq);
 
                 linear_projection.emplace_back(block->get_anchor("constant", *pm).value().get_node_shared_ptr(),
                                                block->get_anchor("scale", *pm).has_value()
@@ -249,8 +248,8 @@ PackGQA::PackGQA() : MultiMatcher("PackGQA") {
                     const auto* bias_pm = node_to_bias_pm.at(input_node.get());
 
                     if (bias_pm->count(proj_dq)) {
-                        auto dq = std::dynamic_pointer_cast<ov::pass::pattern::op::Block>(
-                            bias_pm->at(proj_dq).get_node_shared_ptr());
+                        auto dq = std::dynamic_pointer_cast<ov::pass::pattern::op::Block>(proj_dq);
+                        
                         weights_vec.emplace_back(dq->get_anchor("constant", *bias_pm).value().get_node_shared_ptr(),
                                                  dq->get_anchor("scale", *bias_pm).has_value()
                                                      ? dq->get_anchor("scale", *bias_pm).value().get_node_shared_ptr()
