@@ -6,7 +6,9 @@
 #include <memory>
 
 #include "common/pass/align_matmul_input_ranks.hpp"
+#include "common/pass/convert_batch_gather_matmul_to_compressed.hpp"
 #include "common/pass/convert_matmul_to_fc.hpp"
+#include "common/pass/convert_moe_matmuls.hpp"
 #include "common/pass/convert_tile_to_seq_tiles.hpp"
 #include "common/pass/convert_to_leaky_relu.hpp"
 #include "common/pass/convert_to_power_static.hpp"
@@ -38,6 +40,19 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
 
     ov::pass::Manager manager("CPU:ConvertToCPUSpecificOpset");
     manager.set_per_pass_validation(false);
+
+    CPU_REGISTER_PASS_X64(manager, ConvertMoEMatMuls);
+    CPU_REGISTER_PASS_X64(
+        manager,
+        ConvertBatchGatherMatmulToBatchGatherMatmulCompressed,
+        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
+        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
+        [&](const std::shared_ptr<ov::intel_cpu::BatchGatherMatmulCompressed>& gather_matmul,
+                  size_t IC,
+                  size_t OC,
+                  size_t G) {
+            return ov::intel_cpu::node::GatherMatmul::isSupportedCompressedOperation(gather_matmul, IC, OC, G, config);
+        });
 
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFusion);

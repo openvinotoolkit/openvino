@@ -96,9 +96,9 @@ ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
 
     // Routing weights/mask
     auto zero_constant = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
-    auto broadcasted_const =
-        pattern::wrap_type<ov::op::v3::Broadcast>({zero_constant, pattern::any_input()}) |
-        pattern::wrap_type<ov::op::v3::Broadcast>({zero_constant, pattern::wrap_const(), pattern::any_input()});
+    auto broadcasted_const = pattern::wrap_type<ov::op::v3::Broadcast>({zero_constant, pattern::any_input()}) |
+                             pattern::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>(
+                                 {zero_constant, pattern::any_input(), pattern::any_input()});
     // Routing weights/mask
     auto router_topk_indices = pattern::any_input();
     auto chosen_experts = pattern::any_input();
@@ -109,9 +109,11 @@ ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
     auto slice = pattern::optional<ov::op::v8::Slice>(
         {chosen_experts, slice_begin, slice_end, slice_strides, slice_axes});
     auto one_constant = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("1"));
-    auto scatter_elements_update = pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>(
-        {broadcasted_const, router_topk_indices, slice, one_constant},
-        {{"reduction", "none"}});
+    auto scatter_elements_update = pattern::wrap_type<ov::op::v3::ScatterElementsUpdate>(
+                                       {broadcasted_const, router_topk_indices, chosen_experts, one_constant}) |
+                                   pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>(
+                                       {broadcasted_const, router_topk_indices, chosen_experts, one_constant},
+                                       {{"reduction", "none"}});
 
     auto router_transpose = pattern::wrap_type<ov::op::v1::Transpose>({scatter_elements_update, pattern::any_input()});
     auto router_reshape = pattern::wrap_type<ov::op::v1::Reshape>({router_transpose, pattern::any_input()});
@@ -199,16 +201,18 @@ ov::intel_cpu::MoE3GeMM::MoE3GeMM() {
     auto end_reshape = pattern::wrap_type<ov::op::v1::Reshape>({down_matmul, pattern::any_input()});
 
     auto zero_constant = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
-    auto broadcasted_const =
-        pattern::wrap_type<ov::op::v3::Broadcast>({zero_constant, pattern::any_input()}) |
-        pattern::wrap_type<ov::op::v3::Broadcast>({zero_constant, pattern::wrap_const(), pattern::any_input()});
+    auto broadcasted_const = pattern::wrap_type<ov::op::v3::Broadcast>({zero_constant, pattern::any_input()}) |
+                             pattern::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>(
+                                 {zero_constant, pattern::any_input(), pattern::any_input()});
     // Routing weights/mask
     auto router_topk_indices = pattern::any_input();
     auto chosen_experts = pattern::any_input();
     auto one_constant = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("1"));
-    auto scatter_elements_update = pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>(
-        {broadcasted_const, router_topk_indices, chosen_experts, one_constant},
-        {{"reduction", "none"}});
+    auto scatter_elements_update = pattern::wrap_type<ov::op::v3::ScatterElementsUpdate>(
+                                       {broadcasted_const, router_topk_indices, chosen_experts, one_constant}) |
+                                   pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>(
+                                       {broadcasted_const, router_topk_indices, chosen_experts, one_constant},
+                                       {{"reduction", "none"}});
 
     auto router_transpose = pattern::wrap_type<ov::op::v1::Transpose>({scatter_elements_update, pattern::any_input()});
     auto router_reshape = pattern::wrap_type<ov::op::v1::Reshape>({router_transpose, pattern::any_input()});

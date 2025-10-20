@@ -149,8 +149,6 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
-#include "transformations/cpu_opset/common/pass/convert_batch_gather_matmul_to_compressed.hpp"
-#include "transformations/cpu_opset/common/pass/convert_moe_matmuls.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
@@ -570,18 +568,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
-    CPU_REGISTER_PASS_X64(manager, ConvertMoEMatMuls);
-    CPU_REGISTER_PASS_X64(
-        manager,
-        ConvertBatchGatherMatmulToBatchGatherMatmulCompressed,
-        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
-        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
-        [&](const std::shared_ptr<ov::intel_cpu::BatchGatherMatmulCompressed>& gather_matmul,
-                  size_t IC,
-                  size_t OC,
-                  size_t G) {
-            return ov::intel_cpu::node::GatherMatmul::isSupportedCompressedOperation(gather_matmul, IC, OC, G, config);
-        });
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCachePrecision = config.keyCachePrecision;
     cacheConfig.valueCachePrecision = config.valueCachePrecision;
