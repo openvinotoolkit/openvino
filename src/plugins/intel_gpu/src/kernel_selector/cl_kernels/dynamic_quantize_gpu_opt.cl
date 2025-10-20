@@ -65,7 +65,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
         max_value = fmax(max_value, max[i]);
     }
 
-    half quan_scale = (half)OUTPUT_VAL_MAX / max_value;
+    half quan_scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
         quantized_value[i] = AS_TYPE_N(char, 4, TO_TYPE_N(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale));
