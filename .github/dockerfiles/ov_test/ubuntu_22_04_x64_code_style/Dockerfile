@@ -34,6 +34,9 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-RUN useradd -u 1001 -m github-actions
+# GitHub runs the Docker image with user 1001 named runner and group 121 named docker
+RUN groupadd -g 121 docker && \
+    useradd -u 1001 -g docker -m runner && \
+    echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-USER 1001
+USER runner

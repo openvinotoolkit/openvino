@@ -37,6 +37,9 @@ RUN apt-get update && \
     apt-get --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && \
     rm -rf /var/lib/apt/lists/*
 
-RUN useradd -u 1001 -m github-actions
+# GitHub runs the Docker image with user 1001 named runner and group 121 named docker
+RUN groupadd -g 121 docker && \
+    useradd -u 1001 -g docker -m runner && \
+    echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-USER 1001
+USER runner
