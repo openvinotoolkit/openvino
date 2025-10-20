@@ -81,7 +81,7 @@ ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, c
     const auto axis_const = ov::op::v0::Constant::create(ov::element::i64, {}, {axis});
     const auto split_lengths = ov::op::v0::Constant::create(ov::element::i64, {lengths.size()}, lengths);
 
-    return {std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths)->outputs()};
+    return std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths)->outputs();
 }
 
 /// @brief Implements the SplitToSequence operator with 1D 'split' input
@@ -93,7 +93,7 @@ ov::OutputVector split_with_1d_split(const ov::frontend::onnx::Node& node, const
     const auto& split = inputs[1];
     const auto axis = node.get_attribute_as_constant<std::int64_t>("axis", 0);
 
-    return {std::make_shared<ov::op::v1::VariadicSplit>(input, axis, split)->outputs()};
+    return std::make_shared<ov::op::v1::VariadicSplit>(input, axis, split)->outputs();
 }
 
 /// @brief Implements the SplitToSequence operator with explicit 'split' input
@@ -104,11 +104,11 @@ ov::OutputVector split_with_explicit_split(const ov::frontend::onnx::Node& node)
 
     const auto& split = inputs[1];
 
-    const auto split_shape = split.get_shape();
+    const auto rank = split.get_partial_shape().rank().get_length();
 
-    if (split_shape.empty()) {
+    if (0 == rank) {
         return split_with_scalar_split(node, inputs);
-    } else if (split_shape.size() == 1) {
+    } else if (1 == rank) {
         return split_with_1d_split(node, inputs);
     } else {
         OPENVINO_THROW("SplitToSequence: 'split' input must be a scalar or 1-D tensor");
