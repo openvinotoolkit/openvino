@@ -372,6 +372,10 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
         for (size_t i = 1; i < eltwise_node.get_dependencies().size(); i++) {
             auto mem0 = get_scale_shift_mem(eltwise_dep, i);
             auto mem1 = get_scale_shift_mem(eltwise_node, i);
+            if (mem0->get_layout().bytes_count() != mem1->get_layout().bytes_count()) {
+                same_params = false;
+                break;
+            }
 
             mem_lock<uint8_t, mem_lock_type::read> mem0_lock{mem0, stream};
             mem_lock<uint8_t, mem_lock_type::read> mem1_lock{mem1, stream};
@@ -384,7 +388,6 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
                     break;
                 }
             }
-
             // Avoid mem0 and mem1's memory are inplace, but they have different layout.
             if (!mem0->get_layout().get_partial_shape().compatible(mem1->get_layout().get_partial_shape())) {
                 same_params = false;
