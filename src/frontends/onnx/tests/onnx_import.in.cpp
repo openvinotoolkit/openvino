@@ -7075,11 +7075,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_negative_position) {
 }
 
 /// @brief Testing ONNX SplitToSequence operator with implicit split (num_splits is not provided)
-/// Model sequence_at_3x2_position0.onnx was generated in the following way:
+/// Model sequence_at_3x2_no_keepdims.onnx was generated in the following way:
 /// - input shape: feeding SplitToSequence with a 3x2 tensor
 /// - position: indexing the element 0 with SequenceAt operation
 /// - axis: splitting along first dimension (index 0)
-/// - keepdims: false, keeping output dimensions 0x2
+/// - keepdims: false, keeping output dimensions 2x0
 OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_no_keepdims) {
     const auto model = convert_model("sequence_at_3x2_no_keepdims.onnx");
     auto test_case = test::TestCase(model, s_device);
@@ -7095,7 +7095,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_no_keepdims) {
 /// - input shape: feeding SplitToSequence with a 3x2 tensor
 /// - position: indexing the element 0 with SequenceAt operation
 /// - axis: splitting along second dimension (index 1)
-/// - keepdims: true, keeping output dimensions 1x3
+/// - keepdims: true, keeping output dimensions 3x1
 OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_implicit_split_position0_axis1) {
     const auto model = convert_model("sequence_at_3x2_position0_axis1.onnx");
     auto test_case = test::TestCase(model, s_device);
@@ -7107,11 +7107,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_implicit_split_position0_a
 }
 
 /// @brief Testing ONNX SplitToSequence operator with implicit split (num_splits is not provided)
-/// Model sequence_at_3x2_position1_axis0.onnx was generated in the following way:
+/// Model sequence_at_3x2_position1_axis1.onnx was generated in the following way:
 /// - input shape: feeding SplitToSequence with a 3x2 tensor
 /// - position: indexing the element 1 with SequenceAt operation
 /// - axis: splitting along second dimension (index 1)
-/// - keepdims: true, keeping output dimensions 1x3
+/// - keepdims: true, keeping output dimensions 3x1
 OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_implicit_split_position1_axis1) {
     const auto model = convert_model("sequence_at_3x2_position1_axis1.onnx");
     auto test_case = test::TestCase(model, s_device);
@@ -7158,7 +7158,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_explicit_split_scalar_posi
 }
 
 /// @brief Testing ONNX SplitToSequence operator with explicit 1-D split
-/// Model sequence_at_4x2_explicit_split_scalar.onnx was generated in the following way:
+/// Model sequence_at_4x2_explicit_split_1d.onnx was generated in the following way:
 /// - input shape: feeding SplitToSequence with a 4x2 tensor
 /// - position: indexing the element 0 with SequenceAt operation
 /// - axis: splitting along first dimension (index 0)
