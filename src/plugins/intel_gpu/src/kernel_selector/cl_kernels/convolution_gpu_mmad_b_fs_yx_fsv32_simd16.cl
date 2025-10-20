@@ -92,7 +92,11 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
     ACCUMULATOR_TYPE_VEC acc[2] = { 0, 0 }; // 2*8 packed channels * OUTPUT_X_BLOCK_SIZE
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
     ACCUMULATOR_TYPE_VEC acc_assym_weights = 0;
-    printf("assymetric\n");
+    if (lid == 0)
+        printf("assymetric\n");
+#else
+    if (lid == 0)
+        printf("notasymetric\n");
 #endif
 
     const uint input_offset = INPUT0_GET_INDEX(b,0,0,0);
@@ -182,10 +186,10 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
                     int8 raw1;
 
                     for (int i = 0; i < 8; i++) {
-                        raw0[i] = ((const __global uint*)(weights + f_off + 0*ISV_SIZE + lid*ISV_SIZE*16))[i*8];
+                        raw0[i] = ((const __global uint*)(weights + f_off + 0*ISV_SIZE*16))[lid + i*16];
                     }
                     for (int i = 0; i < 8; i++) {
-                        raw1[i] = ((const __global uint*)(weights + f_off + 1*8*ISV_SIZE + lid*ISV_SIZE*16))[i*8];
+                        raw1[i] = ((const __global uint*)(weights + f_off + 1*ISV_SIZE*16))[lid + i*16];
                     }
 
                     MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data0;
