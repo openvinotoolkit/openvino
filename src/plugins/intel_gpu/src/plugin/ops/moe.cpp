@@ -12,7 +12,7 @@ namespace ov::intel_gpu {
 static void CreateMOEOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOECompressed>& op) {
     auto inputs = p.GetInputInfo(op);
     const auto& config = op->get_config();
-    OPENVINO_ASSERT(inputs.size() == 11, "Inputs count of MOE should be 11");
+    OPENVINO_ASSERT(inputs.size() == 12, "Inputs count of MOE should be 12");
 
     const std::string layerName = layer_type_name_ID(op);
     auto& engine = p.get_engine();
