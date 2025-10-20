@@ -4,12 +4,12 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "intel_gpu/primitives/moe_compressed.hpp"
 #include "primitive_inst.h"
-
-#include <string>
-#include <memory>
-#include <vector>
 
 namespace cldnn {
 namespace details {}
@@ -42,11 +42,11 @@ class typed_primitive_inst<moe_compressed> : public typed_primitive_inst_base<mo
 
 public:
     template <typename ShapeType>
-    static std::vector<layout> calc_output_layouts(moe_node const& /*node*/, kernel_impl_params const& impl_param);
-    static layout calc_output_layout(moe_node const& /* node */, kernel_impl_params const& impl_param);
-    static std::string to_string(moe_node const& node);
-    typed_primitive_inst(network& network, moe_node const& node);
+    static std::vector<layout> calc_output_layouts(const moe_node& /*node*/, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(const moe_node& /* node */, const kernel_impl_params& impl_param);
+    static std::string to_string(const moe_node& node);
+    typed_primitive_inst(network& network, const moe_node& node);
 };
 
-using moe_inst = typed_primitive_inst<moe>;
+using moe_inst = typed_primitive_inst<moe_compressed>;
 }  // namespace cldnn

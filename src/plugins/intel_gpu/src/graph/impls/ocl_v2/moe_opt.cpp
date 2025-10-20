@@ -4,6 +4,7 @@
 
 #include "moe_opt.hpp"
 
+// #define ENABLE_ONEDNN_FOR_GPU
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
@@ -17,7 +18,7 @@
 #    include "common_utils/jitter.hpp"
 #    include "debug_helper.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
-#    include "intel_gpu/primitives/moe.hpp"
+#    include "intel_gpu/primitives/moe_compressed.hpp"
 #    include "intel_gpu/runtime/lru_cache.hpp"
 #    include "intel_gpu/runtime/stream.hpp"
 #    include "intel_gpu/runtime/utils.hpp"
@@ -103,7 +104,8 @@ struct onednn_matmul {
             OPENVINO_ASSERT(m_K_groups == 1);
             attr.set_zero_points(DNNL_ARG_WEIGHTS, (0 << 0) + (1 << 1), {1}, m_w_type);
         } else {
-            OPENVINO_ASSERT(m_K_groups = (m_K / k_group_size));
+            OPENVINO_ASSERT(m_K / k_group_size);
+            m_K_groups = (m_K / k_group_size);
             attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) + (1 << 1), {k_group_size, 1}, m_w_type);
         }
         return *this;
@@ -352,10 +354,10 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe>();
+        auto desc = params.typed_desc<moe_compressed>();
         jit.make("SOFTMAX_TOPK_ENABLE", 1);
         jit.make("TOP_K", desc->_config.topk);
-        jit.make("VALUE_NUM", desc->_config.expert_num);
+        jit.make("VALUE_NUM", desc->_config.num_experts);
         jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
@@ -379,7 +381,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe>();
+        auto desc = params.typed_desc<moe_compressed>();
         jit.make("GATHER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
         jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
@@ -405,7 +407,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe>();
+        auto desc = params.typed_desc<moe_compressed>();
         jit.make("SCATTER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
         jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
@@ -427,13 +429,13 @@ protected:
 #    define SUBGROUP_NUM 8
 
 static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
-    auto desc = params.typed_desc<moe>();
+    auto desc = params.typed_desc<moe_compressed>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
     jit.make("MAX_TOPK", desc->_config.topk);
-    jit.make("EXPERT_NUM", desc->_config.expert_num);
+    jit.make("EXPERT_NUM", desc->_config.num_experts);
     jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
-    jit.make("INTERMEDIATE_SIZE", desc->_config.intermediate_size);
+    jit.make("INTERMEDIATE_SIZE", desc->_config.inter_size);
     jit.make("N_BLOCK", N_BLOCK);
     jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
     jit.make("SUBGROUP_NUM", SUBGROUP_NUM);
@@ -449,7 +451,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe>();
+        auto desc = params.typed_desc<moe_compressed>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
         return jit;
@@ -472,7 +474,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe>();
+        auto desc = params.typed_desc<moe_compressed>();
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
         return jit;
@@ -495,7 +497,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe>();
+        auto desc = params.typed_desc<moe_compressed>();
         add_common_consts(params, jit);
         jit.make("REDUCE_ENABLE", 1);
         return jit;
@@ -549,7 +551,7 @@ public:
     };
 
     struct moe_fusion_weights_base_addr {
-        memory::ptr weight[3]; // gate/up/down weights, experts fusion
+        memory::ptr weight[3];  // gate/up/down weights, experts fusion
         memory::ptr scale[3];
         memory::ptr zp[3];
         memory::ptr bias[3];
@@ -584,7 +586,7 @@ public:
 
     MOEOptImpl() : PrimitiveImplOCL(MOEOpt::get_type_info_static()) {}
     MOEOptImpl(const program_node& node, const RuntimeParams& params) : MOEOptImpl() {
-        init(node.as<moe>().get_primitive());
+        init(node.as<moe_compressed>().get_primitive());
 
         add_stage(softmax_topk, params);
         add_stage(gather, params);
@@ -594,21 +596,21 @@ public:
         add_stage(mlp_reduce, params);
     }
 
-    void init(const std::shared_ptr<const moe>& cur_moe) {        
+    void init(const std::shared_ptr<const moe_compressed>& cur_moe) {
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
-        _intermediate_size = static_cast<int>(cur_moe->_config.intermediate_size);
+        _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
         _group_size = static_cast<int>(cur_moe->_config.group_size);
     }
 
-    void init_dnnl_weights(const std::shared_ptr<const moe>& cur_moe,
-                            const struct moe_fusion_weights_base_addr& moe_fusion_wei_addr) {
-        if(_dnnl_weights.size() == cur_moe->_config.expert_num)
+    void init_dnnl_weights(const std::shared_ptr<const moe_compressed>& cur_moe,
+                           cldnn::engine& engine,
+                           const struct moe_fusion_weights_base_addr& moe_fusion_wei_addr) {
+        if (_dnnl_weights.size() == cur_moe->_config.num_experts)
             return;
         init(cur_moe);
 
-        _dnnl_weights.resize(cur_moe->_config.expert_num);
-        for (size_t j = 0; j < cur_moe->_config.expert_num; j++) {
-            // const auto& mlp_params = moe_mlp_params[j];
+        _dnnl_weights.resize(cur_moe->_config.num_experts);
+        for (size_t j = 0; j < cur_moe->_config.num_experts; j++) {
             auto& dnnl_weights = _dnnl_weights[j];
             dnnl_weights.resize(3);
             dnnl_weights[0].ic = _hidden_size;
@@ -621,24 +623,29 @@ public:
             dnnl_weights[2].ic_group_size = _group_size;
             dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
-                if (mlp_params.param[i].scale) {
-                    // scale shape: [ic / ic_group_size, oc], type: f16
-                    dnnl_weights[i].scale = convert2dnnl(moe_fusion_wei_addr.scale[i] + j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size * 2,
-                                                        {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
-                                                        dnnl::memory::format_tag::ab);
-                }
-                if (mlp_params.param[i].zp) {
-                    // zp shape: [ic / ic_group_size, oc], type: u4
-                    dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i] + j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size / 2,
-                                                    {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
-                                                    dnnl::memory::format_tag::ab);
-                }
-                if (mlp_params.param[i].weight) {
-                    // weight shape: [oc, ic], type: u4
-                    dnnl_weights[i].weight = convert2dnnl(moe_fusion_wei_addr.weight[i] + j * dnnl_weights[i].ic * dnnl_weights[i].oc / 2,
-                                                        {dnnl_weights[i].ic, dnnl_weights[i].oc},
-                                                        dnnl::memory::format_tag::ba);
-                }
+                // weight shape: [ic, oc], type: u4
+                ov::Shape wei_shape = {static_cast<size_t>(dnnl_weights[i].ic), static_cast<size_t>(dnnl_weights[i].oc)};
+                auto wei_layout = cldnn::layout(wei_shape, cldnn::data_types::u4, cldnn::format::get_default_format(wei_shape.size()));
+                auto wei_mem = engine.create_subbuffer(*moe_fusion_wei_addr.weight[i], wei_layout, j * dnnl_weights[i].ic * dnnl_weights[i].oc / 2);
+                dnnl_weights[i].weight = convert2dnnl(wei_mem, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba);
+
+                // scale shape: [ic / ic_group_size, oc], type: f16
+                ov::Shape scale_shape = {static_cast<size_t>(dnnl_weights[i].ic / dnnl_weights[i].ic_group_size), static_cast<size_t>(dnnl_weights[i].oc)};
+                auto scale_layout = cldnn::layout(scale_shape, cldnn::data_types::f16, cldnn::format::get_default_format(scale_shape.size()));
+                auto scale_mem = engine.create_subbuffer(*moe_fusion_wei_addr.scale[i],
+                                                         scale_layout,
+                                                         j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size * 2);
+                dnnl_weights[i].scale =
+                    convert2dnnl(scale_mem, {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc}, dnnl::memory::format_tag::ab);
+
+                // zp shape: [ic / ic_group_size, oc], type: u4
+                ov::Shape zp_shape = {static_cast<size_t>(dnnl_weights[i].ic / dnnl_weights[i].ic_group_size), static_cast<size_t>(dnnl_weights[i].oc)};
+                auto zp_layout = cldnn::layout(zp_shape, cldnn::data_types::u4, cldnn::format::get_default_format(zp_shape.size()));
+                auto zp_mem = engine.create_subbuffer(*moe_fusion_wei_addr.zp[i],
+                                                      zp_layout,
+                                                      j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size / 2);
+                dnnl_weights[i].zp =
+                    convert2dnnl(zp_mem, {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc}, dnnl::memory::format_tag::ab);
             }
         }
     }
@@ -646,7 +653,7 @@ public:
     void load(BinaryInputBuffer& ib) override {
         PrimitiveImplOCL::load(ib);
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
-        init(impl_params->typed_desc<moe>());
+        init(impl_params->typed_desc<moe_compressed>());
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -659,10 +666,10 @@ public:
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
-        auto cur_moe = params.typed_desc<moe>();
+        auto cur_moe = params.typed_desc<moe_compressed>();
         const auto& config = cur_moe->_config;
         int max_topk = static_cast<int>(config.topk);
-        int expert_num = static_cast<int>(config.expert_num);
+        int expert_num = static_cast<int>(config.num_experts);
 
         auto hidden_states_layout = params.input_layouts[0];
         auto batch = static_cast<int>(hidden_states_layout.get_shape()[0]);
@@ -675,7 +682,7 @@ public:
         internal_buffers.emplace_back(layout_topk_id, true);       // 0: topk_id
         internal_buffers.emplace_back(layout_topk_weights, true);  // 1: topk_weights
         // fast single batch: scratch.up = up(x) * silu(gate(x)); scratch.y = down(scratch.up) * weight[expert_no]
-        layout layout_gateup_out(ov::PartialShape{batch, static_cast<int>(config.intermediate_size)}, data_type, cldnn::format::bfyx);
+        layout layout_gateup_out(ov::PartialShape{batch, static_cast<int>(config.inter_size)}, data_type, cldnn::format::bfyx);
         layout layout_down_out(ov::PartialShape{batch, static_cast<int>(config.hidden_size)}, data_type, cldnn::format::bfyx);
         internal_buffers.emplace_back(layout_gateup_out, true);  // 2: up
         internal_buffers.emplace_back(layout_down_out, true);    // 3: y
@@ -697,7 +704,7 @@ public:
         return internal_buffers;
     }
 
-    void prepare_internal_buffers(typed_primitive_inst<moe>& instance, scratch_buffers& scratch, bool is_single_batch) {
+    void prepare_internal_buffers(typed_primitive_inst<moe_compressed>& instance, scratch_buffers& scratch, bool is_single_batch) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
         scratch.topk_id = intermediates_memories[0];
         scratch.topk_weights = intermediates_memories[1];
@@ -707,8 +714,8 @@ public:
             scratch.x = intermediates_memories[4];
             scratch.routing_weights = intermediates_memories[5];
             scratch.gate = intermediates_memories[6];
-            const auto& config = instance.get_typed_desc<moe>()->_config;
-            int expert_num = static_cast<int>(config.expert_num);
+            const auto& config = instance.get_typed_desc<moe_compressed>()->_config;
+            int expert_num = static_cast<int>(config.num_experts);
             scratch.expert_masks.resize(expert_num);
             for (int i = 0; i < expert_num; i++) {
                 scratch.expert_masks[i].batch = intermediates_memories[7 + 2 * i + 0];
@@ -717,27 +724,27 @@ public:
         }
 
         // gate
-        moe_fusion_wei_addr.weight[0] = instance.input_memory_ptr(MOEInputIndex::WEIGHT_0);
-        moe_fusion_wei_addr.scale[0] = instance.input_memory_ptr(MOEInputIndex::SCALE_0);
-        moe_fusion_wei_addr.zp[0] = instance.input_memory_ptr(MOEInputIndex::ZP_0);
+        scratch.moe_fusion_wei_addr.weight[0] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::WEIGHT_0));
+        scratch.moe_fusion_wei_addr.scale[0] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SCALE_0));
+        scratch.moe_fusion_wei_addr.zp[0] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ZP_0));
 
         // up
-        moe_fusion_wei_addr.weight[1] = instance.input_memory_ptr(MOEInputIndex::WEIGHT_1);
-        moe_fusion_wei_addr.scale[1] = instance.input_memory_ptr(MOEInputIndex::SCALE_1);
-        moe_fusion_wei_addr.zp[1] = instance.input_memory_ptr(MOEInputIndex::ZP_1);
+        scratch.moe_fusion_wei_addr.weight[1] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::WEIGHT_1));
+        scratch.moe_fusion_wei_addr.scale[1] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SCALE_1));
+        scratch.moe_fusion_wei_addr.zp[1] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ZP_1));
 
         // down
-        moe_fusion_wei_addr.weight[2] = instance.input_memory_ptr(MOEInputIndex::WEIGHT_2);
-        moe_fusion_wei_addr.scale[2] = instance.input_memory_ptr(MOEInputIndex::SCALE_2);
-        moe_fusion_wei_addr.zp[2] = instance.input_memory_ptr(MOEInputIndex::ZP_2);
+        scratch.moe_fusion_wei_addr.weight[2] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::WEIGHT_2));
+        scratch.moe_fusion_wei_addr.scale[2] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SCALE_2));
+        scratch.moe_fusion_wei_addr.zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ZP_2));
     }
 
-    void get_expert_mask_from_gpu(const MOE::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
+    void get_expert_mask_from_gpu(const MOECompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
         // shape: [batch, topk]
         auto layout = mem->get_layout();
         const auto& shape = layout.get_shape();
 
-        int max_expert_num = static_cast<int>(config.expert_num), max_topk = static_cast<int>(config.topk), max_tokens = static_cast<int>(shape[0]);
+        int max_expert_num = static_cast<int>(config.num_experts), max_topk = static_cast<int>(config.topk), max_tokens = static_cast<int>(shape[0]);
 
         expert_mask.pred_flag.resize(max_expert_num, 0);
         expert_mask.batch.resize(max_expert_num, {});
@@ -822,53 +829,54 @@ public:
         return stream.enqueue_kernel(*stage.kernel, desc, {}, events, needs_completion_event);
     }
 
-    auto get_input_info(typed_primitive_inst<moe>& instance, int idx) {
+    auto get_input_info(typed_primitive_inst<moe_compressed>& instance, int idx) {
         auto mem = instance.input_memory_ptr(idx);
         auto dep = instance.dependencies()[idx];
         auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
         return std::make_tuple(mem, layout);
     }
 
-    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe>& instance, scratch_buffers& scratch) {
-        auto cur_moe = instance.get_typed_desc<moe>();
+    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe_compressed>& instance, scratch_buffers& scratch) {
+        auto cur_moe = instance.get_typed_desc<moe_compressed>();
         int max_topk = static_cast<int>(cur_moe->_config.topk);
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         auto batch_mem_ptr = scratch.topk_id;
-        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, MOEInputIndex::HIDDEN_STATES);
+        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOEInputIndex::HIDDEN_STATES));
         auto routing_mem_ptr = scratch.topk_weights;
 
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
-        _intermediate_size = static_cast<int>(cur_moe->_config.intermediate_size);
+        _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
 
         // gate
-        const auto mlp_gate_wei_mem = scratch.moe_fusion_wei_addr.weight[0];
-        const auto mlp_gate_scale_mem = scratch.moe_fusion_wei_addr.scale[0];
-        const auto mlp_gate_zp_mem = scratch.moe_fusion_wei_addr.zp[0];
+        const auto& mlp_gate_wei_mem = scratch.moe_fusion_wei_addr.weight[0];
+        const auto& mlp_gate_scale_mem = scratch.moe_fusion_wei_addr.scale[0];
+        const auto& mlp_gate_zp_mem = scratch.moe_fusion_wei_addr.zp[0];
 
         // up
-        const auto mlp_up_wei_mem = scratch.moe_fusion_wei_addr.weight[1];
-        const auto mlp_up_scale_mem = scratch.moe_fusion_wei_addr.scale[1];
-        const auto mlp_up_zp_mem = scratch.moe_fusion_wei_addr.zp[1];
+        const auto& mlp_up_wei_mem = scratch.moe_fusion_wei_addr.weight[1];
+        const auto& mlp_up_scale_mem = scratch.moe_fusion_wei_addr.scale[1];
+        const auto& mlp_up_zp_mem = scratch.moe_fusion_wei_addr.zp[1];
 
         // down
-        const auto mlp_down_wei_mem = scratch.moe_fusion_wei_addr.weight[2];
-        const auto mlp_down_scale_mem = scratch.moe_fusion_wei_addr.scale[2];
-        const auto mlp_down_zp_mem = scratch.moe_fusion_wei_addr.zp[2];
+        const auto& mlp_down_wei_mem = scratch.moe_fusion_wei_addr.weight[2];
+        const auto& mlp_down_scale_mem = scratch.moe_fusion_wei_addr.scale[2];
+        const auto& mlp_down_zp_mem = scratch.moe_fusion_wei_addr.zp[2];
         event::ptr ret;
 
         {
             // scratch.up = up(x) * silu(gate(x))
-            execute_stage({},
-                          instance,
-                          *mlp_gate_up,
-                          {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem, hidden_states_mem_ptr},
-                          {scratch.up},
-                          {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
-                          {1, subgroup_size, SUBGROUP_NUM});
+            execute_stage(
+                {},
+                instance,
+                *mlp_gate_up,
+                {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem, hidden_states_mem_ptr},
+                {scratch.up},
+                {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
+                {1, subgroup_size, SUBGROUP_NUM});
 
             // scratch.y = down(scratch.up) * weight[expert_no]
             execute_stage({},
@@ -907,7 +915,7 @@ public:
 
     using lru_cache_hash = LruCache<std::pair<int, int>, std::shared_ptr<onednn_kernel>, PairHash>;
     lru_cache_hash _kernels = lru_cache_hash(1024);
-    onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe>& instance) {
+    onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_compressed>& instance) {
         auto key = std::make_pair(n_token, expert_no);
         if (_kernels.has(key)) {
             return *_kernels.get(key);
@@ -919,27 +927,27 @@ public:
         // const auto& moe_mlp_params = cur_moe->_mlp_params;
         // const auto& mlp_params = moe_mlp_params[expert_no];
         auto& dnn_stream = stream.get_onednn_stream();
-        auto hidden_states_layout_dt = convert_data_type(instance.input_memory_ptr(MOEInputIndex::HIDDEN_STATES)->get_layout().data_type);
-        
+        auto hidden_states_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::HIDDEN_STATES))->get_layout().data_type);
+
         auto& dnnl_weights = _dnnl_weights[expert_no];
         auto kernel = std::make_shared<onednn_kernel>();
 
         // gate
-        auto gate_weight_layout_dt = convert_data_type(instance.input_memory_ptr(MOEInputIndex::WEIGHT_0)->get_layout().data_type);
+        auto gate_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::WEIGHT_0))->get_layout().data_type);
         kernel->gate = onednn_linear::create(dnn_stream.get_engine(),
-                                            hidden_states_layout_dt,
-                                            gate_weight_layout_dt,
-                                            n_token,
-                                            dnnl_weights[0].ic,
-                                            dnnl_weights[0].oc,
-                                            dnnl_weights[0].ic_group_size,
-                                            onednn_matmul::type::with_silu_bin_mul,
-                                            dnnl_weights[0].weight,
-                                            dnnl_weights[0].scale,
-                                            dnnl_weights[0].zp);
+                                             hidden_states_layout_dt,
+                                             gate_weight_layout_dt,
+                                             n_token,
+                                             dnnl_weights[0].ic,
+                                             dnnl_weights[0].oc,
+                                             dnnl_weights[0].ic_group_size,
+                                             onednn_matmul::type::with_silu_bin_mul,
+                                             dnnl_weights[0].weight,
+                                             dnnl_weights[0].scale,
+                                             dnnl_weights[0].zp);
 
         // up
-        auto up_weight_layout_dt = convert_data_type(instance.input_memory_ptr(MOEInputIndex::WEIGHT_1)->get_layout().data_type);
+        auto up_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::WEIGHT_1))->get_layout().data_type);
         kernel->up = onednn_linear::create(dnn_stream.get_engine(),
                                            hidden_states_layout_dt,
                                            up_weight_layout_dt,
@@ -953,7 +961,7 @@ public:
                                            dnnl_weights[1].zp);
 
         // down
-        auto down_weight_layout_dt = convert_data_type(instance.input_memory_ptr(MOEInputIndex::WEIGHT_2)->get_layout().data_type);
+        auto down_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::WEIGHT_2))->get_layout().data_type);
         kernel->down = onednn_linear::create(dnn_stream.get_engine(),
                                              hidden_states_layout_dt,
                                              down_weight_layout_dt,
@@ -986,25 +994,25 @@ public:
     //
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MOEOptImpl::execute"));
-        auto& instance = reinterpret_cast<typed_primitive_inst<moe>&>(ins);
-        auto cur_moe = instance.get_typed_desc<moe>();
+        auto& instance = reinterpret_cast<typed_primitive_inst<moe_compressed>&>(ins);
+        auto cur_moe = instance.get_typed_desc<moe_compressed>();
         const auto& config = cur_moe->_config;
         int max_topk = static_cast<int>(config.topk);
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
 
-        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, MOEInputIndex::HIDDEN_STATES);
+        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOEInputIndex::HIDDEN_STATES));
         auto batch = static_cast<int>(hidden_states_layout.get_shape()[0]);
 
         scratch_buffers scratch;
         prepare_internal_buffers(instance, scratch, batch == 1);
 
         // softmax+topk
-        auto lws_size = cur_moe->_config.expert_num;
+        auto lws_size = cur_moe->_config.num_experts;
         auto topk_event = execute_stage(events,
                                         instance,
                                         *softmax_topk,
-                                        {instance.input_memory_ptr(MOEInputIndex::ROUTING_WEIGHTS)},
+                                        {instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ROUTING_WEIGHTS))},
                                         {scratch.topk_id, scratch.topk_weights},
                                         {static_cast<size_t>(batch), lws_size},
                                         {1, lws_size});
@@ -1016,7 +1024,8 @@ public:
             return exec_single_batch(instance, scratch);
         }
 
-        init_dnnl_weights(cur_moe, scratch.moe_fusion_wei_addr);
+        auto& engine = instance.get_network().get_engine();
+        init_dnnl_weights(cur_moe, engine, scratch.moe_fusion_wei_addr);
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         auto final_hidden_states_layout = instance.get_output_layout(0);
 
@@ -1046,7 +1055,7 @@ public:
         lws_size = get_best_lws(_hidden_size);
 
         OPENVINO_ASSERT(batch != 1, "batch size shouldn't be 1 for this path!");
-        for (size_t expert_no = 0; expert_no < config.expert_num; expert_no++) {
+        for (size_t expert_no = 0; expert_no < config.num_experts; expert_no++) {
             OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
             auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
             if (can_skip_subgraph) {
@@ -1109,13 +1118,13 @@ public:
 }  // namespace
 
 std::unique_ptr<primitive_impl> MOEOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
-    assert(node.is_type<moe>());
+    assert(node.is_type<moe_compressed>());
     return std::make_unique<MOEOptImpl>(node, params);
 }
 
 }  // namespace ov::intel_gpu::ocl
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_compressed)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::MOEOptImpl)
 
 #else
