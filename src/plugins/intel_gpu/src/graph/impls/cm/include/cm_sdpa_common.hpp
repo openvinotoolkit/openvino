@@ -708,7 +708,7 @@ void sdpa_kernel(
     uint k_off,
     uint v_off,
     uint o_off) {
-    constexpr uint padded_head_size = (head_size + 16 - 1) / 16 *16;
+    constexpr int padded_head_size = (head_size + 16 - 1) / 16 *16;
     constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
     constexpr uint q_pitch = is_qkv_fused ? ((num_heads + num_kv_heads*2) * head_size * sizeof(half)) : o_pitch;
     constexpr uint kv_pitch = is_qkv_fused ? q_pitch : (num_kv_heads * head_size * sizeof(half));
@@ -739,22 +739,26 @@ void sdpa_kernel(
                 rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
             }
         } else {
-            constexpr uint num_blocks = (padded_head_size + REG_K - 1) / REG_K;
+            constexpr int num_full_blocks = (head_size + REG_K - 1) / REG_K;
+            int i = 0;
             #pragma unroll
-            for(int i = 0, ri = 0; i < num_blocks; i += 1, ri++) {
+            for(; i < num_full_blocks; i++) {
                 matrix<uint, q_step, REG_K/2> QmatI32;
                 int k = i * REG_K;
-                int valid_cols = head_size - k;
-                if (valid_cols >= REG_K) {
-                    cm_load_2d(QmatI32, query, q_off + k * sizeof(uint) / 2, q_pitch);
-                } else {
-                    // QmatI32 uses int so that head_size_tail(half) should be divided by 2
-                    cm_load_2d_with_tail<q_step, REG_K/2, (head_size % REG_K) / 2>(QmatI32, query, q_off + k * sizeof(half), q_pitch);
-                }
-                Transpose2DMatrix(QmatI32, rQ[ri].format<uint, REG_K/2, q_step>());
-                rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+                cm_load_2d(QmatI32, query, q_off + k * sizeof(uint) / 2, q_pitch);
+                Transpose2DMatrix(QmatI32, rQ[i].format<uint, REG_K/2, q_step>());
+                rQ[i].format<half>() = cm_mul<half>(rQ[i].format<half>(), (half)scale_factor);
             }
-        }
+
+            // if with tail, load with head_size_tail
+            // following code will be optimized out when head_size_tail = 0
+            if constexpr (head_size % REG_K > 0) {
+                int k = num_full_blocks * REG_K;
+                matrix<uint, q_step, REG_K/2> QmatI32;
+                cm_load_2d_with_tail<q_step, REG_K/2, (head_size % REG_K) / 2>(QmatI32, query, q_off + k * sizeof(half), q_pitch);
+                Transpose2DMatrix(QmatI32, rQ[num_full_blocks].format<uint, REG_K/2, q_step>());
+                rQ[num_full_blocks].format<half>() = cm_mul<half>(rQ[num_full_blocks].format<half>(), (half)scale_factor);
+            }
     }
 
     constexpr int num_P_tiles = REG_N / REG_M;
@@ -777,7 +781,7 @@ void sdpa_kernel(
             //if (kv_pos > 1024000) {
             matrix<half, 2*REG_M, REG_K> temp;
             // head_size is split into blocks of <half, REG_K>
-            constexpr uint num_full_blocks = head_size / REG_K;
+            constexpr int num_full_blocks = head_size / REG_K;
             int i = wg_local_id;
             for (; i < num_full_blocks; i += local_size / 2) {
                 int k = i * REG_K;
@@ -789,14 +793,11 @@ void sdpa_kernel(
             // if with tail, load with head_size % REG_K
             // following code will be optimized out when head_size_tail = 0
             if constexpr (head_size % REG_K > 0) {
-                if (i == num_full_blocks) {
-                    int k = num_full_blocks * REG_K;
-                    cm_load_2d_with_tail<2*REG_M, REG_K, head_size % REG_K>(temp, key, k_off + k * sizeof(half), kv_pitch);
-                    cm_slm_block_write(slm_K, 
-                        slm_offset + k * 2 * REG_M * sizeof(half),
-                        temp.format<half>());
-                }
-                i += local_size / 2;
+                int k = num_full_blocks * REG_K;
+                cm_load_2d_with_tail<2*REG_M, REG_K, head_size % REG_K>(temp, key, k_off + k * sizeof(half), kv_pitch);
+                cm_slm_block_write(slm_K, 
+                    slm_offset + k * 2 * REG_M * sizeof(half),
+                    temp.format<half>());
             }
         } else {
             //if (kv_pos > 1024000) {
@@ -808,7 +809,7 @@ void sdpa_kernel(
             //b2dV.set_block_y(kv_pos);
 
             // head_size is split into blocks of <half, VK_STEP>
-            constexpr uint num_full_blocks = head_size / VK_STEP;
+            constexpr int num_full_blocks = head_size / VK_STEP;
             int i = wg_local_id - local_size / 2;
             for (; i < num_full_blocks; i += local_size / 2) {
                 int k = i * VK_STEP;
@@ -823,18 +824,15 @@ void sdpa_kernel(
             }
             // if with tail, load with head_size_tail
             // following code will be optimized out when head_size_tail = 0
-            if constexpr (head_size % REG_K > 0) {
-                if (i == num_full_blocks) {
-                    int k = num_full_blocks * VK_STEP;
-                    cm_load_2d_with_tail<REG_K, VK_STEP, head_size % REG_K>(temp2, value, v_off + k * sizeof(half), kv_pitch);
-                    #pragma unroll
-                    for (int p = 0; p < VK_STEP / REG_N; p++) {
-                        temp_vnni.select<REG_K / 2, 1, REG_N, 2>(0, 0) = temp2.select<REG_K / 2, 2, REG_N, 1>(0, p * REG_N);
-                        temp_vnni.select<REG_K / 2, 1, REG_N, 2>(0, 1) = temp2.select<REG_K / 2, 2, REG_N, 1>(1, p * REG_N);
+            if constexpr (head_size % VK_STEP > 0) {
+                int k = num_full_blocks * VK_STEP;
+                cm_load_2d_with_tail<REG_K, VK_STEP, head_size % VK_STEP>(temp2, value, v_off + k * sizeof(half), kv_pitch);
+                #pragma unroll
+                for (int p = 0; p < VK_STEP / REG_N; p++) {
+                    temp_vnni.select<REG_K / 2, 1, REG_N, 2>(0, 0) = temp2.select<REG_K / 2, 2, REG_N, 1>(0, p * REG_N);
+                    temp_vnni.select<REG_K / 2, 1, REG_N, 2>(0, 1) = temp2.select<REG_K / 2, 2, REG_N, 1>(1, p * REG_N);
 
-                        cm_slm_block_write(slm_V, slm_offset + (k + p * REG_N) * REG_K * sizeof(half), temp_vnni.format<half>());
-                    }
-                    i += local_size / 2;
+                    cm_slm_block_write(slm_V, slm_offset + (k + p * REG_N) * REG_K * sizeof(half), temp_vnni.format<half>());
                 }
             }
         }
