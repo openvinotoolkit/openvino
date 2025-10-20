@@ -1563,6 +1563,11 @@ void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& de
 }
 
 std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_base_infer_request() const {
+    // Wait for closure to be filled
+    if (m_weights_bank_evaluation.valid()) {
+        m_weights_bank_evaluation.wait();
+    }
+
     // Synchronous infer request implementation may vary based on the
     // selected strategy
     auto* non_const_this = const_cast<ov::npuw::CompiledModel*>(this);  // because of const in API
