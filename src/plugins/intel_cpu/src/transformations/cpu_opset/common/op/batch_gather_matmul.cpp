@@ -39,13 +39,10 @@ BatchGatherMatmul::BatchGatherMatmul(const ov::Output<Node>& A,
 std::shared_ptr<ov::Node> BatchGatherMatmul::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(GroupGatherMatmul_with_new_inputs);
     check_new_args_count(this, new_args);
-    if (new_args.size() == 4) {
-        return std::make_shared<ov::intel_cpu::BatchGatherMatmul>(new_args.at(0),
-                                                                  new_args.at(1),
-                                                                  new_args.at(2),
-                                                                  new_args.at(3));
-    }
-    return std::make_shared<ov::intel_cpu::BatchGatherMatmul>(new_args.at(0), new_args.at(1), new_args.at(2));
+    return std::make_shared<ov::intel_cpu::BatchGatherMatmul>(new_args.at(0),
+                                                              new_args.at(1),
+                                                              new_args.at(2),
+                                                              new_args.at(3));
 }
 
 void BatchGatherMatmul::validate_and_infer_types() {

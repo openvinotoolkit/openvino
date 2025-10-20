@@ -27,12 +27,6 @@ public:
                                 const ov::Output<Node>& weight_scales,
                                 const ov::Output<Node>& weight_zero_points);
 
-    BatchGatherMatmulCompressed(const ov::Output<Node>& A,
-                                const ov::Output<Node>& B,
-                                const ov::Output<Node>& indices,
-                                const ov::Output<Node>& weight_scales,
-                                const ov::Output<Node>& weight_zero_points);
-
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
     void validate_and_infer_types() override;
