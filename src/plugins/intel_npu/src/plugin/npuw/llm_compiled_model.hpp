@@ -13,6 +13,7 @@ namespace npuw {
 
 class LLMInferRequest;
 class WhisperInferRequest;
+struct PrefixCacheRestorationContext;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -88,6 +89,14 @@ private:
     // Support LoRA
     void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
     uint32_t m_max_lora_rank = 32;
+
+    // Support prefix caching
+    bool m_enable_prefix_caching = false;
+    uint64_t m_prefix_caching_block_size = 0;
+    uint64_t m_prefix_caching_max_num_blocks = 0;
+
+    // Friend declarations for PrefixCachingHelper to access protected members
+    friend class PrefixCachingHelper;
 
     void gemma_transformations(const std::shared_ptr<ov::Model>& model);
     int32_t m_gemma_sliding_window_size = 0;
