@@ -57,6 +57,8 @@ public:
 
     void initializeGraph(const GraphDescriptor& graphDescriptor, uint32_t commandQueueGroupOrdinal) const;
 
+    bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
+
 private:
     void getMetadata(ze_graph_handle_t graphHandle,
                      uint32_t index,
@@ -65,7 +67,7 @@ private:
 
     void initializeGraphThroughCommandList(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
 
-    bool canCpuVaBeImported(void* data, size_t size, const uint32_t flags = 0) const;
+    bool canCpuVaBeImported(void* data, size_t size) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;

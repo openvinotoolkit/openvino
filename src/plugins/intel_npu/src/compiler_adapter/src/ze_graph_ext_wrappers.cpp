@@ -24,6 +24,99 @@
 
 #define UseCopyForNativeBinary(T) (T < ZE_GRAPH_EXT_VERSION_1_7)
 
+namespace {
+using namespace intel_npu;
+/**
+ * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific
+ * ones.
+ *
+ * @param arg The main Level Zero structure from which most metadata will be extracted.
+ * @param metadata The secondary Level Zero structure from which metadata will be extracted. More specifically, the
+ * argument is used for populating "shapeFromIRModel". Not providing this argument will lead to an empty value for
+ * the referenced attribute.
+ * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
+ */
+static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
+                                    const std::optional<ze_graph_argument_metadata_t>& metadata) {
+    auto logger = Logger::global().clone("getIODescriptor");
+    ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
+    ov::Shape shapeFromCompiler;
+    ov::PartialShape shapeFromIRModel;
+    std::unordered_set<std::string> outputTensorNames;
+
+    for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
+        outputTensorNames.insert(arg.associated_tensor_names[id]);
+    }
+    for (uint32_t id = 0; id < arg.dims_count; id++) {
+        shapeFromCompiler.push_back(arg.dims[id]);
+    }
+    if (metadata.has_value()) {
+        const auto dynamicDim = std::numeric_limits<uint64_t>::max();
+        shapeFromIRModel.reserve(metadata->shape_size);
+        for (uint32_t id = 0; id < metadata->shape_size; id++) {
+            if (metadata->shape[id] != dynamicDim) {
+                shapeFromIRModel.push_back(metadata->shape[id]);
+            } else {
+                // lower bound is ignored, so we set it to 1 just to satisfy the Dimension constructor,
+                // upper bound is set to the value from shapeFromCompiler as it is filled with upper bounds
+                // in case of dynamic dimensions
+                if (id == utils::BATCH_AXIS && shapeFromCompiler[id] == utils::DEFAULT_BATCH_SIZE) {
+                    logger.info("Ignore dynamic batch size upper limit, but keep the dimension dynamic as a metadata "
+                                "from compiler has been lost.");
+                    // We need to keep batch dimension dynamic
+                    shapeFromIRModel.push_back(ov::Dimension(1, dynamicDim));
+                } else {
+                    shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
+                }
+            }
+        }
+    }
+
+    // Flags will be used instead of indices for informing the type of the current entry
+    std::string nameFromCompiler = arg.name;
+    const bool isInput = (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT);
+    bool isStateInput = false;
+    bool isStateOutput = false;
+    bool isShapeTensor = false;
+    bool isInitInputWeights = false;
+    bool isInitOutputWeights = false;
+    bool isMainInputWeights = false;
+    if (isInput && isStateInputName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(READVALUE_PREFIX.length());
+        isStateInput = true;
+    } else if (!isInput && isStateOutputName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(ASSIGN_PREFIX.length());
+        isStateOutput = true;
+    } else if (isShapeTensorName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(SHAPE_TENSOR_PREFIX.length());
+        isShapeTensor = true;
+    } else if (isInput && isInitInputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(INIT_INPUT_WEIGHTS_PREFIX.length());
+        isInitInputWeights = true;
+    } else if (!isInput && isInitOutputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(INIT_OUTPUT_WEIGHTS_PREFIX.length());
+        isInitOutputWeights = true;
+    } else if (isInput && isMainInputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(MAIN_INPUT_WEIGHTS_PREFIX.length());
+        isMainInputWeights = true;
+    }
+
+    return {std::move(nameFromCompiler),
+            precision,
+            shapeFromCompiler,
+            isStateInput,
+            isStateOutput,
+            isShapeTensor,
+            isInitInputWeights,
+            isInitOutputWeights,
+            isMainInputWeights,
+            std::nullopt,
+            arg.debug_friendly_name,
+            std::move(outputTensorNames),
+            metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt};
+}
+}  // namespace
+
 namespace intel_npu {
 
 GraphDescriptor::GraphDescriptor(ze_graph_handle_t handle, bool memoryPersistent)
@@ -225,19 +318,22 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(SerializedIR seri
     return parseQueryResult(supportedLayers);
 }
 
-bool ZeGraphExtWrappers::canCpuVaBeImported(void* data, size_t size, const uint32_t flags) const {
+bool ZeGraphExtWrappers::canCpuVaBeImported(void* data, size_t size) const {
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 13) ||
         !utils::memory_and_size_aligned_to_standard_page_size(data, size)) {
         return false;
     }
 
-    ze_device_external_memory_properties_t externalMemorydDesc = {};
-    externalMemorydDesc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
+    if (_graphExtVersion == ZE_MAKE_VERSION(1, 13)) {
+        // special case for ext version 1.13
+        ze_device_external_memory_properties_t externalMemorydDesc = {};
+        externalMemorydDesc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
 
-    auto res = zeDeviceGetExternalMemoryProperties(_zeroInitStruct->getDevice(), &externalMemorydDesc);
-    if ((res != ZE_RESULT_SUCCESS) ||
-        ((externalMemorydDesc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) == 0)) {
-        return false;
+        auto res = zeDeviceGetExternalMemoryProperties(_zeroInitStruct->getDevice(), &externalMemorydDesc);
+        if ((res != ZE_RESULT_SUCCESS) || ((externalMemorydDesc.memoryAllocationImportTypes &
+                                            ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) == 0)) {
+            return false;
+        }
     }
 
     return true;
@@ -275,8 +371,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(void* blobData, size_t bl
     }
 
     uint32_t flags = 0;
-
-    bool setPersistentFlag = canCpuVaBeImported(blobData, blobSize, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+    bool setPersistentFlag = canCpuVaBeImported(blobData, blobSize);
 
     if (setPersistentFlag) {
         _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT");
@@ -302,94 +397,23 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(void* blobData, size_t bl
     return GraphDescriptor{graphHandle, setPersistentFlag};
 }
 
-/**
- * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific
- * ones.
- *
- * @param arg The main Level Zero structure from which most metadata will be extracted.
- * @param metadata The secondary Level Zero structure from which metadata will be extracted. More specifically, the
- * argument is used for populating "shapeFromIRModel". Not providing this argument will lead to an empty value for
- * the referenced attribute.
- * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
- */
-static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
-                                    const std::optional<ze_graph_argument_metadata_t>& metadata) {
-    auto logger = Logger::global().clone("getIODescriptor");
-    ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
-    ov::Shape shapeFromCompiler;
-    ov::PartialShape shapeFromIRModel;
-    std::unordered_set<std::string> outputTensorNames;
+bool ZeGraphExtWrappers::isBlobDataImported(const GraphDescriptor& graphDescriptor) const {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 14)) {
+        return graphDescriptor._memoryPersistent;
+    }
 
-    for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
-        outputTensorNames.insert(arg.associated_tensor_names[id]);
-    }
-    for (uint32_t id = 0; id < arg.dims_count; id++) {
-        shapeFromCompiler.push_back(arg.dims[id]);
-    }
-    if (metadata.has_value()) {
-        const auto dynamicDim = std::numeric_limits<uint64_t>::max();
-        shapeFromIRModel.reserve(metadata->shape_size);
-        for (uint32_t id = 0; id < metadata->shape_size; id++) {
-            if (metadata->shape[id] != dynamicDim) {
-                shapeFromIRModel.push_back(metadata->shape[id]);
-            } else {
-                // lower bound is ignored, so we set it to 1 just to satisfy the Dimension constructor,
-                // upper bound is set to the value from shapeFromCompiler as it is filled with upper bounds
-                // in case of dynamic dimensions
-                if (id == utils::BATCH_AXIS && shapeFromCompiler[id] == utils::DEFAULT_BATCH_SIZE) {
-                    logger.info("Ignore dynamic batch size upper limit, but keep the dimension dynamic as a metadata "
-                                "from compiler has been lost.");
-                    // We need to kepp batch dimension dynamic
-                    shapeFromIRModel.push_back(ov::Dimension(1, dynamicDim));
-                } else {
-                    shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
-                }
-            }
+    if (graphDescriptor._memoryPersistent) {
+        ze_graph_properties_3_t graphProperties = {};
+        graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(graphDescriptor._handle, &graphProperties);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties3", result, _zeroInitStruct->getGraphDdiTable());
+
+        if (graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_NO_STANDARD_ALLOCATION) {
+            return false;
         }
     }
 
-    // Flags will be used instead of indices for informing the type of the current entry
-    std::string nameFromCompiler = arg.name;
-    const bool isInput = (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT);
-    bool isStateInput = false;
-    bool isStateOutput = false;
-    bool isShapeTensor = false;
-    bool isInitInputWeights = false;
-    bool isInitOutputWeights = false;
-    bool isMainInputWeights = false;
-    if (isInput && isStateInputName(nameFromCompiler)) {
-        nameFromCompiler = nameFromCompiler.substr(READVALUE_PREFIX.length());
-        isStateInput = true;
-    } else if (!isInput && isStateOutputName(nameFromCompiler)) {
-        nameFromCompiler = nameFromCompiler.substr(ASSIGN_PREFIX.length());
-        isStateOutput = true;
-    } else if (isShapeTensorName(nameFromCompiler)) {
-        nameFromCompiler = nameFromCompiler.substr(SHAPE_TENSOR_PREFIX.length());
-        isShapeTensor = true;
-    } else if (isInput && isInitInputWeightsName(nameFromCompiler)) {
-        nameFromCompiler = nameFromCompiler.substr(INIT_INPUT_WEIGHTS_PREFIX.length());
-        isInitInputWeights = true;
-    } else if (!isInput && isInitOutputWeightsName(nameFromCompiler)) {
-        nameFromCompiler = nameFromCompiler.substr(INIT_OUTPUT_WEIGHTS_PREFIX.length());
-        isInitOutputWeights = true;
-    } else if (isInput && isMainInputWeightsName(nameFromCompiler)) {
-        nameFromCompiler = nameFromCompiler.substr(MAIN_INPUT_WEIGHTS_PREFIX.length());
-        isMainInputWeights = true;
-    }
-
-    return {std::move(nameFromCompiler),
-            precision,
-            shapeFromCompiler,
-            isStateInput,
-            isStateOutput,
-            isShapeTensor,
-            isInitInputWeights,
-            isInitOutputWeights,
-            isMainInputWeights,
-            std::nullopt,
-            arg.debug_friendly_name,
-            std::move(outputTensorNames),
-            metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt};
+    return graphDescriptor._memoryPersistent;
 }
 
 void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
