@@ -102,9 +102,12 @@ void parse_processor_info_win(const char* base_ptr,
         list.clear();
         list_len = 0;
         for (int cnt = 0; mask_input >> cnt; ++cnt) {
-            if ((mask_input >> cnt) & 0x1) {
+             if ((mask_input >> cnt) & 0x1) {
                 list.push_back(cnt);
                 ++list_len;
+                if ((mask_input >> cnt) == 0x1) {
+                    break;
+                }
             }
         }
     };
