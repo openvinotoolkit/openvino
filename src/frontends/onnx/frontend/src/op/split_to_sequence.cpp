@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -33,7 +34,7 @@ ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, c
     OPENVINO_ASSERT(input_rank.is_static(), "SplitToSequence: scalar 'split' requires static input rank");
 
     const auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
-    OPENVINO_ASSERT(0 <= axis && axis < input_rank.get_length(), "SplitToSequence: axis is out of range");
+    OPENVINO_ASSERT(std::abs(axis) < input_rank.get_length(), "SplitToSequence: axis is out of range");
 
     const auto& split = inputs[1];
 
