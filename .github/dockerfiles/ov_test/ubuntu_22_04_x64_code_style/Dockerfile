@@ -34,9 +34,11 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# GitHub runs the Docker image with user 1001 named runner and group 121 named docker
-RUN groupadd -g 121 docker && \
-    useradd -u 1001 -g docker -m runner && \
-    echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# Add a user with id 1001 to match permissions with the github env.
+RUN useradd -u 1001 -M runner && \
+    mkdir -p /runner/home && \
+    chown -R runner:runner /runner && \
+    ln -s /runner/home /home/runner
 
+# Run commands as the runner user by default.
 USER runner
