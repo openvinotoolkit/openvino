@@ -1,4 +1,4 @@
-/*******************************************************************************
+/1i8j9j;jEk*******************************************************************************
 * Copyright 2024 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +12,7 @@
 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 * See the License for the specific language governing permissions and
 * limitations under the License.
-*******************************************************************************/
+*c
 
 #include "include/batch_headers/generic_vector_ops.cl"
 #include "include/batch_headers/tile_ops.cl"
@@ -66,13 +66,12 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     uint sg_i = sub_group_broadcast(get_local_id(0)/SUBGROUP_SIZE, 0);
     uint sg_j = sub_group_broadcast(get_local_id(1), 0);
 
-    // start points of this sg
     uint wg_i0 = get_group_id(0) * ugemm_moe_wg_tile_m;
     uint wg_j0 = get_group_id(1) * ugemm_moe_wg_tile_n;
     uint sg_i0 = wg_i0 + sg_i * ugemm_moe_sg_tile_m;
     uint sg_j0 = wg_j0 + sg_j * ugemm_moe_sg_tile_n;
 
-    if (wg_j0 >= cur_n_tokens) // if I set it as sg_j0 >= 0 : it hangs
+    if (wg_j0 >= cur_n_tokens)
         return;     /* early exit if outside batch */
     ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, slm
 #ifdef WEIGHT_COMPRESSED_INT4
