@@ -208,7 +208,7 @@ void Metadata<METADATA_VERSION_2_3>::read() {
                 _outputLayouts->push_back(ov::Layout(std::move(layoutString)));
             } catch (const ov::Exception&) {
                 _outputLayouts->push_back(ov::Layout());
-                _logger.warning("Error encountered while constructing an ov::Layout object. Input index: %d. Value "
+                _logger.warning("Error encountered while constructing an ov::Layout object. Output index: %d. Value "
                                 "read from blob: %s. A default value will be used instead.",
                                 outputIndex,
                                 layoutString.c_str());
@@ -468,7 +468,12 @@ size_t Metadata<METADATA_VERSION_2_3>::get_metadata_size() const {
     if (_inputLayouts.has_value()) {
         for (const ov::Layout& layout : _inputLayouts.value()) {
             // Length followed by the layout value as string
-            metadataSize += sizeof(uint16_t) * layout.to_string().size();
+            metadataSize += sizeof(uint16_t) + layout.to_string().size();
+        }
+    }
+    if (_outputLayouts.has_value()) {
+        for (const ov::Layout& layout : _outputLayouts.value()) {
+            metadataSize += sizeof(uint16_t) + layout.to_string().size();
         }
     }
 
