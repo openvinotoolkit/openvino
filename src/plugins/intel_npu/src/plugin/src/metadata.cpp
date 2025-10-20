@@ -75,6 +75,7 @@ Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
 }
 
 Metadata<METADATA_VERSION_2_2>::Metadata(uint64_t blobSize,
+<<<<<<< HEAD
                                          const std::optional<OpenvinoVersion>& ovVersion,
                                          const std::optional<std::vector<uint64_t>>& initSizes,
                                          const std::optional<std::vector<ov::Layout>>& inputLayouts,
@@ -83,6 +84,18 @@ Metadata<METADATA_VERSION_2_2>::Metadata(uint64_t blobSize,
       _inputLayouts{inputLayouts},
       _outputLayouts{outputLayouts} {
     _version = METADATA_VERSION_2_2;
+=======
+                                         std::optional<OpenvinoVersion> ovVersion,
+                                         const std::optional<std::vector<uint64_t>> initSizes,
+                                         const std::optional<int64_t> batchSize)
+    : Metadata<METADATA_VERSION_2_1>{blobSize, ovVersion, initSizes},
+      _batchSize{batchSize} {
+    _version = METADATA_VERSION_2_2;
+}
+
+void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
+    _ovVersion.read(stream);
+>>>>>>> upstream/master
 }
 
 MetadataBase::Source::Source(std::istream& source) : stream(source) {}
@@ -109,6 +122,32 @@ void MetadataBase::read_data_from_source(char* destination, const size_t size) {
 
     std::memcpy(destination, _source.tensor.get().data<const char>() + _coursorOffset, size);
     _coursorOffset += size;
+}
+
+void Metadata<METADATA_VERSION_2_2>::read(std::istream& stream) {
+    Metadata<METADATA_VERSION_2_1>::read(stream);
+
+    int64_t batchSize;
+    stream.read(reinterpret_cast<char*>(&batchSize), sizeof(batchSize));
+
+    _batchSize = batchSize != 0 ? std::optional(batchSize) : std::nullopt;
+}
+
+void Metadata<METADATA_VERSION_2_2>::read(const ov::Tensor& tensor) {
+    Metadata<METADATA_VERSION_2_1>::read(tensor);
+
+    auto roiTensor =
+        ov::Tensor(tensor,
+                   ov::Coordinate{sizeof(decltype(std::declval<OpenvinoVersion>().get_major())) +
+                                  sizeof(decltype(std::declval<OpenvinoVersion>().get_minor())) +
+                                  sizeof(decltype(std::declval<OpenvinoVersion>().get_patch())) + sizeof(uint64_t) +
+                                  sizeof(uint64_t) * (get_init_sizes() ? get_init_sizes()->size() : 0)},
+                   ov::Coordinate{tensor.get_byte_size()});
+
+    int64_t batchSize;
+    batchSize = *reinterpret_cast<const decltype(batchSize)*>(roiTensor.data<const char>());
+
+    _batchSize = batchSize != 0 ? std::optional(batchSize) : std::nullopt;
 }
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
@@ -219,6 +258,7 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_1>::write(stream);
 
+<<<<<<< HEAD
     const uint64_t numberOfInputLayouts = _inputLayouts.has_value() ? _inputLayouts->size() : 0;
     const uint64_t numberOfOutputLayouts = _outputLayouts.has_value() ? _outputLayouts->size() : 0;
     stream.write(reinterpret_cast<const char*>(&numberOfInputLayouts), sizeof(numberOfInputLayouts));
@@ -240,6 +280,11 @@ void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
             stream.write(layoutString.c_str(), stringLength);
         }
     }
+=======
+    // _batchSize is std::optional, so either the value or std::nullopt will be written
+    int64_t batchValue = _batchSize.value_or(0);
+    stream.write(reinterpret_cast<const char*>(&batchValue), sizeof(batchValue));
+>>>>>>> upstream/master
 
     append_padding_blob_size_and_magic(stream);
 }
@@ -254,9 +299,15 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
     case METADATA_VERSION_2_0:
         return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize);
     case METADATA_VERSION_2_1:
+<<<<<<< HEAD
         return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize);
     case METADATA_VERSION_2_2:
         return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
+=======
+        return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize, std::nullopt);
+    case METADATA_VERSION_2_2:
+        return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize, std::nullopt);
+>>>>>>> upstream/master
     default:
         OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
                        MetadataBase::get_major(version),
@@ -392,6 +443,18 @@ std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_si
     return _initSizes;
 }
 
+std::optional<int64_t> Metadata<METADATA_VERSION_2_0>::get_batch_size() const {
+    return std::nullopt;
+}
+
+std::optional<int64_t> Metadata<METADATA_VERSION_2_1>::get_batch_size() const {
+    return std::nullopt;
+}
+
+std::optional<int64_t> Metadata<METADATA_VERSION_2_2>::get_batch_size() const {
+    return _batchSize;
+}
+
 size_t Metadata<METADATA_VERSION_2_0>::get_metadata_size() const {
     return sizeof(_version) + _ovVersion.get_openvino_version_size();
 }
@@ -419,6 +482,7 @@ size_t Metadata<METADATA_VERSION_2_2>::get_metadata_size() const {
     return metadataSize;
 }
 
+<<<<<<< HEAD
 std::optional<std::vector<ov::Layout>> MetadataBase::get_input_layouts() const {
     return std::nullopt;
 }
@@ -433,6 +497,12 @@ std::optional<std::vector<ov::Layout>> MetadataBase::get_output_layouts() const 
 
 std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_2_2>::get_output_layouts() const {
     return _outputLayouts;
+=======
+size_t Metadata<METADATA_VERSION_2_2>::get_metadata_size() const {
+    size_t metadataSize = Metadata<METADATA_VERSION_2_1>::get_metadata_size() + sizeof(int64_t);
+
+    return metadataSize;
+>>>>>>> upstream/master
 }
 
 }  // namespace intel_npu
