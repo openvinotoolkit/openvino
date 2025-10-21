@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "openvino/core/except.hpp"
-#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
