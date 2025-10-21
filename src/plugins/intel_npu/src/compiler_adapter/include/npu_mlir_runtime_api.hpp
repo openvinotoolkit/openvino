@@ -5,8 +5,8 @@
 #pragma once
 
 #include <memory>
-#include <npu_mlir_runtime.hpp>
 
+#include "intel_npu/npu_mlir_runtime.hpp"
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {
@@ -16,7 +16,8 @@ namespace intel_npu {
     nmr_symbol_statement(npuMLIRRuntimeCreate)                  \
     nmr_symbol_statement(npuMLIRRuntimeDestroy)                 \
     nmr_symbol_statement(npuMLIRRuntimeGetMetadata)             \
-    nmr_symbol_statement(npuMLIRRuntimeExecute)
+    nmr_symbol_statement(npuMLIRRuntimeExecute)                 \
+    nmr_symbol_statement(npuMLIRRuntimePredictOutputShape)
 
 //unsupported symbols with older runtime versions
 #define nmr_weak_symbols_list()

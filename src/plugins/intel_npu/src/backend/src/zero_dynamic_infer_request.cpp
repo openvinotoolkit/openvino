@@ -124,6 +124,8 @@ ZeroDynamicInferRequest::ZeroDynamicInferRequest(const std::shared_ptr<ZeroInitS
         "ZeroDynamicInferRequest::ZeroDynamicInferRequest - checking level zero attributes and allocating tensors");
 
     size_t ioIndex = 0;
+    // TODO: both graphInputDescriptors and metadata are from blob, need to check compiler to see the source of
+    // graphDescriptors
     for (const IODescriptor& inputDescriptor : _metadata.inputs) {
         check_level_zero_attributes_match(inputDescriptor, _graphInputDescriptors.at(ioIndex));
 
@@ -374,6 +376,44 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
         OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
 
+    // Update graphDescriptor
+    std::vector<ArgumentDescriptor> inputPros = _graphInputDescriptors;
+    std::vector<ArgumentDescriptor> outputPros = _graphOutputDescriptors;
+
+    const ov::Shape& shape = tensor->get_shape();
+    if (foundPort.is_input()) {
+        inputPros[foundPort.idx].info.dims_count = shape.size();
+        for (size_t i = 0; i < shape.size(); i++) {
+            inputPros[foundPort.idx].info.dims[i] = shape[i];
+        }
+    } else {
+        if (outputPros[foundPort.idx].info.dims_count != shape.size()) {
+            OPENVINO_THROW("Output tensor shape size not match, expected size: ",
+                           outputPros[foundPort.idx].info.dims_count,
+                           ", got size: ",
+                           shape.size());
+        }
+    }
+
+    intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(_graph.get());
+    if (irGraph) {
+        irGraph->predict_output_shape(inputPros, outputPros);
+    }
+
+    // If set output tensor, need check size
+    size_t preferedOutputSize = 1;
+    if (foundPort.is_output()) {
+        for (size_t i = 0; i < _graphOutputDescriptors[foundPort.idx].info.dims_count; i++) {
+            preferedOutputSize *= _graphOutputDescriptors[foundPort.idx].info.dims[i];
+        }
+        if (preferedOutputSize != tensor->get_size()) {
+            OPENVINO_THROW("Output tensor shape size not match, expected size: ",
+                           preferedOutputSize,
+                           ", got size: ",
+                           tensor->get_size());
+        }
+    }
+
     if (foundPort.is_input()) {
         _logger.debug("update input tensor");
         if (get_user_input(foundPort.idx)._ptr == tensor._ptr) {
@@ -477,6 +517,13 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                 auto batch = _graph->get_batch_size();
                 // levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), batch);
 
+                IODescriptor descriptor =
+                    foundPort.is_input() ? _metadata.inputs.at(foundPort.idx) : _metadata.outputs.at(foundPort.idx);
+                if (!foundPort.is_input()) {
+                    // For output, need update descriptor shape with predicted shape
+                    ov::Shape predictedShape;
+                    descriptor.shapeFromCompiler = shape;
+                }
                 levelZeroTensor = allocate_tensor_for_pipeline(
                     foundPort.is_input() ? _metadata.inputs.at(foundPort.idx) : _metadata.outputs.at(foundPort.idx),
                     foundPort.idx,
@@ -494,6 +541,20 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                     // Update to use user info
                     updateCommandListArg = true;
                 }
+            }
+        }
+
+        // TODO: Need to use predicted output shape to check existing output tensors
+        for (ArgumentDescriptor desc : _graphOutputDescriptors) {
+            size_t size = 1;
+            for (size_t i = 0; i < desc.info.dims_count; i++) {
+                size *= desc.info.dims[i];
+            }
+            if (size < tensor->get_size()) {
+                OPENVINO_THROW("Output tensor size not match, expected size: ",
+                               size,
+                               ", got size: ",
+                               tensor->get_size());
             }
         }
 

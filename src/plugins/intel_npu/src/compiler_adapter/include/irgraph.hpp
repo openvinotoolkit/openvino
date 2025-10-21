@@ -79,6 +79,8 @@ public:
                                   ze_fence_handle_t fence,
                                   ze_event_handle_t event,
                                   ze_graph_profiling_pool_handle_t profiling) = 0;
+        virtual void predictOutputShape(std::vector<ArgumentDescriptor>& inputDescriptors,
+                                        std::vector<ArgumentDescriptor>& outputDescriptors) = 0;
         virtual ~Impl() {};
     };
 
@@ -140,6 +142,9 @@ public:
     void getBinding(GraphArguments& args);
 
     uint64_t get_num_subgraphs() const;
+
+    void predict_output_shape(std::vector<ArgumentDescriptor>& inputDescriptors,
+                              std::vector<ArgumentDescriptor>& outputDescriptors);
 
 private:
     bool release_blob(const Config& config);

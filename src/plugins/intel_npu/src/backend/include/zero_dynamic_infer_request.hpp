@@ -76,6 +76,8 @@ private:
 
     IODescriptor prepare_io_descriptor_with_user_info(const IODescriptor& descriptor, bool isInput);
 
+    void update_graph_descriptor_with_new_tensor(, bool isInput);
+
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
     const Config _config;
