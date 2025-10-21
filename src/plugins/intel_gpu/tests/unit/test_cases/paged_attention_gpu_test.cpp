@@ -162,9 +162,9 @@ struct PagedAttentionManager {
             const auto& subsequence_desc = subsequence_descs[i];
             max_len = std::max(max_len, subsequence_desc.num_tokens + subsequence_desc.past_len);
 
-            query_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens, k_head_size));
-            key_data.push_back(generate_input_data(rg, num_kv_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, k_head_size));
-            value_data.push_back(generate_input_data(rg, num_kv_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, v_head_size));
+            query_data.push_back(generate_realistic_data(num_heads, subsequence_desc.num_tokens, k_head_size));
+            key_data.push_back(generate_realistic_data(num_kv_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, k_head_size));
+            value_data.push_back(generate_realistic_data(num_kv_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, v_head_size));
 
             past_lens.push_back(subsequence_desc.past_len);
             int subsequence_start_pos = subsequence_begins[i];
@@ -791,10 +791,42 @@ private:
         auto query_shape = ov::PartialShape{1, num_queries, num_heads, k_head_size};
         auto key_shape = ov::PartialShape{1, num_keys, num_kv_heads, k_head_size};
         auto value_shape = ov::PartialShape{1, num_keys, num_kv_heads, v_head_size};
-        if (num_heads != num_kv_heads) {
+        if (num_heads != num_kv_heads && !has_xattention) {
             query_shape = ov::PartialShape{num_queries, num_kv_heads, (num_heads / num_kv_heads), k_head_size};
             key_shape = ov::PartialShape{num_keys, num_kv_heads, 1, k_head_size};
             value_shape = ov::PartialShape{num_keys, num_kv_heads, 1, v_head_size};
+        }
+        bool do_gqa_expand = false;
+        std::vector<ov::float16> expanded_key_data;
+        std::vector<ov::float16> expanded_value_data;
+        if (has_xattention) {
+            // Grouped Query Attention
+            do_gqa_expand = (num_heads != num_kv_heads);
+            if (do_gqa_expand) {
+                const int group_size = num_heads / num_kv_heads;
+    
+                expanded_key_data.resize(static_cast<size_t>(num_keys) * static_cast<size_t>(num_heads) * static_cast<size_t>(k_head_size));
+                expanded_value_data.resize(static_cast<size_t>(num_keys) * static_cast<size_t>(num_heads) * static_cast<size_t>(v_head_size));
+    
+                for (int key_idx = 0; key_idx < num_keys; ++key_idx) {
+                    for (int h = 0; h < num_heads; ++h) {
+                        const int src_kv_head = h / group_size;
+                        size_t src_key_off = (static_cast<size_t>(key_idx) * static_cast<size_t>(num_kv_heads) + static_cast<size_t>(src_kv_head)) * static_cast<size_t>(k_head_size);
+                        size_t dst_key_off = (static_cast<size_t>(key_idx) * static_cast<size_t>(num_heads) + static_cast<size_t>(h)) * static_cast<size_t>(k_head_size);
+                        for (int d = 0; d < k_head_size; ++d)
+                            expanded_key_data[dst_key_off + static_cast<size_t>(d)] = key_data[src_key_off + static_cast<size_t>(d)];
+    
+                        size_t src_val_off = (static_cast<size_t>(key_idx) * static_cast<size_t>(num_kv_heads) + static_cast<size_t>(src_kv_head)) * static_cast<size_t>(v_head_size);
+                        size_t dst_val_off = (static_cast<size_t>(key_idx) * static_cast<size_t>(num_heads) + static_cast<size_t>(h)) * static_cast<size_t>(v_head_size);
+                        for (int d = 0; d < v_head_size; ++d)
+                            expanded_value_data[dst_val_off + static_cast<size_t>(d)] = value_data[src_val_off + static_cast<size_t>(d)];
+                    }
+                }
+    
+                key_shape = ov::PartialShape{1, num_keys, num_heads, k_head_size};
+                value_shape = ov::PartialShape{1, num_keys, num_heads, v_head_size};
+                num_kv_heads = num_heads;
+            }
         }
 
         auto query_layout = layout{query_shape, data_types::f16, format::bfyx};
@@ -803,8 +835,13 @@ private:
         auto scale_layout = cldnn::layout({1}, data_types::f16, format::bfyx);
 
         OPENVINO_ASSERT(query_layout.count() == query_data.size());
-        OPENVINO_ASSERT(key_layout.count() == key_data.size());
-        OPENVINO_ASSERT(value_layout.count() == value_data.size());
+        if (do_gqa_expand) {
+            OPENVINO_ASSERT(key_layout.count() == expanded_key_data.size());
+            OPENVINO_ASSERT(value_layout.count() == expanded_value_data.size());
+        } else {
+            OPENVINO_ASSERT(key_layout.count() == key_data.size());
+            OPENVINO_ASSERT(value_layout.count() == value_data.size());
+        }
 
         auto query_mem = test_engine.allocate_memory(query_layout);
         auto key_mem = test_engine.allocate_memory(key_layout);
@@ -812,8 +849,13 @@ private:
         auto scale_mem = test_engine.allocate_memory(scale_layout);
 
         set_values(query_mem, query_data);
-        set_values(key_mem, key_data);
-        set_values(value_mem, value_data);
+        if (do_gqa_expand) {
+            set_values(key_mem, expanded_key_data);
+            set_values(value_mem, expanded_value_data);
+        } else {
+            set_values(key_mem, key_data);
+            set_values(value_mem, value_data);
+        }
         set_values(scale_mem, {static_cast<ov::float16>(scale)});
 
         ov::reference::XAttentionRetainedBlockIndicesForAllHeads retained_blocks;
@@ -831,7 +873,7 @@ private:
             };
 
             const auto query_data_3d = reorder_qhk_to_hqd(query_data, num_queries, num_heads, k_head_size);
-            const auto key_data_3d = reorder_qhk_to_hqd(key_data, num_keys, num_heads, k_head_size);
+            const auto key_data_3d = reorder_qhk_to_hqd(do_gqa_expand ? expanded_key_data : key_data, num_keys, num_heads, k_head_size);
             const size_t padded_q = ((num_queries + block_size - 1) / block_size) * block_size;
             const size_t padded_k = ((num_keys + block_size - 1) / block_size) * block_size;
 
@@ -1400,6 +1442,7 @@ public:
                     mismatch_count++;
                 }
             }
+            std::cout << "mismatch_count: " << mismatch_count << std::endl;
             EXPECT_LE(mismatch_count, int(data_output_mem->count() * 0.04));
         }
 
@@ -1412,6 +1455,7 @@ public:
                     mismatch_count++;
                 }
             }
+            std::cout << "mismatch_count: " << mismatch_count << std::endl;
             EXPECT_LE(mismatch_count, int(scores_output_mem->count() * 0.04));
         }
     }
@@ -1419,11 +1463,8 @@ public:
     static bool check_cm_available() {
         auto& engine = get_test_engine();
         ExecutionConfig config = get_test_default_config(engine);
-        if (!cldnn::check_cm_jit_support(engine, config) || !engine.get_device_info().supports_immad) {
-            return false;
-        }
-
-        return true;
+        return cldnn::check_cm_jit_support(engine, config) &&
+               (engine.get_device_info().arch == gpu_arch::xe2 || engine.get_device_info().arch == gpu_arch::xe3);
     }
 };
 
@@ -1615,6 +1656,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::Values
     paged_attention_test_params{ {{32, 0}},   2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
     paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
     paged_attention_test_params{ {{2048, 0}}, 2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{32, 0}},   4, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 4, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{2048, 0}}, 4, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
 
     paged_attention_test_params{ {{1, 31}},   2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
     paged_attention_test_params{ {{1, 32}},   2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
