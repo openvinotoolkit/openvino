@@ -27,7 +27,7 @@
     #define ACTIVATION_TYPE_VEC float8
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float8(x)
     #define MMAD MMAD_8x8
-    #define BLOCK_WRITE(ptr, val) _sub_group_block_write8((__global ushort*)(ptr), as_ushort8(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write8((__global uchar*)(ptr), as_uint8(val));
 #elif OUTPUT_X_BLOCK_SIZE == 4
     #define PACKED_TYPE_VEC MAKE_VECTOR_TYPE(PACKED_IN_TYPE, 4)
     #define ACCUMULATOR_TYPE_VEC int4
@@ -35,7 +35,7 @@
     #define ACTIVATION_TYPE_VEC float4
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float4(x)
     #define MMAD MMAD_4x8
-    #define BLOCK_WRITE(ptr, val) _sub_group_block_write4((__global ushort*)(ptr), as_ushort4(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write4((__global uchar*)(ptr), as_uint8(val));
 #else
 #error "convolution_gpu_mmad_b_fs_yx_fsv32_simd16: Unsupported block size"
 #endif
@@ -92,10 +92,10 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
     ACCUMULATOR_TYPE_VEC acc[2] = { 0, 0 }; // 2*8 packed channels * OUTPUT_X_BLOCK_SIZE
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
     ACCUMULATOR_TYPE_VEC acc_assym_weights = 0;
-    if (lid == 0)
+    if (lid == 0 && fg == 0)
         printf("assymetric\n");
 #else
-    if (lid == 0)
+    if (lid == 0 && fg == 0)
         printf("notasymetric\n");
 #endif
 
@@ -111,22 +111,28 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
     
     for (int icb = 0; icb < IFM_BLOCKS; ++icb) {
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-        uchar4 m;
-        if (lid < 8) {
-            __attribute__((opencl_unroll_hint(4)))
-            for (int i = 0; i < 4; i++) {
-                m[i] = icb*32 + lid*4 + i < INPUT0_FEATURE_NUM;
-            }
+        uchar4 m = { 0, 0, 0, 0 };
+        __attribute__((opencl_unroll_hint(4)))
+        for (int i = 0; i < 2; i++) {
+            m[i] = icb*32 + lid*2 + i < INPUT0_FEATURE_NUM;
         }
         int mm = as_int(m);
-        int8 multiplier = (int8)(sub_group_broadcast(mm, 0),
-                                 sub_group_broadcast(mm, 1),
-                                 sub_group_broadcast(mm, 2),
-                                 sub_group_broadcast(mm, 3),
-                                 sub_group_broadcast(mm, 4),
-                                 sub_group_broadcast(mm, 5),
-                                 sub_group_broadcast(mm, 6),
-                                 sub_group_broadcast(mm, 7));
+        int8 multiplier = (int8)(sub_group_broadcast(mm, 0) + (sub_group_broadcast(mm, 1) << 16),
+                                 sub_group_broadcast(mm, 2) + (sub_group_broadcast(mm, 3) << 16),
+                                 sub_group_broadcast(mm, 4) + (sub_group_broadcast(mm, 5) << 16),
+                                 sub_group_broadcast(mm, 6) + (sub_group_broadcast(mm, 7) << 16),
+                                 sub_group_broadcast(mm, 8) + (sub_group_broadcast(mm, 9) << 16),
+                                 sub_group_broadcast(mm, 10) + (sub_group_broadcast(mm, 11) << 16),
+                                 sub_group_broadcast(mm, 12) + (sub_group_broadcast(mm, 13) << 16),
+                                 sub_group_broadcast(mm, 14) + (sub_group_broadcast(mm, 15) << 16));
+        /*
+        for (int i=0;i<16;i++){
+            if (lid == 0 && fg == 0)
+                printf("multiplier %d is %d \n", i, sub_group_broadcast(mm, i));
+        }
+        */
+        if (lid == 0 && fg == 0)
+            printf("multiplier is %d \n", multiplier);
 #endif
 
         __attribute__((opencl_unroll_hint(FILTER_SIZE_Z)))
