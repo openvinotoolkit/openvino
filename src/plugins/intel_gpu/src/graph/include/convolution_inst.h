@@ -137,7 +137,12 @@ public:
     }
 
     bool need_reset_output_memory() const override {
-        return true;
+        bool res = parent::need_reset_output_memory();
+        auto output_layout = _impl_params->get_output_layout(0);
+        if (output_layout.data_padding) {
+            return true;
+        }
+        return res;
     }
 
     typed_primitive_inst(network& network, convolution_node const& node);

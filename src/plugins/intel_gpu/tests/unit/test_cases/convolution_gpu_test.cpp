@@ -9130,6 +9130,16 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
                                         bool bigger_pad = false) {
         std::vector<size_t> batches = { 1, 2 };
         for (auto b : batches) {
+            // first conv
+            push_back(convolution_random_test_all_params{
+                b, 3, 32, { 28, 28 }, { 7, 7 }, { 2, 2 }, { 3, 3 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 3, 64, { 1024, 10 }, { 5, 5 }, { 2, 2 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 3, 15, { 10, 10 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 4, 18, { 10, 10 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            // 3x3
             push_back(convolution_random_test_all_params{
                 b, 32, 48, { 14, 14 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
@@ -9276,8 +9286,21 @@ INSTANTIATE_TEST_SUITE_P(
     convolution_random_smoke_test,
     testing::ValuesIn(
         params_generator()
-        //.smoke_test_params(format::b_fs_yx_fsv32)
-        .smoke_test_params(format::b_fs_yx_fsv32, true)
+        .smoke_test_params(format::b_fs_yx_fsv4)
+        .smoke_test_params(format::bfyx)
+        .smoke_test_params(format::b_fs_yx_fsv32)
+        .smoke_test_params(format::b_fs_yx_fsv32, true, true)
+        .smoke_test_params(format::b_fs_yx_fsv32, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv32, true, false)
+        .smoke_test_params(format::b_fs_yx_fsv32, false, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv16)
+        .smoke_test_params(format::b_fs_yx_fsv16, true, true)
+        .smoke_test_params(format::b_fs_yx_fsv16, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv16, true, false)
+        .smoke_test_params(format::b_fs_yx_fsv16, false, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv16, false, false, true, true)
+        .bs_test_params(format::bs_fs_yx_bsv16_fsv16)
+        .bs_test_params(format::b_fs_yx_fsv16, false, true, false, false, true)
     ),
     to_string_convolution_all_params
 );

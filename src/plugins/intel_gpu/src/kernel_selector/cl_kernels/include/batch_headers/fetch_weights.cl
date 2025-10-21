@@ -1044,7 +1044,7 @@ inline uint get_g_is_os_yx_isa4_osa8_isv8_osv4(uint g, uint o, uint i, uint z, u
         CAT(prefix, _OFM_NUM),                                                              \
         CAT(prefix, _OFFSET))
 
-#define GET_FILTER_os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2_INDEX(prefix, o, i, y, x) \
+#define GET_FILTER_OS_IS_YX_OSA2_ISA8_OSV16_ISV4_SWIZZLED_BY_2_INDEX(prefix, o, i, y, x) \
     get_os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2_index(                               \
         o, i, y, x,                                                                     \
         CAT(prefix, _SIZE_X),                                                           \
@@ -1053,7 +1053,7 @@ inline uint get_g_is_os_yx_isa4_osa8_isv8_osv4(uint g, uint o, uint i, uint z, u
         CAT(prefix, _OFM_NUM),                                                          \
         CAT(prefix, _OFFSET))
 
-#define GET_FILTER_os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2_INDEX(prefix, o, i, y, x) \
+#define GET_FILTER_OS_IS_ZYX_OSA2_ISA8_OSV16_ISV4_SWIZZLED_BY_2_INDEX(prefix, o, i, z, y, x) \
     get_os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2_index(                               \
         o, i, y, x,                                                                     \
         CAT(prefix, _SIZE_X),                                                           \

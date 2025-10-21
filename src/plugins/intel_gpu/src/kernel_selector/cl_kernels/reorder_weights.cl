@@ -431,10 +431,10 @@ inline uint FUNC(get_output_index)(uint g, uint o, uint i, uint z, uint y, uint 
     return GET_FILTER_OS_IS_YX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4_INDEX(OUTPUT, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4
     return GET_FILTER_OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4_INDEX(OUTPUT, o, i, z, y, x);
-#elif defined OUTPUT_LAYOUT_os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2
-    return GET_FILTER_os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2_INDEX(OUTPUT, o, i, y, x);
-#elif defined OUTPUT_LAYOUT_os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2
-    return GET_FILTER_os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2_INDEX(OUTPUT, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_OS_IS_YX_OSA2_ISA8_OSV16_ISV4_SWIZZLED_BY_2
+    return GET_FILTER_OS_IS_YX_OSA2_ISA8_OSV16_ISV4_SWIZZLED_BY_2_INDEX(OUTPUT, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_OS_IS_ZYX_OSA2_ISA8_OSV16_ISV4_SWIZZLED_BY_2
+    return GET_FILTER_OS_IS_ZYX_OSA2_ISA8_OSV16_ISV4_SWIZZLED_BY_2_INDEX(OUTPUT, o, i, z, y, x);
 #elif defined OUTPUT_LAYOUT_OS_IS_YX_ISV16_OSV16
     return GET_FILTER_OS_IS_YX_ISV_OSV_INDEX(OUTPUT, o, i, y, x, 16, 16);
 #elif defined OUTPUT_LAYOUT_OS_IS_ZYX_ISV16_OSV16
