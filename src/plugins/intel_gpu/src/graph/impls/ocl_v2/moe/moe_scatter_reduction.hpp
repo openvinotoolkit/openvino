@@ -36,7 +36,7 @@ struct MoeScatterReductionRef : public ImplementationManager {
         const auto& out_layout = node.get_output_layout(0);
         const auto& input_pshapes = in0_layout.get_partial_shape();
 
-        if (input_pshapes.rank().get_length() != 2 || input_pshapes[1].is_dynamic()) {
+        if (input_pshapes.rank().get_length() != 3 || input_pshapes[2].is_dynamic()) {
             return false;
         }
 

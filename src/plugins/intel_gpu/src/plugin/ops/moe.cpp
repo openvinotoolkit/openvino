@@ -109,8 +109,16 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         p.add_primitive(*op, cldnn::moe_gemm(moe_gemm_down_name, moe_gemm_down_inputs, config.top_k));
         auto moe_bias_down_prim = cldnn::eltwise(moe_bias_down_name, {input_info(moe_gemm_down_name), input_infos[8]}, cldnn::eltwise_mode::sum, {}, out_dt);  // bias_down
         p.add_primitive(*op, moe_bias_down_prim);
+        auto moe_scatter_reduce_prim = cldnn::moe_scatter_reduction(moe_scatter_reduce_name,
+                                                                 input_info(moe_bias_down_name),
+                                                                 input_infos[2],
+                                                                 input_infos[1],
+                                                                 input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::TOKENS_PER_EXPERT),
+                                                                 input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::EXPERTS_INFO_START_IDX),
+                                                                 input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::TOKENS_LENS_PER_EXPERT),
+                                                                 static_cast<uint32_t>(config.top_k));
+        p.add_primitive(*op, moe_scatter_reduce_prim);
     }
-
 }
 
 REGISTER_FACTORY_IMPL(internal, MOECompressed);

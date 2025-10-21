@@ -23,14 +23,13 @@ std::vector<layout> moe_gemm_inst::calc_output_layouts(moe_gemm_node const& /*no
     auto input_layout = impl_param.get_input_layout(0);
     auto experts_layout = impl_param.get_input_layout(1);
     auto input_rank = input_layout.get_partial_shape().size();
-    auto experts_rank = experts_layout.get_partial_shape().size();
     auto out_m_dim = input_rank - 2;
     auto out_n_dim = input_rank - 1;
     auto output_shape = input_layout.get_partial_shape();
     for (auto& o : output_shape) {
         o = ov::Dimension::dynamic();
     }
-    size_t n = experts_layout.get_shape()[experts_rank - 2];
+    size_t n = experts_layout.get_shape()[1];
     output_shape[out_n_dim] = ov::Dimension(n);
 
     if (!input_layout.is_dynamic()) {

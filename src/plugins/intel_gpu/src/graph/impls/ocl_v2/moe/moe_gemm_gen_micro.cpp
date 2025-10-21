@@ -125,7 +125,9 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const auto& weight_shape = params.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT).get_shape();
     size_t n = is_prefill ? 128 : 8;
     size_t m = weight_shape[1];
-    size_t k = weight_shape[2];
+    if (weight_shape.size() != 4)
+        OPENVINO_THROW("Weight tensor for MoE Gemm microkernel should have 4 dimensions. [#experts, ofm, num_groups, group_size]");
+    size_t k = weight_shape[2] * weight_shape[3];
     GPU_DEBUG_TRACE_DETAIL << "init_microkernels for " << (is_prefill ? "prefill" : "generate") << " : " << n << " " << m << " " << k << "\n";
 
     micro::GEMMProblem problem_moe;
