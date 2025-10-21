@@ -183,11 +183,11 @@ DNA Classification,dna_r9.4.1,onnx,FP32,OpenVINO,+,,
 DNA Classification,dna_r9.4.1_2d,onnx,FP16,OpenVINO,+,,
 DNA Classification,dna_r9.4.1_2d,onnx,FP16-INT8,OpenVINO,+,,
 DNA Classification,dna_r9.4.1_2d,onnx,FP32,OpenVINO,+,,
-"Image Classifiation, Dual Path Network",dpn-68,onnx,FP16,OpenVINO,+,+,+
-"Image Classifiation, Dual Path Network",dpn-68,onnx,FP16-INT8,OpenVINO,+,+,+
-"Image Classifiation, Dual Path Network",dpn-68,onnx,FP32,OpenVINO,+,+,+
-"Image Classifiation, Dual Path Network",dpn-68,pytorch,FP32,OpenVINO,+,+,+
-"Image Classifiation, Dual Path Network",dpn-68,pytorch,FP32-INT8,OpenVINO,+,+,+
+"Image Classification, Dual Path Network",dpn-68,onnx,FP16,OpenVINO,+,+,+
+"Image Classification, Dual Path Network",dpn-68,onnx,FP16-INT8,OpenVINO,+,+,+
+"Image Classification, Dual Path Network",dpn-68,onnx,FP32,OpenVINO,+,+,+
+"Image Classification, Dual Path Network",dpn-68,pytorch,FP32,OpenVINO,+,+,+
+"Image Classification, Dual Path Network",dpn-68,pytorch,FP32-INT8,OpenVINO,+,+,+
 Object Detection,driver-action-recognition-adas-0002,onnx,FP16,OpenVINO,+,+,
 Object Detection,driver-action-recognition-adas-0002,onnx,FP32,OpenVINO,+,+,
 Semantic Segmentation,drn-d-38,onnx,FP16,OpenVINO,+,+,
@@ -1464,8 +1464,8 @@ Image Classification,nf_regnet_b1,pytorch,FP32,torch.compile,+,+,+
 Image Classification,nf_resnet50,pytorch,FP32,torch.compile,+,+,+
 Image Classification,nfnet_l0,pytorch,FP32,torch.compile,+,+,+
 Recommender,nvidia_deeprecommender,pytorch,FP32,torch.compile,+,+,+
-Panoptic Segmentation ,panoptic_fpn_R_101_dconv_cascade_gn_3x,pytorch,FP32,torch.compile,,+,
-Panoptic Segmentation ,panoptic_fpn_R_50_1x,pytorch,FP32,torch.compile,,+,
+Panoptic Segmentation,panoptic_fpn_R_101_dconv_cascade_gn_3x,pytorch,FP32,torch.compile,,+,
+Panoptic Segmentation,panoptic_fpn_R_50_1x,pytorch,FP32,torch.compile,,+,
 Image Classification,phlippe_densenet,pytorch,FP32,torch.compile,+,+,+
 Image Classification,phlippe_resnet,pytorch,FP32,torch.compile,+,+,+
 Natural Language Processing,phobert-base,pytorch,FP32,torch.compile,+,+,+
