@@ -2664,15 +2664,15 @@ TEST_P(conv_int8_scale_activation_quantize_i8_skip_connection_fp32, basic) {
 
 // Test only for cases where input shape is the same as output shape to allow skip connection
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_skip_connection_fp32, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 6 },
-    convolution_test_params{ CASE_CONV_U8S8_6, 2, 2, 6 },
-    convolution_test_params{ CASE_CONV_U8S8_14, 2, 2, 6 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 6 },
-    convolution_test_params{ CASE_CONV_S8S8_6, 2, 2, 6 },
-    convolution_test_params{ CASE_CONV_S8S8_15, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 3, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_6, 3, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_14, 3, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 3, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_6, 3, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_15, 3, 2, 6 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 3, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 3, 2, 6 },
 }));
 
 class conv_int8_scale_activation_quantize_i8_activation : public ConvFusingTest {};
