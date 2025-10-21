@@ -19,9 +19,8 @@ namespace reference {
 static inline void identity(const char* input, char* output, const size_t size_in_bytes) {
     if (input == output) {
         return;
-    } else {
-        std::memcpy(output, input, size_in_bytes);
     }
+    std::memcpy(output, input, size_in_bytes);
 }
 
 /**
@@ -34,11 +33,9 @@ static inline void identity(const char* input, char* output, const size_t size_i
 static inline void identity(const std::string* input, std::string* output, const size_t shape_size) {
     if (input == output) {
         return;
-    } else {
-        for (size_t i = 0; i < shape_size; i++) {
-            output[i] = input[i];
-        }
-        return;
+    }
+    for (size_t i = 0; i < shape_size; i++) {
+        output[i] = input[i];
     }
 }
 
