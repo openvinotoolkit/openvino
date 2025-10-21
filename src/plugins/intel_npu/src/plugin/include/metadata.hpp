@@ -140,7 +140,7 @@ protected:
     /**
      * @brief Used only when the source buffer is an OV tensor for managing the read coursor.
      */
-    size_t _coursorOffset = 0;
+    size_t _cursorOffset = 0;
 };
 
 /**

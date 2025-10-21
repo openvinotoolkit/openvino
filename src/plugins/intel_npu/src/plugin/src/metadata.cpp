@@ -117,8 +117,8 @@ void MetadataBase::read_data_from_source(char* destination, const size_t size) {
         return;
     }
 
-    std::memcpy(destination, _source.tensor.get().data<const char>() + _coursorOffset, size);
-    _coursorOffset += size;
+    std::memcpy(destination, _source.tensor.get().data<const char>() + _cursorOffset, size);
+    _cursorOffset += size;
 }
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
@@ -138,7 +138,7 @@ void Metadata<METADATA_VERSION_2_0>::read() {
         _ovVersion.read(_source.stream);
     } else {
         _ovVersion.read(_source.tensor);
-        _coursorOffset = _ovVersion.get_openvino_version_size();
+        _cursorOffset = _ovVersion.get_openvino_version_size();
     }
 }
 
@@ -449,7 +449,9 @@ size_t Metadata<METADATA_VERSION_2_2>::get_metadata_size() const {
 }
 
 size_t Metadata<METADATA_VERSION_2_3>::get_metadata_size() const {
-    size_t metadataSize = Metadata<METADATA_VERSION_2_2>::get_metadata_size() + 2 * sizeof(uint64_t);  // I/O counts
+    size_t metadataSize = Metadata<METADATA_VERSION_2_2>::get_metadata_size();
+    // Number of input layouts & number of output layouts
+    metadataSize += 2 * sizeof(uint64_t);
 
     if (_inputLayouts.has_value()) {
         for (const ov::Layout& layout : _inputLayouts.value()) {
