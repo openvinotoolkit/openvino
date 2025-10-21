@@ -125,7 +125,7 @@ std::shared_ptr<ov::op::v1::ReduceSum> ApplyExpertsSubgraph(const ov::Output<ov:
 
     auto unsqueeze_routing_weights = std::make_shared<ov::op::v0::Unsqueeze>(
         router_reshape,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1}));
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{3}));
 
     // Apply routing weights to expert output
     const auto end_shape =
