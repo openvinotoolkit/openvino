@@ -20,7 +20,7 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("MoE3GeMM");
     MoE3GeMM();
 };
-    
+
 class ConvertMoEMatMuls : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("ConvertMoEMatMuls");

@@ -48,9 +48,8 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_we
         *(new_shape.rbegin() + 1) = (has_transpose || !grouped)
                                         ? *(current_shape.rbegin() + 2) * *(current_shape.rbegin() + 1)
                                         : *(current_shape.rbegin() + 2);
-        *new_shape.rbegin() = (has_transpose || !grouped)
-                                          ? *current_shape.rbegin()
-                                          : *(current_shape.rbegin() + 1) * *current_shape.rbegin();
+        *new_shape.rbegin() = (has_transpose || !grouped) ? *current_shape.rbegin()
+                                                          : *(current_shape.rbegin() + 1) * *current_shape.rbegin();
         return std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
     };
 

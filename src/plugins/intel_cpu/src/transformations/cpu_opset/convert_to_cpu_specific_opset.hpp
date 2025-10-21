@@ -49,9 +49,9 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
         ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
         ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
         [&](const std::shared_ptr<ov::intel_cpu::BatchGatherMatmulCompressed>& gather_matmul,
-                  size_t IC,
-                  size_t OC,
-                  size_t G) {
+            size_t IC,
+            size_t OC,
+            size_t G) {
             return ov::intel_cpu::node::GatherMatmul::isSupportedCompressedOperation(gather_matmul, IC, OC, G, config);
         });
 

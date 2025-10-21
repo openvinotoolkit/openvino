@@ -57,7 +57,7 @@ std::shared_ptr<ov::op::v0::Unsqueeze> introduce_n_experts_dim(const ov::Output<
     ov::copy_runtime_info(data.get_node_shared_ptr(), {unsqueeze, zero_const});
     return unsqueeze;
 }
-} // namespace
+}  // namespace
 
 ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
     MATCHER_SCOPE(MoE2GeMM);
@@ -106,8 +106,8 @@ ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
     auto slice_end = pattern::wrap_type<ov::op::v3::ShapeOf>({pattern::any_input()});
     auto slice_strides = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("1, 1"));
     auto slice_axes = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("0, 1"));
-    auto slice = pattern::optional<ov::op::v8::Slice>(
-        {chosen_experts, slice_begin, slice_end, slice_strides, slice_axes});
+    auto slice =
+        pattern::optional<ov::op::v8::Slice>({chosen_experts, slice_begin, slice_end, slice_strides, slice_axes});
     auto one_constant = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("1"));
     auto scatter_elements_update = pattern::wrap_type<ov::op::v3::ScatterElementsUpdate>(
                                        {broadcasted_const, router_topk_indices, chosen_experts, one_constant}) |
@@ -140,9 +140,9 @@ ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
                                                                              active_indices,
                                                                              gate_up_bias_node);
         ov::replace_node_update_name(gate_up_add_node, gate_up_gathered_mm);
-        
+
         validate_nodes(pattern_map, {slice1, clamp, add1, slice2, minimum1, swish, multiply2});
-        
+
         const auto down_proj_mm_node = pattern_map.at(down_proj_matmul).get_node_shared_ptr();
         const auto down_proj_bias_node = pattern_map.at(down_proj_bias).get_node_shared_ptr();
 
@@ -181,7 +181,8 @@ ov::intel_cpu::MoE3GeMM::MoE3GeMM() {
     MATCHER_SCOPE(MoE3GeMM);
 
     auto data_input = pattern::any_input(pattern::rank_equals(3));
-    auto experts_input = pattern::wrap_type<ov::op::v1::Reshape>({data_input, pattern::any_input()}, pattern::rank_equals(2));
+    auto experts_input =
+        pattern::wrap_type<ov::op::v1::Reshape>({data_input, pattern::any_input()}, pattern::rank_equals(2));
     auto tile = pattern::wrap_type<ov::op::v0::Tile>({experts_input, pattern::any_input()});
     auto after_tile_reshape = pattern::wrap_type<ov::op::v1::Reshape>({tile, pattern::any_input()});
 
