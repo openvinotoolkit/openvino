@@ -356,8 +356,8 @@ struct onednn_linear {
 //         auto jit = KernelGenerator::get_jit_constants(params);
 //         auto desc = params.typed_desc<moe_compressed>();
 //         jit.make("SOFTMAX_TOPK_ENABLE", 1);
-//         jit.make("TOP_K", desc->_config.topk);
-//         jit.make("VALUE_NUM", desc->_config.num_experts);
+//         jit.make("TOP_K", desc->_config.top_k);
+//         jit.make("VALUE_NUM", desc->_config.num_expert);
 //         jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
 //         jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
 //         return jit;
@@ -432,8 +432,8 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     auto desc = params.typed_desc<moe_compressed>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
-    jit.make("MAX_TOPK", desc->_config.topk);
-    jit.make("EXPERT_NUM", desc->_config.num_experts);
+    jit.make("MAX_TOPK", desc->_config.top_k);
+    jit.make("EXPERT_NUM", desc->_config.num_expert);
     jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
     jit.make("INTERMEDIATE_SIZE", desc->_config.inter_size);
     jit.make("N_BLOCK", N_BLOCK);
@@ -607,12 +607,12 @@ public:
     void init_dnnl_weights(const std::shared_ptr<const moe_compressed>& cur_moe,
                            cldnn::engine& engine,
                            const struct moe_fusion_weights_base_addr& moe_fusion_wei_addr) {
-        if (_dnnl_weights.size() == cur_moe->_config.num_experts)
+        if (_dnnl_weights.size() == cur_moe->_config.num_expert)
             return;
         init(cur_moe);
 
-        _dnnl_weights.resize(cur_moe->_config.num_experts);
-        for (size_t j = 0; j < cur_moe->_config.num_experts; j++) {
+        _dnnl_weights.resize(cur_moe->_config.num_expert);
+        for (size_t j = 0; j < cur_moe->_config.num_expert; j++) {
             auto& dnnl_weights = _dnnl_weights[j];
             dnnl_weights.resize(3);
             dnnl_weights[0].ic = _hidden_size;
@@ -670,8 +670,8 @@ public:
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
         auto cur_moe = params.typed_desc<moe_compressed>();
         const auto& config = cur_moe->_config;
-        int max_topk = static_cast<int>(config.topk);
-        int expert_num = static_cast<int>(config.num_experts);
+        int max_topk = static_cast<int>(config.top_k);
+        int expert_num = static_cast<int>(config.num_expert);
 
         auto hidden_states_layout = params.input_layouts[0];
         auto batch = static_cast<int>(hidden_states_layout.get_shape()[0]);
@@ -717,7 +717,7 @@ public:
             scratch.routing_weights = intermediates_memories[3];
             scratch.gate = intermediates_memories[4];
             const auto& config = instance.get_typed_desc<moe_compressed>()->_config;
-            int expert_num = static_cast<int>(config.num_experts);
+            int expert_num = static_cast<int>(config.num_expert);
             scratch.expert_masks.resize(expert_num);
             for (int i = 0; i < expert_num; i++) {
                 scratch.expert_masks[i].batch = intermediates_memories[5 + 2 * i + 0];
@@ -749,8 +749,8 @@ public:
         auto layout = mem->get_layout();
         const auto& shape = layout.get_shape();
 
-        int max_expert_num = static_cast<int>(config.num_experts);
-        int max_topk = static_cast<int>(config.topk);
+        int max_expert_num = static_cast<int>(config.num_expert);
+        int max_topk = static_cast<int>(config.top_k);
         int max_tokens = static_cast<int>(shape[0]);
 
         expert_mask.pred_flag.resize(max_expert_num, 0);
@@ -845,7 +845,7 @@ public:
 
     cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe_compressed>& instance, scratch_buffers& scratch) {
         auto cur_moe = instance.get_typed_desc<moe_compressed>();
-        int max_topk = static_cast<int>(cur_moe->_config.topk);
+        int max_topk = static_cast<int>(cur_moe->_config.top_k);
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         // auto batch_mem_ptr = scratch.topk_id;
@@ -1006,7 +1006,7 @@ public:
         auto& instance = reinterpret_cast<typed_primitive_inst<moe_compressed>&>(ins);
         auto cur_moe = instance.get_typed_desc<moe_compressed>();
         const auto& config = cur_moe->_config;
-        int max_topk = static_cast<int>(config.topk);
+        int max_topk = static_cast<int>(config.top_k);
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
 
@@ -1017,7 +1017,7 @@ public:
         prepare_internal_buffers(instance, scratch, batch == 1);
 
         // softmax+topk
-        // auto lws_size = cur_moe->_config.num_experts;
+        // auto lws_size = cur_moe->_config.num_expert;
         // auto topk_event = execute_stage(events,
         //                                 instance,
         //                                 *softmax_topk,
@@ -1068,7 +1068,7 @@ public:
         auto lws_size = get_best_lws(_hidden_size);
 
         OPENVINO_ASSERT(batch != 1, "batch size shouldn't be 1 for this path!");
-        for (size_t expert_no = 0; expert_no < config.num_experts; expert_no++) {
+        for (size_t expert_no = 0; expert_no < config.num_expert; expert_no++) {
             OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
             auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
             if (can_skip_subgraph) {
