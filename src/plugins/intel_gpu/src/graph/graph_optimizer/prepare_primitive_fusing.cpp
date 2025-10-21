@@ -1304,7 +1304,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
-        program_helpers::do_for_types<activation, quantize, eltwise, group_normalization>(*node,
+        program_helpers::do_for_types<activation, quantize, eltwise>(*node,
             fuse_activation_f,
             fuse_quantize_f,
             fuse_eltwise_f);
