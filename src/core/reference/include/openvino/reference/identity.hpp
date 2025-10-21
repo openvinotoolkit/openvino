@@ -5,7 +5,7 @@
 #pragma once
 
 #include <cstring>
-#include <openvino/core/type/element_type.hpp>
+#include <string>
 
 namespace ov {
 namespace reference {
@@ -16,26 +16,31 @@ namespace reference {
  * @param output Output matrix (matrices) pointer.
  * @param size_in_bytes Size of the input tensor in bytes.
  **/
-static inline void identity(const void* input,
-                            void* output,
-                            const size_t size_in_bytes,
-                            const ov::element::Type& type) {
+static inline void identity(const char* input, char* output, const size_t size_in_bytes) {
     if (input == output) {
         return;
     } else {
-        if (type == ov::element::string) {
-            const std::string* str_input = static_cast<const std::string*>(input);
-            std::string* str_output = static_cast<std::string*>(output);
-            // Assign string values one by one
-            auto elem_num = size_in_bytes / sizeof(std::string);
-            for (size_t i = 0; i < elem_num; i++) {
-                str_output[i] = str_input[i];
-            }
-            return;
-        } else {
-            std::memcpy(output, input, size_in_bytes);
-        }
+        std::memcpy(output, input, size_in_bytes);
     }
 }
+
+/**
+ * @brief Identity operation computes the identity of the input tensor.
+ *
+ * @param input Input matrix (matrices) pointer.
+ * @param output Output matrix (matrices) pointer.
+ * @param shape_size Size of the input tensor shape.
+ **/
+static inline void identity(const std::string* input, std::string* output, const size_t shape_size) {
+    if (input == output) {
+        return;
+    } else {
+        for (size_t i = 0; i < shape_size; i++) {
+            output[i] = input[i];
+        }
+        return;
+    }
+}
+
 }  // namespace reference
 }  // namespace ov
