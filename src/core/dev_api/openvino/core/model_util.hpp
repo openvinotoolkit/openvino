@@ -95,4 +95,7 @@ OPENVINO_API void set_tensors_names(const AutoTag&,
                                     const TensorNamesMap& inputs_names = {},
                                     const TensorNamesMap& outputs_names = {});
 
+
+OPENVINO_API std::shared_ptr<ov::Node> make_postponed_constant_from_node(std::shared_ptr<ov::Node> node);
+
 }  // namespace ov::util
