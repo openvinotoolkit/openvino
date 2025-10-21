@@ -163,7 +163,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |ScatterElements                                         |11                      |18, 16, 13, 11                  |                                |
 |                        |ScatterND                                               |11                      |18, 16, 13, 11                  |                                |
 |                        |Selu                                                    |1                       |22, 6, 1                        |                                |
-|                        |SequenceAt                                              |                        |11                              |                                |
+|                        |SequenceAt                                              |11                      |11                              |                                |
 |                        |SequenceConstruct                                       |                        |11                              |                                |
 |                        |SequenceEmpty                                           |                        |11                              |                                |
 |                        |SequenceErase                                           |                        |11                              |                                |
@@ -185,7 +185,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Softsign                                                |1                       |22, 1                           |                                |
 |                        |SpaceToDepth                                            |1                       |13, 1                           |                                |
 |                        |Split                                                   |18, 13, 1               |18, 13, 11, 2, 1                |                                |
-|                        |SplitToSequence                                         |                        |11                              |                                |
+|                        |SplitToSequence                                         |11                      |11                              |                                |
 |                        |Sqrt                                                    |1                       |13, 6, 1                        |                                |
 |                        |Squeeze                                                 |13, 1                   |21, 13, 11, 1                   |                                |
 |                        |StringConcat                                            |                        |20                              |                                |
