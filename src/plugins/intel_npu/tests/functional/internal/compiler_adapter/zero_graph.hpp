@@ -82,6 +82,8 @@ protected:
     void SetUp() override {
         using namespace ::driver_compiler_utils;
 
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
         std::tie(graphDescFlag, extVersion) = GetParam();
 
         const std::string BLOB_NAME = "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
