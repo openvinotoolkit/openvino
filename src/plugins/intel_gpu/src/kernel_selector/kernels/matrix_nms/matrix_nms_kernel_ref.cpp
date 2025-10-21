@@ -85,6 +85,7 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
 
     int max_boxes_per_class, max_boxes_per_batch;
     std::tie(max_boxes_per_class, max_boxes_per_batch) = GetMaxBoxes(new_params);
+    max_boxes_per_class = std::min(max_boxes_per_class, batches_num * max_boxes_per_batch);
 
     const size_t box_info_num = batches_num * classes_num * max_boxes_per_class;
 
