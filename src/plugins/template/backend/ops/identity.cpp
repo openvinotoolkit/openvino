@@ -23,7 +23,9 @@ bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::Node> node,
                                 inputs[0].get_size());
 
     } else {
-        ov::reference::identity(inputs[0].data<const char>(), outputs[0].data<char>(), inputs[0].get_byte_size());
+        ov::reference::identity(static_cast<const char*>(inputs[0].data()),
+                                static_cast<char*>(outputs[0].data()),
+                                inputs[0].get_byte_size());
     }
 
     return true;
