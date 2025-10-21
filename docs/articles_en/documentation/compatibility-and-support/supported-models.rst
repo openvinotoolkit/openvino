@@ -10,7 +10,7 @@ models from OpenVINO-supported frameworks may also work properly but have not be
    :class: modeldata stripe
    :name: supportedModelsTable
    :header-rows: 1
-   :file:  ../../_static/download/supported_models253.csv
+   :file:  ../../_static/download/supported_models_253.csv
    :data-column-hidden: []
    :data-order: [[ 0, "asc" ]]
    :data-page-length: 10
