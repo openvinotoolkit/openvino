@@ -1442,7 +1442,6 @@ public:
                     mismatch_count++;
                 }
             }
-            std::cout << "mismatch_count: " << mismatch_count << std::endl;
             EXPECT_LE(mismatch_count, int(data_output_mem->count() * 0.04));
         }
 
@@ -1455,7 +1454,6 @@ public:
                     mismatch_count++;
                 }
             }
-            std::cout << "mismatch_count: " << mismatch_count << std::endl;
             EXPECT_LE(mismatch_count, int(scores_output_mem->count() * 0.04));
         }
     }
