@@ -5,8 +5,7 @@
 #include "shared_test_classes/single_op/identity.hpp"
 #include "openvino/op/identity.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 std::string IdentityLayerTest::getTestCaseName(const testing::TestParamInfo<identityParams>& obj) {
     const auto& [modelType, input_shapes, targetDevice] = obj.param;
     std::ostringstream result;
@@ -41,5 +40,4 @@ void IdentityLayerTest::SetUp() {
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(op)};
     function = std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "Identity");
 }
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

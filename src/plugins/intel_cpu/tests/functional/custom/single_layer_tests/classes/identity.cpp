@@ -8,8 +8,7 @@
 
 using namespace CPUTestUtils;
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 std::string IdentityLayerTestCPU::getTestCaseName(const testing::TestParamInfo<IdentityLayerTestCPUParamSet>& obj) {
     std::ostringstream result;
@@ -73,5 +72,4 @@ TEST_P(IdentityLayerTestCPU, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Identity");
 }
 
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

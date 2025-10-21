@@ -7,8 +7,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 typedef std::tuple<
         ov::Shape,                        // Input/Output shape
@@ -28,5 +27,4 @@ protected:
 
     void generate_inputs(const std::vector<ov::Shape>& target_shapes) override;
 };
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test
