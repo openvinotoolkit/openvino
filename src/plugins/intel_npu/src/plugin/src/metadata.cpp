@@ -246,7 +246,7 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
         if (layouts.has_value()) {
             for (const ov::Layout& layout : layouts.value()) {
                 const std::string layoutString = layout.to_string();
-                const uint16_t stringLength = layoutString.size();
+                const uint16_t stringLength = static_cast<uint16_t>(layoutString.size());
                 stream.write(reinterpret_cast<const char*>(&stringLength), sizeof(stringLength));
                 stream.write(layoutString.c_str(), stringLength);
             }
