@@ -48,6 +48,8 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
+      HF_HUB_VERBOSITY: debug
+      TRANSFORMERS_VERBOSITY: debug
     steps:
       # checkout action cleans up the workspace and have to be the first step
       - name: Fetch custom actions
@@ -75,7 +77,6 @@ jobs:
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
-          echo "HF_HUB_OFFLINE=0" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
