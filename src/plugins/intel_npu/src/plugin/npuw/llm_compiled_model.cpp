@@ -513,7 +513,6 @@ public:
             auto node_atten_mask_param = node_to_output.at(atten_mask_param).get_node_shared_ptr();
             auto node_atten_mask_len = node_to_output.at(atten_mask_len).get_node_shared_ptr();
             auto node_key_range_f32 = node_to_output.at(key_range_f32).get_node_shared_ptr();
-            auto node_query_left_bound_range = node_to_output.at(query_left_bound_range).get_node_shared_ptr();
             auto node_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
             auto node_forget_left_tokens_mask = node_to_output.at(forget_left_tokens_mask).get_node_shared_ptr();
             auto node_bitwise_or = node_to_output.at(inv_sliding_attention_mask).get_node_shared_ptr();
@@ -523,7 +522,6 @@ public:
             auto matched_atten_mask_input = std::static_pointer_cast<ov::op::v0::Parameter>(node_atten_mask_param);
             auto matched_atten_mask_len = std::static_pointer_cast<ov::op::v8::Gather>(node_atten_mask_len);
             auto matched_key_range_f32 = std::static_pointer_cast<ov::op::v0::Convert>(node_key_range_f32);
-            auto matched_query_left_bound = std::static_pointer_cast<ov::op::v1::Add>(node_query_left_bound_range);
             auto matched_neg_window_size = std::static_pointer_cast<ov::op::v0::Constant>(node_neg_window_size);
             auto matched_forget_left_tokens_mask =
                 std::static_pointer_cast<ov::op::v1::LessEqual>(node_forget_left_tokens_mask);
@@ -559,18 +557,19 @@ public:
             auto new_inv_sliding_mask = std::make_shared<ov::op::v13::BitwiseOr>(matched_bitwise_or, bitwise_and);
 
             // 4. Removing extra padding via : 3 | ~(attention_mask_input[past_kv_len:]).T
-            std::vector<int64_t> shape_1{1};
-            auto shape_1_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, shape_1);
-            auto matched_past_len_shape_1 =
-                std::make_shared<ov::op::v1::Reshape>(matched_past_kv_len, shape_1_const, false);
-            auto matched_atten_len_shape_1 =
-                std::make_shared<ov::op::v1::Reshape>(matched_atten_mask_len, shape_1_const, false);
-            auto const_1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 1);
+            std::vector<int64_t> shape_rank_one{1};
+            auto shape_rank_one_const =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, shape_rank_one);
+            auto past_len_reshaped =
+                std::make_shared<ov::op::v1::Reshape>(matched_past_kv_len, shape_rank_one_const, false);
+            auto atten_len_reshaped =
+                std::make_shared<ov::op::v1::Reshape>(matched_atten_mask_len, shape_rank_one_const, false);
+            auto const_one = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 1);
             auto present_atten_mask = std::make_shared<ov::op::v8::Slice>(matched_atten_mask_input,
-                                                                          matched_past_len_shape_1,
-                                                                          matched_atten_len_shape_1,
-                                                                          const_1,
-                                                                          const_1);
+                                                                          past_len_reshaped,
+                                                                          atten_len_reshaped,
+                                                                          const_one,
+                                                                          const_one);
             auto present_atten_mask_bool =
                 std::make_shared<ov::op::v0::Convert>(present_atten_mask, ov::element::boolean);
             auto inv_present_atten_mask = std::make_shared<ov::op::v13::BitwiseNot>(present_atten_mask_bool);
