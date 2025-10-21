@@ -112,11 +112,8 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
     if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
         body_outputs[0] = v0::Constant::create(ov::element::boolean, {1}, {true});
         // Construct body_params without the condition parameter (body_inputs[1])
-        body_params.reserve(body_inputs.size() - 1);
-        body_params.push_back(body_inputs[0]);
-        for (size_t i = 2; i < body_inputs.size(); ++i) {
-            body_params.push_back(body_inputs[i]);
-        }
+        body_params = ov::ParameterVector{body_inputs[0]};
+        body_params.insert(body_params.end(), body_inputs.begin() + 2, body_inputs.end());
         needs_condition_param = false;
     } else {
         // Construct body_params with all body_inputs
