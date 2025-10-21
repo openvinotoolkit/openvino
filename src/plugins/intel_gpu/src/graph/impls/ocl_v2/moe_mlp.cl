@@ -135,7 +135,7 @@ inline void gemv_n2x(const __global uchar* weight,
 }
 
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
-__kernel void mlp_gate_up(
+KERNEL (mlp_gate_up)(
     const __global int* expert_list,
     const __global uchar* gate_weight_addr,
     const __global uchar* gate_scale_addr,
@@ -143,8 +143,8 @@ __kernel void mlp_gate_up(
     const __global uchar* up_weight_addr,
     const __global uchar* up_scale_addr,
     const __global uchar* up_zp_addr,
-    __global TYPE* x,                        // [1, HIDDEN_SIZE]
-    __global TYPE* y) {                      // [MAX_TOPK, INTERMEDIATE_SIZE]
+    __global MOE_TYPE* x,                        // [1, HIDDEN_SIZE]
+    __global MOE_TYPE* y) {                      // [MAX_TOPK, INTERMEDIATE_SIZE]
     // global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
     int expert_no = get_global_id(0);
     y += expert_no * INTERMEDIATE_SIZE;
@@ -172,14 +172,14 @@ __kernel void mlp_gate_up(
 
 #elif DOWN_ENABLE
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
-__kernel void mlp_down(
+KERNEL (mlp_down)(
     const __global int* expert_list,
     const __global uchar* down_weight_addr,
     const __global uchar* down_scale_addr,
     const __global uchar* down_zp_addr,
-    const __global TYPE* x,                               // [MAX_TOPK, INTERMEDIATE_SIZE]
-    __global TYPE* routing_weights,                       // [MAX_TOPK]
-    __global TYPE* y) {                                   // [MAX_TOPK, HIDDEN_SIZE]
+    const __global MOE_TYPE* x,                               // [MAX_TOPK, INTERMEDIATE_SIZE]
+    __global MOE_TYPE* routing_weights,                       // [MAX_TOPK]
+    __global MOE_TYPE* y) {                                   // [MAX_TOPK, HIDDEN_SIZE]
     // global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
     int expert_no = get_global_id(0);
     x += expert_no * INTERMEDIATE_SIZE;
@@ -301,8 +301,8 @@ __kernel void mlp_down(
 
 #else
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
-__kernel void mlp_reduce(const __global TYPE* x,           // [MAX_TOPK, HIDDEN_SIZE]
-    __global TYPE* y) {                                    // [1, HIDDEN_SIZE]
+KERNEL (mlp_reduce)(const __global MOE_TYPE* x,           // [MAX_TOPK, HIDDEN_SIZE]
+    __global MOE_TYPE* y) {                               // [1, HIDDEN_SIZE]
     int n = get_global_id(1);
     half sum[MAX_TOPK] = {0};
     __attribute__((opencl_unroll_hint(MAX_TOPK)))
