@@ -25,7 +25,7 @@ std::vector<layout> moe_scatter_reduction_inst::calc_output_layouts(moe_scatter_
     const auto& input0_layout = impl_param.get_input_layout(0);
 
     const auto& input_shapes = impl_param.input_layouts[0].get<ShapeType>();
-    const auto& hidden_size = input_shapes[1];
+    const auto& hidden_size = input_shapes[input_shapes.size() - 1];
     OPENVINO_ASSERT(hidden_size.is_static(), impl_param.desc->id, " hidden size dimension (shape[1]) must be static");
 
     const auto& input0_pshape = input0_layout.get_partial_shape();
