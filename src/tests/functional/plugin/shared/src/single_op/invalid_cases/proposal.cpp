@@ -13,7 +13,7 @@ const size_t feat_stride = 1;
 const float box_size_scale = 2.0f;
 const float box_coordinate_scale = 2.0f;
 
-std::string ProposalBehTest::getTestCaseName(testing::TestParamInfo<proposalBehTestParamsSet> obj) {
+std::string ProposalBehTest::getTestCaseName(const testing::TestParamInfo<proposalBehTestParamsSet>& obj) {
     const auto& [proposal_params, img_info, target_device] = obj.param;
 
     const auto& [base_size,

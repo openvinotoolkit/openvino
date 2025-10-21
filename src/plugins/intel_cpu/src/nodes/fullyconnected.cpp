@@ -72,13 +72,13 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
     }
 #if defined(OPENVINO_ARCH_X86_64)
     ov::element::TypeVector supportedDataTypes =
-        {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
+        {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1, Type_t::u2};
     if (apply_fp8) {
         supportedDataTypes.insert(supportedDataTypes.end(), {Type_t::f8e4m3, Type_t::f8e5m2});
     }
     return supportedDataTypes;
 #elif defined(OV_CPU_WITH_KLEIDIAI)
-    return {Type_t::i8};
+    return {Type_t::i8, Type_t::i4};
 #else
     return {};
 #endif

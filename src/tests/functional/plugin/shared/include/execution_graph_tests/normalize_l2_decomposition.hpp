@@ -10,7 +10,7 @@ namespace ExecutionGraphTests {
 
 class ExecGrapDecomposeNormalizeL2 : public testing::TestWithParam<std::string> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj);
 };
 
 }  // namespace ExecutionGraphTests

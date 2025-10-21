@@ -8,7 +8,6 @@
 #include "openvino/pass/pattern/op/true.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/env_util.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 
 namespace ov {
 namespace util {
@@ -18,17 +17,6 @@ namespace util {
 static const bool verbose = ov::util::getenv_bool("OV_VERBOSE_LOGGING");
 
 // These functions are used for printing nodes in a pretty way for matching logging
-static std::string wrapped_type_str(const ov::gen_pattern::detail::GenericPattern& gp, bool verbose) {
-    auto wrapped_type_info = gp.get_wrapped_type();
-    auto version = wrapped_type_info.version_id;
-    std::string res = "<";
-    if (verbose && version)
-        res += version + std::string("::");
-
-    res += wrapped_type_info.name + std::string(">");
-    return res;
-}
-
 static std::string wrapped_type_str(const ov::pass::pattern::op::WrapType& wt, bool verbose) {
     bool first = true;
     std::string res = "<";
@@ -111,11 +99,8 @@ std::string node_version_type_str(const ov::Node& node) {
 
     res += node.get_type_info().name;
 
-    if (auto wrap_type = ov::as_type<const ov::pass::pattern::op::WrapType>(&node)) {
+    if (auto wrap_type = ov::as_type<const ov::pass::pattern::op::WrapType>(&node))
         res += wrapped_type_str(*wrap_type, verbose);
-    } else if (auto generic_pattern = ov::as_type<const ov::gen_pattern::detail::GenericPattern>(&node)) {
-        res += wrapped_type_str(*generic_pattern, verbose);
-    }
 
     return res;
 }
@@ -133,11 +118,8 @@ std::string node_with_arguments(const ov::Node& node) {
 
     res += node.get_type_info().name;
 
-    if (auto wrap_type = ov::as_type<const ov::pass::pattern::op::WrapType>(&node)) {
+    if (auto wrap_type = ov::as_type<const ov::pass::pattern::op::WrapType>(&node))
         res += wrapped_type_str(*wrap_type, verbose);
-    } else if (auto generic_pattern = ov::as_type<const ov::gen_pattern::detail::GenericPattern>(&node)) {
-        res += wrapped_type_str(*generic_pattern, verbose);
-    }
 
     if (verbose)
         res += " " + node.get_friendly_name();

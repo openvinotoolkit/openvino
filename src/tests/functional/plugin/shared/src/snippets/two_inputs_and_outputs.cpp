@@ -10,7 +10,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string TwoInputsAndOutputs::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TwoInputsAndOutputsParams> obj) {
+std::string TwoInputsAndOutputs::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::TwoInputsAndOutputsParams>& obj) {
     const auto& [inputShapes, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;

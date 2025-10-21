@@ -372,6 +372,10 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
         for (size_t i = 1; i < eltwise_node.get_dependencies().size(); i++) {
             auto mem0 = get_scale_shift_mem(eltwise_dep, i);
             auto mem1 = get_scale_shift_mem(eltwise_node, i);
+            if (mem0->get_layout().bytes_count() != mem1->get_layout().bytes_count()) {
+                same_params = false;
+                break;
+            }
 
             mem_lock<uint8_t, mem_lock_type::read> mem0_lock{mem0, stream};
             mem_lock<uint8_t, mem_lock_type::read> mem1_lock{mem1, stream};
@@ -384,7 +388,6 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
                     break;
                 }
             }
-
             // Avoid mem0 and mem1's memory are inplace, but they have different layout.
             if (!mem0->get_layout().get_partial_shape().compatible(mem1->get_layout().get_partial_shape())) {
                 same_params = false;
@@ -533,29 +536,41 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         fc_node.get_dependency(dep_id).recalc_output_layout(false);
     };
 
-    auto need_reorder = [&](size_t dep_id) {
+    auto need_reorder = [&](size_t dep_id, size_t weight_rank) {
         auto dep_layout = fc_node.get_input_layout(dep_id);
         auto dep_pshape = dep_layout.get_partial_shape();
-        if (dep_pshape.size() == 0) {
+        auto dep_rank = dep_pshape.size();
+        if (dep_rank == 0) {
             // ConvertU4WeightsZeroPointToScalar pass generates scalar const layer
             return false;
         }
 
-        // Group for scale_idx is always 1, whereas zero_point_idx is 0.
-        auto groups_idx = (dep_pshape.size() > 1) ? 1 : 0;
+        auto groups_idx = dep_rank == 1 ? 0 : weight_rank - 1;
         auto groups_count = dep_pshape[groups_idx].get_length();
-
         return groups_count > 1;
     };
+    // possible cases
+    // legacy [K, N, 1, 1] => crop padded dims
+    // new shape [1, K, N] => preserve
+    auto weights_shape = fc_node.get_input_layout(1).get_partial_shape();
+    auto weight_rank = weights_shape.size();
+    if (weight_rank >= 3 && weights_shape[0] != 1) {
+        // legacy case
+        weight_rank = std::count_if(weights_shape.begin(), weights_shape.end(), [](ov::Dimension d) {
+            return d.get_length() > 1;
+        });
+
+        weight_rank = std::max(static_cast<size_t>(2), weight_rank);
+    }
 
     auto decompression_scale_idx = !fc_node.bias_term() ? 2 : 3;
-    if (need_reorder(decompression_scale_idx)) {
+    if (need_reorder(decompression_scale_idx, weight_rank)) {
         reorder_bfyx_to_fbyx(decompression_scale_idx);
     }
 
     if (fc_prim->decompression_zero_point.is_valid()) {
         auto decompression_zp_idx = decompression_scale_idx + 1;
-        if (need_reorder(decompression_zp_idx)) {
+        if (need_reorder(decompression_zp_idx, weight_rank)) {
             reorder_bfyx_to_fbyx(decompression_zp_idx);
         }
     }

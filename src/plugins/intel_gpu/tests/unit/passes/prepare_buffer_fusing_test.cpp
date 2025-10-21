@@ -1655,3 +1655,28 @@ TEST(prepare_buffer_fusing, redundant_reorder_permute) {
     ASSERT_TRUE(reorder_node.can_be_optimized());
     ASSERT_TRUE(permute_node.can_be_optimized());
 }
+
+TEST(prepare_buffer_fusing, reorder_permute_with_fused_prim) {
+    auto& engine = get_test_engine();
+
+    auto in_layout1 = layout{ ov::PartialShape{1, 2, 3, 5}, data_types::f16, format::byxf };
+    auto in_layout2 = layout{ ov::PartialShape{1, 3, 5, 2}, data_types::f16, format::bfyx };
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout1));
+    topology.add(input_layout("input2", in_layout2));
+    topology.add(reorder("reorder", input_info("input1"), format::bfyx, data_types::f16));
+    topology.add(permute("permute", input_info("reorder"), {0, 2, 3, 1}));
+    topology.add(eltwise("eltwise", { input_info("permute"), input_info("input2") }, eltwise_mode::sum));
+    topology.add(reorder("output", input_info("eltwise"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+
+    auto& permute_node = prog->get_node("permute").as<permute>();
+    auto& reorder_node = prog->get_node("reorder").as<reorder>();
+    ASSERT_FALSE(reorder_node.can_be_optimized());
+    ASSERT_FALSE(permute_node.can_be_optimized());
+}

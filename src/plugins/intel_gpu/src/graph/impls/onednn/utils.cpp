@@ -715,6 +715,10 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     return traits;
 }
 
+/*
+ * This function checks the consistency between the input and output shapes of the onednn reorder.
+ * If the shape is expanded from 4D to 5D, the format of the input layout is also updated accordingly.
+ */
 bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::memory::desc& desc) {
     if (layout.is_dynamic())
         return false;
@@ -740,20 +744,25 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
 
     layout.set_partial_shape(desc_dims);
     if (layout.get_rank() == desc_dims.size()) {
-        return true;    // Shapes are now consistent
-    } else {
+        return true;
+    } else if (layout.get_rank() == 4 && desc_dims.size() == 3) {
+        // In the case of a 3D shape, cldnn::layout::get_rank() returns 4.
+        return true;
+    } else if (layout.get_rank() == 4 && desc_dims.size() == 5) {
+        // Since onednn does not support 1D group convolution, a z-axis is added, and format change is required in this case.
         auto is_weights = cldnn::format::is_weights_format(layout.format);
         auto is_grouped = cldnn::format::is_grouped(layout.format);
-        auto expected_format = cldnn::format::get_default_format(cldnn::format::dimension(layout.format), is_weights, is_grouped);
-        if (layout.format == expected_format) {
-            // Dimension expansion is only allowed when the input layout is in the default format.
+        auto expected_default_format = cldnn::format::get_default_format(layout.get_rank(), is_weights, is_grouped);
+        // Dimension expansion is only allowed when the input layout is in the default format.
+        if (layout.format == expected_default_format) {
             layout.format = cldnn::format::get_default_format(desc_dims.size(), is_weights, is_grouped);
+            return true;
         } else {
-            // The expected format is not default format.
-            return false;
+            OPENVINO_ASSERT(false, "Need default format for axis expansion.");
         }
+    } else {
+        return false;
     }
-    return true;
 }
 
 size_t get_post_ops_count(const program_node& node) {
@@ -810,5 +819,26 @@ bool is_supported_pad(const layout& layout) {
     return (no_spatial_padding && no_batch_padding);
 }
 
+int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
+                                                                const std::function<layout(int32_t)>& get_input_layout,
+                                                                int32_t slope_input_idx) {
+    auto output_layout = get_output_layout();
+    auto slope_layout = get_input_layout(slope_input_idx);
+    auto input_layout = get_input_layout(0);
+    auto output_shape = output_layout.get_shape();
+    auto slope_shape = slope_layout.get_shape();
+    auto input_shape = input_layout.get_shape();
+
+    bool is_scalar = true;
+    for (size_t i = 0; i < slope_shape.size(); i++) {
+        if (slope_shape[i] != 1)
+            is_scalar = false;
+    }
+
+    if (is_scalar)
+        return 0;
+    else
+        return (1 << 1);
+}
 }  // namespace onednn
 }  // namespace cldnn

@@ -103,9 +103,6 @@ PYBIND11_MODULE(_pyopenvino, m) {
                     "Please ensure that environment variables (e.g. PATH, PYTHONPATH) are set correctly so that "
                     "OpenVINO Runtime and Python libraries point to same release.");
 
-    // https://pybind11.readthedocs.io/en/stable/advanced/cast/stl.html#making-opaque-types
-    py::bind_vector<ov::TensorVector>(m, "TensorVector");
-
     m.def("get_version", &get_version);
     m.def(
         "serialize",
@@ -232,6 +229,8 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_Output<ov::Node>(m, std::string(""));
     regclass_Tensor(m);
     regclass_graph_descriptor_Tensor(m);
+    // https://pybind11.readthedocs.io/en/stable/advanced/cast/stl.html#making-opaque-types
+    py::bind_vector<ov::TensorVector>(m, "TensorVector");
     regclass_graph_Input(m);
     regclass_graph_Node(m);
     regclass_graph_NodeFactory(m);

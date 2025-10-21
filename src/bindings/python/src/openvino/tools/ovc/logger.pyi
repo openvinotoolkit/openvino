@@ -7,7 +7,7 @@ import logging as log
 import os as os
 import re as re
 import typing
-__all__ = ['LvlFormatter', 'TagFilter', 'copy', 'get_logger_state', 'handler_num', 'importlib', 'init_logger', 'log', 'os', 're', 'restore_logger_state']
+__all__: list[str] = ['LvlFormatter', 'TagFilter', 'copy', 'get_logger_state', 'handler_num', 'importlib', 'init_logger', 'log', 'os', 're', 'restore_logger_state']
 class LvlFormatter(logging.Formatter):
     format_dict: typing.ClassVar[dict] = {10: '[ %(asctime)s ] [ %(levelname)s ] [ %(module)s:%(lineno)d ]  %(msg)s', 20: '[ %(levelname)s ]  %(msg)s', 30: '[ WARNING ]  %(msg)s', 40: '[ %(levelname)s ]  %(msg)s', 50: '[ %(levelname)s ]  %(msg)s', 'framework_error': '[ FRAMEWORK ERROR ]  %(msg)s', 'analysis_info': '[ ANALYSIS INFO ]  %(msg)s'}
     def __init__(self, lvl, fmt = None):

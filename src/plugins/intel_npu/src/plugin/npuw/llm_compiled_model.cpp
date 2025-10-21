@@ -5,8 +5,11 @@
 
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
@@ -20,9 +23,11 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
+#include "partitioning/patterns/sdpa.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
+#include "whisper_infer_request.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -66,279 +71,6 @@ public:
             return true;
         };
         register_matcher(std::make_shared<opp::Matcher>(concat, "RemoveEmptyKVTensors"), std::move(callback));
-    }
-};
-
-class TransposeValueTensors : public ov::pass::MatcherPass {
-public:
-    struct Context {
-        using Ref = std::reference_wrapper<Context>;
-        bool bTransposed = false;
-    };
-
-protected:
-    // generic part of matchers, to transpose v-tensors, and concat, and update matmul args
-    void transpose_matmul_b(Context::Ref ctx,
-                            const std::shared_ptr<ov::op::v0::Parameter>& matched_param,
-                            const std::shared_ptr<ov::op::v0::Concat>& matched_concat,
-                            const std::shared_ptr<ov::op::v1::Transpose>& matched_transpose,
-                            const std::shared_ptr<ov::op::v0::MatMul>& matched_matmul) {
-        auto param_shape = matched_param->get_partial_shape();
-        NPUW_ASSERT(param_shape.size() == 4u);
-        // NB: Transpose Parameter that correspond to V-tensor it will
-        // speed-up its multiplication with attention scores
-        std::swap(param_shape[2], param_shape[3]);
-
-        matched_param->set_partial_shape(param_shape);
-
-        auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
-
-        matched_transpose->set_argument(1, order_cst);
-        matched_concat->set_axis(3u);
-        matched_matmul->set_transpose_b(true);
-        ctx.get().bTransposed = true;
-    }
-
-    void transpose_matmul_b(Context::Ref ctx,
-                            const std::shared_ptr<ov::Node>& node_param,
-                            const std::shared_ptr<ov::Node>& node_concat,
-                            const std::shared_ptr<ov::Node>& node_transpose,
-                            const std::shared_ptr<ov::Node>& node_matmul) {
-        auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(node_param);
-        auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(node_concat);
-        auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(node_transpose);
-        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_matmul);
-
-        transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
-    }
-};
-
-// llama2 pattern for value tensor concate
-class TransposeValueTensors_llama2 : public TransposeValueTensors {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_llama2");
-    TransposeValueTensors_llama2(Context::Ref ctx) {
-        register_matcher_llama2(ctx);
-    }
-
-private:
-    void register_matcher_llama2(Context::Ref ctx) {
-        auto param = opp::wrap_type<ov::op::v0::Parameter>();
-        auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
-        auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
-        auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
-        auto fake_convert =
-            opp::optional<ov::op::v13::FakeConvert>({concat->output(0), opp::any_input(), opp::any_input()});
-        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, fake_convert});
-
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
-            auto& node_to_output = m.get_pattern_value_map();
-
-            auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
-            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
-            auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
-            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
-
-            transpose_matmul_b(ctx,
-                               matched_node_param,
-                               matched_node_concat,
-                               matched_node_transpose,
-                               matched_node_matmul);
-            LOG_DEBUG("vtensors transposed: LLama2 pattern");
-            return true;
-        };
-        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama2"), std::move(callback));
-    }
-};
-
-// llama3, phi3, mistral, etc, concate value tensors with broadcasting
-class TransposeValueTensors_llama3 : public TransposeValueTensors {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_llama3");
-    TransposeValueTensors_llama3(Context::Ref ctx) {
-        register_matcher_llama3(ctx);
-    }
-
-private:
-    void register_matcher_llama3(Context::Ref ctx) {
-        auto param = opp::wrap_type<ov::op::v0::Parameter>();
-        auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
-        auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
-        auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
-        auto fake_convert =
-            opp::optional<ov::op::v13::FakeConvert>({concat->output(0), opp::any_input(), opp::any_input()});
-
-        // only difference is that broadcast wrapped into unsquese/reshape, while transposed tensor didn't change
-        const auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
-        auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({fake_convert, unsqueeze_axes});
-        auto broadcast = opp::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>({unsqueeze, opp::any_input()});
-        auto reshape = opp::wrap_type<ov::op::v1::Reshape>({broadcast, opp::any_input()});
-
-        // v8 softmax? what? can be other softmaxes
-        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, reshape});
-
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
-            auto& node_to_output = m.get_pattern_value_map();
-
-            auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
-            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
-            auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
-            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
-            auto matched_node_unsqueeze = node_to_output.at(unsqueeze).get_node_shared_ptr();
-            auto matched_node_unsqueeze_axes = node_to_output.at(unsqueeze_axes).get_node_shared_ptr();
-            auto matched_node_broadcast = node_to_output.at(broadcast).get_node_shared_ptr();
-            auto matched_node_reshape = node_to_output.at(reshape).get_node_shared_ptr();
-
-            auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param);
-            auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
-            auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
-            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
-            auto matched_unsqueeze = std::static_pointer_cast<ov::op::v0::Unsqueeze>(matched_node_unsqueeze);
-            auto matched_broadcast = std::static_pointer_cast<ov::op::v3::Broadcast>(matched_node_broadcast);
-            auto matched_reshape = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
-
-            auto shape_broadcast = matched_broadcast->get_output_shape(0);
-            NPUW_ASSERT(shape_broadcast.size() == 5u);
-            std::swap(shape_broadcast[3], shape_broadcast[4]);
-
-            LOG_DEBUG("shape_broadcast for: " << matched_broadcast->get_friendly_name()
-                                              << ", shape=" << shape_broadcast);
-
-            const auto broadcast_axes_node =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{5}, shape_broadcast);
-            broadcast_axes_node->set_friendly_name(matched_broadcast->get_friendly_name() + "/new_broadcast_shape");
-            matched_broadcast->input(1).replace_source_output(broadcast_axes_node);
-
-            auto shape_reshape = matched_reshape->get_output_shape(0);
-            NPUW_ASSERT(shape_reshape.size() == 4u);
-            std::swap(shape_reshape[2], shape_reshape[3]);
-
-            LOG_DEBUG("shape_reshape for: " << matched_reshape->get_friendly_name() << ", shape=" << shape_reshape);
-
-            const auto reshape_axes_node =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, shape_reshape);
-            reshape_axes_node->set_friendly_name(matched_reshape->get_friendly_name() + "/new_reshape_shape");
-            matched_reshape->input(1).replace_source_output(reshape_axes_node);
-
-            transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
-            LOG_DEBUG("vtensors transposed: LLama3 pattern");
-            return true;
-        };
-        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama3"), std::move(callback));
-    }
-};
-
-class ScaledDotProductAttentionDecomposition : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::ScaledDotProductAttentionDecomposition");
-    explicit ScaledDotProductAttentionDecomposition(bool use_high_precision_on_add) {
-        auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
-
-        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-            auto& pattern_to_output = m.get_pattern_value_map();
-            auto node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(
-                pattern_to_output.at(pattern_node).get_node_shared_ptr());
-
-            if (node == nullptr || transformation_callback(node)) {
-                return false;
-            }
-
-            auto new_output_node = decompose(node, use_high_precision_on_add);
-            ov::replace_node(node, new_output_node);
-            return true;
-        };
-
-        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_node, "ScaledDotProductAttentionDecomposition");
-        register_matcher(m, std::move(callback));
-    }
-    std::shared_ptr<ov::Node> decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node,
-                                        bool use_high_precision_on_add) {
-        using namespace ov::op;
-        using namespace ov;
-        auto query = node->input_value(0);
-        auto key = node->input_value(1);
-        auto value = node->input_value(2);
-        auto q_shape = register_new_node<v3::ShapeOf>(query, element::i32);
-        auto k_shape = register_new_node<v3::ShapeOf>(key, element::i32);
-        auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));
-        auto minus_two = register_new_node(v0::Constant::create(element::i32, Shape{}, {-2}));
-        auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));
-        auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{}, {1}));
-        auto one_f = register_new_node<v1::ConvertLike>(one_i, query);
-        auto zero_f = register_new_node<v1::ConvertLike>(zero_i, query);
-
-        Output<Node> scale;
-        if (node->get_input_size() < 5) {
-            scale = register_new_node<v8::Gather>(q_shape, minus_one, zero_i)->output(0);
-            scale = register_new_node<v1::ConvertLike>(scale, query);
-            auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
-            scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
-        } else {
-            scale = node->input_value(4);
-        }
-
-        auto q_scaled = register_new_node<v1::Multiply>(query, scale);
-        auto k_rank = register_new_node<v3::ShapeOf>(k_shape, element::i32)->output(0);
-        auto k_last_dim = register_new_node<v1::Add>(k_rank, minus_one);
-        auto k_next_dim = register_new_node<v1::Add>(k_rank, minus_two)->output(0);
-        k_rank = register_new_node<v0::Squeeze>(k_rank, zero_i);
-        auto minus_inf =
-            register_new_node(v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}))
-                ->output(0);
-        auto keep_dim_last = register_new_node<v0::Squeeze>(k_next_dim, zero_i);
-        auto k_dims_before_transpose = register_new_node<v4::Range>(zero_i, keep_dim_last, one_i, element::i32);
-
-        auto scaled_atten = register_new_node<v0::MatMul>(q_scaled, key, false, true)->output(0);
-        minus_inf = register_new_node<v1::ConvertLike>(minus_inf, scaled_atten);
-
-        if (node->get_causal() || node->get_input_size() > 3) {
-            Output<Node> mask;
-            Output<Node> atten_mask;
-            if (!node->get_causal()) {
-                mask = node->input_value(3);
-
-                // two types of masks are supported. A boolean mask where a value of True indicates that the element
-                // should take part in attention. A float mask of the same type as query, key, value that is added to
-                // the attention score.
-                if (mask.get_element_type() == element::boolean) {
-                    atten_mask = register_new_node<v1::ConvertLike>(mask, scaled_atten);
-                    auto inv_mask = register_new_node<v1::LogicalNot>(mask);
-                    atten_mask = register_new_node<v1::Select>(inv_mask, atten_mask, minus_inf);
-                } else {
-                    atten_mask = mask;
-                }
-            } else {
-                auto target_s_len = register_new_node<v8::Gather>(q_shape, minus_two, zero_i);
-                auto source_s_len = register_new_node<v8::Gather>(k_shape, minus_two, zero_i);
-                auto ssl = register_new_node<v0::Unsqueeze>(source_s_len, zero_i);
-                auto tsl = register_new_node<v0::Unsqueeze>(target_s_len, zero_i);
-                auto mask_shape = register_new_node<v0::Concat>(OutputVector{tsl, ssl}, 0);
-                mask = register_new_node<v1::Broadcast>(minus_inf, mask_shape);
-                auto horizontal_range =
-                    register_new_node<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
-                horizontal_range = register_new_node<v0::Unsqueeze>(horizontal_range, zero_i);
-                auto stop = register_new_node<v1::Add>(target_s_len, one_i);
-                auto vertical_range = register_new_node<v4::Range>(one_i, stop, one_i, element::i32)->output(0);
-                vertical_range = register_new_node<v0::Unsqueeze>(vertical_range, one_i);
-                auto triu = register_new_node<v1::GreaterEqual>(horizontal_range, vertical_range);
-                atten_mask = register_new_node<v1::Select>(triu, mask, zero_f);
-            }
-            if (use_high_precision_on_add) {
-                npuw::util::HighPrecisionAttr attr_hp;
-                attr_hp.compute_precision_type = ov::element::f32;
-                atten_mask.get_rt_info()[npuw::util::HighPrecisionAttr::get_type_info_static()] = attr_hp;
-            }
-
-            scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
-        }
-
-        scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
-        auto result = register_new_node<v0::MatMul>(scaled_atten, value);
-        result->set_friendly_name(node->get_friendly_name());
-        copy_runtime_info(node, get_new_nodes());
-        return result;
     }
 };
 
@@ -575,9 +307,102 @@ public:
     }
 };
 
+class GemmaSlidingMask : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::GemmaSlidingMask");
+
+    struct Result {
+        Result() = default;
+
+        bool found = false;
+        int32_t window_size = 0;
+        std::shared_ptr<ov::op::v0::Parameter> mask_input;
+    };
+
+    explicit GemmaSlidingMask(Result* result) {
+        // Searching for gemma sliding mask pattern and replace it's output
+        // with Paramater of the same size and type.
+        /*                                                              -\
+          range_w -> unsqueeze -> unsqueeze -> unsqueeze1 -> convert -\/  => LessEqual -\
+                                                               \      /\-/               \
+                                                          /-----\----/                    =>BWAnd_res
+                                                         /       \                       /
+          range_h -> unsqueeze -> unsqueeze -> unsqueeze2 -> add -=> Greater -> BWAnd --/
+                                   const (-window_size) ----/
+        */
+        // Basically this subgrapgh is doing the following:
+        // range_w is range (0, ..., width - 1) (probably + something)
+        // renge_h is range (0, ..., height - 1)  (probably + something)
+        // And then doing the following check:
+        // y - window_size < x <= y
+        // Producing squared sliding mask:
+        // 1 0 0 0 0 0
+        // 1 1 0 0 0 0
+        // 1 1 1 0 0 0
+        // 0 1 1 1 0 0
+        // 0 0 1 1 1 0
+        // 0 0 0 1 1 1
+        //
+        // Please also note, that sliding windows size is stored as negative value and the
+        // subgraph is actually doing:
+        // y + (negative)window_size < x <= y
+
+        auto range_sequence = [&]() {
+            auto range = opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
+            auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({range, opp::any_input()});
+            auto unsqueeze2 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze1, opp::any_input()});
+            auto unsqueeze3 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze2, opp::any_input()});
+
+            return unsqueeze3;
+        };
+
+        auto unsqueeze1 = range_sequence();
+        auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze1});
+        auto unsqueeze2 = range_sequence();
+        auto window_size = opp::wrap_type<ov::op::v0::Constant>();
+        auto add = opp::wrap_type<ov::op::v1::Add>({unsqueeze2, window_size});
+        auto greater = opp::wrap_type<ov::op::v1::Greater>({convert, add});
+        auto bwand = opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), greater});
+        auto less_equal = opp::wrap_type<ov::op::v1::LessEqual>({convert, unsqueeze2});
+        auto bwand_res = opp::wrap_type<ov::op::v13::BitwiseAnd>({bwand, less_equal});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+            auto* bwand_matched_node = node_to_output.at(bwand_res).get_node();
+            auto* window_size_node = node_to_output.at(window_size).get_node();
+            auto output = bwand_matched_node->output(0);
+            auto target_inputs = output.get_target_inputs();
+
+            auto* window_size_constant = static_cast<ov::op::v0::Constant*>(window_size_node);
+            OPENVINO_ASSERT(window_size_constant->get_output_size() == 1,
+                            "Sliding window size constant must be of size 1, but got " +
+                                std::to_string(window_size_constant->get_output_size()));
+            OPENVINO_ASSERT(!result->found, "Second gemma sliding mask pattern found, what is unexpected!");
+
+            auto input = std::make_shared<ov::op::v0::Parameter>(output.get_element_type(), output.get_partial_shape());
+            input->set_friendly_name(ov::npuw::LLMInferRequest::layer_names::gemma_sliding_mask);
+            output.replace(input->output(0));
+
+            auto window_size_vec = window_size_constant->cast_vector<int32_t>(1);
+
+            result->found = true;
+            // since we are doing Add and need to do subtract window size is stored as negative value
+            result->window_size = -window_size_vec[0];
+            result->mask_input = input;
+
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(bwand_res, "GemmaSlidingMask"), std::move(callback));
+    }
+};
+
 namespace {
 uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
+}
+
+bool is_aligned_to(uint32_t value, uint32_t alignment) {
+    return value % alignment == 0;
 }
 
 std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>& model) {
@@ -599,8 +424,8 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>&
 }
 
 std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
-    const auto kStartOutputKVCacheLayers = 1u;
-    for (std::size_t i = kStartOutputKVCacheLayers; i < model->outputs().size(); ++i) {
+    for (std::size_t i = ov::npuw::LLMInferRequest::layer_ids::kStartOutputKVCacheLayers; i < model->outputs().size();
+         ++i) {
         auto kvout = model->output(i);
         auto kvrslt = kvout.get_node();
         auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
@@ -631,22 +456,6 @@ void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
     rewr.run_on_model(model);
 }
 }  // namespace
-
-namespace ov::npuw::util {
-bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
-    TransposeValueTensors::Context ctx;
-    rewr.add_matcher<TransposeValueTensors_llama2>(std::ref(ctx));
-    rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));
-    rewr.run_on_model(model);
-
-    ov::pass::Validate().run_on_model(model);
-
-    // NB: matmul parameters gets transposed, if pass applied
-    return ctx.bTransposed;
-}
-}  // namespace ov::npuw::util
 
 namespace {
 struct KVAxesPosition {
@@ -737,7 +546,9 @@ std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     rewr.add_matcher<CutLMHead>(lm_head_model);
     rewr.run_on_model(model);
-    lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
+    if (lm_head_model) {
+        lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
+    }
     model->validate_nodes_and_infer_types();
 
     return lm_head_model;
@@ -747,12 +558,15 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t input_size,
                        const uint32_t kvcache_size,
                        const KVAxesPosition& kv_axes_position,
-                       const uint32_t lora_rank) {
+                       const uint32_t lora_rank,
+                       const uint32_t lhs_seq_size = 0) {
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
         const auto& input_name = input.get_any_name();
         ov::PartialShape new_shape;
         if (input_name.find("input_ids") != std::string::npos) {
+            new_shape = ov::PartialShape({1, input_size});
+        } else if (input_name.find("token_type_ids") != std::string::npos) {
             new_shape = ov::PartialShape({1, input_size});
         } else if (input_name.find("inputs_embeds") != std::string::npos) {
             // NB: VLMs case, model accepts inputs_embeds[BATCH, SEQ_LEN, EMB_SIZE]
@@ -761,6 +575,9 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
         } else if (input_name.find("attention_mask") != std::string::npos) {
             new_shape = ov::PartialShape({1, kvcache_size});
+            if (lhs_seq_size && kvcache_size > 4)
+                // NB: for whisper kvcache model attn mask should be size + 1
+                new_shape = ov::PartialShape({1, kvcache_size + 1});
         } else if (input_name.find("position_ids") != std::string::npos) {
             const auto partial_shape_size = input.get_partial_shape().size();
             // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
@@ -769,27 +586,44 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
             new_shape =
                 partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
-        } else if (ov::npuw::matchLoRAMatMulAString(input_name)) {
+        } else if (input_name.find("cache_position") != std::string::npos) {
+            // NB: Whisper case
+            new_shape = ov::PartialShape({1});
+        } else if (input_name.find("encoder_hidden_states") != std::string::npos) {
+            // NB: Whisper case
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            new_shape[0] = 1;  // batch_dim
+        } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
-        } else if (ov::npuw::matchLoRAMatMulAlphaString(input_name)) {
+        } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
-        } else if (ov::npuw::matchLoRAMatMulBString(input_name)) {
+        } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
         } else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[kv_axes_position.batch] = 1;
-            new_shape[kv_axes_position.seq_len] = kvcache_size - input_size;
+            if (lhs_seq_size) {  // Whisper model
+                new_shape[kv_axes_position.seq_len] = (input_name.find(".decoder") != std::string::npos)
+                                                          ? kvcache_size - input_size  // kv_size for decoder
+                                                          : lhs_seq_size;  // sequence size for encoder hidden states
+            } else {                                                       // LLM/VLM
+                new_shape[kv_axes_position.seq_len] = kvcache_size - input_size;
+            }
         }
         new_shapes.emplace(input_name, new_shape);
     }
     model->reshape(new_shapes);
 }
 
-void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model, const uint32_t& batch_dim) {
-    // We have only one input with dynamic shapes: output of Slice operation, and this output
-    // should have "1" for dimension representing number of embeddings to send to the matmul.
-    // Batch size should be also equal "1" for NPU.
+void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model,
+                                   const uint32_t& batch_dim,
+                                   std::size_t max_generation_token_len) {
+    // We have only one input with dynamic shapes: output embeds.
+    // Output embeds should have "max_generation_token_len" for dimension representing
+    // number of embeddings to send to the matmul. Batch size should be equal to "1"
+    // for NPU.
     const auto& input = lm_head_model->input(0);
     const auto& partial_shape = input.get_partial_shape();
     NPUW_ASSERT(partial_shape.size() == 3);
@@ -799,7 +633,7 @@ void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model, con
     // Left dynamic axis will be for number of embeddings
     for (auto i = 0; i < new_shape.rank().get_length(); i++) {
         if (new_shape[i].is_dynamic()) {
-            new_shape[i] = 1;
+            new_shape[i] = max_generation_token_len;
             // Sanity check that only one left dimension is dynamic, as
             // another one should contain embedding space rank
             break;
@@ -809,7 +643,9 @@ void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model, con
     lm_head_model->reshape(new_shape);
 }
 
-void slice_out_embeds(std::shared_ptr<ov::Model> model, const uint32_t& batch_dim) {
+void slice_out_embeds(std::shared_ptr<ov::Model> model,
+                      const uint32_t& batch_dim,
+                      std::size_t max_generation_token_len) {
     std::shared_ptr<ov::Node> embed_result;
     for (auto&& output : model->outputs()) {
         if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
@@ -819,16 +655,20 @@ void slice_out_embeds(std::shared_ptr<ov::Model> model, const uint32_t& batch_di
 
     if (embed_result) {
         auto shape = embed_result->input(0).get_shape();
-        // If shape.size() is 3, then last axis should be the Vocab size.
-        // But 1st and 2nd axis can mean different things.
+        // If shape.size() is 3, then last axis should contain the rank of embedding dimension.
+        // But 1st and 2nd axes can mean different things.
         // 1st axis can represent the batch size, while 2nd - the number of embeddings,
         // or vice-versa (in chatglm)
         if (shape.size() == 3) {
+            OPENVINO_ASSERT(batch_dim <= 1, "Unexpected value of batch_dim: ", batch_dim, ", expected 0 or 1!");
             uint32_t num_embeds_dim = 1 - batch_dim;
-            if (shape[num_embeds_dim] > 1) {
-                std::vector<int32_t> start_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)),
-                                               static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)),
-                                               0};
+            OPENVINO_ASSERT(shape[num_embeds_dim] >= max_generation_token_len,
+                            "Number of output embeddings should be greater or equal to the slicing range!");
+            if (shape[num_embeds_dim] != max_generation_token_len) {
+                std::vector<int32_t> start_pos{
+                    static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - max_generation_token_len)),
+                    static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - max_generation_token_len)),
+                    0};
                 std::vector<int32_t> stop_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)) + 1,
                                               static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
                                               static_cast<int32_t>(shape[2])};
@@ -901,6 +741,18 @@ std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_
     return std::nullopt;
 }
 
+void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
+    auto it = config.find("NPUW_WEIGHTS_BANK");
+    if (it != config.end()) {
+        if (it->second.as<std::string>().empty()) {
+            NPUW_ASSERT(false && "NPUW_WEIGHTS_BANK is empty in the provided config! Please use non-empty name to "
+                                 "share the model weights.");
+        }
+    } else {
+        config["NPUW_WEIGHTS_BANK"] = bank_name;
+    }
+}
+
 ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
     ov::AnyMap config = {
         {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
@@ -909,7 +761,6 @@ ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
         {"NPUW_FOLD", "YES"},
         {"NPUW_DCOFF_TYPE", "f16"},
         {"NPUW_DCOFF_SCALE", "YES"},
-        {"NPUW_WEIGHTS_BANK", "shared"},
         {"NPUW_SLICE_OUT", "YES"},
         {"NPUW_FUNCALL_ASYNC", "YES"}};
     // FIXME: this config logic is getting more and more complex
@@ -960,6 +811,9 @@ ov::AnyMap get_default_generate_config(const std::optional<NPUDesc>& npudesc,
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
     }
+    // We don't need slice out for kv cache model, especially for speculative decoding which need
+    // to generate more than 1 token for each inference
+    config.erase("NPUW_SLICE_OUT");
     return config;
 }
 
@@ -1010,6 +864,10 @@ void refine_dynamic_props(ov::AnyMap& llm_properties, const std::optional<NPUDes
     }
 }
 
+void update_config_for_whisper(ov::AnyMap& config) {
+    config.erase("NPUW_SLICE_OUT");
+}
+
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
@@ -1028,8 +886,9 @@ void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_
     for (size_t i = 0; i < sinks.size(); ++i) {
         if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sinks[i])) {
             auto variable_name = assign->get_variable_id();
-            if (!ov::npuw::matchLoRAMatMulAString(variable_name) && !ov::npuw::matchLoRAMatMulBString(variable_name) &&
-                !ov::npuw::matchLoRAMatMulAlphaString(variable_name)) {
+            if (!ov::npuw::util::matchLoRAMatMulAString(variable_name) &&
+                !ov::npuw::util::matchLoRAMatMulBString(variable_name) &&
+                !ov::npuw::util::matchLoRAMatMulAlphaString(variable_name)) {
                 continue;
             }
 
@@ -1061,6 +920,41 @@ void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_
     model->add_parameters(new_parameters);
 }
 
+void ov::npuw::LLMCompiledModel::gemma_transformations(const std::shared_ptr<ov::Model>& model) {
+    // For now only do transformations for gemma3 which has token_type_ids input.
+    bool token_type_ids_found = false;
+    for (const auto& input : model->inputs()) {
+        const auto& input_name = input.get_any_name();
+        if (input_name.find("token_type_ids") != std::string::npos) {
+            token_type_ids_found = true;
+            break;
+        }
+    }
+
+    if (token_type_ids_found) {
+        ov::pass::GraphRewrite rewr;
+        auto RewrRes = std::make_unique<GemmaSlidingMask::Result>();
+        rewr.add_matcher<GemmaSlidingMask>(RewrRes.get());
+        rewr.run_on_model(model);
+
+        if (RewrRes->found) {
+            OPENVINO_ASSERT(
+                RewrRes->window_size > 0,
+                "Gemma sliding window size must be strictly positive, but got " + std::to_string(RewrRes->window_size));
+
+            m_gemma_sliding_window_size = RewrRes->window_size;
+            auto mask_input = RewrRes->mask_input;
+            model->add_parameters({mask_input});
+            for (auto&& input : model->inputs()) {
+                if (input.get_node() == mask_input.get()) {
+                    input.set_names({mask_input->get_friendly_name()});
+                }
+            }
+            model->validate_nodes_and_infer_types();
+        }
+    }
+}
+
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties)
@@ -1078,6 +972,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::AnyMap npuw_llm_props;
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
+    auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
     // Solely used for serialization at the moment
     m_non_llm_props = other_props;
 
@@ -1093,6 +988,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto lm_head_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_SHARED_HEAD_CONFIG"));
     refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
+
+    m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
+    if (m_is_whisper) {
+        m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
+        m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
+        m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
+    }
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
@@ -1129,38 +1031,69 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
     m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
-    const auto prompt_alignment = static_cast<uint32_t>(m_use_chunk_prefill ? m_prefill_chunk_size : 64u);
 
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
-    const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), prompt_alignment);
+    uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
+    uint32_t max_generation_token_len = m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>();
+    if (max_generation_token_len != 1) {
+        max_generation_token_len = align_to(max_generation_token_len, 8u);
+    }
+
+    // If chunk size covers the entire prompt, just follow the static behavior.
+    // Otherwise, use chunking and align the prompt size to the chunk size.
+    if (m_use_chunk_prefill) {
+        if (m_prefill_chunk_size >= max_prompt_len) {
+            m_use_chunk_prefill = false;
+        } else {
+            const auto is_power_of_two = [](uint64_t n) {
+                return n > 0 && (n & (n - 1)) == 0;
+            };
+            if (!is_power_of_two(m_prefill_chunk_size)) {
+                OPENVINO_THROW("Configuration Error: chunk size (",
+                               m_prefill_chunk_size,
+                               ") is not power of 2. Please adjust NPUW_LLM_PREFILL_CHUNK_SIZE.");
+            }
+            max_prompt_len = align_to(max_prompt_len, static_cast<uint32_t>(m_prefill_chunk_size));
+        }
+
+        m_enable_prefix_caching = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>();
+        if (m_enable_prefix_caching) {
+            LOG_INFO("Prefix caching is enabled");
+            m_prefix_caching_block_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE>();
+            if (!is_aligned_to(static_cast<uint32_t>(m_prefill_chunk_size),
+                               static_cast<uint32_t>(m_prefix_caching_block_size))) {
+                LOG_INFO("Prefix caching block size is adjusted to " << m_prefill_chunk_size);
+                m_prefix_caching_block_size = m_prefill_chunk_size;
+            }
+            m_prefix_caching_max_num_blocks = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS>();
+            LOG_INFO("Prefix caching block size: " << m_prefix_caching_block_size);
+            LOG_INFO("Prefix caching maximum number of blocks: " << m_prefix_caching_max_num_blocks);
+        }
+    }
 
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
     LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
-    auto is_power_of_two = [](uint64_t n) {
-        return n > 0 && (n & (n - 1)) == 0;
-    };
-    if (m_use_chunk_prefill) {
-        if (!is_power_of_two(m_prefill_chunk_size)) {
-            OPENVINO_THROW("Configuration Error: chunk size (",
-                           m_prefill_chunk_size,
-                           ") is not power of 2. Please adjust NPUW_LLM_PREFILL_CHUNK_SIZE.");
-        }
+    m_kvcache_desc =
+        KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
 
-        if (max_prompt_len % m_prefill_chunk_size) {
-            OPENVINO_THROW("Configuration Error: The maximum prompt length (",
-                           max_prompt_len,
-                           ") is not a multiple of chunk size (",
-                           m_prefill_chunk_size,
-                           "). Please adjust NPUW_LLM_MAX_PROMPT_LEN to be a multiple of NPUW_LLM_PREFILL_CHUNK_SIZE.");
-        }
+    uint32_t whisper_lhs_seq_size = 0;  // Not applicable for LLMs/VLMs
+    if (m_is_whisper) {
+        axes = KVAxesPosition{whisper_batch_dim, whisper_seq_len_dim};
+        m_kvcache_desc = KVCacheDesc{whisper_max_prompt_size, whisper_kvcache_size, 0u, whisper_seq_len_dim, 1u};
+        whisper_lhs_seq_size =
+            static_cast<uint32_t>(prefill_model->input("encoder_hidden_states").get_partial_shape()[1].get_length());
+
+        ov::npuw::util::prepare_whisper_prefill_model(prefill_model,
+                                                      m_kvcache_desc.max_prompt_size,
+                                                      whisper_lhs_seq_size);  // Whisper decoder model
+        ov::npuw::util::prepare_whisper_kvcache_model(kvcache_model);         // Whisper decoder_with_past model
     }
 
-    m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("Make prefill model with static shapes");
     m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
     if (m_use_chunk_prefill) {
@@ -1174,32 +1107,48 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                           m_kvcache_desc.max_prompt_size,
                           m_kvcache_desc.max_prompt_size,
                           axes,
-                          m_max_lora_rank);
+                          m_max_lora_rank,
+                          whisper_lhs_seq_size);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
-    reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes, m_max_lora_rank);
+    reshape_to_static(kvcache_model,
+                      m_kvcache_desc.max_generation_token_len,
+                      m_kvcache_desc.total_size,
+                      axes,
+                      m_max_lora_rank,
+                      whisper_lhs_seq_size);
+    gemma_transformations(kvcache_model);
+
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
-        // KVCache model is already reshaped to [1, 1, embed size], so only apply slice to
-        // the Prefill model:
-        slice_out_embeds(prefill_model, axes.batch);
+        // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
+        // so only apply slice to the Prefill model:
+        slice_out_embeds(prefill_model, axes.batch, m_kvcache_desc.max_generation_token_len);
         LOG_DEBUG("Make LM head model with static shapes");
-        reshape_sliced_head_to_static(lm_head_model, axes.batch);
+        reshape_sliced_head_to_static(lm_head_model, axes.batch, m_kvcache_desc.max_generation_token_len);
     }
 
     LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
     decompose_GQA(prefill_model, true);
     decompose_GQA(kvcache_model, false);
 
+    const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
+    const auto generate_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>();
+    const bool prefill_attn_dyn = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
+    const bool generate_attn_dyn = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
+
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
         LOG_DEBUG("Check and apply opt layout");
         LOG_BLOCK();
-        if (ov::npuw::util::optimize_value_tensors(kvcache_model, false)) {
-            NPUW_ASSERT(ov::npuw::util::optimize_value_tensors(prefill_model, true));
-            m_kvcache_desc.v_tensors_transposed = true;
-        } else {
-            LOG_DEBUG("vtensors optimisation not applied");
+        // Only optimize V tensors for static attention types
+        if (!generate_attn_dyn && ov::npuw::util::optimize_value_tensors(kvcache_model, false)) {
+            LOG_DEBUG("V-tensors tranposed in generate model");
+            m_kvcache_desc.v_tensors_transposed_gen = true;
+        }
+        if (!prefill_attn_dyn && ov::npuw::util::optimize_value_tensors(prefill_model, true)) {
+            LOG_DEBUG("V-tensors tranposed in prefill model");
+            m_kvcache_desc.v_tensors_transposed_pre = true;
         }
     } else {
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
@@ -1219,15 +1168,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
     LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
-
-    if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
-        LOG_DEBUG("Caching preROPE ");
-        ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
-        rope_prefill_cacher.run_on_model(prefill_model);
-
-        ov::npuw::patterns::pre_compute::RopeCache rope_generate_cacher(max_prompt_len + min_response_len);
-        rope_generate_cacher.run_on_model(kvcache_model);
-    }
 
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
@@ -1250,6 +1190,75 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
+    // Generate a random weights bank name unique to this LLMCompiledModel object
+    auto weights_bank_name = ov::npuw::util::generate_random_string();
+    LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
+    apply_weights_bank_name(prefill_config, weights_bank_name);
+    apply_weights_bank_name(generate_config, weights_bank_name);
+
+    // Handle attention hints. FIXME: Maybe it makes sense to make those
+    // mutually exclusive with the precise configuration sections as well
+    const ov::AnyMap dyn_attn_opts = {
+        {"NPUW_ONLINE_PIPELINE", "REP"},
+        {"NPUW_ONLINE_ISOLATE", "ATTN"},
+        {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
+        {"NPUW_UNFOLD_IREQS", "NO"},
+    };
+    if (prefill_attn_dyn) {
+        merge_config_with(prefill_config, dyn_attn_opts);
+    }
+    if (generate_attn_dyn) {
+        merge_config_with(generate_config, dyn_attn_opts);
+    }
+
+    // Note: with dynamic attention in EITHER STAGE, we have to
+    // explicitly disable the run-time fallback to so extra ov::Model
+    // references won't be held by the npuw::CompiledModel, resulting
+    // in a higher memory consumption. This behavior should be reworked!
+    // The reason here is that NPUW_DEVICES may come as a global setting,
+    // impacting all the stages.
+    if (prefill_attn_dyn || generate_attn_dyn) {
+        const ov::AnyMap no_runtime_fallback = {{"NPUW_FALLBACK_EXEC", "NO"}};
+        merge_config_with(prefill_config, no_runtime_fallback);
+        merge_config_with(generate_config, no_runtime_fallback);
+    }
+
+    if (m_is_whisper) {
+        update_config_for_whisper(prefill_config);
+    }
+
+    if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
+        LOG_DEBUG("Caching preROPE ");
+        const uint32_t CACHE_ROPE_START = 2048;
+        const bool is_best = (generate_hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF);
+
+        if (!is_best || (max_prompt_len >= CACHE_ROPE_START)) {
+            LOG_DEBUG("Enable RoPE Cache for prefill");
+            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
+            rope_prefill_cacher.run_on_model(prefill_model);
+        }
+
+        if (const uint32_t ctx_len = max_prompt_len + min_response_len; !is_best || (ctx_len >= CACHE_ROPE_START)) {
+            LOG_DEBUG("Enable RoPE Cache for kvcache");
+            ov::npuw::patterns::pre_compute::RopeCache rope_generate_cacher(ctx_len);
+            rope_generate_cacher.run_on_model(kvcache_model);
+        }
+    }
+
+    // Regularize models for the better partitioning assuming it is a transformer
+    {
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
+        if (generate_attn_dyn) {
+            rewr.run_on_model(kvcache_model);
+        }
+        if (prefill_attn_dyn) {
+            rewr.run_on_model(prefill_model);
+        }
+    }
+
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
     NPUW_ASSERT(m_kvcache_compiled && "Can't create ov::npuw::CompiledModel for passed kvcache "
@@ -1262,8 +1271,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);
         auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
-
         merge_config_with(lm_head_config, lm_head_config_addition_value);
+
+        apply_weights_bank_name(lm_head_config, weights_bank_name);
+
         m_lm_head_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
             ov::npuw::ICompiledModel::create(lm_head_model, plugin, lm_head_config));
         NPUW_ASSERT(m_lm_head_compiled);
@@ -1368,10 +1379,17 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.total_size);
         write(model_stream, m_kvcache_desc.num_stored_tokens);
         write(model_stream, m_kvcache_desc.dim);
-        write(model_stream, m_kvcache_desc.v_tensors_transposed);
+        write(model_stream, m_kvcache_desc.max_generation_token_len);
+        write(model_stream, m_kvcache_desc.v_tensors_transposed_pre);
+        write(model_stream, m_kvcache_desc.v_tensors_transposed_gen);
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
         write(model_stream, m_max_lora_rank);
+        write(model_stream, m_enable_prefix_caching);
+        write(model_stream, m_prefix_caching_block_size);
+        write(model_stream, m_prefix_caching_max_num_blocks);
+        write(model_stream, m_gemma_sliding_window_size);
+        write(model_stream, m_is_whisper);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1576,10 +1594,17 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.total_size);
         read(model_stream, compiled->m_kvcache_desc.num_stored_tokens);
         read(model_stream, compiled->m_kvcache_desc.dim);
-        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
+        read(model_stream, compiled->m_kvcache_desc.max_generation_token_len);
+        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_pre);
+        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_gen);
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
         read(model_stream, compiled->m_max_lora_rank);
+        read(model_stream, compiled->m_enable_prefix_caching);
+        read(model_stream, compiled->m_prefix_caching_block_size);
+        read(model_stream, compiled->m_prefix_caching_max_num_blocks);
+        read(model_stream, compiled->m_gemma_sliding_window_size);
+        read(model_stream, compiled->m_is_whisper);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
@@ -1640,12 +1665,17 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_infer_request() const {
     auto* non_const_this = const_cast<ov::npuw::LLMCompiledModel*>(this);  // because of const in API
-    return non_const_this->create_llm_infer_request();
+    return m_is_whisper ? non_const_this->create_whisper_infer_request() : non_const_this->create_llm_infer_request();
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
     return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr);
+}
+
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_whisper_infer_request() {
+    auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
+    return std::make_shared<ov::npuw::WhisperInferRequest>(this_sptr);
 }
 
 void ov::npuw::LLMCompiledModel::implement_properties() {
@@ -1667,6 +1697,9 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE, get),
                           BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
                           BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString),
-                          BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get)});
+                          BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),
+                          BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
+                          BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
+                          BIND(npuw::whisper::enabled, NPUW_WHISPER, get)});
 #undef BIND
 }

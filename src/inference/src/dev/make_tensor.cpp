@@ -8,7 +8,6 @@
 #include <mutex>
 
 #include "openvino/core/memory_util.hpp"
-#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type_info.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -351,7 +350,7 @@ private:
     }
 
     size_t get_bytes_capacity() const {
-        return element::get_memory_size(get_element_type(), get_capacity());
+        return util::get_memory_size(get_element_type(), get_capacity());
     }
 
     static std::string bad_alloc_error_msg(const element::Type& element_type, const Shape& shape) {

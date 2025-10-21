@@ -38,7 +38,7 @@ uint64_t get_blob_data_size(std::istream& model) {
 }
 
 std::string get_model_str(std::istream& model) {
-    const auto model_size = std::min<uint64_t>(model.rdbuf()->in_avail(), get_blob_data_size(model));
+    const auto model_size = get_blob_data_size(model);
     std::string xml;
     xml.resize(model_size);
     model.read(xml.data(), model_size);
@@ -52,7 +52,7 @@ ov::Tensor read_weights(std::istream& model, const size_t weights_size) {
 }
 
 ov::Tensor get_model_weights(std::istream& model) {
-    const auto weights_size = std::min<uint64_t>(model.rdbuf()->in_avail(), get_blob_data_size(model));
+    const auto weights_size = get_blob_data_size(model);
     return weights_size != 0 ? read_weights(model, weights_size) : ov::Tensor();
 }
 
@@ -392,7 +392,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::inference_num_threads.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::threads_per_stream.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::cache_header_alignment.name(), ov::PropertyMutability::RO},
+        };
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
         return decltype(ov::available_devices)::value_type{{""}};

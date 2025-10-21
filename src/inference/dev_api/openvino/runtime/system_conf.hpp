@@ -91,6 +91,13 @@ OPENVINO_RUNTIME_API bool with_cpu_neon_fp16();
 OPENVINO_RUNTIME_API bool with_cpu_arm_dotprod();
 
 /**
+ * @brief      Checks whether CPU supports ARM Int8 MM capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` is ARM Int8 MM instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_arm_i8mm();
+
+/**
  * @brief      Checks whether CPU supports ARM SVE capability
  * @ingroup    ov_dev_api_system_conf
  * @return     `True` if ARM SVE instructions are available, `false` otherwise

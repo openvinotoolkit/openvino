@@ -26,6 +26,7 @@ ParamsKey SparseFillEmptyRowsKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -42,6 +43,17 @@ SparseFillEmptyRowsKernelRef::DispatchData SetDefault(const sparse_fill_empty_ro
 }
 } // anonymous namespace
 
+void SparseFillEmptyRowsKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const sparse_fill_empty_rows_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = SkipKernelExecution(prim_params);
+    };
+}
+
 KernelsData SparseFillEmptyRowsKernelRef::GetKernelsData(const Params &params) const {
     if (!Validate(params)) {
         return {};
@@ -49,23 +61,28 @@ KernelsData SparseFillEmptyRowsKernelRef::GetKernelsData(const Params &params) c
     KernelData kernel_data = KernelData::Default<sparse_fill_empty_rows_params>(params);
     kernel_data.kernels[0].skip_execution = SkipKernelExecution(static_cast<const sparse_fill_empty_rows_params&>(params));
     sparse_fill_empty_rows_params &new_params = dynamic_cast<sparse_fill_empty_rows_params&>(*kernel_data.params.get());
+
     auto sparse_fill_empty_rows_specific_jit = GetJitConstants(new_params);
-    auto dispatch_data = SetDefault(new_params);
     auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
     auto jit = CreateJit(kernelName, sparse_fill_empty_rows_specific_jit, entry_point);
+
+    auto dispatch_data = SetDefault(new_params);
+    GetUpdateDispatchDataFunc(kernel_data);
+
     FillCLKernelData(kernel_data.kernels[0],
         dispatch_data,
         params.engineInfo,
         kernelName,
         jit,
         entry_point,
-        EXE_MODE_DEFAULT,  // exeMode
-        false,             // weights
-        false,             // bias
-        4,                 // number_of_inputs
-        0,                 // number_of_inputs_for_fused_prims
-        3,                 // number_of_outputs
-        false);            // is_dynamic
+        EXE_MODE_DEFAULT,               // exeMode
+        false,                          // weights
+        false,                          // bias
+        4,                              // number_of_inputs
+        0,                              // number_of_inputs_for_fused_prims
+        3,                              // number_of_outputs
+        params.is_shape_agnostic);      // is_dynamic
+
     return {kernel_data};
 }
 
@@ -82,7 +99,6 @@ bool SparseFillEmptyRowsKernelRef::Validate(const Params& p) const {
 
 JitConstants SparseFillEmptyRowsKernelRef::GetJitConstants(const sparse_fill_empty_rows_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    jit.AddConstant(MakeJitConstant("INDICES_COUNT", params.inputs[2].LogicalSize() / 2));
     return jit;
 }
 

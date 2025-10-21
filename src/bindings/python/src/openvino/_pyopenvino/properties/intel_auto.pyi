@@ -5,7 +5,7 @@ import typing
 """
 openvino.properties.intel_auto submodule that simulates ov::intel_auto
 """
-__all__ = ['SchedulePolicy', 'device_bind_buffer', 'enable_runtime_fallback', 'enable_startup_fallback', 'schedule_policy']
+__all__: list[str] = ['SchedulePolicy', 'device_bind_buffer', 'enable_runtime_fallback', 'enable_startup_fallback', 'schedule_policy']
 class SchedulePolicy:
     """
     Members:

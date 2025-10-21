@@ -183,15 +183,16 @@ void PerfCountBegin::set_start_time() {
 
 PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin,
                            std::vector<std::shared_ptr<utils::Dumper>> dumpers,
-                           const std::string& params)
+                           std::string params)
     : PerfCountEndBase({pc_begin}),
       accumulation(0UL),
       iteration(0U),
-      dumpers(std::move(dumpers)) {
+      dumpers(std::move(dumpers)),
+      m_params(std::move(params)) {
     constructor_validate_and_infer_types();
     init_pc_begin();
     for (const auto& dumper : this->dumpers) {
-        dumper->init(params);
+        dumper->init(m_params);
     }
 }
 
@@ -202,7 +203,7 @@ PerfCountEnd::~PerfCountEnd() {
 }
 
 std::shared_ptr<Node> PerfCountEnd::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<PerfCountEnd>(inputs.at(0), dumpers);
+    return std::make_shared<PerfCountEnd>(inputs.at(0), dumpers, m_params);
 }
 
 void PerfCountEnd::set_accumulated_time() {

@@ -54,7 +54,7 @@ void prepare_padding::run(program& p) {
                     auto new_reorder = std::make_shared<reorder>("padding_reorder_for_" + weight_node.id(),
                                                                     weight_node.id(), weights_reorder_params);
                     auto& new_reorder_node = p.get_or_create(new_reorder);
-                    p.add_intermediate(new_reorder_node, *node, weight_node);
+                    p.add_intermediate(new_reorder_node, *node, weight_node, new_reorder_node.get_dependencies().empty());
 
                     new_reorder_node.recalc_output_layouts(false);
                 }

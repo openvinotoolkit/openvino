@@ -86,13 +86,11 @@
 #include "low_precision/split.hpp"
 #include "low_precision/squeeze.hpp"
 #include "low_precision/strided_slice.hpp"
-#include "low_precision/subtract.hpp"
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
 
 // cleanup transformations
-#include "low_precision/convert.hpp"
 #include "low_precision/eliminate_fake_quantize.hpp"
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fold_fake_quantize.hpp"

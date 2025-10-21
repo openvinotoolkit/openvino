@@ -17,7 +17,7 @@
 namespace ov {
 namespace test {
 namespace snippets {
-std::string FakeQuantizeDecompositionTest::getTestCaseName(testing::TestParamInfo<testsParams> obj) {
+std::string FakeQuantizeDecompositionTest::getTestCaseName(const testing::TestParamInfo<testsParams>& obj) {
     std::ostringstream result;
     const auto values = std::get<0>(obj.param);
     const auto operation = std::get<1>(obj.param);

@@ -44,6 +44,7 @@
 #include "reduce_inst.h"
 #include "group_normalization_inst.h"
 #include "lora_inst.h"
+#include "broadcast_inst.h"
 #include <vector>
 #include <map>
 #include <list>
@@ -58,8 +59,27 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
-    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions())
-        return;
+    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+        size_t value = GPU_DEBUG_VALUE_OR(p.get_config().get_disable_post_ops_fusions(), 0);
+        switch (value) {
+            case 2:
+                fuse_reorders(p); return;
+            case 3:
+                remove_redundant_reshape(p); return;
+            case 4:
+                fuse_swiglu(p); return;
+            case 5:
+                fuse_bias(p); return;
+            case 6:
+                fuse_simple_primitives(p); return;
+            case 7:
+                fuse_constant_transposes(p); return;
+            case 8:
+                optimize_fused_ops(p); return;
+            default:
+                return;
+        }
+    }
 
     fuse_reorders(p);
     remove_redundant_reshape(p);
@@ -737,7 +757,28 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return lora_is_single_user && is_simple_lora;
         };
 
+        auto broadcast_supports_fusings = [&](broadcast_node& bcast_node) -> bool {
+            if (bcast_node.get_outputs_count() != 1)
+                return false;
+
+            bool out_eltw = bcast_node.get_users().front()->is_type<eltwise>();
+            if (!out_eltw)
+                return false;
+
+            auto input_layout = bcast_node.get_output_layout();
+            auto output_layout = bcast_node.get_users().front()->get_output_layout();
+            if (input_layout.data_type != output_layout.data_type) {
+                return false;
+            }
+
+            return true;
+        };
+
         auto fuse_activation_f = [&](activation_node& activation_node) {
+            GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 11)
+                    return;
+            }
             auto activation_func = activation_node.get_primitive()->activation_function;
             if (supports_immad && activation_func == cldnn::activation_func::hyperbolic_tan) {
                 return;
@@ -765,12 +806,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (lo.has_all_enabled_onednn_impls_optimization_attribute()) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
-                auto additional_params_input = activation_node.get_primitive()->additional_params_input;
-                if (activation_func == cldnn::activation_func::relu_negative_slope && additional_params_input.is_valid() &&
-                    (input.is_type<fully_connected>() || input.is_type<gemm>())) {
-                    // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
-                    return;
-                }
 
                 // Activation should not be fused if oneDNN does NOT support it
                 if (lo.is_primitive_implemented_for_onednn(input))  {
@@ -887,6 +922,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_quantize_f = [&](quantize_node& quantize_node) {
+            GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 12)
+                    return;
+            }
             auto& input_data = quantize_node.get_dependency(0);
             if (input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
                 return;
@@ -897,9 +936,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto out_layout = quantize_node.get_output_layout();
             auto in_layout = input_data.get_output_layout();
 
-            // In dynamic shape, quantize-fusion is enabled in only onednn convolution.
+            // In dynamic shape, quantize-fusion is disable in only cldnn convolution
             if ((in_layout.is_dynamic() || out_layout.is_dynamic()) &&
-                (!input_data.is_type<convolution>() || (input_data.is_type<convolution>() && !lo.has_all_enabled_onednn_impls_optimization_attribute())))
+                (input_data.is_type<convolution>() && !lo.has_all_enabled_onednn_impls_optimization_attribute()))
                 return;
 
             auto out_dt = out_layout.data_type;
@@ -928,15 +967,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
-            if (input_data.is_type<fully_connected>()) {
-                // Do not allow quantization fusion
-                auto& fc = input_data.as<fully_connected>();
-                auto desc = fc.get_primitive();
-                // WA: OneDNN weight-compressed dyn-quan matmul does not support fusion with quantization
-                auto fc_in_dt = fc.get_input_layout(0).data_type;
-                bool is_onednn_compressed_weights_dyn_quan = supports_immad && desc->compressed_weights && data_type_traits::is_i8_u8(fc_in_dt);
-                should_fuse |= !is_onednn_compressed_weights_dyn_quan && quantize_node.get_scale_shift_opt();
-            }
+            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
@@ -997,6 +1028,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_eltwise_f = [&](eltwise_node& node) {
+            GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 13)
+                    return;
+            }
             std::shared_ptr<const cldnn::eltwise> prim = node.get_primitive();
             const std::vector<eltwise_mode> supported_modes = {
                 eltwise_mode::sum,
@@ -1045,7 +1080,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
                                       (parents[i].first->is_type<lrn>()) ||
                                       (parents[i].first->is_type<lora>() &&
-                                       lora_supports_fusings(parents[i].first->as<lora>()));
+                                       lora_supports_fusings(parents[i].first->as<lora>())) ||
+                                       (parents[i].first->is_type<broadcast>() &&
+                                       broadcast_supports_fusings(parents[i].first->as<broadcast>()));
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -1304,6 +1341,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
+        // Debug config DISABLE_POST_OPS_FUSION=11 to 13 specify enabling only one of fusions activation, quantize and eltwise
         program_helpers::do_for_types<activation, quantize, eltwise>(*node,
             fuse_activation_f,
             fuse_quantize_f,
@@ -1490,7 +1528,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program& p) {
             auto& fp = *curr_itr;
             auto& fp_next = *fp_itr;
             if (fp.is_type<activation>() && fp_next.is_type<quantize>()) {
-                const auto& act_prim = fp.typed_desc<activation>();;
+                const auto& act_prim = fp.typed_desc<activation>();
                 const auto& quant_param = fp_next.get_typed_fuse_params<QuantizeFuseParams>();
 
                 bool can_skip = fp.deps.empty() && data_type_traits::is_i8_u8(fp_next.output_layout.data_type);

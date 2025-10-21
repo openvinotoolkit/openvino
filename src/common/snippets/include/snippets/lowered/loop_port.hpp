@@ -34,7 +34,7 @@ public:
 
     template <LoopPort::Type T,
               std::enable_if_t<utils::any_of(T, Type::Incremented, Type::NotIncremented), bool> = true>
-    static LoopPort create(const ExpressionPort& port, size_t dim_idx = 0) {
+    static LoopPort create(const ExpressionPort& port, size_t dim_idx) {
         return {port, dim_idx, T};
     }
 

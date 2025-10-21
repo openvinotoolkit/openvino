@@ -1498,10 +1498,6 @@ void RNN::cleanup() {
     for (const auto& it : fusedWith) {
         it->cleanup();
     }
-
-    for (const auto& it : mergedWith) {
-        it->cleanup();
-    }
 }
 
 RNN::RnnDnnlExecutor::RnnDnnlExecutor(const dnnl::primitive_desc& pd) : DnnlExecutorLegacy(pd) {

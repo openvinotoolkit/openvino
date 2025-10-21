@@ -6,6 +6,8 @@ on:
   issues:
     types: [assigned, unassigned]
 
+permissions: read-all
+
 jobs:
   handle-issue:
     runs-on: ubuntu-latest
@@ -14,7 +16,7 @@ jobs:
       repository-projects: write
     steps:
       - name: Process issue
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea #v6
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd #v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

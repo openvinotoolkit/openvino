@@ -40,7 +40,7 @@ Properties
    content of the ``TypedArray`` subclass is a copy of the tensor underlaying
    memory.
 
-   Its setter fills the underlaying tensor memory by copying the binary data
+   Its setter fills the underlying tensor memory by copying the binary data
    buffer from the ``TypedArray`` subclass. An exception will be thrown if the size
    or type of array does not match the tensor.
 

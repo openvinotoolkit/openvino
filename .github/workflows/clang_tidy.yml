@@ -113,7 +113,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     timeout-minutes: 150
     defaults:
       run:
@@ -160,7 +160,6 @@ jobs:
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_CPPLINT=OFF \
-            -DENABLE_FASTER_BUILD=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
@@ -180,7 +179,7 @@ jobs:
 
   Build-aarch64:
     needs: [Docker_Arm, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     timeout-minutes: 150
     defaults:
       run:
@@ -227,7 +226,6 @@ jobs:
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_CPPLINT=OFF \
-            -DENABLE_FASTER_BUILD=OFF \
             -DCMAKE_RULE_MESSAGES=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
@@ -249,7 +247,7 @@ jobs:
 
   Build-riscv64:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     timeout-minutes: 150
     defaults:
       run:
@@ -297,7 +295,6 @@ jobs:
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_CPPLINT=OFF \
-            -DENABLE_FASTER_BUILD=OFF \
             -DCMAKE_RULE_MESSAGES=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \

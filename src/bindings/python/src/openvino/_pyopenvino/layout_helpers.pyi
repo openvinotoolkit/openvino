@@ -5,7 +5,7 @@ import typing
 """
 openvino.layout_helpers
 """
-__all__ = ['batch_idx', 'channels_idx', 'depth_idx', 'get_layout', 'has_batch', 'has_channels', 'has_depth', 'has_height', 'has_width', 'height_idx', 'set_layout', 'width_idx']
+__all__: list[str] = ['batch_idx', 'channels_idx', 'depth_idx', 'get_layout', 'has_batch', 'has_channels', 'has_depth', 'has_height', 'has_width', 'height_idx', 'set_layout', 'width_idx']
 def batch_idx(layout: openvino._pyopenvino.Layout) -> int:
     ...
 def channels_idx(layout: openvino._pyopenvino.Layout) -> int:

@@ -7,7 +7,7 @@
 
 namespace ov {
 namespace test {
-std::string ShapeOfLayerTest::getTestCaseName(testing::TestParamInfo<shapeOfParams> obj) {
+std::string ShapeOfLayerTest::getTestCaseName(const testing::TestParamInfo<shapeOfParams>& obj) {
     const auto& [model_type, out_type, input_shapes, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=(";

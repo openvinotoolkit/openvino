@@ -13,7 +13,7 @@ using TransposeOrderParams = std::tuple<std::vector<int64_t>,  // allowed transp
                                         ov::element::Type>;    // input precision
 class TransposeMatmulFuseTest : public ::testing::Test, public testing::WithParamInterface<TransposeOrderParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposeOrderParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposeOrderParams>& obj) {
         const auto& [target_order, input_precision] = obj.param;
 
         std::ostringstream result;
@@ -91,7 +91,7 @@ using TransposesOrderParams = std::tuple<std::vector<int64_t>,  // transpose_a o
                                         ov::element::Type>;    // input precision
 class TransposeMatmulTransposeFuse3DTest : public ::testing::Test, public testing::WithParamInterface<TransposesOrderParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposesOrderParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposesOrderParams>& obj) {
         const auto& [target_order_a, target_order_c, input_precision] = obj.param;
 
         std::ostringstream result;

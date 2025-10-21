@@ -34,7 +34,7 @@ using FakeConvertTestParams = std::tuple<
 class FakeConvertTest : public testing::WithParamInterface<FakeConvertTestParams>,
                      virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FakeConvertTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<FakeConvertTestParams>& obj) {
         const auto& [input_shape, scale_shape, shift_shape, prec, destination_type, target_device] = obj.param;
 
         std::ostringstream result;

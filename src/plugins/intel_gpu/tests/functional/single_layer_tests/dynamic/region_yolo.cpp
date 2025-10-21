@@ -33,7 +33,7 @@ typedef std::tuple<
 class RegionYoloLayerGPUTest : public testing::WithParamInterface<RegionYoloGPUTestParam>,
                                virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RegionYoloGPUTestParam> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<RegionYoloGPUTestParam>& obj) {
         const auto& [shapes, attributes, mask, model_type, targetName] = obj.param;
 
         std::ostringstream result;

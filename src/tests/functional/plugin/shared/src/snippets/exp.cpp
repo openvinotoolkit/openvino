@@ -13,7 +13,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string Exp::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ExpParams> obj) {
+std::string Exp::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ExpParams>& obj) {
     const auto& [inputShapes0, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;

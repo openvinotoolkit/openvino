@@ -23,7 +23,7 @@ typedef std::tuple<
 class ReorgYoloLayerGPUTest : public testing::WithParamInterface<ReorgYoloGPUTestParams>,
                               virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReorgYoloGPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ReorgYoloGPUTestParams>& obj) {
         const auto& [shapes, stride, model_type, targetDev] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";

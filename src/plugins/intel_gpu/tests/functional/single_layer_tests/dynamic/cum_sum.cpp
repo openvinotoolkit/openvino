@@ -24,7 +24,7 @@ typedef std::tuple<
 class CumSumLayerGPUTest : public testing::WithParamInterface<CumSumLayerGPUParamSet>,
                            virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CumSumLayerGPUParamSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CumSumLayerGPUParamSet>& obj) {
         const auto& [model_type, shapes, axis, exclusive, reverse] = obj.param;
 
         std::ostringstream results;

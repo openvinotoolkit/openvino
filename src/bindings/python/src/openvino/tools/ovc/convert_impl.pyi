@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from openvino._pyopenvino import OpConversionFailure
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import TelemetryExtension
-from openvino._pyopenvino.pybind11_detail_function_record_v1_system_libstdcpp_gxx_abi_1xxx_use_cxx11_abi_0 import get_version as get_rt_version
+from openvino._pyopenvino import get_version as get_rt_version
 from openvino.frontend.frontend import FrontEndManager
 from openvino.frontend.tensorflow.utils import create_tf_graph_iterator
 from openvino.frontend.tensorflow.utils import extract_model_graph
@@ -47,7 +47,7 @@ import os as os
 import sys as sys
 import traceback as traceback
 import tracemalloc as tracemalloc
-__all__ = ['Callable', 'Error', 'FrameworkError', 'FrontEndManager', 'Iterable', 'OpConversionFailure', 'OrderedDict', 'PartialShape', 'Path', 'TelemetryExtension', 'VersionChecker', 'add_line_breaks', 'any_extensions_used', 'argparse', 'args_to_argv', 'arguments_post_parsing', 'backend_ga4', 'check_iterable', 'check_model_object', 'check_values_equal', 'create_tf_graph_iterator', 'datetime', 'depersonalize', 'driver', 'extract_input_info_from_example', 'extract_model_graph', 'filtered_extensions', 'get_available_front_ends', 'get_common_cli_options', 'get_compression_message', 'get_convert_model_help_specifics', 'get_jax_decoder', 'get_mo_convert_params', 'get_moc_frontends', 'get_non_default_params', 'get_pytorch_decoder', 'get_pytorch_decoder_for_model_on_disk', 'get_rt_version', 'init_logger', 'init_ovc_telemetry', 'input_model_is_object', 'input_to_input_cut_info', 'is_verbose', 'log', 'moc_emit_ir', 'moc_pipeline', 'normalize_inputs', 'os', 'pack_params_to_args_namespace', 'paddle_frontend_converter', 'parse_inputs', 'prepare_ir', 'print_argv', 'replace_ext', 'send_conversion_result', 'send_params_info', 'show_mo_convert_help', 'sys', 'tf_frontend_with_python_bindings_installed', 'tm', 'to_ov_type', 'traceback', 'tracemalloc', 'type_supported_by_tf_fe']
+__all__: list[str] = ['Callable', 'Error', 'FrameworkError', 'FrontEndManager', 'Iterable', 'OpConversionFailure', 'OrderedDict', 'PartialShape', 'Path', 'TelemetryExtension', 'VersionChecker', 'add_line_breaks', 'any_extensions_used', 'argparse', 'args_to_argv', 'arguments_post_parsing', 'backend_ga4', 'check_iterable', 'check_model_object', 'check_values_equal', 'create_tf_graph_iterator', 'datetime', 'depersonalize', 'driver', 'extract_input_info_from_example', 'extract_model_graph', 'filtered_extensions', 'get_available_front_ends', 'get_common_cli_options', 'get_compression_message', 'get_convert_model_help_specifics', 'get_jax_decoder', 'get_mo_convert_params', 'get_moc_frontends', 'get_non_default_params', 'get_pytorch_decoder', 'get_pytorch_decoder_for_model_on_disk', 'get_rt_version', 'init_logger', 'init_ovc_telemetry', 'input_model_is_object', 'input_to_input_cut_info', 'is_verbose', 'log', 'moc_emit_ir', 'moc_pipeline', 'normalize_inputs', 'os', 'pack_params_to_args_namespace', 'paddle_frontend_converter', 'parse_inputs', 'prepare_ir', 'print_argv', 'replace_ext', 'send_conversion_result', 'send_params_info', 'show_mo_convert_help', 'sys', 'tf_frontend_with_python_bindings_installed', 'tm', 'to_ov_type', 'traceback', 'tracemalloc', 'type_supported_by_tf_fe']
 def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     ...
 def add_line_breaks(text: str, char_num: int, line_break: str):

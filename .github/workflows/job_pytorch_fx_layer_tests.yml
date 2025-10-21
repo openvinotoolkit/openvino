@@ -56,22 +56,25 @@ jobs:
             .github/actions
           sparse-checkout-cone-mode: false
           submodules: 'false'
-          
+
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Download OpenVINO artifacts (tests)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
       - name: Setup HuggingFace Cache Directory (Windows)
         if: runner.os == 'Windows'
-        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
+        run: |
+          Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
+          Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=C:\\mount\\caches\\huggingface"
+          Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_OFFLINE=1"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'

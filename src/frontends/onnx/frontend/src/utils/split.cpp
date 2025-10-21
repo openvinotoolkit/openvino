@@ -31,6 +31,9 @@ OutputVector make_split(const Output<ov::Node>& value, int64_t num_splits, int64
         if (axis_len % num_splits) {
             auto avg_axis = (axis_len + num_splits - 1) / num_splits;  // Round up division
             auto last_output_value = axis_len % avg_axis;
+            if (last_output_value == 0) {
+                FRONT_END_THROW("The split number is invalid");
+            }
             std::vector<int64_t> split_lengths(num_splits, avg_axis);
             split_lengths.back() = last_output_value;
             return make_split(value, split_lengths, axis);
