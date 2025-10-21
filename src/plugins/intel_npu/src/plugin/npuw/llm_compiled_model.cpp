@@ -789,6 +789,11 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
     for (std::size_t i = ov::npuw::LLMInferRequest::layer_ids::kStartOutputKVCacheLayers; i < model->outputs().size();
          ++i) {
         auto kvout = model->output(i);
+
+        if (kvout.get_any_name() == "last_hidden_state") {
+            continue;
+        }
+
         auto kvrslt = kvout.get_node();
         auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
         auto kvval = kvcat->inputs()[1].get_source_output();
@@ -963,6 +968,16 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[0] = 1;  // batch_dim
+        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
+            // NB: Eagle3 case, model accepts hidden_states[BATCH, SEQ_LEN, HIDDEN_SIZE]
+            NPUW_ASSERT(input.get_partial_shape().size() == 3u);
+            NPUW_ASSERT(input.get_partial_shape()[2].is_static());
+            new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
+        } else if (ov::npuw::matchEagle3InternalHiddenStatesString(input_name)) {
+            // NB: Eagle3 case, model accepts internal_hidden_states[BATCH, SEQ_LEN, HIDDEN_SIZE]
+            NPUW_ASSERT(input.get_partial_shape().size() == 3u);
+            NPUW_ASSERT(input.get_partial_shape()[2].is_static());
+            new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
         } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
         } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
