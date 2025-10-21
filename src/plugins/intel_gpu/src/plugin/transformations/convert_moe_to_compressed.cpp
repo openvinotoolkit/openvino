@@ -94,7 +94,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         if (!moe || transformation_callback(moe)) {
             return false;
         }
-        OutputVector args(11);
+        OutputVector args(12);
         args[0] = pattern_map.at(hidden_states_m);
         args[1] = pattern_map.at(routing_weights_m);
         args[2] = pattern_map.at(topk_m);

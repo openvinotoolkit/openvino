@@ -66,7 +66,7 @@ struct MOEOpt : public ImplementationManager {
         if (!one_of(wei_layout.data_type, supported_wei_type)) {
             return false;
         }
-
+        std::cout << "ocl::moe::opt is supported..." << std::endl;
         return true;
     }
 };

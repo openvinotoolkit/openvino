@@ -358,8 +358,8 @@ struct onednn_linear {
 //         jit.make("SOFTMAX_TOPK_ENABLE", 1);
 //         jit.make("TOP_K", desc->_config.top_k);
 //         jit.make("VALUE_NUM", desc->_config.num_expert);
-//         jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
-//         jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+//         jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+//         jit.make("MOE_TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
 //         return jit;
 //     }
 
@@ -384,8 +384,8 @@ protected:
         auto desc = params.typed_desc<moe_compressed>();
         jit.make("GATHER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
-        jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
-        jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+        jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+        jit.make("MOE_TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
     }
 
@@ -410,8 +410,8 @@ protected:
         auto desc = params.typed_desc<moe_compressed>();
         jit.make("SCATTER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
-        jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
-        jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+        jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+        jit.make("MOE_TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
     }
 
@@ -440,8 +440,8 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
     jit.make("SUBGROUP_NUM", SUBGROUP_NUM);
     jit.make("GROUP_SIZE", desc->_config.group_size);
-    jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
-    jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+    jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+    jit.make("MOE_TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
 }
 
 class MOEOptMLPGateUp : public KernelGenerator {
