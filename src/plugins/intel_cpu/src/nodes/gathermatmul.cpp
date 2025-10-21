@@ -56,21 +56,27 @@ public:
     onednn_matmul(const dnnl::engine& eng,
                   ov::element::Type src_dtype,
                   ov::element::Type weights_dtype,
-                  int ic,
-                  int oc,
-                  int ic_group_size,
+                  int k,
+                  int n,
+                  int k_group_size,
                   bool has_scale,
                   bool has_zp,
                   bool has_bias = false)
         : m_src_type(DnnlExtensionUtils::ElementTypeToDataType(src_dtype)),
           m_weights_type(DnnlExtensionUtils::ElementTypeToDataType(weights_dtype)),
-          m_K(ic),
-          m_N(oc),
+          m_K(k),
+          m_N(n),
           m_has_bias(has_bias) {
         if (has_scale) {
-            init_w_scales(ic_group_size);
+            if (k_group_size <= 0) {
+                m_K_groups = 1;
+            } else {
+                OPENVINO_ASSERT((m_K % k_group_size) == 0, "Incompatible k_group_size ", k_group_size, " for K ", m_K);
+                m_K_groups = m_K / k_group_size;
+            }
+            init_w_scales();
             if (has_zp) {
-                init_w_zp(ic_group_size);
+                init_w_zp();
             }
         }
 
@@ -156,37 +162,28 @@ public:
         return m_wei_md;
     }
 
+    [[nodiscard]] dnnl::memory::desc get_scale_md() const {
+        return m_scale_md;
+    }
+
+    [[nodiscard]] dnnl::memory::desc get_zp_md() const {
+        return m_zp_md;
+    }
+
     [[nodiscard]] ov::intel_cpu::impl_desc_type get_impl_type() const {
         return m_impl_type;
     }
 
 private:
-    void init_w_scales(int k_group_size) {
+    void init_w_scales() {
         constexpr auto data_type = dnnl::memory::data_type::f32;
-        if (k_group_size <= 0) {
-            m_K_groups = 1;
-        } else {
-            OPENVINO_ASSERT((k_group_size % 32) == 0,
-                            "incompatible k_group_size ",
-                            k_group_size,
-                            " should be multiple of 32");
-            OPENVINO_ASSERT((m_K % k_group_size) == 0, "incompatible k_group_size ", k_group_size, " for K ", m_K);
-            m_K_groups = m_K / k_group_size;
-        }
         attr.set_scales_dims(DNNL_ARG_WEIGHTS, {m_N, m_K_groups}, data_type);
         m_scale_md = dnnl::memory::desc({m_N, m_K_groups}, data_type, dnnl::memory::format_tag::ba);
     }
-    void init_w_zp(int k_group_size) {
+    void init_w_zp() {
         constexpr auto data_type = dnnl::memory::data_type::u8;
-        if (k_group_size <= 0) {
-            OPENVINO_ASSERT(m_K_groups == 1);
-            attr.set_zero_points(DNNL_ARG_WEIGHTS, (0 << 0) + (1 << 1), {1}, data_type);
-        } else {
-            OPENVINO_ASSERT(m_K_groups == (m_K / k_group_size));
-            attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) + (1 << 1), {k_group_size, m_K_groups}, data_type);
-            attr.set_zero_points_dims(DNNL_ARG_WEIGHTS, {m_N, m_K_groups}, data_type);
-            m_zp_md = dnnl::memory::desc({m_N, m_K_groups}, data_type, dnnl::memory::format_tag::ba);
-        }
+        attr.set_zero_points_dims(DNNL_ARG_WEIGHTS, {m_N, m_K_groups}, data_type);
+        m_zp_md = dnnl::memory::desc({m_N, m_K_groups}, data_type, dnnl::memory::format_tag::ba);
     }
     static std::unordered_map<int, dnnl::memory> make_args(dnnl::memory& src,
                                                            dnnl::memory& dst,
@@ -432,7 +429,8 @@ void GatherMatmul::createPrimitive() {
             has_scale = true;
             const auto& scDims = scaleDesc->getShape().getStaticDims();
             CPU_NODE_ASSERT(scDims.size() == 3, "Weight scales input for GatherMatmulCompressed op should be 3D");
-            groupK = scDims[2] != 1 ? static_cast<int>(scDims[1]) : 0;
+            const auto n_groups = scDims[2];
+            groupK = K / n_groups;
         }
         auto zpDesc = getBaseMemDescAtInputPort(WEIGHT_ZERO_POINTS);
         if (zpDesc && !zpDesc->empty()) {
@@ -482,6 +480,38 @@ void GatherMatmul::createPrimitive() {
 
     m_weightsMemory =
         prepareWeightMemory(targetWeightsDesc, MemoryDescUtils::convertToDnnlMemoryDesc(weightsMemoryDesc));
+
+    if (has_scale) {
+        auto expectedScaleMemDesc =
+            MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(gemv_impl->get_scale_md()));
+        auto scales = getSrcMemoryAtPort(WEIGHT_SCALES);
+        CPU_NODE_ASSERT(scales && scales->isDefined(), "Weight scales memory is not defined");
+        const auto& scDims = scales->getShape().getStaticDims();
+        expectedScaleMemDesc = addBatchDim(
+            MemoryDescUtils::convertToBlockedMemoryDesc(expectedScaleMemDesc), scDims[0]);
+        if (expectedScaleMemDesc->isCompatible(scales->getDesc())) {
+            m_scalesMemory = scales;
+        } else {
+            m_scalesMemory = std::make_shared<Memory>(getEngine(), expectedScaleMemDesc);
+            m_scalesMemory->load(*scales, false, false);
+        }
+    }
+
+    if (has_zp) {
+        auto expectedZpMemDesc =
+            MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(gemv_impl->get_zp_md()));
+        auto zps = getSrcMemoryAtPort(WEIGHT_ZERO_POINTS);
+        CPU_NODE_ASSERT(zps && zps->isDefined(), "Weight zero points memory is not defined");
+        const auto& zpDims = zps->getShape().getStaticDims();
+        expectedZpMemDesc =
+            addBatchDim(MemoryDescUtils::convertToBlockedMemoryDesc(expectedZpMemDesc), zpDims[0]);
+        if (expectedZpMemDesc->isCompatible(zps->getDesc())) {
+            m_zpMemory = zps;
+        } else {
+            m_zpMemory = std::make_shared<Memory>(getEngine(), expectedZpMemDesc);
+            m_zpMemory->load(*zps, false, false);
+        }
+    }
 
     Node::createPrimitive();
 
