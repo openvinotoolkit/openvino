@@ -55,5 +55,9 @@ KERNEL(swiglu_gpu_ref)(
     #endif
     res *= (ACCUMULATOR_TYPE)input[input_idx];
 
+    #if GLU_TYPE == 0 && defined(CLAMP_MIN) && defined(CLAMP_MAX)
+        res = ACCUMULATOR_MAX_FUNC(TO_OUTPUT_TYPE(CLAMP_MIN), ACCUMULATOR_MIN_FUNC(res, TO_OUTPUT_TYPE(CLAMP_MAX)));
+    #endif
+
     output[output_idx] = TO_OUTPUT_TYPE(res);
 }
