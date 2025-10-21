@@ -626,28 +626,23 @@ public:
             dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
                 // weight shape: [ic, oc], type: u4
-                ov::Shape wei_shape = {static_cast<size_t>(dnnl_weights[i].ic), static_cast<size_t>(dnnl_weights[i].oc)};
-                auto wei_layout = cldnn::layout(wei_shape, cldnn::data_types::u4, cldnn::format::get_default_format(wei_shape.size()));
-                auto wei_mem = engine.create_subbuffer(*moe_fusion_wei_addr.weight[i], wei_layout, j * dnnl_weights[i].ic * dnnl_weights[i].oc / 2);
-                dnnl_weights[i].weight = convert2dnnl(wei_mem, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba);
+                size_t wei_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / 2;
+                dnnl_weights[i].weight =
+                    convert2dnnl(moe_fusion_wei_addr.weight[i], {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset);
 
                 // scale shape: [ic / ic_group_size, oc], type: f16
-                ov::Shape scale_shape = {static_cast<size_t>(dnnl_weights[i].ic / dnnl_weights[i].ic_group_size), static_cast<size_t>(dnnl_weights[i].oc)};
-                auto scale_layout = cldnn::layout(scale_shape, cldnn::data_types::f16, cldnn::format::get_default_format(scale_shape.size()));
-                auto scale_mem = engine.create_subbuffer(*moe_fusion_wei_addr.scale[i],
-                                                         scale_layout,
-                                                         j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size * 2);
-                dnnl_weights[i].scale =
-                    convert2dnnl(scale_mem, {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc}, dnnl::memory::format_tag::ab);
+                size_t scale_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size * 2;
+                dnnl_weights[i].scale = convert2dnnl(moe_fusion_wei_addr.scale[i],
+                                                     {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
+                                                     dnnl::memory::format_tag::ab,
+                                                     scale_offset);
 
                 // zp shape: [ic / ic_group_size, oc], type: u4
-                ov::Shape zp_shape = {static_cast<size_t>(dnnl_weights[i].ic / dnnl_weights[i].ic_group_size), static_cast<size_t>(dnnl_weights[i].oc)};
-                auto zp_layout = cldnn::layout(zp_shape, cldnn::data_types::u4, cldnn::format::get_default_format(zp_shape.size()));
-                auto zp_mem = engine.create_subbuffer(*moe_fusion_wei_addr.zp[i],
-                                                      zp_layout,
-                                                      j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size / 2);
-                dnnl_weights[i].zp =
-                    convert2dnnl(zp_mem, {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc}, dnnl::memory::format_tag::ab);
+                size_t zp_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size / 2;
+                dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
+                                                  {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
+                                                  dnnl::memory::format_tag::ab,
+                                                  zp_offset);
             }
         }
     }
@@ -1046,7 +1041,6 @@ public:
         // [batch, max_topk]
         // auto topk_id_mem = scratch.topk_id;
         auto topk_id_mem = scratch.input_router_topk_idx;
-
 
         expert_mask_cpu expert_mask;
         get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
