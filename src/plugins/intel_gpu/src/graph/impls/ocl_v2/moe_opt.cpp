@@ -347,32 +347,32 @@ struct onednn_linear {
     }
 };
 
-class MOEOptSoftMaxTopK : public KernelGenerator {
-public:
-    MOEOptSoftMaxTopK() : KernelGenerator("moe_opt", "softmax_topk") {}
+// class MOEOptSoftMaxTopK : public KernelGenerator {
+// public:
+//     MOEOptSoftMaxTopK() : KernelGenerator("moe_opt", "softmax_topk") {}
 
-protected:
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_compressed>();
-        jit.make("SOFTMAX_TOPK_ENABLE", 1);
-        jit.make("TOP_K", desc->_config.topk);
-        jit.make("VALUE_NUM", desc->_config.num_experts);
-        jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
-        jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
-        return jit;
-    }
+// protected:
+//     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+//         auto jit = KernelGenerator::get_jit_constants(params);
+//         auto desc = params.typed_desc<moe_compressed>();
+//         jit.make("SOFTMAX_TOPK_ENABLE", 1);
+//         jit.make("TOP_K", desc->_config.topk);
+//         jit.make("VALUE_NUM", desc->_config.num_experts);
+//         jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+//         jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+//         return jit;
+//     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        Arguments args;
+//     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+//         Arguments args;
 
-        return args;
-    }
+//         return args;
+//     }
 
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{nullptr};
-    }
-};
+//     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+//         return DispatchDataFunc{nullptr};
+//     }
+// };
 
 class MOEOptGather : public KernelGenerator {
 public:
@@ -521,7 +521,7 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
 class MOEOptImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MOEOptImpl)
-    Stage::Ptr softmax_topk = make_stage<MOEOptSoftMaxTopK>();
+    // Stage::Ptr softmax_topk = make_stage<MOEOptSoftMaxTopK>();
     Stage::Ptr gather = make_stage<MOEOptGather>();
     Stage::Ptr scatter = make_stage<MOEOptScatter>();
     Stage::Ptr mlp_gate_up = make_stage<MOEOptMLPGateUp>();
@@ -559,8 +559,8 @@ public:
 
     struct scratch_buffers {
         // softmax+topk
-        memory::ptr topk_id;
-        memory::ptr topk_weights;
+        // memory::ptr topk_id;
+        // memory::ptr topk_weights;
 
         // fast single batch: scratch.up = up(x) * silu(gate(x))
         //                    scratch.y = down(scratch.up) * routing_weights
@@ -577,6 +577,8 @@ public:
         std::vector<expert_mask_gpu> expert_masks;
 
         moe_fusion_weights_base_addr moe_fusion_wei_addr;
+        memory::ptr input_routing_weights;
+        memory::ptr input_router_topk_idx;
     };
 
     std::vector<std::vector<dnnl_weights>> _dnnl_weights;
@@ -588,7 +590,7 @@ public:
     MOEOptImpl(const program_node& node, const RuntimeParams& params) : MOEOptImpl() {
         init(node.as<moe_compressed>().get_primitive());
 
-        add_stage(softmax_topk, params);
+        // add_stage(softmax_topk, params);
         add_stage(gather, params);
         add_stage(scatter, params);
         add_stage(mlp_gate_up, params);
@@ -677,23 +679,23 @@ public:
 
         std::vector<BufferDescriptor> internal_buffers;
         // softmax+topk
-        layout layout_topk_id(ov::PartialShape{batch, max_topk}, data_types::u32, cldnn::format::bfyx);
-        layout layout_topk_weights(ov::PartialShape{batch, max_topk}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_topk_id, true);       // 0: topk_id
-        internal_buffers.emplace_back(layout_topk_weights, true);  // 1: topk_weights
+        // layout layout_topk_id(ov::PartialShape{batch, max_topk}, data_types::u32, cldnn::format::bfyx);
+        // layout layout_topk_weights(ov::PartialShape{batch, max_topk}, data_type, cldnn::format::bfyx);
+        // internal_buffers.emplace_back(layout_topk_id, true);       // 0: topk_id
+        // internal_buffers.emplace_back(layout_topk_weights, true);  // 1: topk_weights
         // fast single batch: scratch.up = up(x) * silu(gate(x)); scratch.y = down(scratch.up) * weight[expert_no]
         layout layout_gateup_out(ov::PartialShape{batch, static_cast<int>(config.inter_size)}, data_type, cldnn::format::bfyx);
         layout layout_down_out(ov::PartialShape{batch, static_cast<int>(config.hidden_size)}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_gateup_out, true);  // 2: up
-        internal_buffers.emplace_back(layout_down_out, true);    // 3: y
+        internal_buffers.emplace_back(layout_gateup_out, true);  // 0: up
+        internal_buffers.emplace_back(layout_down_out, true);    // 1: y
         // onednn: scratch.x, scratch.routing_weights = gather(x, ...)
         //         scratch.up = up(scratch.x)
         //         scratch.gate = gate(scratch.x) * scratch.up
         //         scratch.y = down(scratch.gate) * routing_weights
-        internal_buffers.emplace_back(layout_down_out, true);  // 4: x, scratch.x has same layout with down output
+        internal_buffers.emplace_back(layout_down_out, true);  // 2: x, scratch.x has same layout with down output
         layout routing_layout(ov::PartialShape{batch * max_topk}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_down_out, true);    // 5: routing_weights
-        internal_buffers.emplace_back(layout_gateup_out, true);  // 6: gate, scratch.gate has same layout with up
+        internal_buffers.emplace_back(layout_down_out, true);    // 3: routing_weights
+        internal_buffers.emplace_back(layout_gateup_out, true);  // 4: gate, scratch.gate has same layout with up
         // expert masks for gpu
         layout index_layout(ov::PartialShape{batch}, ov::element::i32, cldnn::format::bfyx);
         for (int i = 0; i < expert_num; i++) {
@@ -706,22 +708,25 @@ public:
 
     void prepare_internal_buffers(typed_primitive_inst<moe_compressed>& instance, scratch_buffers& scratch, bool is_single_batch) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
-        scratch.topk_id = intermediates_memories[0];
-        scratch.topk_weights = intermediates_memories[1];
-        scratch.up = intermediates_memories[2];
-        scratch.y = intermediates_memories[3];
+        // scratch.topk_id = intermediates_memories[0];
+        // scratch.topk_weights = intermediates_memories[1];
+        scratch.up = intermediates_memories[0];
+        scratch.y = intermediates_memories[1];
         if (!is_single_batch) {
-            scratch.x = intermediates_memories[4];
-            scratch.routing_weights = intermediates_memories[5];
-            scratch.gate = intermediates_memories[6];
+            scratch.x = intermediates_memories[2];
+            scratch.routing_weights = intermediates_memories[3];
+            scratch.gate = intermediates_memories[4];
             const auto& config = instance.get_typed_desc<moe_compressed>()->_config;
             int expert_num = static_cast<int>(config.num_experts);
             scratch.expert_masks.resize(expert_num);
             for (int i = 0; i < expert_num; i++) {
-                scratch.expert_masks[i].batch = intermediates_memories[7 + 2 * i + 0];
-                scratch.expert_masks[i].topk = intermediates_memories[7 + 2 * i + 1];
+                scratch.expert_masks[i].batch = intermediates_memories[5 + 2 * i + 0];
+                scratch.expert_masks[i].topk = intermediates_memories[5 + 2 * i + 1];
             }
         }
+
+        scratch.input_routing_weights = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ROUTING_WEIGHTS));
+        scratch.input_router_topk_idx = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ROUTER_TOPK_OUTPUT_INDICES));
 
         // gate
         scratch.moe_fusion_wei_addr.weight[0] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::WEIGHT_0));
@@ -744,7 +749,9 @@ public:
         auto layout = mem->get_layout();
         const auto& shape = layout.get_shape();
 
-        int max_expert_num = static_cast<int>(config.num_experts), max_topk = static_cast<int>(config.topk), max_tokens = static_cast<int>(shape[0]);
+        int max_expert_num = static_cast<int>(config.num_experts);
+        int max_topk = static_cast<int>(config.topk);
+        int max_tokens = static_cast<int>(shape[0]);
 
         expert_mask.pred_flag.resize(max_expert_num, 0);
         expert_mask.batch.resize(max_expert_num, {});
@@ -841,9 +848,11 @@ public:
         int max_topk = static_cast<int>(cur_moe->_config.topk);
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
-        auto batch_mem_ptr = scratch.topk_id;
+        // auto batch_mem_ptr = scratch.topk_id;
+        auto batch_mem_ptr = scratch.input_router_topk_idx;
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOEInputIndex::HIDDEN_STATES));
-        auto routing_mem_ptr = scratch.topk_weights;
+        // auto routing_mem_ptr = scratch.topk_weights;
+        auto routing_mem_ptr = scratch.input_routing_weights;
 
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
@@ -1008,14 +1017,14 @@ public:
         prepare_internal_buffers(instance, scratch, batch == 1);
 
         // softmax+topk
-        auto lws_size = cur_moe->_config.num_experts;
-        auto topk_event = execute_stage(events,
-                                        instance,
-                                        *softmax_topk,
-                                        {instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ROUTING_WEIGHTS))},
-                                        {scratch.topk_id, scratch.topk_weights},
-                                        {static_cast<size_t>(batch), lws_size},
-                                        {1, lws_size});
+        // auto lws_size = cur_moe->_config.num_experts;
+        // auto topk_event = execute_stage(events,
+        //                                 instance,
+        //                                 *softmax_topk,
+        //                                 {instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ROUTING_WEIGHTS))},
+        //                                 {scratch.topk_id, scratch.topk_weights},
+        //                                 {static_cast<size_t>(batch), lws_size},
+        //                                 {1, lws_size});
 
         // Single batch is a special case, we don't need to do gather/scatter,
         // and we can apply optimal kernels against memory bound to improve performance.
@@ -1033,16 +1042,20 @@ public:
         final_hidden_states_mem_ptr->fill(stream, false);
 
         // Wait for topk is ready
-        topk_event->wait();
+        // topk_event->wait();
         // [batch, max_topk]
-        auto topk_id_mem = scratch.topk_id;
+        // auto topk_id_mem = scratch.topk_id;
+        auto topk_id_mem = scratch.input_router_topk_idx;
+
+
         expert_mask_cpu expert_mask;
         get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
 
         auto& dnn_stream = stream.get_onednn_stream();
         cldnn::event::ptr result_event;
 
-        auto routing_mem_ptr = scratch.topk_weights;
+        // auto routing_mem_ptr = scratch.topk_weights;
+        auto routing_mem_ptr = scratch.input_routing_weights;
         auto get_best_lws = [](size_t hidden_size) {
             const size_t candidate[] = {128, 64, 32, 16, 8};
             for (size_t i = 0; i < sizeof(candidate) / sizeof(size_t); i++) {
@@ -1052,7 +1065,7 @@ public:
             }
             OPENVINO_ASSERT(false, "hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
         };
-        lws_size = get_best_lws(_hidden_size);
+        auto lws_size = get_best_lws(_hidden_size);
 
         OPENVINO_ASSERT(batch != 1, "batch size shouldn't be 1 for this path!");
         for (size_t expert_no = 0; expert_no < config.num_experts; expert_no++) {

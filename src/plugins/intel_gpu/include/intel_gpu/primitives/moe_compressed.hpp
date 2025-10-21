@@ -24,7 +24,7 @@ struct moe_compressed : public primitive_base<moe_compressed> {
     /// @param id                 An identifier of new primitive.
     /// @param inputs             A list of Input primitive ids (inputs).
     moe_compressed(const primitive_id& id, const std::vector<input_info>& inputs, const MOECompressed::Config& config)
-        : primitive_base(id, inputs, 15, {optional_data_type()}),
+        : primitive_base(id, inputs, 1, {optional_data_type()}),
           _config(config) {}
 
     MOECompressed::Config _config;
