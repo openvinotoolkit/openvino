@@ -25,7 +25,7 @@ std::vector<layout> moe_mask_gen_inst::calc_output_layouts(moe_mask_gen_node con
 
     if (impl_param.get_input_layout(0).is_dynamic()) {
         // out1: tokens_per_expert
-        auto tokens_per_expert_shape = ov::PartialShape::dynamic();
+        auto tokens_per_expert_shape = ov::PartialShape{ov::Dimension::dynamic()};
         output_layouts.emplace_back(tokens_per_expert_shape, data_types::i32, format::bfyx);
     } else {
         const auto num_tokens = impl_param.get_input_layout(0).get_shape()[0];
