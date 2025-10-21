@@ -86,7 +86,10 @@ struct Function {
     std::map<std::pair<std::string, std::size_t>, std::size_t> _param_mapping;
 
     std::optional<ov::npuw::function::Spatial> _spatial;
+    // Single attention graph with dynamic shapes
     std::optional<ov::npuw::function::Attention> _attention;
+    // Multiple attention graphs with different shapes
+    std::optional<ov::npuw::function::PyramidAttention> _pyramid_attention;
     // FIXME: They should exclude each other (introduce a hierarchy, finally?)
 
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
