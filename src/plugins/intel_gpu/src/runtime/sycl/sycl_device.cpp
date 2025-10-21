@@ -229,6 +229,8 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
                         device.has(::sycl::aspect::usm_shared_allocations) ||
                         device.has(::sycl::aspect::usm_device_allocations);
 
+    info.supports_usm = false;  // currently USM is disabled for SYCL backend
+
     info.supports_queue_families = false; // no corresponding aspect in SYCL
 
     if (info.supports_intel_required_subgroup_size) {
