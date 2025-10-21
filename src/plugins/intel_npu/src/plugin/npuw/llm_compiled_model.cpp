@@ -1251,8 +1251,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
         rewr.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
-        rewr.run_on_model(kvcache_model);
-        rewr.run_on_model(prefill_model);
+        if (generate_attn_dyn) {
+            rewr.run_on_model(kvcache_model);
+        }
+        if (prefill_attn_dyn) {
+            rewr.run_on_model(prefill_model);
+        }
     }
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
