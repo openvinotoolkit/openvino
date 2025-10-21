@@ -1465,7 +1465,7 @@ Image Classification,nf_resnet50,pytorch,FP32,torch.compile,+,+,+
 Image Classification,nfnet_l0,pytorch,FP32,torch.compile,+,+,+
 Recommender,nvidia_deeprecommender,pytorch,FP32,torch.compile,+,+,+
 Panoptic Segmentation,panoptic_fpn_R_101_dconv_cascade_gn_3x,pytorch,FP32,torch.compile,,+,
-Panoptic Segmentation ,panoptic_fpn_R_50_1x,pytorch,FP32,torch.compile,,+,
+Panoptic Segmentation,panoptic_fpn_R_50_1x,pytorch,FP32,torch.compile,,+,
 Image Classification,phlippe_densenet,pytorch,FP32,torch.compile,+,+,+
 Image Classification,phlippe_resnet,pytorch,FP32,torch.compile,+,+,+
 Natural Language Processing,phobert-base,pytorch,FP32,torch.compile,+,+,+
@@ -1621,7 +1621,7 @@ Object Detection,centernet-hg104,tf2,FP32,OpenVINO,+,+,
 Object Detection,centernet-resnet,tf,FP32,OpenVINO,+,+,
 Audio,data2vec2-base,onnx,FP32,OpenVINO,+,+,+
 Semantic Segmentation,deeplab-v3p-resnet50-os8,paddle,FP32,OpenVINO,+,+,
-Click-Through Rate (CTR) Prediction,dien,tf,FP32,OpenVINO,+,+,
+Click-Through Rate (CTR) Predictio,dien,tf,FP32,OpenVINO,+,+,
 "Image Processing, Enhancement ",ebgan,tf,FP32,OpenVINO,+,+,
 Object Detection,facial-landmarks-98-detection-0001,onnx,FP32,OpenVINO,+,+,+
 Image to Image,fast-neural-style-mosaic,onnx,FP32,OpenVINO,+,+,+
@@ -1652,7 +1652,7 @@ Object Detection,centernet-hg104,tf2,FP16,OpenVINO,+,+,
 Object Detection,centernet-resnet,tf,FP16,OpenVINO,+,+,
 Audio,data2vec2-base,onnx,FP16,OpenVINO,+,+,+
 Semantic Segmentation,deeplab-v3p-resnet50-os8,paddle,FP16,OpenVINO,+,+,
-Click-Through Rate (CTR) Prediction,dien,tf,FP16,OpenVINO,+,+,
+Click-Through Rate (CTR) Predictio,dien,tf,FP16,OpenVINO,+,+,
 "Image Processing, Enhancement ",ebgan,tf,FP16,OpenVINO,+,+,
 Object Detection,facial-landmarks-98-detection-0001,onnx,FP16,OpenVINO,+,+,+
 Image to Image,fast-neural-style-mosaic,onnx,FP16,OpenVINO,+,+,+
