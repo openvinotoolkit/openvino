@@ -85,12 +85,25 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
     auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
-    auto originalBatchSize = _batchSize;
+
+    std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
+    std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
+
+    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+        inputLayouts->push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+        outputLayouts->push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
 
     Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
                                        CURRENT_OPENVINO_VERSION,
                                        initBlobSizes,
-                                       originalBatchSize)
+                                       _batchSize,
+                                       inputLayouts,
+                                       outputLayouts)
         .write(stream);
 }
 
