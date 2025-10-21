@@ -15,7 +15,7 @@
 
 namespace ov::intel_gpu {
 
-DisableFP16CompForRMS::DisableFP16CompForRMS() {
+DisableFP16CompForGemma3RMSPattern::DisableFP16CompForGemma3RMSPattern() {
     using namespace ov::pass::pattern;
 
     auto add_m = wrap_type<ov::op::v1::Add>({any_input(), any_input()}, type_matches(element::f32));
@@ -29,17 +29,17 @@ DisableFP16CompForRMS::DisableFP16CompForRMS() {
         if (!rms || transformation_callback(rms)) {
             return false;
         }
-        if (pattern_map.count(rms_post_m) > 0) {
-            auto rms_post = pattern_map.at(rms_post_m).get_node_shared_ptr();
-            if (rms_post) {
-                ov::disable_fp16_compression(rms_post);
-            }
+
+        auto rms_post = pattern_map.at(rms_post_m).get_node_shared_ptr();
+        if (rms_post) {
+            ov::disable_fp16_compression(rms_post);
         }
+
         ov::disable_fp16_compression(rms);
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(rms_m, "DisableFP16CompForRMS");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(rms_m, "DisableFP16CompForGemma3RMSPattern");
     this->register_matcher(m, callback);
 }
 

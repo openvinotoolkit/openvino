@@ -29,13 +29,15 @@ namespace ov::intel_gpu {
  *         (rms_m)
  *
  * This pass finds the final RMS node (rms_m) in this chain and disables fp16 compression
- * for both itself and the preceding RMS node (rms_post_m) to maintain
- * higher precision throughout this sequence of operations.
+ * for both itself and the preceding RMS node (rms_post_m). This is done to maintain
+ * higher precision, as the result of the intermediate `add_1_m` operation can exceed
+ * the representable range of fp16, leading to significant precision loss.
+ * By keeping this pattern in fp32, numerical stability is preserved.
  */
-class DisableFP16CompForRMS: public ov::pass::MatcherPass {
+class DisableFP16CompForGemma3RMSPattern: public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("DisableFP16CompForRMS");
-    DisableFP16CompForRMS();
+    OPENVINO_MATCHER_PASS_RTTI("DisableFP16CompForGemma3RMSPattern");
+    DisableFP16CompForGemma3RMSPattern();
 };
 
 }   // namespace ov::intel_gpu

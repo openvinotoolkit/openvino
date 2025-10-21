@@ -24,7 +24,7 @@ using namespace ov::intel_gpu;
 static const std::string name_rms_1 = "rms_1";
 static const std::string name_rms_2 = "rms_2";
 
-// This model creates the exact pattern that DisableFP16CompForRMS is looking for.
+// This model creates the exact pattern that DisableFP16CompForGemma3RMSPattern is looking for.
 // (Add, RMS) -> Add -> RMS
 static std::shared_ptr<ov::Model> create_model_to_match() {
     auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 32, 128});
@@ -70,7 +70,7 @@ static std::shared_ptr<ov::Model> create_model_not_to_match() {
 static void run_test(std::shared_ptr<ov::Model> model,
                      const std::unordered_map<std::string, bool>& expected_fp16_disabled_status) {
     ov::pass::Manager manager;
-    manager.register_pass<DisableFP16CompForRMS>();
+    manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
 
     precisions_map fp_convert_precision_map = {
         {ov::element::f32, ov::element::f16}
