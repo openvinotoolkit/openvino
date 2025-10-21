@@ -1621,7 +1621,7 @@ Object Detection,centernet-hg104,tf2,FP32,OpenVINO,+,+,
 Object Detection,centernet-resnet,tf,FP32,OpenVINO,+,+,
 Audio,data2vec2-base,onnx,FP32,OpenVINO,+,+,+
 Semantic Segmentation,deeplab-v3p-resnet50-os8,paddle,FP32,OpenVINO,+,+,
-Click-Through Rate (CTR) Predictio,dien,tf,FP32,OpenVINO,+,+,
+Click-Through Rate (CTR) Prediction,dien,tf,FP32,OpenVINO,+,+,
 "Image Processing, Enhancement ",ebgan,tf,FP32,OpenVINO,+,+,
 Object Detection,facial-landmarks-98-detection-0001,onnx,FP32,OpenVINO,+,+,+
 Image to Image,fast-neural-style-mosaic,onnx,FP32,OpenVINO,+,+,+
@@ -1652,7 +1652,7 @@ Object Detection,centernet-hg104,tf2,FP16,OpenVINO,+,+,
 Object Detection,centernet-resnet,tf,FP16,OpenVINO,+,+,
 Audio,data2vec2-base,onnx,FP16,OpenVINO,+,+,+
 Semantic Segmentation,deeplab-v3p-resnet50-os8,paddle,FP16,OpenVINO,+,+,
-Click-Through Rate (CTR) Predictio,dien,tf,FP16,OpenVINO,+,+,
+Click-Through Rate (CTR) Prediction,dien,tf,FP16,OpenVINO,+,+,
 "Image Processing, Enhancement ",ebgan,tf,FP16,OpenVINO,+,+,
 Object Detection,facial-landmarks-98-detection-0001,onnx,FP16,OpenVINO,+,+,+
 Image to Image,fast-neural-style-mosaic,onnx,FP16,OpenVINO,+,+,+
@@ -1876,3 +1876,4 @@ Natural Language Processing,distilbert-NER,pytorch,intel-optimum default,Optimum
 Natural Language Processing,xlm-roberta-base-uncased-conll2003,pytorch,intel-optimum default,Optimum Intel,+,+,
 Natural Language Processing,klue-roberta-base-ner,pytorch,intel-optimum default,Optimum Intel,+,+,
 Image to Text,trocr-base-handwritten,pytorch,intel-optimum default,Optimum Intel,+,+,
+
