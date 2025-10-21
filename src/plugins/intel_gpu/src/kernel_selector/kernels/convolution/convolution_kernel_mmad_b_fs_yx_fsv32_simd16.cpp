@@ -53,18 +53,15 @@ DeviceFeaturesKey ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::get_required_devi
 }
 
 bool ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::Validate(const Params& p) const {
-    std::cout << "considering" << p.layerID << std::endl;
     if (!Parent::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
-    std::cout << "a" << std::endl;
     auto params = dynamic_cast<const convolution_params&>(p);
 
     if ((params.quantization == QuantizationType::ASYMMETRIC_DATA || params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)
         && !params.HasCompensation()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
-    std::cout << "b" << std::endl;
     /* uncomment
     if (IsSIMDSizeSupported(params.engineInfo, 8)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
@@ -74,10 +71,8 @@ bool ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::Validate(const Params& p) cons
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     */
-    std::cout << "c" << std::endl;
     if (params.groups > 1)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
-    std::cout << "d" << std::endl;
     return true;
 }
 
@@ -105,7 +100,6 @@ ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::AutoTuneOption ConvolutionKernel_mm
 ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::SetDefault(const convolution_params& cp,
                                                                                      int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
-    std::cout << "autoTuneIndex" << autoTuneIndex << std::endl;
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
     dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
@@ -147,7 +141,6 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::GetJitConstants(const 
     auto output = params.outputs[0];
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     size_t input_line_size = params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1)*params.dilation.x + 1;
-    std::cout << "for para" << params.layerID << " blockW is " << blockWidth << std::endl;
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));
 

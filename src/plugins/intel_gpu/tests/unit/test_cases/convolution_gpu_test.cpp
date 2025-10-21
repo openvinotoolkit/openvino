@@ -14,6 +14,8 @@
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 
+#include "openvino/reference/convolution.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -8774,7 +8776,6 @@ public:
 
     virtual void param_set_up(const convolution_random_test_all_params& params) {
         auto& rg = get_random_generator();
-        auto& drg = get_dummy_random_generator();
         rg.set_seed(GET_SUITE_NAME);
         auto wei_in_f = params.input_features / params.groups;
 
@@ -8866,9 +8867,7 @@ public:
     }
 
     tests::random_generator _rg;
-    tests::dummy_random_generator _drg;
     tests::random_generator& get_random_generator() { return _rg; }
-    tests::dummy_random_generator& get_dummy_random_generator() { return _drg; }
 };
 
 // construct a readable name in format as follows:
@@ -9119,11 +9118,37 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
                                         bool asymm_data = false,
                                         bool padded_input = false,
                                         bool bigger_pad = false) {
-        std::vector<size_t> batches = { 1 };
+        std::vector<size_t> batches = { 1, 2 };
         for (auto b : batches) {
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 14, 14 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 14, 14 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             // 1x1
             push_back(convolution_random_test_all_params{
-                b, 32, 32, { 28, 28 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, false, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+                b, 32, 48, { 28, 28 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 28, 28 }, { 1, 1 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            // 5x5
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 28, 28 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 28, 28 }, { 5, 5 }, { 2, 2 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            // depthwise
+            push_back(convolution_random_test_all_params{
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 1, 1 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            // dilation
+            push_back(convolution_random_test_all_params{
+                b, 32, 24, { 19, 19 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 32, 24, { 19, 19 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            // depthwise + dilation
+            push_back(convolution_random_test_all_params{
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
         }
         return *this;
     }
@@ -9208,7 +9233,7 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
     }
 };
 
-TEST_P(convolution_random_smoke_test, u8s8f32_only) {
+TEST_P(convolution_random_smoke_test, u8s8f32) {
     convolution_random_test_u8s8f32 test;
     ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
 }
@@ -9233,7 +9258,8 @@ INSTANTIATE_TEST_SUITE_P(
     convolution_random_smoke_test,
     testing::ValuesIn(
         params_generator()
-        .smoke_test_params(format::b_fs_yx_fsv32)
+        //.smoke_test_params(format::b_fs_yx_fsv32)
+        .smoke_test_params(format::b_fs_yx_fsv32, true)
     ),
     to_string_convolution_all_params
 );

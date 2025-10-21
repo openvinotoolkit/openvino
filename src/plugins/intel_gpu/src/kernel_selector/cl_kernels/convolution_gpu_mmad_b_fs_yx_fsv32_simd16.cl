@@ -92,11 +92,6 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
     ACCUMULATOR_TYPE_VEC acc[2] = { 0, 0 }; // 2*8 packed channels * OUTPUT_X_BLOCK_SIZE
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
     ACCUMULATOR_TYPE_VEC acc_assym_weights = 0;
-    if (lid == 0 && fg == 0)
-        printf("assymetric\n");
-#else
-    if (lid == 0 && fg == 0)
-        printf("notasymetric\n");
 #endif
 
     const uint input_offset = INPUT0_GET_INDEX(b,0,0,0);
@@ -125,14 +120,6 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
                                  sub_group_broadcast(mm, 10) + (sub_group_broadcast(mm, 11) << 16),
                                  sub_group_broadcast(mm, 12) + (sub_group_broadcast(mm, 13) << 16),
                                  sub_group_broadcast(mm, 14) + (sub_group_broadcast(mm, 15) << 16));
-        /*
-        for (int i=0;i<16;i++){
-            if (lid == 0 && fg == 0)
-                printf("multiplier %d is %d \n", i, sub_group_broadcast(mm, i));
-        }
-        */
-        if (lid == 0 && fg == 0)
-            printf("multiplier is %d \n", multiplier);
 #endif
 
         __attribute__((opencl_unroll_hint(FILTER_SIZE_Z)))
@@ -155,23 +142,25 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
 
                     int xb = 0;
                     for (; xb < INPUT_LINE_SIZE; xb++) {
-
-                        bool x_cross_fm = input_x + xb < 0 || input_x + xb >= INPUT0_SIZE_X;
-                        if (y_cross_fm || x_cross_fm || z_cross_fm) {
-#if ASYMMETRIC_DATA_QUANTIZATION
-                            const int azp_idx = (icb*ISV_SIZE + 2*lid) % ACTIVATIONS_ZERO_POINTS_FEATURE_NUM;
-                            line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, ((const __global uint*)(activations_zp + azp_idx))[0]);
-#else
-                            line_cache[xb] = 0;
-#endif
-                        }
-                        else
-                        {
-                            line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, _sub_group_block_read((const __global uint*)(input + in_addr +
-                                                                          icb * input_fs_pitch +
-                                                                          kd * DILATION_SIZE_Z * input_z_pitch +
-                                                                          kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                          xb * input_x_pitch)));
+                        if (lid < 8){
+                            bool x_cross_fm = input_x + xb < 0 || input_x + xb >= INPUT0_SIZE_X;
+                            if (y_cross_fm || x_cross_fm || z_cross_fm) {
+    #if ASYMMETRIC_DATA_QUANTIZATION
+                                const int azp_idx = (icb*ISV_SIZE + 4*lid) % ACTIVATIONS_ZERO_POINTS_FEATURE_NUM;
+                                
+                                line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, ((const __global uint*)(activations_zp + azp_idx))[0]);
+    #else
+                                line_cache[xb] = 0;
+    #endif
+                            }
+                            else
+                            {
+                                line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, _sub_group_block_read((const __global uint*)(input + in_addr +
+                                                                            icb * input_fs_pitch +
+                                                                            kd * DILATION_SIZE_Z * input_z_pitch +
+                                                                            kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                            xb * input_x_pitch)));
+                            }
                         }
                     }
                 }
@@ -179,9 +168,11 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_simd16)(
                 __attribute__((opencl_unroll_hint(FILTER_SIZE_X)))
                 for (uint kw = 0; kw < FILTER_SIZE_X ; ++kw) {
                     PACKED_TYPE_VEC src;
-                    __attribute__((opencl_unroll_hint(OUTPUT_X_BLOCK_SIZE)))
-                    for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
-                        src[i] = line_cache[kw*DILATION_SIZE_X + STRIDE_SIZE_X*i];
+                    if (lid < 8) {
+                        __attribute__((opencl_unroll_hint(OUTPUT_X_BLOCK_SIZE)))
+                        for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
+                            src[i] = line_cache[kw*DILATION_SIZE_X + STRIDE_SIZE_X*i];
+                        }
                     }
 
                     const uint f_off = filter_idx + icb * FILTER_SIZE_X*FILTER_SIZE_Y*FILTER_SIZE_Z*ISV_SIZE*OSV_SIZE

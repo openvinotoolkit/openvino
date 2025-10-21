@@ -536,10 +536,12 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_yx_osv8_isv4;
         case format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
-        case format::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_4:
-            return kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_4;
         case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
+        case format::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2:
+            return kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
+        case format::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2:
+            return kernel_selector::weights_layout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
         case format::os_is_yx_osv16_isv4:
             return kernel_selector::weights_layout::os_is_yx_osv16_isv4;
         case format::os_is_yx_osv32_isv4_swizzled_by_2:
@@ -730,8 +732,10 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_zyx_isa8_osv16_isv4;
         case kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return cldnn::format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
-        case kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_4:
-            return cldnn::format::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_4;
+        case kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2:
+            return cldnn::format::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
+        case kernel_selector::weights_layout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2:
+            return cldnn::format::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
         case kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
         case kernel_selector::weights_layout::os_is_yx_osv32_isv4_swizzled_by_2:
