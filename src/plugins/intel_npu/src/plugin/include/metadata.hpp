@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "intel_npu/utils/logger/logger.hpp"
@@ -21,10 +22,10 @@ class MetadataBase {
 public:
     MetadataBase(uint32_t version, uint64_t blobDataSize);
 
-protected:
-    union Source;
+    using uninitialized_source = void*;
+    using Source = std::
+        variant<uninitialized_source, std::reference_wrapper<std::istream>, std::reference_wrapper<const ov::Tensor>>;
 
-public:
     /**
      * @brief Reads metadata from a stream.
      */
@@ -96,18 +97,6 @@ public:
 
 protected:
     /**
-     * @brief Where the metadata is read from. The type can be either a stream or an OpenVINO tensor.
-     */
-    union Source {
-        explicit Source(std::istream& source);
-
-        explicit Source(const ov::Tensor& source);
-
-        std::reference_wrapper<std::istream> stream;
-        std::reference_wrapper<const ov::Tensor> tensor;
-    };
-
-    /**
      * @brief Reads data from the source containing the metadata. The implementation depends on the type of source.
      */
     void read_data_from_source(char* destination, const size_t size);
@@ -126,16 +115,11 @@ protected:
     Logger _logger;
 
     /**
-     * @brief Either the stream or tensor used for providing the metadata.
+     * @brief Where the metadata is read from. The type can be a stream, an OpenVINO tensor or "uninitialized_source".
      * @details Stored as attribute in order to avoid repeatedly passing the same arguments to some methods.
+     * "uninitialized_source" (void*) is the default type assigned upon creation.
      */
     Source _source;
-
-    /**
-     * @brief Flag indicating the type of source used for providing the metadata
-     * @details Stored as attribute in order to avoid repeatedly passing the same arguments to some methods.
-     */
-    bool _isStream;
 
     /**
      * @brief Used only when the source buffer is an OV tensor for managing the read coursor.

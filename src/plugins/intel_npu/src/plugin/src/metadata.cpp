@@ -10,6 +10,7 @@
 
 #include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/variant_visitor.hpp"
 
 namespace intel_npu {
 
@@ -60,7 +61,7 @@ MetadataBase::MetadataBase(uint32_t version, uint64_t blobDataSize)
     : _version(version),
       _blobDataSize(blobDataSize),
       _logger("NPUBlobMetadata", Logger::global().level()),
-      _source(ov::Tensor()) {}
+      _source() {}
 
 Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion)
     : MetadataBase{METADATA_VERSION_2_0, blobSize},
@@ -95,30 +96,28 @@ Metadata<METADATA_VERSION_2_3>::Metadata(uint64_t blobSize,
     _version = METADATA_VERSION_2_3;
 }
 
-MetadataBase::Source::Source(std::istream& source) : stream(source) {}
-
-MetadataBase::Source::Source(const ov::Tensor& source) : tensor(source) {}
-
 void MetadataBase::read(std::istream& tensor) {
     _source = Source(tensor);
-    _isStream = true;
     read();
 }
 
 void MetadataBase::read(const ov::Tensor& tensor) {
     _source = Source(tensor);
-    _isStream = false;
     read();
 }
 
 void MetadataBase::read_data_from_source(char* destination, const size_t size) {
-    if (_isStream) {
-        _source.stream.get().read(destination, size);
-        return;
-    }
-
-    std::memcpy(destination, _source.tensor.get().data<const char>() + _cursorOffset, size);
-    _cursorOffset += size;
+    ov::util::VariantVisitor reader{[&](std::reference_wrapper<std::istream> stream) {
+                                        stream.get().read(destination, size);
+                                    },
+                                    [&](std::reference_wrapper<const ov::Tensor> tensor) {
+                                        std::memcpy(destination, tensor.get().data<const char>() + _cursorOffset, size);
+                                        _cursorOffset += size;
+                                    },
+                                    [&](uninitialized_source) {
+                                        OPENVINO_THROW("No blob has been provided to NPU plugin's metadata reader.");
+                                    }};
+    std::visit(reader, _source);
 }
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
@@ -134,11 +133,15 @@ void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
 }
 
 void Metadata<METADATA_VERSION_2_0>::read() {
-    if (_isStream) {
-        _ovVersion.read(_source.stream);
-    } else {
-        _ovVersion.read(_source.tensor);
+    if (const std::reference_wrapper<std::istream>* source =
+            std::get_if<std::reference_wrapper<std::istream>>(&_source)) {
+        _ovVersion.read(*source);
+    } else if (const std::reference_wrapper<const ov::Tensor>* source =
+                   std::get_if<std::reference_wrapper<const ov::Tensor>>(&_source)) {
+        _ovVersion.read(*source);
         _cursorOffset = _ovVersion.get_openvino_version_size();
+    } else {
+        OPENVINO_THROW("No blob has been provided to NPU plugin's metadata reader.");
     }
 }
 
