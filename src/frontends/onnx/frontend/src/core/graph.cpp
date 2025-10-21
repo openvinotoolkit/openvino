@@ -23,6 +23,15 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils/common.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/make_stateful.hpp"
+#include "openvino/op/gather.hpp"
+#include <openvino/core/graph_util.hpp>
+#include <openvino/op/shape_of.hpp>
+#include <openvino/op/convert.hpp>
+#include <openvino/op/concat.hpp>
+#include <openvino/op/broadcast.hpp>
+#include <openvino/pass/constant_folding.hpp>
 
 using namespace ov;
 using namespace ::ONNX_NAMESPACE;
@@ -202,6 +211,298 @@ void Graph::convert_to_ov_nodes() {
     }
 }
 
+bool model_has_input_output_name(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    for (const auto& input : model->inputs()) {
+        if (input.get_any_name() == name)
+            return true;
+    }
+    for (const auto& output : model->outputs()) {
+        if (output.get_any_name() == name)
+            return true;
+    }
+    return false;
+}
+
+int index_of_model_input_output(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    for (size_t i = 0; i < model->inputs().size(); i++) {
+        if (model->inputs().at(i).get_any_name() == name)
+            return i;
+    }
+    return 0;
+}
+
+std::vector<std::shared_ptr<ov::Node>> get_input_nodes(const std::shared_ptr<ov::Node>& node) {
+    std::vector<std::shared_ptr<ov::Node>> inputs;
+    for (const auto& input : node->inputs()) {
+        auto source_node = input.get_source_output().get_node_shared_ptr();
+        if (source_node) {
+            inputs.push_back(source_node);
+        }
+    }
+    return inputs;
+}
+
+std::unordered_set<std::shared_ptr<ov::Node>> find_dependent_nodes(
+    const std::shared_ptr<ov::Model>& model,
+    const std::unordered_set<std::shared_ptr<ov::Node>>& sources) {
+    std::unordered_set<std::shared_ptr<ov::Node>> result = sources;
+    for (const auto& node : model->get_ordered_ops()) {
+        auto input_nodes = get_input_nodes(node);
+        for (const auto& input_node : input_nodes) {
+            if (result.count(input_node)) {
+                result.insert(node);
+                break;
+            }
+        }
+    }
+    return result;
+}
+
+std::vector<std::shared_ptr<ov::Node>> get_shape_of_ops(const std::shared_ptr<ov::Model>& model) {
+    std::vector<std::shared_ptr<ov::Node>> result;
+    for (const auto& node : model->get_ops()) {
+        if (node->get_type_name() == std::string("ShapeOf")) {
+            result.push_back(node);
+        }
+    }
+    return result;
+}
+
+std::unordered_set<std::shared_ptr<ov::Node>> get_consumer_nodes(const std::shared_ptr<ov::Node>& node) {
+    std::unordered_set<std::shared_ptr<ov::Node>> consumers;
+    for (const auto& output : node->outputs()) {
+        for (const auto& input : output.get_target_inputs()) {
+            consumers.insert(input.get_node()->shared_from_this());
+        }
+    }
+    return consumers;
+}
+
+std::vector<std::shared_ptr<ov::Node>> get_read_value_ops(const std::shared_ptr<ov::Model>& model) {
+    std::vector<std::shared_ptr<ov::Node>> result;
+    for (const auto& node : model->get_ops()) {
+        if (node->get_type_name() == std::string("ReadValue")) {
+            result.push_back(node);
+        }
+    }
+    return result;
+}
+
+std::vector<std::shared_ptr<ov::Node>> find_output_nodes_of_dependent_subgraph(
+    const std::shared_ptr<ov::Model>& model,
+    const std::unordered_set<std::shared_ptr<ov::Node>>& sources) {
+    // Get "other" inputs: parameters + ReadValue + ShapeOf, excluding sources
+    std::unordered_set<std::shared_ptr<ov::Node>> other_inputs(model->get_parameters().begin(),
+                                                               model->get_parameters().end());
+    for (const auto& node : get_read_value_ops(model)) {
+        other_inputs.insert(node);
+    }
+    for (const auto& node : get_shape_of_ops(model)) {
+        other_inputs.insert(node);
+    }
+    for (const auto& source : sources) {
+        other_inputs.erase(source);
+    }
+    auto other_nodes = find_dependent_nodes(model, other_inputs);
+    auto source_dependent_nodes = find_dependent_nodes(model, sources);
+    // Subgraph nodes that depend only on sources
+    std::unordered_set<std::shared_ptr<ov::Node>> subgraph_nodes;
+    for (const auto& node : source_dependent_nodes) {
+        if (!other_nodes.count(node)) {
+            subgraph_nodes.insert(node);
+        }
+    }
+    // Find nodes on the boundary (with consumers outside the subgraph)
+    std::vector<std::shared_ptr<ov::Node>> edge_nodes;
+    for (const auto& node : subgraph_nodes) {
+        auto consumers = get_consumer_nodes(node);
+        for (const auto& consumer : consumers) {
+            if (other_nodes.count(consumer)) {
+                edge_nodes.push_back(node);
+                break;
+            }
+        }
+    }
+    return edge_nodes;
+}
+
+void insert_state_for_nodes(std::shared_ptr<ov::Model> model, const std::vector<std::shared_ptr<ov::Node>>& nodes) {
+    
+    std::vector<ov::Output<ov::Node>> outputs;
+    for (const auto& node : nodes) {
+        const auto& node_outputs = node->outputs();
+        for (auto out : node_outputs)
+            outputs.push_back(out);
+        
+    }
+    for (const auto& output : outputs) {
+        auto consumers = output.get_target_inputs();
+        std::string variable_id = output.get_any_name();
+        const auto& var_name = output.get_any_name();
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{output.get_partial_shape(), output.get_element_type(), var_name});
+        // Create ReadValue
+        auto read_value = std::make_shared<ov::op::v6::ReadValue>(variable);
+        for (auto& consumer : consumers) {
+            consumer.replace_source_output(read_value->output(0));
+        }
+        auto assign = std::make_shared<ov::op::v6::Assign>(read_value->output(0), variable);
+        model->add_sinks({assign});
+    }
+    
+}
+
+void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& model) {
+
+    std::vector<std::string> past_keys;
+    std::vector<std::string> past_values;
+    std::vector<std::string> present_keys;
+    std::vector<std::string> present_values;
+    std::vector<ov::op::v0::Parameter> key_values;
+    std::shared_ptr<ov::op::v0::Parameter> beam_idx;
+    bool found_input_id = false;
+    bool found_input_hidden_states;
+    std::string param_name;
+
+    if (model_has_input_output_name(model, "beam_idx")) {
+        OPENVINO_ASSERT("Model already has fused cache");
+    }
+    std::string main_input_name = model_has_input_output_name(model, "input_ids") ? "input_ids" : "input_hidden_states";
+    if (main_input_name == "input_ids" || main_input_name == "input_hidden_states")
+        found_input_id = true;
+    main_input_name = model_has_input_output_name(model, "input_hidden_states") ? "input_hidden_states"
+                                                                                : "/model/embed_tokens/Gather_output_0";
+    if (main_input_name == "input_hidden_states" || main_input_name == "/model/embed_tokens/Gather_output_0")
+        found_input_id = true;
+    size_t input_id_index = index_of_model_input_output(model, main_input_name);
+
+    PartialShape input_batch_shape = model->input(main_input_name).get_partial_shape();
+    Dimension batch_dim = input_batch_shape[0];
+    beam_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{batch_dim});
+    beam_idx->set_friendly_name("beam_idx");
+    beam_idx->output(0).get_tensor().add_names({"beam_idx"});
+    const auto& params = model->get_parameters();
+    model->add_parameters({beam_idx});
+    
+    for (auto i = 0; i < params.size(); i++) {
+        //iterate over all inputs and make a list of all KV ops
+        auto param_name = params.at(i)->output(0).get_any_name();
+        auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, std::vector<int64_t>({0}));
+        if (param_name.find("past_key") != std::string::npos) {
+            past_keys.push_back(param_name);
+            if (found_input_id) {
+                auto consumers = params.at(i)->output(0).get_target_inputs();
+                auto gather_op = std::make_shared<ov::op::v8::Gather>(params.at(i), beam_idx, axis);
+                for (const auto& consumer : consumers)
+                    consumer.replace_source_output(gather_op);
+            }
+        }
+        if (param_name.find("past_value") != std::string::npos) {
+            past_values.push_back(param_name);
+            if (found_input_id) {
+                auto consumers = params.at(i)->output(0).get_target_inputs();
+                auto gather_op = std::make_shared<ov::op::v8::Gather>(params.at(i), beam_idx, axis);
+                for (const auto& consumer : consumers)
+                    consumer.replace_source_output(gather_op);
+            }
+        }
+        if (param_name.find("past_key_values") != std::string::npos && param_name.find(".key") != std::string::npos) {
+            past_keys.push_back(param_name);
+            if (found_input_id) {
+                auto consumers = params.at(i)->output(0).get_target_inputs();
+                auto gather_op = std::make_shared<ov::op::v8::Gather>(params.at(i), beam_idx, axis);
+                for (const auto& consumer : consumers)
+                    consumer.replace_source_output(gather_op);
+            }
+        }
+        if (param_name.find("past_key_values") != std::string::npos && param_name.find(".value") != std::string::npos) {
+            past_values.push_back(param_name);
+            if (found_input_id) {
+                auto consumers = params.at(i)->output(0).get_target_inputs();
+                auto gather_op = std::make_shared<ov::op::v8::Gather>(params.at(i), beam_idx, axis);
+                for (const auto& consumer : consumers)
+                    consumer.replace_source_output(gather_op);
+            }
+        }
+            
+    }
+    const auto& results = model->get_results();
+    for(size_t i = 0; i < results.size(); i++){
+
+        auto res_name = results.at(i)->output(0).get_any_name();
+        if (res_name.find("present_key") != std::string::npos)
+            present_keys.push_back(res_name);
+        if (res_name.find("present_value") != std::string::npos)
+             present_values.push_back(res_name);
+        if (res_name.find("present") != std::string::npos && res_name.find(".key") != std::string::npos)
+            present_keys.push_back(res_name);
+        if (res_name.find("present") != std::string::npos && res_name.find(".value") != std::string::npos)
+            present_values.push_back(res_name);
+
+    }
+    std::map<std::string, std::string> param_res_names;
+    OPENVINO_ASSERT(past_values.size() == past_keys.size());
+    OPENVINO_ASSERT(present_keys.size() == present_values.size());
+    for (size_t i = 0; i < past_keys.size(); i++) {
+
+        param_res_names.insert({past_keys[i], present_keys[i]});
+        param_res_names.insert({past_values[i], present_values[i]});
+
+    }
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::MakeStateful>(param_res_names);
+    manager.run_passes(model);
+
+    
+    if (found_input_id) {
+        auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(params.at(input_id_index));
+        auto axis = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>({0}));
+        auto index = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>({0}));
+        auto gather_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>({0}));
+        auto batch = std::make_shared<ov::op::v8::Gather>(shapeOf, index, gather_axis);
+        std::vector<int> dims;
+        auto batch_dim = 0;
+        for (auto op : model->get_ops()) {
+            std::string str1 = "ReadValue";
+            if (str1.compare(op->get_type_name()) == 0) {
+                std::vector<std::shared_ptr<ov::Node>> processed_dims;
+                processed_dims.push_back(batch);
+                auto output_shape = op->get_output_partial_shape(0);
+                
+                for (auto i = 0; i < output_shape.size(); i++) {
+                    dims.push_back(output_shape[i].get_min_length());                    
+                }
+               
+                for (auto i = 1; i < dims.size(); i++) {
+                    if (dims[i] != 0) {
+                        auto dim_tensor = ov::op::v0::Constant::create(ov::element::i64, {1}, {dims[i]});
+                        processed_dims.push_back(dim_tensor);
+                    } else {
+                        auto dim_tensor = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+                        processed_dims.push_back(dim_tensor);  // Placeholder for dynamic dimension
+                    }
+                }               
+                auto shape = std::make_shared<ov::op::v0::Concat>(processed_dims, 0);
+                const auto broadcast_const = ov::op::v0::Constant::create(op->get_output_element_type(0), Shape{}, {0});
+                auto broadcast = std::make_shared<ov::op::v3::Broadcast>(broadcast_const, shape);
+                op->set_arguments(OutputVector{broadcast});
+                processed_dims.clear();
+                dims.clear();
+            }
+            
+        }
+        //model->validate_nodes_and_infer_types();
+    }
+    if (model_has_input_output_name(model, "encoder_hidden_states")) {
+        auto encoder_input = model->input("encoder_hidden_states").get_node_shared_ptr();
+        // Find dependent output nodes of the subgraph
+        std::unordered_set<std::shared_ptr<ov::Node>> sources = {encoder_input};
+        auto output_nodes = find_output_nodes_of_dependent_subgraph(model, sources);
+        // Insert ReadValue/Assign stateful ops for those outputs
+        insert_state_for_nodes(model, output_nodes);
+    }
+}
+
 void Graph::remove_dangling_parameters() {
     const auto any_tensor_name_matches_onnx_output = [](const Output<ov::Node>& param_output, const GraphProto& graph) {
         const auto found_in_outputs = [&graph](const std::string& tensor_name) {
@@ -242,6 +543,7 @@ std::shared_ptr<ov::Model> Graph::convert() {
     convert_to_ov_nodes();
     remove_dangling_parameters();
     auto function = create_model();
+    convert_stateless_LLM_to_stateful_LLM(function);
     set_metadata(function);
     return function;
 }
