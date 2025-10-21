@@ -6,9 +6,7 @@
 
 using namespace CPUTestUtils;
 
-namespace ov {
-namespace test {
-namespace identity {
+namespace ov::test::identity {
 
 static const std::vector<ov::Shape> shapes = {
         {500},
@@ -42,6 +40,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_ParamConst, IdentityLayerTestCPU,
                 ::testing::Values(empty_plugin_config)),
         IdentityLayerTestCPU::getTestCaseName);
 
-}  // namespace identity
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test::identity

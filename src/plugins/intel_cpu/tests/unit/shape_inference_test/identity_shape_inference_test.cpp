@@ -8,10 +8,9 @@
 
 #include "utils.hpp"
 
-using namespace ov;
 using namespace ov::intel_cpu;
 
-class Identityv16StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v16::Identity> {
+class Identityv16StaticShapeInferenceTest : public OpStaticShapeInferenceTest<ov::op::v16::Identity> {
 protected:
 };
 
@@ -25,7 +24,7 @@ TEST_F(Identityv16StaticShapeInferenceTest, Identity_default_ctor) {
 }
 
 TEST_F(Identityv16StaticShapeInferenceTest, Identity_4_4_small_matrix) {
-    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(2));
     auto op = make_op(data);
     input_shapes = StaticShapeVector{{4, 4}};
 
@@ -34,7 +33,7 @@ TEST_F(Identityv16StaticShapeInferenceTest, Identity_4_4_small_matrix) {
 }
 
 TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_10_big_matrix) {
-    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(2));
     auto op = make_op(data);
     input_shapes = StaticShapeVector{{10, 10}};
 
@@ -43,7 +42,7 @@ TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_10_big_matrix) {
 }
 
 TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_1_1_keep_batch_when_single_cell_matrix) {
-    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(3));
     auto op = make_op(data);
     input_shapes = StaticShapeVector{{10, 1, 1}};
 
@@ -52,7 +51,7 @@ TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_1_1_keep_batch_when_sing
 }
 
 TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_9_9_keep_batch_big_matrix) {
-    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(3));
     auto op = make_op(data);
     input_shapes = StaticShapeVector{{10, 9, 9}};
 
@@ -61,7 +60,7 @@ TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_9_9_keep_batch_big_matri
 }
 
 TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_5_3_2_2_complex_multi_dim_matrix) {
-    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(5));
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(5));
     auto op = make_op(data);
     input_shapes = StaticShapeVector{{10, 5, 3, 2, 2}};
 
