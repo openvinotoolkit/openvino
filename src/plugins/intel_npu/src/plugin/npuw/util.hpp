@@ -201,6 +201,10 @@ typename std::underlying_type<T>::type _v(T&& t) {
     return static_cast<typename std::underlying_type<T>::type>(t);
 }
 
+bool isPastKeyValuesKey(const std::string& str);
+
+bool isPastKeyValuesValue(const std::string& str);
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov
