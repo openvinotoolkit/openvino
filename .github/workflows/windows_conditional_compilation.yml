@@ -30,6 +30,7 @@ env:
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"

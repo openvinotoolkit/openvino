@@ -32,6 +32,7 @@ jobs:
   
   Smart_CI:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
