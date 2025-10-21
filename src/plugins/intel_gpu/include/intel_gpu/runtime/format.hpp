@@ -305,7 +305,6 @@ struct format {
     static void get_axes_map(const format& fmt, int64_t* axes_map, size_t& map_size) {
         const auto& o_order = fmt.order();
         const auto& i_order = fmt.internal_order();
-        std::vector<int64_t> sizes_map(o_order.size(), 0);
 
         // output_order has more elements than allocated in axes_map
         if (o_order.size() > map_size) {
@@ -319,7 +318,7 @@ struct format {
             auto pos = i_order.find(c);
 
             if (pos == std::string::npos)
-                OPENVINO_THROW("Unknown coord type: " + c);
+                OPENVINO_THROW("Unknown coord type: " + std::to_string(c));
 
             axes_map[i] = pos;
         }

@@ -22,7 +22,6 @@ using namespace cldnn;
 
 #define MAX_NUM_AXES 6
 void get_linear_offset_params(layout& layout, tensor& start_points, tensor& end_points, int64_t* padded_sizes, int64_t* axes_map, size_t& map_size) {
-    
     auto fmt = layout.get_format();
     auto data_padding = layout.get_padding();
     auto default_fmt = format::get_default_format(fmt.dimension(), format::is_weights_format(fmt), format::is_grouped(fmt));
@@ -45,7 +44,7 @@ void get_linear_offset_params(layout& layout, tensor& start_points, tensor& end_
         OPENVINO_THROW("Unsupported padded layout dimension" + std::to_string(p_sizes.size()));
     }
 
-    for (int8_t i = 0; i < p_sizes.size(); i++) {
+    for (size_t i = 0; i < p_sizes.size(); i++) {
         padded_sizes[i] = p_sizes[i];
     }
 }
