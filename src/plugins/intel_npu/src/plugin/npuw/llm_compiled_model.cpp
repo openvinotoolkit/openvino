@@ -476,7 +476,7 @@ public:
         // where K range and Q range are created by the same rules as before and Q_pos range is
         // a position_ids array.
         // 4. We also clean mask in places where paddings used instead of real tokens via:
-        //    Clean mask = 3 & (attention_mask_input[past_kv_len:].T)
+        //    Clean mask = 3 | ~(attention_mask_input[past_kv_len:]).T
         auto past_kv_len = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
         auto pos_ids_param = opp::wrap_type<ov::op::v0::Parameter>();
         auto pos_ids_shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({pos_ids_param});
@@ -558,7 +558,7 @@ public:
             auto target_inputs = matched_bitwise_or->output(0).get_target_inputs();
             auto new_inv_sliding_mask = std::make_shared<ov::op::v13::BitwiseOr>(matched_bitwise_or, bitwise_and);
 
-            // 4. Removing extra padding via : 3 & (attention_mask_input[past_kv_len:].T)
+            // 4. Removing extra padding via : 3 | ~(attention_mask_input[past_kv_len:]).T
             std::vector<int64_t> shape_1{1};
             auto shape_1_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, shape_1);
             auto matched_past_len_shape_1 =
@@ -573,10 +573,11 @@ public:
                                                                           const_1);
             auto present_atten_mask_bool =
                 std::make_shared<ov::op::v0::Convert>(present_atten_mask, ov::element::boolean);
-            auto present_atten_mask_col =
-                std::make_shared<ov::op::v1::Reshape>(present_atten_mask_bool, vector_shape_const, false);
+            auto inv_present_atten_mask = std::make_shared<ov::op::v13::BitwiseNot>(present_atten_mask_bool);
+            auto inv_present_atten_mask_col =
+                std::make_shared<ov::op::v1::Reshape>(inv_present_atten_mask, vector_shape_const, false);
             auto clean_inv_sliding_mask =
-                std::make_shared<ov::op::v13::BitwiseAnd>(new_inv_sliding_mask, present_atten_mask_col);
+                std::make_shared<ov::op::v13::BitwiseOr>(new_inv_sliding_mask, inv_present_atten_mask_col);
             for (auto&& input : target_inputs) {
                 input.replace_source_output(clean_inv_sliding_mask);
             }
