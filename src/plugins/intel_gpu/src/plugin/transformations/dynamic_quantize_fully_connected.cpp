@@ -19,7 +19,10 @@ namespace ov::intel_gpu {
 
 // precomputed_reduction is providing partial reduction of activation from dynamic quantization into onednn for faster computation
 // It is used for asymmetric weight.
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric, bool precomputed_reduction, bool use_gs128_for_int8_per_token)
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size,
+                                                            bool asymmetric,
+                                                            bool precomputed_reduction,
+                                                            bool use_gs128_for_int8_per_token)
     : ov::pass::MatcherPass() {
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
