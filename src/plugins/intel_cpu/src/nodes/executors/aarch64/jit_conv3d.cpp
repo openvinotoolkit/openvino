@@ -721,8 +721,10 @@ void JitConv3DKernelF16::gen_optimized_kernel() {
     ldr(reg_src_dy, ptr(reg_args, 152));  // src dy step in bytes (y dimension)
     ldr(reg_wei_dy, ptr(reg_args, 160));  // wei dy step in bytes (y dimension)
 
-    // Force single-ky iteration and disable quad-OC for stability on macOS arm64
-    mov(reg_kh_cnt, 1);
+    // Optionally force single-ky iteration for stability on certain platforms
+    if (m_force_single_kh_) {
+        mov(reg_kh_cnt, 1);
+    }
     eor(reg_acc4, reg_acc4, reg_acc4);
 
     Label Lsingle, Lend_all;
@@ -1667,7 +1669,7 @@ JitConv3DExecutor::JitConv3DExecutor(const ConvAttrs& attrs,
 }
 
 bool JitConv3DExecutor::supports(const ConvConfig& cfg) {
-    // Require 5D NCDHW, FP16/FP32 src/wei/dst, group=1, no dilation, stride 1 or 2
+    // Require 5D NCDHW, FP16 or FP32 src/wei/dst, group=1, no dilation, stride 1 or 2
     if (!cfg.descs.count(ARG_SRC) || !cfg.descs.count(ARG_WEI) || !cfg.descs.count(ARG_DST))
         return false;
     if (!cfg.descs.at(ARG_SRC) || !cfg.descs.at(ARG_WEI) || !cfg.descs.at(ARG_DST))
@@ -2398,14 +2400,14 @@ void JitConv3DExecutor::run_naive_fp32(const MemoryArgs& memory) {
                         }
                     }
 
-                    // Store (convert FP32 accumulators to FP16 bits)
-                    dst_p[index_dst(n, oc0, od, oh, ow)] = ov::float16(acc0).to_bits();
+                    // Store FP32 accumulators directly to FP32 destination
+                    dst_p[index_dst(n, oc0, od, oh, ow)] = acc0;
                     if (has_oc1)
-                        dst_p[index_dst(n, oc1, od, oh, ow)] = ov::float16(acc1).to_bits();
+                        dst_p[index_dst(n, oc1, od, oh, ow)] = acc1;
                     if (has_oc2)
-                        dst_p[index_dst(n, oc2, od, oh, ow)] = ov::float16(acc2).to_bits();
+                        dst_p[index_dst(n, oc2, od, oh, ow)] = acc2;
                     if (has_oc3)
-                        dst_p[index_dst(n, oc3, od, oh, ow)] = ov::float16(acc3).to_bits();
+                        dst_p[index_dst(n, oc3, od, oh, ow)] = acc3;
                 }
             }
         }

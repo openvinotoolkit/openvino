@@ -31,6 +31,9 @@ public:
         return impl_desc_type::jit_asimd;
     }
 
+    // Early weight preparation to avoid first-inference overhead
+    void prepare_weights_early(const std::vector<MemoryCPtr>& src);
+
 private:
     std::vector<MemoryDescPtr> m_srcDescs;
     std::vector<MemoryDescPtr> m_dstDescs;
@@ -42,13 +45,20 @@ private:
     // packed weights
     std::vector<uint16_t> m_wei_packed_f16;
     std::vector<float> m_wei_packed_f32;
+    // alternative packing for S=2 (even/odd taps)
+    std::vector<uint16_t> m_wei_packed_s2_f16;
+    std::vector<float> m_wei_packed_s2_f32;
     bool m_wei_packed_ready_f16{false};
     bool m_wei_packed_ready_f32{false};
+    bool m_wei_packed_s2_ready_f16{false};
+    bool m_wei_packed_s2_ready_f32{false};
     size_t m_padded_IC_f16{0};
     size_t m_padded_IC_f32{0};
 
     void ensure_weights_packed_f16(const std::vector<MemoryCPtr>& src);
     void ensure_weights_packed_f32(const std::vector<MemoryCPtr>& src);
+    void ensure_weights_packed_s2_f16(const std::vector<MemoryCPtr>& src);
+    void ensure_weights_packed_s2_f32(const std::vector<MemoryCPtr>& src);
     void exec_fp16(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst);
     void exec_fp32(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst);
 };

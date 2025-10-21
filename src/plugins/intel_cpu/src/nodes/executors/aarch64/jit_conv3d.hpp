@@ -65,6 +65,9 @@ private:
     void gen_optimized_kernel();
 
     jit_fn ker_{nullptr};
+    bool m_force_single_kh_{true};
+public:
+    void set_force_single_kh(bool v) { m_force_single_kh_ = v; }
 };
 
 // AArch64 JIT Convolution (FP16) executor for 3D conv (NCDHW)

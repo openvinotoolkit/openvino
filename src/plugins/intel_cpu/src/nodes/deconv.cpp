@@ -39,6 +39,10 @@
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/common/dnnl_executor.h"
 #include "nodes/executors/deconv_list.hpp"
+#include "utils/arch_macros.h"
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/executors/aarch64/jit_deconv3d.hpp"
+#endif
 #include "nodes/executors/executor.hpp"
 #include "nodes/node_config.h"
 #include "onednn/dnnl.h"
@@ -1133,6 +1137,19 @@ void Deconvolution::prepareParams() {
 
     execPtr = result.first;
     OPENVINO_ASSERT(execPtr, "Primitive descriptor was not found for node ", getName(), ".");
+
+#if defined(OPENVINO_ARCH_ARM64)
+    // Early weight packing for AArch64 JIT to minimize first-inference latency
+    if (auto jitExec = std::dynamic_pointer_cast<ov::intel_cpu::JitDeconv3DExecutor>(execPtr)) {
+        std::vector<MemoryCPtr> srcMemories;
+        // src[0] = input, src[1] = weights, src[2] = bias (optional)
+        srcMemories.push_back(getSrcMemoryAtPort(0));
+        srcMemories.push_back(getSrcMemoryAtPort(1));
+        // Bias not needed for packing
+        jitExec->prepare_weights_early(srcMemories);
+    }
+#endif
+
 
     primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();

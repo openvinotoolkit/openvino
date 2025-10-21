@@ -141,7 +141,12 @@ void JitConv3DKernelF32::generate() {
     add(reg_wei2, reg_wei2, reg_wei_stride);
     ld1(VReg(1).s[3], ptr(reg_wei));
     ld1(VReg(2).s[3], ptr(reg_wei2));
+    // advance to next 4-channel block for next repeat
+    add(reg_wei, reg_wei, reg_wei_stride);
+    add(reg_wei2, reg_wei2, reg_wei_stride);
     L(Lw_done_d);
+    // advance src to next 4-channel block for next repeat
+    add(reg_src, reg_src, reg_src_stride);
     // MAC
     fmla(VReg4S(20), VReg4S(0), VReg4S(1));
     fmla(VReg4S(21), VReg4S(0), VReg4S(2));
@@ -245,7 +250,11 @@ void JitConv3DKernelF32::generate() {
     ld1(VReg(1).s[2], ptr(reg_wei));
     add(reg_wei, reg_wei, reg_wei_stride);
     ld1(VReg(1).s[3], ptr(reg_wei));
+    // advance to next 4-channel block for next repeat
+    add(reg_wei, reg_wei, reg_wei_stride);
     L(Lw_done_s);
+    // advance src to next 4-channel block for next repeat
+    add(reg_src, reg_src, reg_src_stride);
     fmla(VReg4S(20), VReg4S(0), VReg4S(1));
     sub(reg_reps, reg_reps, 1);
     b(Lrep_s);
