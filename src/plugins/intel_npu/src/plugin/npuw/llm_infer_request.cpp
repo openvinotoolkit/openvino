@@ -198,6 +198,12 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     init_pre_alloc_device();
     init_lora_states();
 
+    // Initialize Eagle3 extension - auto-detect if model is Eagle3 target or draft
+    m_eagle3_ext.initialize(m_prefill_in_ports, m_prefill_out_ports);
+    if (m_eagle3_ext.is_enabled()) {
+        LOG_INFO("Eagle3 Model detected - role-based processing enabled");
+    }
+
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
         // FIXME: enable w/o chunking as well. Although need to align the paddings beforehand
@@ -701,8 +707,8 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
     auto position_id = position_ids->data<int64_t>()[0];
     auto dirty_num = kvcache_desc.num_stored_tokens - static_cast<uint32_t>(position_id);
     if (dirty_num > 0) {
-        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length"
-                                        << " to " << position_id << " length");
+        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length" << " to " << position_id
+                                        << " length");
     }
     kvcache_desc.num_stored_tokens -= dirty_num;
 }
@@ -816,6 +822,13 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // Copy with proper stride handling
         actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
 
+        // Eagle3: Prepare inputs for current chunk based on model role
+        // For chunked prefill, Eagle3 inputs should correspond to the current chunk being processed
+        m_eagle3_ext.prepare_inputs_for_chunk(m_prefill_request,
+                                              m_prefill_in_ports,
+                                              kvcache_desc.num_stored_tokens,
+                                              static_cast<uint32_t>(current_prompts_len));
+
         // Update history size for dynamic context:
         // dynamic attention selector needs history size to determin the past KV shape and attention mask shape
         m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
@@ -888,6 +901,9 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
     pad_position_ids(padded_position_ids, position_ids);
 
+    // Eagle3: Prepare inputs automatically based on model role
+    m_eagle3_ext.prepare_inputs(m_prefill_request, m_prefill_in_ports);
+
     m_prefill_request->infer();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     kvcache_desc.num_stored_tokens += static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
@@ -930,6 +946,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     } else {
         m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
     }
+
+    // Eagle3: Process outputs automatically based on model role
+    m_eagle3_ext.process_outputs(m_prefill_request, m_prefill_out_ports);
 
     m_generate_initialized = false;
 
@@ -1019,6 +1038,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
     pad_position_ids(kv_pos_ids, position_ids);
 
+    // Eagle3: Prepare inputs automatically based on model role
+    m_eagle3_ext.prepare_inputs(m_kvcache_request, m_kvcache_in_ports);
+
     m_kvcache_request->infer();
     kvcache_desc.num_stored_tokens += input_tokens_len;
 
@@ -1048,6 +1070,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
     }
 
+    // Eagle3: Process outputs automatically based on model role
+    m_eagle3_ext.process_outputs(m_kvcache_request, m_kvcache_out_ports);
+
     LOG_DEBUG("Done");
 }
 
@@ -1071,6 +1096,11 @@ void ov::npuw::LLMInferRequest::infer() {
                     ov::element::i64 == input_ids->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
+
+    // Eagle3 Draft: Process user-provided hidden state inputs for draft model
+    m_eagle3_ext.store_user_tensors(inputs, [this](const ov::Output<const ov::Node>& port) {
+        return get_tensor(port);
+    });
 
     if (m_first_run) {
         // Most of the models have position_ids->data<int64_t>()[0] == 0 for the first infer
@@ -1120,10 +1150,27 @@ void ov::npuw::LLMInferRequest::infer() {
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    // NB: If asked for logits...
-    if (port == get_outputs()[0]) {
+    const auto& port_names = port.get_names();
+
+    if (port_names.count("logits") > 0) {
+        if (!m_logits) {
+            OPENVINO_THROW("Logits tensor is not available. Please run inference first.");
+        }
         return m_logits;
     }
+
+    // Eagle3: Handle last_hidden_state output (only available for target models)
+    if (port_names.count(Eagle3LayerNames::last_hidden_state) > 0) {
+        if (!m_eagle3_ext.is_enabled()) {
+            OPENVINO_THROW("Last hidden state is only available for Eagle3 models.");
+        }
+        auto last_hidden_state = m_eagle3_ext.get_last_hidden_state();
+        if (!last_hidden_state) {
+            OPENVINO_THROW("Last hidden state tensor is not available. Please run inference first.");
+        }
+        return last_hidden_state;
+    }
+
     return ov::ISyncInferRequest::get_tensor(port);
 }
 
