@@ -659,7 +659,7 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         wgs.global = {rtp->N_kq_groups * (rtp->q_stride_pad / BLOCK_WG_M) * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
         wgs.local = {SG_N, SG_M, 1};
 
-        const uint32_t q_start_strided = N - M;
+        const size_t q_start_strided = N - M;
         OPENVINO_ASSERT(N >= M, "length of key cache must be greater or equal than query");
 
         auto& scalars = kd.params.scalars;
