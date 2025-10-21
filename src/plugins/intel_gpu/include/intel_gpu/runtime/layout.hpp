@@ -320,10 +320,6 @@ struct layout {
     // element == { 0,0,0,0 } means first no-padding (i.e. data) element
     size_t get_linear_offset(tensor element = tensor(0)) const;
 
-    // Get variables needed for computing linear offset for a tensor with padding
-    void get_linear_offset_params(tensor& start_points, tensor& end_points, int64_t* padded_sizes,
-                                  int64_t* axes_map, size_t& map_size);
-
     /// @brief Get aligned linear size calculated as multiplication of all elements.
     size_t get_linear_size() const;
 
@@ -350,6 +346,9 @@ struct layout {
             return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
         }
     }
+
+    cldnn::format get_format() const;
+    padding get_padding() const;
 
     size_t get_rank() const;
 
@@ -466,8 +465,6 @@ struct layout {
     }
 
 private:
-    static void get_axes_map(cldnn::format& fmt, int64_t* axes_map, size_t& map_size);
-
     /// The size of the @ref memory (excluding padding)
     ov::PartialShape size;
 };

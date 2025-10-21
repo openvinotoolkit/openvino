@@ -14,7 +14,7 @@
 #include <string>
 #include <utility>
 #include <stdexcept>
-
+#include "openvino/core/except.hpp"
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -300,6 +300,29 @@ struct format {
         return (fmt == yxfb || fmt == byxf || fmt == byfx || fmt == bxfy || fmt == bfyx || fmt == fyxb || fmt == fybx ||
                 fmt == bfxy ||fmt == xbfy || fmt == ybfx || fmt == fbyx || fmt == bfzyx || fmt == bfwzyx || fmt == bfuwzyx ||
                 fmt == bfvuwzyx);
+    }
+
+    static void get_axes_map(const format& fmt, int64_t* axes_map, size_t& map_size) {
+        const auto& o_order = fmt.order();
+        const auto& i_order = fmt.internal_order();
+        std::vector<int64_t> sizes_map(o_order.size(), 0);
+
+        // output_order has more elements than allocated in axes_map
+        if (o_order.size() > map_size) {
+            OPENVINO_THROW("Layout dimension higher than expected" + std::to_string(o_order.size()));
+        }
+
+        map_size = o_order.size();
+
+        for (size_t i = 0; i < map_size; i++) {
+            auto c = o_order[i];
+            auto pos = i_order.find(c);
+
+            if (pos == std::string::npos)
+                OPENVINO_THROW("Unknown coord type: " + c);
+
+            axes_map[i] = pos;
+        }
     }
 
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);

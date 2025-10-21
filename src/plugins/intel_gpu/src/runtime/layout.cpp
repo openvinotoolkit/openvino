@@ -38,6 +38,14 @@ std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, const
 
 }  // namespace
 
+format layout::get_format() const {
+    return format;
+}
+
+padding layout::get_padding() const {
+    return data_padding;
+}
+
 size_t layout::get_rank() const {
     return format.dimension();
 }
@@ -335,55 +343,6 @@ std::vector<tensor::value_type> layout::get_pitches() const {
     return pitches;
 }
 
-void layout::get_axes_map(cldnn::format& fmt, int64_t* axes_map, size_t& map_size) {
-    const auto& output_order = fmt.order();
-    const auto& internal_order = fmt.internal_order();
-    std::vector<int64_t> sizes_map(output_order.size(), 0);
-
-    //output_order has more elements than allocated in axes_map
-    if (output_order.size() > map_size) {
-        OPENVINO_THROW("Layout dimension higher than expected" + std::to_string(output_order.size()));
-    }
-
-    map_size = output_order.size();
-
-    for (size_t i = 0; i < map_size; i++) {
-        auto c = output_order[i];
-        auto pos = internal_order.find(c);
-
-        if (pos == std::string::npos)
-            OPENVINO_THROW("Unknown coord type: " + std::to_string(c));
-
-        axes_map[i] = pos;
-    }
-}
-
-void layout::get_linear_offset_params(tensor& start_points, tensor& end_points, int64_t* padded_sizes,
-                                      int64_t* axes_map, size_t& map_size) {
-    auto default_fmt = format::get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
-
-    std::vector<tensor::value_type> lower_sizes, upper_sizes;
-    lower_sizes.assign(data_padding._lower_size.begin(), data_padding._lower_size.begin() + format.dimension());
-    upper_sizes.assign(data_padding._upper_size.begin(), data_padding._upper_size.begin() + format.dimension());
-    start_points = tensor(default_fmt, lower_sizes, 0);
-    const auto& u_padd = tensor(default_fmt, upper_sizes, 0);
-
-    auto t = get_tensor();
-    end_points = t + start_points;
-
-    std::replace(t.raw.begin(), t.raw.end(), 0, 1);
-
-    get_axes_map(format, axes_map, map_size);
-    const auto& p_sizes = (t + start_points + u_padd).sizes(format);
-
-    if (p_sizes.size() < map_size) {
-        OPENVINO_THROW("Unsupported padded layout dimension" + std::to_string(p_sizes.size()));
-    }
-
-    for (size_t i = 0; i < p_sizes.size(); i++) {
-        padded_sizes[i] = p_sizes[i];
-    }
-}
 
 size_t layout::get_linear_offset(tensor element) const {
     auto default_fmt = format::get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));

@@ -18,6 +18,38 @@
 
 namespace {
 
+using namespace cldnn;
+
+#define MAX_NUM_AXES 6
+void get_linear_offset_params(layout& layout, tensor& start_points, tensor& end_points, int64_t* padded_sizes, int64_t* axes_map, size_t& map_size) {
+    
+    auto fmt = layout.get_format();
+    auto data_padding = layout.get_padding();
+    auto default_fmt = format::get_default_format(fmt.dimension(), format::is_weights_format(fmt), format::is_grouped(fmt));
+
+    std::vector<tensor::value_type> lower_sizes, upper_sizes;
+    lower_sizes.assign(data_padding._lower_size.begin(), data_padding._lower_size.begin() + fmt.dimension());
+    upper_sizes.assign(data_padding._upper_size.begin(), data_padding._upper_size.begin() + fmt.dimension());
+    start_points = tensor(default_fmt, lower_sizes, 0);
+    const auto& u_padd = tensor(default_fmt, upper_sizes, 0);
+
+    auto t = layout.get_tensor();
+    end_points = t + start_points;
+
+    std::replace(t.raw.begin(), t.raw.end(), 0, 1);
+
+    format::get_axes_map(fmt, axes_map, map_size);
+    const auto& p_sizes = (t + start_points + u_padd).sizes(fmt);
+
+    if (p_sizes.size() < map_size) {
+        OPENVINO_THROW("Unsupported padded layout dimension" + std::to_string(p_sizes.size()));
+    }
+
+    for (int8_t i = 0; i < p_sizes.size(); i++) {
+        padded_sizes[i] = p_sizes[i];
+    }
+}
+
 template <typename src_t, typename dst_t>
 void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
     OPENVINO_ASSERT(src && dst, "[GPU] Src or Dst ptr is null");
@@ -25,15 +57,13 @@ void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
         dst[i] = static_cast<dst_t>(src[i]);
 }
 
-#define MAX_NUM_AXES 6
-
 template <typename src_t, typename dst_t>
-void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout layout) {
-    cldnn::tensor axes_start_point, axes_end_point;
+void convert_and_copy_padded_source(const src_t* src, dst_t* dst, layout& layout) {
+    tensor axes_start_point, axes_end_point;
     int64_t padded_sizes[MAX_NUM_AXES], axes_map[MAX_NUM_AXES];
     size_t map_len = MAX_NUM_AXES;
 
-    layout.get_linear_offset_params(axes_start_point, axes_end_point, padded_sizes, axes_map, map_len);
+    get_linear_offset_params(layout, axes_start_point, axes_end_point, padded_sizes, axes_map, map_len);
 
     for (int64_t b = axes_start_point.batch[0]; b < axes_end_point.batch[0]; b++) {
         for (int64_t f = axes_start_point.feature[0]; f < axes_end_point.feature[0]; f++) {
