@@ -27,7 +27,8 @@ typedef std::tuple<
     ov::element::Type,
     ov::Shape,
     std::string,
-    ConvolutionTransformationParam
+    ConvolutionTransformationParam,
+    bool
 > ConvolutionTransformationParams;
 
 class ConvolutionTransformation :
