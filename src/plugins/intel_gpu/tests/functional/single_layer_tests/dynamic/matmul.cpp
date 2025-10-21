@@ -178,7 +178,7 @@ const std::vector<ShapeRelatedParams> IS2D_smoke = {
     },
     {
         {
-            {{{0, 100}, {0, 12}}, {{20, 1}, {14, 1}, {20, 1}, {14, 1}}},
+            {{{0, 100}, 1}, {{20, 1}, {14, 1}, {20, 1}, {14, 1}}},
             {{1, 120}, {{1, 120}, {1, 120}, {1, 120}, {1, 120}}}
         },
         {true, true}
@@ -222,7 +222,7 @@ const std::vector<ShapeRelatedParams> IS2D_nightly = {
 };
 
 const auto testParams2D_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_smoke),
-                                                   ::testing::Values(ov::element::f32),
+                                                   ::testing::Values(ov::element::f16),
                                                    ::testing::Values(ov::element::dynamic),
                                                    ::testing::Values(ov::element::dynamic),
                                                    ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
