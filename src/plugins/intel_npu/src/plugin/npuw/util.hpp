@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <future>
 #include <random>
 #include <string>
 
@@ -200,6 +201,68 @@ template <class T>
 typename std::underlying_type<T>::type _v(T&& t) {
     return static_cast<typename std::underlying_type<T>::type>(t);
 }
+
+class SafeClosureWrapper {
+public:
+    std::vector<ov::Tensor>& unsafe_get_closure() {
+        return m_closure;
+    }
+    std::vector<ov::Tensor>& get_closure() {
+        if (m_evaluated) {
+            return m_closure;
+        }
+        if (m_evaluation.valid()) {
+            m_evaluation.wait();
+            m_evaluated = true;
+        }
+        return m_closure;
+    }
+    void set_future(std::shared_future<void>& evaluation) {
+        m_evaluation = evaluation;
+    }
+
+private:
+    std::vector<ov::Tensor> m_closure;
+    std::shared_future<void> m_evaluation;
+    bool m_evaluated = false;
+};
+
+template <class T>
+class Delayed {
+public:
+    T& get() {
+        if (done)
+            return data;
+        if (future.valid()) {
+            future.wait();
+            done = true;
+        }
+        return data;
+    }
+    // FIXME: since main purpose of this is to guard closure,
+    // even const get should wait for the future to finish,
+    // otherwise it's not ready yet (e.g. .size() method).
+    const T& get() const {
+        if (done)
+            return data;
+        if (future.valid()) {
+            future.wait();
+            done = true;
+        }
+        return data;
+    }
+    T& unsafe_get() {
+        return data;
+    }
+    void set_future(std::shared_future<void>& f) {
+        future = f;
+    }
+
+private:
+    T data;
+    std::shared_future<void> future;
+    mutable bool done = false;
+};
 
 }  // namespace util
 }  // namespace npuw

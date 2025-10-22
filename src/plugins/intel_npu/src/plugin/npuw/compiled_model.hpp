@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <future>
 #include <optional>
 
 #include "attention.hpp"
@@ -185,31 +184,7 @@ private:
         // Other functions of CompiledModel as well as InferRequest and
         // other entities need to wait for the closure to be populated first
         // (meaning to wait for async weights processing to end).
-        class SafeClosureWrapper {
-        public:
-            std::vector<ov::Tensor>& unsafe_get_closure() {
-                return m_closure;
-            }
-            std::vector<ov::Tensor>& get_closure() {
-                if (m_evaluated) {
-                    return m_closure;
-                }
-                if (m_evaluation.valid()) {
-                    m_evaluation.wait();
-                    m_evaluated = true;
-                }
-                return m_closure;
-            }
-            void set_future(std::shared_future<void>& evaluation) {
-                m_evaluation = evaluation;
-            }
-
-        private:
-            std::vector<ov::Tensor> m_closure;
-            std::shared_future<void> m_evaluation;
-            bool m_evaluated = false;
-        };
-        mutable SafeClosureWrapper closure;
+        ov::npuw::util::Delayed<std::vector<ov::Tensor>> closure;
 
         // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
         //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
