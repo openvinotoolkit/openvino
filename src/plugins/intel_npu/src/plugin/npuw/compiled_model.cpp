@@ -377,6 +377,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     m_compiled_submodels[id].attention =
                         compiled::Attention(fcn_template._attention.value(), fcn_template._model);
                 }
+
+                if (fcn_template._pyramid_attention) {
+                    std::cout << "Creating compiled PyramidAttention for function " << subgraph._funcall << std::endl;
+                    m_compiled_submodels[id].pyramid_attention =
+                        compiled::PyramidAttention(fcn_template._pyramid_attention.value());
+                }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
