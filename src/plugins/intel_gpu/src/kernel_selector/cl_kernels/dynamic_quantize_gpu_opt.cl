@@ -16,6 +16,7 @@
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
+#define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
 
 #if GENERATE_PRECOMPUTED_REDUCTION
     #define FOR_PRECOMPUTED_REDUCTION(x)  x
@@ -67,7 +68,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
         max[i] = fmax(fmax(fabs(input_0[i][0]), fabs(input_0[i][1])), fmax(fabs(input_0[i][2]), fabs(input_0[i][3])));
     }
 
-    half max_value = fmax(0.001h, max[0]);
+    half max_value = fmax(ACT_MIN_VAL, max[0]);
     for (uint i = 1; i < quantize_block; i++) {
         max_value = fmax(max_value, max[i]);
     }
@@ -139,8 +140,8 @@ KERNEL(dynamic_quantize_gpu_opt)(
 
     MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) val;
     MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) abs_val;
-    half grp_max = 0.001h;
-    half grp_min = 0.001h;
+    half grp_max = ACT_MIN_VAL;
+    half grp_min = ACT_MIN_VAL;
     half max_value = 0.0h;
     half min_value = 0.0h;
     val = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + (blockid * block_size)));
@@ -262,8 +263,8 @@ KERNEL(dynamic_quantize_gpu_opt)(
 
     MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) val[iteration];
     MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) abs_val;
-    half grp_max = 0.001h;
-    half grp_min = 0.001h;
+    half grp_max = ACT_MIN_VAL;
+    half grp_min = ACT_MIN_VAL;
     half max_value = 0.0h;
     half min_value = 0.0h;
 
