@@ -49,20 +49,16 @@ void fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
 
 void pad_hidden_state_input(const ov::SoPtr<ov::ITensor>& padded_hidden_state,
                             const ov::SoPtr<ov::ITensor>& hidden_state) {
-    // Hidden state inputs have shape [batch, token_length, embedding_size]
-    // We need to pad the token_length dimension (dimension 1)
+    // Pad the token_length dimension (dimension 1) of hidden state input [batch, token_length, embedding_size]
     auto padded_shape = padded_hidden_state->get_shape();
     auto hidden_state_shape = hidden_state->get_shape();
-
     OPENVINO_ASSERT(hidden_state_shape.size() == 3,
                     "Hidden state input should have 3 dimensions: [batch, token_length, embedding_size]");
     OPENVINO_ASSERT(padded_shape.size() == 3,
                     "Padded hidden state should have 3 dimensions: [batch, token_length, embedding_size]");
-
     // Check batch size and embedding size match
     OPENVINO_ASSERT(padded_shape[0] == hidden_state_shape[0], "Batch size must match");
     OPENVINO_ASSERT(padded_shape[2] == hidden_state_shape[2], "Embedding size must match");
-
     // Check token length padding is valid
     OPENVINO_ASSERT(padded_shape[1] >= hidden_state_shape[1], "Padded token length must be >= input token length");
 
@@ -123,33 +119,26 @@ namespace npuw {
 
 void Eagle3Extension::initialize(const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
                                  const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports) {
-    // Check if this is a draft model (has Eagle3-specific inputs)
     bool has_hidden_states_input = in_ports.find(Eagle3LayerNames::hidden_states) != in_ports.end();
     bool has_internal_hidden_states_input = in_ports.find(Eagle3LayerNames::internal_hidden_states) != in_ports.end();
-
-    // Check if this is a target model (has Eagle3-specific output)
     bool has_last_hidden_state_output = out_ports.find(Eagle3LayerNames::last_hidden_state) != out_ports.end();
 
-    // Determine model role
-    if (has_hidden_states_input && has_internal_hidden_states_input) {
-        // Draft model: requires both hidden state inputs
+    if (has_hidden_states_input && has_internal_hidden_states_input && has_last_hidden_state_output) {
         m_role = Eagle3ModelRole::Draft;
         LOG_INFO("Eagle3 Draft Model detected");
-        LOG_DEBUG("Eagle3 draft model inputs found: hidden_states, internal_hidden_states");
-    } else if (has_last_hidden_state_output) {
-        // Target model: produces last_hidden_state output
+        LOG_DEBUG("Eagle3 draft model: inputs hidden_states, internal_hidden_states, and output last_hidden_state");
+    } else if (!has_hidden_states_input && !has_internal_hidden_states_input && has_last_hidden_state_output) {
         m_role = Eagle3ModelRole::Target;
         LOG_INFO("Eagle3 Target Model detected");
-        LOG_DEBUG("Eagle3 target model output found: last_hidden_state");
+        LOG_DEBUG("Eagle3 target model: only output last_hidden_state");
     } else {
-        // Not an Eagle3 model
         m_role = Eagle3ModelRole::None;
     }
 }
 
 void Eagle3Extension::prepare_inputs_impl(std::shared_ptr<ov::IAsyncInferRequest> request,
                                           const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports) {
-    // Only draft models need to prepare inputs
+    // Only draft models need to prepare Eagle3 inputs
     if (m_role != Eagle3ModelRole::Draft) {
         return;
     }
@@ -174,16 +163,14 @@ void Eagle3Extension::prepare_inputs_impl(std::shared_ptr<ov::IAsyncInferRequest
 void Eagle3Extension::process_outputs_impl(
     std::shared_ptr<ov::IAsyncInferRequest> request,
     const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports) {
-    // Only target models produce outputs to process
-    if (m_role != Eagle3ModelRole::Target) {
-        return;
-    }
-
-    // Get last_hidden_state output from target model
-    auto last_hidden_state_it = out_ports.find(Eagle3LayerNames::last_hidden_state);
-    if (last_hidden_state_it != out_ports.end()) {
-        m_last_hidden_state = request->get_tensor(last_hidden_state_it->second);
-        LOG_VERB("Eagle3 Target: Retrieved last_hidden_state output tensor");
+    // Both draft and target models have last_hidden_state output
+    if (m_role == Eagle3ModelRole::Draft || m_role == Eagle3ModelRole::Target) {
+        auto last_hidden_state_it = out_ports.find(Eagle3LayerNames::last_hidden_state);
+        if (last_hidden_state_it != out_ports.end()) {
+            m_last_hidden_state = request->get_tensor(last_hidden_state_it->second);
+            LOG_VERB("Eagle3 " << (m_role == Eagle3ModelRole::Draft ? "Draft" : "Target")
+                               << ": Retrieved last_hidden_state output tensor");
+        }
     }
 }
 
@@ -199,10 +186,10 @@ void Eagle3Extension::prepare_inputs(std::shared_ptr<ov::IAsyncInferRequest> req
 void Eagle3Extension::process_outputs(std::shared_ptr<ov::IAsyncInferRequest> request,
                                       const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports) {
     // Automatically handle outputs based on model role
-    if (m_role == Eagle3ModelRole::Target) {
+    if (m_role == Eagle3ModelRole::Target || m_role == Eagle3ModelRole::Draft) {
         process_outputs_impl(request, out_ports);
     }
-    // Draft models and non-Eagle3 models require no output processing
+    // non-Eagle3 models require no output processing
 }
 
 void Eagle3Extension::prepare_inputs_for_chunk(
