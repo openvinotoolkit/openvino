@@ -24,9 +24,9 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
-    DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &p) const override {
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params&) const override;
+    DispatchData SetDefault(const convolution_params& arg, const Params& p, int autoTuneIndex = -1) const override;
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &p, const Params&) const override {
         if (p.outputs[0].GetDType() == Datatype::F16 || p.outputs[0].GetDType() == Datatype::F32 ||
             p.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) {
             if (p.outputs[0].Dimentions() == 5) {

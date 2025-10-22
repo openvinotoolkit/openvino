@@ -70,7 +70,7 @@ static block_params get_out_block_size(const convolution_params& p) {
 }
 
 ConvolutionKernelBase::DispatchData convolution_kernel_bfyx_1x1_opt::SetDefault(const convolution_params& cp,
-                                                                                int) const {
+                                                                                 const Params& p, int) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
     constexpr size_t sub_group_size = 8;
@@ -131,9 +131,9 @@ bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants convolution_kernel_bfyx_1x1_opt::GetJitConstants(const convolution_params& params,
-                                                              const DispatchData& dispatchData) const {
-    auto jit = Parent::GetJitConstants(params, dispatchData);
+JitConstants convolution_kernel_bfyx_1x1_opt::GetJitConstants(const convolution_params& params, \
+                                                              const DispatchData& dispatchData, const Params& p) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData, p);
 
     auto block = get_out_block_size(params);
     jit.AddConstant(MakeJitConstant("OUT_BLOCK_WIDTH", block.out_width));
@@ -143,7 +143,7 @@ JitConstants convolution_kernel_bfyx_1x1_opt::GetJitConstants(const convolution_
     return jit;
 }
 
-WeightsLayout convolution_kernel_bfyx_1x1_opt::GetPreferredWeightsLayout(const convolution_params &cp) const {
+WeightsLayout convolution_kernel_bfyx_1x1_opt::GetPreferredWeightsLayout(const convolution_params &cp, const Params&) const {
     auto block = get_out_block_size(cp);
     if (block.out_depth == 8)
         return WeightsLayout::os_iyx_osv64;

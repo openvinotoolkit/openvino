@@ -107,8 +107,8 @@ ConvolutionKernel_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_fs_byx_fsv32::G
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32::SetDefault(const convolution_params& arg,
-                                                                               int autoTuneIndex) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg);
+                                                                               const Params& p, int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg, p);
 
     AutoTuneOption option = GetAutoTuneOptions(arg, autoTuneIndex);
 
@@ -149,8 +149,8 @@ bool ConvolutionKernel_fs_byx_fsv32::Validate(const Params& p) const {
 }
 
 JitConstants ConvolutionKernel_fs_byx_fsv32::GetJitConstants(const convolution_params& params,
-                                                             const DispatchData& dispatchData) const {
-    auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
+                                                             const DispatchData& dispatchData, const Params& p) const {
+    auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData, p);
     auto accumulator_type = GetAccumulatorType(params);
     auto activation_type = GetAccumulatorType(params);
 

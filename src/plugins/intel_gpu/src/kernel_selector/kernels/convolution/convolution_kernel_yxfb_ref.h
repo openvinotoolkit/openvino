@@ -19,7 +19,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &params) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &params, const Params&) const override {
         return (params.groups > 1) ? WeightsLayout::gyxio: WeightsLayout::yxio;
     }
 };

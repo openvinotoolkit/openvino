@@ -32,8 +32,8 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_Direct_10_10_12::get_required_device_fe
 }
 
 JitConstants ConvolutionKernel_bfyx_Direct_10_10_12::GetJitConstants(const convolution_params& cp,
-                                                                     const DispatchData& dispatchData) const {
-    JitConstants jit = Parent::GetJitConstantsWithLoopUnroll(cp, dispatchData);
+                                                                     const DispatchData& dispatchData, const Params& p) const {
+    JitConstants jit = Parent::GetJitConstantsWithLoopUnroll(cp, dispatchData, p);
 
     jit.AddConstants({
         MakeJitConstant("ALIGNED_OFM", RoundUp(cp.outputs[0].Feature().v / cp.groups, dispatchData.gemmStyle.subBlockDimN) * cp.groups),
@@ -50,8 +50,8 @@ JitConstants ConvolutionKernel_bfyx_Direct_10_10_12::GetJitConstants(const convo
 }
 
 ConvolutionKernel_bfyx_Direct_10_10_12::DispatchData ConvolutionKernel_bfyx_Direct_10_10_12::SetDefault(const convolution_params& arg,
-                                                                                                        int) const {
-    DispatchData dispatchData = Parent::SetDefault(arg);
+                                                                                                        const Params& p, int) const {
+    DispatchData dispatchData = Parent::SetDefault(arg, p);
 
     constexpr uint32_t TILE_N = 16;
 

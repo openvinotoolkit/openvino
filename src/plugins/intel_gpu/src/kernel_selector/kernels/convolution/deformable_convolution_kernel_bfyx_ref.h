@@ -20,7 +20,7 @@ public:
 protected:
     ParamsKey GetSupportedKey() const override;
     bool Validate(const Params& params) const override;
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &params) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &params, const Params&) const override {
         return (params.groups > 1) ? WeightsLayout::goiyx : WeightsLayout::oiyx;
     }
 };

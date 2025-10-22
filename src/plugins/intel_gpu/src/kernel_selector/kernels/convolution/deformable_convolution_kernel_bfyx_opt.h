@@ -20,9 +20,9 @@ public:
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params&) const override;
     void SetKernelArguments(const convolution_params& params, clKernelData& kernel, size_t idx) const;
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params&, const Params&) const override {
         return WeightsLayout::os_is_yx_isv16_osv16;
     }
 };

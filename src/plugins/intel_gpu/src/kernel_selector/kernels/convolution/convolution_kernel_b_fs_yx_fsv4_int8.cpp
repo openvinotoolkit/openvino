@@ -41,8 +41,8 @@ DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv4_int8::get_required_device_featu
     return k;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefault(const convolution_params& cp, int) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
+ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefault(const convolution_params& cp, const Params& p, int) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp, p);
 
     dispatchData.gws[0] = CeilDiv(cp.outputs[0].X().v, sub_group_size) / 2;
     dispatchData.gws[1] = cp.outputs[0].Y().v;
@@ -86,8 +86,8 @@ bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ConvolutionKernel_b_fs_yx_fsv4_int8::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
-    auto jit = Parent::GetJitConstants(params, dispatchData);
+JitConstants ConvolutionKernel_b_fs_yx_fsv4_int8::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params& p) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData, p);
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[2]));
 

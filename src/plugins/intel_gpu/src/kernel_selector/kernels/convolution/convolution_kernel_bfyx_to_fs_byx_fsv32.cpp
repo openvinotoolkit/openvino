@@ -69,8 +69,8 @@ ConvolutionKernel_bfyx_to_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_bfyx_to
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_fs_byx_fsv32::SetDefault(const convolution_params& arg,
-                                                                                       int autoTuneIndex) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg);
+                                                                                       const Params& p, int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg, p);
 
     AutoTuneOption option = GetAutoTuneOptions(arg, autoTuneIndex);
 
@@ -106,8 +106,8 @@ bool ConvolutionKernel_bfyx_to_fs_byx_fsv32::Validate(const Params& p) const {
 }
 
 JitConstants ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetJitConstants(const convolution_params& params,
-                                                                     const DispatchData& dispatchData) const {
-    auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
+                                                                     const DispatchData& dispatchData, const Params& p) const {
+    auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData, p);
 
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", dispatchData.cldnnStyle.blockHeight));

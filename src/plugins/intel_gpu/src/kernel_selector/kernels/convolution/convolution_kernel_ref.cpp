@@ -54,8 +54,8 @@ KernelsData ConvolutionKernel_Ref::GetKernelsData(const Params& params) const {
     return GetTunedKernelsDataByIndex(params);
 }
 
-JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
-    JitConstants jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
+JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params& p) const {
+    JitConstants jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData, p);
 
     Datatype accumulator_dt;
     Datatype activation_dt;

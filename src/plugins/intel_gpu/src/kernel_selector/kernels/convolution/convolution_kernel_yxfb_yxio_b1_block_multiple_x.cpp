@@ -80,8 +80,8 @@ KernelsPriority ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetKernelsPrior
 }
 
 JitConstants ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetJitConstants(const convolution_params& params,
-                                                                              const DispatchData& dispatchData) const {
-    auto cldnn_jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
+                                                                              const DispatchData& dispatchData, const Params& p) const {
+    auto cldnn_jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData, p);
 
     size_t ofmPerWorkItem = GetOfmPerWorkitem(params.weights.OFM().v, local_work_size);
     cldnn_jit.AddConstant(MakeJitConstant("USE_VECTOR", ofmPerWorkItem));

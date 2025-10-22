@@ -131,8 +131,8 @@ DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv16::get_required_device_features_
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16::SetDefault(const convolution_params& params,
-                                                                                int autoTuneIndex) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
+                                                                                const Params& p, int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, p);
 
     ConvolutionTuningData tuning_data = GetTuningParams(params);
 
@@ -208,10 +208,10 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
 }
 
 JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_params& params,
-                                                              const DispatchData& dispatchData) const {
+                                                              const DispatchData& dispatchData, const Params& p) const {
     auto input = params.inputs[0];
     auto output = params.outputs[0];
-    auto jit = Parent::GetJitConstants(params, dispatchData);
+    auto jit = Parent::GetJitConstants(params, dispatchData, p);
 
     ConvolutionTuningData tuning_data = GetTuningParams(params);
 

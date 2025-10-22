@@ -104,8 +104,8 @@ KernelsData ConvolutionKernel_imad::GetKernelsData(const Params& params) const {
     return GetCommonKernelsData(params);
 }
 
-JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
-    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
+JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params& p) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData, p);
 
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
@@ -150,7 +150,7 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
 }  // GetJitConstants
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const convolution_params& params,
-                                                                       int) const {
+                                                                        const Params& p, int) const {
     DispatchData dispatchData;
 
     const auto& output = params.outputs[0];

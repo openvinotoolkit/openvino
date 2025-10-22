@@ -21,11 +21,11 @@ public:
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &, const Params&) const override {
         return WeightsLayout::yxio;
     }
     bool Validate(const Params& p) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
-    DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params&) const override;
+    DispatchData SetDefault(const convolution_params& arg, const Params& p, int autoTuneIndex = -1) const override;
 };
 }  // namespace kernel_selector

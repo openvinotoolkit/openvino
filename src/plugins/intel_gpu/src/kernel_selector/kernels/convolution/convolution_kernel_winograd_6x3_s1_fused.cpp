@@ -36,8 +36,8 @@ DeviceFeaturesKey ConvolutionKernel_Winograd_6x3_s1_fused::get_required_device_f
 }
 
 JitConstants ConvolutionKernel_Winograd_6x3_s1_fused::GetJitConstants(const convolution_params& params,
-                                                                      const DispatchData& dispatchData) const {
-    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
+                                                                      const DispatchData& dispatchData, const Params& p) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData, p);
 
     const auto idepth = params.inputs[0].Feature().v;
     const auto input_pad_y = params.inputs[0].Y().pad.before + params.inputs[0].Y().pad.after;
@@ -80,7 +80,7 @@ JitConstants ConvolutionKernel_Winograd_6x3_s1_fused::GetJitConstants(const conv
 }
 
 WeightsLayout ConvolutionKernel_Winograd_6x3_s1_fused::GetPreferredWeightsLayout(
-        const convolution_params &params) const {
+        const convolution_params &params, const Params&) const {
     // check if image weights layout will fit into device memory, if not then try to fallback to buffer
     if (CheckImageSize(params, WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb)) {
         return WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb;

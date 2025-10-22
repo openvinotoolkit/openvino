@@ -41,8 +41,8 @@ size_t GetOfmPerWorkitem(size_t filterOfmNum, size_t batchSize, size_t local_wor
 }  // namespace
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b8::SetDefault(const convolution_params& arg,
-                                                                               int autoTuneIndex) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg, autoTuneIndex);
+                                                                               const Params& p, int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg, p, utoTuneIndex);
 
     const auto filterOfmNum = arg.weights.OFM().v;
     const auto batchSize = arg.outputs[0].Batch().v;
@@ -90,8 +90,8 @@ bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p) const {
 }
 
 JitConstants ConvolutionKernel_yxfb_yxio_b8::GetJitConstants(const convolution_params& params,
-                                                             const DispatchData& dispatchData) const {
-    JitConstants jits = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
+                                                             const DispatchData& dispatchData, const Params& p) const {
+    JitConstants jits = ConvolutionKernelBase::GetJitConstants(params, dispatchData, p);
 
     size_t ofmPerWorkItem = GetOfmPerWorkitem(params.weights.OFM().v, params.outputs[0].Batch().v, dispatchData.lws[0]);
 

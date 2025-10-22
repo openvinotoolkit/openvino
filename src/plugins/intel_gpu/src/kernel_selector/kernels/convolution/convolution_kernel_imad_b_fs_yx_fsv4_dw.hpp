@@ -22,11 +22,11 @@ public:
 
 protected:
     bool Validate(const Params& params) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
-    DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params&) const override;
+    DispatchData SetDefault(const convolution_params& params, const Params&, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return false; }
 
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params&, const Params&) const override {
         return WeightsLayout::gs_oi_yxs_gsv4_yxsv4;
     }
 

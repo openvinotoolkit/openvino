@@ -98,8 +98,8 @@ ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::AutoTuneOption ConvolutionKernel_mm
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::SetDefault(const convolution_params& cp,
-                                                                                     int autoTuneIndex) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
+                                                                                      const Params& p, int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp, p);
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
     dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
@@ -128,8 +128,8 @@ KernelsPriority ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::GetKernelsPriority(
 }
 
 JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16::GetJitConstants(const convolution_params& params,
-                                                                   const DispatchData& dispatchData) const {
-    auto jit = Parent::GetJitConstants(params, dispatchData);
+                                                                   const DispatchData& dispatchData, const Params& p) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData, p);
 
     jit.AddConstant(MakeJitConstant("OW_GROUP", dispatchData.lws[1]));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[0]));

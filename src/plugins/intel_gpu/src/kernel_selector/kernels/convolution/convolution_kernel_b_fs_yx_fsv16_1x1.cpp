@@ -111,8 +111,8 @@ DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv16_1x1::get_required_device_featu
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefault(const convolution_params& params,
-                                                                               int autoTuneIndex) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
+                                                                                const Params& p, int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, p);
 
     ConvolutionTuningData tuning_data = GetTuningParams(params);
 
@@ -191,8 +191,8 @@ bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
 }
 
 JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolution_params& params,
-                                                                  const DispatchData& dispatchData) const {
-    auto jit = Parent::GetJitConstants(params, dispatchData);
+                                                                  const DispatchData& dispatchData, const Params& p) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData, p);
 
     ConvolutionTuningData tuning_data = GetTuningParams(params);
 
@@ -325,7 +325,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         return {};
     }
 
-    auto preferredWeightsLayout = GetPreferredWeightsLayout(newParams);
+    auto preferredWeightsLayout = GetPreferredWeightsLayout(newParams, params);
     bool succeed = UpdateWeightsParams(newParams,
                                        preferredWeightsLayout,
                                        kd.weightsReorderParams,
@@ -360,7 +360,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
     }
 
     auto finalKernelName = GetKernelName(newParams);
-    auto cldnnJit = GetJitConstants(newParams, dispatchData);
+    auto cldnnJit = GetJitConstants(newParams, dispatchData, params);
     for (size_t i = 0; i < num_kernels; i++) {
         if (params.is_shape_agnostic) {
             if (i == 0) {
@@ -372,7 +372,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
             } else if (i == 3) {
                 dispatchData.cldnnStyle.blockWidth = 8;
             }
-            cldnnJit = GetJitConstants(newParams, dispatchData);
+            cldnnJit = GetJitConstants(newParams, dispatchData, params);
         }
         auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, i);
         auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
@@ -424,7 +424,7 @@ void ConvolutionKernel_b_fs_yx_fsv16_1x1::GetUpdateDispatchDataFunc(KernelData& 
     } else {
         kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
             const auto& prim_params = static_cast<const convolution_params&>(params);
-            auto dispatchData = SetDefault(prim_params);
+            auto dispatchData = SetDefault(prim_params, params);
             size_t execute_kernel_idx = 3;
             if (dispatchData.cldnnStyle.blockWidth == 1) {
                 execute_kernel_idx = 0;

@@ -177,8 +177,8 @@ KernelsPriority ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetKernelsPriority
 }
 
 JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetJitConstants(const convolution_params &params,
-                                                                           const DispatchData &dispatchData) const {
-    auto jit = Parent::GetJitConstants(params, dispatchData);
+                                                                           const DispatchData &dispatchData, const Params& p) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData, p);
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[0]));
     jit.AddConstant(MakeJitConstant("LWS0", dispatchData.lws[0]));
@@ -219,12 +219,12 @@ JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetJitConstants(const
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        if (WeightsTensor::ChannelsCount(GetPreferredWeightsLayout(params)) == 5) {
+        if (WeightsTensor::ChannelsCount(GetPreferredWeightsLayout(params, p)) == 5) {
             FusedOpsConfiguration conf0 = {"_0", {"b", "(fg*32 + lid)", "z", "(y+j)", "(x+i)"}, "res0", input_dt, 1};
             FusedOpsConfiguration conf1 = {"_1", {"b", "(fg*32 + lid + 16)", "z", "(y+j)", "(x+i)"}, "res1", input_dt, 1};
             jit.Merge(MakeFusedOpsJitConstants(params, {conf0, conf1}));
         } else {
-            if (GetPreferredWeightsLayout(params) == WeightsLayout::os_is_yx_osv32_isv4) {
+            if (GetPreferredWeightsLayout(params, p) == WeightsLayout::os_is_yx_osv32_isv4) {
                 FusedOpsConfiguration conf0 = {"_0", {"b", "(fg*32 + lid)", "(y+j)", "(x+i)"}, "res0", input_dt, 1};
                 FusedOpsConfiguration conf1 = {"_1", {"b", "(fg*32 + lid + 16)", "(y+j)", "(x+i)"}, "res1", input_dt, 1};
                 jit.Merge(MakeFusedOpsJitConstants(params, {conf0, conf1}));

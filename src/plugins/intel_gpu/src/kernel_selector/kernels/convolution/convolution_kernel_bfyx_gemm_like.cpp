@@ -43,8 +43,8 @@ std::string ConvolutionKernel_bfyx_GEMMLike::GetKernelName(const convolution_par
 }
 
 JitConstants ConvolutionKernel_bfyx_GEMMLike::GetJitConstants(const convolution_params& params,
-                                                              const DispatchData& dispatchData) const {
-    JitConstants jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData);
+                                                              const DispatchData& dispatchData, const Params& p) const {
+    JitConstants jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData, p);
 
     jit.AddConstants({
         MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(params.outputs[0].Feature().v / params.groups, dispatchData.gemmStyle.subBlockDimN)),
@@ -121,7 +121,7 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p) const {
 }
 
 WeightsLayout ConvolutionKernel_bfyx_GEMMLike::GetPreferredWeightsLayout(
-        const convolution_params &params) const {
+        const convolution_params &params, const Params&) const {
     if (params.inputs[0].GetDType() == Datatype::F16) {
         return (params.groups > 1) ? WeightsLayout::giy_xs_os_xsv2_osv16__ao32 : WeightsLayout::iy_xs_os_xsv2_osv16__ao32;
     } else {

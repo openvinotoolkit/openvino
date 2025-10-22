@@ -62,8 +62,8 @@ bool ConvolutionKernel_b_fs_yx_fsv16_depthwise::Validate(const Params& p) const 
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_depthwise::SetDefault(const convolution_params& params,
-                                                                                          int) const {
-    DispatchData dispatchData = Parent::SetDefault(params);
+                                                                                          const Params& p, int) const {
+    DispatchData dispatchData = Parent::SetDefault(params, p);
     const auto& out = params.outputs[0];
 
     size_t x_block_size = (out.X().v != 1) ? 8 : 1;
@@ -85,8 +85,8 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetKernelsPriority(co
 }
 
 JitConstants ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetJitConstants(const convolution_params& params,
-                                                                        const DispatchData& dispatchData) const {
-    auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
+                                                                        const DispatchData& dispatchData, const Params& p) const {
+    auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData, p);
 
     const size_t block_width = 8;
 

@@ -34,8 +34,8 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_1x1::get_required_device_features_key(c
     return k;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1::SetDefault(const convolution_params& params, int) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
+ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1::SetDefault(const convolution_params& params, const Params& p, int) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, p);
 
     const auto& out = params.outputs[0];
 
@@ -82,8 +82,8 @@ bool ConvolutionKernel_bfyx_1x1::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ConvolutionKernel_bfyx_1x1::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
-    auto jit = Parent::GetJitConstants(params, dispatchData);
+JitConstants ConvolutionKernel_bfyx_1x1::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params& p) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData, p);
 
     if (params.outputs[0].Feature().v % 16)
         jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));

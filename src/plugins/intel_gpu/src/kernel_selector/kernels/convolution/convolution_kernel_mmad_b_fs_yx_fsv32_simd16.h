@@ -24,11 +24,11 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
-    DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params&) const override;
+    DispatchData SetDefault(const convolution_params& arg, const Params& p, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return false; }
 
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &p) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &p, const Params&) const override {
         if (DataTensor::ChannelsCount(p.outputs[0].GetLayout()) <= 4) {
             return WeightsLayout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
         } else {

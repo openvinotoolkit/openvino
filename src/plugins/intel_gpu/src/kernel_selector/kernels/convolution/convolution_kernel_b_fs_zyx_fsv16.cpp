@@ -97,8 +97,8 @@ DeviceFeaturesKey ConvolutionKernel_b_fs_zyx_fsv16::get_required_device_features
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault(const convolution_params& params,
-                                                                           int autoTuneIndex) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
+                                                                            const Params& p, int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, p, autoTuneIndex);
 
     const auto& out = params.outputs[0];
     const auto& input = params.inputs[0];
@@ -238,10 +238,10 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
 }
 
 JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution_params& params,
-                                                               const DispatchData& dispatchData) const {
+                                                               const DispatchData& dispatchData, const Params& p) const {
     auto input = params.inputs[0];
     auto output = params.outputs[0];
-    auto jit = Parent::GetJitConstants(params, dispatchData);
+    auto jit = Parent::GetJitConstants(params, dispatchData, p);
 
     const bool is_1stconv = input.Feature().v == 3 && input.GetLayout() == DataLayout::bfzyx;
     const bool ver_16mb16c = !is_1stconv && ((output.GetDType() == Datatype::F16 && output.Batch().v % 32 == 0) ||
