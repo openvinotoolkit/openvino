@@ -181,7 +181,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: 'aks-win-4-cores-8gb-test-st'
+    runs-on: 'aks-win-4-cores-8gb-st'
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
