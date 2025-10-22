@@ -20,8 +20,7 @@ namespace {
 
 using namespace cldnn;
 
-#define MAX_NUM_AXES 6
-void get_linear_offset_params(layout& layout, tensor& start_points, tensor& end_points, int64_t* padded_sizes, int64_t* axes_map, size_t& map_size) {
+void get_linear_offset_params(layout& layout, tensor& start_points, tensor& end_points, std::vector<int64_t>& padded_sizes, std::vector<int64_t>& axes_map) {
     auto fmt = layout.get_format();
     auto data_padding = layout.get_padding();
     auto default_fmt = format::get_default_format(fmt.dimension(), format::is_weights_format(fmt), format::is_grouped(fmt));
@@ -37,15 +36,11 @@ void get_linear_offset_params(layout& layout, tensor& start_points, tensor& end_
 
     std::replace(t.raw.begin(), t.raw.end(), 0, 1);
 
-    format::get_axes_map(fmt, axes_map, map_size);
-    const auto& p_sizes = (t + start_points + u_padd).sizes(fmt);
+    axes_map = format::get_internal_dims(fmt);
+    padded_sizes = (t + start_points + u_padd).sizes(fmt);
 
-    if (p_sizes.size() < map_size) {
-        OPENVINO_THROW("Unsupported padded layout dimension" + std::to_string(p_sizes.size()));
-    }
-
-    for (size_t i = 0; i < p_sizes.size(); i++) {
-        padded_sizes[i] = p_sizes[i];
+    if (padded_sizes.size() < axes_map.size()) {
+        OPENVINO_THROW("Unsupported padded layout dimension" + std::to_string(padded_sizes.size()));
     }
 }
 
@@ -59,10 +54,10 @@ void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
 template <typename src_t, typename dst_t>
 void convert_and_copy_padded_source(const src_t* src, dst_t* dst, layout& layout) {
     tensor axes_start_point, axes_end_point;
-    int64_t padded_sizes[MAX_NUM_AXES], axes_map[MAX_NUM_AXES];
-    size_t map_len = MAX_NUM_AXES;
+    std::vector<int64_t> padded_sizes, axes_map;
 
-    get_linear_offset_params(layout, axes_start_point, axes_end_point, padded_sizes, axes_map, map_len);
+    get_linear_offset_params(layout, axes_start_point, axes_end_point, padded_sizes, axes_map);
+    const size_t map_len = axes_map.size();
 
     for (int64_t b = axes_start_point.batch[0]; b < axes_end_point.batch[0]; b++) {
         for (int64_t f = axes_start_point.feature[0]; f < axes_end_point.feature[0]; f++) {
@@ -70,7 +65,7 @@ void convert_and_copy_padded_source(const src_t* src, dst_t* dst, layout& layout
                 for (int64_t z = axes_start_point.spatial[2]; z < axes_end_point.spatial[2]; z++) {
                     for (int64_t y = axes_start_point.spatial[1]; y < axes_end_point.spatial[1]; y++) {
                         for (int64_t x = axes_start_point.spatial[0]; x < axes_end_point.spatial[0]; x++) {
-                            int64_t element_sizes[MAX_NUM_AXES] = {b, f, x, y, z, w};
+                            int64_t element_sizes[6] = {b, f, x, y, z, w};
                             size_t offset = element_sizes[axes_map[0]];
 
                             for (size_t i = 1; i < map_len; i++)

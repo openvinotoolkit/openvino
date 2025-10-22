@@ -302,26 +302,23 @@ struct format {
                 fmt == bfvuwzyx);
     }
 
-    static void get_axes_map(const format& fmt, int64_t* axes_map, size_t& map_size) {
+    static std::vector<int64_t> get_internal_dims(const format& fmt) {
         const auto& o_order = fmt.order();
         const auto& i_order = fmt.internal_order();
 
-        // output_order has more elements than allocated in axes_map
-        if (o_order.size() > map_size) {
-            OPENVINO_THROW("Layout dimension higher than expected" + std::to_string(o_order.size()));
-        }
+        std::vector<int64_t> i_dims;
 
-        map_size = o_order.size();
-
-        for (size_t i = 0; i < map_size; i++) {
+        for (size_t i = 0; i < o_order.size(); i++) {
             auto c = o_order[i];
             auto pos = i_order.find(c);
 
             if (pos == std::string::npos)
                 OPENVINO_THROW("Unknown coord type: " + std::to_string(c));
 
-            axes_map[i] = pos;
+            i_dims.push_back(pos);
         }
+
+        return i_dims;
     }
 
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
