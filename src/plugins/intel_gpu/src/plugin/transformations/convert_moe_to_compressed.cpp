@@ -144,7 +144,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         ov::copy_runtime_info(moe, moe_compressed);
         ov::replace_node(moe, moe_compressed);
 
-        std::cout << "ConvertMOEToMOECompressed is done : config.top_k = " << config.top_k << std::endl;
+        std::cout << "ConvertMOEToMOECompressed is hit : config.top_k = " << config.top_k << std::endl;
         return true;
     };
 
