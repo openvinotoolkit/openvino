@@ -16,7 +16,6 @@
 
 //cm_sdpa_2nd_reduce
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
-// extern "C" _GENX_MAIN_ void cm_sdpa_2nd_reduce(
     float* input [[type("svmptr_t")]],
     half* output [[type("svmptr_t")]],
     float* lse [[type("svmptr_t")]],

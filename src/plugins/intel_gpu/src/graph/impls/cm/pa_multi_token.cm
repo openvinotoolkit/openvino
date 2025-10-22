@@ -24,7 +24,6 @@ namespace KERNEL_NAME {
 #define USE_LSC 0
 #endif
 
-//extern "C" _GENX_MAIN_ void pa_multi_token(
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
     //query [q_len, num_heads, S]
     half* query [[type("svmptr_t")]],
@@ -62,7 +61,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #if CMPA_KVCACHE_U8
     constexpr uint K_SLM_SIZE = (4*kv_step * head_size * sizeof(half));
     constexpr uint V_SLM_SIZE = (4*kv_step * head_size * sizeof(half));
-    constexpr uint Q_SLM_SIZE = 0;//(q_step * head_size * sizeof(half)) * local_size;
+    constexpr uint Q_SLM_SIZE = 0;
 
     cm_slm_init(K_SLM_SIZE + V_SLM_SIZE + Q_SLM_SIZE);
 
@@ -121,7 +120,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         kv_stop = (wg_id + 1) * wg_seq_len + past_q_lens;
         if (kv_stop > kv_seq_len) kv_stop = kv_seq_len;
     }
-    // printf("###########wg:%d.%d  q: %d, +%d   kv: %d, +%d, kvstop:%d\n", wg_id, wg_local_id, q_start_sg, q_len_sg, kv_start, kv_seq_len, kv_stop);
 
     //Q/O[B, L, H, S]
     uint q_offset = (q_start_sg*num_heads + h)*head_size;
@@ -134,7 +132,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         auto q_start_block = q_start_sg/ SPARSE_BLOCK_SIZE;
         block_mask_base = sparse_block_mask + (h * num_q_blocks + q_start_block) * num_k_blocks;
         wg_block_mask_base = sparse_block_mask_wg + (h * cm_group_count(2) + wg_id) * num_k_blocks;
-        // printf("wg:%d.%d  q: %d, +%d   kv: %d, +%d, %d, x-attn: %d, %dx%d, %p, %p\n", wg_id, wg_local_id, q_start_sg, q_len_sg, kv_start, kv_seq_len, kv_stop, q_start_block, num_q_blocks, num_k_blocks, sparse_block_mask, block_mask_base);
     }
  #endif
 

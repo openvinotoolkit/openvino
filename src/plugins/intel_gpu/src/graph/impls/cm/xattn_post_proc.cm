@@ -17,12 +17,6 @@
 namespace KERNEL_NAME {
 #include "estimate.hpp"
 
-// NOTE: q_stride_pad / TOKEN_IN_BLOCK <= q_block_pad, case for q_stride_pad / TOKEN_IN_BLOCK < q_block_pad:
-//       query = 256*16+1, then
-//       q_stride_pad = 256
-//       q_stride_pad / TOKEN_IN_BLOCK = 32
-//       q_block_pad = div_up(256*16+1, 128) = 33
-// _GENX_MAIN_ void post_proc_mask(
 extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR, svmptr_t merged_block_mask ATTR, uint q_stride_pad, uint q_block_pad, uint k_block_pad) {
     // block_mask:                [b, hq, q_block_pad, k_block_pad]
     // merged_block_mask:         [b, hq, q_block_pad/MERGED_Q_NUM, k_block_pad]
@@ -37,15 +31,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR, svmptr_t merge
     merged_block_mask += m_mereged * k_block_pad;
     block_mask += m_mereged * MERGED_Q_NUM * k_block_pad;
     vector<uchar, 32> one = 1;
-    // q is not inside mask, aka q=1~15 which is less than param `stride`
-    //for (int i = 0; i < MERGED_Q_NUM; i++) {
-    //    auto q_stride_cur = m_mereged * MERGED_Q_NUM + i;
-    //    if (q_stride_cur >= q_stride_pad / TOKEN_IN_BLOCK && q_stride_cur < q_block_pad) {
-    //        for (int j = 0; j < k_block_pad; j += 32) {
-    //            cm_ptr_store<int, 32 / 4>((int*)block_mask, j + i * k_block_pad, one.format<int>());
-    //        }
-    //    }
-    //}
     for (int j = 0; j < k_block_pad; j += 32) {
         vector<uchar, 32> new_mask = cm_ptr_load<int, 8>((int*)block_mask, j).format<uchar>();
         for (int i = 1; i < MERGED_Q_NUM; i++) {
