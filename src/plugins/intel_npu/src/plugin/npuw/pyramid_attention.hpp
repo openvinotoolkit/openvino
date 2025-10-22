@@ -3,16 +3,59 @@
 
 #pragma once
 
+#include <iostream>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#    define NOMINMAX  // Prevent windows.h from defining min/max macros
+// clang-format off
+#    include <windows.h>
+#    include <psapi.h>
+// clang-format on
+#    undef max  // Just in case
+#    undef min  // Just in case
+#else
+#    include <unistd.h>
+
+#    include <fstream>
+#endif
+
 #include "attention.hpp"
 
 namespace ov {
 namespace npuw {
+
+// Helper function to get current process memory usage in KB
+inline size_t get_process_memory_kb() {
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
+        return pmc.WorkingSetSize / 1024;  // Convert bytes to KB
+    }
+
+    std::cout << "Failed to get process mem info" << std::endl;
+    return 0;
+#else
+    std::ifstream status_file("/proc/self/status");
+    std::string line;
+    while (std::getline(status_file, line)) {
+        if (line.find("VmRSS:") == 0) {
+            size_t pos = line.find_first_of("0123456789");
+            if (pos != std::string::npos) {
+                return std::stoul(line.substr(pos));  // Already in KB
+            }
+        }
+    }
+
+    std::cout << "Failed to get process mem info" << std::endl;
+    return 0;
+#endif
+}
+
 namespace function {
 
 // Helper struct to hold validation and setup results
@@ -79,5 +122,66 @@ struct PyramidAttention {
 };
 
 }  // namespace function
+
+namespace compiled {
+
+// Compile-time pyramid attention information
+struct PyramidAttention {
+    std::vector<struct Attention> _attentions;
+    std::vector<std::shared_ptr<ov::Model>> _models;
+
+    std::size_t query_size = 0u;
+    std::size_t full_context_size = 0u;
+
+    PyramidAttention() = delete;
+    PyramidAttention(const function::PyramidAttention& d)
+        : query_size(d._query_length),
+          full_context_size(d._full_context_length) {
+        NPUW_ASSERT(d._models.size() == d._attentions.size());
+
+        // Memory measurement: record initial memory usage
+        size_t initial_memory_kb = get_process_memory_kb();
+        std::cout << "=== PyramidAttention Memory Tracking Start: " << initial_memory_kb << " KB RSS ===" << std::endl;
+
+        for (size_t i = 0; i < d._attentions.size(); ++i) {
+            size_t before_attention_kb = get_process_memory_kb();
+
+            // Don't create ov::Tensor attend_all for pyramid attention
+            auto compiled_attn = ov::npuw::compiled::Attention(d._attentions[i], d._models[i], false);
+
+            size_t after_attention_kb = get_process_memory_kb();
+            size_t attention_increase_kb =
+                (after_attention_kb > before_attention_kb) ? (after_attention_kb - before_attention_kb) : 0;
+
+            _attentions.push_back(compiled_attn);
+
+            size_t before_model_kb = get_process_memory_kb();
+
+            // This was suspected 2GB RSS increase
+            _models.push_back(d._models[i]);
+
+            size_t after_model_kb = get_process_memory_kb();
+            size_t model_increase_kb = (after_model_kb > before_model_kb) ? (after_model_kb - before_model_kb) : 0;
+
+            std::cout << "Model[" << i << "]: Attention constructor increased RSS by " << attention_increase_kb
+                      << " KB (" << (attention_increase_kb / 1024) << " MB)" << std::endl;
+            std::cout << "Model[" << i << "]: push_back increased RSS by " << model_increase_kb << " KB ("
+                      << (model_increase_kb / 1024) << " MB), total: " << after_model_kb << " KB" << std::endl;
+        }
+
+        size_t final_memory_kb = get_process_memory_kb();
+        size_t total_increase_kb = (final_memory_kb > initial_memory_kb) ? (final_memory_kb - initial_memory_kb) : 0;
+        std::cout << "=== PyramidAttention Memory Tracking End: Total increase = " << total_increase_kb << " KB ("
+                  << (total_increase_kb / 1024) << " MB) ===" << std::endl;
+    }
+
+    // Remove model access methods since we don't store models anymore
+    size_t num_models() const {
+        return _attentions.size();
+    }
+};
+
+}  // namespace compiled
+
 }  // namespace npuw
 }  // namespace ov
