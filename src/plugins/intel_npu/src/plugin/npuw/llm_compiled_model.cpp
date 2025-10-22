@@ -641,19 +641,20 @@ public:
         // Basically it is a reference triangle self-attention mask
         auto causal_mask = opp::wrap_type<ov::op::v1::LessEqual>({key_range_row_f32, query_range_column});
 
-        auto sliding_and_causal_mask =
-            opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_and_true, causal_mask});
+        auto sliding_and_causal_mask = opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_and_true, causal_mask});
         auto sliding_causal_and_true =
             opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), sliding_and_causal_mask});
 
         auto atten_mask_param = opp::wrap_type<ov::op::v0::Parameter>();
         auto atten_mask_boolean = opp::wrap_type<ov::op::v0::Convert>({atten_mask_param});
-        auto atten_mask_reshaped = opp::wrap_type<ov::op::v1::Reshape>({atten_mask_boolean});
+        auto atten_mask_reshaped = opp::wrap_type<ov::op::v1::Reshape>({atten_mask_boolean, opp::any_input()});
         auto atten_mask_gathered =
             opp::wrap_type<ov::op::v8::Gather>({atten_mask_reshaped, opp::any_input(), opp::any_input()});
-        auto atten_mask_4d = opp::wrap_type<ov::op::v1::Reshape>({atten_mask_gathered});
+        auto atten_mask_reshaped_2 = opp::wrap_type<ov::op::v1::Reshape>({atten_mask_gathered, opp::any_input()});
+        auto atten_mask_reshaped_3 = opp::wrap_type<ov::op::v1::Reshape>({atten_mask_reshaped_2, opp::any_input()});
 
-        auto final_sliding_attention = opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_causal_and_true, atten_mask_4d});
+        auto final_sliding_attention =
+            opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_causal_and_true, atten_mask_reshaped_3});
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
@@ -672,8 +673,7 @@ public:
             auto matched_atten_mask_boolean = std::static_pointer_cast<ov::op::v0::Parameter>(node_atten_mask_boolean);
             auto matched_key_row_range_f32 = std::static_pointer_cast<ov::op::v0::Convert>(node_key_row_range_f32);
             auto matched_neg_window_size = std::static_pointer_cast<ov::op::v0::Constant>(node_neg_window_size);
-            auto matched_sliding_mask =
-                std::static_pointer_cast<ov::op::v1::Greater>(node_sliding_mask);
+            auto matched_sliding_mask = std::static_pointer_cast<ov::op::v1::Greater>(node_sliding_mask);
             auto matched_sliding_and_causal_mask =
                 std::static_pointer_cast<ov::op::v13::BitwiseAnd>(node_sliding_and_causal_mask);
             OPENVINO_ASSERT(matched_neg_window_size->get_output_size() == 1,
@@ -687,12 +687,8 @@ public:
             // 1.(K range > (Q_pos range - sliding window).T) & (K range <= Q range.T)
             auto query_range_as_pos_ids =
                 std::make_shared<ov::op::v0::Convert>(matched_pos_ids_input, ov::element::f32);
-            auto unsqueeze_1 =
-                std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids, const_zero);
-            auto unsqueeze_2 = 
-                std::make_shared<ov::op::v0::Unsqueeze>(unsqueeze_1, const_one);
-            auto query_range_as_pos_ids_col =
-                std::make_shared<ov::op::v0::Unsqueeze>(unsqueeze_2, const_three);
+            auto unsqueeze_1 = std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids, const_zero);
+            auto query_range_as_pos_ids_col = std::make_shared<ov::op::v0::Unsqueeze>(unsqueeze_1, const_three);
             auto query_range_as_pos_left_bound =
                 std::make_shared<ov::op::v1::Add>(query_range_as_pos_ids_col, matched_neg_window_size);
             auto sliding_mask_for_right_padding =
@@ -701,16 +697,16 @@ public:
 
             // 2. (K range > (Q range - sliding window).T) | (K range < shape(past_key_values, 2))
             auto past_kv_len_f32 = std::make_shared<ov::op::v0::Convert>(matched_past_kv_len, ov::element::f32);
-            auto only_past_tokens_mask =
-                std::make_shared<ov::op::v1::Less>(matched_key_row_range_f32, past_kv_len_f32);
+            auto only_past_tokens_mask = std::make_shared<ov::op::v1::Less>(matched_key_row_range_f32, past_kv_len_f32);
             auto sliding_mask_for_left_padding_or_only_past =
                 std::make_shared<ov::op::v13::BitwiseOr>(matched_sliding_mask, only_past_tokens_mask);
 
             // 3. Result = 1 & 2
             // Save target inputs first:
             auto target_inputs = matched_sliding_and_causal_mask->output(0).get_target_inputs();
-            auto new_sliding_and_causal_mask = std::make_shared<ov::op::v13::BitwiseAnd>(matched_sliding_and_causal_mask,
-                sliding_mask_for_left_padding_or_only_past);
+            auto new_sliding_and_causal_mask =
+                std::make_shared<ov::op::v13::BitwiseAnd>(matched_sliding_and_causal_mask,
+                                                          sliding_mask_for_left_padding_or_only_past);
 
             // 4. Removing extra padding via : 3 & attention_mask_input[past_kv_len:].T
             std::vector<int64_t> shape_rank_one{1};
@@ -720,11 +716,12 @@ public:
                 std::make_shared<ov::op::v1::Reshape>(matched_past_kv_len, shape_rank_one_const, false);
             auto full_ctx_len_reshaped =
                 std::make_shared<ov::op::v1::Reshape>(matched_full_ctx_len, shape_rank_one_const, false);
+            auto const_one_rank_one = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 1);
             auto present_atten_mask_bool = std::make_shared<ov::op::v8::Slice>(matched_atten_mask_boolean,
                                                                                past_len_reshaped,
                                                                                full_ctx_len_reshaped,
-                                                                               const_one,
-                                                                               const_one);
+                                                                               const_one_rank_one,
+                                                                               const_one_rank_one);
             std::vector<int64_t> vector_shape{-1, 1};
             auto vector_shape_const =
                 std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, vector_shape);
