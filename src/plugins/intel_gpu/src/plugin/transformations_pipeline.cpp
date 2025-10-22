@@ -1325,9 +1325,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 GPU_DEBUG_INFO << "dyn_quan is turned off because group_size is larger than max size "
                                << dynamic_quantization_group_size << "/" << dynamic_quantization_group_size_max << std::endl;
             } else {
+                const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe_hpg;
                 manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size,
                                                                                     asymmetric_dyn_quant,
-                                                                                    precomputed_reduction);
+                                                                                    precomputed_reduction,
+                                                                                    use_gs128_for_int8_per_token);
             }
         }
 
