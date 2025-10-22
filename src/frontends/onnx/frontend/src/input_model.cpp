@@ -568,14 +568,11 @@ class InputModel::InputModelONNXImpl {
 public:
     InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                        const ov::frontend::InputModel& input_model,
-                       const bool enable_mmap);
-    InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
-                       const ov::frontend::InputModel& input_model,
                        const std::shared_ptr<TelemetryExtension>& telemetry,
                        const bool enable_mmap);
     InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                        const ov::frontend::InputModel& input_model,
-                       unify::InputModel* parent_model);
+                       unify::InputModel::Ptr parent_model);
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const;
@@ -706,7 +703,11 @@ void InputModel::InputModelONNXImpl::load_model() {
         m_op_places.push_back(std::make_shared<OpPlace>(m_input_model, decoder));
 
         if (m_telemetry) {
-            op_statistics[decoder->get_op_type()]++;
+            if (auto op_decoder = std::dynamic_pointer_cast<DecoderBaseOperation>(decoder)) {
+                std::string op_name = decoder->get_op_type() + "-" +
+                                      std::to_string(m_graph_iterator->get_opset_version(op_decoder->get_domain()));
+                op_statistics[op_name]++;
+            }
         }
 
         auto operation_decoder = std::dynamic_pointer_cast<DecoderBaseOperation>(decoder);
@@ -756,9 +757,11 @@ void InputModel::InputModelONNXImpl::load_model() {
 
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                                                    const ov::frontend::InputModel& input_model,
+                                                   const std::shared_ptr<TelemetryExtension>& telemetry,
                                                    const bool enable_mmap)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
+      m_telemetry(telemetry),
       m_enable_mmap(enable_mmap) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     if (m_enable_mmap) {
@@ -773,18 +776,10 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
 
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                                                    const ov::frontend::InputModel& input_model,
-                                                   const std::shared_ptr<TelemetryExtension>& telemetry,
-                                                   const bool enable_mmap)
-    : InputModelONNXImpl(graph_iterator, input_model, enable_mmap) {
-    m_telemetry = telemetry;
-}
-
-InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
-                                                   const ov::frontend::InputModel& input_model,
-                                                   unify::InputModel* parent_model)
+                                                   unify::InputModel::Ptr parent_model)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
-      m_telemetry(parent_model->_impl->get_telemetry_extension()),
+      m_telemetry(parent_model->get_telemetry_extension()),
       m_enable_mmap(parent_model->is_enabled_mmap()),
       m_mmap_cache(parent_model->_impl->m_mmap_cache),
       m_stream_cache(parent_model->_impl->m_stream_cache) {
@@ -879,7 +874,8 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, telemetry, enable_mmap)} {}
 
-InputModel::InputModel(const GraphIterator::Ptr& graph_iterator, InputModel* parent_model)
+InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
+                       ov::frontend::onnx::unify::InputModel::Ptr parent_model)
     : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, parent_model)} {}
 
 std::vector<std::shared_ptr<ov::frontend::onnx::OpPlace>> InputModel::get_op_places() const {
