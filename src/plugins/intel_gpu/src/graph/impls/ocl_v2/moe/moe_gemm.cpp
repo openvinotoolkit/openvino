@@ -64,14 +64,17 @@ public:
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
+        PrimitiveImplOCL::update(inst, impl_params);
         inst.update_shape_info_tensor(impl_params);
         update_rt_params(inst);
     }
+
 
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
 #ifdef ENABLE_ONEDNN_FOR_GPU
         const auto& params = *instance.get_impl_params();
         bool is_prefill = is_prefill_stage(params);
+        update_rt_params(instance);
         if (is_prefill && has_stage(regular_micro_multi_tokens)) {
             return execute_stage(events, instance, regular_micro_multi_tokens);
         } else {

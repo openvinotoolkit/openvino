@@ -78,10 +78,11 @@ template<typename ShapeType>
 std::vector<layout> moe_mask_gen_reshape_inst::calc_output_layouts(moe_mask_gen_reshape_node const& /*node*/, const kernel_impl_params& impl_param) {
     std::vector<layout> output_layouts;
     if (!impl_param.memory_deps.count(4)) {
-        output_layouts.emplace_back(impl_param.get_input_layout(0));
-        output_layouts.emplace_back(impl_param.get_input_layout(1));
-        output_layouts.emplace_back(impl_param.get_input_layout(2));
-        output_layouts.emplace_back(impl_param.get_input_layout(3));
+        auto out_shape = ov::PartialShape{ov::Dimension::dynamic()};
+        output_layouts.emplace_back(out_shape, data_types::i32, format::bfyx);
+        output_layouts.emplace_back(out_shape, data_types::i32, format::bfyx);
+        output_layouts.emplace_back(out_shape, data_types::i32, format::bfyx);
+        output_layouts.emplace_back(out_shape, data_types::i32, format::bfyx);
         return output_layouts;
     }
     auto num_actually_used_experts =
@@ -132,6 +133,9 @@ void moe_mask_gen_reshape_inst::update_output_memory() {
     if (_node != nullptr)
         build_deps();
 
+    _mem_allocated = false;
+    if (_impl_params->get_input_layout(0).is_dynamic())
+        return;
     for (size_t i = 0; i < _outputs.size(); ++i) {
         if (static_cast<bool>(_outputs[i]) && get_node().get_program().get_config().get_enable_memory_pool()) {
             _network.get_memory_pool().release_memory(_outputs[i].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
@@ -144,6 +148,5 @@ void moe_mask_gen_reshape_inst::update_output_memory() {
         _network.get_engine().reinterpret_buffer(input_memory(2), _impl_params->get_output_layout(2)),
         _network.get_engine().reinterpret_buffer(input_memory(3), _impl_params->get_output_layout(3))
     };
-    _mem_allocated = false;
 }
 }  // namespace cldnn
