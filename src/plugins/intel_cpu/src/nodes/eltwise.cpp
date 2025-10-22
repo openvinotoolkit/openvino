@@ -320,7 +320,7 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
              auto alpha_ = clampOp->get_min();
              auto beta_ = clampOp->get_max();
              if (clampOp->get_input_element_type(0).is_integral_number()) {
-                 // according to spec, when Clamp has integer element type, min and max mist be converted to
+                 // according to spec, when Clamp has integer element type, min and max must be converted to
                  // integer
                  alpha_ = std::ceil(alpha_);
                  beta_ = std::floor(beta_);
