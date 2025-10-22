@@ -16,11 +16,9 @@ namespace ov::intel_cpu {
 class JitDeconv3DExecutor : public DeconvExecutor {
 public:
     explicit JitDeconv3DExecutor(ExecutorContext::CPtr context) : DeconvExecutor(std::move(context)) {}
-    // Constructor with early weights preparation (product mode):
-    // expects src[0]=input, src[1]=weights; guards dynamic shapes internally
+    // Early weight preparation in ctor (src[0]=input, src[1]=weights; guards dynamic shapes)
     JitDeconv3DExecutor(const std::vector<MemoryCPtr>& src, ExecutorContext::CPtr context)
         : DeconvExecutor(std::move(context)) {
-        // Derive precision from src[0] if available
         if (!src.empty() && src[0] && src[0]->getDescPtr()) {
             const auto prec = src[0]->getDescPtr()->getPrecision();
             m_is_fp32 = (prec == ov::element::f32);
@@ -32,7 +30,6 @@ public:
             m_ip_kernel_f16 = std::make_unique<JitConv3DKernelF16>();
             m_ip_kernel_f16->create_ker();
         }
-        // Early pack (static shapes only)
         prepare_weights_early(src);
     }
     ~JitDeconv3DExecutor() override = default;
@@ -50,21 +47,17 @@ public:
         return impl_desc_type::jit_asimd;
     }
 
-    // Early weight preparation to avoid first-inference overhead
     void prepare_weights_early(const std::vector<MemoryCPtr>& src);
 
 private:
     std::vector<MemoryDescPtr> m_srcDescs;
     std::vector<MemoryDescPtr> m_dstDescs;
-    // kernels
     std::unique_ptr<JitConv3DKernelF16> m_ip_kernel_f16;
     std::unique_ptr<JitConv3DKernelF32> m_ip_kernel_f32;
     bool m_is_fp32{false};
 
-    // packed weights
     std::vector<uint16_t> m_wei_packed_f16;
     std::vector<float> m_wei_packed_f32;
-    // alternative packing for S=2 (even/odd taps) — FP16 only
     std::vector<uint16_t> m_wei_packed_s2_f16;
     bool m_wei_packed_ready_f16{false};
     bool m_wei_packed_ready_f32{false};

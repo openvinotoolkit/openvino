@@ -13,26 +13,25 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 
-// Xbyak AArch64 JIT
 #include <cpu/aarch64/jit_generator.hpp>
 
 namespace ov::intel_cpu {
 
 struct jit_conv3d_f32_call_args {
-    const float* src;       // f32 base ptr
-    const float* wei;       // f32 base ptr (oc0)
-    const float* wei2;      // optional second oc f32 base ptr (can be null)
-    size_t repeats;         // number of full 4-channel blocks
-    size_t tail;            // remaining channels (< 4)
-    size_t src_stride;      // stride between channels in bytes
-    size_t wei_stride;      // stride between channels in bytes
-    size_t src_blk_stride;  // stride between successive 4-channel blocks in bytes
-    size_t wei_blk_stride;  // stride between successive 4-channel blocks in bytes
-    float* acc;             // f32 accumulator
-    float* acc2;            // optional second f32 accumulator (can be null)
-    size_t kw_cnt;          // number of taps along W to iterate (stride=1 fast path); 0 or 1 -> single
-    size_t src_dx;          // bytes to advance src base between successive kx taps
-    size_t wei_dx;          // bytes to advance weights base between successive kx taps
+    const float* src;
+    const float* wei;
+    const float* wei2;
+    size_t repeats;
+    size_t tail;
+    size_t src_stride;
+    size_t wei_stride;
+    size_t src_blk_stride;
+    size_t wei_blk_stride;
+    float* acc;
+    float* acc2;
+    size_t kw_cnt;
+    size_t src_dx;
+    size_t wei_dx;
 };
 
 class JitConv3DKernelF32 : public dnnl::impl::cpu::aarch64::jit_generator {
@@ -53,7 +52,6 @@ private:
     jit_fn ker_{nullptr};
 };
 
-// AArch64 JIT Convolution (FP32) executor for 3D conv (NCDHW)
 class JitConv3DExecutorF32 : public Executor {
 public:
     JitConv3DExecutorF32(const ConvAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);

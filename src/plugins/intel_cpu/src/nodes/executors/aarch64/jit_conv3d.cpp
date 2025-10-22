@@ -20,15 +20,12 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
-// helper for jit_kernel_cast
 #include "utils/cpu_utils.hpp"
-// no direct NEON intrinsics are used here; we rely on Xbyak_aarch64
 
 using namespace dnnl::impl::cpu::aarch64;
 
 namespace ov::intel_cpu {
 
-// --------------------------- JIT kernel (placeholder) ---------------------------
 JitConv3DKernelF16::JitConv3DKernelF16() = default;
 
 void JitConv3DKernelF16::create_ker() {
@@ -38,9 +35,7 @@ void JitConv3DKernelF16::create_ker() {
 
 void JitConv3DKernelF16::gen_minimal_kernel() {
     using namespace Xbyak_aarch64;
-    // Minimal stable kernel (dual-OC, in-kernel kx loop)
     const XReg reg_args = abi_param1;  // x0
-    // Load essential arguments (absolute offsets from jit_conv3d_call_args)
     const XReg reg_src = x1;         // const uint16_t* src
     const XReg reg_wei = x2;         // const uint16_t* wei
     const XReg reg_wei2 = x3;        // const uint16_t* wei2 (optional)
@@ -62,18 +57,14 @@ void JitConv3DKernelF16::gen_minimal_kernel() {
     ldr(reg_acc2, ptr(reg_args, 96));
 
     Label Lsingle, Ldone;
-    // Additional labels for kx-loop variants
     Label Ldual_kx, Lkx_d, Ltail_prep_d_kx, Ltail_done_d_kx;
     Label Lsingle_kx, Lkx_s, Ltail_prep_s_kx, Ltail_done_s_kx;
     cbz(reg_acc2, Lsingle);
-    // Jump to in-kernel kx loop dual-OC path (safe, call-clobbered only)
     b(Ldual_kx);
 
-    // Dual-OC with in-kernel kx loop (v20 for oc0, v21 for oc1)
     L(Ldual_kx);
     eor(VReg16B(20), VReg16B(20), VReg16B(20));
     eor(VReg16B(21), VReg16B(21), VReg16B(21));
-    // Load kx-loop controls and set bases
     const XReg reg_kw_cnt = x12;
     const XReg reg_src_dx = x13;
     const XReg reg_wei_dx = x14;
@@ -88,21 +79,17 @@ void JitConv3DKernelF16::gen_minimal_kernel() {
     mov(q_src_base, reg_src);
     mov(q_wei_base, reg_wei);
     mov(q_wei2_base, reg_wei2);
-    // Treat kw_cnt==0 as 1
     cbnz(reg_kw_cnt, Lkx_d);
     mov(reg_kw_cnt, 1);
     L(Lkx_d);
-    // Reset pointers and repeats for this kx
     ldr(reg_reps, ptr(reg_args, 40));
     mov(reg_src, q_src_base);
     mov(reg_wei, q_wei_base);
     mov(reg_wei2, q_wei2_base);
-    // Channel repeats over 8-lane blocks
     Label Lrep_d_kx;
     L(Lrep_d_kx);
     cmp(reg_reps, 0);
     b(EQ, Ltail_prep_d_kx);
-    // Load src lanes into v0
     ld1(VReg(0).h[0], ptr(reg_src));
     add(reg_src, reg_src, reg_src_stride);
     ld1(VReg(0).h[1], ptr(reg_src));
@@ -159,14 +146,12 @@ void JitConv3DKernelF16::gen_minimal_kernel() {
     ld1(VReg(1).h[7], ptr(reg_wei));
     ld1(VReg(2).h[7], ptr(reg_wei2));
     L(Lw_done_d2);
-    // MAC into accumulators
     fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
     fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
     fmlal(VReg4S(21), VReg4H(0), VReg4H(2));
     fmlal2(VReg4S(21), VReg4H(0), VReg4H(2));
     sub(reg_reps, reg_reps, 1);
     b(Lrep_d_kx);
-    // Tail handling per kx
     L(Ltail_prep_d_kx);
     eor(VReg16B(0), VReg16B(0), VReg16B(0));
     eor(VReg16B(1), VReg16B(1), VReg16B(1));
@@ -237,7 +222,6 @@ void JitConv3DKernelF16::gen_minimal_kernel() {
     fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
     fmlal(VReg4S(21), VReg4H(0), VReg4H(2));
     fmlal2(VReg4S(21), VReg4H(0), VReg4H(2));
-    // advance bases to next kx and continue
     sub(reg_kw_cnt, reg_kw_cnt, 1);
     add(q_src_base, q_src_base, reg_src_dx);
     add(q_wei_base, q_wei_base, reg_wei_dx);
@@ -264,7 +248,6 @@ void JitConv3DKernelF16::gen_minimal_kernel() {
     L(Lrep_d);
     cmp(reg_reps, 0);
     b(EQ, Ltail_prep_d);
-    // Load src lanes (v0)
     ld1(VReg(0).h[0], ptr(reg_src));
     add(reg_src, reg_src, reg_src_stride);
     ld1(VReg(0).h[1], ptr(reg_src));
@@ -329,7 +312,6 @@ void JitConv3DKernelF16::gen_minimal_kernel() {
     sub(reg_reps, reg_reps, 1);
     b(Lrep_d);
 
-    // Tail handling
     L(Ltail_prep_d);
     eor(VReg16B(0), VReg16B(0), VReg16B(0));
     eor(VReg16B(1), VReg16B(1), VReg16B(1));
@@ -417,7 +399,6 @@ void JitConv3DKernelF16::gen_minimal_kernel() {
 
     // Single-OC path
     L(Lsingle);
-    // Jump to in-kernel kx loop single-OC path
     b(Lsingle_kx);
     // Single-OC with in-kernel kx loop
     L(Lsingle_kx);
@@ -539,7 +520,6 @@ void JitConv3DKernelF16::gen_minimal_kernel() {
     L(Ltail_done_s_kx);
     fmlal(VReg4S(20), VReg4H(0), VReg4H(1));
     fmlal2(VReg4S(20), VReg4H(0), VReg4H(1));
-    // advance bases
     sub(s_kw_cnt, s_kw_cnt, 1);
     add(s_src_base, s_src_base, s_src_dx);
     add(s_wei_base, s_wei_base, s_wei_dx);
@@ -928,7 +908,6 @@ void JitConv3DKernelF16::gen_optimized_kernel() {
         fmlal(VReg4S(23), VReg4H(0), VReg4H(4));
         fmlal2(VReg4S(23), VReg4H(0), VReg4H(4));
 
-        // advance bases for next kx
         add(q_src_base, q_src_base, reg_src_dx);
         add(q_wei_base, q_wei_base, reg_wei_dx);
         add(q_wei2_base, q_wei2_base, reg_wei_dx);
@@ -946,7 +925,6 @@ void JitConv3DKernelF16::gen_optimized_kernel() {
         faddp(VReg2S(22), VReg2S(22), VReg2S(22));
         faddp(VReg4S(23), VReg4S(23), VReg4S(23));
         faddp(VReg2S(23), VReg2S(23), VReg2S(23));
-        // advance bases for next ky and continue if any
         add(q_src_base, q_src_base, reg_src_dy);
         add(q_wei_base, q_wei_base, reg_wei_dy);
         add(q_wei2_base, q_wei2_base, reg_wei_dy);
@@ -1624,7 +1602,6 @@ void JitConv3DKernelF16::generate() {
     gen_optimized_kernel();
 }
 
-// --------------------------- Executor ---------------------------
 
 [[maybe_unused]] static inline auto ptr_f16(const MemoryPtr& mem) -> const uint16_t* {
     return reinterpret_cast<const uint16_t*>(mem->getData());

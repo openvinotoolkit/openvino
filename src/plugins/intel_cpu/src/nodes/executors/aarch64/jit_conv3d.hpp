@@ -13,10 +13,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
-
-// Xbyak AArch64 JIT
 #include <cpu/aarch64/jit_generator.hpp>
-// FP32 kernel
 #include "nodes/executors/aarch64/jit_conv3d_f32.hpp"
 
 namespace ov::intel_cpu {
@@ -60,7 +57,6 @@ public:
 private:
     void generate() override;
 
-    // Split large codegen into smaller helpers to satisfy clang-tidy limits
     void gen_minimal_kernel();
     void gen_optimized_kernel();
 
@@ -70,7 +66,6 @@ public:
     void set_force_single_kh(bool v) { m_force_single_kh_ = v; }
 };
 
-// AArch64 JIT Convolution (FP16) executor for 3D conv (NCDHW)
 class JitConv3DExecutor : public Executor {
 public:
     JitConv3DExecutor(const ConvAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
@@ -92,20 +87,15 @@ public:
 
     static bool supports(const ConvConfig& cfg);
 
-    // Early weight preparation to reduce first-inference latency (product mode, no flags)
     void prepare_weights_early(const MemoryArgs& memory);
 
 private:
-    // Simple reference fallback (parallelized) using FP16 data; correctness-first
     void run_naive_fp16(const MemoryArgs& memory);
     void ensure_weights_packed(const MemoryArgs& memory);
-    // FP32 path
     void run_naive_fp32(const MemoryArgs& memory);
     void ensure_weights_packed_f32(const MemoryArgs& memory);
 
-    // Minimal inner-product kernel (fp16 x fp16 -> f32 accumulation)
     std::unique_ptr<JitConv3DKernelF16> m_ip_kernel;
-    // Minimal inner-product kernel (fp32 x fp32 -> f32 accumulation)
     std::unique_ptr<JitConv3DKernelF32> m_ip_kernel_f32;
 
     ConvAttrs m_attrs;
@@ -113,21 +103,15 @@ private:
     size_t m_threadsNum{0};
     bool m_is_fp32{false};
 
-    // Packed weights: layout [OC, KD, KH, KW, Ct] where Ct is 8-lane channel tiles
     std::vector<uint16_t> m_wei_packed;
     bool m_wei_packed_ready{false};
     size_t m_padded_C{0};
-    // FP32 packed weights: [OC, KD, KH, KW, Ct=4]
     std::vector<float> m_wei_packed_f32;
     bool m_wei_packed_ready_f32{false};
     size_t m_padded_C_f32{0};
 
-    // Optional fused PReLU (per-tensor or per-channel). Extracted from attrs.postOps.
     bool m_has_prelu{false};
-    std::vector<float> m_prelu_slopes;  // size 1 (per-tensor) or OC (per-channel)
-
-    // Gate executor-side post-ops (bias, PReLU). Disabled per user request for measurements.
-    bool m_apply_post_ops{false};
+    std::vector<float> m_prelu_slopes;
 };
 
 using JitConv3DExecutorPtr = std::shared_ptr<JitConv3DExecutor>;

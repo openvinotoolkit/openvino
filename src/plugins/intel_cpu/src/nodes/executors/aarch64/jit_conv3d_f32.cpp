@@ -22,14 +22,12 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
-// helper for jit_kernel_cast
 #include "utils/cpu_utils.hpp"
 
 using namespace dnnl::impl::cpu::aarch64;
 
 namespace ov::intel_cpu {
 
-// --------------------------- JIT kernel (FP32) ---------------------------
 void JitConv3DKernelF32::create_ker() {
     jit_generator::create_kernel();
     ker_ = jit_kernel_cast<jit_fn>(jit_ker());
@@ -37,24 +35,23 @@ void JitConv3DKernelF32::create_ker() {
 void JitConv3DKernelF32::generate() {
     using namespace Xbyak_aarch64;
 
-    const XReg reg_args = abi_param1;  // x0
+    const XReg reg_args = abi_param1;
 
-    const XReg reg_src = x1;             // const float* src
-    const XReg reg_wei = x2;             // const float* wei
-    const XReg reg_wei2 = x3;            // const float* wei2 (optional)
-    const XReg reg_reps = x4;            // size_t repeats (C/4)
-    const XReg reg_tail = x5;            // size_t tail (C%4)
-    const XReg reg_src_stride = x6;      // bytes between channels
-    const XReg reg_wei_stride = x7;      // bytes between channels
-    const XReg reg_src_blk_stride = x8;  // bytes between successive 4-ch blocks
-    const XReg reg_wei_blk_stride = x9;  // bytes between successive 4-ch blocks
-    const XReg reg_acc = x10;            // float* acc
-    const XReg reg_acc2 = x11;           // float* acc2 (optional)
-    const XReg reg_kw_cnt = x12;         // taps along W
-    const XReg reg_src_dx = x13;         // bytes to step src base per kx
-    const XReg reg_wei_dx = x14;         // bytes to step wei base per kx
+    const XReg reg_src = x1;
+    const XReg reg_wei = x2;
+    const XReg reg_wei2 = x3;
+    const XReg reg_reps = x4;
+    const XReg reg_tail = x5;
+    const XReg reg_src_stride = x6;
+    const XReg reg_wei_stride = x7;
+    const XReg reg_src_blk_stride = x8;
+    const XReg reg_wei_blk_stride = x9;
+    const XReg reg_acc = x10;
+    const XReg reg_acc2 = x11;
+    const XReg reg_kw_cnt = x12;
+    const XReg reg_src_dx = x13;
+    const XReg reg_wei_dx = x14;
 
-    // Load args by struct offsets (see jit_conv3d_f32_call_args)
     ldr(reg_src, ptr(reg_args, 0));
     ldr(reg_wei, ptr(reg_args, 8));
     ldr(reg_wei2, ptr(reg_args, 16));
@@ -70,10 +67,9 @@ void JitConv3DKernelF32::generate() {
     ldr(reg_src_dx, ptr(reg_args, 96));
     ldr(reg_wei_dx, ptr(reg_args, 104));
 
-    // Work registers for base pointers per kx
     const XReg q_src_base = x15;
     const XReg q_wei_base = x16;
-    const XReg q_wei2_base = x17;  // avoid x18
+    const XReg q_wei2_base = x17;
 
     Label Lsingle, Ldone;
     Label Ldual_kx, Lkx_d, Ltail_prep_d_kx, Ltail_done_d_kx;
@@ -82,34 +78,26 @@ void JitConv3DKernelF32::generate() {
     cbz(reg_acc2, Lsingle);
     b(Ldual_kx);
 
-    // ---------------- Dual-OC with in-kernel kx loop ----------------
     L(Ldual_kx);
-    // accumulators v20 (oc0), v21 (oc1)
     eor(VReg16B(20), VReg16B(20), VReg16B(20));
     eor(VReg16B(21), VReg16B(21), VReg16B(21));
 
-    // Save bases
     mov(q_src_base, reg_src);
     mov(q_wei_base, reg_wei);
     mov(q_wei2_base, reg_wei2);
-    // Treat kw_cnt==0 as 1
     cbnz(reg_kw_cnt, Lkx_d);
     mov(reg_kw_cnt, 1);
 
-    // kx loop
     L(Lkx_d);
-    // Reset per-kx pointers and repeats
     ldr(reg_reps, ptr(reg_args, 24));
     mov(reg_src, q_src_base);
     mov(reg_wei, q_wei_base);
     mov(reg_wei2, q_wei2_base);
 
-    // repeats loop over channel tiles of 4
     Label Lrep_d;
     L(Lrep_d);
     cmp(reg_reps, 0);
     b(EQ, Ltail_prep_d_kx);
-    // src lanes -> v0.s[0..3]
     ld1(VReg(0).s[0], ptr(reg_src));
     add(reg_src, reg_src, reg_src_stride);
     ld1(VReg(0).s[1], ptr(reg_src));
@@ -117,7 +105,6 @@ void JitConv3DKernelF32::generate() {
     ld1(VReg(0).s[2], ptr(reg_src));
     add(reg_src, reg_src, reg_src_stride);
     ld1(VReg(0).s[3], ptr(reg_src));
-    // wei lanes: vector fast path if stride==4 bytes
     Label Lw_np_d, Lw_done_d;
     cmp(reg_wei_stride, 4);
     b(NE, Lw_np_d);
@@ -141,19 +128,15 @@ void JitConv3DKernelF32::generate() {
     add(reg_wei2, reg_wei2, reg_wei_stride);
     ld1(VReg(1).s[3], ptr(reg_wei));
     ld1(VReg(2).s[3], ptr(reg_wei2));
-    // advance to next 4-channel block for next repeat
     add(reg_wei, reg_wei, reg_wei_stride);
     add(reg_wei2, reg_wei2, reg_wei_stride);
     L(Lw_done_d);
-    // advance src to next 4-channel block for next repeat
     add(reg_src, reg_src, reg_src_stride);
-    // MAC
     fmla(VReg4S(20), VReg4S(0), VReg4S(1));
     fmla(VReg4S(21), VReg4S(0), VReg4S(2));
     sub(reg_reps, reg_reps, 1);
     b(Lrep_d);
 
-    // Tail per kx
     L(Ltail_prep_d_kx);
     eor(VReg16B(0), VReg16B(0), VReg16B(0));
     eor(VReg16B(1), VReg16B(1), VReg16B(1));
@@ -190,13 +173,11 @@ void JitConv3DKernelF32::generate() {
     L(Ltail_done_d_kx);
     fmla(VReg4S(20), VReg4S(0), VReg4S(1));
     fmla(VReg4S(21), VReg4S(0), VReg4S(2));
-    // advance bases to next kx
     sub(reg_kw_cnt, reg_kw_cnt, 1);
     add(q_src_base, q_src_base, reg_src_dx);
     add(q_wei_base, q_wei_base, reg_wei_dx);
     add(q_wei2_base, q_wei2_base, reg_wei_dx);
     cbnz(reg_kw_cnt, Lkx_d);
-    // horizontal add and store
     faddp(VReg4S(20), VReg4S(20), VReg4S(20));
     faddp(VReg2S(20), VReg2S(20), VReg2S(20));
     faddp(VReg4S(21), VReg4S(21), VReg4S(21));
@@ -209,7 +190,6 @@ void JitConv3DKernelF32::generate() {
     str(SReg(1), ptr(reg_acc2));
     b(Ldone);
 
-    // ---------------- Single-OC with in-kernel kx loop ----------------
     L(Lsingle);
     eor(VReg16B(20), VReg16B(20), VReg16B(20));
     mov(q_src_base, reg_src);
@@ -218,7 +198,6 @@ void JitConv3DKernelF32::generate() {
     mov(reg_kw_cnt, 1);
 
     L(Lsingle_kx);
-    // Reset per-kx pointers and repeats
     ldr(reg_reps, ptr(reg_args, 24));
     mov(reg_src, q_src_base);
     mov(reg_wei, q_wei_base);
@@ -227,7 +206,6 @@ void JitConv3DKernelF32::generate() {
     L(Lrep_s);
     cmp(reg_reps, 0);
     b(EQ, Ltail_prep_s_kx);
-    // src lanes
     ld1(VReg(0).s[0], ptr(reg_src));
     add(reg_src, reg_src, reg_src_stride);
     ld1(VReg(0).s[1], ptr(reg_src));
@@ -235,7 +213,6 @@ void JitConv3DKernelF32::generate() {
     ld1(VReg(0).s[2], ptr(reg_src));
     add(reg_src, reg_src, reg_src_stride);
     ld1(VReg(0).s[3], ptr(reg_src));
-    // wei lanes: vector fast path if stride==4
     Label Lw_np_s, Lw_done_s;
     cmp(reg_wei_stride, 4);
     b(NE, Lw_np_s);
@@ -250,16 +227,13 @@ void JitConv3DKernelF32::generate() {
     ld1(VReg(1).s[2], ptr(reg_wei));
     add(reg_wei, reg_wei, reg_wei_stride);
     ld1(VReg(1).s[3], ptr(reg_wei));
-    // advance to next 4-channel block for next repeat
     add(reg_wei, reg_wei, reg_wei_stride);
     L(Lw_done_s);
-    // advance src to next 4-channel block for next repeat
     add(reg_src, reg_src, reg_src_stride);
     fmla(VReg4S(20), VReg4S(0), VReg4S(1));
     sub(reg_reps, reg_reps, 1);
     b(Lrep_s);
 
-    // Tail single
     L(Ltail_prep_s_kx);
     eor(VReg16B(0), VReg16B(0), VReg16B(0));
     eor(VReg16B(1), VReg16B(1), VReg16B(1));
@@ -288,13 +262,11 @@ void JitConv3DKernelF32::generate() {
     L(Ltail_done_s_kx);
     fmla(VReg4S(20), VReg4S(0), VReg4S(1));
 
-    // advance to next kx
     sub(reg_kw_cnt, reg_kw_cnt, 1);
     add(q_src_base, q_src_base, reg_src_dx);
     add(q_wei_base, q_wei_base, reg_wei_dx);
     cbnz(reg_kw_cnt, Lsingle_kx);
 
-    // reduce and store
     faddp(VReg4S(20), VReg4S(20), VReg4S(20));
     faddp(VReg2S(20), VReg2S(20), VReg2S(20));
     ldr(SReg(0), ptr(reg_acc));
@@ -306,7 +278,6 @@ void JitConv3DKernelF32::generate() {
     ret();
 }
 
-// --------------------------- Executor (FP32) ---------------------------
 JitConv3DExecutorF32::JitConv3DExecutorF32(const ConvAttrs& attrs,
                                            const MemoryArgs& memory,
                                            const ExecutorContext::CPtr& /*context*/)
