@@ -11,6 +11,7 @@
 
 #include "../attention.hpp"
 #include "../lazy_tensor.hpp"
+#include "../pyramid_attention.hpp"
 #include "../spatial.hpp"
 #include "intel_npu/config/config.hpp"
 #include "openvino/openvino.hpp"
