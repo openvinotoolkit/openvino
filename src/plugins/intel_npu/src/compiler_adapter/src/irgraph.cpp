@@ -940,7 +940,7 @@ void IRGraph::predict_output_shape(std::vector<ArgumentDescriptor>& inputDescrip
     if (impl == nullptr)
         return;
 
-    impl->predict_output_shape(inputDescriptors, outputDescriptors);
+    impl->predictOutputShape(inputDescriptors, outputDescriptors);
 }
 
 }  // namespace intel_npu
