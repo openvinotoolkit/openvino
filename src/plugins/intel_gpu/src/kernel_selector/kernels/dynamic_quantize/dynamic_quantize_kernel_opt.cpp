@@ -201,40 +201,49 @@ KernelsPriority DynamicQuantizeKernelOpt::GetKernelsPriority(const Params& /*par
 
 
 bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
-    if (!KernelBaseOpenCL::Validate(params))
+    if (!KernelBaseOpenCL::Validate(params)) {
         LOG_AND_RETURN_FALSE(params);
+    }
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
 
 
     auto bf = get_input_bf_size(dq_params);
-    if (((bf.second) % (simd * 2)) != 0)
+    if (((bf.second) % (simd * 2)) != 0) {
         LOG_AND_RETURN_FALSE(params);
+    }
 
-    if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0)
+    if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0) {
         LOG_AND_RETURN_FALSE(params);
+    }
 
-    if (dq_params.append_axis != -1)
+    if (dq_params.append_axis != -1) {
         LOG_AND_RETURN_FALSE(params);
+    }
 
     for (size_t i = 0; i < dq_params.group_sizes.size() - 1; i++) {
-        if (dq_params.group_sizes[i] != 1)
+        if (dq_params.group_sizes[i] != 1) {
             LOG_AND_RETURN_FALSE(params);
+        }
     }
 
     // Allow only default scales order
     const auto& scales_output_order = dq_params.scales_output_order;
     if (!scales_output_order.empty()) {
-        for (size_t i = 0; i < scales_output_order.size(); i++)
-            if (scales_output_order[i] != i)
+        for (size_t i = 0; i < scales_output_order.size(); i++) {
+            if (scales_output_order[i] != i) {
                 LOG_AND_RETURN_FALSE(params);
+            }
+        }
     }
 
     if (dq_params.use_asymmetric_quantization) {
-        if (dq_params.combine_scales_and_zp)
+        if (dq_params.combine_scales_and_zp) {
             LOG_AND_RETURN_FALSE(params);
-        if (dq_params.outputs[0].GetDType() != Datatype::UINT8)
+        }
+        if (dq_params.outputs[0].GetDType() != Datatype::UINT8) {
             LOG_AND_RETURN_FALSE(params);
+        }
     }
 
     return true;

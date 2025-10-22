@@ -343,8 +343,8 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_inner_most_dim
 
 TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_f8e4m3) {
     this->test_dynamic_quantization(false,
-                                    {1, 1, 1, 4096},
-                                    {1, 1, 1, 4096},
+                                    {1, 1, 4096},
+                                    {1, 1, 4096},
                                     QuantizationType::Symmetric,
                                     32,
                                     data_types::f8e4m3,
@@ -355,8 +355,8 @@ TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_f8e4m3) {
 
 TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_f8e5m2) {
     this->test_dynamic_quantization(false,
-                                    {1, 1, 1, 4096},
-                                    {1, 1, 1, 4096},
+                                    {1, 1, 4096},
+                                    {1, 1, 4096},
                                     QuantizationType::Symmetric,
                                     32,
                                     data_types::f8e5m2,

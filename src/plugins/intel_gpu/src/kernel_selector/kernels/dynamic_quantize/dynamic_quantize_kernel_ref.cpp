@@ -155,8 +155,9 @@ KernelsPriority DynamicQuantizeKernelRef::GetKernelsPriority(const Params& /*par
 }
 
 bool DynamicQuantizeKernelRef::Validate(const Params& params) const {
-    if (!KernelBaseOpenCL::Validate(params))
+    if (!KernelBaseOpenCL::Validate(params)) {
         return false;
+    }
 
     return true;
 }
