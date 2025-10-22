@@ -55,6 +55,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         // scatter_reduce
         std::string prim_name_base = layer_type_name_ID(op);
         auto  moe_mask_gen_name = prim_name_base + "_moe_mask_gen";
+        auto  moe_mask_gen_reshape_name = prim_name_base + "_moe_mask_gen_reshape";
         auto  moe_gather_name = prim_name_base + "_moe_gather";
         auto  moe_bias_up_name = prim_name_base + "_moe_bias_up";
         auto  moe_gemm_up_name = prim_name_base + "_moe_gemm_up";
@@ -63,31 +64,40 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         auto  moe_bias_down_name = prim_name_base + "_moe_bias_down";
         auto  moe_scatter_reduce_name = prim_name_base + "_moe_scatter_reduce";
         auto moe_mask_gen_prim = cldnn::moe_mask_gen(moe_mask_gen_name,
-                                              input_infos[2],  // topk indices
-                                              static_cast<uint32_t>(config.num_expert),
-                                              static_cast<uint32_t>(config.top_k));
+                                                     input_infos[2],  // topk indices
+                                                     static_cast<uint32_t>(config.num_expert),
+                                                     static_cast<uint32_t>(config.top_k));
         p.add_primitive(*op, moe_mask_gen_prim);
+        auto moe_mask_gen_reshape_prim =
+            cldnn::moe_mask_gen_reshape(moe_mask_gen_reshape_name,
+                                        input_info(moe_mask_gen_prim, moe_mask_gen::MoEMaskGenOutputIdx::TOKENS_PER_EXPERT),
+                                        input_info(moe_mask_gen_prim, moe_mask_gen::MoEMaskGenOutputIdx::EXPERTS_INFO_START_IDX),
+                                        input_info(moe_mask_gen_prim, moe_mask_gen::MoEMaskGenOutputIdx::EXPERTS_ID),
+                                        input_info(moe_mask_gen_prim, moe_mask_gen::MoEMaskGenOutputIdx::TOKENS_LENS_PER_EXPERT),
+                                        input_info(moe_mask_gen_prim, moe_mask_gen::MoEMaskGenOutputIdx::NUM_ACTUALLY_USED_EXPERTS));
+        p.add_primitive(*op, moe_mask_gen_reshape_prim);
         auto moe_gather_prim = cldnn::moe_gather(moe_gather_name,
-                                          input_infos[0],  // input
-                                          input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::TOKENS_LENS_PER_EXPERT),
-                                          static_cast<uint32_t>(config.top_k));
+                                                 input_infos[0],  // input
+                                                 input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_PER_EXPERT),
+                                                 static_cast<uint32_t>(config.top_k));
         p.add_primitive(*op, moe_gather_prim);
         std::vector<cldnn::input_info> moe_gemm_up_inputs = {
             input_info(moe_gather_name),  // topk_weight
             input_infos[3],  // compressed_weights_input_up
-            input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::EXPERTS_ID),
-            input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::EXPERTS_INFO_START_IDX),
-            input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::TOKENS_LENS_PER_EXPERT),
+            input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_ID),
+            input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
+            input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
             input_infos[4],  // scale_input_up
         };
         auto moe_gemm_up = cldnn::moe_gemm(moe_gemm_up_name, moe_gemm_up_inputs, config.top_k);
         moe_gemm_up.has_bias = false;
         p.add_primitive(*op, moe_gemm_up);
-        auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-        auto moe_bias_up_prim = cldnn::eltwise(moe_bias_up_name, {input_info(moe_gemm_up_name), input_infos[5]}, cldnn::eltwise_mode::sum, {}, out_dt);  // bias_up
-        p.add_primitive(*op, moe_bias_up_prim);
+//        auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
+//        auto moe_bias_up_prim = cldnn::eltwise(moe_bias_up_name, {input_info(moe_gemm_up_name), input_infos[5]}, cldnn::eltwise_mode::sum, {}, out_dt);  // bias_up
+//        p.add_primitive(*op, moe_bias_up_prim);
         auto moe_swiglu_prim = cldnn::swiglu(moe_swiglu_name,
-                                             input_info(moe_bias_up_name),
+//                                             input_info(moe_bias_up_name),
+                                             input_info(moe_gemm_up_name),
                                              2,  // axis
                                              config.hidden_size,
                                              ov::op::internal::GLU::GluType::Swish,
@@ -101,21 +111,22 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         std::vector<cldnn::input_info> moe_gemm_down_inputs = {
             input_info(moe_swiglu_name),
             input_infos[6],  // compressed_weights_input_down
-            input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::EXPERTS_ID),
-            input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::EXPERTS_INFO_START_IDX),
-            input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::TOKENS_LENS_PER_EXPERT),
+            input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_ID),
+            input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
+            input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
             input_infos[7],  // scale_input_down
         };
         p.add_primitive(*op, cldnn::moe_gemm(moe_gemm_down_name, moe_gemm_down_inputs, config.top_k));
-        auto moe_bias_down_prim = cldnn::eltwise(moe_bias_down_name, {input_info(moe_gemm_down_name), input_infos[8]}, cldnn::eltwise_mode::sum, {}, out_dt);  // bias_down
-        p.add_primitive(*op, moe_bias_down_prim);
+//        auto moe_bias_down_prim = cldnn::eltwise(moe_bias_down_name, {input_info(moe_gemm_down_name), input_infos[8]}, cldnn::eltwise_mode::sum, {}, out_dt);  // bias_down
+//        p.add_primitive(*op, moe_bias_down_prim);
         auto moe_scatter_reduce_prim = cldnn::moe_scatter_reduction(moe_scatter_reduce_name,
-                                                                 input_info(moe_bias_down_name),
+//                                                                 input_info(moe_bias_down_name),
+                                                                 input_info(moe_gemm_down_name),
                                                                  input_infos[2],
                                                                  input_infos[1],
-                                                                 input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::TOKENS_PER_EXPERT),
-                                                                 input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::EXPERTS_INFO_START_IDX),
-                                                                 input_info(moe_mask_gen_name, moe_mask_gen::MoEMaskGenOutputIdx::TOKENS_LENS_PER_EXPERT),
+                                                                 input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_PER_EXPERT),
+                                                                 input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
+                                                                 input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
                                                                  static_cast<uint32_t>(config.top_k));
         p.add_primitive(*op, moe_scatter_reduce_prim);
     }
