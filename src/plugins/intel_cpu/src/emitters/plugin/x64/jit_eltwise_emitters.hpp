@@ -980,8 +980,8 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
     void register_table_entries() override;
 
-    int32_t minimum;
-    int32_t maximum;
+    int32_t minimum = 0;
+    int32_t maximum = 0;
 };
 
 }  // namespace ov::intel_cpu
