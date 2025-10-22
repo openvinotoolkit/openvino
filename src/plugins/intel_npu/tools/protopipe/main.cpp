@@ -14,6 +14,7 @@
 #include "simulation/performance_mode.hpp"
 #include "simulation/reference_mode.hpp"
 #include "simulation/validation_mode.hpp"
+#include "simulation/accuracy_mode.hpp"
 
 #include "utils/error.hpp"
 #include "utils/logger.hpp"
@@ -26,6 +27,8 @@ static constexpr char device_message[] =
 static constexpr char pipeline_message[] = "Optional. Enable pipelined execution.";
 static constexpr char drop_message[] = "Optional. Drop frames if they come earlier than pipeline is completed.";
 static constexpr char mode_message[] = "Optional. Simulation mode: performance (default), reference, validation.";
+static constexpr char reference_device_msg[] = "TODO: Reference device description.";
+static constexpr char target_device_msg[] = "TODO: Target device description.";
 static constexpr char niter_message[] = "Optional. Number of iterations. If specified overwrites termination criterion"
                                         " for all scenarios in configuration file.";
 static constexpr char exec_time_message[] = "Optional. Time in seconds. If specified overwrites termination criterion"
@@ -43,6 +46,8 @@ DEFINE_string(d, "", device_message);
 DEFINE_bool(pipeline, false, pipeline_message);
 DEFINE_bool(drop_frames, false, drop_message);
 DEFINE_string(mode, "performance", mode_message);
+DEFINE_string(reference_device, "CPU", reference_device_msg);
+DEFINE_string(target_device, "NPU", target_device_msg);
 DEFINE_uint64(niter, 0, niter_message);
 DEFINE_uint64(t, 0, exec_time_message);
 DEFINE_bool(inference_only, true, inference_only_message);
@@ -52,18 +57,20 @@ DEFINE_bool(v, false, version_message);
 static void showUsage() {
     std::cout << "protopipe [OPTIONS]" << std::endl;
     std::cout << std::endl;
-    std::cout << " Common options:            " << std::endl;
-    std::cout << "    -h                      " << help_message << std::endl;
-    std::cout << "    -cfg <value>            " << cfg_message << std::endl;
-    std::cout << "    -pipeline               " << pipeline_message << std::endl;
-    std::cout << "    -drop_frames            " << drop_message << std::endl;
-    std::cout << "    -d <value>              " << device_message << std::endl;
-    std::cout << "    -mode <value>           " << mode_message << std::endl;
-    std::cout << "    -niter <value>          " << niter_message << std::endl;
-    std::cout << "    -t <value>              " << exec_time_message << std::endl;
-    std::cout << "    -inference_only         " << inference_only_message << std::endl;
-    std::cout << "    -exec_filter            " << exec_filter_msg << std::endl;
-    std::cout << "    -v                      " << version_message << std::endl;
+    std::cout << " Common options:              " << std::endl;
+    std::cout << "    -h                        " << help_message << std::endl;
+    std::cout << "    -cfg <value>              " << cfg_message << std::endl;
+    std::cout << "    -pipeline                 " << pipeline_message << std::endl;
+    std::cout << "    -drop_frames              " << drop_message << std::endl;
+    std::cout << "    -d <value>                " << device_message << std::endl;
+    std::cout << "    -mode <value>             " << mode_message << std::endl;
+    std::cout << "    -reference_device <value> " << reference_device_msg << std::endl;
+    std::cout << "    -target_device <value>    " << target_device_msg << std::endl;
+    std::cout << "    -niter <value>            " << niter_message << std::endl;
+    std::cout << "    -t <value>                " << exec_time_message << std::endl;
+    std::cout << "    -inference_only           " << inference_only_message << std::endl;
+    std::cout << "    -exec_filter              " << exec_filter_msg << std::endl;
+    std::cout << "    -v                        " << version_message << std::endl;
 
     std::cout << std::endl;
 }
@@ -88,7 +95,12 @@ bool parseCommandLine(int* argc, char*** argv) {
     std::cout << "    Pipelining is enabled:   " << std::boolalpha << FLAGS_pipeline << std::endl;
     std::cout << "    Simulation mode:         " << FLAGS_mode << std::endl;
     std::cout << "    Inference only:          " << std::boolalpha << FLAGS_inference_only << std::endl;
-    std::cout << "    Device:                  " << FLAGS_d << std::endl;
+    if (FLAGS_mode == "accuracy") {
+        std::cout << "    Reference device:        " << FLAGS_reference_device << std::endl;
+        std::cout << "    Target device:           " << FLAGS_target_device << std::endl;
+    } else {
+        std::cout << "    Device:                  " << FLAGS_d << std::endl;
+    }
     return true;
 }
 
@@ -178,6 +190,11 @@ static Simulation::Ptr createSimulation(const std::string& mode, StreamDesc&& st
         ValSimulation::Options opts{config.metric, std::move(stream.metrics_map), std::move(stream.input_data_map),
                                     std::move(stream.output_data_map), std::move(stream.per_iter_outputs_path)};
         simulation = std::make_shared<ValSimulation>(std::move(cfg), std::move(opts));
+    } else if (mode == "accuracy") {
+        AccuracySimulation::Options opts{FLAGS_reference_device, FLAGS_target_device, config.initializer,
+                                    std::move(stream.initializers_map), std::move(stream.input_data_map),
+                                    std::move(stream.output_data_map), config.metric, std::move(stream.metrics_map)};
+        simulation = std::make_shared<AccuracySimulation>(std::move(cfg), std::move(opts));
     } else {
         throw std::logic_error("Unsupported simulation mode: " + mode);
     }
