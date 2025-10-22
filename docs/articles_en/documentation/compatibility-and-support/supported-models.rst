@@ -10,7 +10,7 @@ models from OpenVINO-supported frameworks may also work properly but have not be
    :class: modeldata stripe
    :name: supportedModelsTable
    :header-rows: 1
-   :file:  ../../_static/download/supported_models.csv
+   :file:  ../../_static/download/supported_models_253.csv
    :data-column-hidden: []
    :data-order: [[ 0, "asc" ]]
    :data-page-length: 10
@@ -20,7 +20,7 @@ models from OpenVINO-supported frameworks may also work properly but have not be
 |
 | In the precision column, the "optimum-intel default" label corresponds to FP32 for small models
   and INT8 for models greater than 1B parameters.
-| The results as of February 25 2025, for OpenVINO version 2025.0.
+| The results as of September 3rd 2025, for OpenVINO version 2025.3.
 | The models come from different public model repositories, such as Pytorch Model Zoo and
   HuggingFace; they were executed on the designated hardware with OpenVINO either natively or
   as a backend.
