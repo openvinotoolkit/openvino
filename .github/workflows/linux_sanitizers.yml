@@ -242,7 +242,7 @@ jobs:
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
     timeout-minutes: 180
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-64gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     defaults:
