@@ -160,10 +160,15 @@ DnnlMemoryDescPtr DnnlMatMulPrimitive::makeTransposedWeightDescriptor(const Dnnl
     const auto& weiDesc = srcDesc->getDnnlDesc();
     auto wDims = weiDesc.get_dims();
     std::swap(wDims[wDims.size() - 1], wDims[wDims.size() - 2]);
+    const auto wDataType = weiDesc.get_data_type();
+    if (wDims.size() == 3 && !weightsNonTransposed) {
+        const auto format3D = dnnl::memory::format_tag::acb;
+        const auto transposed3DWeiDesc = dnnl::memory::desc{wDims, wDataType, format3D};
+        return DnnlExtensionUtils::makeDescriptor(transposed3DWeiDesc);
+    }
 
     const dnnl::memory::dims wDims2D = reshapeDownToRank<2>(wDims);
     const auto format = weightsNonTransposed ? dnnl::memory::format_tag::ab : dnnl::memory::format_tag::ba;
-    const auto wDataType = weiDesc.get_data_type();
     const auto transposedWeiDesc = dnnl::memory::desc{wDims2D, wDataType, format};
 
     const auto reshapedWeiDesc = transposedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
