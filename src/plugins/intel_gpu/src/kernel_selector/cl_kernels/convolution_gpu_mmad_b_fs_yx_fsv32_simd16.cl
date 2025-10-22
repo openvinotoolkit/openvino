@@ -27,7 +27,7 @@
     #define ACTIVATION_TYPE_VEC float8
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float8(x)
     #define MMAD MMAD_8x8
-    #define BLOCK_WRITE(ptr, val) _sub_group_block_write8((__global uchar*)(ptr), as_uint8(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write4((__global uint*)(ptr), as_uint4(val));
 #elif OUTPUT_X_BLOCK_SIZE == 4
     #define PACKED_TYPE_VEC MAKE_VECTOR_TYPE(PACKED_IN_TYPE, 4)
     #define ACCUMULATOR_TYPE_VEC int4
@@ -35,7 +35,7 @@
     #define ACTIVATION_TYPE_VEC float4
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float4(x)
     #define MMAD MMAD_4x8
-    #define BLOCK_WRITE(ptr, val) _sub_group_block_write4((__global uchar*)(ptr), as_uint8(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write2((__global uint*)(ptr), as_uint2(val));
 #else
 #error "convolution_gpu_mmad_b_fs_yx_fsv32_simd16: Unsupported block size"
 #endif
