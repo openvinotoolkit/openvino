@@ -37,6 +37,14 @@ namespace {
         {{ 10, 20, 1}, { 10, 2, 1 }, { 10 }},
         {{ 10, 20, 1}, { 10, 2, 10 }, { 10 }},
     };
+    const std::vector<std::vector<ov::Shape>> input_shapes_b1 = {
+        {{ 1, 5, 1}, { 1, 1, 1 }, { 1 }},
+        {{ 1, 5, 1}, { 1, 1, 10 }, { 1 }},
+    };
+    const std::vector<std::vector<ov::Shape>> input_shapes_bidirect_b1 = {
+        {{ 1, 5, 1}, { 1, 2, 1 }, { 1 }},
+        {{ 1, 5, 1}, { 1, 2, 10 }, { 1 }},
+    };
     std::vector<size_t> seq_lengths_zero_clip{2};
     std::vector<size_t> seq_lengths_clip_non_zero{20};
     std::vector<size_t> batch{10};
@@ -103,6 +111,34 @@ namespace {
                                     // ::testing::ValuesIn(input_size),  // hardcoded to 10 due to Combine supports up to 10 args
                                     ::testing::ValuesIn(activations),
                                     ::testing::ValuesIn(clip_non_zeros),
+                                    ::testing::ValuesIn(linear_before_reset),
+                                    ::testing::ValuesIn(direction_bi),
+                                    ::testing::Values(InputLayerType::CONSTANT),
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                            GRUSequenceTest::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonZeroClip_B1, GRUSequenceTest,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(mode),
+                                    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_b1)),
+                                    // ::testing::ValuesIn(input_size), // hardcoded to 10 due to Combine supports up to 10 args
+                                    ::testing::ValuesIn(activations),
+                                    ::testing::ValuesIn(clip),
+                                    ::testing::ValuesIn(linear_before_reset),
+                                    ::testing::ValuesIn(direction),
+                                    ::testing::Values(InputLayerType::CONSTANT),
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                            GRUSequenceTest::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonZeroClipBidirect_B1, GRUSequenceTest,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(mode),
+                                    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_bidirect_b1)),
+                                    // ::testing::ValuesIn(input_size), // hardcoded to 10 due to Combine supports up to 10 args
+                                    ::testing::ValuesIn(activations),
+                                    ::testing::ValuesIn(clip),
                                     ::testing::ValuesIn(linear_before_reset),
                                     ::testing::ValuesIn(direction_bi),
                                     ::testing::Values(InputLayerType::CONSTANT),
