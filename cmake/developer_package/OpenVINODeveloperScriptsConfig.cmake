@@ -145,6 +145,9 @@ if(NOT DEFINED OUTPUT_ROOT)
     endif()
 endif()
 
+message("----ov 1------- ${OpenVINO_SOURCE_DIR}")
+message("----ov2------- ${CMAKE_SOURCE_DIR}")
+
 # Enable postfixes for Debug/Release builds
 set(OV_DEBUG_POSTFIX_WIN "d")
 set(OV_RELEASE_POSTFIX_WIN "")
@@ -180,6 +183,9 @@ endif()
 add_definitions(-DOV_BUILD_POSTFIX=\"${OV_BUILD_POSTFIX}\")
 
 ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+message("---OV p1-- ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+message("---OV p2-- ${OUTPUT_ROOT}")
+message("---OV p3-- ${BIN_FOLDER}")
 ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
