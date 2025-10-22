@@ -1223,16 +1223,16 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
+        auto& desc_closure = comp_model_desc.closure.get();
 
-        for (std::size_t cidx = 0; cidx < comp_model_desc.closure.get().size(); ++cidx) {
-            if (comp_model_desc.closure.get()[cidx]) {
+        for (std::size_t cidx = 0; cidx < desc_closure.size(); ++cidx) {
+            if (desc_closure[cidx]) {
                 // host-side closure - already set, do nothing
                 NPUW_ASSERT(!comp_model_desc.is_remote[cidx]);
                 continue;
             }
             NPUW_ASSERT(comp_model_desc.closure_uid[cidx] != -1);
-            comp_model_desc.closure.get()[cidx] =
-                m_weights_bank->get(comp_model_desc.closure_uid[cidx], *func_desc.device_it);
+            desc_closure[cidx] = m_weights_bank->get(comp_model_desc.closure_uid[cidx], *func_desc.device_it);
         }
     }
 }
@@ -1262,9 +1262,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         }
 
         // Evaluate and allocate all LazyTensors inside the bank
-        m_profile["weights bank"].record([&]() {
-            m_weights_bank->evaluate_and_allocate();
-        });
+        m_weights_bank->evaluate_and_allocate();
 
         // Set evaluated and allocated ov::Tensors to closures
         for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {

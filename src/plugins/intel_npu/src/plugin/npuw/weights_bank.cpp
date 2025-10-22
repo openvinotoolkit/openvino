@@ -6,6 +6,7 @@
 
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
+#include "perf.hpp"
 #include "serialization.hpp"
 #include "util.hpp"
 
@@ -91,25 +92,32 @@ struct TensorToAllocate {
 void Bank::evaluate_and_allocate() {
     std::unique_lock guard(m_mutex);
 
-    for (auto&& bank : m_device_banks) {
-        const auto& device_for_alloc = bank.first;
-        auto& device_bank = bank.second;
+    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+    ov::npuw::perf::Profile<MS> profile;
+    profile.report_on_die = ov::npuw::profiling_enabled();
+    profile.area = m_bank_name + "/bank performance";
 
-        std::vector<LazyTensor> to_process;
-        to_process.reserve(device_bank.storage.size());
-        for (const auto& el : device_bank.storage) {
-            // Add non-allocated tensors for furter evaluation and allocation
-            if (!el.second.tensor) {
-                to_process.push_back(el.second.lt);
+    profile["weights evaluation"].record([&]() {
+        for (auto&& bank : m_device_banks) {
+            const auto& device_for_alloc = bank.first;
+            auto& device_bank = bank.second;
+
+            std::vector<LazyTensor> to_process;
+            to_process.reserve(device_bank.storage.size());
+            for (const auto& el : device_bank.storage) {
+                // Add non-allocated tensors for furter evaluation and allocation
+                if (!el.second.tensor) {
+                    to_process.push_back(el.second.lt);
+                }
             }
-        }
 
-        if (device_for_alloc == "CPU") {
-            evaluate_cpu(device_bank, to_process);
-        } else {
-            evaluate_and_allocate_on_device(device_bank, to_process, device_for_alloc);
-        }
-    }  // for (m_device_banks)
+            if (device_for_alloc == "CPU") {
+                evaluate_cpu(device_bank, to_process);
+            } else {
+                evaluate_and_allocate_on_device(device_bank, to_process, device_for_alloc);
+            }
+        }  // for (m_device_banks)
+    });
 }
 
 void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTensor>& to_process) {
