@@ -2146,33 +2146,13 @@ void JitConv3DExecutor::run_naive_fp32(const MemoryArgs& memory) {
                                         a.wei_dx = sizeof(float);
                                         (*m_ip_kernel_f32)(&a);
                                         if (has_oc2) {
-                                            const size_t w2 = index_wei(oc2,
-                                                                        0,
-                                                                        static_cast<size_t>(kz),
-                                                                        static_cast<size_t>(ky),
-                                                                        static_cast<size_t>(kx_lo));
-                                            const size_t w3 = has_oc3 ? index_wei(oc3,
-                                                                                  0,
-                                                                                  static_cast<size_t>(kz),
-                                                                                  static_cast<size_t>(ky),
-                                                                                  static_cast<size_t>(kx_lo))
-                                                                      : 0;
-                                            jit_conv3d_f32_call_args a2{};
-                                            a2.src = src_p + s_base;
-                                            a2.src_stride = a.src_stride;
-                                            a2.src_blk_stride = a.src_blk_stride;
+                                            const size_t w2 = index_wei(oc2, 0, static_cast<size_t>(kz), static_cast<size_t>(ky), static_cast<size_t>(kx_lo));
+                                            const size_t w3 = has_oc3 ? index_wei(oc3, 0, static_cast<size_t>(kz), static_cast<size_t>(ky), static_cast<size_t>(kx_lo)) : 0;
+                                            jit_conv3d_f32_call_args a2{a};
                                             a2.acc = &acc2;
                                             a2.acc2 = has_oc3 ? &acc3 : nullptr;
-                                            a2.repeats = a.repeats;
-                                            a2.tail = a.tail;
-                                            a2.kw_cnt = a.kw_cnt;
-                                            a2.src_dx = a.src_dx;
                                             a2.wei = wei_p + w2;
-                                            if (has_oc3)
-                                                a2.wei2 = wei_p + w3;
-                                            a2.wei_stride = a.wei_stride;
-                                            a2.wei_blk_stride = a.wei_blk_stride;
-                                            a2.wei_dx = a.wei_dx;
+                                            if (has_oc3) a2.wei2 = wei_p + w3;
                                             (*m_ip_kernel_f32)(&a2);
                                         }
                                     }
@@ -2198,52 +2178,36 @@ void JitConv3DExecutor::run_naive_fp32(const MemoryArgs& memory) {
                                                                     static_cast<size_t>(iz),
                                                                     static_cast<size_t>(iy),
                                                                     static_cast<size_t>(ix));
-                                    // pair 0
-                                    {
-                                    jit_conv3d_f32_call_args a{};
-                                    a.src = src_p + s_base;
+                                    auto run_pair_f32 = [&](float* acc, float* acc2, const float* w0, const float* w1) {
+                                        jit_conv3d_f32_call_args a{};
+                                        a.src = src_p + s_base;
                                         a.src_stride = src_c_stride_elems * sizeof(float);
                                         a.src_blk_stride = a.src_stride * 4;
-                                        a.acc = &acc0;
-                                        a.acc2 = has_oc1 ? &acc1 : nullptr;
+                                        a.acc = acc;
+                                        a.acc2 = acc2;
                                         a.repeats = C / 4;
                                         a.tail = C % 4;
                                         a.kw_cnt = 1;
                                         a.src_dx = 0;
+                                        a.wei = w0;
+                                        if (w1) a.wei2 = w1;
+                                        a.wei_stride = sizeof(float);
+                                        a.wei_blk_stride = a.wei_stride * 4;
+                                        a.wei_dx = 0;
+                                        (*m_ip_kernel_f32)(&a);
+                                    };
                                     const size_t base0 = (((oc0 * KD + kz) * KH + ky) * KW + kx) * m_padded_C_f32;
-                                    a.wei = m_wei_packed_f32.data() + base0;
-                                    if (has_oc1) {
-                                        const size_t base1 = (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_C_f32;
-                                        a.wei2 = m_wei_packed_f32.data() + base1;
+                                    const size_t base1 = has_oc1 ? (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_C_f32 : 0;
+                                    run_pair_f32(&acc0, has_oc1 ? &acc1 : nullptr,
+                                                 m_wei_packed_f32.data() + base0,
+                                                 has_oc1 ? m_wei_packed_f32.data() + base1 : nullptr);
+                                    if (has_oc2) {
+                                        const size_t base2 = (((oc2 * KD + kz) * KH + ky) * KW + kx) * m_padded_C_f32;
+                                        const size_t base3 = has_oc3 ? (((oc3 * KD + kz) * KH + ky) * KW + kx) * m_padded_C_f32 : 0;
+                                        run_pair_f32(&acc2, has_oc3 ? &acc3 : nullptr,
+                                                     m_wei_packed_f32.data() + base2,
+                                                     has_oc3 ? m_wei_packed_f32.data() + base3 : nullptr);
                                     }
-                                    a.wei_stride = sizeof(float);
-                                    a.wei_blk_stride = a.wei_stride * 4;
-                                    a.wei_dx = 0;
-                                    (*m_ip_kernel_f32)(&a);
-                                }
-                                // pair 1
-                                if (has_oc2) {
-                                    jit_conv3d_f32_call_args a{};
-                                    a.src = src_p + s_base;
-                                        a.src_stride = src_c_stride_elems * sizeof(float);
-                                        a.src_blk_stride = a.src_stride * 4;
-                                        a.acc = &acc2;
-                                        a.acc2 = has_oc3 ? &acc3 : nullptr;
-                                        a.repeats = C / 4;
-                                        a.tail = C % 4;
-                                        a.kw_cnt = 1;
-                                        a.src_dx = 0;
-                                    const size_t base2 = (((oc2 * KD + kz) * KH + ky) * KW + kx) * m_padded_C_f32;
-                                    a.wei = m_wei_packed_f32.data() + base2;
-                                    if (has_oc3) {
-                                        const size_t base3 = (((oc3 * KD + kz) * KH + ky) * KW + kx) * m_padded_C_f32;
-                                        a.wei2 = m_wei_packed_f32.data() + base3;
-                                    }
-                                    a.wei_stride = sizeof(float);
-                                    a.wei_blk_stride = a.wei_stride * 4;
-                                    a.wei_dx = 0;
-                                    (*m_ip_kernel_f32)(&a);
-                                }
                                 }
                             }
                         }

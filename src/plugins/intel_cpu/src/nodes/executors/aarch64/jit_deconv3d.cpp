@@ -930,7 +930,7 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src, const st
                         }
                     
                     } else {
-                        // Generic path (stride/dilation): modulus checks
+                        // Generic path (stride/dilation)
                         for (size_t kz = 0; kz < KD; ++kz) {
                             const ptrdiff_t id_num =
                                 static_cast<ptrdiff_t>(od) + PD0 - static_cast<ptrdiff_t>(kz * dilD);
@@ -968,57 +968,36 @@ void JitDeconv3DExecutor::exec_fp16(const std::vector<MemoryCPtr>& src, const st
                                                                    static_cast<size_t>(ih_idx),
                                                                    static_cast<size_t>(iw_idx));
 
-                                    jit_conv3d_call_args a{};
-                                    a.src = src_p + s_base0;
-                                    a.src_stride = src_c_stride_elems * sizeof(uint16_t);
-                                    a.src_blk_stride = a.src_stride * 8;
-                                    a.acc = &acc0;
-                                    a.acc2 = has_oc1 ? &acc1 : nullptr;
-                                    a.repeats = ICg / 8;
-                                    a.tail = ICg % 8;
-                                    a.kw_cnt = 1;
-                                    a.src_dx = 0;
-                                    {
-                                        const size_t pack_base0 =
-                                            (((oc0 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16;
-                                        a.wei = m_wei_packed_f16.data() + pack_base0;
-                                        if (has_oc1) {
-                                            const size_t pack_base1 =
-                                                (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16;
-                                            a.wei2 = m_wei_packed_f16.data() + pack_base1;
-                                        }
+                                    auto run_pair = [&](float* acc, float* acc2, const uint16_t* w0, const uint16_t* w1) {
+                                        jit_conv3d_call_args a{};
+                                        a.src = src_p + s_base0;
+                                        a.src_stride = src_c_stride_elems * sizeof(uint16_t);
+                                        a.src_blk_stride = a.src_stride * 8;
+                                        a.acc = acc;
+                                        a.acc2 = acc2;
+                                        a.repeats = ICg / 8;
+                                        a.tail = ICg % 8;
+                                        a.kw_cnt = 1;
+                                        a.src_dx = 0;
+                                        a.wei = w0;
+                                        if (w1) a.wei2 = w1;
                                         a.wei_stride = sizeof(uint16_t);
                                         a.wei_blk_stride = a.wei_stride * 8;
                                         a.wei_dx = 0;
-                                    }
-                                    (*m_ip_kernel_f16)(&a);
+                                        (*m_ip_kernel_f16)(&a);
+                                    };
+                                    const size_t base0 = (((oc0 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16;
+                                    const size_t base1 = has_oc1 ? (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16 : 0;
+                                    run_pair(&acc0, has_oc1 ? &acc1 : nullptr,
+                                             m_wei_packed_f16.data() + base0,
+                                             has_oc1 ? m_wei_packed_f16.data() + base1 : nullptr);
 
-                                    // second pair for oc2/oc3
                                     if (has_oc2) {
-                                        jit_conv3d_call_args a2{};
-                                        a2.src = src_p + s_base0;
-                                        a2.src_stride = src_c_stride_elems * sizeof(uint16_t);
-                                        a2.src_blk_stride = a2.src_stride * 8;
-                                        a2.acc = &acc2;
-                                        a2.acc2 = has_oc3 ? &acc3 : nullptr;
-                                        a2.repeats = ICg / 8;
-                                        a2.tail = ICg % 8;
-                                        a2.kw_cnt = 1;
-                                        a2.src_dx = 0;
-                                        {
-                                            const size_t pack_base2 =
-                                                (((oc2 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16;
-                                            a2.wei = m_wei_packed_f16.data() + pack_base2;
-                                            if (has_oc3) {
-                                                const size_t pack_base3 =
-                                                    (((oc3 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16;
-                                                a2.wei2 = m_wei_packed_f16.data() + pack_base3;
-                                            }
-                                            a2.wei_stride = sizeof(uint16_t);
-                                            a2.wei_blk_stride = a2.wei_stride * 8;
-                                            a2.wei_dx = 0;
-                                        }
-                                        (*m_ip_kernel_f16)(&a2);
+                                        const size_t base2 = (((oc2 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16;
+                                        const size_t base3 = has_oc3 ? (((oc3 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f16 : 0;
+                                        run_pair(&acc2, has_oc3 ? &acc3 : nullptr,
+                                                 m_wei_packed_f16.data() + base2,
+                                                 has_oc3 ? m_wei_packed_f16.data() + base3 : nullptr);
                                     }
                                 }
                             }
@@ -1569,7 +1548,7 @@ void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src, const st
                             }
                         }
                     } else {
-                        // Generic path (stride/dilation): modulus checks
+                        // Generic path (stride/dilation)
                         for (size_t kz = 0; kz < KD; ++kz) {
                             const ptrdiff_t id_num =
                                 static_cast<ptrdiff_t>(od) + PD0 - static_cast<ptrdiff_t>(kz * dilD);
@@ -1607,59 +1586,35 @@ void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src, const st
                                                                    static_cast<size_t>(ih_idx),
                                                                    static_cast<size_t>(iw_idx));
 
-                                    // pair 0
-                                    {
+                                    auto run_pair_f32 = [&](float* acc, float* acc2, const float* w0, const float* w1) {
                                         jit_conv3d_f32_call_args a{};
                                         a.src = src_p + s_base0;
                                         a.src_stride = src_c_stride_elems * sizeof(float);
                                         a.src_blk_stride = a.src_stride * 4;
-                                        a.acc = &acc0;
-                                        a.acc2 = has_oc1 ? &acc1 : nullptr;
+                                        a.acc = acc;
+                                        a.acc2 = acc2;
                                         a.repeats = ICg / 4;
                                         a.tail = ICg % 4;
                                         a.kw_cnt = 1;
                                         a.src_dx = 0;
-                                        if (true) {
-                                            const size_t pack_base0 =
-                                                (((oc0 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32;
-                                            a.wei = m_wei_packed_f32.data() + pack_base0;
-                                            if (has_oc1) {
-                                                const size_t pack_base1 =
-                                                    (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32;
-                                                a.wei2 = m_wei_packed_f32.data() + pack_base1;
-                                            }
-                                            a.wei_stride = sizeof(float);
-                                            a.wei_blk_stride = a.wei_stride * 4;
-                                        } else { /* unreachable */ }
+                                        a.wei = w0;
+                                        if (w1) a.wei2 = w1;
+                                        a.wei_stride = sizeof(float);
+                                        a.wei_blk_stride = a.wei_stride * 4;
                                         a.wei_dx = 0;
                                         (*m_ip_kernel_f32)(&a);
-                                    }
-                                    // pair 1
+                                    };
+                                    const size_t pb0 = (((oc0 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32;
+                                    const size_t pb1 = has_oc1 ? (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32 : 0;
+                                    run_pair_f32(&acc0, has_oc1 ? &acc1 : nullptr,
+                                                 m_wei_packed_f32.data() + pb0,
+                                                 has_oc1 ? m_wei_packed_f32.data() + pb1 : nullptr);
                                     if (has_oc2) {
-                                        jit_conv3d_f32_call_args a2{};
-                                        a2.src = src_p + s_base0;
-                                        a2.src_stride = src_c_stride_elems * sizeof(float);
-                                        a2.src_blk_stride = a2.src_stride * 4;
-                                        a2.acc = &acc2;
-                                        a2.acc2 = has_oc3 ? &acc3 : nullptr;
-                                        a2.repeats = ICg / 4;
-                                        a2.tail = ICg % 4;
-                                        a2.kw_cnt = 1;
-                                        a2.src_dx = 0;
-                                        if (true) {
-                                            const size_t pack_base2 =
-                                                (((oc2 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32;
-                                            a2.wei = m_wei_packed_f32.data() + pack_base2;
-                                            if (has_oc3) {
-                                                const size_t pack_base3 =
-                                                    (((oc3 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32;
-                                                a2.wei2 = m_wei_packed_f32.data() + pack_base3;
-                                            }
-                                            a2.wei_stride = sizeof(float);
-                                            a2.wei_blk_stride = a2.wei_stride * 4;
-                                        } else { /* unreachable */ }
-                                        a2.wei_dx = 0;
-                                        (*m_ip_kernel_f32)(&a2);
+                                        const size_t pb2 = (((oc2 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32;
+                                        const size_t pb3 = has_oc3 ? (((oc3 * KD + kz) * KH + ky) * KW + kx) * m_padded_IC_f32 : 0;
+                                        run_pair_f32(&acc2, has_oc3 ? &acc3 : nullptr,
+                                                     m_wei_packed_f32.data() + pb2,
+                                                     has_oc3 ? m_wei_packed_f32.data() + pb3 : nullptr);
                                     }
                                 }
                             }
