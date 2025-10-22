@@ -57,7 +57,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
         const auto& subseq_begins_ps = impl_param.get_input_layout(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS).get_partial_shape();
         bool valid_subseq_count = subseq_begins_ps.is_dynamic() ||
                                 (subseq_begins_ps[0].get_length() == static_cast<ov::Dimension::value_type>(2));
-        if(valid_subseq_count)
+        if (valid_subseq_count)
             OPENVINO_THROW("[GPU] Unexpected sub sequences count for XAttention. Got ", subseq_begins_ps[0].get_length() - 1);
     }
 
