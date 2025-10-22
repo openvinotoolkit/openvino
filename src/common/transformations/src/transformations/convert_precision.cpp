@@ -14,6 +14,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/reference/convert.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp"
@@ -1290,7 +1291,7 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<ov::op::v0::Con
     const auto size = shape_size(constant->get_shape());
     size_t src_idx(0), dst_idx(0), dst_off(0), src_off(0);
     if (src_type.bitwidth() < 8) {
-        src_off = 8 - src_type.bitwidth();
+        src_off = element::is_lsb_packed(src_type) ? 0 : (8 - src_type.bitwidth());
     }
 
     if (to.bitwidth() < 8) {
@@ -1342,11 +1343,21 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<ov::op::v0::Con
         }
         // Calculate offsets and indexes
         if (src_type.bitwidth() < 8) {
-            if (src_off == 0) {
-                src_off = 8;
-                src_idx++;
+            if (element::is_lsb_packed(src_type)) {
+                // LSB-first: offset goes up 0 → 4 → next byte
+                src_off += src_type.bitwidth();
+                if (src_off >= 8) {
+                    src_off = 0;
+                    src_idx++;
+                }
+            } else {
+                // MSB-first: offset goes down 4 → 0 → next byte
+                if (src_off == 0) {
+                    src_off = 8;
+                    src_idx++;
+                }
+                src_off -= src_type.bitwidth();
             }
-            src_off -= src_type.bitwidth();
         } else {
             src_idx++;
         }

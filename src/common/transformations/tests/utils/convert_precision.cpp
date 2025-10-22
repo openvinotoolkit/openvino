@@ -1598,110 +1598,110 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_BoolToU8) {
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI8) {
-    constant_convert_test<uint8_t, int8_t>(element::u4, element::i8, std::vector<uint8_t>{171}, {10, 11});
+    constant_convert_test<uint8_t, int8_t>(element::u4, element::i8, std::vector<uint8_t>{171}, {11, 10});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU8) {
-    constant_convert_test<uint8_t, uint8_t>(element::u4, element::u8, {171}, {10, 11});
+    constant_convert_test<uint8_t, uint8_t>(element::u4, element::u8, {171}, {11, 10});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI8_2) {
-    constant_convert_test<uint8_t, int8_t>(element::u4, element::i8, {96}, {6, 0});
+    constant_convert_test<uint8_t, int8_t>(element::u4, element::i8, {96}, {0, 6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU8_96) {
-    constant_convert_test<uint8_t, uint8_t>(element::u4, element::u8, {96}, {6, 0});
+    constant_convert_test<uint8_t, uint8_t>(element::u4, element::u8, {96}, {0, 6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU8) {
-    constant_convert_test<uint8_t, uint8_t>(element::i4, element::u8, {96}, {6, 0});
+    constant_convert_test<uint8_t, uint8_t>(element::i4, element::u8, {96}, {0, 6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI8) {
-    constant_convert_test<uint8_t, int8_t>(element::i4, element::i8, {96}, {6, 0});
+    constant_convert_test<uint8_t, int8_t>(element::i4, element::i8, {96}, {0, 6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU8_neg) {
-    constant_convert_test<uint8_t, uint8_t>(element::i4, element::u8, {171}, {250, 251});
+    constant_convert_test<uint8_t, uint8_t>(element::i4, element::u8, {171}, {251, 250});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI8_neg) {
-    constant_convert_test<uint8_t, int8_t>(element::i4, element::i8, {171}, {-6, -5});
+    constant_convert_test<uint8_t, int8_t>(element::i4, element::i8, {171}, {-5, -6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI32) {
-    constant_convert_test<uint8_t, int32_t>(element::u4, element::i32, {171}, {10, 11});
+    constant_convert_test<uint8_t, int32_t>(element::u4, element::i32, {171}, {11, 10});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU32) {
-    constant_convert_test<uint8_t, uint32_t>(element::u4, element::u32, {171}, {10, 11});
+    constant_convert_test<uint8_t, uint32_t>(element::u4, element::u32, {171}, {11, 10});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU32) {
-    constant_convert_test<uint8_t, uint32_t>(element::i4, element::u32, {96}, {6, 0});
+    constant_convert_test<uint8_t, uint32_t>(element::i4, element::u32, {96}, {0, 6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI32) {
-    constant_convert_test<uint8_t, int32_t>(element::i4, element::i32, {96}, {6, 0});
+    constant_convert_test<uint8_t, int32_t>(element::i4, element::i32, {96}, {0, 6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU32_neg) {
-    constant_convert_test<uint8_t, uint32_t>(element::i4, element::u32, {171}, {4294967290, 4294967291});
+    constant_convert_test<uint8_t, uint32_t>(element::i4, element::u32, {171}, {4294967291, 4294967290});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI32_neg) {
-    constant_convert_test<uint8_t, int32_t>(element::i4, element::i32, {171}, {-6, -5});
+    constant_convert_test<uint8_t, int32_t>(element::i4, element::i32, {171}, {-5, -6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI16) {
-    constant_convert_test<uint8_t, int16_t>(element::u4, element::i16, {171}, {10, 11});
+    constant_convert_test<uint8_t, int16_t>(element::u4, element::i16, {171}, {11, 10});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU16) {
-    constant_convert_test<uint8_t, uint16_t>(element::u4, element::u16, {171}, {10, 11});
+    constant_convert_test<uint8_t, uint16_t>(element::u4, element::u16, {171}, {11, 10});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU16) {
-    constant_convert_test<uint8_t, uint16_t>(element::i4, element::u16, {96}, {6, 0});
+    constant_convert_test<uint8_t, uint16_t>(element::i4, element::u16, {96}, {0, 6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI16) {
-    constant_convert_test<uint8_t, int16_t>(element::i4, element::i16, {96}, {6, 0});
+    constant_convert_test<uint8_t, int16_t>(element::i4, element::i16, {96}, {0, 6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU16_neg) {
-    constant_convert_test<uint8_t, uint16_t>(element::i4, element::u16, {171}, {65530, 65531});
+    constant_convert_test<uint8_t, uint16_t>(element::i4, element::u16, {171}, {65531, 65530});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI16_neg) {
-    constant_convert_test<uint8_t, int16_t>(element::i4, element::i16, {171}, {-6, -5});
+    constant_convert_test<uint8_t, int16_t>(element::i4, element::i16, {171}, {-5, -6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI64) {
-    constant_convert_test<uint8_t, int64_t>(element::u4, element::i64, {171}, {10, 11});
+    constant_convert_test<uint8_t, int64_t>(element::u4, element::i64, {171}, {11, 10});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU64) {
-    constant_convert_test<uint8_t, int64_t>(element::u4, element::u64, {171}, {10, 11});
+    constant_convert_test<uint8_t, int64_t>(element::u4, element::u64, {171}, {11, 10});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU64) {
-    constant_convert_test<uint8_t, uint64_t>(element::i4, element::u64, {96}, {6, 0});
+    constant_convert_test<uint8_t, uint64_t>(element::i4, element::u64, {96}, {0, 6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI64) {
-    constant_convert_test<uint8_t, int64_t>(element::i4, element::i64, {96}, {6, 0});
+    constant_convert_test<uint8_t, int64_t>(element::i4, element::i64, {96}, {0, 6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU64_neg) {
     constant_convert_test<uint8_t, uint64_t>(element::i4,
                                              element::u64,
                                              {171},
-                                             {18446744073709551610u, 18446744073709551611u});
+                                             {18446744073709551611u, 18446744073709551610u});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI64_neg) {
-    constant_convert_test<uint8_t, int64_t>(element::i4, element::i64, {171}, {-6, -5});
+    constant_convert_test<uint8_t, int64_t>(element::i4, element::i64, {171}, {-5, -6});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU8) {
