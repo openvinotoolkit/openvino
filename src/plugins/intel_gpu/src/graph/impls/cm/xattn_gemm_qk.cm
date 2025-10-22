@@ -59,7 +59,6 @@ CM_INLINE void get_mn(uint& id_wg_m, uint& id_wg_n, uint M, uint N, int slice_no
     }
 }
 
-// _GENX_MAIN_ void gemm_qk(
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
     svmptr_t key_cache ATTR,
     svmptr_t query ATTR,

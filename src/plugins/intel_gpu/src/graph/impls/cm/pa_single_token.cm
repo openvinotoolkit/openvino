@@ -58,7 +58,6 @@ inline void prepack_to_VNNI_W2(matrix_ref<T1, K, N> input, matrix_ref<T2, K/2, N
 }
 
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
-// extern "C" _GENX_MAIN_ void cm_sdpa_2nd(
     half* query [[type("svmptr_t")]],
     KV_ELEMENT_TYPE* key [[type("svmptr_t")]],
     KV_ELEMENT_TYPE* value [[type("svmptr_t")]],
@@ -92,10 +91,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint kv_partition_num = cm_group_count(2);
     const uint kv_partition_idx = cm_group_id(2);
 
-    //# const uint subsequence_idx = gws_subseq_mapping[seq_idx];
-    //# const uint subsequence_idx = seq_idx;
-    //# const uint subsequence_begin = subsequence_begins[subsequence_idx];
-    //# const uint subsequence_end = subsequence_begins[subsequence_idx + 1];
     const uint kv_len = past_lens[seq_idx] + 1;
     const uint start_block_idx = block_indices_begins[seq_idx] + kv_partition_idx * (KV_PARTITION_SIZE / KV_BLOCK_SIZE);
 
@@ -128,7 +123,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     }
 
     //# rS = Q @ Kt
-    //#  KV_PARTITION_STEP_NUM * [REG_M, REG_K] * [REG_K, REG_N] = KV_PARTITION_STEP_NUM * [REG_M, REG_N]
     #if Q_RepeatCount != 1
         matrix<float, Q_RepeatCount, REG_M * KV_PARTITION_STEP_NUM * REG_N> rS = 0;
     #else
@@ -219,14 +213,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     }
                 #else
                     cm_load<lsc::Transpose>(Kt.format<uint>(), b2dK.set_block_y(kv_pos));
-                    // Not need clean K cache: 1) col write will lead to huge perf drop; 2) softmax will clear unused scores
-                    // if(kv_pos_end < kv_pos + KV_STEP) {
-                    //    auto KmatRef = Kt.format<half, REG_K/2, REG_N*2>();
-                    //    uint valid_cols = kv_pos_end - kv_pos;
-                    //    uint valid_cols_vnni = valid_cols * 2;
-                    //    for (int r = valid_cols_vnni; r < KV_STEP * 2; r++)
-                    //        KmatRef.select<REG_K/2,1,1,1>(0,r) = 0.0f;
-                    // }
                 #endif
             #else
                 matrix<uint, REG_N, REG_K/2> temp;
@@ -285,7 +271,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         auto rS_slice = rS[qi].format<float, KV_PARTITION_STEP_NUM, REG_N>();
         rS_slice = cm_mul<float>(rS_slice, (float)SCALE_FACTOR);  // convert scale_factor into (float), or it will be promoted to double
 
-        // printf("leftover_size = %d, leftover_aligned_size = %d, XE_ARCH = %d, KV_PARTITION_STEP_NUM * REG_N = %d\n", leftover_size, leftover_aligned_size, XE_ARCH, KV_PARTITION_STEP_NUM * REG_N);
         if(leftover_size > 0) {
             auto Svec = rS_slice.format<float>();
             for(int i = leftover_size; i < KV_PARTITION_STEP_NUM * REG_N; i++){
@@ -374,7 +359,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         #endif
         #pragma unroll
         for(int kv_pos = 0; kv_pos < kv_pos_end; kv_pos += REG_K, ki++) {
-            // uint kv_offset_y = kv_pos;
             #if KV_CACHE_COMPRESSION
             vector<half, REG_N> temp_scale = scale_vec.select<REG_N,1>(kv_pos);
             vector<half, REG_N> temp_zp = zp_vec.select<REG_N,1>(kv_pos);

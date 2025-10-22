@@ -25,7 +25,6 @@
 constexpr uint wg_size = WG_SIZE;
 #define REG_K 16
 
-// extern "C" _GENX_MAIN_ void pa_kv_cache_update(
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const half* key [[type("svmptr_t")]],
     const half* value [[type("svmptr_t")]],
@@ -64,9 +63,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const auto wg_local_id = cm_local_id(2);
     const auto local_size = cm_local_size(2);
 
-    // static_assert(local_size == wg_size);
-
-    // const uint token_idx = wg_id * local_size + wg_local_id;
     const uint token_idx = cm_global_id(2);
 
     // token_idx -> subsequence_idx
@@ -78,8 +74,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             break;
         }
     }
-
-    // printf("wg:%d.%d, token_idx: %d, subsequence_idx: %d\n", wg_id, wg_local_id, token_idx, subsequence_idx);
 
     const uint subsequence_begin_idx = subsequence_begins[subsequence_idx];
     const uint past_len = past_lens[subsequence_idx];
@@ -129,12 +123,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         uint block_v_base_offset = (block_indices[block_offset] * KV_HEADS_NUM + head_idx) * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
         uint value_out_offset = block_v_base_offset + token_start_pos * V_HEAD_SIZE;
         uint value_in_offset = token_idx * value_pitch + head_idx * V_HEAD_SIZE + value_offset;
-
-        //if(token_idx==0 && head_idx==0)
-        //{
-        //    printf("value_pitch = %d, value_in_offset: %d, value_out_offset: %d,V_HEAD_SIZE = %d, ADJUSTED_V_HEAD_SIZE = %d\n",
-        //            value_pitch, value_in_offset, value_out_offset, V_HEAD_SIZE, ADJUSTED_V_HEAD_SIZE);
-        //}
 
         vector<half, V_HEAD_SIZE> value_data;
         value_data.format<int>() = cm_ptr_load<int, V_HEAD_SIZE / 2>((int*)value, value_in_offset * (int)sizeof(half));
