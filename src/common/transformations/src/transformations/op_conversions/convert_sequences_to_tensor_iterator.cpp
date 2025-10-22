@@ -404,7 +404,6 @@ ov::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
         if (!sequence || sequence->get_direction() == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ||
             transformation_callback(sequence)) {
-            std::cout << "Skip GRUSequence conversion to TensorIterator" << std::endl;
             return false;
         }
 
