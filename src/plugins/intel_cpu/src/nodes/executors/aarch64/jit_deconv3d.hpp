@@ -16,6 +16,25 @@ namespace ov::intel_cpu {
 class JitDeconv3DExecutor : public DeconvExecutor {
 public:
     explicit JitDeconv3DExecutor(ExecutorContext::CPtr context) : DeconvExecutor(std::move(context)) {}
+    // Constructor with early weights preparation (product mode):
+    // expects src[0]=input, src[1]=weights; guards dynamic shapes internally
+    JitDeconv3DExecutor(const std::vector<MemoryCPtr>& src, ExecutorContext::CPtr context)
+        : DeconvExecutor(std::move(context)) {
+        // Derive precision from src[0] if available
+        if (!src.empty() && src[0] && src[0]->getDescPtr()) {
+            const auto prec = src[0]->getDescPtr()->getPrecision();
+            m_is_fp32 = (prec == ov::element::f32);
+        }
+        if (m_is_fp32) {
+            m_ip_kernel_f32 = std::make_unique<JitConv3DKernelF32>();
+            m_ip_kernel_f32->create_ker();
+        } else {
+            m_ip_kernel_f16 = std::make_unique<JitConv3DKernelF16>();
+            m_ip_kernel_f16->create_ker();
+        }
+        // Early pack (static shapes only)
+        prepare_weights_early(src);
+    }
     ~JitDeconv3DExecutor() override = default;
 
     bool init(const DeconvAttrs& deconvAttrs,
@@ -45,20 +64,17 @@ private:
     // packed weights
     std::vector<uint16_t> m_wei_packed_f16;
     std::vector<float> m_wei_packed_f32;
-    // alternative packing for S=2 (even/odd taps)
+    // alternative packing for S=2 (even/odd taps) — FP16 only
     std::vector<uint16_t> m_wei_packed_s2_f16;
-    std::vector<float> m_wei_packed_s2_f32;
     bool m_wei_packed_ready_f16{false};
     bool m_wei_packed_ready_f32{false};
     bool m_wei_packed_s2_ready_f16{false};
-    bool m_wei_packed_s2_ready_f32{false};
     size_t m_padded_IC_f16{0};
     size_t m_padded_IC_f32{0};
 
     void ensure_weights_packed_f16(const std::vector<MemoryCPtr>& src);
     void ensure_weights_packed_f32(const std::vector<MemoryCPtr>& src);
     void ensure_weights_packed_s2_f16(const std::vector<MemoryCPtr>& src);
-    void ensure_weights_packed_s2_f32(const std::vector<MemoryCPtr>& src);
     void exec_fp16(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst);
     void exec_fp32(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst);
 };
@@ -70,6 +86,11 @@ public:
                                    const std::vector<MemoryDescPtr>& dstDescs) const override;
     [[nodiscard]] DeconvExecutorPtr makeExecutor(ExecutorContext::CPtr context) const override {
         return std::make_shared<JitDeconv3DExecutor>(context);
+    }
+    // Helper to create executor with early packing in constructor
+    [[nodiscard]] DeconvExecutorPtr makeExecutorWithMem(ExecutorContext::CPtr context,
+                                                        const std::vector<MemoryCPtr>& src) const {
+        return std::make_shared<JitDeconv3DExecutor>(src, context);
     }
 };
 

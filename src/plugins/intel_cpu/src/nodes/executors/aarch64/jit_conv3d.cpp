@@ -1666,6 +1666,9 @@ JitConv3DExecutor::JitConv3DExecutor(const ConvAttrs& attrs,
             }
         }
     }
+
+    // Early weight packing (only if shapes are static). Kept inside executor per policy.
+    prepare_weights_early(m_memory);
 }
 
 bool JitConv3DExecutor::supports(const ConvConfig& cfg) {
@@ -1706,6 +1709,23 @@ bool JitConv3DExecutor::supports(const ConvConfig& cfg) {
     return true;
 }
 
+void JitConv3DExecutor::prepare_weights_early(const MemoryArgs& memory) {
+    // Guard: only when shapes are static
+    auto src_it = memory.find(ARG_SRC);
+    auto wei_it = memory.find(ARG_WEI);
+    if (src_it == memory.end() || wei_it == memory.end() || !src_it->second || !wei_it->second)
+        return;
+    const auto& s = src_it->second->getDescPtr()->getShape();
+    const auto& w = wei_it->second->getDescPtr()->getShape();
+    if (!s.isStatic() || !w.isStatic())
+        return;
+    if (m_is_fp32) {
+        ensure_weights_packed_f32(memory);
+    } else {
+        ensure_weights_packed(memory);
+    }
+}
+
 void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
     // NCDHW
     auto src = memory.at(ARG_SRC);
@@ -1731,7 +1751,6 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
     const size_t PW0 = m_attrs.paddingL.size() > 2 ? static_cast<size_t>(m_attrs.paddingL[2]) : 0;
 
     const uint16_t* src_p = ptr_f16(src);
-    const uint16_t* wei_p = ptr_f16(wei);
     uint16_t* dst_p = ptr_f16(dst);
 
     auto index_src = [&](size_t n, size_t c, size_t z, size_t y, size_t x) -> size_t {
@@ -1739,9 +1758,6 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
     };
     auto index_dst = [&](size_t n, size_t oc, size_t z, size_t y, size_t x) -> size_t {
         return (((n * OC + oc) * OD + z) * OH + y) * OW + x;
-    };
-    auto index_wei = [&](size_t oc, size_t c, size_t kz, size_t ky, size_t kx) -> size_t {
-        return ((((oc)*C + c) * KD + kz) * KH + ky) * KW + kx;
     };
 
     // Prepare packed weights once
@@ -1764,7 +1780,6 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
                 float acc0 = 0.f, acc1 = 0.f, acc2 = 0.f, acc3 = 0.f;
 
                 const size_t src_c_stride_elems = ID * IH * IW;
-                const size_t wei_c_stride_elems = KD * KH * KW;
 
                 if (SD == 1 && SH == 1 && SW == 1) {
                     const ptrdiff_t kz_lo = std::max<ptrdiff_t>(0, -iz0);
@@ -1782,137 +1797,64 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
                             const size_t iz = static_cast<size_t>(iz0 + kz);
                             // iy/ix for ky_lo/kx_lo not needed; use iy2/ix2 per ky below
 
-                            if (m_wei_packed_ready) {
-                                // Loop over ky in host; kernel handles kx via kw_cnt
-                                for (ptrdiff_t ky = ky_lo; ky <= ky_hi; ++ky) {
-                                    const size_t iy2 = static_cast<size_t>(iy0 + ky);
-                                    const size_t ix2 = static_cast<size_t>(ix0 + kx_lo);
-                                    const size_t s_base2 = index_src(n, 0, iz, iy2, ix2);
-                                    jit_conv3d_call_args a{};
-                                    a.src = src_p + s_base2;
-                                    a.src_stride = src_c_stride_elems * sizeof(uint16_t);
-                                    a.src_blk_stride = a.src_stride * 8;
-                                    a.acc = &acc0;
-                                    a.acc2 = has_oc1 ? &acc1 : nullptr;
-                                    a.repeats = C / 8;
-                                    a.tail = C % 8;
-                                    a.kw_cnt = kw_count;
-                                    a.src_dx = sizeof(uint16_t);
-                                    const size_t pack_base0 =
-                                        (((oc0 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW +
+                            // Loop over ky in host; kernel handles kx via kw_cnt (always packed)
+                            for (ptrdiff_t ky = ky_lo; ky <= ky_hi; ++ky) {
+                                const size_t iy2 = static_cast<size_t>(iy0 + ky);
+                                const size_t ix2 = static_cast<size_t>(ix0 + kx_lo);
+                                const size_t s_base2 = index_src(n, 0, iz, iy2, ix2);
+                                jit_conv3d_call_args a{};
+                                a.src = src_p + s_base2;
+                                a.src_stride = src_c_stride_elems * sizeof(uint16_t);
+                                a.src_blk_stride = a.src_stride * 8;
+                                a.acc = &acc0;
+                                a.acc2 = has_oc1 ? &acc1 : nullptr;
+                                a.repeats = C / 8;
+                                a.tail = C % 8;
+                                a.kw_cnt = kw_count;
+                                a.src_dx = sizeof(uint16_t);
+                                const size_t pack_base0 =
+                                    (((oc0 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW +
+                                     static_cast<size_t>(kx_lo)) *
+                                    m_padded_C;
+                                a.wei = m_wei_packed.data() + pack_base0;
+                                if (has_oc1) {
+                                    const size_t pack_base1 =
+                                        (((oc1 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW +
                                          static_cast<size_t>(kx_lo)) *
                                         m_padded_C;
-                                    a.wei = m_wei_packed.data() + pack_base0;
-                                    if (has_oc1) {
-                                        const size_t pack_base1 =
-                                            (((oc1 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) *
-                                                 KW +
-                                             static_cast<size_t>(kx_lo)) *
-                                            m_padded_C;
-                                        a.wei2 = m_wei_packed.data() + pack_base1;
-                                    }
-                                    a.wei_stride = sizeof(uint16_t);
-                                    a.wei_blk_stride = a.wei_stride * 8;
-                                    a.wei_dx = m_padded_C * sizeof(uint16_t);
-                                    (*m_ip_kernel)(&a);
-                                    if (has_oc2) {
-                                        jit_conv3d_call_args a2{};
-                                        a2.src = src_p + s_base2;
-                                        a2.src_stride = a.src_stride;
-                                        a2.src_blk_stride = a.src_blk_stride;
-                                        a2.acc = &acc2;
-                                        a2.acc2 = has_oc3 ? &acc3 : nullptr;
-                                        a2.repeats = a.repeats;
-                                        a2.tail = a.tail;
-                                        a2.kw_cnt = a.kw_cnt;
-                                        a2.src_dx = a.src_dx;
-                                        const size_t pack_base2 =
-                                            (((oc2 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) *
-                                                 KW +
-                                             static_cast<size_t>(kx_lo)) *
-                                            m_padded_C;
-                                        a2.wei = m_wei_packed.data() + pack_base2;
-                                        if (has_oc3) {
-                                            const size_t pack_base3 =
-                                                (((oc3 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) *
-                                                     KW +
-                                                 static_cast<size_t>(kx_lo)) *
-                                                m_padded_C;
-                                            a2.wei2 = m_wei_packed.data() + pack_base3;
-                                        }
-                                        a2.wei_stride = a.wei_stride;
-                                        a2.wei_blk_stride = a.wei_blk_stride;
-                                        a2.wei_dx = a.wei_dx;
-                                        (*m_ip_kernel)(&a2);
-                                    }
+                                    a.wei2 = m_wei_packed.data() + pack_base1;
                                 }
-                            } else {
-                                // Non-packed: keep ky loop outside and issue dual calls
-                                for (ptrdiff_t ky = ky_lo; ky <= ky_hi; ++ky) {
-                                    const size_t iy2 = static_cast<size_t>(iy0 + ky);
-                                    const size_t ix2 = static_cast<size_t>(ix0 + kx_lo);
-                                    const size_t s_base2 = index_src(n, 0, iz, iy2, ix2);
-                                    const size_t w0_base = index_wei(oc0,
-                                                                     0,
-                                                                     static_cast<size_t>(kz),
-                                                                     static_cast<size_t>(ky),
-                                                                     static_cast<size_t>(kx_lo));
-                                    const size_t w1_base = has_oc1 ? index_wei(oc1,
-                                                                               0,
-                                                                               static_cast<size_t>(kz),
-                                                                               static_cast<size_t>(ky),
-                                                                               static_cast<size_t>(kx_lo))
-                                                                   : 0;
-                                    // pair 0
-                                    {
-                                        jit_conv3d_call_args a{};
-                                        a.src = src_p + s_base2;
-                                        a.src_stride = src_c_stride_elems * sizeof(uint16_t);
-                                        a.src_blk_stride = a.src_stride * 8;
-                                        a.acc = &acc0;
-                                        a.acc2 = has_oc1 ? &acc1 : nullptr;
-                                        a.repeats = C / 8;
-                                        a.tail = C % 8;
-                                        a.kw_cnt = kw_count;
-                                        a.src_dx = sizeof(uint16_t);
-                                        a.wei = wei_p + w0_base;
-                                        if (has_oc1)
-                                            a.wei2 = wei_p + w1_base;
-                                        a.wei_stride = wei_c_stride_elems * sizeof(uint16_t);
-                                        a.wei_blk_stride = a.wei_stride * 8;
-                                        a.wei_dx = sizeof(uint16_t);
-                                        (*m_ip_kernel)(&a);
+                                a.wei_stride = sizeof(uint16_t);
+                                a.wei_blk_stride = a.wei_stride * 8;
+                                a.wei_dx = m_padded_C * sizeof(uint16_t);
+                                (*m_ip_kernel)(&a);
+                                if (has_oc2) {
+                                    jit_conv3d_call_args a2{};
+                                    a2.src = src_p + s_base2;
+                                    a2.src_stride = a.src_stride;
+                                    a2.src_blk_stride = a.src_blk_stride;
+                                    a2.acc = &acc2;
+                                    a2.acc2 = has_oc3 ? &acc3 : nullptr;
+                                    a2.repeats = a.repeats;
+                                    a2.tail = a.tail;
+                                    a2.kw_cnt = a.kw_cnt;
+                                    a2.src_dx = a.src_dx;
+                                    const size_t pack_base2 =
+                                        (((oc2 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW +
+                                         static_cast<size_t>(kx_lo)) *
+                                        m_padded_C;
+                                    a2.wei = m_wei_packed.data() + pack_base2;
+                                    if (has_oc3) {
+                                        const size_t pack_base3 =
+                                            (((oc3 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW +
+                                             static_cast<size_t>(kx_lo)) *
+                                            m_padded_C;
+                                        a2.wei2 = m_wei_packed.data() + pack_base3;
                                     }
-                                    if (has_oc2) {
-                                        const size_t w2_base = index_wei(oc2,
-                                                                         0,
-                                                                         static_cast<size_t>(kz),
-                                                                         static_cast<size_t>(ky),
-                                                                         static_cast<size_t>(kx_lo));
-                                        const size_t w3_base = has_oc3 ? index_wei(oc3,
-                                                                                   0,
-                                                                                   static_cast<size_t>(kz),
-                                                                                   static_cast<size_t>(ky),
-                                                                                   static_cast<size_t>(kx_lo))
-                                                                       : 0;
-                                        jit_conv3d_call_args a{};
-                                        a.src = src_p + s_base2;
-                                        a.src_stride = src_c_stride_elems * sizeof(uint16_t);
-                                        a.src_blk_stride = a.src_stride * 8;
-                                        a.acc = &acc2;
-                                        a.acc2 = has_oc3 ? &acc3 : nullptr;
-                                        a.repeats = C / 8;
-                                        a.tail = C % 8;
-                                        a.kw_cnt = kw_count;
-                                        a.src_dx = sizeof(uint16_t);
-                                        a.wei = wei_p + w2_base;
-                                        if (has_oc3)
-                                            a.wei2 = wei_p + w3_base;
-                                        a.wei_stride = wei_c_stride_elems * sizeof(uint16_t);
-                                        a.wei_blk_stride = a.wei_stride * 8;
-                                        a.wei_dx = sizeof(uint16_t);
-                                        (*m_ip_kernel)(&a);
-                                    }
+                                    a2.wei_stride = a.wei_stride;
+                                    a2.wei_blk_stride = a.wei_blk_stride;
+                                    a2.wei_dx = a.wei_dx;
+                                    (*m_ip_kernel)(&a2);
                                 }
                             }
                         }
@@ -1935,8 +1877,7 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
                                                                  static_cast<size_t>(iz),
                                                                  static_cast<size_t>(iy),
                                                                  static_cast<size_t>(ix));
-                                const size_t w0_base = index_wei(oc0, 0, kz, ky, kx);
-                                const size_t w1_base = has_oc1 ? index_wei(oc1, 0, kz, ky, kx) : 0;
+                                // raw base indices removed in product mode
                                 // pair 0
                                 {
                                     jit_conv3d_call_args a{};
@@ -1948,35 +1889,23 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
                                     a.acc = &acc0;
                                     a.acc2 = has_oc1 ? &acc1 : nullptr;
 
-                                    if (m_wei_packed_ready) {
-                                        // packed index: ((((oc*KD + kz)*KH + ky)*KW + kx)*paddedC)
-                                        const size_t pack_base0 = (((oc0 * KD + kz) * KH + ky) * KW + kx) * m_padded_C;
-                                        a.wei = m_wei_packed.data() + pack_base0;
-                                        a.repeats = C / 8;
-                                        a.tail = C % 8;
-                                        a.wei_stride = sizeof(uint16_t);      // contiguous halves
-                                        a.wei_blk_stride = a.wei_stride * 8;  // logical
-                                        if (has_oc1) {
-                                            const size_t pack_base1 =
-                                                (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_C;
-                                            a.wei2 = m_wei_packed.data() + pack_base1;
-                                        }
-                                        (*m_ip_kernel)(&a);
-                                    } else {
-                                        a.wei = wei_p + w0_base;
-                                        if (has_oc1)
-                                            a.wei2 = wei_p + w1_base;
-                                        a.repeats = C / 8;
-                                        a.tail = C % 8;
-                                        a.wei_stride = wei_c_stride_elems * sizeof(uint16_t);
-                                        a.wei_blk_stride = a.wei_stride * 8;
-                                        (*m_ip_kernel)(&a);
+                                    // packed index: ((((oc*KD + kz)*KH + ky)*KW + kx)*paddedC)
+                                    const size_t pack_base0 = (((oc0 * KD + kz) * KH + ky) * KW + kx) * m_padded_C;
+                                    a.wei = m_wei_packed.data() + pack_base0;
+                                    a.repeats = C / 8;
+                                    a.tail = C % 8;
+                                    a.wei_stride = sizeof(uint16_t);      // contiguous halves
+                                    a.wei_blk_stride = a.wei_stride * 8;  // logical
+                                    if (has_oc1) {
+                                        const size_t pack_base1 =
+                                            (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_C;
+                                        a.wei2 = m_wei_packed.data() + pack_base1;
                                     }
+                                    (*m_ip_kernel)(&a);
                                 }
                                 // pair 1
                                 if (has_oc2) {
-                                    const size_t w2_base = index_wei(oc2, 0, kz, ky, kx);
-                                    const size_t w3_base = has_oc3 ? index_wei(oc3, 0, kz, ky, kx) : 0;
+                                    // raw base indices removed in product mode
                                     jit_conv3d_call_args a{};
                                     a.src = src_p + s_base0;
                                     a.src_stride = src_c_stride_elems * sizeof(uint16_t);
@@ -1985,84 +1914,24 @@ void JitConv3DExecutor::run_naive_fp16(const MemoryArgs& memory) {
                                         8;  // used logically, kernel advances by stride once after 8 lanes
                                     a.acc = &acc2;
                                     a.acc2 = has_oc3 ? &acc3 : nullptr;
-                                    if (m_wei_packed_ready) {
-                                        const size_t pack_base2 = (((oc2 * KD + kz) * KH + ky) * KW + kx) * m_padded_C;
-                                        a.wei = m_wei_packed.data() + pack_base2;
-                                        a.repeats = C / 8;
-                                        a.tail = C % 8;
-                                        a.wei_stride = sizeof(uint16_t);      // contiguous halves
-                                        a.wei_blk_stride = a.wei_stride * 8;  // logical
-                                        if (has_oc3) {
-                                            const size_t pack_base3 =
-                                                (((oc3 * KD + kz) * KH + ky) * KW + kx) * m_padded_C;
-                                            a.wei2 = m_wei_packed.data() + pack_base3;
-                                        }
-                                        (*m_ip_kernel)(&a);
-                                    } else {
-                                        a.wei = wei_p + w2_base;
-                                        if (has_oc3)
-                                            a.wei2 = wei_p + w3_base;
-                                        a.repeats = C / 8;
-                                        a.tail = C % 8;
-                                        a.wei_stride = wei_c_stride_elems * sizeof(uint16_t);
-                                        a.wei_blk_stride = a.wei_stride * 8;
-                                        (*m_ip_kernel)(&a);
+                                    const size_t pack_base2 = (((oc2 * KD + kz) * KH + ky) * KW + kx) * m_padded_C;
+                                    a.wei = m_wei_packed.data() + pack_base2;
+                                    a.repeats = C / 8;
+                                    a.tail = C % 8;
+                                    a.wei_stride = sizeof(uint16_t);
+                                    a.wei_blk_stride = a.wei_stride * 8;
+                                    if (has_oc3) {
+                                        const size_t pack_base3 =
+                                            (((oc3 * KD + kz) * KH + ky) * KW + kx) * m_padded_C;
+                                        a.wei2 = m_wei_packed.data() + pack_base3;
                                     }
+                                    (*m_ip_kernel)(&a);
                                 }
                             }
                         }
                     }
                 }
-                // Optional fused bias (disabled by default)
-                if (m_apply_post_ops && m_attrs.withBias && memory.count(ARG_BIAS) && memory.at(ARG_BIAS)) {
-                    auto bia = memory.at(ARG_BIAS);
-                    const auto bprec = bia->getDescPtr()->getPrecision();
-                    if (bprec == ov::element::f32) {
-                        const auto* b = reinterpret_cast<const float*>(bia->getData());
-                        acc0 += b[oc0];
-                        if (has_oc1)
-                            acc1 += b[oc1];
-                        if (has_oc2)
-                            acc2 += b[oc2];
-                        if (has_oc3)
-                            acc3 += b[oc3];
-                    } else if (bprec == ov::element::f16) {
-                        const auto* b = reinterpret_cast<const uint16_t*>(bia->getData());
-                        acc0 += static_cast<float>(ov::float16(b[oc0]));
-                        if (has_oc1)
-                            acc1 += static_cast<float>(ov::float16(b[oc1]));
-                        if (has_oc2)
-                            acc2 += static_cast<float>(ov::float16(b[oc2]));
-                        if (has_oc3)
-                            acc3 += static_cast<float>(ov::float16(b[oc3]));
-                    }
-                }
-
-                // Optional fused PReLU (apply after bias) — disabled by default
-                if (m_apply_post_ops && m_has_prelu && !m_prelu_slopes.empty()) {
-                    const auto slope_at = [&](size_t oc) -> float {
-                        return m_prelu_slopes.size() == 1 ? m_prelu_slopes[0]
-                                                          : m_prelu_slopes[std::min(oc, m_prelu_slopes.size() - 1)];
-                    };
-                    const float s0 = slope_at(oc0);
-                    if (acc0 < 0.0F)
-                        acc0 *= s0;
-                    if (has_oc1) {
-                        const float s1 = slope_at(oc1);
-                        if (acc1 < 0.0F)
-                            acc1 *= s1;
-                    }
-                    if (has_oc2) {
-                        const float s2 = slope_at(oc2);
-                        if (acc2 < 0.0F)
-                            acc2 *= s2;
-                    }
-                    if (has_oc3) {
-                        const float s3 = slope_at(oc3);
-                        if (acc3 < 0.0F)
-                            acc3 *= s3;
-                    }
-                }
+                // No optional post-ops in product mode
 
                 dst_p[index_dst(n, oc0, od, oh, ow)] = ov::float16(acc0).to_bits();
                 if (has_oc1)
@@ -2124,6 +1993,7 @@ void JitConv3DExecutor::ensure_weights_packed_f32(const MemoryArgs& memory) {
         }
     }
     m_wei_packed_ready_f32 = true;
+    // no global cache store
 }
 
 void JitConv3DExecutor::run_naive_fp32(const MemoryArgs& memory) {
@@ -2353,10 +2223,8 @@ void JitConv3DExecutor::run_naive_fp32(const MemoryArgs& memory) {
                                                                     static_cast<size_t>(ix));
                                     // pair 0
                                     {
-                                        const size_t w0 = index_wei(oc0, 0, kz, ky, kx);
-                                        const size_t w1 = has_oc1 ? index_wei(oc1, 0, kz, ky, kx) : 0;
-                                        jit_conv3d_f32_call_args a{};
-                                        a.src = src_p + s_base;
+                                    jit_conv3d_f32_call_args a{};
+                                    a.src = src_p + s_base;
                                         a.src_stride = src_c_stride_elems * sizeof(float);
                                         a.src_blk_stride = a.src_stride * 4;
                                         a.acc = &acc0;
@@ -2365,20 +2233,21 @@ void JitConv3DExecutor::run_naive_fp32(const MemoryArgs& memory) {
                                         a.tail = C % 4;
                                         a.kw_cnt = 1;
                                         a.src_dx = 0;
-                                        a.wei = wei_p + w0;
-                                        if (has_oc1)
-                                            a.wei2 = wei_p + w1;
-                                        a.wei_stride = wei_c_stride_elems * sizeof(float);
-                                        a.wei_blk_stride = a.wei_stride * 4;
-                                        a.wei_dx = 0;
-                                        (*m_ip_kernel_f32)(&a);
+                                    const size_t base0 = (((oc0 * KD + kz) * KH + ky) * KW + kx) * m_padded_C_f32;
+                                    a.wei = m_wei_packed_f32.data() + base0;
+                                    if (has_oc1) {
+                                        const size_t base1 = (((oc1 * KD + kz) * KH + ky) * KW + kx) * m_padded_C_f32;
+                                        a.wei2 = m_wei_packed_f32.data() + base1;
                                     }
-                                    // pair 1
-                                    if (has_oc2) {
-                                        const size_t w2 = index_wei(oc2, 0, kz, ky, kx);
-                                        const size_t w3 = has_oc3 ? index_wei(oc3, 0, kz, ky, kx) : 0;
-                                        jit_conv3d_f32_call_args a{};
-                                        a.src = src_p + s_base;
+                                    a.wei_stride = sizeof(float);
+                                    a.wei_blk_stride = a.wei_stride * 4;
+                                    a.wei_dx = 0;
+                                    (*m_ip_kernel_f32)(&a);
+                                }
+                                // pair 1
+                                if (has_oc2) {
+                                    jit_conv3d_f32_call_args a{};
+                                    a.src = src_p + s_base;
                                         a.src_stride = src_c_stride_elems * sizeof(float);
                                         a.src_blk_stride = a.src_stride * 4;
                                         a.acc = &acc2;
@@ -2387,14 +2256,17 @@ void JitConv3DExecutor::run_naive_fp32(const MemoryArgs& memory) {
                                         a.tail = C % 4;
                                         a.kw_cnt = 1;
                                         a.src_dx = 0;
-                                        a.wei = wei_p + w2;
-                                        if (has_oc3)
-                                            a.wei2 = wei_p + w3;
-                                        a.wei_stride = wei_c_stride_elems * sizeof(float);
-                                        a.wei_blk_stride = a.wei_stride * 4;
-                                        a.wei_dx = 0;
-                                        (*m_ip_kernel_f32)(&a);
+                                    const size_t base2 = (((oc2 * KD + kz) * KH + ky) * KW + kx) * m_padded_C_f32;
+                                    a.wei = m_wei_packed_f32.data() + base2;
+                                    if (has_oc3) {
+                                        const size_t base3 = (((oc3 * KD + kz) * KH + ky) * KW + kx) * m_padded_C_f32;
+                                        a.wei2 = m_wei_packed_f32.data() + base3;
                                     }
+                                    a.wei_stride = sizeof(float);
+                                    a.wei_blk_stride = a.wei_stride * 4;
+                                    a.wei_dx = 0;
+                                    (*m_ip_kernel_f32)(&a);
+                                }
                                 }
                             }
                         }
@@ -2455,4 +2327,5 @@ void ov::intel_cpu::JitConv3DExecutor::ensure_weights_packed(const MemoryArgs& m
         }
     }
     m_wei_packed_ready = true;
+    // no global cache store
 }

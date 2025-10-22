@@ -92,6 +92,9 @@ public:
 
     static bool supports(const ConvConfig& cfg);
 
+    // Early weight preparation to reduce first-inference latency (product mode, no flags)
+    void prepare_weights_early(const MemoryArgs& memory);
+
 private:
     // Simple reference fallback (parallelized) using FP16 data; correctness-first
     void run_naive_fp16(const MemoryArgs& memory);

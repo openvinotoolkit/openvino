@@ -983,10 +983,12 @@ void Deconvolution::prepareParams() {
             dstMemoryDescs.push_back(getChildEdgeAt(i)->getMemory().getDescWithType<DnnlMemoryDesc>());
         }
 
-        execPtrDeconvACL = selected_pd->getExecutorFactoryAs<DeconvExecutorFactory>()->makeExecutor(deconvAttrs,
-                                                                                                    srcMemoryDescs,
-                                                                                                    dstMemoryDescs,
-                                                                                                    *attr);
+        // Build executor with constructor-time early packing (for JIT on ARM64); falls back to regular path
+        std::vector<MemoryCPtr> srcMemoriesEarly;
+        srcMemoriesEarly.push_back(getSrcMemoryAtPort(0));
+        srcMemoriesEarly.push_back(getSrcMemoryAtPort(1));
+        execPtrDeconvACL = selected_pd->getExecutorFactoryAs<DeconvExecutorFactory>()->makeExecutorWithMem(
+            deconvAttrs, srcMemoryDescs, dstMemoryDescs, *attr, srcMemoriesEarly);
         selected_pd->setImplementationType(execPtrDeconvACL->getImplType());
         return;
     }
@@ -1137,19 +1139,6 @@ void Deconvolution::prepareParams() {
 
     execPtr = result.first;
     OPENVINO_ASSERT(execPtr, "Primitive descriptor was not found for node ", getName(), ".");
-
-#if defined(OPENVINO_ARCH_ARM64)
-    // Early weight packing for AArch64 JIT to minimize first-inference latency
-    if (auto jitExec = std::dynamic_pointer_cast<ov::intel_cpu::JitDeconv3DExecutor>(execPtr)) {
-        std::vector<MemoryCPtr> srcMemories;
-        // src[0] = input, src[1] = weights, src[2] = bias (optional)
-        srcMemories.push_back(getSrcMemoryAtPort(0));
-        srcMemories.push_back(getSrcMemoryAtPort(1));
-        // Bias not needed for packing
-        jitExec->prepare_weights_early(srcMemories);
-    }
-#endif
-
 
     primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();

@@ -273,75 +273,6 @@ void JitDeconv3DExecutor::ensure_weights_packed_s2_f16(const std::vector<MemoryC
     }
 }
 
-// Alternative even/odd packing for S=2 (FP32)
-void JitDeconv3DExecutor::ensure_weights_packed_s2_f32(const std::vector<MemoryCPtr>& src) {
-    if (m_wei_packed_s2_ready_f32)
-        return;
-    const auto& weiDims = src[1]->getStaticDims();
-    const auto* wsrc = reinterpret_cast<const float*>(src[1]->getData());
-    if (weiDims.size() == 5) {
-        const size_t IC = weiDims[0];
-        const size_t OC = weiDims[1];
-        const size_t KD = weiDims[2], KH = weiDims[3], KW = weiDims[4];
-        m_padded_IC_f32 = (IC + 3) / 4 * 4;
-        const size_t total = OC * KD * KH * KW * m_padded_IC_f32;
-        m_wei_packed_s2_f32.assign(total, 0.0F);
-        auto idx_src = [&](size_t ic, size_t oc, size_t kz, size_t ky, size_t kx) {
-            return ((((ic)*OC + oc) * KD + kz) * KH + ky) * KW + kx;
-        };
-        for (size_t oc = 0; oc < OC; ++oc) {
-            for (size_t kz = 0; kz < KD; ++kz) {
-                for (size_t ky = 0; ky < KH; ++ky) {
-                    size_t pos = 0;
-                    for (size_t kx = 0; kx < KW; kx += 2, ++pos) {
-                        const size_t base = (((oc * KD + kz) * KH + ky) * KW + pos) * m_padded_IC_f32;
-                        for (size_t ic = 0; ic < IC; ++ic)
-                            m_wei_packed_s2_f32[base + (ic / 4) * 4 + (ic % 4)] = wsrc[idx_src(ic, oc, kz, ky, kx)];
-                    }
-                    for (size_t kx = 1; kx < KW; kx += 2, ++pos) {
-                        const size_t base = (((oc * KD + kz) * KH + ky) * KW + pos) * m_padded_IC_f32;
-                        for (size_t ic = 0; ic < IC; ++ic)
-                            m_wei_packed_s2_f32[base + (ic / 4) * 4 + (ic % 4)] = wsrc[idx_src(ic, oc, kz, ky, kx)];
-                    }
-                }
-            }
-        }
-        m_wei_packed_s2_ready_f32 = true;
-    } else if (weiDims.size() == 6) {
-        const size_t G = weiDims[0];
-        const size_t ICg = weiDims[1];
-        const size_t OCg = weiDims[2];
-        const size_t KD = weiDims[3], KH = weiDims[4], KW = weiDims[5];
-        const size_t OC_total = G * OCg;
-        m_padded_IC_f32 = (ICg + 3) / 4 * 4;
-        const size_t total = OC_total * KD * KH * KW * m_padded_IC_f32;
-        m_wei_packed_s2_f32.assign(total, 0.0F);
-        auto idx_src_g = [&](size_t g, size_t icg, size_t ocg, size_t kz, size_t ky, size_t kx) {
-            return ((((((g * ICg + icg) * OCg + ocg) * KD + kz) * KH + ky) * KW) + kx);
-        };
-        for (size_t g = 0; g < G; ++g) {
-            for (size_t ocg = 0; ocg < OCg; ++ocg) {
-                const size_t oc_global = g * OCg + ocg;
-                for (size_t kz = 0; kz < KD; ++kz) {
-                    for (size_t ky = 0; ky < KH; ++ky) {
-                        size_t pos = 0;
-                        for (size_t kx = 0; kx < KW; kx += 2, ++pos) {
-                            const size_t base = (((oc_global * KD + kz) * KH + ky) * KW + pos) * m_padded_IC_f32;
-                            for (size_t icg = 0; icg < ICg; ++icg)
-                                m_wei_packed_s2_f32[base + (icg / 4) * 4 + (icg % 4)] = wsrc[idx_src_g(g, icg, ocg, kz, ky, kx)];
-                        }
-                        for (size_t kx = 1; kx < KW; kx += 2, ++pos) {
-                            const size_t base = (((oc_global * KD + kz) * KH + ky) * KW + pos) * m_padded_IC_f32;
-                            for (size_t icg = 0; icg < ICg; ++icg)
-                                m_wei_packed_s2_f32[base + (icg / 4) * 4 + (icg % 4)] = wsrc[idx_src_g(g, icg, ocg, kz, ky, kx)];
-                        }
-                    }
-                }
-            }
-        }
-        m_wei_packed_s2_ready_f32 = true;
-    }
-}
 
 void JitDeconv3DExecutor::exec(const std::vector<MemoryCPtr>& src,
                                const std::vector<MemoryPtr>& dst,
@@ -356,6 +287,12 @@ void JitDeconv3DExecutor::exec(const std::vector<MemoryCPtr>& src,
 // (no additional helpers)
 
 void JitDeconv3DExecutor::prepare_weights_early(const std::vector<MemoryCPtr>& src) {
+    if (src.size() < 2 || !src[0] || !src[1] || !src[0]->getDescPtr() || !src[1]->getDescPtr())
+        return;
+    const auto& s = src[0]->getDescPtr()->getShape();
+    const auto& w = src[1]->getDescPtr()->getShape();
+    if (!s.isStatic() || !w.isStatic())
+        return;
     if (m_is_fp32) {
         ensure_weights_packed_f32(src);
     } else {
