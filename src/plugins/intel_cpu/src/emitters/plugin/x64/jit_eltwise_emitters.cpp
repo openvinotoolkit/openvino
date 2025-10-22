@@ -2939,18 +2939,7 @@ jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
     const auto& clamp = ov::as_type_ptr<ov::op::v0::Clamp>(node);
     double alpha = clamp->get_min();
     double beta = clamp->get_max();
-    switch (exec_prc_) {
-    case element::i32:
-        minimum = static_cast<int>(std::max<int64_t>(static_cast<int64_t>(alpha), std::numeric_limits<int32_t>::min()));
-        maximum = static_cast<int>(std::min<int64_t>(static_cast<int64_t>(beta), std::numeric_limits<int32_t>::max()));
-        break;
-    case element::f32:
-        minimum = x64::float2int(static_cast<float>(alpha));
-        maximum = x64::float2int(static_cast<float>(beta));
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
-    }
+    prepare_min_max(alpha, beta);
     prepare_table();
 }
 
@@ -2960,6 +2949,11 @@ jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
                                      double alpha,
                                      double beta)
     : jit_emitter(host, host_isa, exec_prc) {
+    prepare_min_max(alpha, beta);
+    prepare_table();
+}
+
+void jit_clamp_emitter::prepare_min_max(double alpha, double beta) {
     switch (exec_prc_) {
     case element::i32:
         minimum = static_cast<int>(std::max<int64_t>(static_cast<int64_t>(alpha), std::numeric_limits<int32_t>::min()));
@@ -2972,7 +2966,6 @@ jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
     default:
         OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
     }
-    prepare_table();
 }
 
 size_t jit_clamp_emitter::get_inputs_num() const {

@@ -973,6 +973,7 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
+    void prepare_min_max(double alpha, double beta);
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
