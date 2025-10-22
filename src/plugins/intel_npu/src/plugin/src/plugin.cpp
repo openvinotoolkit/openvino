@@ -912,8 +912,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
-            blobSize = metadata->get_blob_size();
+        } else {
+            _logger.info("Blob compatibility check skipped.");
         }
+        blobSize = metadata->get_blob_size();
+
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
@@ -965,12 +968,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
                 : _globalConfig.get<IMPORT_RAW_BLOB>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = compiled_blob.get_byte_size();
+<<<<<<< HEAD
         if (!importRawBlob && !skipCompatibility) {
             metadata = read_metadata_from(compiled_blob);
+=======
+
+        metadata = read_metadata_from(stream);
+
+        if (!skipCompatibility) {
+>>>>>>> 3af6fd173b (Initial new version check disable logic)
             if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
             blobSize = metadata->get_blob_size();
+        } else {
+            _logger.info("Blob compatibility check skipped.");
         }
         const ov::Tensor roiTensor(compiled_blob,
                                    ov::Coordinate{0},

@@ -259,11 +259,6 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
-    if (MetadataBase::get_major(version) == CURRENT_METADATA_MAJOR_VERSION &&
-        MetadataBase::get_minor(version) >= CURRENT_METADATA_MINOR_VERSION) {
-        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(blobSize);
-    }
-
     switch (version) {
     case METADATA_VERSION_2_0:
         return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize);
@@ -271,6 +266,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize);
     case METADATA_VERSION_2_2:
         return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
+    case METADATA_VERSION_2_3:
+        return std::make_unique<Metadata<METADATA_VERSION_2_3>>(blobSize);
     default:
         OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
                        MetadataBase::get_major(version),
@@ -344,9 +341,23 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 
     uint32_t metaVersion;
     stream.read(reinterpret_cast<char*>(&metaVersion), sizeof(metaVersion));
+    
+    uint16_t metaVersionMajor = MetadataBase::get_major(metaVersion),
+             metaVersionMinor = MetadataBase::get_minor(metaVersion);
+    if (metaVersionMajor != CURRENT_METADATA_MAJOR_VERSION || metaVersionMinor > CURRENT_METADATA_MINOR_VERSION) {
+        OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
+                metaVersionMajor,
+                ".",
+                metaVersionMinor,
+                " but the current version is: ",
+                CURRENT_METADATA_MAJOR_VERSION,
+                ".",
+                CURRENT_METADATA_MINOR_VERSION);
+    }
 
     std::unique_ptr<MetadataBase> storedMeta;
     storedMeta = create_metadata(metaVersion, blobDataSize);
+
     storedMeta->read(stream);
 
     stream.seekg(-stream.tellg() + currentStreamPos, std::ios::cur);
@@ -369,6 +380,19 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
 
     uint32_t metaVersion;
     metaVersion = *reinterpret_cast<const decltype(metaVersion)*>(tensor.data<const char>() + blobDataSize);
+
+    uint16_t metaVersionMajor = MetadataBase::get_major(metaVersion),
+             metaVersionMinor = MetadataBase::get_minor(metaVersion);
+    if (metaVersionMajor != CURRENT_METADATA_MAJOR_VERSION || metaVersionMinor > CURRENT_METADATA_MINOR_VERSION) {
+        OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
+                metaVersionMajor,
+                ".",
+                metaVersionMinor,
+                " but the current version is: ",
+                CURRENT_METADATA_MAJOR_VERSION,
+                ".",
+                CURRENT_METADATA_MINOR_VERSION);
+    }
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
