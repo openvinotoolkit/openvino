@@ -88,6 +88,7 @@ inline bool endsWith(const std::wstring& source, const std::wstring& expectedSuf
 // Return value:
 // < 0 - error
 // >= 0 - count of removed files
+template <bool Force = !opt::FORCE>
 inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
     int ret = 0;
 #    ifdef _WIN32
@@ -99,6 +100,11 @@ inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
             struct _stat64i32 stat_path;
             _wstat(file.c_str(), &stat_path);
             if (!S_ISDIR(stat_path.st_mode) && endsWith(file, L"." + ext)) {
+                if constexpr (Force) {
+                    std::filesystem::permissions(file,
+                                                 std::filesystem::perms::owner_write,
+                                                 std::filesystem::perm_options::add);
+                }
                 auto err = _wremove(file.c_str());
                 if (err != 0) {
                     _wclosedir(dir);
@@ -120,6 +126,11 @@ inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
             struct stat stat_path;
             stat(file.c_str(), &stat_path);
             if (!S_ISDIR(stat_path.st_mode) && endsWith(file, "." + ext_mb)) {
+                if constexpr (Force) {
+                    std::filesystem::permissions(file,
+                                                 std::filesystem::perms::owner_write,
+                                                 std::filesystem::perm_options::add);
+                }
                 auto err = std::remove(file.c_str());
                 if (err != 0) {
                     closedir(dir);
