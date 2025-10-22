@@ -84,6 +84,10 @@ protected:
         outType = _outType;
         targetDevice = _targetDevice;
 
+        if (model_type == ov::element::f16) {
+            rel_threshold = 0.005;
+        }
+
         init_input_shapes(shape_related_params.inputShapes);
 
         bool transpA = shape_related_params.transpose.first;

@@ -16,7 +16,6 @@ using namespace cldnn;
 using namespace ov::intel_gpu;
 
 void prepare_padding::run(program& p) {
-    const auto allow_new_shape_infer = p.get_config().get_allow_new_shape_infer();
     for (const auto& node : p.get_processing_order()) {
         if (!node->is_type<fully_connected>())
             continue;
@@ -27,13 +26,7 @@ void prepare_padding::run(program& p) {
             auto weight_layout = weight_node.get_output_layout(0);
             const auto const_shape = weight_layout.get_partial_shape().to_shape();
             OPENVINO_ASSERT(const_shape.size() > 0, "Data padding for int4 type data with an odd innermost dimension does not support zero dimension.");
-            auto inner_most_idx = static_cast<ov::Dimension::value_type>(const_shape.size()) - 1;
-            if (!allow_new_shape_infer) {
-                // Get the innermost index after trimming trailing elements in the canonicalized legacy shape such as [4, 64, 1, 1].
-                while (inner_most_idx > 0 && const_shape[inner_most_idx] == 1) {
-                    --inner_most_idx;
-                }
-            }
+            auto inner_most_idx = node->as<fully_connected>().get_primitive()->weights_rank - 1;
 
             if (const_shape[inner_most_idx] % alignment != 0) {
                 std::vector<ov::Dimension::value_type> new_paddings(const_shape.size(), 0);
@@ -53,8 +46,12 @@ void prepare_padding::run(program& p) {
                     p.add_intermediate(new_reorder_node, *node, weight_node, new_reorder_node.get_dependencies().empty());
                     new_reorder_node.recalc_output_layouts(false);
                 } else if (node->get_preferred_impl_type() == impl_types::ocl &&
-                           node->get_output_layout(0).data_type == cldnn::data_types::f16 &&
-                           node->get_output_layout(0).format == cldnn::format::bfyx &&
+                           p.get_config().get_force_implementations().find(node->id()) == p.get_config().get_force_implementations().end() &&
+                           node->get_input_layout(0).data_type == cldnn::data_types::f16 &&
+                           node->get_input_layout(0).format == cldnn::format::bfyx &&
+                           node->get_input_layout(0).get_partial_shape()[1].is_static() && // feature dim of input should be static
+                           node->as<fully_connected>().get_primitive()->input_size == 2 && // only 2D fc is supported
+                           node->as<fully_connected>().get_primitive()->weights_rank == 2 &&
                            weight_node.get_output_layout(0).data_type == cldnn::data_types::f16) {
                     // fully_connected_bf_tiled_opt requires 4-bytes aligned input.
                     auto input0_new_layout = node->get_input_layout(0);
@@ -65,7 +62,6 @@ void prepare_padding::run(program& p) {
                     auto& new_input_reorder_node = p.get_or_create(new_input_reorder);
                     p.add_intermediate(new_input_reorder_node, *node, node->get_dependency(0), new_input_reorder_node.get_dependencies().empty());
                     new_input_reorder_node.recalc_output_layouts(false);
-                    std::cout << "******************************* hohoho *******************************" << std::endl;
                 }
             }
         }
