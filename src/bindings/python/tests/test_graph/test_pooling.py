@@ -239,7 +239,6 @@ def test_max_pool(op_params, input_shape, expected_output_shape, op_name):
     assert node.get_output_element_type(1) == Type.i32
 
 
-# AvgPool-16 tests with dilations
 avg_pooling_opset16_test_params = [
     (
         [
