@@ -635,7 +635,7 @@ KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params
 
     size_t output_b = get_output_aligned_bf_size(fc_params, false).first;
 
-    float estimated_time = FORCE_PRIORITY_9;
+    float estimated_time = FORCE_PRIORITY_5;
     if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
         estimated_time = FORCE_PRIORITY_3;
     else if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)

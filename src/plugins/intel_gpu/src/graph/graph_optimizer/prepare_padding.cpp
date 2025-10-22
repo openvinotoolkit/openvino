@@ -33,7 +33,6 @@ void prepare_padding::run(program& p) {
                 while (inner_most_idx > 0 && const_shape[inner_most_idx] == 1) {
                     --inner_most_idx;
                 }
-                OPENVINO_ASSERT(const_shape[inner_most_idx] % alignment == 0, "inner most dimension for the legacy shape should be even.");
             }
 
             if (const_shape[inner_most_idx] % alignment != 0) {
@@ -55,6 +54,7 @@ void prepare_padding::run(program& p) {
                     new_reorder_node.recalc_output_layouts(false);
                 } else if (node->get_preferred_impl_type() == impl_types::ocl &&
                            node->get_output_layout(0).data_type == cldnn::data_types::f16 &&
+                           node->get_output_layout(0).format == cldnn::format::bfyx &&
                            weight_node.get_output_layout(0).data_type == cldnn::data_types::f16) {
                     // fully_connected_bf_tiled_opt requires 4-bytes aligned input.
                     auto input0_new_layout = node->get_input_layout(0);
