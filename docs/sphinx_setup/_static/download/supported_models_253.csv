@@ -1876,4 +1876,3 @@ Natural Language Processing,distilbert-NER,pytorch,intel-optimum default,Optimum
 Natural Language Processing,xlm-roberta-base-uncased-conll2003,pytorch,intel-optimum default,Optimum Intel,+,+,
 Natural Language Processing,klue-roberta-base-ner,pytorch,intel-optimum default,Optimum Intel,+,+,
 Image to Text,trocr-base-handwritten,pytorch,intel-optimum default,Optimum Intel,+,+,
-
