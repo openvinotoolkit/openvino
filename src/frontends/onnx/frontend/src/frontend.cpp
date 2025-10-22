@@ -376,7 +376,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
     try {
         ov_model = translate_session.get_converted_model();
     } catch (const std::exception& e) {
-        throw e;
+        throw;
     }
     return;
 }
