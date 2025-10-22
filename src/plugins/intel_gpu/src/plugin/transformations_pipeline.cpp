@@ -561,7 +561,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // v: [num_blocks, num_kv_heads, block_size(256), head_size]
             ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
             const auto kv_cache_precision = config.get_kv_cache_precision();
-            OPENVINO_ASSERT(kv_cache_precision != ov::element::dynamic, "[GPU] kv_cache precision should be specified.");
             kv_cache_config.keyCachePrecision = kv_cache_precision;
             kv_cache_config.valueCachePrecision = kv_cache_precision;
             kv_cache_config.inferencePrecision = infer_precision;
@@ -594,6 +593,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 const size_t group_num,
                 int64_t& head_size,
                 int64_t& block_size) {
+                    OPENVINO_ASSERT(precision != ov::element::dynamic, "[GPU] kv_cache precision should be specified.");
                     if (bychannel) {
                         // TODO: need to handle group size != block size case
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
