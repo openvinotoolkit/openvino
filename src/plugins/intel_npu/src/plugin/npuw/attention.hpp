@@ -50,30 +50,6 @@ struct Attention {
     static std::optional<Attention> from(const std::shared_ptr<ov::Model>& model);
 };
 
-// Structure to hold SDPA pattern nodes
-struct SDPAPatternNodes {
-    std::shared_ptr<ov::Node> matmul1_node = nullptr;
-    std::shared_ptr<ov::Node> matmul2_node = nullptr;
-    std::shared_ptr<ov::Node> softmax_node = nullptr;
-    std::shared_ptr<ov::Node> add_node = nullptr;
-
-    bool isValid() const {
-        return matmul1_node && matmul2_node && softmax_node && add_node;
-    }
-};
-
-// Function to find SDPA pattern nodes in the model
-SDPAPatternNodes findSDPAPatternNodes(const std::shared_ptr<ov::Model>& model);
-
-struct PyramidAttention {
-    std::vector<struct Attention> _attentions;
-    std::vector<std::shared_ptr<ov::Model>> _models;
-    size_t _query_length = 0;
-    size_t _full_context_length = 0;
-
-    static std::optional<PyramidAttention> from(const std::shared_ptr<ov::Model>& model);
-};
-
 }  // namespace function
 
 namespace compiled {
