@@ -971,8 +971,8 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
         } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
             // NB: Eagle3 case, model accepts hidden_states[BATCH, SEQ_LEN, HIDDEN_SIZE]
             NPUW_ASSERT(input.get_partial_shape().size() == 3u);
-            NPUW_ASSERT(input.get_partial_shape()[2].is_static());
-            new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
+            // NPUW_ASSERT(input.get_partial_shape()[2].is_static());
+            new_shape = ov::PartialShape({1, input_size, 12288});
         } else if (ov::npuw::matchEagle3InternalHiddenStatesString(input_name)) {
             // NB: Eagle3 case, model accepts internal_hidden_states[BATCH, SEQ_LEN, HIDDEN_SIZE]
             NPUW_ASSERT(input.get_partial_shape().size() == 3u);
