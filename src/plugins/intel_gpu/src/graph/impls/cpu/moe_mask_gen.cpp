@@ -42,18 +42,11 @@ struct moe_mask_gen_impl : public typed_primitive_impl<moe_mask_gen> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "moe_mask_gen::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        if (instance.can_be_optimized()) {
-            return stream.group_events(events);
-        }
-
         const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         if (!pass_through_events) {
             stream.wait_for_events(events);
         }
-
-        std::vector<memory::ptr> input_mem_ptrs;
-        input_mem_ptrs.push_back(instance.dep_memory_ptr(0));
 
         auto num_tokens            = instance.get_input_layout(0).get_shape()[0];
         auto num_experts_per_token = instance.get_node().as<moe_mask_gen>().get_primitive()->num_experts_per_token;
@@ -73,18 +66,11 @@ struct moe_mask_gen_impl : public typed_primitive_impl<moe_mask_gen> {
         cldnn::mem_lock<int32_t, mem_lock_type::read_write> experts_id_lock(experts_id_mem_ptr, stream);
         cldnn::mem_lock<int32_t, mem_lock_type::read_write> tokens_lens_per_expert_lock(tokens_lens_per_expert_mem_ptr, stream);
 
-        auto topk_idx_ptr                   = topk_idx_lock.data();
-        auto num_actually_used_experts_ptr  = num_actual_used_experts_lock.data();
-        auto tokens_per_expert_ptr          = tokens_per_expert_lock.data();
-        auto experts_info_start_idx_ptr     = experts_info_start_idx_lock.data();
-        auto experts_id_ptr                 = experts_id_lock.data();
-        auto tokens_lens_per_expert_ptr     = tokens_lens_per_expert_lock.data();
-
         // make mask for gather
         std::vector<std::vector<int32_t>> tokens_per_expert(num_total_experts, std::vector<int32_t>());
         for (size_t token = 0; token < num_tokens; ++token) {
             for (int j = 0; j < num_experts_per_token; ++j) {
-                const auto expert_id = topk_idx_ptr[token * num_experts_per_token + j];
+                const auto expert_id = topk_idx_lock[token * num_experts_per_token + j];
                 tokens_per_expert[expert_id].push_back(token);
             }
         }
@@ -94,17 +80,16 @@ struct moe_mask_gen_impl : public typed_primitive_impl<moe_mask_gen> {
         int num_actually_used_experts = 0;
         for (int expert = 0; expert < num_total_experts; expert++) {
             if (!tokens_per_expert[expert].empty()) {
-                experts_info_start_idx_ptr[experts_id_iter] = tokens_per_expert_iter;
-                experts_id_ptr[experts_id_iter] = expert;
-                tokens_lens_per_expert_ptr[experts_id_iter++] = static_cast<int32_t>(tokens_per_expert[expert].size());
+                experts_info_start_idx_lock[experts_id_iter] = tokens_per_expert_iter;
+                experts_id_lock[experts_id_iter] = expert;
+                tokens_lens_per_expert_lock[experts_id_iter++] = static_cast<int32_t>(tokens_per_expert[expert].size());
                 num_actually_used_experts++;
                 for (auto t : tokens_per_expert[expert]) {
-                    tokens_per_expert_ptr[tokens_per_expert_iter++] = t;
+                    tokens_per_expert_lock[tokens_per_expert_iter++] = t;
                 }
             }
         }
-        num_actually_used_experts_ptr[0] = num_actually_used_experts;
-        input_mem_ptrs[0]->unlock(stream);
+        num_actual_used_experts_lock[0] = num_actually_used_experts;
 
         if (pass_through_events) {
             return stream.group_events(events);

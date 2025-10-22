@@ -33,11 +33,11 @@ std::vector<layout> moe_scatter_reduction_inst::calc_output_layouts(moe_scatter_
 
     input0_len = input0_len;
     if (impl_param.input_layouts[0].is_dynamic())
-        return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension(hidden_size)},
+        return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)},
                 impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
     const auto num_tokens = impl_param.input_layouts[0].get_shape()[0] /
       num_active_experts_per_token;
-    const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens), ov::Dimension(hidden_size)};
+    const auto& out_shape = ov::PartialShape{1, ov::Dimension(num_tokens), ov::Dimension(hidden_size)};
     return {layout{out_shape, impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
 }
 

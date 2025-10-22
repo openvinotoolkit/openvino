@@ -68,7 +68,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto in_l = params.input_layouts[0];
-        auto hidden_size = extract_channel(ChannelName::FEATURE, in_l);
+        auto hidden_size = extract_channel(ChannelName::Y, in_l);
         auto block_size = GetBlockSize(params);
         auto [local_threads_count, batches_per_thread, unaligned_elements]  = calc_thread_count(
             const_cast<RuntimeParams&>(params), block_size, hidden_size);
@@ -103,7 +103,7 @@ protected:
             auto& wgs = kd.params.workGroups;
 
             if (!params.is_dynamic()) {
-                auto hidden_size = extract_channel(ChannelName::FEATURE, params.input_layouts[0]);
+                auto hidden_size = extract_channel(ChannelName::Y, params.input_layouts[0]);
                 auto block_size = GetBlockSize(params);
                 auto [local_threads_count, batches_per_thread, unaligned_elements]  = calc_thread_count(
                     const_cast<RuntimeParams&>(params), block_size, hidden_size);

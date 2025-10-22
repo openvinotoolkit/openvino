@@ -23,7 +23,6 @@ std::vector<layout> moe_gemm_inst::calc_output_layouts(moe_gemm_node const& /*no
     auto input_layout = impl_param.get_input_layout(0);
     auto experts_layout = impl_param.get_input_layout(1);
     auto input_rank = input_layout.get_partial_shape().size();
-    auto out_m_dim = input_rank - 2;
     auto out_n_dim = input_rank - 1;
     auto output_shape = input_layout.get_partial_shape();
     for (auto& o : output_shape) {
@@ -33,13 +32,13 @@ std::vector<layout> moe_gemm_inst::calc_output_layouts(moe_gemm_node const& /*no
     output_shape[out_n_dim] = ov::Dimension(n);
 
     if (!input_layout.is_dynamic()) {
-        auto m = input_layout.get_shape()[input_rank - 2];
+        auto m = input_layout.get_shape()[0];
         output_shape[0] = input_layout.get_shape()[0];
         if (m == 1) {
             // first gemm (up/gate) in the generate phase
-            output_shape[out_m_dim] = ov::Dimension(num_experts_per_token);
+            output_shape = ov::PartialShape{ov::Dimension(num_experts_per_token), ov::Dimension(1), ov::Dimension(n)};
         } else {
-            output_shape[out_m_dim] = ov::Dimension(m);
+            output_shape = ov::PartialShape{ov::Dimension(m), ov::Dimension(1), ov::Dimension(n)};
         }
     }
     auto output_layout = layout{ output_shape, input_layout.data_type, input_layout.format};
