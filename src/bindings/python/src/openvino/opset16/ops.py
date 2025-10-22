@@ -157,7 +157,7 @@ def avg_pool(
     """
     if auto_pad is None:
         auto_pad = "explicit"
-    
+
     attributes = {
         "strides": strides,
         "pads_begin": pads_begin,
@@ -167,10 +167,10 @@ def avg_pool(
         "rounding_type": rounding_type.upper(),
         "auto_pad": auto_pad.upper(),
     }
-    
+
     if dilations is not None:
         attributes["dilations"] = dilations
-    
+
     return _get_node_factory_opset16().create(
         "AvgPool",
         [as_node(data_batch, name=name)],
@@ -198,9 +198,9 @@ def one_hot(
     :param off_value: Scalar of any type that is the value that the locations not represented
                       by indices in input take.
     :param axis: New axis position in the output shape to fill with one-hot values.
-    :param negative_indices_mode: Controls how negative indices are handled. Can be 'ignore_negative' 
-                                  (negative indices are ignored and filled with off_value) or 
-                                  'normalize' (negative indices in range [-depth, -1] are normalized). 
+    :param negative_indices_mode: Controls how negative indices are handled. Can be 'ignore_negative'
+                                  (negative indices are ignored and filled with off_value) or
+                                  'normalize' (negative indices in range [-depth, -1] are normalized).
                                   If not provided, defaults to 'ignore_negative'.
     :param name: The optional name for new output node.
     :return: New node performing one-hot operation.
@@ -208,7 +208,7 @@ def one_hot(
     attributes = {"axis": axis}
     if negative_indices_mode is not None:
         attributes["negative_indices_mode"] = negative_indices_mode
-    
+
     return _get_node_factory_opset16().create(
         "OneHot",
         as_nodes(indices, depth, on_value, off_value, name=name),
