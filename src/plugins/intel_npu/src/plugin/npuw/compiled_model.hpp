@@ -18,6 +18,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "partitioning/partitioning.hpp"
 #include "perf.hpp"
+#include "pyramid_attention.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
@@ -177,6 +178,7 @@ private:
         Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
         std::optional<ov::npuw::compiled::Attention> attention;
+        std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls

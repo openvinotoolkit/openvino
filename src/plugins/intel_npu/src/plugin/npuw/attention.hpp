@@ -99,7 +99,7 @@ struct Attention {
     ov::Tensor attend_all;
 
     Attention() = default;
-    Attention(const function::Attention& d, const std::shared_ptr<ov::Model>& m)
+    Attention(const function::Attention& d, const std::shared_ptr<ov::Model>& m, bool create_attend_all = true)
         : query_size(d.query_len()),
           context_size(d.context_len()) {
         for (auto&& input : d._inputs) {
@@ -108,21 +108,23 @@ struct Attention {
         }
         mask_idx = m->get_parameter_index(d._mask);
 
-        // Create a mask data tensor here. Technically it is a runtime parameter,
-        // but in fact it doesn't change in runtime (we ignore what user passes us!)
-        // FIXME: Probably it is wrong
-        const auto mask_type = d._mask->get_element_type();
-        attend_all = ov::Tensor(mask_type, d._mask_shape);
+        if (create_attend_all) {
+            // Create a mask data tensor here. Technically it is a runtime parameter,
+            // but in fact it doesn't change in runtime (we ignore what user passes us!)
+            // FIXME: Probably it is wrong
+            const auto mask_type = d._mask->get_element_type();
+            attend_all = ov::Tensor(mask_type, d._mask_shape);
 
-        switch (mask_type) {
-        case ov::element::f16:
-            prepare_mask<ov::float16>(ov::get_tensor_impl(attend_all));
-            break;
-        case ov::element::f32:
-            prepare_mask<float>(ov::get_tensor_impl(attend_all));
-            break;
-        default:
-            OPENVINO_THROW("Dynamic attenion mask type ", mask_type, " is not supported yet");
+            switch (mask_type) {
+            case ov::element::f16:
+                prepare_mask<ov::float16>(ov::get_tensor_impl(attend_all));
+                break;
+            case ov::element::f32:
+                prepare_mask<float>(ov::get_tensor_impl(attend_all));
+                break;
+            default:
+                OPENVINO_THROW("Dynamic attenion mask type ", mask_type, " is not supported yet");
+            }
         }
     }
 };
