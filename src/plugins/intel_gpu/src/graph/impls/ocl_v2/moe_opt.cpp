@@ -689,7 +689,7 @@ public:
         //         scratch.y = down(scratch.gate) * routing_weights
         internal_buffers.emplace_back(layout_down_out, true);  // 2: x, scratch.x has same layout with down output
         layout routing_layout(ov::PartialShape{batch * max_topk}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_down_out, true);    // 3: routing_weights
+        internal_buffers.emplace_back(routing_layout, true);    // 3: routing_weights
         internal_buffers.emplace_back(layout_gateup_out, true);  // 4: gate, scratch.gate has same layout with up
         // expert masks for gpu
         layout index_layout(ov::PartialShape{batch}, ov::element::i32, cldnn::format::bfyx);
@@ -927,9 +927,6 @@ public:
 
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
-        // auto cur_moe = instance.get_typed_desc<moe>();
-        // const auto& moe_mlp_params = cur_moe->_mlp_params;
-        // const auto& mlp_params = moe_mlp_params[expert_no];
         auto& dnn_stream = stream.get_onednn_stream();
         auto hidden_states_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::HIDDEN_STATES))->get_layout().data_type);
 
@@ -1042,13 +1039,16 @@ public:
         // auto topk_id_mem = scratch.topk_id;
         auto topk_id_mem = scratch.input_router_topk_idx;
 
+        // Wait for topk is ready
+        for(auto &ev : events) {
+            ev->wait();
+        }
         expert_mask_cpu expert_mask;
         get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
 
         auto& dnn_stream = stream.get_onednn_stream();
         cldnn::event::ptr result_event;
 
-        // auto routing_mem_ptr = scratch.topk_weights;
         auto routing_mem_ptr = scratch.input_routing_weights;
         auto get_best_lws = [](size_t hidden_size) {
             const size_t candidate[] = {128, 64, 32, 16, 8};
@@ -1060,6 +1060,7 @@ public:
             OPENVINO_ASSERT(false, "hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
         };
         auto lws_size = get_best_lws(_hidden_size);
+        // std::cout << "routing_mem_ptr layout: " << routing_mem_ptr->get_layout().to_short_string() << std::endl;
 
         OPENVINO_ASSERT(batch != 1, "batch size shouldn't be 1 for this path!");
         for (size_t expert_no = 0; expert_no < config.num_expert; expert_no++) {
@@ -1076,28 +1077,33 @@ public:
 
             auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
             onednn_kernel& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
-            memory::ptr& x = scratch.x;
+
+            ov::Shape router_wei_shape = {static_cast<size_t>(1), static_cast<size_t>(batch)};
+            auto router_wei_layout = cldnn::layout(router_wei_shape, cldnn::data_types::f16, cldnn::format::get_default_format(router_wei_shape.size()));
+            auto current_expert_routing_mem_ptr = engine.create_subbuffer(*routing_mem_ptr, router_wei_layout, batch * expert_no * 2); // f16 size=2
+            // auto current_expert_routing_mem_ptr = scratch.input_routing_weights;
+            // std::cout << "MOEOptImpl::execute expert_no=" << expert_no << ", n_token=" << n_token << ", total_token_num = " << batch << std::endl;
 
             // gather
             execute_stage(events,
                           instance,
                           *gather,
-                          {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem.batch, expert_mask_mem.topk},
-                          {x, scratch.routing_weights},
+                          {hidden_states_mem_ptr, current_expert_routing_mem_ptr, expert_mask_mem.batch, expert_mask_mem.topk},
+                          {scratch.x, scratch.routing_weights},
                           {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
                           {1, lws_size});
 
             // up
             kernel.up.forward(dnn_stream,
                               n_token,
-                              convert2dnnl(x, {static_cast<int>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
+                              convert2dnnl(scratch.x, {static_cast<int>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
                               convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                               dnnl::memory());
 
             // gate
             kernel.gate.forward(dnn_stream,
                                 n_token,
-                                convert2dnnl(x, {static_cast<int>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.x, {static_cast<int>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
 

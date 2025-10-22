@@ -67,15 +67,15 @@ KERNEL(softmax_topk)(
 
 #elif GATHER_ENABLE
 KERNEL (gather_2d_ref)(
-    const __global MOE_TYPE* src_tok,
-    const __global MOE_TYPE* src_rweight,
-    __global int * tok_index,
-    __global int * top_index,
-    __global MOE_TYPE* dst_tok,
-    __global MOE_TYPE* dst_rweight) {
+    const __global MOE_TYPE* src_tok,       // input tokens [total_token, hidden_size] - hidden_states_mem_ptr
+    const __global MOE_TYPE* src_rweight,   // topk_weights [total_token, topk_experts]
+    __global int * tok_index,               // token index [expert_idx][] = [actual_token_num]   - expert_mask_mem.batch
+    __global int * top_index,               // topk  index [expert_idx][] = [actual_token_num]   - expert_mask_mem.topk
+    __global MOE_TYPE* dst_tok,             // output tokens [batch_size, hidden_size] - scratch.x
+    __global MOE_TYPE* dst_rweight) {       // output topk_weights [batch_size] - scratch.routing_weights
 
-    int k = get_global_id(0);
-    int off = get_global_id(1);
+    int k = get_global_id(0);   // token_idx
+    int off = get_global_id(1); // hidden_size offset
     int tok_idx = tok_index[k];
 
     src_tok += tok_idx * HIDDEN_SIZE;
@@ -92,8 +92,9 @@ KERNEL (gather_2d_ref)(
     #endif
 
     if (off == 0) {
-        int top_idx = top_index[k];
-        dst_rweight[k] = src_rweight[top_idx];
+        // int top_idx = top_index[k];
+        // dst_rweight[k] = src_rweight[top_idx];
+        dst_rweight[k] = src_rweight[tok_idx];
     }
 }
 
