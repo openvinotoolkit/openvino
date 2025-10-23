@@ -159,7 +159,8 @@ ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
             router_transpose_node->clone_with_new_inputs({chosen_experts_input, router_transpose_node->input_value(1)});
 
         const auto router_unsqueeze_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
-        const auto router_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(new_router_transpose, router_unsqueeze_const);
+        const auto router_unsqueeze =
+            std::make_shared<ov::op::v0::Unsqueeze>(new_router_transpose, router_unsqueeze_const);
 
         const auto final_mul_node = pattern_map.at(mul3).get_node_shared_ptr();
         const auto new_final_mul =
@@ -270,7 +271,8 @@ ov::intel_cpu::MoE3GeMM::MoE3GeMM() {
             router_transpose_node->clone_with_new_inputs({chosen_experts_input, router_transpose_node->input_value(1)});
 
         const auto router_unsqueeze_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
-        const auto router_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(new_router_transpose, router_unsqueeze_const);
+        const auto router_unsqueeze =
+            std::make_shared<ov::op::v0::Unsqueeze>(new_router_transpose, router_unsqueeze_const);
 
         const auto final_mul_node = pattern_map.at(mul3).get_node_shared_ptr();
         const auto new_final_mul =

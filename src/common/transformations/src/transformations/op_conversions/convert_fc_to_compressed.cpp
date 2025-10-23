@@ -117,7 +117,8 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
     bool convert_u4zp_to_u8) {
     using namespace ov::pass::pattern;
 
-    auto weights_block = std::make_shared<op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{2});
+    auto weights_block =
+        std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{2});
     auto activation = any_input(type_matches_any(supported_activation_types));
     auto bias = any_input();
     auto fully_connected = wrap_type<ov::op::internal::FullyConnected>({activation, weights_block, bias});
