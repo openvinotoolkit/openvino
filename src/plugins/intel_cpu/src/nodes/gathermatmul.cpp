@@ -15,6 +15,7 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "common/blocked_desc_creator.h"
@@ -334,12 +335,7 @@ ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes([[maybe
     using ov::element::Type_t;
 
 #if defined(OPENVINO_ARCH_X86_64)
-    ov::element::TypeVector supportedDataTypes =
-        {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1, Type_t::u2};
-    if (apply_fp8) {
-        supportedDataTypes.insert(supportedDataTypes.end(), {Type_t::f8e4m3, Type_t::f8e5m2});
-    }
-    return supportedDataTypes;
+    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
 #else
     return {};
 #endif
@@ -487,8 +483,8 @@ void GatherMatmul::createPrimitive() {
         auto scales = getSrcMemoryAtPort(WEIGHT_SCALES);
         CPU_NODE_ASSERT(scales && scales->isDefined(), "Weight scales memory is not defined");
         const auto& scDims = scales->getShape().getStaticDims();
-        expectedScaleMemDesc = addBatchDim(
-            MemoryDescUtils::convertToBlockedMemoryDesc(expectedScaleMemDesc), scDims[0]);
+        expectedScaleMemDesc =
+            addBatchDim(MemoryDescUtils::convertToBlockedMemoryDesc(expectedScaleMemDesc), scDims[0]);
         if (expectedScaleMemDesc->isCompatible(scales->getDesc())) {
             m_scalesMemory = scales;
         } else {
@@ -503,8 +499,7 @@ void GatherMatmul::createPrimitive() {
         auto zps = getSrcMemoryAtPort(WEIGHT_ZERO_POINTS);
         CPU_NODE_ASSERT(zps && zps->isDefined(), "Weight zero points memory is not defined");
         const auto& zpDims = zps->getShape().getStaticDims();
-        expectedZpMemDesc =
-            addBatchDim(MemoryDescUtils::convertToBlockedMemoryDesc(expectedZpMemDesc), zpDims[0]);
+        expectedZpMemDesc = addBatchDim(MemoryDescUtils::convertToBlockedMemoryDesc(expectedZpMemDesc), zpDims[0]);
         if (expectedZpMemDesc->isCompatible(zps->getDesc())) {
             m_zpMemory = zps;
         } else {
@@ -527,51 +522,53 @@ bool GatherMatmul::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);  // only data shape matters
 }
 
+namespace {
+class OffsetHelper {
+public:
+    static OffsetHelper createOffsetHelper(const MemoryPtr& mem) {
+        static VectorDims empty_dims;
+        if (nullptr == mem || mem->getDesc().empty()) {
+            return {nullptr, empty_dims, 0};
+        }
+        auto* base_ptr = static_cast<uint8_t*>(mem->getData());
+        auto desc = mem->getDescWithType<BlockedMemoryDesc>();
+        const auto& strides = desc->getStrides();
+        const auto prc = desc->getPrecision();
+        return {base_ptr, strides, prc.bitwidth()};
+    }
+
+    void* operator()(size_t i0) const {
+        if (!m_base_ptr) {
+            return nullptr;
+        }
+        const size_t offset_bits = i0 * m_strides[0] * m_num_bits;
+        const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
+        return m_base_ptr + offset;
+    }
+
+    void* operator()(size_t i0, size_t i1) const {
+        if (!m_base_ptr) {
+            return nullptr;
+        }
+        const size_t offset_bits = i0 * m_strides[0] * m_num_bits + i1 * m_strides[1] * m_num_bits;
+        const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
+        return m_base_ptr + offset;
+    }
+
+private:
+    OffsetHelper(uint8_t* base_ptr, const VectorDims& strides, size_t num_bits)
+        : m_base_ptr(base_ptr),
+          m_strides(strides),
+          m_num_bits(num_bits) {}
+
+private:
+    uint8_t* m_base_ptr = nullptr;
+    const VectorDims& m_strides;
+    size_t m_num_bits;
+};
+}  // namespace
+
 void GatherMatmul::execute(const dnnl::stream& strm) {
-    class OffsetHelper {
-    public:
-        static OffsetHelper createOffsetHelper(const MemoryPtr& mem) {
-            static VectorDims empty_dims;
-            if (nullptr == mem || mem->getDesc().empty()) {
-                return {nullptr, empty_dims, 0};
-            }
-            auto* base_ptr = static_cast<uint8_t*>(mem->getData());
-            auto desc = mem->getDescWithType<BlockedMemoryDesc>();
-            const auto& strides = desc->getStrides();
-            const auto prc = desc->getPrecision();
-            return {base_ptr, strides, prc.bitwidth()};
-        }
-
-        void* operator()(size_t i0) const {
-            if (!m_base_ptr) {
-                return nullptr;
-            }
-            const size_t offset_bits = i0 * m_strides[0] * m_num_bits;
-            const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
-            return m_base_ptr + offset;
-        }
-
-        void* operator()(size_t i0, size_t i1) const {
-            if (!m_base_ptr) {
-                return nullptr;
-            }
-            const size_t offset_bits = i0 * m_strides[0] * m_num_bits + i1 * m_strides[1] * m_num_bits;
-            const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
-            return m_base_ptr + offset;
-        }
-
-    private:
-        OffsetHelper(uint8_t* base_ptr, const VectorDims& strides, size_t num_bits)
-            : m_base_ptr(base_ptr),
-              m_strides(strides),
-              m_num_bits(num_bits) {}
-
-    private:
-        uint8_t* m_base_ptr = nullptr;
-        const VectorDims& m_strides;
-        size_t m_num_bits;
-    };
-
     const auto& srcMem = getParentEdgeAt(DATA)->getMemoryPtr();
     const auto& biasMem = getParentEdgeAt(BIAS)->getMemoryPtr();
     const auto& indexMem = getParentEdgeAt(INDICES)->getMemoryPtr();
@@ -594,7 +591,39 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
     auto index_offset = OffsetHelper::createOffsetHelper(indexMem);
 
     // naive version, processing token by token
-    for (size_t token = 0; token < n_tokens; token++) {
+    if (n_tokens > 1) {
+        const size_t max_experts = m_weightsMemory->getStaticDims()[0];
+
+        std::vector<std::pair<int32_t, int32_t>> expert_tokens(max_experts * n_tokens);
+        std::vector<int32_t> expert_token_counters(max_experts, 0);
+        for (size_t token = 0; token < n_tokens; token++) {
+            const auto* expert_ids = static_cast<const int32_t*>(index_offset(token));
+            for (size_t expert = 0; expert < active_experts_per_token; expert++) {
+                int32_t expert_id = expert_ids[expert];
+                auto& index = expert_token_counters[expert_id];
+                expert_tokens[expert_id * n_tokens + index] = {token, expert};
+                index++;
+            }
+        }
+
+        for (size_t expert_id = 0; expert_id < max_experts; expert_id++) {
+            if (0 == expert_token_counters[expert_id]) {
+                continue;
+            }
+            auto* wei = wei_offset(expert_id);
+            auto* bias = bias_offset(expert_id);
+            auto* scale = scale_offset(expert_id);
+            auto* zp = zp_offset(expert_id);
+            for (int32_t index = 0; index < expert_token_counters[expert_id]; ++index) {
+                const auto token = expert_tokens[expert_id * n_tokens + index].first;
+                const auto expert = expert_tokens[expert_id * n_tokens + index].second;
+                auto* src = src_offset(broadcast_src ? 0 : expert, token);
+                auto* dst = dst_offset(expert, token);
+                gemv_impl->exec(strm, src, dst, wei, bias, scale, zp);
+            }
+        }
+    } else {
+        constexpr size_t token = 0;
         auto* expert_ids = static_cast<int32_t*>(index_offset(token));
         for (size_t expert = 0; expert < active_experts_per_token; expert++) {
             int32_t expert_id = expert_ids[expert];
