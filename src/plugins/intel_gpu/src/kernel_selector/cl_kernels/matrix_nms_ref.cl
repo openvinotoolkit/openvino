@@ -194,9 +194,6 @@ KERNEL(matrix_nms_ref_stage_0)
         }
     }
 
-    for (int i = valid_boxes_num; i < NUM_BOXES; ++i)
-        sorted_score_indices[i] = 0;
-
     // TODO: consider faster sorting algorithm
     FUNC_CALL(sortIterative)(input_scores, batchId, classId, sorted_score_indices, valid_boxes_num);
 
