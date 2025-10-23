@@ -32,12 +32,12 @@ namespace {
     M(B, x2)                                                                                \
     M(B, x3)                                                                                \
     M(B, x4) M(B, x5) M(B, x6) M(B, x7) M(B, x8) M(B, x9) M(B, x10) M(B, x11) M(B, x12) M(B, x13) M(B, x14) M(B, x15)
-#define FOR_EACH_16(M, B, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16)                      \
-    M(B, x1)                                                                                                          \
-    M(B, x2)                                                                                                          \
-    M(B, x3)                                                                                                          \
-    M(B, x4) M(B, x5) M(B, x6) M(B, x7) M(B, x8) M(B, x9) M(B, x10) M(B, x11) M(B, x12) M(B, x13) M(B, x14) M(B, x15) \
-        M(B, x16)
+#define FOR_EACH_16(M, B, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16) \
+    M(B, x1)                                                                                     \
+    M(B, x2)                                                                                     \
+    M(B, x3)                                                                                     \
+    M(B, x4)                                                                                     \
+    M(B, x5) M(B, x6) M(B, x7) M(B, x8) M(B, x9) M(B, x10) M(B, x11) M(B, x12) M(B, x13) M(B, x14) M(B, x15) M(B, x16)
 
 #define GET_MACRO(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, NAME, ...) NAME
 
