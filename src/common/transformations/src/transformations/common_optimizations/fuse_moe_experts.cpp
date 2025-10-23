@@ -214,7 +214,7 @@ std::shared_ptr<Node> extract_shape_dim(const Output<Node>& input, size_t axis_i
 
 // Helper function to create router pattern (Softmax -> TopK -> OneHot -> Transpose)
 // This pattern identifies the expert selection logic from router logits
-std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>> create_router_pattern(const AxisPatterns& axes) {
+std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>> create_router_pattern() {
     auto linear_MatMul = pattern::any_input();
     auto expert_num = wrap_type<ov::op::v0::Constant>();
     auto num_topk = wrap_type<ov::op::v0::Constant>();
@@ -275,7 +275,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     AxisPatterns axes;
 
     // Create router pattern: Softmax -> TopK -> OneHot -> Transpose
-    auto router_result = create_router_pattern(axes);
+    auto router_result = create_router_pattern();
     auto topk_TopK = router_result.first;
     auto permute_Transpose = router_result.second;
 
