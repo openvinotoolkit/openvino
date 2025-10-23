@@ -12,6 +12,8 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 import torch
 import numpy as np
 
+pytestmark = pytest.mark.skip(reason="FuseMOE transformation temporarily disabled in moc_transformations.cpp")
+
 
 def verify_moe_fusion(ov_model: ov.Model, model_id: str):
     """
