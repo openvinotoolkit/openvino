@@ -84,14 +84,6 @@ bool is_slice_to_end(const std::shared_ptr<Node>& node) {
     return false;
 }
 
-struct expert_data {
-    std::shared_ptr<Node> gate_proj_weight;
-    std::shared_ptr<Node> up_proj_weight;
-    std::shared_ptr<Node> down_proj_weight;
-    size_t expert_id;
-    std::shared_ptr<Node> permute_node;
-};
-
 // Pattern matching for individual expert computation block with SwiGLU activation
 std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
     const Output<Node>& permute_Transpose,    // Transpose -> OneHot -> TopK -> Softmax -> MatMul -> Hidden States

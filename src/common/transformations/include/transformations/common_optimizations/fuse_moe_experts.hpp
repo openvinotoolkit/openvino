@@ -12,6 +12,20 @@ namespace ov {
 namespace pass {
 
 /**
+ * @brief Data structure representing a single expert's weight parameters and metadata.
+ *
+ * Used during MoE fusion to track and organize expert-specific information across
+ * the pattern matching and transformation process.
+ */
+struct expert_data {
+    std::shared_ptr<Node> gate_proj_weight;  ///< Gate projection weight matrix
+    std::shared_ptr<Node> up_proj_weight;    ///< Up projection weight matrix
+    std::shared_ptr<Node> down_proj_weight;  ///< Down projection weight matrix
+    size_t expert_id;                        ///< Expert identifier (0-based index)
+    std::shared_ptr<Node> permute_node;      ///< Associated permute/transpose node for MoE layer grouping
+};
+
+/**
  * @brief Detects decomposed Mixture-of-Experts (MoE) layers whose experts are expressed
  * as independent SWIGLU 3-GEMM pipelines with scatter-based accumulation, and replaces
  * them with a single fused representation.
