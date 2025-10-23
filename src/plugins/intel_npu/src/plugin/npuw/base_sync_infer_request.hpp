@@ -16,6 +16,7 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
+#include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
 
@@ -146,7 +147,8 @@ protected:
     // Same thing about this one
     runtime::attention::Selector::Ptr m_attention_selector;
 
-    runtime::attention::Selector::Ptr m_pyramid_selector;
+    // Separate selector for pyramid attention
+    runtime::pyramid_attention::Selector::Ptr m_pyramid_selector;
 
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters
