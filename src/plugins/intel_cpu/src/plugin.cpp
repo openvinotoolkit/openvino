@@ -706,7 +706,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 static std::string get_origin_weights_path(const ov::AnyMap& config) {
     std::string origin_weights_path;
 
-    if (ov::util::is_weightless_enabled(config)) {
+    if (ov::util::is_weightless_enabled(config).value_or(false)) {
         auto wp_it = config.find(ov::weights_path.name());
         if (wp_it != config.end()) {
             origin_weights_path = wp_it->second.as<std::string>();

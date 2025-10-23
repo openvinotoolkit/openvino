@@ -3,13 +3,13 @@
 //
 
 #include "behavior/compiled_model/model_cache.hpp"
-
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "common_test_utils/test_assertions.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/codec_xor.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
 
@@ -61,7 +61,9 @@ void WeightlessCacheAccuracy::run() {
     }
 
     auto config_with_weights_path = config;
-    config_with_weights_path.insert(ov::weights_path(m_bin_path));
+    if (ov::util::is_weightless_enabled(config).value_or(false)) {
+        config_with_weights_path.insert(ov::weights_path(m_bin_path));
+    }
     config_with_weights_path.erase(ov::cache_dir.name());
 
     if (m_do_encryption) {
