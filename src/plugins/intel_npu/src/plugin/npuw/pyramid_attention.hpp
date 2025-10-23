@@ -129,6 +129,7 @@ namespace compiled {
 struct PyramidAttention {
     std::vector<struct Attention> _attentions;
     std::vector<std::shared_ptr<ov::Model>> _models;
+    std::vector<ov::SoPtr<ov::ICompiledModel>> _compiled_models;
 
     std::size_t query_size = 0u;
     std::size_t full_context_size = 0u;
