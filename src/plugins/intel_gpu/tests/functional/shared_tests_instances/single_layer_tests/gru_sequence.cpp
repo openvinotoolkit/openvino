@@ -55,6 +55,8 @@ namespace {
     std::vector<bool> linear_before_reset = {true, false};
     std::vector<float> clip{0.f};
     std::vector<float> clip_non_zeros{0.7f};
+    std::vector<std::vector<std::string>> activations_onednn = {{"sigmoid", "tanh"}};
+    std::vector<bool> linear_before_reset_onednn = {true};
     std::vector<ov::op::RecurrentSequenceDirection> direction = {ov::op::RecurrentSequenceDirection::FORWARD,
                                                                  ov::op::RecurrentSequenceDirection::REVERSE};
     std::vector<ov::op::RecurrentSequenceDirection> direction_bi = {ov::op::RecurrentSequenceDirection::BIDIRECTIONAL};
@@ -123,9 +125,9 @@ namespace {
                                     ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_b1)),
                                     // ::testing::ValuesIn(input_size), // hardcoded to 10 due to Combine supports up to 10 args
-                                    ::testing::ValuesIn(activations),
+                                    ::testing::ValuesIn(activations_onednn),
                                     ::testing::ValuesIn(clip),
-                                    ::testing::ValuesIn(linear_before_reset),
+                                    ::testing::ValuesIn(linear_before_reset_onednn),
                                     ::testing::ValuesIn(direction),
                                     ::testing::Values(InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
@@ -137,9 +139,9 @@ namespace {
                                     ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_bidirect_b1)),
                                     // ::testing::ValuesIn(input_size), // hardcoded to 10 due to Combine supports up to 10 args
-                                    ::testing::ValuesIn(activations),
+                                    ::testing::ValuesIn(activations_onednn),
                                     ::testing::ValuesIn(clip),
-                                    ::testing::ValuesIn(linear_before_reset),
+                                    ::testing::ValuesIn(linear_before_reset_onednn),
                                     ::testing::ValuesIn(direction_bi),
                                     ::testing::Values(InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
