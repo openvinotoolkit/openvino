@@ -18,6 +18,11 @@
 namespace ov {
 namespace npuw {
 
+namespace compiled {
+// Forward declaration
+struct PyramidAttention;
+}  // namespace compiled
+
 namespace function {
 
 // Partition-time attention information. So far assume dynamic execution in 1 dimension only
@@ -99,7 +104,7 @@ struct Attention {
     ov::Tensor attend_all;
 
     Attention() = default;
-    Attention(const function::Attention& d, const std::shared_ptr<ov::Model>& m, bool create_attend_all = true)
+    Attention(const function::Attention& d, const std::shared_ptr<ov::Model>& m)
         : query_size(d.query_len()),
           context_size(d.context_len()) {
         for (auto&& input : d._inputs) {
@@ -108,23 +113,21 @@ struct Attention {
         }
         mask_idx = m->get_parameter_index(d._mask);
 
-        if (create_attend_all) {
-            // Create a mask data tensor here. Technically it is a runtime parameter,
-            // but in fact it doesn't change in runtime (we ignore what user passes us!)
-            // FIXME: Probably it is wrong
-            const auto mask_type = d._mask->get_element_type();
-            attend_all = ov::Tensor(mask_type, d._mask_shape);
+        // Create a mask data tensor here. Technically it is a runtime parameter,
+        // but in fact it doesn't change in runtime (we ignore what user passes us!)
+        // FIXME: Probably it is wrong
+        const auto mask_type = d._mask->get_element_type();
+        attend_all = ov::Tensor(mask_type, d._mask_shape);
 
-            switch (mask_type) {
-            case ov::element::f16:
-                prepare_mask<ov::float16>(ov::get_tensor_impl(attend_all));
-                break;
-            case ov::element::f32:
-                prepare_mask<float>(ov::get_tensor_impl(attend_all));
-                break;
-            default:
-                OPENVINO_THROW("Dynamic attenion mask type ", mask_type, " is not supported yet");
-            }
+        switch (mask_type) {
+        case ov::element::f16:
+            prepare_mask<ov::float16>(ov::get_tensor_impl(attend_all));
+            break;
+        case ov::element::f32:
+            prepare_mask<float>(ov::get_tensor_impl(attend_all));
+            break;
+        default:
+            OPENVINO_THROW("Dynamic attenion mask type ", mask_type, " is not supported yet");
         }
     }
 };
@@ -169,17 +172,19 @@ class PositionIDs final : public Selector {
     std::size_t m_position_ids_idx = 0u;
     int64_t m_current_length = 0;
     int64_t m_past_length = 0;
+    std::size_t m_query_size = 0u;
 
-    const compiled::Attention& m_d;
     const ov::ISyncInferRequest& m_rq;
 
     PositionIDs(std::size_t param_idx, const compiled::Attention& d, const ov::ISyncInferRequest& rq);
+    PositionIDs(std::size_t param_idx, const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq);
     void prepare(int64_t past_len) override;
     int64_t length() const override;
     int64_t past_length() const override;
 
 public:
     static Selector::Ptr find(const compiled::Attention& d, const ov::ISyncInferRequest& rq);
+    static Selector::Ptr find(const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq);
 };
 
 }  // namespace attention
