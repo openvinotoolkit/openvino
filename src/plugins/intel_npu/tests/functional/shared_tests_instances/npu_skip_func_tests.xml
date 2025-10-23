@@ -624,10 +624,11 @@ Example:
         <message>Failing Windows PV Driver core threading tests</message>
         <enable_rules>
             <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
             <operating_system>windows</operating_system>
         </enable_rules>
         <filters>
-            <filter>.*CoreThreadingTest.smoke_QueryModel/.*_driverVersion=1688.*</filter>
+            <filter>.*CoreThreadingTest.smoke_QueryModel/.*</filter>
         </filters>
     </skip_config>
 
@@ -700,9 +701,14 @@ Example:
     <!-- E#116761 -->
     <skip_config>
         <message>OVClassQueryModel tests do not work with COMPILER_TYPE=DRIVER and PV driver</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+            <operating_system>windows</operating_system>
+        </enable_rules>
         <filters>
-            <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*_driverVersion=1688.*</filter>
-            <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*_driverVersion=1688.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*</filter>
         </filters>
     </skip_config>
 
@@ -836,6 +842,20 @@ Example:
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_INFO.*</filter>
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_DEBUG.*</filter>
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_TRACE.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#189262 -->
+    <skip_config>
+        <message>Some ZeroGraphTest run only on NPU 3720</message>
+        <enable_rules>
+            <device>!3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*smoke_BehaviorTest/ZeroGraphTest.GetGraphInitBlob.*</filter>
+            <filter>.*smoke_BehaviorTest/ZeroGraphTest.GetGraphBinary.*</filter>
+            <filter>.*smoke_BehaviorTest/ZeroGraphTest.GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob.*</filter>
+            <filter>.*smoke_BehaviorTest/ZeroGraphTest.GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob.*</filter>
         </filters>
     </skip_config>
 

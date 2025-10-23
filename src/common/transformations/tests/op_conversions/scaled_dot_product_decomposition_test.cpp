@@ -351,8 +351,8 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
         auto scaled_attn_sink = std::make_shared<ov::op::v0::Concat>(OutputVector{scaled_atten, sinks_broadcast}, -1);
         scaled_atten = std::make_shared<ov::op::v8::Softmax>(scaled_attn_sink, -1);
 
-        auto seq_len = std::make_shared<ov::op::v8::Gather>(q_shape, minus_two, zero_i);
-        scaled_atten = std::make_shared<ov::op::v8::Slice>(scaled_atten, zero_i, seq_len, one_i, minus_one);
+        auto prev_seq_len = std::make_shared<ov::op::v8::Gather>(k_shape, minus_two, zero_i);
+        scaled_atten = std::make_shared<ov::op::v8::Slice>(scaled_atten, zero_i, prev_seq_len, one_i, minus_one);
     } else {
         scaled_atten = std::make_shared<ov::op::v8::Softmax>(scaled_atten, -1);
     }
