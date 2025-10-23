@@ -18,48 +18,43 @@
 namespace ov {
 namespace npuw {
 
-/// Eagle3 layer names used in speculative decoding
+// Layer names for Eagle3 speculative decoding
 struct Eagle3LayerNames {
     static constexpr const char* hidden_states = "hidden_states";
     static constexpr const char* internal_hidden_states = "internal_hidden_states";
     static constexpr const char* last_hidden_state = "last_hidden_state";
 };
 
-/// Eagle3 string matching utilities
+// Utility functions for Eagle3 layer name matching
 bool matchEagle3HiddenStatesString(const std::string& input);
 bool matchEagle3InternalHiddenStatesString(const std::string& input);
 
-/// Eagle3 model roles in speculative decoding pipeline
+// Model roles for Eagle3 speculative decoding
 enum class Eagle3ModelRole {
     None,    ///< Not an Eagle3 model
     Target,  ///< Target model: only outputs last_hidden_state
     Draft    ///< Draft model: has hidden_states/internal_hidden_states as inputs, and outputs last_hidden_state
 };
 
-/**
- * @brief Eagle3 Extension for speculative decoding support
- *
- * Encapsulates all Eagle3-specific logic for both target and draft models.
- * Target models only produce last_hidden_state output.
- * Draft models consume hidden_states and internal_hidden_states inputs, and also produce last_hidden_state output.
- */
+// Extension for Eagle3 speculative decoding
+// Handles Eagle3-specific input/output logic for draft and target models
 class Eagle3Extension {
 public:
-    /// Initialize Eagle3 support and detect model role (Draft/Target/None) based on model inputs/outputs
+    // Detect Eagle3 model role (Draft/Target/None) based on model inputs/outputs
     void initialize(const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
                     const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports);
 
-    /// Returns true if this model is an Eagle3 draft or target model
+    // Returns true if model is Eagle3 draft or target
     bool is_enabled() const {
         return m_role != Eagle3ModelRole::None;
     }
 
-    /// Get the detected Eagle3 model role (None, Draft, Target)
+    // Get detected Eagle3 model role
     Eagle3ModelRole get_role() const {
         return m_role;
     }
 
-    /// Store user-provided Eagle3 input tensors (only for draft models)
+    // Store user-provided Eagle3 input tensors (for draft models only)
     template <typename GetTensorFunc>
     bool store_user_tensors(const std::vector<ov::Output<const ov::Node>>& inputs, GetTensorFunc get_tensor_func) {
         if (m_role != Eagle3ModelRole::Draft) {
@@ -89,21 +84,21 @@ public:
         return processed_any;
     }
 
-    /// Prepare Eagle3 inputs automatically based on model role (draft only)
+    // Prepare Eagle3 input tensors (hidden_states, internal_hidden_states) for draft models
     void prepare_inputs(std::shared_ptr<ov::IAsyncInferRequest> request,
                         const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports);
 
-    /// Prepare Eagle3 inputs for chunked prefill (draft only), using a specific token range
+    // Prepare Eagle3 input tensors for chunked prefill (draft models), using a token range
     void prepare_inputs_for_chunk(std::shared_ptr<ov::IAsyncInferRequest> request,
                                   const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
                                   uint32_t chunk_start_token,
                                   uint32_t chunk_token_count);
 
-    /// Process Eagle3 outputs automatically based on model role (both draft and target)
+    // Process Eagle3 output tensor (last_hidden_state) for draft and target models
     void process_outputs(std::shared_ptr<ov::IAsyncInferRequest> request,
                          const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports);
 
-    /// Get stored Eagle3 input/output tensors
+    // Get stored Eagle3 input/output tensors
     ov::SoPtr<ov::ITensor> get_hidden_states() const {
         return m_hidden_states;
     }
@@ -117,7 +112,7 @@ public:
     }
 
 private:
-    // Utility: find port by name
+    // Find port by name in port list
     static std::optional<ov::Output<const ov::Node>> find_port_by_name(
         const std::vector<ov::Output<const ov::Node>>& ports,
         const std::string& name) {
@@ -127,14 +122,8 @@ private:
         return (it != ports.end()) ? std::make_optional(*it) : std::nullopt;
     }
 
-    // Validate tensor properties (type and shape)
+    // Validate tensor type and shape
     void validate_tensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& name);
-
-    // Internal methods for role-specific processing
-    void prepare_inputs_impl(std::shared_ptr<ov::IAsyncInferRequest> request,
-                             const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports);
-    void process_outputs_impl(std::shared_ptr<ov::IAsyncInferRequest> request,
-                              const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports);
 
     Eagle3ModelRole m_role = Eagle3ModelRole::None;
 
