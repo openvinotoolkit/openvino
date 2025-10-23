@@ -9,7 +9,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -19,12 +18,11 @@
 #include <vector>
 
 #include "common/blocked_desc_creator.h"
+#include "config.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "executors/memory_arguments.hpp"
-#include "fullyconnected.h"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -37,7 +35,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/op/util/op_types.hpp"
 #include "shape_inference/custom/gathermatmul.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
@@ -208,7 +205,6 @@ private:
         return args;
     }
 
-private:
     dnnl::primitive m_prim;
     dnnl::memory::desc m_input_md;
     dnnl::memory::desc m_output_md;
@@ -561,7 +557,6 @@ private:
           m_strides(strides),
           m_num_bits(num_bits) {}
 
-private:
     uint8_t* m_base_ptr = nullptr;
     const VectorDims& m_strides;
     size_t m_num_bits;

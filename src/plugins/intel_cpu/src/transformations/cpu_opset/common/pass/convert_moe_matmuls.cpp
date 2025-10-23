@@ -4,24 +4,23 @@
 
 #include "convert_moe_matmuls.hpp"
 
-#include <algorithm>
-#include <cstddef>
+#include <initializer_list>
 #include <memory>
-#include <numeric>
 #include <string>
-#include <tuple>
-#include <utility>
-#include <vector>
 
 #include "itt.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
-#include "openvino/op/moe.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
@@ -30,16 +29,15 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
-#include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/manager.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/common_optimizations/matmul_experts_fusion.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
-#include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
 namespace {

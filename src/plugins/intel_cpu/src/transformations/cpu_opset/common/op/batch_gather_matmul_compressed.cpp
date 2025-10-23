@@ -10,11 +10,8 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/util/attr_types.hpp"
 #include "transformations/itt.hpp"
 
 namespace ov::intel_cpu {

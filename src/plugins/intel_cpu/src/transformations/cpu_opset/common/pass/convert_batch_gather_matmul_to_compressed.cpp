@@ -5,27 +5,31 @@
 #include "convert_batch_gather_matmul_to_compressed.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
-#include <tuple>
+#include <set>
+#include <vector>
 
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
-#include "transformations/utils/utils.hpp"
 
 ov::intel_cpu::ConvertBatchGatherMatmulToBatchGatherMatmulCompressed::
     ConvertBatchGatherMatmulToBatchGatherMatmulCompressed(
         const std::vector<ov::element::Type>& supported_activation_types,
         const std::vector<ov::element::Type>& supported_weights_types,
-        SupportsPredicate supports_config,
+        const SupportsPredicate& supports_config,
         bool convert_u4zp_to_u8) {
     using namespace ov::pass::pattern;
 
@@ -70,9 +74,13 @@ ov::intel_cpu::ConvertBatchGatherMatmulToBatchGatherMatmulCompressed::
 
         const size_t IC = *(weights_shape.rbegin());
         const size_t OC = *(weights_shape.rbegin() + 1);
-        const size_t G = grouped ? (has_transpose ? *(scale_shape.rbegin() + 2) : *(scale_shape.rbegin() + 1)) : 1;
-        if (supports_config && !supports_config(new_bgm, IC, OC, G))
+        size_t G = 1;
+        if (grouped) {
+            G = has_transpose ? *(scale_shape.rbegin() + 2) : *(scale_shape.rbegin() + 1);
+        }
+        if (supports_config && !supports_config(new_bgm, IC, OC, G)) {
             return false;
+        }
 
         result_nodes.push_back(new_bgm);
         new_bgm->set_friendly_name(bgm->get_friendly_name());

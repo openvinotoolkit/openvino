@@ -23,7 +23,7 @@ public:
     ConvertBatchGatherMatmulToBatchGatherMatmulCompressed(
         const std::vector<ov::element::Type>& supported_activation_types,
         const std::vector<ov::element::Type>& supported_weights_types,
-        SupportsPredicate supports_config = nullptr,
+        const SupportsPredicate& supports_config = nullptr,
         bool convert_u4zp_to_u8 = false);
 };
 

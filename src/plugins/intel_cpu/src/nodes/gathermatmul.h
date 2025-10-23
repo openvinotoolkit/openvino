@@ -57,7 +57,6 @@ private:
 
     using GemvImplPtr = std::shared_ptr<onednn_matmul>;
 
-private:
     Algorithm algorithm = Algorithm::GatherMatmulDefault;
     MemoryArgs memory;
     GemvImplPtr gemv_impl = nullptr;

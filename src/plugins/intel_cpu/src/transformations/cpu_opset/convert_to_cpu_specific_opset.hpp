@@ -19,6 +19,7 @@
 #include "common/pass/rnn_sequences_optimization.hpp"
 #include "config.h"
 #include "nodes/fullyconnected.h"
+#include "nodes/gathermatmul.h"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/element_type.hpp"
