@@ -1,4 +1,4 @@
-name: Linux CPU Plugin Snippets with LIBXSMM (Ubuntu 20.04)
+name: Linux CPU Plugin Snippets with LIBXSMM (Ubuntu 22.04)
 on:
   workflow_dispatch:
   pull_request:
