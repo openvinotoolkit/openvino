@@ -45,38 +45,52 @@ size_t get_x_pitch(const layout& layout) {
 
 template <class T>
 void __validate_data_range(memory::ptr mem, stream& stream, std::string &info) {
+    if (!mem)
+        return;
     auto&& size = mem->get_layout().get_tensor();
-
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
     auto x_pitch = get_x_pitch(mem->get_layout());
     std::stringstream buffer;
     float val_min = std::numeric_limits<float>::max();
     float val_max = std::numeric_limits<float>::lowest();
+    const bool is_memory_packed = !mem->is_memory_reset_needed(mem->get_layout());
 
+    if (is_memory_packed) {
+        for (size_t i = 0; i < mem->count(); ++i) {
+            auto val = convert_element(mem_ptr[i]);
+            if (std::isinf(val) || std::isnan(val)) {
+                std::string err_str = std::isinf(val) ? "inf" : "nan";
+                GPU_DEBUG_COUT << err_str << " WAS FOUND: " << info << "  *********************" << std::endl;
+                return;
+            }
+            if (val > val_max)
+                val_max = val;
+            if (val < val_min)
+                val_min = val;
+        }
+    } else {
+        for (ov::Dimension::value_type g = 0; g < size.group[0]; ++g) {
+            for (ov::Dimension::value_type b = 0; b < size.batch[0]; ++b) {
+                for (ov::Dimension::value_type f = 0; f < size.feature[0]; ++f) {
+                    for (ov::Dimension::value_type w = 0; w < size.spatial[3]; ++w) {
+                        for (ov::Dimension::value_type z = 0; z < size.spatial[2]; ++z) {
+                            for (ov::Dimension::value_type y = 0; y < size.spatial[1]; ++y) {
+                                cldnn::tensor t(cldnn::group(g), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(0, y, z, w));
+                                size_t input_it = mem->get_layout().get_linear_offset(t);
 
-    for (ov::Dimension::value_type g = 0; g < size.group[0]; ++g) {
-        for (ov::Dimension::value_type b = 0; b < size.batch[0]; ++b) {
-            for (ov::Dimension::value_type f = 0; f < size.feature[0]; ++f) {
-                for (ov::Dimension::value_type w = 0; w < size.spatial[3]; ++w) {
-                    for (ov::Dimension::value_type z = 0; z < size.spatial[2]; ++z) {
-                        for (ov::Dimension::value_type y = 0; y < size.spatial[1]; ++y) {
-                            cldnn::tensor t(cldnn::group(g), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(0, y, z, w));
-                            size_t input_it = mem->get_layout().get_linear_offset(t);
-
-                            for (ov::Dimension::value_type x = 0; x < size.spatial[0]; ++x, input_it += x_pitch) {
-                                auto val = convert_element(mem_ptr[input_it]);
-                                if (std::isinf(val) || std::isnan(val)) {
-                                    std::string err_str = std::isinf(val) ? "inf " : "nan ";
-                                    GPU_DEBUG_COUT << "===============================================" << std::endl;
-                                    GPU_DEBUG_COUT << err_str << " WAS FOUND: " << info << std::endl;
-                                    GPU_DEBUG_COUT << "===============================================" << std::endl;
-                                    return;
+                                for (ov::Dimension::value_type x = 0; x < size.spatial[0]; ++x, input_it += x_pitch) {
+                                    auto val = convert_element(mem_ptr[input_it]);
+                                    if (std::isinf(val) || std::isnan(val)) {
+                                        std::string err_str = std::isinf(val) ? "inf" : "nan";
+                                        GPU_DEBUG_COUT << err_str << " WAS FOUND: " << info << "  *********************" << std::endl;
+                                        return;
+                                    }
+                                    if (val > val_max)
+                                        val_max = val;
+                                    if (val < val_min)
+                                        val_min = val;
                                 }
-                                if (val > val_max)
-                                    val_max = val;
-                                if (val < val_min)
-                                    val_min = val;
                             }
                         }
                     }
@@ -84,7 +98,7 @@ void __validate_data_range(memory::ptr mem, stream& stream, std::string &info) {
             }
         }
     }
-    GPU_DEBUG_INFO << "min, max = " << val_min << ", " << val_max << "  : " << info << std::endl;
+    GPU_DEBUG_INFO << "min, max = " << val_min << ", " << val_max << "  : " << info << "  is_packed " << is_memory_packed << std::endl;
 }
 
 void validate_data_range(memory::ptr mem, stream& stream, ov::element::Type_t data_type, std::string &info) {
@@ -213,7 +227,7 @@ void dump_i4u4(cldnn::data_types type, memory::ptr mem, stream& stream, std::ofs
             buffer << std::fixed << std::setprecision(6) << static_cast<int>(v1) << std::endl;
         }
     } else {
-        std::cout << __func__ << " supports raw dump only" << std::endl;
+        GPU_DEBUG_COUT << " supports raw dump only" << std::endl;
     }
     file_stream << buffer.str();
 }
@@ -255,7 +269,7 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
     else if (mem_dt == cldnn::data_types::i4 || mem_dt == cldnn::data_types::u4)
         dump_i4u4(mem_dt, actual_mem, stream, file_stream, dump_raw);
     else
-        std::cout << "Dump for this data type is not supported: " << dt_to_str(mem_dt) << std::endl;
+        GPU_DEBUG_COUT << "Dump for this data type is not supported: " << dt_to_str(mem_dt) << std::endl;
 }
 
 std::string get_file_path_for_binary_dump(cldnn::layout layout, const std::string& name, const std::string& dump_layers_path) {
@@ -485,7 +499,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
 NodeDebugHelper::~NodeDebugHelper() {
     const auto& config = m_network.get_config();
 
-    if (config.get_validate_output_buffer()) {
+    if (config.get_validate_output_buffer() && !m_network.is_internal()) {
         m_stream.finish(); // Wait for stream completion before checking output buffers
         for (size_t i = 0; i < m_inst.outputs_memory_count(); i++) {
             auto output_mem = m_inst.output_memory_ptr(i);
