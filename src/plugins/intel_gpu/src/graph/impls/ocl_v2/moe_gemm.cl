@@ -16,7 +16,9 @@
 
 #include "include/batch_headers/generic_vector_ops.cl"
 #include "include/batch_headers/tile_ops.cl"
-
+#ifdef BIAS_DT
+DECLARE_2D_TILE(bias_tile_type, BIAS_DT, SUBGROUP_SIZE, ugemm_moe_sg_tile_m, 1, 1, 1)
+#endif
 DECLARE_2D_TILE(ugemm_moe_c_type_half, half, SUBGROUP_SIZE, ugemm_moe_c_type_block0, ugemm_moe_c_type_block1, ugemm_moe_c_type_nblock0, ugemm_moe_c_type_nblock1)
 DECLARE_2D_TILE_COPY_REBLOCK(ugemm_moe_c_type, SUBGROUP_SIZE, ugemm_moe_c_type_block0, ugemm_moe_c_type_block1, ugemm_moe_c_type_nblock0, ugemm_moe_c_type_nblock1,
                              ugemm_moe_c_type_half, SUBGROUP_SIZE, ugemm_moe_c_type_block0, ugemm_moe_c_type_block1, ugemm_moe_c_type_nblock0, ugemm_moe_c_type_nblock1)
@@ -40,6 +42,9 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
         , const global WEIGHT_ZP_DT *weight_zps
         #endif
 #endif
+#ifdef BIAS_DT
+        , const global BIAS_DT *bias_ptr
+#endif
 ) {
     uint batch = get_group_id(2);
     int input_offset = input_offset_per_expert[batch];
@@ -60,6 +65,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     weight_zps += experts_ids[batch] * m;
     #endif
 #endif
+
     int ld_weight = k;
     int cur_n_tokens = n_array[batch];
 
@@ -84,5 +90,22 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 );
     ugemm_moe_c_type_half c_tile_half;
     tile_copy_reblock(c_tile, &c_tile_half);
+
+#ifdef BIAS_DT
+    bias_ptr += (experts_ids[batch] * BIAS_STRIDE);
+    int sglid = get_sub_group_local_id();
+    bias_tile_type bias_tile;
+    tile_load_full(&bias_tile, bias_ptr, 1, sg_j0, 0);
+    const int num_cols = (ugemm_moe_c_type_block0 * ugemm_moe_c_type_block1) / SUBGROUP_SIZE;
+    const int num_rows = ugemm_moe_c_type_nblock0 * ugemm_moe_c_type_nblock1;
+    const int num_blocks_per_m_tile = ugemm_moe_sg_tile_m / num_cols;
+    const int block_offset = sg_i0 + (sglid % num_blocks_per_m_tile) * num_cols;
+    for (int br = 0; br < num_rows; br++) {
+        for (int bc = 0; bc < num_cols; bc++) {
+            const int col_idx = block_offset + bc;
+            c_tile_half.x[br][bc] += sub_group_shuffle(bias_tile.x[0][col_idx / SUBGROUP_SIZE], col_idx % SUBGROUP_SIZE);
+        }
+    }
+#endif
     tile_store(c_tile_half, out_ptr, m, cur_n_tokens, sg_i0, sg_j0);
 }
