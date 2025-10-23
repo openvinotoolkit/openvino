@@ -38,6 +38,14 @@ std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, const
 
 }  // namespace
 
+const format& layout::get_format() const {
+    return format;
+}
+
+const padding& layout::get_padding() const {
+    return data_padding;
+}
+
 size_t layout::get_rank() const {
     return format.dimension();
 }
