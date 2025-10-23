@@ -16,8 +16,6 @@
 
 namespace ov::intel_cpu {
 
-// removed unused helpers
-
 bool JitDeconv3DExecutor::init(const DeconvAttrs& attrs,
                                const std::vector<MemoryDescPtr>& srcDescs,
                                const std::vector<MemoryDescPtr>& dstDescs,
