@@ -221,7 +221,7 @@ inline JitTerm operator/(const JitTerm& lhs, const JitTerm& rhs) {
 }
 inline JitTerm operator%(const JitTerm& lhs, const JitTerm& rhs) {
     OPENVINO_ASSERT(rhs.str() != "0");
-    if (rhs.str() == "1") {
+    if (rhs.str() == "1" || rhs.str() == "-1") {
         return JitTerm{"0"};
     }
 
