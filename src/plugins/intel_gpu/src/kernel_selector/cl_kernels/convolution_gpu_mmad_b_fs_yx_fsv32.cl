@@ -271,8 +271,8 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
         res0 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 0];
         res1 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 1];
 #if SUB_GROUP_SIZE == 8
-        res0 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 2];
-        res1 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 3];
+        res2 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 2];
+        res3 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 3];
 #endif
 #endif  // ASYMMETRIC_DATA_QUANTIZATION
 

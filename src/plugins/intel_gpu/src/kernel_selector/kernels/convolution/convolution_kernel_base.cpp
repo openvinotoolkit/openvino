@@ -406,7 +406,7 @@ Datatype ConvolutionKernelBase::GetPackedType(Datatype dt, size_t pack_size) con
     }
 }
 
-Datatype ConvolutionKernelBase::GetPackedInputType(const convolution_params& params, size_t pack_size) const {
+Datatype ConvolutionKernelBase::GetPackedInputType(const convolution_params& params) const {
     return GetPackedType(params.inputs[0].GetDType());
 }
 
