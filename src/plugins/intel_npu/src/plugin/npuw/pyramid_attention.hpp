@@ -133,7 +133,7 @@ struct PyramidAttentionInfo {
     };
     std::vector<Param> params;
     std::size_t mask_idx = 0u;
-    std::size_t query_size = 0u;  // Added for PositionIDs selector compatibility
+    std::size_t query_size = 0u;      // Added for PositionIDs selector compatibility
     std::size_t context_length = 0u;  // Context length this pyramid model supports
 };
 
@@ -212,6 +212,74 @@ struct PyramidAttention {
 };
 
 }  // namespace compiled
+
+namespace runtime {
+namespace pyramid_attention {
+
+// A base class to decide pyramid model selection
+class Selector {
+public:
+    enum class Case { PREFILL, GENERATE, UNKNOWN };
+
+    using Ptr = std::shared_ptr<Selector>;
+    virtual ~Selector() = default;
+    virtual void prepare(int64_t past_len) = 0;
+    virtual int64_t length() const = 0;
+    virtual int64_t past_length() const = 0;
+    virtual std::size_t get_pyramid_id() const = 0;
+
+    Case this_case() const {
+        return m_case;
+    }
+
+protected:
+    Case m_case = Case::UNKNOWN;
+};
+
+// No dynamic dispatch - just use the largest pyramid model
+class All final : public Selector {
+    std::size_t m_pyramid_count = 0;
+
+public:
+    explicit All(std::size_t pyramid_count) : m_pyramid_count(pyramid_count) {}
+
+    void prepare(int64_t past_len) override {}
+    int64_t length() const override {
+        return -1;
+    }
+    int64_t past_length() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+    std::size_t get_pyramid_id() const override {
+        // Return the largest pyramid model (last one)
+        return m_pyramid_count > 0 ? m_pyramid_count - 1 : 0;
+    }
+};
+
+// Define pyramid model selection based on position ids
+class PositionIDs final : public Selector {
+    std::size_t m_position_ids_idx = 0u;
+    int64_t m_current_length = 0;
+    int64_t m_past_length = 0;
+    std::size_t m_query_size = 0u;
+
+    // Store pyramid attention reference for get_pyramid_id function
+    const compiled::PyramidAttention* m_pyramid_attention = nullptr;
+
+    const ov::ISyncInferRequest& m_rq;
+
+    PositionIDs(std::size_t param_idx, const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq);
+    void prepare(int64_t past_len) override;
+    int64_t length() const override;
+    int64_t past_length() const override;
+    std::size_t get_pyramid_id() const override;
+
+public:
+    static Selector::Ptr find(const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq);
+};
+
+}  // namespace pyramid_attention
+}  // namespace runtime
 
 }  // namespace npuw
 }  // namespace ov

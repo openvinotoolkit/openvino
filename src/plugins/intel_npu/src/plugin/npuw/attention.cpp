@@ -130,17 +130,6 @@ ov::npuw::runtime::attention::PositionIDs::PositionIDs(std::size_t param_idx,
     m_case = m_query_size == 1 ? Case::GENERATE : Case::PREFILL;
 }
 
-ov::npuw::runtime::attention::PositionIDs::PositionIDs(std::size_t param_idx,
-                                                       const ov::npuw::compiled::PyramidAttention& d,
-                                                       const ov::ISyncInferRequest& rq)
-    : m_position_ids_idx(param_idx),
-      m_query_size(d.query_size),
-      m_pyramid_attention(&d),
-      m_rq(rq) {
-    // FIXME: speculative decode is indistinguishable at this point!
-    m_case = m_query_size == 1 ? Case::GENERATE : Case::PREFILL;
-}
-
 ov::npuw::runtime::attention::Selector::Ptr ov::npuw::runtime::attention::PositionIDs::find(
     const ov::npuw::compiled::Attention& d,
     const ov::ISyncInferRequest& rq) {
@@ -159,46 +148,6 @@ ov::npuw::runtime::attention::Selector::Ptr ov::npuw::runtime::attention::Positi
     }
     return Selector::Ptr{};
 }
-
-ov::npuw::runtime::attention::Selector::Ptr ov::npuw::runtime::attention::PositionIDs::find(
-    const ov::npuw::compiled::PyramidAttention& d,
-    const ov::ISyncInferRequest& rq) {
-    auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
-        const auto& shape = p.get_shape();
-        // FIXME: 2D/3D position IDs are not supported here YET
-        return p.get_node()->get_friendly_name() == "position_ids" &&
-               (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1));
-    };
-
-    const auto& inputs = rq.get_inputs();
-    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), is_position_ids);
-    if (pos_ids_iter != inputs.end()) {
-        const auto param_idx = std::distance(inputs.begin(), pos_ids_iter);
-        return Selector::Ptr{new PositionIDs(param_idx, d, rq)};
-    }
-    return Selector::Ptr{};
-}
-
-std::size_t ov::npuw::runtime::attention::PositionIDs::get_pyramid_id() const {
-    if (!m_pyramid_attention) {
-        OPENVINO_THROW("get_pyramid_id() is only available for PyramidAttention");
-    }
-
-    // Find the smallest pyramid model that can handle the current sequence length
-    const auto& context_lengths = m_pyramid_attention->_context_lengths;
-    const int64_t current_seq_length = m_query_size + m_past_length;
-
-    // Find the smallest model that can accommodate current_seq_length
-    for (std::size_t i = 0; i < context_lengths.size(); ++i) {
-        if (current_seq_length <= static_cast<int64_t>(context_lengths[i])) {
-            return i;
-        }
-    }
-
-    // If no model can handle the sequence length, return the largest model
-    return context_lengths.size() - 1;
-}
-
 void ov::npuw::runtime::attention::PositionIDs::prepare(int64_t past_len) {
     const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
     const auto in_tensor = m_rq.get_tensor(iport);

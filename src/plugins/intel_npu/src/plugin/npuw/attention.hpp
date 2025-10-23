@@ -148,20 +148,13 @@ public:
     virtual int64_t length() const = 0;
     virtual int64_t past_length() const = 0;
 
-    // Virtual method for pyramid model selection (only implemented in PositionIDs)
-    virtual std::size_t get_pyramid_id() const {
-        OPENVINO_THROW("get_pyramid_id() is not supported by this selector type");
-    }
-
     Case this_case() const {
         return m_case;
     }
 
 protected:
     Case m_case = Case::UNKNOWN;
-};
-
-// No dynamic dispatch - just run over the whole range
+};  // No dynamic dispatch - just run over the whole range
 class All final : public Selector {
     void prepare(int64_t past_len) override {}
     int64_t length() const override {
@@ -170,7 +163,6 @@ class All final : public Selector {
     int64_t past_length() const override {
         OPENVINO_NOT_IMPLEMENTED;  // And shouldn't be here
     }
-    // get_pyramid_id is not supported for All selector - will use base class implementation
 };
 
 // Define work scope based on position ids
@@ -180,25 +172,16 @@ class PositionIDs final : public Selector {
     int64_t m_past_length = 0;
     std::size_t m_query_size = 0u;
 
-    // Store pyramid attention reference for get_pyramid_id function
-    const compiled::PyramidAttention* m_pyramid_attention = nullptr;
-
     const ov::ISyncInferRequest& m_rq;
 
     PositionIDs(std::size_t param_idx, const compiled::Attention& d, const ov::ISyncInferRequest& rq);
-    PositionIDs(std::size_t param_idx, const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq);
     void prepare(int64_t past_len) override;
     int64_t length() const override;
     int64_t past_length() const override;
 
-    // Override get_pyramid_id for PyramidAttention support
-    std::size_t get_pyramid_id() const override;
-
 public:
     static Selector::Ptr find(const compiled::Attention& d, const ov::ISyncInferRequest& rq);
-    static Selector::Ptr find(const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq);
 };
-
 }  // namespace attention
 }  // namespace runtime
 
