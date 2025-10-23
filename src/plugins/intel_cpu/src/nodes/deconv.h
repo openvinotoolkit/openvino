@@ -73,7 +73,8 @@ protected:
     AttrPtr initPrimitiveAttr() override;
     AttrPtr makePrimitiveAttr(const VectorDims& dims);
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const override;
-    std::shared_ptr<DeconvExecutor> execPtrDeconvACL = nullptr;
+    // Factory-based executor (JIT/ACL), created via DeconvExecutorFactory
+    std::shared_ptr<DeconvExecutor> execPtrFactory = nullptr;
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutorLegacy>;
@@ -101,7 +102,6 @@ private:
     VectorDims dnnlCompatibleWeiDims;
     VectorDims expectedBiasDims;
 
-    bool useACL = false;
     DeconvAttrs deconvAttrs;
 
     Shape inShape, outShape;

@@ -258,6 +258,20 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
+        OV_CPU_INSTANCE_DNNL_X64(
+            "convolution_dnnl_nspc_nspc_unconditional_x64", ExecutorType::Dnnl, OperationType::Convolution,
+            // supports
+            [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                // Unconditionally allow nspc path for x64 for shapes where backup may decline.
+                VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
+                                                 memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
+                return true;
+            },
+            CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
+            AcceptsAnyShape<ConvAttrs>,
+            CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
+            )
         OV_CPU_INSTANCE_ACL(
             "convolution_dnnl_nspc_nspc_unconditional_acl", ExecutorType::Dnnl, OperationType::Convolution,
             // supports

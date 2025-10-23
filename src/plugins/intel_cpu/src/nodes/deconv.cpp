@@ -638,8 +638,8 @@ void Deconvolution::getSupportedDescriptors() {
 
         return AclDeconvExecutorBuilder::customIsSupported(deconvAttrs, srcMemoryDescs, dstMemoryDescs);
     };
-    useACL = checkDesc(LayoutType::nspc) || checkDesc(LayoutType::ncsp);
-    if (useACL) {
+
+    if (checkDesc(LayoutType::nspc) || checkDesc(LayoutType::ncsp)) {
         return;
     }
 #endif
@@ -792,22 +792,18 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
 }
 
 void Deconvolution::execute(const dnnl::stream& strm) {
-    if (useACL) {
+    if (execPtrFactory) {
         std::vector<MemoryCPtr> srcMemory;
-        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++)
             srcMemory.push_back(getSrcMemoryAtPort(i));
-        }
         std::vector<MemoryPtr> dstMemory;
-        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalOutputsNumber(); i++)
             dstMemory.push_back(getDstMemoryAtPort(i));
-        }
-        // TODO: need to pass post ops data
-        execPtrDeconvACL->exec(srcMemory, dstMemory, nullptr);
+        execPtrFactory->exec(srcMemory, dstMemory, nullptr);
         return;
     }
 
     CPU_NODE_ASSERT(execPtr, "executor is not compiled");
-
     execPtr->exec(primArgs, strm);
 
     if (externOutShape) {
@@ -969,7 +965,9 @@ void Deconvolution::prepareParams() {
     auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
 
-    if (useACL) {
+    // Minimal integration: always try factory path (ACL/JIT) with early-packing ctor;
+    // fall back to oneDNN path if factory does not provide an executor.
+    {
         if (isDynamicNode()) {
             initPaddingR(getParentEdgeAt(0)->getMemory().getDescPtr()->getShape(),
                          getChildEdgeAt(0)->getMemory().getDescPtr()->getShape());
@@ -983,14 +981,24 @@ void Deconvolution::prepareParams() {
             dstMemoryDescs.push_back(getChildEdgeAt(i)->getMemory().getDescWithType<DnnlMemoryDesc>());
         }
 
-        // Build executor with constructor-time early packing (for JIT on ARM64); falls back to regular path
         std::vector<MemoryCPtr> srcMemoriesEarly;
-        srcMemoriesEarly.push_back(getSrcMemoryAtPort(0));
-        srcMemoriesEarly.push_back(getSrcMemoryAtPort(1));
-        execPtrDeconvACL = selected_pd->getExecutorFactoryAs<DeconvExecutorFactory>()->makeExecutorWithMem(
-            deconvAttrs, srcMemoryDescs, dstMemoryDescs, *attr, srcMemoriesEarly);
-        selected_pd->setImplementationType(execPtrDeconvACL->getImplType());
-        return;
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+            srcMemoriesEarly.push_back(getSrcMemoryAtPort(i));
+        }
+
+        try {
+            auto factory = selected_pd->getExecutorFactoryAs<DeconvExecutorFactory>();
+            if (factory) {
+                auto exec = factory->makeExecutorWithMem(deconvAttrs, srcMemoryDescs, dstMemoryDescs, *attr, srcMemoriesEarly);
+                if (exec) {
+                    execPtrFactory = exec;
+                    selected_pd->setImplementationType(execPtrFactory->getImplType());
+                    return;
+                }
+            }
+        } catch (...) {
+            // Fallback to oneDNN path when factory isn't applicable
+        }
     }
     auto inMemoryDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
     auto outMemoryDesc = getChildEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
@@ -1355,70 +1363,13 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
                                                         dstMemoryDescs,
                                                         std::make_shared<ExecutorContext>(context, getImplPriority()));
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::jit_asimd, factory);
-            useACL = true;  // reuse factory-based execution path
             return;
         }
     }
 #endif
-    // If ACL path is not selected, try AArch64 JIT factory for 5D FP16/FP32
-    if (!useACL) {
-#if defined(OPENVINO_ARCH_ARM64)
-        const auto rank = getInputShapeAtPort(0).getRank();
-        const bool is5D = (rank == 5);
-        const bool fp16_ok = getOriginalInputPrecisionAtPort(0) == ov::element::f16 &&
-                             getOriginalInputPrecisionAtPort(1) == ov::element::f16 &&
-                             getOriginalOutputPrecisionAtPort(0) == ov::element::f16;
-        const bool fp32_ok = getOriginalInputPrecisionAtPort(0) == ov::element::f32 &&
-                             getOriginalInputPrecisionAtPort(1) == ov::element::f32 &&
-                             getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
-        if (is5D && (fp16_ok || fp32_ok)) {
-            auto [inDims, outDims] = makeDummyInOutShape();
-            auto tmpInShape = Shape(inDims);
-            auto tmpOutShape = Shape(outDims);
-            initPaddingR(tmpInShape, tmpOutShape);
 
-            const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-            NodeConfig config;
-            config.inConfs.resize(getParentEdges().size());
-            config.outConfs.resize(getOriginalOutputsNumber());
-
-            auto setDesc = [&](size_t port, const Shape& shape, bool isInput) {
-                const auto prec =
-                    isInput ? getOriginalInputPrecisionAtPort(port) : getOriginalOutputPrecisionAtPort(port);
-                const auto& shp = isInput ? getInputShapeAtPort(port) : getOutputShapeAtPort(port);
-                auto d = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, shp);
-                if (isInput)
-                    config.inConfs[port].setMemDesc(d);
-                else
-                    config.outConfs[port].setMemDesc(d);
-            };
-            setDesc(0, tmpInShape, true);
-            setDesc(1, Shape(getInputShapeAtPort(1).getStaticDims()), true);
-            for (size_t i = 2; i < getParentEdges().size(); ++i)
-                setDesc(i, Shape(getInputShapeAtPort(i).getStaticDims()), true);
-            setDesc(0, tmpOutShape, false);
-
-            std::vector<MemoryDescPtr> srcMemoryDescs;
-            srcMemoryDescs.push_back(config.inConfs[0].getMemDesc()->cloneWithNewDims(tmpInShape.getDims()));
-            for (size_t i = 1; i < config.inConfs.size(); i++)
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc()->clone());
-            std::vector<MemoryDescPtr> dstMemoryDescs;
-            dstMemoryDescs.push_back(config.outConfs[0].getMemDesc()->cloneWithNewDims(tmpOutShape.getDims()));
-            for (size_t i = 1; i < config.outConfs.size(); i++)
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc()->clone());
-
-            auto factory =
-                std::make_shared<DeconvExecutorFactory>(deconvAttrs,
-                                                        srcMemoryDescs,
-                                                        dstMemoryDescs,
-                                                        std::make_shared<ExecutorContext>(context, getImplPriority()));
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::jit_asimd, factory);
-            return;
-        }
-#endif
-        Node::initSupportedPrimitiveDescriptors();
-        return;
-    }
+    Node::initSupportedPrimitiveDescriptors();
+    return;
 
     auto [inDims, outDims] = makeDummyInOutShape();
     auto tmpInShape = Shape(inDims);
