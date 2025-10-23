@@ -37,40 +37,10 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
-        // Read env variable FORCE_PER_TOKEN_CNT as int value
-        auto getEnvAsInt = [](const std::string& varName, int defaultValue = 1048576) -> int {
-            const char* envVar = std::getenv(varName.c_str());
-            if (!envVar) {
-                return defaultValue; // return default if not set
-            }
-            try {
-                return std::stoi(envVar);
-            } catch (const std::invalid_argument&) {
-                std::cerr << "Invalid integer value in " << varName << ": " << envVar << "\n";
-            } catch (const std::out_of_range&) {
-                std::cerr << "Integer value out of range in " << varName << ": " << envVar << "\n";
-            }
-            return defaultValue; // fallback if conversion fails
-        };
-
-        int force_per_token_count = getEnvAsInt("FORCE_PER_TOKEN_CNT");
-        int apply_only = getEnvAsInt("APPLY_ONLY", 1048576);
-        static int fc_count = 0;
-
         uint64_t adj_group_size = group_size; // If group_size is not supported, it can be adjusted to proper group size
 
-        if (++fc_count > force_per_token_count) {
-            adj_group_size = UINT64_MAX;
-        }
-
         auto m_fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
-        if (apply_only != 1048576) {
-            if (fc_count != apply_only) {
-                return false;
-            } else {
-                GPU_DEBUG_COUT << "Apply dyn_quan only to " << m_fc->get_friendly_name() << std::endl;
-            }
-        }
+
         auto weight_shape = m_fc->get_input_partial_shape(1);
         const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
 
