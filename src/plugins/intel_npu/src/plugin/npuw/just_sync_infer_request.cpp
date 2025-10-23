@@ -270,6 +270,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 }
                 has_pyramid = true;
                 pyramid_sub_idx = real_idx;
+
+                std::cout << "Detected pyramid attention model at submodel index " << real_idx << std::endl;
             }  // if(pyramid)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
@@ -580,6 +582,20 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Preparing to infer...");
     LOG_BLOCK();
 
+    if (m_pyramid_selector) {
+        m_pyramid_selector->prepare(get_history_size());
+
+        for (auto&& id : m_funcall_heads) {
+            auto& comp_model_desc = m_npuw_model->m_compiled_submodels[id];
+            if (comp_model_desc.pyramid_attention.has_value()) {
+                m_subrequests[id] = comp_model_desc.pyramid_infer_requests.back();
+                if (is_pipelined(id)) {
+                    m_funcall_pipeline[id].subrequest = comp_model_desc.pyramid_pipeline_requests.back();
+                }
+            }
+        }
+    }
+
     // Submit global parameters (if needed) for the first subgraph
     bind_global_parameters(next(0));
 
@@ -723,7 +739,8 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 }
             } else {
                 if (is_pyramid) {
-                    std::cout << "is pyramid" << std::endl;
+                    const auto past_len = m_pyramid_selector->past_length();
+                    std::cout << "Pyramid past length: " << past_len << std::endl;
                     if (!non_pyramid_act_in(func_desc.pyramid_attention.value()._attention_infos.back(), i)) {
                         // Print iport information
                         std::cout << "iport[" << i << "] name: " << iport.get_any_name() << std::endl;
