@@ -164,6 +164,7 @@ REGISTER_IMPLS(softmax);
 REGISTER_IMPLS(shape_of);
 REGISTER_IMPLS(strided_slice);
 REGISTER_IMPLS(tile);
+REGISTER_IMPLS(moe);
 REGISTER_IMPLS(col2im);
 REGISTER_IMPLS(vl_sdpa);
 
