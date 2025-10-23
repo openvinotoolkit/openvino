@@ -14,7 +14,7 @@ import typing
 """
 Factory functions for all openvino ops.
 """
-__all__ = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'eye', 'generate_proposals', 'grid_sample', 'irdft', 'make_constant_node', 'multiclass_nms', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'rdft', 'roi_align', 'softsign']
+__all__: list[str] = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'eye', 'generate_proposals', 'grid_sample', 'irdft', 'make_constant_node', 'multiclass_nms', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'rdft', 'roi_align', 'softsign']
 def eye(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return a node which performs eye operation.
@@ -157,11 +157,11 @@ def roi_align(data: typing.Union[openvino._pyopenvino.Node, int, float, numpy.nd
         :param sampling_ratio: Number of bins over height and width to use to calculate
                                each output feature map element.
         :param spatial_scale: Multiplicative spatial scale factor to translate ROI coordinates.
-        :param mode: Method to perform pooling to produce output feature map elements. Avaiable modes are:
+        :param mode: Method to perform pooling to produce output feature map elements. Available modes are:
                              - 'max' - maximum pooling
                              - 'avg' - average pooling
         :param aligned_mode: Specifies how to transform the coordinate in original tensor to the resized tensor.
-                             Mode 'asymmetric' is the default value. Optional. Avaiable aligned modes are:
+                             Mode 'asymmetric' is the default value. Optional. Available aligned modes are:
                              - 'asymmetric'
                              - 'half_pixel_for_nn'
                              - 'half_pixel'

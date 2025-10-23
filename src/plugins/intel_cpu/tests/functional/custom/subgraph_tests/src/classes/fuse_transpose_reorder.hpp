@@ -23,7 +23,7 @@ using FuseTransposeAndReorderParams = std::tuple<ov::Shape,         // Input sha
 class FuseTransposeAndReorderTest : public testing::WithParamInterface<FuseTransposeAndReorderParams>, public CPUTestsBase,
         virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseTransposeAndReorderParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseTransposeAndReorderParams>& obj);
 
 protected:
     void SetUp() override;

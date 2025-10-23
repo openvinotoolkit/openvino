@@ -558,12 +558,7 @@ class StaticConditionLayerGPUTest : public testing::WithParamInterface<Condition
                                     virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConditionParams>& obj) {
-        ov::Shape data_shape;
-        ov::element::Type model_type;
-        TestModelGenerator::PredicateTypes pred;
-        std::string targetDevice;
-
-        std::tie(data_shape, model_type, pred, targetDevice) = obj.param;
+        const auto& [data_shape, model_type, pred, targetDevice] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::vec2str(data_shape) << "_";
         result << "netPRC=" << model_type << "_";
@@ -577,8 +572,11 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        TestModelGenerator::PredicateTypes pred;
-        std::tie(data_shape, model_type, pred, targetDevice) = GetParam();
+
+        const auto& [_data_shape, _model_type, pred, _targetDevice] = GetParam();
+        data_shape = _data_shape;
+        model_type = _model_type;
+        targetDevice = _targetDevice;
         const auto ngShape = ov::PartialShape{data_shape};
 
         TestModelGenerator model_generator(InnerBodyGenerator::InnerBodyType::Type02,
@@ -642,12 +640,7 @@ class StaticConditionSingleLayerGPUTest : public testing::WithParamInterface<Con
                                           virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConditionParams>& obj) {
-        ov::Shape data_shape;
-        ov::element::Type model_type;
-        TestModelGenerator::PredicateTypes pred;
-        std::string targetDevice;
-
-        std::tie(data_shape, model_type, pred, targetDevice) = obj.param;
+        const auto& [data_shape, model_type, pred, targetDevice] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::vec2str(data_shape) << "_";
         result << "netPRC=" << model_type << "_";
@@ -661,8 +654,11 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        TestModelGenerator::PredicateTypes pred;
-        std::tie(data_shape, model_type, pred, targetDevice) = GetParam();
+
+        const auto& [_data_shape, _model_type, pred, _targetDevice] = GetParam();
+        data_shape = _data_shape;
+        model_type = _model_type;
+        targetDevice = _targetDevice;
         const auto ngShape = ov::PartialShape{data_shape};
 
         TestModelGenerator model_generator(InnerBodyGenerator::InnerBodyType::Type07,
@@ -735,13 +731,7 @@ class DynamicConditionLayerGPUTest : public testing::WithParamInterface<Conditio
                                 virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConditionGPUParams>& obj) {
-        InputShape inputShapes;
-        InnerBodyTypeParams bodyParams;
-        ov::element::Type model_type;
-        TestModelGenerator::PredicateTypes condType;
-        std::string targetDevice;
-
-        std::tie(inputShapes, bodyParams, model_type, condType, targetDevice) = obj.param;
+        const auto& [inputShapes, bodyParams, model_type, condType, targetDevice] = obj.param;
         std::ostringstream result;
         result << "IS=(";
         result << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -762,11 +752,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape inputShapes;
-        InnerBodyTypeParams bodyParams;
-        ov::element::Type model_type;
-        TestModelGenerator::PredicateTypes condType;
-        std::tie(inputShapes, bodyParams, model_type, condType, targetDevice) = GetParam();
+        const auto& [inputShapes, bodyParams, model_type, condType, _targetDevice] = GetParam();
+        targetDevice = _targetDevice;
         auto num_second = inputShapes.second.size();
         std::vector<ov::Shape> condSecondVec;
         for (size_t i = 0; i < num_second; i++) {

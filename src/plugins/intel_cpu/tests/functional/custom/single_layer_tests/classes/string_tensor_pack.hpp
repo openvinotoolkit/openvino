@@ -31,7 +31,7 @@ using StringTensorPackLayerCPUTestParamsSet = std::tuple<
 class StringTensorPackLayerCPUTest : public testing::WithParamInterface<StringTensorPackLayerCPUTestParamsSet>,
                              public SubgraphBaseTest, public CPUTestUtils::CPUTestsBase {
 public:
-   static std::string getTestCaseName(testing::TestParamInfo<StringTensorPackLayerCPUTestParamsSet> obj);
+   static std::string getTestCaseName(const testing::TestParamInfo<StringTensorPackLayerCPUTestParamsSet>& obj);
 protected:
    void SetUp() override;
    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;

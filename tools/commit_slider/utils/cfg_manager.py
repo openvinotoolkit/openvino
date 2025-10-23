@@ -23,12 +23,16 @@ class CfgManager():
         return input
 
     def applyTemplate(self):
+        from utils.templates.common import CommonTemplate
         if not "template" in self.cfg:
             return self.cfg
         tmplName = self.cfg["template"]["name"]
         fullCfg = {}
-        # todo: generalize tmplcfg generator
-        if tmplName == "bm_simple":
+        fullCfg = CommonTemplate.populateCfg(tmplName, self.cfg["template"])
+        if fullCfg != None:
+        # todo: incapsulate every template in Template class
+            pass
+        elif tmplName == "bm_simple":
             fullCfg = self.generatebmSimpleTemplate()
         elif tmplName == "e2e":
             fullCfg = self.generateE2ETemplate()
@@ -40,9 +44,11 @@ class CfgManager():
             raise Exception(
                 "Unknown template '{}'".format(tmplName)
             )
+        fullCfg['template'] = self.cfg["template"]["name"]
         return fullCfg
     
-    def readJsonTmpl(self, tmplFileName: str):
+    @staticmethod
+    def readJsonTmpl(tmplFileName: str):
         smplPath = os.path.dirname(os.path.realpath(__file__))
         tmplFileName = os.path.join(
             smplPath, "cfg_samples/", tmplFileName

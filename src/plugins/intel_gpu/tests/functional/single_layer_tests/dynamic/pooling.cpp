@@ -24,18 +24,9 @@ class PoolingLayerGPUTest : public testing::WithParamInterface<poolLayerGpuTestP
                             virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<poolLayerGpuTestParamsSet>& obj) {
-        ov::test::poolSpecificParams basicParamsSet;
-        InputShape inputShapes;
-        ov::element::Type inPrc;
-        std::tie(basicParamsSet, inputShapes, inPrc) = obj.param;
+        const auto& [basicParamsSet, inputShapes, inPrc] = obj.param;
 
-        ov::test::utils::PoolingTypes poolType;
-        std::vector<size_t> kernel, stride;
-        std::vector<size_t> padBegin, padEnd;
-        ov::op::PadType padType;
-        ov::op::RoundingType roundingType;
-        bool excludePad;
-        std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
+        const auto& [poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad] = basicParamsSet;
 
         std::ostringstream results;
         results << "IS=(";
@@ -68,18 +59,9 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        ov::test::poolSpecificParams basicParamsSet;
-        InputShape inputShapes;
-        ov::element::Type inPrc;
-        std::tie(basicParamsSet, inputShapes, inPrc) = this->GetParam();
+        const auto& [basicParamsSet, inputShapes, inPrc] = this->GetParam();
 
-        ov::test::utils::PoolingTypes poolType;
-        std::vector<size_t> kernel, stride;
-        std::vector<size_t> padBegin, padEnd;
-        ov::op::PadType padType;
-        ov::op::RoundingType roundingType;
-        bool excludePad;
-        std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
+        const auto& [poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad] = basicParamsSet;
 
         init_input_shapes({inputShapes});
 

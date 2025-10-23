@@ -28,11 +28,11 @@
 namespace ov::intel_cpu {
 
 bool BrgemmGenericKernelConfig::is_completed() const {
-    return !one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
+    return none_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
 }
 
 bool BrgemmGenericKernelConfig::is_empty() const {
-    return everyone_is(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC, m_beta);
+    return all_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC, m_beta);
 }
 
 bool BrgemmGenericKernelConfig::operator==(const BrgemmGenericKernelConfig& rhs) const {
@@ -48,7 +48,7 @@ void BrgemmGenericKernelConfig::update(int64_t M,
                                        float beta) {
     // If M/N/K is zero, it means that Brgemm won't be executed (in Loop with work_amount = 0, for example)
     // To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (one_of(0, M, N, K)) {
+    if (any_of(0, M, N, K)) {
         m_M = 0;
         m_N = 0;
         m_K = 0;

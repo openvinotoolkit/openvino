@@ -27,12 +27,10 @@ std::ostream& operator <<(std::ostream& result, const Attributes& attrs) {
 }
 
 std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj) {
-    DetectionOutputAttributes common_attrs;
-    ParamsWhichSizeDepends specific_attrs;
     Attributes attrs;
-    size_t batch;
-    std::string targetDevice;
-    std::tie(common_attrs, specific_attrs, batch, attrs.objectness_score, targetDevice) = obj.param;
+
+    const auto& [common_attrs, specific_attrs, batch, _objectness_score, targetDevice] = obj.param;
+    attrs.objectness_score = _objectness_score;
 
     std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
              attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = common_attrs;
@@ -70,11 +68,10 @@ std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamIn
 }
 
 void DetectionOutputLayerTest::SetUp() {
-    DetectionOutputAttributes common_attrs;
-    ParamsWhichSizeDepends specific_attrs;
-    size_t batch;
     Attributes attrs;
-    std::tie(common_attrs, specific_attrs, batch, attrs.objectness_score, targetDevice) = this->GetParam();
+    const auto& [common_attrs, specific_attrs, batch, _objectness_score, _targetDevice] = this->GetParam();
+    attrs.objectness_score = _objectness_score;
+    targetDevice = _targetDevice;
 
     std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
              attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = common_attrs;

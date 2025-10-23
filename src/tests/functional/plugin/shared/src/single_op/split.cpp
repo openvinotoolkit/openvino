@@ -8,13 +8,7 @@
 namespace ov {
 namespace test {
 std::string SplitLayerTest::getTestCaseName(const testing::TestParamInfo<splitParams>& obj) {
-    size_t num_splits;
-    int64_t axis;
-    ov::element::Type model_type;
-    std::vector<size_t> out_indices;
-    std::vector<InputShape> input_shapes;
-    std::string target_device;
-    std::tie(num_splits, axis, model_type, input_shapes, out_indices, target_device) = obj.param;
+    const auto& [num_splits, axis, model_type, input_shapes, out_indices, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < input_shapes.size(); i++) {
@@ -41,12 +35,9 @@ std::string SplitLayerTest::getTestCaseName(const testing::TestParamInfo<splitPa
 }
 
 void SplitLayerTest::SetUp() {
-    size_t num_splits;
-    int64_t axis;
-    ov::element::Type model_type;
-    std::vector<size_t> out_indices;
-    std::vector<InputShape> input_shapes;
-    std::tie(num_splits, axis, model_type, input_shapes, out_indices, targetDevice) = this->GetParam();
+    const auto& [num_splits, axis, model_type, input_shapes, _out_indices, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+    auto out_indices = _out_indices;
     if (out_indices.empty()) {
         for (int i = 0; i < num_splits; ++i)
             out_indices.push_back(i);

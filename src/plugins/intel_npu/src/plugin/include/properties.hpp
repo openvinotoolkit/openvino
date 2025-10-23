@@ -77,8 +77,8 @@ private:
         ov::intel_npu::compiler_type.name(),
         ov::intel_npu::batch_mode.name(),
         ov::hint::execution_mode.name(),
-        // NPUW caching properties
         ov::cache_mode.name(),
+        // NPUW caching properties
         ov::intel_npu::use_npuw.name(),
         ov::intel_npu::npuw::devices.name(),
         ov::intel_npu::npuw::submodel_device.name(),
@@ -107,19 +107,35 @@ private:
         ov::intel_npu::npuw::partitioning::funcall_for_all.name(),
         ov::intel_npu::npuw::funcall_async.name(),
         ov::intel_npu::npuw::unfold_ireqs.name(),
+        ov::intel_npu::npuw::fallback_exec.name(),
         ov::intel_npu::npuw::llm::enabled.name(),
         ov::intel_npu::npuw::llm::batch_dim.name(),
         ov::intel_npu::npuw::llm::seq_len_dim.name(),
         ov::intel_npu::npuw::llm::max_prompt_len.name(),
+        ov::intel_npu::npuw::llm::max_generation_token_len.name(),
         ov::intel_npu::npuw::llm::min_response_len.name(),
         ov::intel_npu::npuw::llm::optimize_v_tensors.name(),
+        ov::intel_npu::npuw::llm::cache_rope.name(),
+        ov::intel_npu::npuw::llm::prefill_chunk_size.name(),
+        ov::intel_npu::npuw::llm::shared_lm_head.name(),
+        ov::intel_npu::npuw::llm::max_lora_rank.name(),
+        ov::intel_npu::npuw::llm::enable_prefix_caching.name(),
+        ov::intel_npu::npuw::llm::prefix_caching_block_size.name(),
+        ov::intel_npu::npuw::llm::prefix_caching_max_num_blocks.name(),
         ov::intel_npu::npuw::llm::prefill_hint.name(),
         ov::intel_npu::npuw::llm::prefill_config.name(),
+        ov::intel_npu::npuw::llm::additional_prefill_config.name(),
+        ov::intel_npu::npuw::llm::prefill_attn_hint.name(),
         ov::intel_npu::npuw::llm::generate_hint.name(),
-        ov::intel_npu::npuw::llm::generate_config.name()};
+        ov::intel_npu::npuw::llm::generate_config.name(),
+        ov::intel_npu::npuw::llm::additional_generate_config.name(),
+        ov::intel_npu::npuw::llm::generate_attn_hint.name(),
+        ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
+        ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
-                                                                        ov::internal::caching_with_mmap.name()};
+                                                                        ov::internal::caching_with_mmap.name(),
+                                                                        ov::internal::cache_header_alignment.name()};
 };
 
 }  // namespace intel_npu

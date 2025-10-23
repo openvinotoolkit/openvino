@@ -149,18 +149,18 @@ KernelsPriority ResampleKernelOpt::GetKernelsPriority(const Params& /*params*/) 
 bool ResampleKernelOpt::Validate(const Params& p) const {
     const resample_params& params = static_cast<const resample_params&>(p);
     if (!Parent::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& input = params.inputs[0];
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
         params.resampleType != ResampleType::BILINEAR_INTERP)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // in the case of 5D support only NEAREST_NEIGHBOR
     if (input.Dimentions() == 5 && params.resampleType != ResampleType::NEAREST_NEIGHBOR)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

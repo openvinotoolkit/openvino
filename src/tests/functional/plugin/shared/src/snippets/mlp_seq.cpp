@@ -37,18 +37,18 @@ void MLPSeqBase::SetUp() {
     setInferenceType(prc);
 }
 
-std::string MLPSeq::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPSeqParams> obj) {
-    auto [input_shapes,
-          elem_types,
-          prc,
-          thread_count,
-          target_device,
-          additional_config,
-          num_hidden_layers_with_expectations,
-          hidden_matmul_size] = obj.param;
+std::string MLPSeq::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MLPSeqParams>& obj) {
+    const auto& [input_shapes,
+                 elem_types,
+                 prc,
+                 thread_count,
+                 target_device,
+                 additional_config,
+                 num_hidden_layers_with_expectations,
+                 hidden_matmul_size] = obj.param;
 
-    auto [num_hidden_layers, num_subgraphs_and_nodes] = num_hidden_layers_with_expectations;
-    auto [num_subgraphs, num_nodes] = num_subgraphs_and_nodes;
+    const auto& [num_hidden_layers, num_subgraphs_and_nodes] = num_hidden_layers_with_expectations;
+    const auto& [num_subgraphs, num_nodes] = num_subgraphs_and_nodes;
 
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
@@ -73,17 +73,24 @@ std::string MLPSeq::getTestCaseName(testing::TestParamInfo<ov::test::snippets::M
 }
 
 void MLPSeq::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) {
-    std::pair <size_t, std::pair<size_t, size_t>> num_hidden_layers_with_expectations;
-    std::tie(input_shapes,
-             m_input_types,
-             prc,
-             m_thread_count,
-             targetDevice,
-             additional_config,
-             num_hidden_layers_with_expectations,
-             m_hidden_matmul_size) = this->GetParam();
-    std::pair<size_t, size_t> ref_num_subgraphs_and_nodes;
-    std::tie(m_num_hidden_layers, ref_num_subgraphs_and_nodes) = num_hidden_layers_with_expectations;
+    const auto& [_input_shapes,
+                 _m_input_types,
+                 _prc,
+                 _m_thread_count,
+                 _targetDevice,
+                 _additional_config,
+                 num_hidden_layers_with_expectations,
+                 _m_hidden_matmul_size] = this->GetParam();
+    input_shapes = _input_shapes;
+    m_input_types = _m_input_types;
+    prc = _prc;
+    m_thread_count = _m_thread_count;
+    targetDevice = _targetDevice;
+    additional_config = _additional_config;
+    m_hidden_matmul_size = _m_hidden_matmul_size;
+
+    const auto& [_m_num_hidden_layers, ref_num_subgraphs_and_nodes] = num_hidden_layers_with_expectations;
+    m_num_hidden_layers = _m_num_hidden_layers;
     std::tie(ref_num_subgraphs, ref_num_nodes) = ref_num_subgraphs_and_nodes;
 }
 

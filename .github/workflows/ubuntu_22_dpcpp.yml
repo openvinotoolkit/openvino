@@ -6,8 +6,8 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-  pull_request:
-  merge_group:
+  # pull_request:
+  # merge_group:
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -84,7 +84,7 @@ jobs:
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_dpcpp }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_dpcpp }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
       os: 'ubuntu_22_04_dpcpp'

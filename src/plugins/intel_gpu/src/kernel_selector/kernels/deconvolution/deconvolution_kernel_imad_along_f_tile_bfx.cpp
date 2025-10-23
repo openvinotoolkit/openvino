@@ -66,15 +66,15 @@ DeviceFeaturesKey DeconvolutionKernel_imad_along_f_tile_bfx::get_required_device
 
 bool DeconvolutionKernel_imad_along_f_tile_bfx::Validate(const Params& p) const {
     if (!Parent::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     auto& params = static_cast<const deconvolution_params&>(p);
     if (params.groups > 1 && params.weights.IFM().v % 4 != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // Consider loosening at the cost of performance
     if (params.groups > 1 && params.weights.OFM().v % simd != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

@@ -14,6 +14,10 @@
 namespace cldnn {
 namespace ocl {
 
+namespace utils {
+std::vector<cl::Event> get_cl_events(const std::vector<event::ptr>& events);
+}  // namespace utils
+
 struct ocl_event : public ocl_base_event {
 public:
     ocl_event(cl::Event const& ev, uint64_t queue_stamp = 0)

@@ -90,6 +90,36 @@ class Code2CHeaders(object):
 
         return content
 
+    def _check_cat_usage(self, macro, line):
+        cat_pattern = re.compile(r'CAT\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)')
+
+        for match in cat_pattern.finditer(line):
+            cat_content = match.group(1)
+            parts = re.split(r'\s*,\s*', cat_content)
+
+            if len(parts) >= 2:
+                potential_macro = ''.join(part.strip() for part in parts)
+                if macro in potential_macro or any(part.strip() in macro for part in parts):
+                    return True
+
+        return False
+
+    def found_potential_macro_user(self, macro, content):
+        content_lines = content.split('\n')
+
+        for line in content_lines:
+            if re.match(r'^\s*#\s*(define|undef)\s+' + re.escape(macro) + r'\b', line):
+                continue
+
+            if re.search(r'\b' + re.escape(macro) + r'\b', line):
+                return True
+
+            if "CAT" in line:
+                if self._check_cat_usage(macro, line):
+                    return True
+
+        return False
+
     def remove_unused_macros(self, content):
         macro_pattern = re.compile(r'^#define\s+(\w+)\s*(.*)', re.MULTILINE)
         undef_pattern = re.compile(r'^#undef\s+(\w+)\b', re.MULTILINE)
@@ -101,7 +131,7 @@ class Code2CHeaders(object):
 
         # Check for direct usage of macros (excluding their definition and undef lines)
         for macro in macros:
-            if re.search(r'(?<!#define\s)(?<!#undef\s)\b' + macro + r'\b', content):
+            if self.found_potential_macro_user(macro, content):
                 used_macros.add(macro)
 
         # Expand CAT() recursively to track macro usage.

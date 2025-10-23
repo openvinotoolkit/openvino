@@ -35,14 +35,14 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_depthwise_weights_lwg::get_required_dev
 
 bool ConvolutionKernel_bfyx_depthwise_weights_lwg::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
     if ((cp.filterSize.x > 5) || (cp.filterSize.y > 5) || (cp.groups == 1) ||
         (cp.weights.IFM().v != 1) || (cp.weights.OFM().v != 1)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

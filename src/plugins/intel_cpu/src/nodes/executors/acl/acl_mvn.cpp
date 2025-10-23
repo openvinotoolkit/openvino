@@ -4,6 +4,23 @@
 
 #include "acl_mvn.hpp"
 
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/runtime/NEON/functions/NEMeanStdDevNormalizationLayer.h>
+
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/acl/acl_utils.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/mvn.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/debug_capabilities.h"
+
 namespace ov::intel_cpu {
 
 using namespace arm_compute;
@@ -19,7 +36,7 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
 
     size_t X = 0, Y = 0;
     if (mvnAttrs.initAcrossChannels_) {
-        if (srcDims.size() >= 2u) {
+        if (srcDims.size() >= 2U) {
             Y = srcDims[0];
             X = srcDims[1];
             for (size_t i = 2; i < srcDims.size(); i++) {
@@ -30,13 +47,13 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
             X = srcDims[0];
         }
     } else {
-        if (srcDims.size() > 2u) {
+        if (srcDims.size() > 2U) {
             Y = srcDims[0] * srcDims[1];
             X = srcDims[2];
             for (size_t i = 3; i < srcDims.size(); i++) {
                 X *= srcDims[i];
             }
-        } else if (srcDims.size() == 2u) {
+        } else if (srcDims.size() == 2U) {
             Y = srcDims[0] * srcDims[1];
             X = 1;
         } else {
@@ -71,7 +88,7 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
 
 void AclMVNExecutor::exec(const std::vector<MemoryCPtr>& src,
                           const std::vector<MemoryPtr>& dst,
-                          const void* post_ops_data_) {
+                          [[maybe_unused]] const void* post_ops_data_) {
     srcTensor.allocator()->import_memory(src[0]->getData());
     dstTensor.allocator()->import_memory(dst[0]->getData());
 
@@ -94,8 +111,8 @@ bool AclMVNExecutorBuilder::isSupported(const MVNAttrs& mvnAttrs,
         return false;
     }
 
-    if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-        !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+    if ((!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+        (!srcDescs[0]->hasLayoutType(LayoutType::nspc) || !dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
         DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support layout:",
                   " src: ",
                   srcDescs[0]->serializeFormat(),

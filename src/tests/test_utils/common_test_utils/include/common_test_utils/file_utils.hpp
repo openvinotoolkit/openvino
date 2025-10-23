@@ -6,9 +6,11 @@
 
 #include <sys/stat.h>
 
+#include <filesystem>
 #include <fstream>
 #include <regex>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
@@ -87,6 +89,7 @@ inline void removeIRFiles(const std::string& xmlFilePath, const std::string& bin
 // Return value:
 // < 0 - error
 // >= 0 - count of removed files
+template <bool Force = !opt::FORCE>
 inline int removeFilesWithExt(std::string path, std::string ext) {
     struct dirent* ent;
     DIR* dir = opendir(path.c_str());
@@ -97,6 +100,11 @@ inline int removeFilesWithExt(std::string path, std::string ext) {
             struct stat stat_path;
             stat(file.c_str(), &stat_path);
             if (!S_ISDIR(stat_path.st_mode) && endsWith(file, "." + ext)) {
+                if constexpr (Force) {
+                    std::filesystem::permissions(file,
+                                                 std::filesystem::perms::owner_write,
+                                                 std::filesystem::perm_options::add);
+                }
                 auto err = std::remove(file.c_str());
                 if (err != 0) {
                     closedir(dir);
@@ -239,6 +247,17 @@ class MockPlugin : public ov::IPlugin {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override {
         OPENVINO_NOT_IMPLEMENTED;
@@ -247,6 +266,10 @@ class MockPlugin : public ov::IPlugin {
 private:
     int32_t num_streams{0};
 };
+
+using StringPathVariant = std::variant<std::string, std::u16string, std::u32string, std::wstring>;
+
+std::filesystem::path to_fs_path(const StringPathVariant& param);
 
 }  // namespace utils
 }  // namespace test

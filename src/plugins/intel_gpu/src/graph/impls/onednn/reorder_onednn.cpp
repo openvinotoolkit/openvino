@@ -54,8 +54,8 @@ protected:
         auto input_layout = impl_params.get_input_layout(0);
         auto output_layout = impl_params.get_output_layout();
 
-        auto input_md = onednn::layout_to_memory_desc(input_layout);
-        auto output_md = onednn::layout_to_memory_desc(output_layout);
+        auto input_md = onednn::layout_to_memory_desc(input_layout, dnnl::memory::format_tag::undef, onednn::mem_flags::need_blocked);
+        auto output_md = onednn::layout_to_memory_desc(output_layout, dnnl::memory::format_tag::undef, onednn::mem_flags::need_blocked);
 
         OPENVINO_ASSERT(input_md.get_format_kind() != dnnl::memory::format_kind::any,
                         "[GPU] The format kind of the input memory descriptor of onednn reorder cannot be 'any'.");
@@ -87,8 +87,8 @@ public:
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
 
-        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0));
-        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
+        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef, onednn::mem_flags::need_blocked);
+        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout(), dnnl::memory::format_tag::undef, onednn::mem_flags::need_blocked);
 
         auto prim_desc = std::make_shared<dnnl::reorder::primitive_desc>(
             ib.get_engine().get_onednn_engine(),

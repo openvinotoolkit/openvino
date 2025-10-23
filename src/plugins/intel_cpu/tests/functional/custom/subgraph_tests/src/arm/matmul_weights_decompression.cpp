@@ -17,7 +17,7 @@ const ov::AnyMap enable_dyn_quant_config_kleidiai = {ov::hint::dynamic_quantizat
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
 const std::vector<fusingSpecificParams> fusing_params{emptyFusingSpec, fusingBias};
 
-const std::vector<ov::test::ElementType> weights_precisions_kleidiai = {ov::element::i8};
+const std::vector<ov::test::ElementType> weights_precisions_kleidiai = {ov::element::i8, ov::element::i4};
 const std::vector<MatMulDecompressionShapeParams> input_shapes_kleidiai = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
     {{{}, {{1, 4, 16}}}, {1, 16, 32}},
@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_Kleidiai,
     ::testing::Combine(::testing::ValuesIn(input_shapes_kleidiai),
                        ::testing::ValuesIn(weights_precisions_kleidiai),
                        ::testing::ValuesIn(decompression_precisions),
-                       ::testing::Values(ov::element::undefined),
+                       ::testing::Values(ov::element::dynamic),
                        ::testing::ValuesIn(transpose_weights_kleidiai),
                        ::testing::Values(DecompressionType::full),
                        ::testing::Values(DecompressionType::empty),

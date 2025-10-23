@@ -6,6 +6,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace CPUTestUtils;
 
@@ -26,16 +27,7 @@ class LSTMCellLayerCPUTest : public testing::WithParamInterface<LSTMCellCpuSpeci
                              virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LSTMCellCpuSpecificParams>& obj) {
-        std::vector<InputShape> inputShapes;
-        bool decompose;
-        std::vector<std::string> activations;
-        float clip = 0.f;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShapes, decompose, activations, clip, netPrecision, cpuParams, additionalConfig) = obj.param;
-
+        const auto& [inputShapes, decompose, activations, clip, netPrecision, cpuParams, additionalConfig] = obj.param;
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
@@ -66,16 +58,9 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> inputShapes;
-        bool decompose;
-        std::vector<std::string> activations;
-        float clip = 0.f;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
         abs_threshold = 0.05;
-
-        std::tie(inputShapes, decompose, activations, clip, netPrecision, cpuParams, additionalConfig) = this->GetParam();
+        const auto &[inputShapes, decompose, activations, clip, netPrecision, cpuParams, additionalConfig] =
+            this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         targetDevice = ov::test::utils::DEVICE_CPU;
 
@@ -86,8 +71,7 @@ protected:
         const size_t hiddenSize = targetStaticShapes.front()[1][1];
         const size_t inputSize = targetStaticShapes.front()[0][1];
 
-        auto it = additionalConfig.find(ov::hint::inference_precision.name());
-        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+        if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);

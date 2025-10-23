@@ -111,10 +111,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
-        ov::element::Type precision;
-        std::pair<ov::PartialShape, ov::PartialShape> shapes;
-        MatMullTransformationTestValues testValues;
-        std::tie(precision, shapes, testValues) = obj.param;
+        const auto& [precision, shapes, testValues] = obj.param;
 
         std::stringstream ss;
         ss << precision << "_" << shapes.first << "_" << shapes.second << "_" << testValues;

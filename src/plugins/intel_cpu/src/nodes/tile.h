@@ -37,8 +37,8 @@ protected:
 private:
     void plainExecute(const dnnl::stream& strm);
 
-    static constexpr size_t TILE_INPUT = 0lu;
-    static constexpr size_t TILE_REPEATS = 1lu;
+    static constexpr size_t TILE_INPUT = 0LU;
+    static constexpr size_t TILE_REPEATS = 1LU;
 
     int axis = -1;
     int tiles = 0;

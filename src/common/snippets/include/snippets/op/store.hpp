@@ -28,7 +28,7 @@ class Store : public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("Store", "SnippetsOpset");
 
-    Store(const Output<Node>& x, size_t count = 1lu, size_t offset = 0lu);
+    explicit Store(const Output<Node>& x, size_t count = 1LU, size_t offset = 0LU);
     Store() = default;
 
     size_t get_offset() const {

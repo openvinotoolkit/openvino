@@ -728,6 +728,15 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADED_FROM_CACHE"};
 
 /**
+ * @brief Write property to specify the origin path of compiled model to speed cache model ID calculation.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property has meaning when used in `core::compile_model(const std::shared_ptr<const ov::Model>& model, ...)` and
+ * cache feature is enabled.
+ */
+static inline constexpr Property<std::filesystem::path, PropertyMutability::WO> cache_model_path{"CACHE_MODEL_PATH"};
+
+/**
  * @brief Enum to define possible workload types
  *
  * Workload type represents the execution priority for an inference.
@@ -812,9 +821,9 @@ inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
 
 /**
  * @brief Read-write property to select the cache mode between optimize_size and optimize_speed.
- * If optimize_speed is selected(default), loading time will decrease but the cache file size will increase.
+ * If optimize_speed is selected (default), loading time will decrease but the cache file size will increase.
  * If optimize_size is selected, smaller cache files will be created.
- * This is only supported from GPU.
+ * Only the GPU and NPU plugins support this for now.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};

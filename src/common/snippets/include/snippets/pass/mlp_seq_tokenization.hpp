@@ -8,9 +8,11 @@
 #include <memory>
 
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/pass/matcher_pass.hpp"
-#include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/tokenization_config.hpp"
 
 namespace ov::snippets::pass {
 
@@ -32,7 +34,37 @@ namespace ov::snippets::pass {
 class TokenizeMLPSeqSnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeMLPSeqSnippets");
-    TokenizeMLPSeqSnippets(const SnippetsTokenization::Config& config);
+
+    /**
+     * @interface Config
+     * @brief Configuration for TokenizeMLPSeqSnippets pass
+     * @ingroup snippets
+     */
+    struct Config : public TokenizationConfig {
+        using CanBeFusedAsPostOpPred = std::function<bool(const std::shared_ptr<const ov::op::v0::MatMul>&,
+                                                          const std::shared_ptr<const ov::Node>&)>;
+
+        static bool postops_are_not_supported([[maybe_unused]] const std::shared_ptr<const ov::op::v0::MatMul>& matmul,
+                                              [[maybe_unused]] const std::shared_ptr<const ov::Node>& postop) {
+            return false;
+        }
+
+        explicit Config(const TokenizationConfig& tokenization_config,
+                        CanBeFusedAsPostOpPred can_be_fused_as_postop = postops_are_not_supported)
+            : TokenizationConfig(tokenization_config),
+              m_can_be_fused_as_postop(std::move(can_be_fused_as_postop)) {}
+
+        [[nodiscard]] const CanBeFusedAsPostOpPred& get_can_be_fused_as_postop() const {
+            OPENVINO_ASSERT(m_can_be_fused_as_postop, "m_can_be_fused_as_postop mustn't be nullptr");
+            return m_can_be_fused_as_postop;
+        }
+
+    private:
+        // Predicate that checks if the node can be fused as MatMul post-op.
+        CanBeFusedAsPostOpPred m_can_be_fused_as_postop = postops_are_not_supported;
+    };
+
+    explicit TokenizeMLPSeqSnippets(const Config& config);
 
 private:
     static bool is_matmul_supported(const std::shared_ptr<ov::Node>& node);

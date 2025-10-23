@@ -28,6 +28,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/ngram.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -72,7 +73,7 @@ void Ngram::initSupportedPrimitiveDescriptors() {
     }
 
     idcesPrecision = getOriginalInputPrecisionAtPort(1);
-    if (idcesPrecision != ov::element::i32 && idcesPrecision != ov::element::i64) {
+    if (none_of(idcesPrecision, ov::element::i32, ov::element::i64)) {
         idcesPrecision = ov::element::i32;
     }
 
@@ -124,7 +125,7 @@ void Ngram::execute([[maybe_unused]] const dnnl::stream& strm) {
     } else if (idcesPrecision == ov::element::i64) {
         batchLenghts = computeBatchLenghts<std::int64_t>();
     } else {
-        THROW_CPU_NODE_ERR("Unsupported indices precision: ", idcesPrecision);
+        CPU_NODE_THROW("Unsupported indices precision: ", idcesPrecision);
     }
 
     /* The following procedure applied to each batch:

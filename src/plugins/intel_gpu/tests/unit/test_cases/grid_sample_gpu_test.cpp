@@ -49,10 +49,7 @@ template <class TD, class TG>
 struct grid_sample_gpu_test : public testing::TestWithParam<grid_sample_test_params<TD, TG>> {
 public:
     void test() {
-        format::type fmt;
-        grid_sample_test_inputs<TD, TG> p;
-        bool is_caching_test;
-        std::tie(p, fmt, is_caching_test) = testing::TestWithParam<grid_sample_test_params<TD, TG>>::GetParam();
+        const auto& [p, fmt, is_caching_test] = testing::TestWithParam<grid_sample_test_params<TD, TG>>::GetParam();
 
         auto& engine = get_test_engine();
         const auto data_data_type = ov::element::from<TD>();
@@ -93,10 +90,7 @@ public:
     }
 
     static std::string PrintToStringParamName(const testing::TestParamInfo<grid_sample_test_params<TD, TG>>& info) {
-        format::type fmt;
-        grid_sample_test_inputs<TD, TG> p;
-        bool is_caching_test;
-        std::tie(p, fmt, is_caching_test) = info.param;
+        const auto& [p, fmt, is_caching_test] = info.param;
 
         std::ostringstream result;
         result << "TestName=" << p.test_name << ";";
@@ -704,10 +698,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_cached,
 
 class grid_sample_gpu_dynamic : public ::testing::TestWithParam<grid_sample_test_params<float, float>> {};
 TEST_P(grid_sample_gpu_dynamic, basic) {
-    bool is_caching_test;
-    format::type fmt;
-    grid_sample_test_inputs<float, float> p;
-    std::tie(p, fmt, is_caching_test) = testing::TestWithParam<grid_sample_test_params<float, float>>::GetParam();
+    const auto& [p, fmt, is_caching_test] = testing::TestWithParam<grid_sample_test_params<float, float>>::GetParam();
 
     auto& engine = get_test_engine();
     const auto data_data_type = data_types::f32;

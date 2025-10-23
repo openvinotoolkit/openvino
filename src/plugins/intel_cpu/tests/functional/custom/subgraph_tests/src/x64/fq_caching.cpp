@@ -65,27 +65,11 @@ class FakeQuantizeCacheTest : public testing::WithParamInterface<FakeQuantizeCac
                          virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeCacheTestParams> &obj) {
-        InputShapesTuple inputShapesTuple;
-        FqSpecificParams fqParams;
-        std::pair<std::vector<float>, std::vector<float>> inputRangesValues;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-        std::tie(inputShapesTuple, fqParams, inputRangesValues, cpuParams, additionalConfig) = obj.param;
-
-        std::vector<InputShape> shapes;
-        std::vector<std::vector<ov::Shape>> ranges;
-        std::vector<int32_t> reshapeShape;
-        std::tie(shapes, ranges, reshapeShape) = inputShapesTuple;
-
-        int64_t inDataLowBounds, inDataHighBounds;
-        std::vector<float> inputLow, inputHigh, outputLow, outputHigh;
-        size_t levels;
-        inputLow = inputRangesValues.first;
-        inputHigh = inputRangesValues.second;
-        std::tie(inDataLowBounds, inDataHighBounds, outputLow, outputHigh, levels) = fqParams;
-
+        const auto& [inputShapesTuple, fqParams, inputRangesValues, cpuParams, additionalConfig] = obj.param;
+        const auto& [shapes, ranges, reshapeShape] = inputShapesTuple;
+        const auto &[inputLow, inputHigh] = inputRangesValues;
+        const auto &[inDataLowBounds, inDataHighBounds, outputLow, outputHigh, levels] = fqParams;
         std::ostringstream results;
-
         for (size_t i = 0; i < shapes.size(); i++) {
             results << "FQ" << i << "_IS=(" << ov::test::utils::partialShape2str({shapes[i].first}) << ")_";
             results << "TS=";
@@ -124,33 +108,21 @@ public:
 protected:
     void SetUp() override {
         abs_threshold = 0.01f;
-
-        InputShapesTuple inputShapesTuple;
-        FqSpecificParams fqParams;
-        std::pair<std::vector<float>, std::vector<float>> inputRangesValues;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-        std::tie(inputShapesTuple, fqParams, inputRangesValues,
-                cpuParams, additionalConfig) = this->GetParam();
-
-        std::vector<InputShape> shapesVec;
-        std::vector<std::vector<ov::Shape>> rangesVec;
-        std::vector<int32_t> reshapeShape;
-        std::tie(shapesVec, rangesVec, reshapeShape) = inputShapesTuple;
-
+        const auto &[inputShapesTuple, fqParams, inputRangesValues, cpuParams, additionalConfig] = this->GetParam();
+        const auto& [shapesVec, rangesVec, reshapeShape] = inputShapesTuple;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes(shapesVec);
-
-        size_t levels;
         std::vector<std::vector<float>> rangesBounds(RANGES_INPUT_NUMBER);
         rangesBounds[0] = inputRangesValues.first;
         rangesBounds[1] = inputRangesValues.second;
-        std::tie(inDataLowBounds, inDataHighBounds, rangesBounds[2], rangesBounds[3], levels) = fqParams;
-
+        const auto& [_inDataLowBounds, _inDataHighBounds, _tmp, _tmp1, levels] = fqParams;
+        inDataLowBounds = _inDataLowBounds;
+        inDataHighBounds = _inDataHighBounds;
+        rangesBounds[2] = _tmp;
+        rangesBounds[3] = _tmp1;
         ParameterVector paramVect;
         std::vector<std::shared_ptr<Node>> inputVect;
 
@@ -161,8 +133,9 @@ protected:
             inputVect.push_back(paramVect.back());
         }
 
-        auto makeFQ = [&](int i) {
-            auto extendData = [](const std::vector<float> &data, size_t newSize) {
+        auto makeFQ = [&rangesVec = rangesVec, &rangesBounds = rangesBounds, ngInPrec = ngInPrec, levels = levels,
+                       &paramVect = paramVect, this](int i) {
+            auto extendData = [](const std::vector<float>& data, size_t newSize) {
                 std::vector<float> extendedData(newSize);
                 size_t oldSize = data.size();
                 for (size_t i = 0; i < newSize; i++) {

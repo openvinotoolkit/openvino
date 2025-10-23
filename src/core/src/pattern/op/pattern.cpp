@@ -8,6 +8,7 @@
 #include <optional>
 #include <regex>
 
+#include "openvino/core/log_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
@@ -250,28 +251,18 @@ public:
                 }
 
                 if (node_attribute.type_info() != expected_attribute.type_info())
-                    OPENVINO_DEBUG("  Attribute `",
-                                   name,
-                                   "` -- data type does not match. Node attribute type: ",
-                                   node_attribute.type_info().name(),
-                                   ". Expected attribute type: ",
-                                   expected_attribute.type_info().name());
+                    OPENVINO_LOG_PATTERN1(name,
+                                          node_attribute.type_info().name(),
+                                          expected_attribute.type_info().name());
                 bool status = node_attribute == expected_attribute;
-                if (!status)
-                    OPENVINO_DEBUG("  Attribute `", name, "` -- value does not match. ", [&]() {
-                        std::stringstream ss;
-                        node_attribute.print(ss);
-                        ss << " vs ";
-                        expected_attribute.print(ss);
-                        return ss.str();
-                    }());
+                OPENVINO_LOG_PATTERN2(status, name, node_attribute, expected_attribute);
                 m_matched_attributes[name] = status;
             } catch (...) {
-                OPENVINO_DEBUG("  Attribute `", name, "` matching went wrong");
+                OPENVINO_LOG_PATTERN3(name);
                 m_matched_attributes[name] = false;
             }
         } else {
-            OPENVINO_DEBUG("  Node attribute `", name, "` is not being compared");
+            OPENVINO_LOG_PATTERN4(name);
         }
     }
 
@@ -624,4 +615,22 @@ op::Predicate value_matches(const std::string& value_notation) {
         },
         "value_matches('" + value_notation + "')");
 }
+
+op::Predicate output_index_matches(size_t expected_index) {
+    return op::Predicate(
+        [=](const Output<Node>& output) -> bool {
+            return output.get_index() == expected_index;
+        },
+        "output_index_matches(" + std::to_string(expected_index) + ")");
+}
+
+op::Predicate output_index_matches(const std::vector<size_t>& expected_indices) {
+    return op::Predicate(
+        [=](const Output<Node>& output) -> bool {
+            const auto output_index = output.get_index();
+            return std::find(expected_indices.begin(), expected_indices.end(), output_index) != expected_indices.end();
+        },
+        "output_index_matches({" + ov::util::join(expected_indices) + "})");
+}
+
 }  // namespace ov::pass::pattern

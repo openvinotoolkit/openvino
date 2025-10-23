@@ -23,13 +23,8 @@ class GroupNormalizationTest : public testing::WithParamInterface<GroupNormaliza
                                virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GroupNormalizationTestParams> &obj) {
-        ElementType netType, inType, outType;
-        InputShape shapes;
-        std::int64_t num_groups;
-        double epsilon;
-        TargetDevice targetDevice;
-        ov::AnyMap additional_config;
-        std::tie(netType, inType, outType, shapes, num_groups, epsilon, targetDevice, additional_config) = obj.param;
+        const auto& [netType, inType, outType, shapes, num_groups, epsilon, targetDevice, additional_config] =
+            obj.param;
 
         std::ostringstream result;
         result << "NetType=" << netType << "_";
@@ -53,13 +48,11 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        ElementType ngPrc;
-        std::int64_t num_groups;
-        double epsilon;
-        ov::AnyMap additional_config;
-
-        std::tie(ngPrc, inType, outType, shapes, num_groups, epsilon, targetDevice, additional_config) = this->GetParam();
+        const auto& [ngPrc, _inType, _outType, shapes, num_groups, epsilon, _targetDevice, additional_config] =
+            this->GetParam();
+        inType = _inType;
+        outType = _outType;
+        targetDevice = _targetDevice;
         InputShape biasInputShape = ExtractBiasShape(shapes);
         init_input_shapes({shapes, biasInputShape, biasInputShape});
         ov::ParameterVector params;

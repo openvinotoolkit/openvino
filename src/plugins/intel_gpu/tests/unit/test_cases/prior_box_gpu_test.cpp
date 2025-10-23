@@ -45,14 +45,8 @@ public:
         const auto output_data_type = ov::element::from<OutputType>();
         const auto plain_format = format::bfyx;
 
-        format::type target_format;
-        std::vector<InputType> output_size;
-        std::vector<InputType> image_size;
-        prior_box_attributes attrs;
-        std::vector<OutputType> expected_values;
-
         auto &engine = get_test_engine();
-        std::tie(target_format, output_size, image_size, attrs, expected_values) = this->GetParam();
+        const auto& [target_format, output_size, image_size, attrs, expected_values] = this->GetParam();
 
         auto layout_output_size_input = layout{input_data_type, plain_format, tensor{2}};
         auto layout_image_size_input = layout{input_data_type, plain_format, tensor{2}};

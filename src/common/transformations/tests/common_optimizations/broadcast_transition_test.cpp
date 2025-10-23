@@ -144,14 +144,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<BroadcastTransitionParams>& obj) {
-        ov::element::Type precision;
-        ov::Shape input_shape;
-        ov::Shape target_shape;
-        ov::op::BroadcastType bcast_mode;
-        BroadcastVersion bcast_version;
-        ov::test::utils::EltwiseTypes eltwise_type;
-        size_t idx;
-        std::tie(precision, input_shape, target_shape, bcast_mode, bcast_version, eltwise_type, idx) = obj.param;
+        const auto& [precision, input_shape, target_shape, bcast_mode, bcast_version, eltwise_type, idx] = obj.param;
 
         std::ostringstream result;
         result << eltwise_type << "_prc=" << precision << "_IS=" << input_shape << "_TS=" << target_shape
@@ -162,14 +155,8 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        ov::element::Type precision;
-        ov::Shape input_shape;
-        ov::Shape target_shape;
-        ov::op::BroadcastType bcast_mode;
-        BroadcastVersion bcast_version;
-        ov::test::utils::EltwiseTypes eltwise_type;
-        size_t idx;
-        std::tie(precision, input_shape, target_shape, bcast_mode, bcast_version, eltwise_type, idx) = GetParam();
+
+        const auto& [precision, input_shape, target_shape, bcast_mode, bcast_version, eltwise_type, idx] = GetParam();
 
         manager.register_pass<ov::pass::BroadcastTransition>();
         model = getOriginal(precision, input_shape, target_shape, bcast_mode, bcast_version, eltwise_type, idx);

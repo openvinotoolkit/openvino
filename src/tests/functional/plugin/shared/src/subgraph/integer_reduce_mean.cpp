@@ -10,12 +10,7 @@ namespace ov {
 namespace test {
 
 std::string IntegerReduceMeanTest::getTestCaseName(const testing::TestParamInfo<IntegerReduceMeanParams>& obj) {
-    ov::element::Type input_precision;
-    std::vector<size_t> input_shape;
-    std::vector<size_t> axes;
-    bool quantized;
-    const char *device;
-    std::tie(input_precision, input_shape, axes, quantized, device) = obj.param;
+    const auto& [input_precision, input_shape, axes, quantized, device] = obj.param;
     std::ostringstream result;
     result << "inputPrecision=" << input_precision.to_string() << "_";
     result << "inputShape=" << ov::test::utils::vec2str(input_shape) << "_";
@@ -29,12 +24,10 @@ std::string IntegerReduceMeanTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void IntegerReduceMeanTest::SetUp() {
-    ov::element::Type input_precision;
-    std::vector<size_t> input_shape;
-    std::vector<size_t> axes;
     std::vector<size_t> axes_shape;
-    bool quantized;
-    std::tie(input_precision, input_shape, axes, quantized, targetDevice) = this->GetParam();
+
+    const auto& [input_precision, input_shape, axes, quantized, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     axes_shape.push_back(axes.size());
 
     auto dataNode = std::make_shared<ov::op::v0::Parameter>(input_precision, ov::Shape(input_shape));

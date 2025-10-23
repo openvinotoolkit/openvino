@@ -3,20 +3,23 @@ name: Rerun Workflow with Known Errors
 on:
   workflow_run:
     workflows:
-      - "Linux (Ubuntu 20.04, Python 3.9)"
       - "Linux (Ubuntu 22.04, Python 3.11)"
       - "Linux (Ubuntu 24.04, Python 3.12)"
       - "Debian 10 ARM"
       - "Android ARM64 with vcpkg"
       - "Android x64"
-      - "Linux ARM64 (Ubuntu 20.04, Python 3.11)"
+      - "Linux ARM64 (Ubuntu 22.04, Python 3.11)"
+      - "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)"
       - "Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)"
       - "Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)"
+      - "Linux RISC-V with Xuantie (Ubuntu 22.04, Python 3.10)"
       - "Linux (Ubuntu 22.04, Python 3.11, Intel DPC\\+\\+ Compiler)"
+      - "Linux Sanitizers (Ubuntu 20.04, Python 3.9)"
       - "Fedora 29 (RHEL 8.4), Python 3.9"
       - "Windows (VS 2022, Python 3.11, Release)"
       - "Windows (VS 2022, Python 3.11, Debug)"
       - "Windows Conditional Compilation (VS 2022, Python 3.11)"
+      - "Webassembly"
       - "Manylinux 2014"
       - "Manylinux 2_28"
       - "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)"
@@ -49,7 +52,7 @@ jobs:
           sparse-checkout: '.github/scripts/workflow_rerun'
 
       - name: Install deps
-        run: pip3 install PyGithub==2.2.0 requests==2.31.0
+        run: pip3 install PyGithub==2.2.0 requests==2.31.0 psycopg2-binary==2.9.9
 
       - name: Dump GitHub context
         env:
@@ -59,19 +62,16 @@ jobs:
       - name: Rerun
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PGHOST: ${{ secrets.METRICS_DATABASE_HOST }}
+          PGUSER: ${{ secrets.METRICS_DATABASE_USERNAME }}
+          PGPASSWORD: ${{ secrets.METRICS_DATABASE_PASSWORD }}
+          PGDATABASE: ${{ secrets.METRICS_DATABASE_NAME }}
+          PGPORT: 5432
         run: |
           export PYTHONPATH=${{ github.workspace }}/.github/scripts/workflow_rerun:${{ github.workspace }}/.github/scripts:$PYTHONPATH
           python3 ${{ github.workspace }}/.github/scripts/workflow_rerun/rerunner.py \
           --run-id ${{ github.event.workflow_run.id }} \
           --repository-name ${GITHUB_REPOSITORY}
-
-      - name: Rerun Retriggered (Ticket ${{ env.FOUND_ERROR_TICKET }})
-        if: ${{ env.PIPELINE_RETRIGGERED == 'true' }}
-        run: echo "Rerun retriggered for ${{ github.event.workflow_run.html_url }} with ticket ${{ env.FOUND_ERROR_TICKET }}"
-
-      - name: ${{ github.event.workflow_run.html_url }}
-        if: ${{ env.PIPELINE_RETRIGGERED == 'true' }}
-        run: echo "Step for statistics gathering"
 
   rerunner_tests:
     name: Rerunner Tests
@@ -86,7 +86,7 @@ jobs:
           lfs: true
 
       - name: Install deps
-        run: pip3 install PyGithub==2.2.0 requests==2.31.0
+        run: pip3 install PyGithub==2.2.0 requests==2.31.0 psycopg2-binary==2.9.9
 
       - name: Test Rerunner (Tests)
         env:

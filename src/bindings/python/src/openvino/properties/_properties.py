@@ -4,7 +4,8 @@
 
 import sys
 from types import BuiltinFunctionType, ModuleType
-from typing import Callable, Any, Union
+from typing import Any, Union
+from collections.abc import Callable
 
 
 class Property(str):

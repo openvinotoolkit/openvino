@@ -613,10 +613,15 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
     JitTerm in_ptr = get_input_ptr_name(input_id);
     JitTerm in_var = get_input_var_name(input_id);
 
-    const auto in_f = extract_channel(ChannelName::FEATURE, input_tensor);
-    const auto out_f = extract_channel(ChannelName::FEATURE, prim_output);
+    const auto in_f = extract_dim(ChannelName::FEATURE, input_tensor);
+    const auto out_f = extract_dim(ChannelName::FEATURE, prim_output);
 
-    bool valid_broadcast_case = input_tensor.count() == out_f || input_tensor.count() == 1;
+    bool valid_broadcast_case = true;
+    if (input_tensor.is_static() && out_f.is_static()) {
+        if (input_tensor.count() != static_cast<size_t>(out_f.get_length()) && input_tensor.count() != 1ul) {
+            valid_broadcast_case = false;
+        }
+    }
 
     // Eltwise fused op can't have full tensor argument when requested vec_size > 1, since it might require
     // splitting load into several parts and some kind of index recalculation which is not supported
@@ -628,7 +633,7 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
                                  input_tensor.to_string() + "\noutput: " + prim_output.to_string());
     }
 
-    if (conf.vec_axis != ChannelName::UNKNOWN && extract_channel(conf.vec_axis, input_tensor) != 1) {
+    if (conf.vec_axis != ChannelName::UNKNOWN && extract_dim(conf.vec_axis, input_tensor) != 1) {
         vec_size = conf.vec_size;
     }
 
@@ -646,7 +651,7 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
     if (desc.is_type<eltwise>() && conf.load_type == FusedOpsConfiguration::LoadType::LT_ALIGNED_READ &&
         ((format::is_simple_data_format(input_tensor.format) && input_tensor.format != orig_output_format) || f_axis_broadcast) &&
         (!format::is_simple_data_format(input_tensor.format) && (input_tensor.get_partial_shape() == prim_output.get_partial_shape() || f_axis_broadcast)) &&
-        input_tensor.count() != 1) {
+        (input_tensor.is_dynamic() || input_tensor.count() != 1)) {
         std::string sub_group_local_id_str = "get_sub_group_local_id";
         size_t found_sub = conf.bfzyx_idx_order[1].rfind(sub_group_local_id_str);
         OPENVINO_ASSERT(found_sub == std::string::npos, "[GPU] LT_ALIGNED_READ LoadType is used with get_sub_group_local_id.");
@@ -675,7 +680,15 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
     if (conf.index_type == FusedOpsConfiguration::IndexType::LINEAR_OFFSET) {
         JitTerm offset{conf.bfzyx_idx_order[0]};
         if (safe_load) {
-            offset = offset % JitTerm{to_code_string(input_tensor.count())};
+            JitTerm input_tensor_count;
+            if (input_tensor.is_dynamic()) {
+                LayoutJitter input_jitter(input_tensor, params.in_port_to_shape_info_offset.at(input_id));
+                input_tensor_count =
+                    JitTerm{input_jitter.stride(ov::intel_gpu::ChannelName::BATCH) + " * " + input_jitter.dim(ov::intel_gpu::ChannelName::BATCH)};
+            } else {
+                input_tensor_count = JitTerm{to_code_string(input_tensor.count())};
+            }
+            offset = offset % input_tensor_count;
         }
 
         if (vec_size > 1) {
@@ -699,7 +712,7 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
             }
         }
 
-        if (input_tensor.count() > 1 || multiple_elements) {
+        if ((input_tensor.is_static() && input_tensor.count() > 1) || multiple_elements) {
             // Currently we assume that in such scenario we can safely load sub_group_size elements from the pointer
             return make_block_read(input_dt, vec_size, in_ptr + index_func_call);
         }

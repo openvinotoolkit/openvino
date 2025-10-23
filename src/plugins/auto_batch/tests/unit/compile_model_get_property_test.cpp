@@ -24,10 +24,8 @@ public:
     std::shared_ptr<ov::ICompiledModel> auto_batch_compile_model;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<get_property_param> obj) {
-        std::string properity_name;
-        bool throw_exception;
-        std::tie(properity_name, throw_exception) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<get_property_param>& obj) {
+        const auto& [properity_name, throw_exception] = obj.param;
 
         std::string res;
         res += "_" + properity_name;

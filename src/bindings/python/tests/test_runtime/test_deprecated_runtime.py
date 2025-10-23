@@ -8,6 +8,7 @@ from pathlib import Path
 from contextlib import nullcontext as does_not_raise
 import warnings
 import operator
+import sysconfig
 
 with pytest.warns(DeprecationWarning, match="The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release."):
     import openvino.runtime as ov
@@ -167,6 +168,7 @@ def test_output_replace():
     assert res.input_value(0).get_node() == exp
 
 
+@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED"), reason="Ticket: 171534")
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_queue(device, share_inputs):
     jobs = 8
@@ -366,62 +368,3 @@ def test_runtime_passes_manager():
 
     assert count_ops_of_type(model, node_ceil) == 0
     assert count_ops_of_type(model, node_constant) == 1
-
-
-# from test_graph/test_ops_binary.py
-@pytest.mark.parametrize(
-    ("operator", "expected_type", "warning_type"),
-    [
-        (operator.add, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.sub, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.mul, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.truediv, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.eq, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.ne, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.gt, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.ge, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.lt, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.le, Type.boolean, pytest.warns(DeprecationWarning)),
-    ],
-)
-def test_binary_operators(operator, expected_type, warning_type):
-    value_b = np.array([[4, 5], [1, 7]], dtype=np.float32)
-
-    shape = [2, 2]
-    parameter_a = ops.parameter(shape, name="A", dtype=np.float32)
-
-    with warning_type:
-        model = operator(parameter_a, value_b)
-
-    assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == shape
-    assert model.get_output_element_type(0) == expected_type
-
-
-@pytest.mark.parametrize(
-    ("operator", "expected_type", "warning_type"),
-    [
-        (operator.add, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.sub, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.mul, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.truediv, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.eq, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.ne, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.gt, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.ge, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.lt, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.le, Type.boolean, pytest.warns(DeprecationWarning)),
-    ],
-)
-def test_binary_operators_with_scalar(operator, expected_type, warning_type):
-    value_b = np.array([[5, 6], [7, 8]], dtype=np.float32)
-
-    shape = [2, 2]
-    parameter_a = ops.parameter(shape, name="A", dtype=np.float32)
-
-    with warning_type:
-        model = operator(parameter_a, value_b)
-
-    assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == shape
-    assert model.get_output_element_type(0) == expected_type

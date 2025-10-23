@@ -172,6 +172,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(false) {
+    init_profiling();
+
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
@@ -222,7 +224,15 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Store original constants' offset for serialization purposes
     store_const_offsets(model);
 
-    auto partitioning = getPartitioning(model, m_cfg);
+    ov::npuw::PartitioningContext ctx;
+    // Identify based on compiler version, user config and pattern
+    ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
+
+    ov::npuw::Partitioning partitioning;
+    m_profile["partitioning"].record([&]() {
+        partitioning = getPartitioning(model, m_cfg, ctx);
+    });
+
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
     const std::vector<ov::npuw::Subgraph>& orderedSubgraphs = partitioning.subgraphs;
@@ -360,6 +370,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     m_compiled_submodels[id].spatial =
                         compiled::Spatial(fcn_template._spatial.value(), fcn_template._model);
                 }
+                // Does the same for dynamic. FIXME: This selection should be hidden here
+                // in the object semantics
+                if (fcn_template._attention) {
+                    m_compiled_submodels[id].attention =
+                        compiled::Attention(fcn_template._attention.value(), fcn_template._model);
+                }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
@@ -367,6 +383,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 LOG_INFO("Subgraph[" << id << "] is a function call to [" << compiled_fcn_iter->second << "]");
             }
             m_compiled_submodels[id].host_gather = subgraph._host_gather;
+            m_compiled_submodels[id].quant_unpack_gather = subgraph._quant_unpack_gather;
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].lazy_closure = subgraph._lazy_closure;
@@ -521,8 +538,90 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(serialized) {
     NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
+    init_profiling();
+
     ::intel_npu::registerNPUWOptions(*m_options_desc);
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
+}
+
+void ov::npuw::CompiledModel::init_profiling() {
+    // to be called from contructors
+    m_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_profile.area = m_name + "/compilation";
+}
+
+bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model,
+                                                               const ov::AnyMap& properties) const {
+    LOG_INFO("Identifying best HOST_GATHER config value...");
+    LOG_BLOCK();
+    // Check if was explicitly specified
+    auto it_hg = properties.find(intel_npu::npuw::partitioning::host_gather.name());
+    std::optional<bool> explicit_hg_value;
+    if (it_hg != properties.end()) {
+        explicit_hg_value = it_hg->second.as<bool>();
+    }
+
+    // Check NPUW_HOST_GATHER:QUANT based on the patterns (for tail vocab)
+    ov::npuw::patterns::opt::Context ctx;
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<ov::op::v0::Constant>>(std::ref(ctx), true);
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm<ov::op::v0::Constant>>(std::ref(ctx), true);
+    rewr.run_on_model(model);
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    std::vector<CPtr> to_keep;
+
+    ov::pass::GraphRewrite rewr2;
+    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
+    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
+    rewr2.run_on_model(model);
+    // FIXME: since 3-model pipeline is the default option, the tail will be separate,
+    // so we need to match either head or tail pattern here for host gather quantized feature to work.
+    // However, there might be a case where tail pattern is matched, but head is not (for the same model)
+    // or vice versa. This would lead to worse performance. Consider adding this check to LLMCompiledModel
+    // as well, since there we have uncut model.
+    // Head or tail
+    const bool pattern_matched = ctx.found_host_gather_quant() || !to_keep.empty();
+
+    // Check the compiler version
+    const auto npu_devices = get_plugin()->get_core()->get_property("NPU", ov::available_devices);
+    const auto is_suitable_comp = [](int64_t ver, const std::string& arch) {
+        if (arch == "3720" || arch == "4000") {
+            return ver >= ONEAPI_MAKE_VERSION(7, 21);
+        }
+        return ver >= ONEAPI_MAKE_VERSION(7, 25);
+    };
+    const bool compiler_version_enough =
+        !npu_devices.empty() &&
+        is_suitable_comp(get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version),
+                         get_plugin()->get_core()->get_property("NPU", ov::device::architecture));
+    // FIXME: go from
+    //     get_plugin()->get_core()->get_property("NPU", ..
+    // to
+    ///    plugin->get_property(..
+
+    const bool can_enable_hgq = pattern_matched && (compiler_version_enough || npu_devices.empty());
+
+    // Now make a decision based on the checks above
+    if (!explicit_hg_value) {
+        // Default value is used, can force the best option
+        if (can_enable_hgq) {
+            LOG_INFO("Forcing quantized tail vocabulary for better performance.");
+            return true;
+        }
+    } else if (!explicit_hg_value.value()) {  // explicit NO
+        if (can_enable_hgq) {
+            LOG_WARN("Consider removing NPUW_HOST_GATHER:NO from the config for better performance.");
+        } else {
+            LOG_WARN("Consider enabling NPUW_HOST_GATHER:YES for better performance.");
+        }
+    } else {  // explicit YES
+        if (can_enable_hgq) {
+            LOG_WARN("Consider removing NPUW_HOST_GATHER:YES from the config for better performance.");
+        }
+    }  // explicit_hg_value
+    LOG_INFO("DONE.");
+    return false;
 }
 
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
@@ -541,7 +640,14 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, host_gather.src_idx);
     write(stream, host_gather.idx_idx);
 
+    write(stream, quant_unpack_gather.dst_idx);
+    write(stream, quant_unpack_gather.src_w_idx);
+    write(stream, quant_unpack_gather.src_z_idx);
+    write(stream, quant_unpack_gather.src_s_idx);
+    write(stream, quant_unpack_gather.idx_idx);
+
     write(stream, spatial);
+    write(stream, attention);
 
     write(stream, is_remote);
     write(stream, closure_uid);
@@ -609,7 +715,14 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, host_gather.src_idx);
     read(stream, host_gather.idx_idx);
 
+    read(stream, quant_unpack_gather.dst_idx);
+    read(stream, quant_unpack_gather.src_w_idx);
+    read(stream, quant_unpack_gather.src_z_idx);
+    read(stream, quant_unpack_gather.src_s_idx);
+    read(stream, quant_unpack_gather.idx_idx);
+
     read(stream, spatial);
+    read(stream, attention);
 
     read(stream, is_remote);
     read(stream, closure_uid);
@@ -799,6 +912,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
         if (is_weightless) {
             compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
             compiled->finalize_weights_bank();
+            compiled->m_import_weights_ctx.reset();
         } else {
             compiled->m_weights_bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
@@ -1040,17 +1154,20 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
             }
         }
 
-        ov::npuw::s11n::Weights weights = nullptr;
+        ov::npuw::s11n::WeightsPtr weights = nullptr;
         if (is_weightless) {
             if (!weights_path.empty()) {
                 auto mapped_memory = ov::load_mmap_object(weights_path);
-                weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
-                                                                                                mapped_memory->size(),
-                                                                                                mapped_memory);
+                weights = std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(),
+                                                                    mapped_memory->size(),
+                                                                    mapped_memory);
             }
         }
 
-        WeightsContext ctx(weights, consts_cache, compiled->m_bf16_consts);
+        // FIXME: prolong lifetime of ov::Model for import with MODEL_PTR.
+        // Unclear why it's needed, but without saving consts_cache until bank evaluation,
+        // the memory is freed somewhere.
+        compiled->m_import_weights_ctx = WeightsContext(weights, weights_path, consts_cache, compiled->m_bf16_consts);
 
         // Deserialize compiled submodels
         std::size_t subm_size = 0;
@@ -1072,7 +1189,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                     plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
             }
             compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
-            compiled->m_compiled_submodels[i].deserialize(stream, ctx);
+            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx);
         }
 
         compiled->implement_properties();
@@ -1108,8 +1225,6 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
 
-        // At this point closure size should have already been deserialized
-        NPUW_ASSERT(!comp_model_desc.closure.empty() && "Closure shouldn't be empty at this point!");
         for (std::size_t cidx = 0; cidx < comp_model_desc.closure.size(); ++cidx) {
             if (comp_model_desc.closure[cidx]) {
                 // host-side closure - already set, do nothing
@@ -1147,7 +1262,9 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     }
 
     // Evaluate and allocate all LazyTensors inside the bank
-    m_weights_bank->evaluate_and_allocate();
+    m_profile["weights bank"].record([&]() {
+        m_weights_bank->evaluate_and_allocate();
+    });
 
     // Set evaluated and allocated ov::Tensors to closures
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
@@ -1201,13 +1318,16 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
 void ov::npuw::CompiledModel::detach_memory() {
     LOG_INFO("Detaching model & weight memory...");
     LOG_BLOCK();
+
+    const bool no_runtime_fallback = !m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>();
+
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
         auto& proto_comp_model_desc = m_compiled_submodels[comp_model_desc.replaced_by.value_or(idx)];
         if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
             continue;  // optimized-out OR already cleared - skip
         }
-        if (proto_comp_model_desc.device_it + 1 == m_dev_list.end()) {
+        if ((proto_comp_model_desc.device_it + 1 == m_dev_list.end()) || no_runtime_fallback) {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
             proto_comp_model_desc.model.reset();
         }
@@ -1347,19 +1467,38 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     // compile_for_device() behavior is not specified for funcalls.
     NPUW_ASSERT(m_compiled_submodels[id].replaced_by.value_or(id) == id);
 
-    // NPU plugin is known to crash when model has no inputs, so even
-    // try..catch doesn't work. Ideally such models should be
-    // eliminated with constant folding, but with offline partitioning
-    // it is not possible + not clear what to do with dynamic shapes.
-    // So for now, skip this case explicitly.
-    if (npuw::util::starts_with(device_to_try, "NPU") && m_compiled_submodels[id].model->inputs().empty()) {
-        LOG_INFO("Avoid compilation for " << device_to_try << " as the model should be constant-folded");
-        dump_on_fail(id, device_to_try, "Avoided due to workaround");
-        return false;
+    // Early exit conditions for NPU devices where try..catch doesn't work
+    // These are workarounds for known compilation issues that cause crashes
+    if (npuw::util::starts_with(device_to_try, "NPU")) {
+        // Check for empty input models - NPU plugin crashes on models without inputs
+        // Note: Ideally these should be eliminated via constant folding, but with offline partitioning
+        // it is not possible + not clear what to do with dynamic shapes.
+        // So for now, skip this case explicitly.
+        if (m_compiled_submodels[id].model->inputs().empty()) {
+            LOG_INFO("Avoid compilation for " << device_to_try << " as the model should be constant-folded");
+            dump_on_fail(id, device_to_try, "Avoided due to workaround");
+            return false;
+        }
+
+        // Check for dynamic shapes in attention models
+        // Skip this case explicitly because dynamic shapes in attention models trigger LLVM abort and try..catch
+        // doesn't work.
+        if (m_compiled_submodels[id].attention.has_value()) {
+            for (const auto& input : m_compiled_submodels[id].model->inputs()) {
+                if (input.get_partial_shape().is_dynamic()) {
+                    LOG_INFO("Avoid compilation for " << device_to_try << " as attention model has dynamic shapes");
+                    dump_on_fail(id, device_to_try, "Avoided due to dynamic shapes");
+                    return false;
+                }
+            }
+        }
     }
 
     try {
-        m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
+        // WARNING: These requests can be issues in parallel, so timer should be thread-safe
+        m_profile["compile/" + device_to_try].record([&]() {
+            m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
+        });
     } catch (const std::exception& ex) {
         LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
         dump_on_fail(id, device_to_try, ex.what());
@@ -1415,7 +1554,7 @@ void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& de
     }
 }
 
-std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infer_request() const {
+std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_base_infer_request() const {
     // Synchronous infer request implementation may vary based on the
     // selected strategy
     auto* non_const_this = const_cast<ov::npuw::CompiledModel*>(this);  // because of const in API
@@ -1443,19 +1582,27 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
         return true;  // no spatial & subgraphs requiring unpack found
     };
 
-    std::shared_ptr<ov::ISyncInferRequest> result;
+    std::shared_ptr<ov::npuw::IBaseInferRequest> result;
     if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack()) {
-        result.reset(new ov::npuw::UnfoldInferRequest(non_const_this_sptr));
+        result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
-        result.reset(new ov::npuw::JustInferRequest(non_const_this_sptr));
+        result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);
     }
     NPUW_ASSERT(result);
     return result;
 }
 
-std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_request() const {
-    auto internal_request = create_sync_infer_request();
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infer_request() const {
+    return create_base_infer_request();
+}
+
+std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel ::wrap_async_infer_request(
+    std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const {
     return std::make_shared<ov::IAsyncInferRequest>(internal_request, get_task_executor(), get_callback_executor());
+}
+
+std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_request() const {
+    return wrap_async_infer_request(create_base_infer_request());
 }
 
 void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {

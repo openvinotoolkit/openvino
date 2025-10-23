@@ -71,15 +71,15 @@ layout matrix_nms_inst::calc_output_layout(const matrix_nms_node& node, const ke
     const auto boxes_num = boxes_layout.feature();
 
     if (primitive->attribs.background_class >= 0 && primitive->attribs.background_class < classes_num)
-        classes_num = std::max(1, classes_num - 1);
+        classes_num = std::max<ov::Dimension::value_type>(1, classes_num - 1);
 
-    int max_output_boxes_per_class{boxes_num};
+    auto max_output_boxes_per_class{boxes_num};
     if (primitive->attribs.nms_top_k >= 0)
-        max_output_boxes_per_class = std::min(max_output_boxes_per_class, primitive->attribs.nms_top_k);
+        max_output_boxes_per_class = std::min<ov::Dimension::value_type>(max_output_boxes_per_class, primitive->attribs.nms_top_k);
 
     auto max_output_boxes_per_batch = max_output_boxes_per_class * classes_num;
     if (primitive->attribs.keep_top_k >= 0)
-        max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, primitive->attribs.keep_top_k);
+        max_output_boxes_per_batch = std::min<ov::Dimension::value_type>(max_output_boxes_per_batch, primitive->attribs.keep_top_k);
 
     auto output_num = max_output_boxes_per_batch * batches_num;
 

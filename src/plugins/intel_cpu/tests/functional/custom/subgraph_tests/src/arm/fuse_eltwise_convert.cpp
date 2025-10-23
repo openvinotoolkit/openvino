@@ -44,11 +44,8 @@ using eltwiseFusingCPUTestParamsSet = std::tuple<utils::EltwiseTypes,
 class MergeEltwiseAndConvertTransformationCPUTest: public testing::WithParamInterface<eltwiseFusingCPUTestParamsSet>,
                                             public CPUTestsBase, virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<eltwiseFusingCPUTestParamsSet> obj) {
-        utils::EltwiseTypes eltwiseType;
-        ElementType convertOutType;
-        std::tie(eltwiseType, convertOutType) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<eltwiseFusingCPUTestParamsSet>& obj) {
+        const auto& [eltwiseType, convertOutType] = obj.param;
         std::ostringstream result;
         result << "EltwiseType=" << eltwiseType << "_";
         result << "convertOutType=" << convertOutType;
@@ -59,10 +56,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        utils::EltwiseTypes eltwiseType;
-        ElementType convertOutType;
-        std::tie(eltwiseType, convertOutType) = this->GetParam();
-
+        const auto& [eltwiseType, convertOutType] = this->GetParam();
         const ov::Shape inputShape = {1, 64, 12, 12};
         ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape)};
 

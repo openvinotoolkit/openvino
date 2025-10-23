@@ -48,10 +48,17 @@ namespace pass {
 /// Multiply ops for Q and K are eliminated in the following cases:
 /// 1. Q_scale and K_scale are constant
 /// 2. Q_scale * SDPA_Scale == 1 or K_scale * SDPA_Scale == 1
-class TRANSFORMATIONS_API SDPAScaleFusion : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API SDPAScaleFusionPass : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("SDPAScaleFusion", "0");
-    SDPAScaleFusion();
+    OPENVINO_MATCHER_PASS_RTTI("SDPAScaleFusionPass", "0");
+    SDPAScaleFusionPass();
+};
+
+class TRANSFORMATIONS_API SDPAScaleFusion : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("SDPAScaleFusion");
+    SDPAScaleFusion() = default;
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace pass

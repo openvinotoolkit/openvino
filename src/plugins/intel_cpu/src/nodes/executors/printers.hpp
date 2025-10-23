@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "nodes/executors/eltwise_config.hpp"
 #ifdef CPU_DEBUG_CAPS
 #    pragma once
 
@@ -21,6 +22,7 @@ struct ConvAttrs;
 
 std::ostream& operator<<(std::ostream& os, const FCAttrs& attrs);
 std::ostream& operator<<(std::ostream& os, const ConvAttrs& attrs);
+std::ostream& operator<<(std::ostream& os, const EltwiseAttrs& attrs);
 
 template <typename Attrs>
 std::ostream& operator<<(std::ostream& os, const executor::Config<Attrs>& config) {

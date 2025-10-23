@@ -28,7 +28,7 @@ using LoraMatMulParams = std::tuple<std::string,         // Device name
 
 class LoraPatternMatmul : public LoraPatternBase, public testing::WithParamInterface<LoraMatMulParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LoraMatMulParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<LoraMatMulParams>& obj);
     void SetUp() override;
 };
 
@@ -39,7 +39,7 @@ using LoraConvolutionParams = std::tuple<std::string,         // Device name
 
 class LoraPatternConvolution : public LoraPatternBase, public testing::WithParamInterface<LoraConvolutionParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LoraConvolutionParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<LoraConvolutionParams>& obj);
     void SetUp() override;
 };
 

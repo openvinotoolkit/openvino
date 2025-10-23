@@ -13,6 +13,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -26,7 +27,7 @@ std::string jit_emitter_pretty_name(const std::string& pretty_func) {
     //      clang: void foo() [T = {type}]
     //      MSVC:  void __cdecl foo<{type}>(void)
     auto parenthesis = pretty_func.find('(');
-    if (parenthesis == std::string::npos || parenthesis == 0) {
+    if (any_of(parenthesis, std::string::npos, 0U)) {
         return pretty_func;
     }
     if (pretty_func[parenthesis - 1] == '>') {  // To cover template on MSVC
@@ -43,12 +44,12 @@ std::string jit_emitter_pretty_name(const std::string& pretty_func) {
         }
     }
     auto end = pretty_func.substr(0, parenthesis).rfind("::");
-    if (end == std::string::npos || end == 0) {
+    if (any_of(end, std::string::npos, 0U)) {
         return pretty_func;
     }
 
     auto begin = pretty_func.substr(0, end).rfind(' ');
-    if (begin == std::string::npos || begin == 0) {
+    if (any_of(begin, std::string::npos, 0U)) {
         return pretty_func;
     }
     begin++;

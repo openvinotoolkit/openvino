@@ -149,11 +149,8 @@ struct PrintToStringParamName {
     template<class T>
     std::string operator()(const testing::TestParamInfo<ParamsWithLayout<T> > &param) {
         std::stringstream buf;
-        Params<T> p;
-        format::type plain_layout;
-        format::type target_layout;
-        bool is_caching_test;
-        std::tie(p, plain_layout, target_layout, is_caching_test) = param.param;
+
+        const auto& [p, plain_layout, target_layout, is_caching_test] = param.param;
         buf << " test case " << p.testcase_name
             << " plain layout " << plain_layout
             << " target layout " << target_layout
@@ -169,12 +166,8 @@ struct gather_tree_test
 public:
     void test() {
         const auto data_type = ov::element::from<T>();
-        Params<T> params;
-        format::type plain_layout;
-        format::type target_layout;
-        bool is_caching_test;
 
-        std::tie(params, plain_layout, target_layout, is_caching_test) = this->GetParam();
+        const auto& [params, plain_layout, target_layout, is_caching_test] = this->GetParam();
 
         auto &engine = get_test_engine();
         topology topology;

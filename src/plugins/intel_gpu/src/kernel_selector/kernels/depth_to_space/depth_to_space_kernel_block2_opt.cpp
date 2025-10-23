@@ -19,15 +19,15 @@ ParamsKey DepthToSpaceKernelBlock2Opt::GetSupportedKey() const {
 
 bool DepthToSpaceKernelBlock2Opt::Validate(const Params& p) const {
     if (!DepthToSpaceKernelBase::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& params = static_cast<const depth_to_space_params&>(p);
 
     if ((params.block_size != 2) || (params.inputs[0].X().v % 2 != 0))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.mode != DepthToSpaceMode::BLOCKS_FIRST)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

@@ -10,7 +10,7 @@ def test_dynamic_dimension():
     assert dim.is_dynamic
     assert str(dim) == "?"
     assert dim.to_string() == "?"
-    assert str(dim.__repr__) == "<bound method PyCapsule.__repr__ of <Dimension: ?>>"
+    assert "<Dimension: ?>" in str(dim.__repr__)
 
 
 def test_dynamic_dimension_with_bounds():

@@ -49,14 +49,14 @@ bool ConvolutionKernel_b_fs_yx_fsv16_depthwise::Validate(const Params& p) const 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
     if (cp.groups == 1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (cp.inputs[0].Feature().v != cp.groups || cp.outputs[0].Feature().v != cp.groups)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // Check that padding features doesn't miss-align the blocks
     if (cp.inputs[0].Feature().pad.before % feature_block_size != 0 || cp.outputs[0].Feature().pad.before % feature_block_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

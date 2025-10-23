@@ -145,7 +145,7 @@ protected:
 //
 #define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                      \
     do {                                                                         \
-        if (!(check)) {                                                          \
+        if (!static_cast<bool>(check)) {                                         \
             ::std::ostringstream ss___;                                          \
             ::ov::write_all_to_stream(ss___, __VA_ARGS__);                       \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), ss___.str()); \
@@ -154,7 +154,7 @@ protected:
 
 #define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                      \
     do {                                                                                    \
-        if (!(check)) {                                                                     \
+        if (!static_cast<bool>(check)) {                                                    \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), exc_class::default_msg); \
         }                                                                                   \
     } while (0)
@@ -184,6 +184,20 @@ protected:
 ///            i.e., only if the `cond` evaluates to `false`.
 /// \throws ::ov::AssertFailure if `cond` is false.
 #define OPENVINO_ASSERT(...) OPENVINO_ASSERT_HELPER(::ov::AssertFailure, ::ov::AssertFailure::default_msg, __VA_ARGS__)
+
+/// \brief Debug version of OPENVINO_ASSERT that is only active when NDEBUG is not defined
+///        i.e. Release / production builds.
+//         Can be used as a more convenient replacement for `assert()` in performance critical parts of code
+/// \param ... Error message info to be added to the error message via the `<<`
+///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
+///            i.e., only if the `cond` evaluates to `false`.
+/// \throws ::ov::AssertFailure if `cond` is false and NDEBUG is not defined.
+#ifndef NDEBUG
+#    define OPENVINO_DEBUG_ASSERT(...) \
+        OPENVINO_ASSERT_HELPER(::ov::AssertFailure, ::ov::AssertFailure::default_msg, __VA_ARGS__)
+#else
+#    define OPENVINO_DEBUG_ASSERT(...)
+#endif
 
 /// \brief Macro to signal a code path that is unreachable in a successful execution. It's
 /// implemented with OPENVINO_ASSERT macro.

@@ -13,12 +13,8 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string Exp::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ExpParams> obj) {
-    ov::test::InputShape inputShapes0;
-    ov::element::Type type;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes0, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string Exp::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ExpParams>& obj) {
+    const auto& [inputShapes0, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes0.first}) << "_";
@@ -34,9 +30,10 @@ std::string Exp::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ExpP
 }
 
 void Exp::SetUp() {
-    ov::test::InputShape inputShape0;
-    ov::element::Type type;
-    std::tie(inputShape0, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape0, type, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({inputShape0});
     auto f = ov::test::snippets::ExpFunction(inputDynamicShapes);
     function = f.getOriginal();
@@ -45,9 +42,10 @@ void Exp::SetUp() {
 }
 
 void ExpReciprocal::SetUp() {
-    ov::test::InputShape inputShape0;
-    ov::element::Type type;
-    std::tie(inputShape0, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape0, type, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({inputShape0});
     auto f = ov::test::snippets::ExpReciprocalFunction(inputDynamicShapes);
     function = f.getOriginal();

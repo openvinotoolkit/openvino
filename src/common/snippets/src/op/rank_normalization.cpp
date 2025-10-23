@@ -37,7 +37,7 @@ void RankNormalization::validate_and_infer_types() {
     auto new_shape = get_input_partial_shape(0);
     // Note: other values are not allowed, only planar + blocked layout combination can be normalized.
     NODE_VALIDATION_CHECK(this,
-                          utils::one_of(m_num_append, 0lu, 1lu),
+                          utils::any_of(m_num_append, 0LU, 1LU),
                           "num_append could be only 0 or 1, other values are not allowed.");
     new_shape.insert(new_shape.begin(), m_num_prepend, Dimension(1));
     new_shape.insert(new_shape.end(), m_num_append, Dimension(1));

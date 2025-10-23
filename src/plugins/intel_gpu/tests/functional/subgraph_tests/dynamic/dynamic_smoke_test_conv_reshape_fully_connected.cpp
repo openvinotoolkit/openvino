@@ -35,12 +35,8 @@ class ConvReshapeFullyConnectedDynamicGPUTestDynamic : public testing::WithParam
                                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convReshapeFullyConnectedDynamicGPUTestDynamicParamsSet>& obj) {
-        InputShape inputShape;
-        ov::element::Type model_type;
-        std::string targetDevice;
-
         convReshapeFullyConnectedDynamicGPUTestDynamicParamsSet basicParamsSet = obj.param;
-        std::tie(inputShape, model_type, targetDevice) = basicParamsSet;
+        const auto& [inputShape, model_type, targetDevice] = basicParamsSet;
 
         std::ostringstream result;
         result << "IS=";
@@ -55,10 +51,9 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape inputShape;
-        ov::element::Type model_type;
         convReshapeFullyConnectedDynamicGPUTestDynamicParamsSet basicParamsSet = this->GetParam();
-        std::tie(inputShape, model_type, targetDevice) = basicParamsSet;
+        const auto& [inputShape, model_type, _targetDevice] = basicParamsSet;
+        targetDevice = _targetDevice;
 
         init_input_shapes({inputShape});
 

@@ -17,21 +17,20 @@ namespace test {
 using ov::test::utils::InputLayerType;
 
 std::string LSTMCellTest::getTestCaseName(const testing::TestParamInfo<LSTMCellParams> &obj) {
-    bool should_decompose;
-    size_t batch;
-    size_t hidden_size;
-    size_t input_size;
-    std::vector<std::string> activations;
     std::vector<float> activations_alpha;
     std::vector<float> activations_beta;
-    float clip;
-    InputLayerType WType;
-    InputLayerType RType;
-    InputLayerType BType;
-    ov::element::Type model_type;
-    std::string targetDevice;
-    std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, WType, RType, BType,
-            model_type, targetDevice) = obj.param;
+
+    const auto& [should_decompose,
+                 batch,
+                 hidden_size,
+                 input_size,
+                 activations,
+                 clip,
+                 WType,
+                 RType,
+                 BType,
+                 model_type,
+                 targetDevice] = obj.param;
     std::vector<std::vector<size_t>> input_shapes = {
             {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                     {4 * hidden_size, hidden_size}, {4 * hidden_size}},
@@ -53,20 +52,21 @@ std::string LSTMCellTest::getTestCaseName(const testing::TestParamInfo<LSTMCellP
 }
 
 void LSTMCellTest::SetUp() {
-    bool should_decompose;
-    size_t batch;
-    size_t hidden_size;
-    size_t input_size;
-    std::vector<std::string> activations;
     std::vector<float> activations_alpha;
     std::vector<float> activations_beta;
-    float clip;
-    InputLayerType WType;
-    InputLayerType RType;
-    InputLayerType BType;
-    ov::element::Type model_type;
-    std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, WType, RType, BType,
-            model_type, targetDevice) = this->GetParam();
+
+    const auto& [should_decompose,
+                 batch,
+                 hidden_size,
+                 input_size,
+                 activations,
+                 clip,
+                 WType,
+                 RType,
+                 BType,
+                 model_type,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     std::vector<ov::Shape> input_shapes = {
         {batch, input_size},

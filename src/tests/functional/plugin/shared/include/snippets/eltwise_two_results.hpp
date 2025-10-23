@@ -21,7 +21,7 @@ typedef std::tuple<
 class EltwiseTwoResults : public testing::WithParamInterface<ov::test::snippets::EltwiseTwoResultsParams>,
                           virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::EltwiseTwoResultsParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::EltwiseTwoResultsParams>& obj);
 
 protected:
     void SetUp() override;

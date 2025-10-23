@@ -486,9 +486,101 @@ which allows the plugin to flexibly register its own passes.
 
 #### Control flow optimizer
 
-As follows from its name, the main objective of `Control flow optimizer` is to manage and optimize control flow of the kernel. 
-Since the `OpenVINO IR` doesn't have an explicit control flow representation, a special control-flow-oriented `IR` was developed. 
-It is called `Linear IR` (or simply `LIR`), let's discuss it first, before we consider the transformation pipeline.
+As follows from its name, the main objective of `Control flow optimizer` is to manage and optimize control flow of the kernel.
+
+After data flow transformations, we get `OpenVINO IR`.
+So let's take a look at `OpenVINO IR` and its opportunities as part of control flow representation.
+This IR provides interface to adjust control flow execution (for example, by the method [`ov::Node::add_control_dependency(...)`](../../../core/include/openvino/core/node.hpp)). But this interface might be not enough for flexible setting and may be inconvenient in some cases. For more understanding, let's consider the part of subgraph after `Softmax` decomposition (`ReduceMax` decomposition and the following `Subtract`) implemented on `OpenVINO IR`:
+
+```mermaid
+flowchart LR
+   subgraph OpenVINO_IR
+      direction TB 
+      LoopBegin_0
+      LoopEnd_0
+      LoopBegin_1
+      LoopEnd_1
+      VectorBuffer
+      Load_0
+      Maximum
+      HorizonMax
+      Load_1
+      Subtract
+      ...
+
+      LoopBegin_0-->LoopEnd_0 
+      LoopBegin_0-->Load_0 
+      VectorBuffer-->Maximum
+      Load_0-->Maximum
+      Maximum-->HorizonMax
+      LoopEnd_0-->LoopBegin_1
+      LoopBegin_1-->LoopEnd_1
+      LoopBegin_1-->Load_1
+      HorizonMax-->Subtract
+      Load_1-->Subtract
+      Subtract-->...
+      ... -->LoopEnd_1
+   end
+   OpenVINO_IR
+   classDef no-bg-color fill:none,stroke-width:0px
+   classDef no-bg fill:none,stroke:#9370DB
+   class OpenVINO_IR no-bg-color
+```
+
+When we look at this diagram, we have the following questions: "What is the exact execution order of operations? What operations are performed within the loops `LoopBegin_0 -> LoopEnd_0` and `LoopBegin_1 -> LoopEnd_1`? Why is the `LoopEnd_0` connected to the `LoopBegin_1`?". 
+At the same time, to configure the execution order of operations, we have to call the following lines of code in the transformation `SoftmaxDecomposition`:
+
+```cpp
+LoopBegin_0->add_control_dependency(VectorBuffer);
+LoopEnd_0->add_control_dependency(Maximum);
+HorizonMax->add_control_dependency(LoopEnd_0);
+LoopBegin_1->add_control_dependency(HorizonMax);
+...
+```
+
+From the both examples above we can see that the `OpenVINO IR` doesn't have an explicit control flow representation and we need to develop own special control-flow-oriented `IR`. 
+This `IR` should have a flexible setting of the execution order of operations and a clear display of this order. 
+For example, the same subgraph after `Softmax` decomposition can be represented in control-flow-oriented graph in the following way:
+
+```mermaid
+flowchart LR
+   subgraph Linear_IR
+      direction TB 
+      LoopBegin_0
+      LoopEnd_0
+      LoopBegin_1
+      LoopEnd_1
+      VectorBuffer
+      Load_0
+      Maximum
+      HorizonMax
+      Load_1
+      Subtract
+      ...
+
+      VectorBuffer-->LoopBegin_0
+      LoopBegin_0-->Load_0 
+      Load_0-->Maximum 
+      Maximum-->LoopEnd_0
+      LoopEnd_0-->HorizonMax
+      LoopEnd_0-->LoopBegin_0
+      HorizonMax-->LoopBegin_1
+      LoopBegin_1-->Load_1
+      Load_1-->Subtract
+      Subtract-->...
+      ... -->LoopEnd_1
+      LoopEnd_1-->LoopBegin_1
+   end
+   Linear_IR
+   classDef no-bg-color fill:none,stroke-width:0px
+   classDef no-bg fill:none,stroke:#9370DB
+   class Linear_IR no-bg-color
+```
+
+This representation defines the execution order.
+Also we can see which operations are performed in the loops `LoopBegin_0 -> LoopEnd_0` and `LoopBegin_1 -> LoopEnd_1`.
+Due to this understanding, we decided to develop the similar `IR` for managing and optimizing control flow of the kernel.
+This `IR` is called `Linear IR` (or simply `LIR`), let's discuss it first, before we consider the transformation pipeline.
 
 ##### Linear Intermediate Representation
 
@@ -583,14 +675,20 @@ For more details regarding these helpers please refer to the relevant descriptio
 
 ##### Control flow optimization pipeline
 
-The pipeline is mainly focused on an automatic loop injection and loop optimizations, but some transformations affecting data flow are also included. 
-The exact set of transformations executed in the pipeline will likely change as the `Snippets` evolve and develop, but it is worthwhile to cover some of them briefly to give you an idea on how the pipeline looks like:
+The control flow optimization pipeline is divided into two pipelines:
+1. Loop and memory structuring stage. The first part of the control flow pipeline focuses on organizing loops and managing data placement in memory, but some transformations affecting data flow are also included.  
+2. Pre-generation stage. The second part consists of low-level target-independent transformations needed to prepare the `LinearIR` for code generation. 
+
+Let's take a closer look at each stage of the control flow pipeline.
+The exact set of transformations executed in the pipeline will likely change as the `Snippets` evolve and develop, but it is worthwhile to cover some of them briefly to give you an idea on how the general pipeline looks like. 
+
+Let's start from the main transformations from the loop and memory structuring stage:
 1. `MarkLoops` - performs an analysis of `Expressions'` connectivity and their `PortDescriptors`. 
 Based on this information, the pass divides the `Expression` into groups, so that each of the groups can be executed inside one loop. 
 Every group is described by a `loop_id`, and additional information is saved in `LoopInfo`.
 2. `FuseLoops` - analyzes the assigned `loop_ids` and `LoopInfo`, fuses some loops if possible. 
 This pass can move some `Expressions` up or down the graph, so the `Expressions` with the same `loop_ids` are grouped together.
-3. `InsertBuffers` - analyzes `LoopInfo` and `Expression` semantics, inserts `snippets::op::Buffer`. `Buffer` is an operation that represents a memory buffer needed to save some intermediate results.
+3. `InsertBuffers` - analyzes `LoopInfo` and `Expression` semantics, inserts `BufferExpression` that points to the operation `snippets::op::Buffer`. `Buffer` is an operation that represents a memory buffer needed to save some intermediate results.
 4. `InsertLoadStore` - inserts explicit memory access operations like `Load` and `Store` (both from `snippets::op`). 
 These are needed, so appropriate instructions will be emitted during the code generation stage to move data between memory and vector registers.
 5. `InitLoops` - initialize data pointer shift parameters (pointer increments and finalization offsets for each loop port) in `LoopInfo`.
@@ -600,36 +698,31 @@ Again, the explicit operations are needed to emit appropriate instructions later
 8. `LoadMoveBroadcastToBroadcastLoad` fuse `Load->MoveBroadcast` sequences into a single `BroadcastLoad` expressions.
 9. `AllocateBuffers` is responsible for a safe `Buffer` data pointer increments and common memory size calculation. For more details refer please to the end of this section.
 10. `CleanRepeatedDataPointerShifts` - eliminates redundant pointer increments from the loops.
-11. `PropagateLayout` - propagates data layouts to `Parameters` and `Results` (actually to corresponding `Expressions`), so `Kernel` will be able to calculate appropriate data offsets for every iteration of an external parallel loop.
 
-As mentioned above the `op::Buffer` operations are managed by the pass `AllocateBuffers`.
-Before describing the algorithm, it is necessary to briefly consider the structure of `Buffer`:
-* All `Buffers` represent `Buffer scratchpad` together (a common memory that is needed for intermediate results storing).
-* Each `Buffer` has an `offset` relative to the common data pointer (pointer of `Buffer scratchpad`), `RegGroup` (the `Buffers` with the same `RegGroup` have the same assigned register) and `ClusterID` (the buffers from the same cluster refer to the same memory area - they have the same `offset` relative to the `Buffer scratchpad` data pointer).
+As mentioned above the `Buffer` expressions are managed by the pass `AllocateBuffers`.
+Before describing the algorithm, it is necessary to briefly consider the structure of `BufferExpression`:
+* All `Buffer` expressions represent `Buffer scratchpad` together (a common memory that is needed for intermediate results storing).
+* Each `Buffer` expression has an `offset` relative to the common data pointer (pointer of `Buffer scratchpad`), `RegGroup` (the `Buffers` with the same `RegGroup` have the same assigned register) and `ClusterID` (the buffers from the same cluster refer to the same memory area - they have the same `offset` relative to the `Buffer scratchpad` data pointer).
 
 The algorithm supports two modes: optimized and non-optimized.
 The optimized one calculates minimal memory size and minimal unique `RegGroup` count required to handle all the buffers.
 The non-optimized version assigns each buffer an unique `RegGroup`, `ClusterID` and `offset`.
 The first mode is the default one, while the second one might be used for debugging the optimized version.
 The optimized algorithm `AllocateBuffers` has the main following steps:
-1. `SetBufferRegGroup` - analyzes `Buffers` access patterns to avoid redundant pointer increments. A graph coloring algorithm is utilized for this purpose.
-2. `DefineBufferClusters` - creates sets of `Buffer` ops (buffer clusters) and set `ClusterID` value to `Buffer` ops.
-As noticed above, `Buffers` from one cluster refer to the same memory area.
-For example, there is a loop with `Buffer` ops on input and output. If the body of this loop can write data to the memory from which it was read, these `Buffers` are in one cluster.
-3. `SolveBufferMemory` - calculate the most optimal memory size of `Buffer scratchpad` based on `BufferClusters` and life time of `Buffers`.
+1. `MarkInvariantShapePath` - marks ports of expressions in `LinearIR` which will have the same shape in runtime.
+The same shapes mean the same loop pointer arithmetic.
+This information is used in the following optimizing passes.
+2. `SetBufferRegGroup` - analyzes `Buffers` access patterns to avoid redundant pointer increments. A graph coloring algorithm is utilized for this purpose.
+3. `DefineBufferClusters` - creates sets of `Buffer` expressions (buffer clusters) and set `ClusterID` value to `BufferExpression`.
+As noticed above, `Buffer` expressions from one cluster refer to the same memory area.
+For example, there is a loop with `Buffer` expressions on input and output. If the body of this loop can write data to the memory from which it was read, these `Buffers` are in one cluster.
+4. `SolveBufferMemory` - calculate the most optimal memory size of `Buffer scratchpad` based on `BufferClusters` and life time of `Buffers`.
 
-More details on control flow optimization passes could be found in the `control_flow_transformations(...)` method inside [subgraph.cpp](../src/op/subgraph.cpp). 
-When all the passes are applied, the `LinearIR` is handled further to the `Generator` to emit executable code.
-
-### Generator
-The main purpose of the `Generator` is to emit executable code. 
-The code emission process could be divided into two stages: `Preparation` that could be shared between several targets, and target-specific `Emission`. 
-The `ov::snippets::Generator` class provides a target-independent interface to the generation process and performs the `Preparation` stage. 
-It also stores the `TargetMachine` instance, which is responsible for the `Emission` stage. 
-Let's discuss the target-independent stage first.
-
-The `Preparation` consists of low-level target-independent transformations needed to prepare the `IR` for code generation. 
-There are currently two such transformations:
+We now move to the pre-generation stage of the control flow pipeline.
+Some passes in this stage rely on information provided by the `Generator`, which is primarily responsible for emitting executable code later on.
+Although the pre-generation stage focuses on low-level, target-independent transformations that prepare the `LinearIR` for code generation, certain transformations require generator-provided details to be applied correctly.
+The `ov::snippets::Generator` class provides a target-independent interface to the generation process and performs the pre-generation stage. 
+Let's discuss the main transformations from the last stage of control flow pipeline:
 1. `InitRegisters` assigns registers to `Expressions` based on their data dependencies. 
 This register assignment is organized in three steps implemented as separate passes: `InitLiveRanges`, `AssignRegisters` and `InsertRegSpills`.
     * `InitLiveRanges` assigns an abstract register to every `PortConnector` and determines their live intervals based on data dependencies.
@@ -649,8 +742,15 @@ So if a loop's `work_amount` is not evenly divisible by its `increment`, it mean
 4. `OptimizeLoopSingleEvaluation` moves all pointer arithmetic to finalization offsets in `LoopEnd`, and marks the loops that will be executed only once.
 This information will be used during code emission to eliminate redundant instructions.
 
-Please see [init_registers.cpp](../src/lowered/pass/init_registers.cpp) and [insert_specific_iterations.cpp](../src/lowered/pass/insert_specific_iterations.cpp) for more info regarding the main passes in the `Preparation` stage.
-When the `Preparation` is finished, the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
+Please see [init_registers.cpp](../src/lowered/pass/init_registers.cpp) and [insert_specific_iterations.cpp](../src/lowered/pass/insert_specific_iterations.cpp) for more info regarding the main passes in the pre-generation stage.
+
+More details on control flow optimization passes could be found in the `control_flow_transformations(...)` method inside [subgraph.cpp](../src/op/subgraph.cpp). 
+When all the passes are applied, the `LinearIR` is passed to the `Generator` to for the further executable code emission.
+
+### Code generation
+The code generation is performed with the help of a `Generator`.
+The `ov::snippets::Generator` class stores the `TargetMachine` instance, which is responsible for the `Emission` stage. 
+After control flow transformations, the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
 
 The `TargetMachine` is a class that provides generator with target-specific information, such as supported instruction sets, vector register size etc. 
 `TargetMachine` also maps the OpenVINO's `DiscreteTypeInfo` (stored in the `Expression`) to the emitter that actually implements the operation. 
@@ -667,10 +767,70 @@ Another important function of the `KernelEmitter` is to calculate input/output d
 Keep in mind however, that the required functionality of the `KernelEmitter` depends on how the rest of the emitters are implemented (particularly for `Load`/`Store` `Ops`). 
 We've discussed above how the emitters for the `intel_cpu` plugin are implemented (see [jit_snippets_emitters.cpp](../../../plugins/intel_cpu/src/emitters/snippets/x64/jit_snippets_emitters.cpp) for more details), but a different backend might require a different approach depending on hardware specifics.
 
+### Dynamic shapes support
+
+The graph compiler Snippets also supports subgraphs with dynamic shapes.
+In this case, as for subgraphs with static shapes, subgraph lowering (data flow and control flow transformations) is performed only once at model compilation stage.
+However, since code generation may depend on static shapes available only at inference stage, the actual code generation step should be performed during the inference stage using the method `snippets::op::Subgraph::generate(const void*)`.
+Before the code generation, a series of shape-dependent transformations is applied in this method:
+1. `SetLoadStoreScalar` sets the scalar count for `Load` and `Store` operations when the processing dimension is scalar, ensuring the correct number of elements is loaded or stored.
+2. `InsertBroadcastMove` inserts a `BroadcastMove` operation where element broadcasting is required.
+3. `LoadMoveBroadcastToBroadcastLoad` fuses a `Load` operation with a `BroadcastMove` into a single instruction `BroadcastLoad`.
+
+After these transformations, the `LinearIR` is ready for code generation. More details about these transformations could be found in the `snippets::op::Subgraph::generate(const void*)` method inside [subgraph.cpp](../src/op/subgraph.cpp). 
+
+Note that Snippets support shape-agnostic kernel compilation.
+It means that we can recompile kernel only in some specific cases (for example, when broadcasting pattern has been changed and now we need to insert `BroadcastMove` instruction to the kernel).
+Although it should be noted that such specific cases are rare in real scenarios. 
+In other cases, we can skip the kernel recompilation and just recalculate runtime parameters which are stored in `RuntimeConfig`.
+The `snippets::RuntimeConfig` structure contains all necessary runtime parameters for the kernel, such as input and output offsets, size of `Buffer scratchpad`, offsets of `BufferClusters`, kernel and tensor ranks, etc.
+For example, the [`CPURuntimeConfig`](../../../plugins/intel_cpu/src/emitters/snippets/cpu_runtime_configurator.hpp) (derived class from `snippets::RuntimeConfig`) from the CPU Plugin also stores loop parameters: `work_amount`, `increment` and data pointer shift parameters which are read by `Load` JIT emitter in the compiled kernel during execution.
+Please note that the backend should implement support of runtime parameters reading from `RuntimeConfig` in the kernel during the execution.
+
+```mermaid
+flowchart LR
+    subgraph Implementation
+       direction TB 
+       RuntimeConfigurator
+       RuntimeConfig
+       AnyRuntimeParameters
+       KernelExecutorTable
+       KernelExecutor
+       Config
+       Kernel
+       
+       RuntimeConfigurator-->|Contains and Updates|RuntimeConfig 
+       RuntimeConfig-->|Contains|AnyRuntimeParameters
+       RuntimeConfig-->|Contains|KernelExecutorTable
+       KernelExecutorTable-->|Contains|KernelExecutor
+       KernelExecutor-->|Contains and Updates|Config
+       KernelExecutor-->|Contains and Updates|Kernel
+
+   end
+   Implementation
+   classDef no-bg-color fill:none,stroke-width:0px
+   class Implementation no-bg-color
+```
+
+All these runtime parameters are calculated by the `snippets::RuntimeConfigurator` class, which allows recalculating all required runtime parameters for a new `LinearIR` state.
+To update the `RuntimeConfig` state and obtain its refreshed version, we need to call the method `snippets::op::Subgraph::get_updated_config()` inside [subgraph.cpp](../src/op/subgraph.cpp). 
+
+Since a generated kernel may invoke microkernels, Snippets support on-demand recompilation of such microkernels for specific shapes via the `KernelExecutorTable` which is also stored in `RuntimeConfig`.
+The class `snippets::KernelExecutorTable` contains a mapping between `Expressions` from the `LinearIR` and their corresponding `KernelExecutors`.
+The class `snippets::KernelExecutor` stores the compiled microkernel and its configuration, providing an interface to update the configuration and trigger recompilation when the parameters of the associated expression change using the method `snippets::KernelExecutor::update_by_expression(...)`.
+This mechanism allows recompiling only shape-dependent microkernels which are called in the subgraph kernel, instead of recompiling the entire kernel for updated `LinearIR`.
+This approach ensures efficient support for shape-agnostic kernels.
+
+Please see [runtime_configurator.hpp](../include/snippets/runtime_configurator.hpp) and [kernel_executor_table.hpp](../include/snippets/kernel_executor_table.hpp) for more info regarding the recalculation of runtime parameters and kernel recompilation for specific expressions.
+
+As a result of the work on implementing support for the dynamic shapes support in the Snippets, we published the blog post ["Dynamic shapes support in OpenVINO JIT compiler boosts inference performance by 40%"](https://blog.openvino.ai/blog-posts/dynamic-shapes-support-in-openvino-jit-compiler-boosts-inference-performance-by-40) on [blog.openvino.ai](https://blog.openvino.ai).
+In this post, we discussed Snippets architecture regarding dynamic pipeline support, the challenges we faced during this dynamism enablement, and what kind of performance we managed to achieve on real user cases thanks to the work done.
+
 ## See also
 
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Snippets](../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [Developer documentation](../../../../docs/dev/index.md)
+ * [Dynamic shapes support in OpenVINO JIT compiler boosts inference performance by 40%](https://blog.openvino.ai/blog-posts/dynamic-shapes-support-in-openvino-jit-compiler-boosts-inference-performance-by-40)
 

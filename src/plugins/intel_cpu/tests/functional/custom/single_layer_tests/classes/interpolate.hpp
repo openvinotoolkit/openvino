@@ -38,7 +38,7 @@ using InterpolateLayerCPUTestParamsSet = std::tuple<InterpolateSpecificParams,
 class InterpolateLayerCPUTest : public testing::WithParamInterface<InterpolateLayerCPUTestParamsSet>,
                                 virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerCPUTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<InterpolateLayerCPUTestParamsSet>& obj);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void configure_model() override;
 

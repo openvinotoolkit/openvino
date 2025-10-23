@@ -10,27 +10,10 @@ namespace ov {
 namespace test {
 
 std::string QuantMatMulTest::getTestCaseName(const testing::TestParamInfo<QuantMatMulLayerTestParamsSet> &obj) {
-    QuantParams quantParams0;
-    QuantParams quantParams1;
-    ov::element::Type element_type;
-    ov::Shape inputShape0;
-    ov::Shape inputShape1;
-    QuantRange inputRange0;
-    QuantRange inputRange1;
-    QuantRange outputRange0;
-    QuantRange outputRange1;
-    std::string targetDevice;
-    std::tie(quantParams0, quantParams1, element_type, inputShape0, inputShape1, targetDevice) = obj.param;
+    const auto& [quantParams0, quantParams1, element_type, inputShape0, inputShape1, targetDevice] = obj.param;
 
-    size_t quantLevels0;
-    size_t quantLevels1;
-    ov::test::utils::QuantizationGranularity quantGranularity0;
-    ov::test::utils::QuantizationGranularity quantGranularity1;
-    ov::element::Type fqPrec0;
-    ov::element::Type fqPrec1;
-    std::tie(quantLevels0, inputRange0, outputRange0, quantGranularity0, fqPrec0) = quantParams0;
-    std::tie(quantLevels1, inputRange1, outputRange1, quantGranularity1, fqPrec1) = quantParams1;
-
+    const auto& [quantLevels0, inputRange0, outputRange0, quantGranularity0, fqPrec0] = quantParams0;
+    const auto& [quantLevels1, inputRange1, outputRange1, quantGranularity1, fqPrec1] = quantParams1;
     std::ostringstream result;
     result << "IS0=" << ov::test::utils::vec2str(inputShape0) << "_";
     result << "IS1=" << ov::test::utils::vec2str(inputShape1) << "_";
@@ -50,32 +33,21 @@ std::string QuantMatMulTest::getTestCaseName(const testing::TestParamInfo<QuantM
 }
 
 void QuantMatMulTest::SetUp() {
-    QuantParams quantParams0;
-    QuantParams quantParams1;
-    ov::Shape inputShape0;
-    ov::Shape inputShape1;
-    ov::element::Type element_type;
-    std::tie(quantParams0, quantParams1, element_type, inputShape0, inputShape1, targetDevice) = this->GetParam();
+    const auto& [quantParams0, quantParams1, element_type, inputShape0, inputShape1, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
-    size_t quantLevels0;
-    size_t quantLevels1;
-    QuantRange inputRange0;
-    QuantRange inputRange1;
-    QuantRange outputRange0;
-    QuantRange outputRange1;
-    ov::test::utils::QuantizationGranularity quantGranularity0;
-    ov::test::utils::QuantizationGranularity quantGranularity1;
-    ov::element::Type fqPrec0;
-    ov::element::Type fqPrec1;
-    std::tie(quantLevels0, inputRange0, outputRange0, quantGranularity0, fqPrec0) = quantParams0;
-    std::tie(quantLevels1, inputRange1, outputRange1, quantGranularity1, fqPrec1) = quantParams1;
-
+    const auto& [quantLevels0, inputRange0, outputRange0, quantGranularity0, fqPrec0] = quantParams0;
+    const auto& [quantLevels1, inputRange1, outputRange1, quantGranularity1, fqPrec1] = quantParams1;
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape0)),
                                 std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape1))};
 
-    auto makeFakeQuantizeNode = [element_type](size_t quantLevels, QuantRange inputRange, QuantRange outputRange,
-            ov::test::utils::QuantizationGranularity quantGranularity, const ov::Output<ov::Node> &in, ov::Shape inputShape,
-            ov::element::Type prec) -> std::shared_ptr<ov::Node> {
+    auto makeFakeQuantizeNode = [element_type = element_type](size_t quantLevels,
+                                                              QuantRange inputRange,
+                                                              QuantRange outputRange,
+                                                              ov::test::utils::QuantizationGranularity quantGranularity,
+                                                              const ov::Output<ov::Node>& in,
+                                                              ov::Shape inputShape,
+                                                              ov::element::Type prec) -> std::shared_ptr<ov::Node> {
         std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
         if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
             dataFqConstShapes[1] = inputShape[1];

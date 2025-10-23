@@ -38,6 +38,18 @@
 #error "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv4: Unsupported block size"
 #endif
 
+#ifdef FILTER_TYPE_UCHAR
+    #define PACKED_WEIGHTS_TYPE uint
+    #define AS_PACKED_WEIGHTS_TYPE(x) as_uint(x)
+    #define AS_UNPACK_WEIGHTS_TYPE(x) as_uchar4(x)
+#elif defined(FILTER_TYPE_CHAR)
+    #define PACKED_WEIGHTS_TYPE int
+    #define AS_PACKED_WEIGHTS_TYPE(x) as_int(x)
+    #define AS_UNPACK_WEIGHTS_TYPE(x) as_char4(x)
+#else
+    #error "convolution_gpu_mmad_b_fs_yx_fsv4: Unsupported FILTER_TYPE"
+#endif
+
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT0_TYPE_4(x) AS_TYPE_N(INPUT0_TYPE, 4, x)
@@ -126,16 +138,16 @@ KERNEL(convolution_mmad_bfyx_b_fs_yx_fsv32)(
                              + kh * OSV * 4 * FILTER_SIZE_X
                              + kw * OSV * 4;
 
-            int weights_data0 = as_int(_sub_group_block_read((const __global uint*)(weights + f_off)));
-            int weights_data1 = as_int(_sub_group_block_read((const __global uint*)(weights + f_off + 16*4)));
+            PACKED_WEIGHTS_TYPE weights_data0 = AS_PACKED_WEIGHTS_TYPE(_sub_group_block_read((const __global uint*)(weights + f_off)));
+            PACKED_WEIGHTS_TYPE weights_data1 = AS_PACKED_WEIGHTS_TYPE(_sub_group_block_read((const __global uint*)(weights + f_off + 16*4)));
 
             PACKED_TYPE_VEC src;
 
             __attribute__((opencl_unroll_hint(OUTPUT_X_BLOCK_SIZE)))
             for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
                 src[i] = line_cache[kw*DILATION_SIZE_X + STRIDE_SIZE_X*i];
-                acc[0][i] = IMAD(acc[0][i], AS_INPUT0_TYPE_4(src[i]), as_char4(weights_data0));
-                acc[1][i] = IMAD(acc[1][i], AS_INPUT0_TYPE_4(src[i]), as_char4(weights_data1));
+                acc[0][i] = IMAD(acc[0][i], AS_INPUT0_TYPE_4(src[i]), AS_UNPACK_WEIGHTS_TYPE(weights_data0));
+                acc[1][i] = IMAD(acc[1][i], AS_INPUT0_TYPE_4(src[i]), AS_UNPACK_WEIGHTS_TYPE(weights_data1));
             }
         }
     }

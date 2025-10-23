@@ -26,7 +26,7 @@ ACLDeconvTensorInfo getACLDeconvTensorInfo(const DeconvAttrs& deconvAttrs,
 
 class AclDeconvExecutor : public DeconvExecutor {
 public:
-    explicit AclDeconvExecutor(const ExecutorContext::CPtr context);
+    explicit AclDeconvExecutor(ExecutorContext::CPtr context);
     bool init(const DeconvAttrs& deconvAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,

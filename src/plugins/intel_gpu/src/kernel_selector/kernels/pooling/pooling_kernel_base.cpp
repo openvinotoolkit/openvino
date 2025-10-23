@@ -8,18 +8,18 @@
 namespace kernel_selector {
 bool PoolingKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::POOLING) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     auto& params = dynamic_cast<const pooling_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.inputs[0].Dimentions() > 5)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }
@@ -58,11 +58,10 @@ JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp, Poolin
         MakeJitConstant("PADDING", pp.poolPad),
         MakeJitConstant(toString(pp.poolType) + "_POOLING", 1),
         MakeJitConstant(toString(pp.divMode) + "_KERNEL_DIVIDER", 1),
+        MakeJitConstant("DILATION", pp.poolDilation),
     });
 
     if (pp.maxPoolOpset8Features) {
-        mem_consts.AddConstants({MakeJitConstant("DILATION", pp.poolDilation)});
-
         if (pp.poolAxis != 0) {
             size_t indices_upper_bound = 1;
             const auto& dims = pp.inputs[0].GetDims();

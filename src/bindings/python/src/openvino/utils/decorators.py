@@ -4,7 +4,8 @@
 
 from functools import wraps
 from inspect import signature
-from typing import Any, Callable, Dict, Optional, Union, get_origin, get_args
+from typing import Any, Optional, Union, get_origin, get_args
+from collections.abc import Callable
 
 from openvino import Node, Output
 from openvino.utils.types import NodeInput, as_node, as_nodes
@@ -73,11 +74,15 @@ def custom_preprocess_function(custom_function: Callable) -> Callable:
 class MultiMethod(object):
     def __init__(self, name: str):
         self.name = name
-        self.typemap: Dict[tuple, Callable] = {}
+        self.typemap: dict[tuple, Callable] = {}
 
     # Checks if actual_type is a subclass of any type in the union
     def matches_union(self, union_type, actual_type) -> bool:  # type: ignore
         for type_arg in get_args(union_type):
+            origin = get_origin(type_arg)
+            if origin is not None:
+                type_arg = origin
+
             if isinstance(type_arg, type) and issubclass(actual_type, type_arg):
                 return True
             elif get_origin(type_arg) == list:
@@ -142,7 +147,7 @@ class MultiMethod(object):
         self.typemap[types] = function
 
 
-registry: Dict[str, MultiMethod] = {}
+registry: dict[str, MultiMethod] = {}
 
 
 def overloading(*types: tuple) -> Callable:

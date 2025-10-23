@@ -18,7 +18,7 @@ class ShapeInferOp : public ov::op::Op {
 public:
     OPENVINO_OP("ShapeInferOp", "SnippetsOpset");
     ShapeInferOp() = default;
-    ShapeInferOp(const OutputVector& args) : ov::op::Op(args) {}
+    explicit ShapeInferOp(const OutputVector& args) : ov::op::Op(args) {}
 };
 
 }  // namespace ov::snippets::op

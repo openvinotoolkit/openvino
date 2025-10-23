@@ -22,6 +22,7 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "properties.hpp"
 #include "remote_context.hpp"
@@ -135,7 +136,6 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
                                                                      const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
-
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
                                                                      const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
@@ -152,6 +152,19 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
     auto config = Configuration{_properties, m_cfg};
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config, loaded_from_cache);
     return compiled_model;
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(const ov::Tensor& model,
+                                                                     const ov::AnyMap& properties) const {
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    std::istream stream{&buffer};
+    return import_model(stream, properties);
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(const ov::Tensor& model,
+                                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                                     const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_device(const std::string& device_priorities,

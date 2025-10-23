@@ -6,6 +6,8 @@
 
 #include <optional>
 
+#include "attention.hpp"
+#include "base_sync_infer_request.hpp"
 #include "common.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
@@ -15,6 +17,7 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "partitioning/partitioning.hpp"
+#include "perf.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
@@ -66,6 +69,7 @@ private:
     friend class MemAccessSim;
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
+    friend class LLMInferRequest;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
@@ -91,6 +95,11 @@ private:
     std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
+    // API for easily create and manage NPUW infer-requests
+    std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const;
+    std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
+        std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const;
+
     std::string submodel_device(const std::size_t idx) const;
     bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
     bool unpack_required(const std::size_t idx) const;
@@ -98,6 +107,8 @@ private:
 
     void log_device_dist() const;
     void implement_properties();
+
+    bool should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
 
     // For full deserialization flow with weights
     void reconstruct_closure();
@@ -143,6 +154,14 @@ private:
         std::size_t ops{};
     };
 
+    // Shouldn't this be counter instead? There's nothing much to
+    // average across compilation processes per model (it's a single
+    // process).
+    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+    ov::npuw::perf::Profile<MS> m_profile;
+
+    void init_profiling();
+
     struct CompiledModelDesc {
         DevList::const_iterator device_it;
         std::set<std::string> devices_to_avoid;
@@ -152,7 +171,9 @@ private:
         std::optional<std::size_t> replaced_by;
 
         Subgraph::Gather host_gather;
+        Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
+        std::optional<ov::npuw::compiled::Attention> attention;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
@@ -190,6 +211,7 @@ private:
 
     std::unordered_map<const void*, std::size_t> m_const_to_offset;
     ov::npuw::s11n::BF16Cache m_bf16_consts;
+    ov::npuw::s11n::WeightsContext m_import_weights_ctx;
 };
 }  // namespace npuw
 }  // namespace ov

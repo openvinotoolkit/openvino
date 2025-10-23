@@ -11,13 +11,7 @@
 namespace ov {
 namespace test {
 std::string LogicalLayerTest::getTestCaseName(const testing::TestParamInfo<LogicalTestParams>& obj) {
-    std::vector<InputShape> shapes;
-    ov::test::utils::LogicalTypes comparisonOpType;
-    ov::test::utils::InputLayerType second_input_type;
-    ov::element::Type model_type;
-    std::string device_name;
-    std::map<std::string, std::string> additional_config;
-    std::tie(shapes, comparisonOpType, second_input_type, model_type, device_name, additional_config) = obj.param;
+    const auto& [shapes, comparisonOpType, second_input_type, model_type, device_name, additional_config] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -40,13 +34,9 @@ std::string LogicalLayerTest::getTestCaseName(const testing::TestParamInfo<Logic
 }
 
 void LogicalLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::test::utils::LogicalTypes logical_op_type;
-    ov::test::utils::InputLayerType second_input_type;
-    ov::element::Type model_type;
-    std::map<std::string, std::string> additional_config;
-
-    std::tie(shapes, logical_op_type, second_input_type, model_type, targetDevice, additional_config) = this->GetParam();
+    const auto& [shapes, logical_op_type, second_input_type, model_type, _targetDevice, additional_config] =
+        this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     configuration.insert(additional_config.begin(), additional_config.end());

@@ -30,24 +30,12 @@ using DeconvLayerTestParamsSet = std::tuple<convBackpropDataSpecificParams,
 class DeconvolutionLayerGPUTest : public testing::WithParamInterface<DeconvLayerTestParamsSet>,
                                   virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<DeconvLayerTestParamsSet> obj) {
-        convBackpropDataSpecificParams basicParamsSet;
-        DeconvInputData inputData;
-        ov::element::Type model_type;
-        std::string targetDevice;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(basicParamsSet, inputData, model_type, targetDevice, additionalConfig) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<DeconvLayerTestParamsSet>& obj) {
+        const auto& [basicParamsSet, inputData, model_type, targetDevice, additionalConfig] = obj.param;
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
-        size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding] = basicParamsSet;
 
-        InputShape inputShape;
-        ov::test::utils::InputLayerType outShapeType;
-        std::vector<std::vector<int32_t>> outShapeData;
-        std::tie(inputShape, outShapeType, outShapeData) = inputData;
+        const auto& [inputShape, outShapeType, outShapeData] = inputData;
 
         std::ostringstream result;
         result << "IS=";
@@ -150,14 +138,12 @@ public:
 
 protected:
     void SetUp() override {
-        convBackpropDataSpecificParams basicParamsSet;
-        DeconvInputData inputData;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(basicParamsSet, inputData, model_type, targetDevice, additionalConfig) = this->GetParam();
+        const auto& [basicParamsSet, inputData, _model_type, _targetDevice, additionalConfig] = this->GetParam();
+        model_type = _model_type;
+        targetDevice = _targetDevice;
 
-        InputShape inputShape;
-        ov::test::utils::InputLayerType outShapeType;
-        std::tie(inputShape, outShapeType, outShapeData) = inputData;
+        const auto& [inputShape, outShapeType, _outShapeData] = inputData;
+        outShapeData = _outShapeData;
 
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
 

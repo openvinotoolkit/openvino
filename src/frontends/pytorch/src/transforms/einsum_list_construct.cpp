@@ -23,12 +23,9 @@ using namespace ov::pass;
 using namespace ov::op;
 
 AtenEinsumListConstructReplacer::AtenEinsumListConstructReplacer() {
-    auto einsum_op = pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto einsum_op = pattern::wrap_type<ov::op::util::FrameworkNode>(fw_node_predicate({"aten::einsum"}));
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto einsum_op = cast_fw_node(m.get_match_root(), "aten::einsum");
-        if (!einsum_op) {
-            return false;
-        }
+        auto einsum_op = m.get_match_root();
         const auto& equation_input = einsum_op->input_value(0).get_node_shared_ptr();
         const auto& tensor_list = einsum_op->input_value(1).get_node_shared_ptr();
         std::string equation;

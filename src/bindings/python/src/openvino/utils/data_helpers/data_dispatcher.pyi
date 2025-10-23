@@ -7,12 +7,11 @@ from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Type
 from openvino.utils.data_helpers.wrappers import OVDict
 from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
-from typing import Any
 import numpy as np
 import openvino._pyopenvino
 import openvino.utils.data_helpers.wrappers
 import typing
-__all__ = ['Any', 'ConstOutput', 'ContainerTypes', 'OVDict', 'RemoteTensor', 'ScalarTypes', 'Tensor', 'Type', 'ValidKeys', 'create_copied', 'create_shared', 'get_request_tensor', 'is_list_simple_type', 'normalize_arrays', 'np', 'set_request_tensor', 'singledispatch', 'to_c_style', 'update_inputs', 'update_tensor', 'value_to_tensor']
+__all__: list[str] = ['ConstOutput', 'ContainerTypes', 'OVDict', 'RemoteTensor', 'ScalarTypes', 'Tensor', 'Type', 'ValidKeys', 'create_copied', 'create_shared', 'get_request_tensor', 'is_list_simple_type', 'normalize_arrays', 'np', 'set_request_tensor', 'singledispatch', 'to_c_style', 'update_inputs', 'update_tensor', 'value_to_tensor']
 def _(inputs: typing.Union[openvino._pyopenvino.Tensor, numpy.number, int, float, str, bytes], request: openvino.utils.data_helpers.wrappers._InferRequestWrapper) -> openvino._pyopenvino.Tensor:
     ...
 def _data_dispatch(request: openvino.utils.data_helpers.wrappers._InferRequestWrapper, inputs: typing.Union[dict, list, tuple, openvino.utils.data_helpers.wrappers.OVDict, openvino._pyopenvino.Tensor, numpy.ndarray, numpy.number, int, float, str] = None, is_shared: bool = False) -> typing.Union[dict, openvino._pyopenvino.Tensor]:

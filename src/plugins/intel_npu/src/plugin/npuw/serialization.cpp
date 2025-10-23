@@ -4,6 +4,7 @@
 
 #include "serialization.hpp"
 
+#include "attention.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
@@ -24,10 +25,12 @@ ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
       const_to_offset(_const_to_offset) {}
 
 // NOTE: This construtor can and should only be used when importing blobs
-ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::Weights& _weights,
+ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
+                                               const std::string& _weights_path,
                                                const s11n::WeightsContext::ConstsCache& _consts_cache,
                                                const BF16Cache& _bf16_consts)
     : weights(_weights),
+      weights_path(_weights_path),
       consts_cache(_consts_cache),
       bf16_consts(_bf16_consts) {
     is_weightless = _weights || !_consts_cache.empty();
@@ -83,6 +86,23 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::Spati
     write(stream, var.out_dim);
     write(stream, var.nway_iters);
     write(stream, var.tail_size);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::Attention& var) {
+    using ov::npuw::s11n::write;
+
+    write(stream, var.query_size);
+    write(stream, var.context_size);
+
+    // NB: This should've been done through a generic vector<T> write!
+    write(stream, var.params.size());
+    for (const auto& p : var.params) {
+        write(stream, p.idx);
+        write(stream, p.dim);
+    }
+
+    write(stream, var.mask_idx);
+    write(stream, var.attend_all);
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
@@ -186,6 +206,25 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::Spatial& var
     read(stream, var.out_dim);
     read(stream, var.nway_iters);
     read(stream, var.tail_size);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::Attention& var) {
+    using ov::npuw::s11n::read;
+
+    read(stream, var.query_size);
+    read(stream, var.context_size);
+
+    std::size_t params_size = 0;
+    read(stream, params_size);
+    for (std::size_t i = 0; i < params_size; ++i) {
+        ov::npuw::compiled::Attention::Param p;
+        read(stream, p.idx);
+        read(stream, p.dim);
+        var.params.push_back(p);
+    }
+
+    read(stream, var.mask_idx);
+    read(stream, var.attend_all);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {

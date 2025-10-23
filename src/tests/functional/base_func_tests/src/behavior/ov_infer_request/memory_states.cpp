@@ -16,11 +16,8 @@ namespace behavior {
 
 std::string OVInferRequestVariableStateTest::getTestCaseName(const testing::TestParamInfo<memoryStateParams>& obj) {
     std::ostringstream result;
-    std::shared_ptr<ov::Model> net;
-    std::string deviceName;
-    std::vector<std::string> statesToQuery;
-    ov::AnyMap configuration;
-    std::tie(net, statesToQuery, deviceName, configuration) = obj.param;
+
+    const auto& [net, statesToQuery, deviceName, configuration] = obj.param;
     result << "targetDevice=" << deviceName;
     if (!configuration.empty()) {
         using namespace ov::test::utils;

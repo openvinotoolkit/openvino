@@ -153,9 +153,11 @@ def main():
                     else:
                         raise RuntimeError("Incorrect performance hint. Please set -hint option to"
                             "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.")
+                elif device in config and properties.hint.performance_mode() in config[device]:
+                    return
                 else:
                     perf_hint = properties.hint.PerformanceMode.LATENCY if benchmark.api_type == "sync" else properties.hint.PerformanceMode.THROUGHPUT
-                    logger.warning(f"Performance hint was not explicitly specified in command line. " +
+                    logger.warning(f"Performance hint was not explicitly specified in command line or config file. " +
                     f"Device({device}) performance hint will be set to {perf_hint}.")
                 config[device][properties.hint.performance_mode()] = perf_hint
             else:
@@ -603,13 +605,17 @@ def main():
             logger.info("Benchmarking in inference only mode (inputs filling are not included in measurement loop).")
         else:
             logger.info("Benchmarking in full mode (inputs filling are included in measurement loop).")
-        duration_ms = f"{benchmark.first_infer(requests):.2f}"
-        logger.info(f"First inference took {duration_ms} ms")
-        if statistics:
-            statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                    [
-                                        ('first inference time (ms)', duration_ms)
-                                    ])
+        if not args.no_warmup:
+            duration_ms = f"{benchmark.first_infer(requests):.2f}"
+            logger.info(f"First inference took {duration_ms} ms")
+            if statistics:
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                        [
+                                            ('first inference time (ms)', duration_ms)
+                                        ])
+        else:
+            logger.info("Skipping warmup inference due to -no_warmup flag")
+
 
         pcseq = args.pcseq
         if static_mode or len(benchmark.latency_groups) == 1:

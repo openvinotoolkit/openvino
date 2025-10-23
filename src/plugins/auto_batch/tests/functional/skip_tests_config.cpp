@@ -29,6 +29,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*OVCompiledModelBaseTest.*import_from_weightless_blob.*targetDevice=(BATCH).*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*compile_from.*_blob.*targetDevice=(BATCH).*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*use_blob_hint.*targetDevice=(BATCH).*)",
+        // model import is not supported
+        R"(.*OVCompiledModelBaseTest.import_from_.*)"
     };
 
     return disabled_items;

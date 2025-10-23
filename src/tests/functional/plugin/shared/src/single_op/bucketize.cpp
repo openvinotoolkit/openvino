@@ -11,12 +11,7 @@ namespace ov {
 namespace test {
 
 std::string BucketizeLayerTest::getTestCaseName(const testing::TestParamInfo<bucketizeParamsTuple>& obj) {
-    std::vector<InputShape> shapes;
-    bool with_right_bound;
-    ov::element::Type in_data_type, in_buckets_type, model_type;
-    std::string target_device;
-
-    std::tie(shapes, with_right_bound, in_data_type, in_buckets_type, model_type, target_device) = obj.param;
+    const auto& [shapes, with_right_bound, in_data_type, in_buckets_type, model_type, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -43,11 +38,8 @@ std::string BucketizeLayerTest::getTestCaseName(const testing::TestParamInfo<buc
 }
 
 void BucketizeLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    bool with_right_bound;
-    ov::element::Type in_data_type, in_buckets_type, model_type;
-
-    std::tie(shapes, with_right_bound, in_data_type, in_buckets_type, model_type, targetDevice) = this->GetParam();
+    const auto& [shapes, with_right_bound, in_data_type, in_buckets_type, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto data = std::make_shared<ov::op::v0::Parameter>(in_data_type, inputDynamicShapes[0]);

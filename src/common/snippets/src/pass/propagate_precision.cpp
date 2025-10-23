@@ -25,6 +25,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/target_machine.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::snippets::pass::PropagatePrecision::PropagatePrecision(const std::shared_ptr<const TargetMachine>& target_machine)
@@ -204,7 +205,7 @@ bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restor
         const auto op_element_type = op->get_input_element_type(0);
         if (type_relaxed_node->get_overridden_output_type(0) != op_element_type) {
             was_updated = true;
-            OPENVINO_ASSERT(op->get_output_size() == 1ull, "operation with several output is not supported");
+            OPENVINO_ASSERT(op->get_output_size() == 1ULL, "operation with several output is not supported");
 
             type_relaxed_node->set_overridden_output_type(op_element_type, 0);
             op->validate_and_infer_types();
@@ -262,12 +263,12 @@ bool ov::snippets::pass::PropagatePrecision::can_be_fused(const element::Type& a
     }
 
     // custom conditions: between int & float precisions
-    if (((actual == element::bf16) || (actual == element::f16) || (actual == element::f32)) &&
-        ((required == element::u8) || (required == element::i8))) {
+    if (utils::any_of(actual, element::bf16, element::f16, element::f32) &&
+        utils::any_of(required, element::u8, element::i8)) {
         return true;
     }
 
-    if ((actual == element::f32) && ((required == element::u16) || (required == element::i16))) {
+    if (actual == element::f32 && utils::any_of(required, element::u16, element::i16)) {
         return true;
     }
 

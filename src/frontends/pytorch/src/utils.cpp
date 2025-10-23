@@ -17,6 +17,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
@@ -439,6 +440,22 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return nullptr;
 }
 
+std::function<bool(const ov::Output<ov::Node>&)> fw_node_predicate(const std::initializer_list<std::string>& types) {
+    const auto types_set = std::unordered_set<std::string>(types);
+    return [types_set](const Output<Node>& arg) -> bool {
+        auto fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(arg.get_node_shared_ptr());
+        if (!fw_node) {
+            return false;
+        }
+        const auto& attrs = fw_node->get_attrs();
+        const auto op_type = attrs.find(PtFrameworkNode::op_type_key);
+        if (op_type == attrs.end()) {
+            return false;
+        }
+        return std::find(types_set.begin(), types_set.end(), op_type->second) != types_set.end();
+    };
+}
+
 std::shared_ptr<ov::Node> make_list_construct(const ov::OutputVector& inputs) {
     auto list_construct = std::make_shared<ov::op::util::FrameworkNode>(inputs, inputs.size());
     ov::op::util::FrameworkNodeAttrs attrs;
@@ -618,6 +635,9 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
     std::deque<Output<Node>> res;
     auto current_output = start;
     auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+    FRONT_END_OP_CONVERSION_CHECK(
+        !ov::as_type_ptr<v5::Loop>(current_output.get_node_shared_ptr()),
+        "List is concatenated using loop. This case should be handled by a specific transformation.");
     while (const auto& input_fw_node =
                ov::as_type_ptr<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
         const auto& attrs = input_fw_node->get_attrs();
@@ -777,8 +797,14 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
         if (id_dtype == element::boolean || id_dtype == element::u8) {
             auto idx = rg.make<v0::Convert>(indices[i], element::u8);
             auto nonzero = rg.make<v3::NonZero>(idx);
-            auto input_order = rg.make<v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 0});
-            auto masked_id = rg.make<v1::Transpose>(nonzero, input_order);
+            Output<Node> masked_id;
+            if (indices.size() == 1) {
+                auto input_order = rg.make<v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 0});
+                masked_id = rg.make<v1::Transpose>(nonzero, input_order);
+            } else {
+                auto zero_const = rg.make<v0::Constant>(element::i32, Shape{1}, 0);
+                masked_id = rg.make<v0::Squeeze>(nonzero, zero_const);
+            }
             masked_indicies.push_back(masked_id);
             is_masked_bool.push_back(true);
         } else {
@@ -795,7 +821,7 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
         return true;
     }
     // perform gather for single element case
-    if (advanced_ids.size() == 1) {
+    if (advanced_ids.size() == 1 && advanced_ids[0] == 0) {
         auto index = masked_indicies[advanced_ids[0]];
         if (is_masked_bool[advanced_ids[0]]) {
             auto gather = rg.make<v8::GatherND>(data, index);

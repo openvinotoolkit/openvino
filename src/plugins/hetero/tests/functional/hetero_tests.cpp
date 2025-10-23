@@ -563,6 +563,17 @@ public:
         return compile_model(ov_model, properties, context);
     }
 
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override {
         OPENVINO_ASSERT(model);
@@ -906,4 +917,21 @@ void ov::hetero::tests::HeteroTests::SetUp() {
         reg_plugin_type<MockPluginSubtract>("MOCK1");
         reg_plugin_type<MockPluginGPU>("MOCKGPU");
     }
+}
+
+void ov::hetero::tests::HeteroTests::TearDown() {
+    for (const auto& plugin : m_mock_plugins) {
+        try {
+            core.unload_plugin(plugin->get_device_name());
+        } catch (...) {
+        }
+    }
+    m_mock_plugins = {};
+    clearMockPlugin();
+    m_so.reset();
+}
+
+void ov::hetero::tests::HeteroTests::clearMockPlugin() {
+    ASSERT_TRUE(m_so);
+    ov::test::utils::make_std_function<void()>(m_so, "ClearTargets")();
 }

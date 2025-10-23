@@ -36,7 +36,7 @@ SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_para
 
 bool SoftmaxKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::SOFT_MAX) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -75,7 +75,7 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params) const 
 
 bool SoftmaxKernelBaseBF::Validate(const Params& p) const {
     if (!Parent::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const softmax_params& params = static_cast<const softmax_params&>(p);
@@ -103,7 +103,7 @@ bool SoftmaxKernelBaseBF::Validate(const Params& p) const {
                    !input.Y().is_dynamic && input.Y().v == 1 &&
                    !input.Z().is_dynamic && input.Z().v == 1;
         default:
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 }
 

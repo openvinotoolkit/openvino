@@ -24,6 +24,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/log_softmax.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -48,26 +49,21 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
     }
 
     const auto logSoftMax = ov::as_type_ptr<const ov::op::v5::LogSoftmax>(op);
-    if (logSoftMax == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of v5 LogSoftmax.");
-    }
+    CPU_NODE_ASSERT(logSoftMax, "is not an instance of v5 LogSoftmax.");
 
-    if (inputShapes.size() != 1 || outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-    }
+    CPU_NODE_ASSERT(all_of(1U, inputShapes.size(), outputShapes.size()), "has incorrect number of input/output edges!");
 
     auto dimsSize = getInputShapeAtPort(0).getDims().size();
     if (dimsSize == 0) {
         dimsSize += 1;
     }
-    axis = logSoftMax->get_axis();
+    axis = static_cast<int>(logSoftMax->get_axis());
     if (axis < 0) {
         axis += dimsSize;
     }
 
-    if (dimsSize < static_cast<size_t>(static_cast<size_t>(1) + axis)) {
-        THROW_CPU_NODE_ERR("has incorrect input parameters dimensions and axis number!");
-    }
+    CPU_NODE_ASSERT(dimsSize >= static_cast<size_t>(1) + axis,
+                    "has incorrect input parameters dimensions and axis number!");
 }
 
 void LogSoftmax::initSupportedPrimitiveDescriptors() {
@@ -99,6 +95,7 @@ void LogSoftmax::prepareParams() {
     for (int i = 0; i < axis; i++) {
         axisStep *= dims[i];
     }
+    CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(dims.size()), "has out of bound axis.");
     reducedAxisSize = dims[axis];
     for (size_t i = (axis + 1); i < dims.size(); i++) {
         reducedAxisStride *= dims[i];

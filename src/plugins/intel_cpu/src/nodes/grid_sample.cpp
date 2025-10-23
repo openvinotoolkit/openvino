@@ -67,22 +67,16 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (op->get_input_size() != 2 || op->get_output_size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output ports.");
-    }
+    CPU_NODE_ASSERT(op->get_input_size() == 2 && op->get_output_size() == 1,
+                    "has incorrect number of input/output ports.");
 
     const auto& dataShape = getInputShapeAtPort(IN_DATA);
-    if (dataShape.getRank() != 4) {
-        THROW_CPU_NODE_ERR("has incorrect rank of the Data input.");
-    }
+    CPU_NODE_ASSERT(dataShape.getRank() == 4, "has incorrect rank of the Data input.");
 
     const auto& gridShape = getInputShapeAtPort(IN_GRID);
-    if (gridShape.getRank() != 4) {
-        THROW_CPU_NODE_ERR("has incorrect rank of the Grid input.");
-    }
-    if (gridShape.isStatic() && gridShape.getDims()[3] != 2) {
-        THROW_CPU_NODE_ERR("has incorrect shape of the Grid input. The 4th dimension should be equal to 2.");
-    }
+    CPU_NODE_ASSERT(gridShape.getRank() == 4, "has incorrect rank of the Grid input.");
+    CPU_NODE_ASSERT(!gridShape.isStatic() || gridShape.getDims()[3] == 2,
+                    "has incorrect shape of the Grid input. The 4th dimension should be equal to 2.");
 
     const auto& attributes = ov::as_type_ptr<ov::op::v9::GridSample>(op)->get_attributes();
     alignCorners = attributes.align_corners;
@@ -97,7 +91,7 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
         interpolationMode = GridSampleInterpolationMode::NEAREST;
         break;
     default:
-        THROW_CPU_NODE_ERR("supports only BILINEAR, BICUBIC, NEAREST interpolation modes.");
+        CPU_NODE_THROW("supports only BILINEAR, BICUBIC, NEAREST interpolation modes.");
     }
     switch (attributes.padding_mode) {
     case op::v9::GridSample::PaddingMode::ZEROS:
@@ -110,7 +104,7 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
         paddingMode = GridSamplePaddingMode::REFLECTION;
         break;
     default:
-        THROW_CPU_NODE_ERR("supports only BORDER, REFLECTION, ZEROS paddings modes.");
+        CPU_NODE_THROW("supports only BORDER, REFLECTION, ZEROS paddings modes.");
     }
 }
 
@@ -171,9 +165,7 @@ void GridSample::createPrimitive() {
     } else if (x64::mayiuse(x64::sse41)) {
         jitKernel = std::make_shared<kernel::GridSampleKernel<x64::sse41>>(jcp);
     }
-    if (!jitKernel) {
-        THROW_CPU_NODE_ERR("could not create JIT kernel.");
-    }
+    CPU_NODE_ASSERT(jitKernel, "could not create JIT kernel.");
     jitKernel->create_ker();
 
     m_threads_num = parallel_get_max_threads();
@@ -209,20 +201,12 @@ void GridSample::createPrimitive() {
 
 void GridSample::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(IN_DATA);
-    if (!dataMemPtr || !dataMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input data memory.");
-    }
+    CPU_NODE_ASSERT(dataMemPtr && dataMemPtr->isDefined(), "has undefined input data memory.");
     auto gridMemPtr = getSrcMemoryAtPort(IN_GRID);
-    if (!gridMemPtr || !gridMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input grid memory.");
-    }
+    CPU_NODE_ASSERT(gridMemPtr && gridMemPtr->isDefined(), "has undefined input grid memory.");
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined output memory.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
-    }
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has unidentified preferable primitive descriptor.");
 
     const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
     const auto& srcDataShape = dataMemPtr->getStaticDims();

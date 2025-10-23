@@ -57,8 +57,8 @@ protected:
         // oneDNN reduction does not allow this. So this function reverts it.
         reorder_unreduced_axis_no_fusion(input_layout, output_layout, prim->axes);
 
-        auto input_md = onednn::layout_to_memory_desc(input_layout);
-        auto output_md = onednn::layout_to_memory_desc(output_layout);
+        auto input_md = onednn::layout_to_memory_desc(input_layout, dnnl::memory::format_tag::undef, mem_flags::need_blocked);
+        auto output_md = onednn::layout_to_memory_desc(output_layout, dnnl::memory::format_tag::undef, mem_flags::need_blocked);
 
         float p = 0.f;
         float eps = 0.f;
@@ -122,8 +122,8 @@ public:
         dnnl::algorithm alg;
         ib >> make_data(&alg, sizeof(dnnl::algorithm));
 
-        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0));
-        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
+        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef, mem_flags::need_blocked);
+        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout(), dnnl::memory::format_tag::undef, mem_flags::need_blocked);
 
         float p, eps;
         ib >> p >> eps;

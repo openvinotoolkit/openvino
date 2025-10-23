@@ -274,10 +274,8 @@ struct PrintToStringParamName {
     template<class T>
     std::string operator()(const testing::TestParamInfo<ReorgYoloParamsWithLayout<T> > &param) {
         std::stringstream buf;
-        ReorgYoloParams<T> p;
-        format::type target_format;
-        bool should_fail;
-        std::tie(p, target_format, should_fail) = param.param;
+
+        const auto& [p, target_format, should_fail] = param.param;
         buf << "InputTensor=" << to_string(p.inputTensor)
             << ".stride=" << p.stride
             << ".TargetLayout=" << fmt_to_str(target_format);
@@ -291,10 +289,7 @@ struct reorg_yolo_test
         : public ::testing::TestWithParam<ReorgYoloParamsWithLayout<T> > {
 public:
     void test(bool is_caching_test) {
-        ReorgYoloParams<T> params;
-        format::type target_format;
-        bool should_fail;
-        std::tie(params, target_format, should_fail) = this->GetParam();
+        const auto& [params, target_format, should_fail] = this->GetParam();
 
         if (should_fail) {
             ASSERT_ANY_THROW(run_test(params, target_format, is_caching_test));

@@ -6,6 +6,8 @@
 #include "random_generator.hpp"
 #include "openvino/reference/scatter_nd_update.hpp"
 #include "scatter_nd_update_inst.h"
+#include "shape_of_inst.h"
+#include "reshape_inst.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/scatter_update.hpp>
@@ -4675,4 +4677,40 @@ TEST_P(scatter_nd_update_random_test, random_cached)
 #endif
 TEST(scatter_nd_update_gpu_fp16, d222222_i211111_cached) {
     test_d222222_i211111<ov::float16>(true);
+}
+
+TEST(scatter_nd_update_gpu, subgraph_input_changed) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ ov::PartialShape{2, 1}, data_types::f32, format::bfyx }); // Dictionary
+    auto input2 = engine.allocate_memory({ ov::PartialShape{2, 1}, data_types::i32, format::bfyx }); // Indexes
+    auto input3 = engine.allocate_memory({ ov::PartialShape{2, 1}, data_types::i32, format::bfyx }); // Updates
+    layout in_layout = {ov::PartialShape::dynamic(2), data_types::f32, format::bfyx};
+
+    set_values(input2, {0, 1});
+    set_values(input3, {2, 5});
+
+    std::vector<int32_t> expected_results = {2, 5};
+
+    topology topology;
+    topology.add(input_layout("input_data", in_layout));
+    topology.add(data("input_indices", input2));
+    topology.add(data("input_updates", input3));
+    topology.add(shape_of("shape_of", input_info("input_data"), data_types::i32));
+    topology.add(reshape("reshape", input_info("shape_of"), false, {}, ov::PartialShape{2, 1}));
+    topology.add(scatter_nd_update("scatter_nd_update", input_info("reshape"), input_info("input_indices"), input_info("input_updates"), 2));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input_data", input1);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("scatter_nd_update").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < 2; ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
 }

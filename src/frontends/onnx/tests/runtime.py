@@ -5,15 +5,16 @@
 """Provide a layer of abstraction for an OpenVINO runtime environment."""
 
 import logging
-from typing import Dict, List, Union
+from typing import Union
 
 import numpy as np
 
-from openvino.runtime import Core
+from openvino.runtime import Core, Type
 
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime import Model, Node, Tensor, Type
 from openvino.runtime.utils.types import NumericData, get_shape, get_dtype
+import openvino.properties.hint as hints
 
 from onnx.helper import float32_to_float8e5m2, float32_to_float8e4m3
 from onnx.numpy_helper import float8e5m2_to_float32, float8e4m3_to_float32
@@ -51,7 +52,7 @@ class Runtime(object):
         self.backend = Core()
         assert backend_name in self.backend.available_devices, 'The requested device "' + backend_name + '" is not supported!'
 
-    def set_config(self, config: Dict[str, str]) -> None:
+    def set_config(self, config: dict[str, str]) -> None:
         """Set the runtime configuration."""
         self.backend.set_property(device_name=self.backend_name, properties=config)
 
@@ -126,7 +127,7 @@ class Computation(object):
         params_string = ", ".join([param.name for param in self.parameters])
         return f"<Computation: {self.model.get_name()}({params_string})>"
 
-    def __call__(self, *input_values: NumericData) -> List[NumericData]:
+    def __call__(self, *input_values: NumericData) -> list[NumericData]:
         """Run computation on input values and return result."""
         # Input validation
         if len(input_values) < len(self.parameters):
@@ -144,11 +145,14 @@ class Computation(object):
         else:
             model = self.network_cache[str(input_shapes)]
 
-        compiled_model = self.runtime.backend.compile_model(model, self.runtime.backend_name)
+        config = {}
         is_bfloat16 = any(parameter.get_output_element_type(0) == Type.bf16 for parameter in self.parameters)
         is_float8 = any(parameter.get_output_element_type(0) == Type.f8e4m3 or parameter.get_output_element_type(0) == Type.f8e5m2 for parameter in self.parameters)
         if is_bfloat16 or is_float8:
             input_values = self.convert_to_tensors(input_values)
+        else:
+            config[hints.inference_precision] = Type.f32
+        compiled_model = self.runtime.backend.compile_model(model, self.runtime.backend_name, config)
         request = compiled_model.create_infer_request()
         result_buffers = request.infer(dict(zip(param_names, input_values)))
         """Note: other methods to get result_buffers from request

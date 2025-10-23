@@ -8,12 +8,7 @@
 namespace ov {
 namespace test {
 std::string CumSumLayerTest::getTestCaseName(const testing::TestParamInfo<cumSumParams>& obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    int64_t axis;
-    bool exclusive, reverse;
-    std::string targetDevice;
-    std::tie(shapes, model_type, axis, exclusive, reverse, targetDevice) = obj.param;
+    const auto& [shapes, model_type, axis, exclusive, reverse, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -37,11 +32,8 @@ std::string CumSumLayerTest::getTestCaseName(const testing::TestParamInfo<cumSum
 }
 
 void CumSumLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    bool exclusive, reverse;
-    int64_t axis;
-    std::tie(shapes, model_type, axis, exclusive, reverse, targetDevice) = this->GetParam();
+    const auto& [shapes, model_type, axis, exclusive, reverse, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     const auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

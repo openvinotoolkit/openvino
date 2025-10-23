@@ -27,11 +27,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<RangeDynamicGPUTestParamsSet>& obj) {
         RangeDynamicGPUTestParamsSet basicParamsSet = obj.param;
         std::ostringstream result;
-        std::vector<InputShape> inputShapes;
-        std::vector<float> inputValues;
-        ov::element::Type model_type;
-        std::string targetDevice;
-        std::tie(inputShapes, inputValues, model_type, targetDevice) = basicParamsSet;
+
+        const auto& [inputShapes, inputValues, model_type, targetDevice] = basicParamsSet;
 
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -126,11 +123,11 @@ protected:
 
     void SetUp() override {
         RangeDynamicGPUTestParamsSet basicParamsSet = this->GetParam();
-        std::vector<InputShape> inputShapes;
-        std::vector<float> inputValues;
-        ov::element::Type model_type;
+
         ov::ParameterVector params;
-        std::tie(inputShapes, inputValues, model_type, targetDevice) = basicParamsSet;
+        const auto& [inputShapes, inputValues, _model_type, _targetDevice] = basicParamsSet;
+        auto model_type = _model_type;
+        targetDevice = _targetDevice;
 
         input_values = inputValues;
         net_type = model_type;

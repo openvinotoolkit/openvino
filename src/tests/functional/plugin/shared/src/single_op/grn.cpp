@@ -11,11 +11,7 @@
 namespace ov {
 namespace test {
 std::string GrnLayerTest::getTestCaseName(const testing::TestParamInfo<grnParams>& obj) {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::string target_device;
-    float bias;
-    std::tie(model_type, shapes, bias, target_device) = obj.param;
+    const auto& [model_type, shapes, bias, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -37,10 +33,8 @@ std::string GrnLayerTest::getTestCaseName(const testing::TestParamInfo<grnParams
 }
 
 void GrnLayerTest::SetUp() {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    float bias;
-    std::tie(model_type, shapes, bias, targetDevice) = GetParam();
+    const auto& [model_type, shapes, bias, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

@@ -94,14 +94,14 @@ DeviceFeaturesKey ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::get_required_device_f
 
 bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::Validate(const Params& params) const {
     if (!Parent::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
     if (newParams.filterSize.x != 1 || newParams.filterSize.y != 1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

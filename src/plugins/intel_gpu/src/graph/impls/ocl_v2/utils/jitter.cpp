@@ -4,6 +4,7 @@
 
 #include "jitter.hpp"
 
+#include <cinttypes>
 #include <cstddef>
 #include <string>
 

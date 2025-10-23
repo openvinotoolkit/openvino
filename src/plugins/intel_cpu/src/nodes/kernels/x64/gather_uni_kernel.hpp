@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cassert>
 #include <common/utils.hpp>
@@ -37,15 +37,15 @@
 namespace ov::intel_cpu {
 
 struct jGatherConfParams {
-    uint64_t dataTypeSize = 1lu;
+    uint64_t dataTypeSize = 1LU;
     ov::element::Type in_prec = ov::element::f32;
     ov::element::Type out_prec = ov::element::f32;
     bool reverseIndexing = true;
     bool dynamicShapes = false;
-    uint64_t batchDims = 0lu;
-    uint64_t beforeAxisSize = 0lu;
-    uint64_t specIdxSize = 0lu;
-    uint64_t afterAxisSize = 0lu;
+    uint64_t batchDims = 0LU;
+    uint64_t beforeAxisSize = 0LU;
+    uint64_t specIdxSize = 0LU;
+    uint64_t afterAxisSize = 0LU;
 };
 
 struct gatherJitExecArgs {
@@ -67,8 +67,8 @@ struct gatherJitExecArgs {
     const uint64_t* afterAxisSize = nullptr;
     const int* specIdxDiff = nullptr;
 
-    uint64_t workAmount = 0lu;
-    uint64_t afterAxSize = 1lu;
+    uint64_t workAmount = 0LU;
+    uint64_t afterAxSize = 1LU;
     // Blocked short.
     uint64_t specIdxAndAfterAxIterB = 0UL;
     uint64_t specIdxAndAfterAxSizeB = 0UL;
@@ -108,9 +108,9 @@ struct jitGatherKernelBase {
 
 protected:
     jGatherConfParams jcp;
-    uint64_t vlen = 0lu;
-    uint64_t dataElPerVec = 0lu;
-    uint64_t idxElPerVec = 0lu;
+    uint64_t vlen = 0LU;
+    uint64_t dataElPerVec = 0LU;
+    uint64_t idxElPerVec = 0LU;
     static const unsigned shufMask8bitUni[16];
     static const unsigned permMask8bitA2[8];
     static const unsigned permMask8bitA5[16];
@@ -125,7 +125,7 @@ protected:
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-struct jitUniGatherKernel : public jitGatherKernelBase, public dnnl::impl::cpu::x64::jit_generator {
+struct jitUniGatherKernel : public jitGatherKernelBase, public dnnl::impl::cpu::x64::jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jitUniGatherKernel)
 
     explicit jitUniGatherKernel(const jGatherConfParams& jcp);
@@ -140,7 +140,7 @@ protected:
         typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using Vmask =
         typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Opmask>::type;
-    static const uint32_t vlenXmm = dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::vlen;
+    static const uint32_t vlenXmm = dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::sse41>::vlen;
     static const uint32_t indicesTypeSize = sizeof(uint32_t);
     static const uint8_t idxTypeShift = 2;
     uint8_t dataTypeShift = 0;

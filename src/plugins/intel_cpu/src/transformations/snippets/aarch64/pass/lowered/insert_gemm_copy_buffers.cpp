@@ -4,8 +4,16 @@
 
 #include "insert_gemm_copy_buffers.hpp"
 
+#include <iterator>
+#include <memory>
+
 #include "expressions/gemm_copy_b_buffer_expressions.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/buffer.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
@@ -32,7 +40,7 @@ bool InsertGemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt begin
         BufferExpressionPtr buffer_expr =
             factory->build<ov::intel_cpu::aarch64::RepackedWeightsBufferExpression>(buffer_op, {copy_b_out});
         linear_ir.insert_expr(buffer_expr,
-                              LoopManager::get_common_outer_loops(copy_b_expr, copy_b_consumers.begin()->get_expr()),
+                              LoopManager::get_common_outer_loops({copy_b_expr, copy_b_consumers.begin()->get_expr()}),
                               true,
                               insertion_pos,
                               {copy_b_consumers});

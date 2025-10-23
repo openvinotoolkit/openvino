@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/op_extension.hpp"
+#include "pyopenvino/graph/op_extension.hpp"
 
 #include <pybind11/pybind11.h>
-
-#include <pyopenvino/graph/op_extension.hpp>
 
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/core/extension.hpp"
 #include "pyopenvino/graph/discrete_type_info.hpp"
 #include "pyopenvino/graph/node_output.hpp"
 #include "pyopenvino/graph/op.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -21,7 +20,7 @@ const ov::DiscreteTypeInfo& PyOpExtension::get_type_info() const {
 }
 
 ov::OutputVector PyOpExtension::create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) const {
-    py::gil_scoped_acquire acquire;
+    ConditionalGILScopedAcquire acquire;
 
     const auto node = py_handle_dtype();
 

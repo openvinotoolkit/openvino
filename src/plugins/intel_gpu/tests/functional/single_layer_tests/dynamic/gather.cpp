@@ -31,13 +31,8 @@ typedef std::tuple<
 class GatherGPUTest : public testing::WithParamInterface<GatherGPUTestParams>,
                       virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherGPUTestParams> obj) {
-        GatherShapeParams Shapes;
-        ov::element::Type model_type;
-        bool isIndicesConstant;
-        bool isAxisConstant;
-
-        std::tie(Shapes, model_type, isIndicesConstant, isAxisConstant) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherGPUTestParams>& obj) {
+        const auto& [Shapes, model_type, isIndicesConstant, isAxisConstant] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -65,13 +60,9 @@ public:
 
 protected:
     void SetUp() override {
-        GatherShapeParams Shapes;
-        ov::element::Type model_type;
-        bool isAxisConstant;
-        bool isIndicesConstant;
         const auto int_model_type = ov::element::i32;
 
-        std::tie(Shapes, model_type, isIndicesConstant, isAxisConstant) = this->GetParam();
+        const auto& [Shapes, model_type, isIndicesConstant, isAxisConstant] = this->GetParam();
         const int axis = Shapes.axis;
         const int batchDims = Shapes.batch_dims;
         targetDevice = ov::test::utils::DEVICE_GPU;

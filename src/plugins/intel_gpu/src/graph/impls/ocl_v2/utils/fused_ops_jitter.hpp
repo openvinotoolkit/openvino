@@ -270,7 +270,7 @@ public:
             };
 
             for (const auto& [channel_name, dim] : channels_map) {
-                if (extract_channel(channel_name, t) == 1) {
+                if (extract_dim(channel_name, t) == 1) {
                     *dim = "0";
                 }
             }

@@ -36,6 +36,6 @@ private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                      const std::vector<size_t>& layout_b,
                                                      const std::vector<size_t>& layout_c);
-    void validate_element_type(const ov::element::Type& type_0, const ov::element::Type& type_1);
+    static void validate_element_type(const ov::element::Type& type_0, const ov::element::Type& type_1);
 };
 }  // namespace ov::intel_cpu::aarch64

@@ -61,10 +61,12 @@ log_level: INFO
 - `iml` - **Optional**. Input model layout.
 - `oml` - **Optional**. Output model layout.
 - `reshape` - **Optional**. Set shape for input layers. For example, "input1: [1,3,224,224], input2: [1,4]" or "[1,3,224,224]" in case of one input layer.
+- `clamp_outputs` - **Optional**. Clamps all model outputs to the valid range for their precision. Requires `op` to be set for it to take effect.
 
 Examples:
 ```
 - { name: model.xml, ip: FP16, iml: NHWC, il: NCHW }
+- { name: model.xml, ip: U8, op: U8, clamp_outputs: true }
 - { name: model.xml, ip: { data: FP16 }, priority: HIGH }
 - { name: model.xml, device: NPU, config: { PERFORMANCE_HINT: THROUGHPUT } }
 ```
@@ -403,11 +405,11 @@ As the prerequisite for accuracy validation it's useful to have a mechanism that
 Use additional parameters to configure `reference` mode:
 - `input_data` - **Required**. Path that contain input data for the model, if entity under the path is empty, input data will be generated randomly and dumped into the path specified.
 - `output_data` - **Required**. Path where to dump reference output data.
-- `random` - **Optional**. Initializer to generate input data randomly. (Default: ` { dist: uniform, low: 0.0, high: 255 }`)
+- `random` - **Optional**. Initializer to generate input data randomly. (Default: ` { dist: uniform, low: 0.0, high: 255, seed: -1 }`)
 
 Examples:
 ```
-random: { dist: uniform, low: -1.0, high: 1.0 } # specified globally for all models
+random: { dist: uniform, low: -1.0, high: 1.0, seed: 4 } # specified globally for all models
 multi_inference:
 - input_stream_list:
   - network:
@@ -536,7 +538,7 @@ Iteration <number>:
 - Clone OpenCV repo:
     ```
     git clone https://github.com/opencv/opencv
-    cd opencv && git checkout 3919f33e21
+    cd opencv && git checkout 252403bbf2
     ```
 - Build OpenCV G-API:
     ```

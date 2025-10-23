@@ -15,5 +15,9 @@ TEST_P(PoolingLayerTest, Inference) {
 TEST_P(MaxPoolingV8LayerTest, Inference) {
     run();
 }
+
+TEST_P(AvgPoolingV16LayerTest, Inference) {
+    run();
+}
 }  // namespace test
 }  // namespace ov

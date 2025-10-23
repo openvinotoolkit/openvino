@@ -383,6 +383,35 @@ inline bool floating_point_equal(float x, float y, int max_ulps_diff = 4) {
     }
 }
 
+template <typename vecElementType>
+std::string vec2str(const std::vector<vecElementType>& vec) {
+    if (!vec.empty()) {
+        std::ostringstream result;
+        result << "(";
+        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<vecElementType>(result, "."));
+        result << vec.back() << ")";
+        return result.str();
+    }
+    return "()";
+}
+
+inline float cosineSimilarity(cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read>& vec1, cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read>& memLockVec2) {
+    if (vec1.size() != memLockVec2.size()) {
+        return -1.0f;
+    }
+
+    float dotProduct = std::inner_product(vec1.begin(), vec1.end(), memLockVec2.begin(), 0.0f);
+
+    float magnitude1 = std::sqrt(std::inner_product(vec1.begin(), vec1.end(), vec1.begin(), 0.0f));
+    float magnitude2 = std::sqrt(std::inner_product(memLockVec2.begin(), memLockVec2.end(), memLockVec2.begin(), 0.0f));
+
+    if (magnitude1 == 0.0f || magnitude2 == 0.0f) {
+        return -1.0f;
+    }
+
+    return dotProduct / (magnitude1 * magnitude2);
+}
+
 class test_params {
 public:
 

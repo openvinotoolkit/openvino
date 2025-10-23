@@ -25,7 +25,7 @@ namespace ov::intel_cpu::node {
 
 bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v0::ShapeOf::get_type_info_static(),
                     ov::op::v3::ShapeOf::get_type_info_static())) {
             errorMessage = "Node is not an instance of ShapeOf form the operation set v1 or v3.";
@@ -41,21 +41,15 @@ ShapeOf::ShapeOf(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     : Node(op, context, ShapeOfShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        if (op->get_input_partial_shape(0).size() == 0) {
-            THROW_CPU_NODE_ERR("gets unsupported input 0D tensor (scalar)");
-        }
+        CPU_NODE_ASSERT(op->get_input_partial_shape(0).size() != 0, "gets unsupported input 0D tensor (scalar)");
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
 void ShapeOf::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 1, "has incorrect number of input edges: ", getParentEdges().size());
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges: ", getChildEdges().size());
 }
 
 void ShapeOf::initSupportedPrimitiveDescriptors() {
@@ -94,9 +88,8 @@ void ShapeOf::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto outPtr = getDstMemoryAtPort(0);
     auto&& inDims = inPtr->getStaticDims();
     size_t dimsCount = inDims.size();
-    if (outPtr->getStaticDims().size() != 1 || dimsCount != outPtr->getStaticDims()[0]) {
-        THROW_CPU_NODE_ERR("has inconsistent input shape and output size");
-    }
+    CPU_NODE_ASSERT(outPtr->getStaticDims().size() == 1 && dimsCount == outPtr->getStaticDims()[0],
+                    "has inconsistent input shape and output size");
 
     auto* dst = outPtr->getDataAs<int>();
 

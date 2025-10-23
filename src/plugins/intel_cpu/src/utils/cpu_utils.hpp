@@ -16,8 +16,18 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "precision_support.h"
+#include "utils/cpp/bit_cast.hpp"
 
 namespace ov::intel_cpu {
+
+// Helper function to safely cast JIT kernel bytecode to function pointers
+// Note: const_cast is unavoidable here because JIT compilers typically return const void*
+// to compiled bytecode, but function pointers cannot be const-qualified. This is a common
+// pattern in JIT compilation where the bytecode is immutable but needs to be executed.
+template <typename FuncPtr>
+FuncPtr jit_kernel_cast(const void* ptr) {
+    return reinterpret_cast<FuncPtr>(const_cast<void*>(ptr));  // NOLINT(bugprone-casting-through-void)
+}
 
 // helper struct to tell wheter type T is any of given types U...
 // termination case when U... is empty -> return std::false_type
@@ -152,9 +162,7 @@ inline ov::element::Type normalizeToSupportedPrecision(ov::element::Type precisi
  * @return aligned buffer
  */
 inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector<float>& buffer, int align = -1) {
-    if (buffer.empty()) {
-        OPENVINO_THROW("Can't align buffer, because buffer is empty");
-    }
+    OPENVINO_ASSERT(!buffer.empty(), "Can't align buffer, because buffer is empty");
 
     auto alignedBuffer = buffer;
     if (align == -1) {
@@ -185,7 +193,7 @@ std::vector<T> reshapeDownToRank(const std::vector<T>& dims, size_t rank) {
     }
 
     const auto accEnd = dims.begin() + (dims.size() - rank + 1);
-    const auto acc = std::accumulate(dims.begin(), accEnd, (T)1, std::multiplies<>());
+    const auto acc = std::accumulate(dims.begin(), accEnd, static_cast<T>(1), std::multiplies<>());
 
     std::vector<T> result{acc};
     result.insert(result.end(), accEnd, dims.end());

@@ -32,7 +32,7 @@ namespace ov::snippets::lowered::pass {
 class NormalizeLoopIDs : public Pass {
 public:
     OPENVINO_RTTI("NormalizeLoopIDs", "", Pass);
-    NormalizeLoopIDs(bool has_specific_loops = true) : m_has_specific_loops(has_specific_loops) {}
+    explicit NormalizeLoopIDs(bool has_specific_loops = true) : m_has_specific_loops(has_specific_loops) {}
     bool run(lowered::LinearIR& linear_ir) override;
 
 private:

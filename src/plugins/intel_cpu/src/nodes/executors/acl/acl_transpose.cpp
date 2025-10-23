@@ -4,7 +4,24 @@
 
 #include "acl_transpose.hpp"
 
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Error.h>
+#include <arm_compute/runtime/NEON/functions/NEPermute.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
+#include <vector>
+
 #include "acl_utils.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/transpose.hpp"
+#include "utils/debug_capabilities.h"
 
 bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposeParams& transposeParams,
                                                const std::vector<MemoryDescPtr>& srcDescs,
@@ -16,7 +33,7 @@ bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposePar
         std::iota(inputOrder.begin(), inputOrder.end(), 0);
     }
 
-    std::vector<int> vec;
+    std::vector<size_t> vec;
     if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
         auto changeLayoutToNhwc = [](VectorDims shape) -> VectorDims {
             std::swap(shape[1], shape[2]);
@@ -27,7 +44,7 @@ bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposePar
         auto dstDims = changeLayoutToNhwc(dstDescs[0]->getShape().getStaticDims());
         for (int i = inputOrder.size() - 1; i >= 0; --i) {
             auto it = find(srcDims.rbegin(), srcDims.rend(), dstDims[i]);
-            int index = it - srcDims.rbegin();
+            auto index = it - srcDims.rbegin();
             vec.push_back(index);
         }
     } else {

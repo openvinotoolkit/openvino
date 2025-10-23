@@ -43,9 +43,8 @@ class CompressQuantizeWeightsTests
       public TransformationTestsF {
     void SetUp() override {
         TransformationTestsF::SetUp();
-        CompressQuantizeWeightsParams param;
-        ov::element::Type data_prc;
-        std::tie(param, data_prc) = GetParam();
+
+        const auto& [param, data_prc] = GetParam();
         {
             std::shared_ptr<Node> data = opset8::Constant::create(data_prc, param.shape, param.weights);
             if (data_prc == element::f16) {

@@ -13,9 +13,7 @@ namespace test {
 namespace snippets {
 
 std::string FuseTransposeBrgemmTests::getTestCaseName(testing::TestParamInfo<fuseTransposeBrgemmParams> obj) {
-    std::vector<PartialShape> input_shapes(2);
-    size_t transpose_position;
-    std::tie(input_shapes, transpose_position) = obj.param;
+    const auto& [input_shapes, transpose_position] = obj.param;
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({input_shapes[0]}) << "_";
     result << "IS[1]=" << ov::test::utils::partialShape2str({input_shapes[1]}) << "_";
@@ -25,9 +23,8 @@ std::string FuseTransposeBrgemmTests::getTestCaseName(testing::TestParamInfo<fus
 
 void FuseTransposeBrgemmTests::SetUp() {
     LoweringTests::SetUp();
-    std::vector<PartialShape> input_shapes(2);
-    size_t transpose_position;
-    std::tie(input_shapes, transpose_position) = this->GetParam();
+
+    const auto& [input_shapes, transpose_position] = this->GetParam();
 
     snippets_model = std::make_shared<Transpose0213MatMulLoweredFunction>(input_shapes, transpose_position);
 }

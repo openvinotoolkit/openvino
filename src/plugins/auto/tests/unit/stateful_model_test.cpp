@@ -23,7 +23,7 @@ public:
     std::shared_ptr<ov::Model> create_dynamic_output_model();
     std::shared_ptr<ov::Model> create_stateful_model();
     std::shared_ptr<ov::Model> create_stateful_dynamic_model();
-    static std::string getTestCaseName(testing::TestParamInfo<StatefulModelConfigParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<StatefulModelConfigParams>& obj);
     void SetUp() override;
 
 protected:
@@ -36,21 +36,14 @@ protected:
     std::string expectedExecuteDev;
 };
 
-std::string StatefulModelSupportedTest::getTestCaseName(testing::TestParamInfo<StatefulModelConfigParams> obj) {
-    bool isDynamicModel;
-    bool isStatefulModel;
-    bool isActualSuccessful;
-    bool isCumulative;
-    std::vector<std::pair<std::string, int>> expectedCalledTimes;
-    std::string devicesList;
-    std::string expectedExecuteDev;
-    std::tie(devicesList,
-             isDynamicModel,
-             isStatefulModel,
-             isCumulative,
-             isActualSuccessful,
-             expectedCalledTimes,
-             expectedExecuteDev) = obj.param;
+std::string StatefulModelSupportedTest::getTestCaseName(const testing::TestParamInfo<StatefulModelConfigParams>& obj) {
+    const auto& [devicesList,
+                 isDynamicModel,
+                 isStatefulModel,
+                 isCumulative,
+                 isActualSuccessful,
+                 expectedCalledTimes,
+                 expectedExecuteDev] = obj.param;
     std::ostringstream result;
     result << "_devicesList_" << devicesList;
     result << "_isDynamic_" << isDynamicModel;

@@ -16,14 +16,7 @@ namespace ov {
 namespace test {
 
 std::string PermConvPermConcat::getTestCaseName(const testing::TestParamInfo<PermConvPermConcatParams>& obj) {
-    ov::element::Type element_type;
-    std::string targetName;
-    ov::Shape input_shape;
-    ov::Shape kernel_shape;
-    size_t output_channels;
-    ov::AnyMap configuration;
-
-    std::tie(element_type, targetName, input_shape, kernel_shape, output_channels, configuration) = obj.param;
+    const auto& [element_type, targetName, input_shape, kernel_shape, output_channels, configuration] = obj.param;
     std::ostringstream results;
 
     results << "IS=" << ov::test::utils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
@@ -38,14 +31,9 @@ std::string PermConvPermConcat::getTestCaseName(const testing::TestParamInfo<Per
 }
 
 void PermConvPermConcat::SetUp() {
-    ov::element::Type element_type;
-    ov::Shape input_shape;
-    ov::Shape kernel_shape;
-    size_t output_channels;
-    ov::AnyMap additional_config;
-
-    std::tie(element_type, targetDevice, input_shape, kernel_shape, output_channels, additional_config) =
+    const auto& [element_type, _targetDevice, input_shape, kernel_shape, output_channels, additional_config] =
         this->GetParam();
+    targetDevice = _targetDevice;
 
     if (element_type == ov::element::f32) {
         abs_threshold = 1e-5;

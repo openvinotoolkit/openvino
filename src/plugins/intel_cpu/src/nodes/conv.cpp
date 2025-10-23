@@ -261,7 +261,7 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
     // Only apply this heuristic logic on FP32 IR. IC=1 ,OC=1 would disable brgconv on avx2.
     const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
                             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !context->isGraphQuantized();
-    useJitPlanar = ((IC == 1 && groupOC * groupNum == 1) && isAvx2FP32);
+    useJitPlanar = ((all_of(1U, IC, groupOC * groupNum)) && isAvx2FP32);
 }
 
 bool Convolution::canBeExecutedInInt8() const {
@@ -276,7 +276,7 @@ bool Convolution::canBeExecutedInInt8() const {
         weightsDataType = memory::data_type::s8;
     }
 
-    return one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) &&
+    return any_of(inputDataType, memory::data_type::u8, memory::data_type::s8) &&
            weightsDataType == memory::data_type::s8;
 }
 
@@ -427,6 +427,13 @@ std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecis
         }
     };
 
+// ACL requires dst precision matches src precision for int8
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    if (canBeExecutedInInt8()) {
+        return {getOriginalInputPrecisionAtPort(0), ov::element::dynamic};
+    }
+#endif
+
     auto dstType = getOriginalOutputPrecisionAtPort(0);
 
     // make sure dst type is equal to the output type of the last fused node
@@ -457,7 +464,7 @@ std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecis
                 return {ov::element::f32, ov::element::f32};
             }
 
-            if (one_of(dstType, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+            if (any_of(dstType, ov::element::f32, ov::element::bf16, ov::element::f16)) {
                 return {dstType, dstType};
             }
 
@@ -476,7 +483,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
     m_attrs.isGraphQuantized = context->isGraphQuantized();
     m_attrs.fcSemantic = false;
-    m_attrs.nonConstantWeights = !getParentEdgeAt(WEIGHTS)->getParent()->isConstant();
+    m_attrs.constantWeights = getParentEdgeAt(WEIGHTS)->getParent()->isConstant();
     m_attrs.weightsNonTransposed = false;
     m_attrs.dqScales = getDQScales();
 
@@ -511,12 +518,12 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         for (const auto& desc : nodeDescriptors) {
             if (auto it = m_atoi.find(desc.first); it != m_atoi.end()) {
                 const auto& inputDesc = desc.second;
-                nodeConfig.inConfs[it->second] = {inputDesc, getBlockedMask(inputDesc, m_attrs.isGrouped)};
+                nodeConfig.inConfs[it->second] = PortConfig(inputDesc, getBlockedMask(inputDesc, m_attrs.isGrouped));
             }
         }
 
         for (size_t i = 3; i < srcDescs.size(); i++) {
-            nodeConfig.inConfs[i] = srcDescs[i];
+            nodeConfig.inConfs[i] = PortConfig(srcDescs[i]);
         }
 
         const int inPlaceOutPort = withSum ? static_cast<int>(getParentEdges().size()) - 1 : -1;
@@ -565,8 +572,9 @@ static MemoryPtr memoryViewToVector(const std::vector<T>& vec, const dnnl::engin
 
 bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
-    if (!fusedWith.empty())
+    if (!fusedWith.empty()) {
         return false;
+    }
 #endif
     return canFuseSimpleOperation(node);
 }

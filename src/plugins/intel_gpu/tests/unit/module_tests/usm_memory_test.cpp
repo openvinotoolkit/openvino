@@ -387,11 +387,7 @@ public:
 };
 
 TEST_P(offset_copy, basic) {
-    allocation_type src_allocation_type;
-    allocation_type dst_allocation_type;
-    mem_test_params params;
-    bool use_copy_to;
-    std::tie(src_allocation_type, dst_allocation_type, params, use_copy_to) = GetParam();
+    const auto& [src_allocation_type, dst_allocation_type, params, use_copy_to] = GetParam();
 
     const auto copy_size = params.size;
     const auto src_size = params.src_offset + copy_size;
@@ -438,10 +434,7 @@ TEST_P(offset_copy, basic) {
 }
 
 TEST_P(offset_copy_host, basic) {
-    allocation_type allocation_type;
-    mem_test_params params;
-    bool use_copy_to;
-    std::tie(allocation_type, params, use_copy_to) = GetParam();
+    const auto& [allocation_type, params, use_copy_to] = GetParam();
 
     const auto copy_size = params.size;
     const auto src_size = params.src_offset + copy_size;

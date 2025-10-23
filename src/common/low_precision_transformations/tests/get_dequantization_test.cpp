@@ -30,11 +30,7 @@ class GetDequantizationTestTransformation : public LayerTransformation,
                                             public testing::WithParamInterface<GetDequantizationTestValues> {
 public:
     void SetUp() override {
-        bool isConvert;
-        bool isSubtract;
-        size_t subDataInput;
-        size_t mulDataInput;
-        std::tie(isConvert, isSubtract, subDataInput, mulDataInput) = this->GetParam();
+        const auto& [isConvert, isSubtract, subDataInput, mulDataInput] = this->GetParam();
 
         actualFunction = ov::builder::subgraph::GetDequantizationFunction::getOriginal(isConvert,
                                                                                            isSubtract,
@@ -46,11 +42,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GetDequantizationTestValues> obj) {
-        bool isConvert;
-        bool isSubtract;
-        size_t subDataInput;
-        size_t mulDataInput;
-        std::tie(isConvert, isSubtract, subDataInput, mulDataInput) = obj.param;
+        const auto& [isConvert, isSubtract, subDataInput, mulDataInput] = obj.param;
 
         std::ostringstream result;
         result << (isConvert ? "convert_" : "without_convert_") << (isSubtract ? "_subtract_with_data_input=" : "")

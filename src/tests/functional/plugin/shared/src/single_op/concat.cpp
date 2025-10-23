@@ -9,11 +9,7 @@ namespace ov {
 namespace test {
 
 std::string ConcatLayerTest::getTestCaseName(const testing::TestParamInfo<concatParamsTuple>& obj) {
-    int axis;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::string targetName;
-    std::tie(axis, shapes, model_type, targetName) = obj.param;
+    const auto& [axis, shapes, model_type, targetName] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < shapes.size(); i++) {
@@ -34,10 +30,8 @@ std::string ConcatLayerTest::getTestCaseName(const testing::TestParamInfo<concat
 }
 
 void ConcatLayerTest::SetUp() {
-    int axis;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::tie(axis, shapes, model_type, targetDevice) = this->GetParam();
+    const auto& [axis, shapes, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     ov::ParameterVector params;
@@ -54,12 +48,7 @@ void ConcatLayerTest::SetUp() {
 }
 
 std::string ConcatStringLayerTest::getTestCaseName(const testing::TestParamInfo<ConcatStringParamsTuple>& obj) {
-    int axis;
-    std::vector<ov::Shape> shapes;
-    ov::element::Type model_type;
-    std::string targetName;
-    std::vector<std::vector<std::string>> data;
-    std::tie(axis, shapes, model_type, targetName, data) = obj.param;
+    const auto& [axis, shapes, model_type, targetName, data] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < shapes.size(); i++) {
@@ -73,10 +62,9 @@ std::string ConcatStringLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void ConcatStringLayerTest::SetUp() {
-    int axis;
-    std::vector<ov::Shape> shapes;
-    ov::element::Type model_type;
-    std::tie(axis, shapes, model_type, targetDevice, string_data) = this->GetParam();
+    const auto& [axis, shapes, model_type, _targetDevice, _string_data] = this->GetParam();
+    targetDevice = _targetDevice;
+    string_data = _string_data;
     init_input_shapes(ov::test::static_shapes_to_test_representation(shapes));
 
     ov::ParameterVector params;

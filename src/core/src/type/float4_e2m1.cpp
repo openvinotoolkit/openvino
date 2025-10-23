@@ -30,79 +30,105 @@ static constexpr std::array<float, 16> f4e2m1_to_f32_lut{
 
 namespace {
 
-constexpr uint8_t f4e2m1_e_size = 2;     // f4e2m1 exponent bit size
-constexpr uint8_t f4e2m1_e_mask = 0x06;  // f4e2m1 exponent bit mask
-constexpr uint8_t f4e2m1_e_bias = 1;     // f4e2m1 exponent bias
-constexpr uint8_t f4e2m1_e_max = 0x03;   // f4e2m1 exponent max value
-constexpr uint8_t f4e2m1_m_size = 1;     // f4e2m1 mantissa bits size
-constexpr uint8_t f4e2m1_m_mask = 0x01;  // f4e2m1 mantissa bit mask
+constexpr uint8_t f4e2m1_e_bias = 1;                     // f4e2m1 exponent bias
+constexpr uint8_t f4e2m1_e_max = 0x03;                   // f4e2m1 exponent max value
+constexpr uint8_t f4e2m1_m_size = 1;                     // f4e2m1 mantissa bits size
+constexpr uint32_t f32_m_size = 23;                      // f32 mantissa bits size
+constexpr uint32_t f32_e_mask = 0x7F800000;              // f32 exponent bits mask
+constexpr uint32_t f32_m_mask = 0x007FFFFF;              // f32 mantissa bits mask
+constexpr uint32_t f32_e_bias = 127;                     // f32 exponent bias
+constexpr uint32_t f32_m_round_even_down = 0x200000U;    // f32 mantissa round even down
+constexpr uint32_t f32_m_round_even_up_126 = 0x400000U;  // f32 mantissa round even up for exponent 126
+constexpr uint32_t f32_m_round_even_up = 0x600000U;      // f32 mantissa round even up
 
-uint8_t f32_to_f4e2m1_bits(const float value) {
-    constexpr uint32_t f32_s_mask = 0x80000000;  // f32 sign bit mask
-    constexpr uint32_t f32_e_mask = 0x7F800000;  // f32 exponent bits mask
-    constexpr uint32_t f32_e_bias = 127;         // f32 exponent bias
-    constexpr uint32_t f32_e_size = 8;           // f32 exponent bits size
-    constexpr uint32_t f32_m_mask = 0x007fffff;  // f32 mantissa bits mask
-    constexpr uint32_t f32_m_size = 23;          // f32 mantissa bits size
+// clang-format off
+/**
+ * @brief Converts a 32-bit float value to its corresponding 4-bit f4e2m1 representation.
+ *
+ * The f4e2m1 format uses:
+ * - 1 sign bit
+ * - 2 exponent bits (with bias 1)
+ * - 1 mantissa bit
+ *
+ * The conversion logic is based on the boundaries and encoding rules for f4e2m1:
+ * - Specific ranges are mapped to mantissa and exponent combinations according to the format's specification.
+ * - Handles positive and negative values, and clamps exponent values to the maximum allowed.
+ *
+ * Mapping:
+ * | Input: abs(value) |  Result
+ * |-------------------+-----------------------
+ * |     <= 0.25       |  ( sign_bit | 0b000 )
+ * |     <  0.75       |  ( sign_bit | 0b001 )
+ * |     <= 1.25       |  ( sign_bit | 0b010 )
+ * |     <  1.75       |  ( sign_bit | 0b011 )
+ * |     <= 2.5        |  ( sign_bit | 0b100 )
+ * |     <  3.5        |  ( sign_bit | 0b101 )
+ * |     <= 5.0        |  ( sign_bit | 0b110 )
+ * |     >  5.0        |  ( sign_bit | 0b111 )
+ *
+ * Boundary values for f4e2m1:
+ * | Value | Hex        |  Binary (32 bits)                   | Sign | Exponent (8 bits) | Mantissa (23 bits)      | Mantissa (Hex)
+ * |-------|------------|-------------------------------------|------|-------------------|-------------------------|---------------
+ * | 0.25f | 0x3E800000 | 00111110 10000000 00000000 00000000 |  0   | 01111101 (125)    | 00000000000000000000000 | 0x000000
+ * | 0.75f | 0x3F400000 | 00111111 01000000 00000000 00000000 |  0   | 01111110 (126)    | 10000000000000000000000 | 0x400000
+ * | 1.25f | 0x3FA00000 | 00111111 10100000 00000000 00000000 |  0   | 01111111 (127)    | 01000000000000000000000 | 0x200000
+ * | 1.75f | 0x3FE00000 | 00111111 11100000 00000000 00000000 |  0   | 01111111 (127)    | 11000000000000000000000 | 0x600000
+ * | 2.5f  | 0x40200000 | 01000000 00100000 00000000 00000000 |  0   | 10000000 (128)    | 01000000000000000000000 | 0x200000
+ * | 3.5f  | 0x40600000 | 01000000 01100000 00000000 00000000 |  0   | 10000000 (128)    | 11000000000000000000000 | 0x600000
+ * | 5.0f  | 0x40A00000 | 01000000 10100000 00000000 00000000 |  0   | 10000001 (129)    | 01000000000000000000000 | 0x200000
+ *
+ *
+ * @param value The 32-bit float value to convert.
+ * @return The 4-bit f4e2m1 representation as a uint8_t.
+ */
+// clang-format on
+uint8_t f32_to_f4e2m1_bits(float value) {
+    const uint32_t bits = util::f32_to_u32_bits(value);
+    const uint8_t f32_exp = (bits & f32_e_mask) >> f32_m_size;  // Extract exponent
+    const uint32_t f32_mantissa = bits & f32_m_mask;            // 23 bits
+    int32_t f4e2m1_exp = f32_exp - f32_e_bias + f4e2m1_e_bias;
 
-    constexpr uint32_t f_e_mask = f4e2m1_e_mask << three_bytes_shift;  // f4 exponent bits mask (on u32)
-    constexpr uint32_t f_m_mask = f4e2m1_m_mask << three_bytes_shift;  // f4 mantissa bits mask (on u32)
-    constexpr uint32_t f_m_hidden_one_mask = 0x02000000;               // f4 mantissa hidden one bits mask (on u32)
-
-    constexpr uint32_t round_half = 0x01ffffff;  // value for half to even round for f4
-    constexpr uint32_t round_norm = 0x07ffffff;  // value for normal round for f4
-    constexpr uint32_t round_even = 0x00800000;  // value for half to even round for f4
-    constexpr uint32_t round_odd = 0x01800000;   // value for an non-half to even round for f4
-
-    const auto input = util::f32_to_u32_bits(value);
-    auto f4_bits = static_cast<uint8_t>((input & f32_s_mask) >> (three_bytes_shift + 4U));
-
-    uint32_t f32_e_field = input & f32_e_mask;
-
-    if (f32_e_field == f32_e_mask) {
-        f4_bits |= (f4e2m1_e_mask | f4e2m1_m_mask);
-    } else if (f32_e_field != 0) {
-        int32_t target_f_biased_exp = (f32_e_field >> f32_m_size) - (f32_e_bias - f4e2m1_e_bias);
-        uint32_t fractional = (input & f32_m_mask) << (f32_e_size - f4e2m1_e_size - 4U);
-
-        // for normalized values round apply rounding change target fractional and biased exponent
-        if ((fractional & round_half) == round_odd || (fractional & round_norm) != 0) {
-            fractional += round_even;
-            if (0 != (fractional & f_e_mask)) {
-                fractional &= f_e_mask;
-                ++target_f_biased_exp;
-            }
-        }
-        fractional &= f_m_mask;
-
-        // set exponent and mantissa on target bits
-        if (target_f_biased_exp > f4e2m1_e_max) {
-            // Use NAN as this type has no infinity
-            f4_bits |= (f4e2m1_e_mask | f4e2m1_m_mask);
-        } else if (target_f_biased_exp > 0) {
-            f4_bits |= (target_f_biased_exp << f4e2m1_m_size) | (fractional >> (three_bytes_shift));
-        } else {
-            // Restore the hidden 1 in target mantissa for subnormal calculation
-            fractional = f_m_hidden_one_mask | (input & f32_m_mask) << (f32_e_size - f4e2m1_e_size - 4U);
-            // Will any bits be shifted off?
-            int32_t shift = (1U << (1 - target_f_biased_exp));
-            uint32_t sticky = (fractional & (shift - 1)) ? 1 : 0;
-
-            fractional = fractional >> (1 - target_f_biased_exp);
-            fractional |= sticky;
-            // apply rounding
-            if (((fractional & round_half) == round_odd) || ((fractional & round_norm) != 0)) {
-                fractional += round_even;
-            }
-            f4_bits |= fractional >> three_bytes_shift;
-        }
+    /*
+        The f4e2m1 exponent mapping:
+        f32_exp      | f4e2m1_exp
+        -------------+-----------
+        125 and less | (0b0000)
+        126          | (0b0000)
+        127          | (0b0010)
+        128          | (0b0100)
+        129 and more | (0b0110)
+    */
+    if (f4e2m1_exp < 0) {
+        f4e2m1_exp = 0;
     }
+    if (f4e2m1_exp > f4e2m1_e_max) {
+        f4e2m1_exp = f4e2m1_e_max;
+    }
+    f4e2m1_exp <<= f4e2m1_m_size;
 
-    return f4_bits;
+    const auto abs_val = std::abs(value);
+    const uint8_t f4_sign_bit = std::signbit(value) ? 0b1000 : 0b0000;
+
+    if (abs_val <= 0.25f) {
+        return f4_sign_bit;
+    }
+    // For the performance reason the if else statements are not using direct float comparison
+    else if ((f32_exp == 126 && f32_mantissa >= f32_m_round_even_up_126) ||
+             (f32_exp == 127 && f32_mantissa >= f32_m_round_even_up) ||
+             (f32_exp == 128 && f32_mantissa >= f32_m_round_even_up)) {
+        // 0.75f <= abs_val < 1.0f || 1.75f <= abs_val < 2.0f || 3.5f <= abs_val < 4.0f
+        return (f4_sign_bit | f4e2m1_exp) + 2;  // mantissa affect exponent bits
+    } else if ((f32_exp == 127 || f32_exp == 128 || f32_exp == 129) && (f32_mantissa <= f32_m_round_even_down)) {
+        // 1.0f <= abs_val <= 1.25f || 2.0f <= abs_val <= 2.5f || 4.0f <= abs_val <= 5.0f
+        return (f4_sign_bit | f4e2m1_exp);
+    } else {
+        // 0.25f < abs_val < 0.75f || 1.25f < abs_val < 1.75f || 2.5f < abs_val < 3.5f || 5.0f < abs_val
+        return (f4_sign_bit | f4e2m1_exp) + 1;
+    }
 }
 }  // namespace
 
-float4_e2m1::float4_e2m1(const float value) : m_value(f32_to_f4e2m1_bits(value)){};
+float4_e2m1::float4_e2m1(const float value) : m_value(f32_to_f4e2m1_bits(value)) {};
 
 float4_e2m1::operator float() const {
     return f4e2m1_to_f32_lut[m_value];

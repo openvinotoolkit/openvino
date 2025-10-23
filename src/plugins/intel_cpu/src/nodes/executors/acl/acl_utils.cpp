@@ -4,8 +4,13 @@
 
 #include "acl_utils.hpp"
 
+#include <arm_compute/function_info/ActivationLayerInfo.h>
+
+#include <functional>
+
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
 #include "support/Mutex.h"
-#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 
@@ -32,7 +37,7 @@ arm_compute::ActivationLayerInfo getActivationLayerInfo(Algorithm algorithm,
     case Algorithm::EltwiseElu:
         return {arm_compute::ActivationLayerInfo::ActivationFunction::ELU, alpha};
     case Algorithm::EltwiseTanh:
-        return {arm_compute::ActivationLayerInfo::ActivationFunction::TANH, 1.f, 1.f};
+        return {arm_compute::ActivationLayerInfo::ActivationFunction::TANH, 1.F, 1.F};
     case Algorithm::EltwiseSigmoid:
         return arm_compute::ActivationLayerInfo::ActivationFunction::LOGISTIC;
     case Algorithm::EltwiseSqrt:

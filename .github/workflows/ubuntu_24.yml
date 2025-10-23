@@ -92,7 +92,7 @@ jobs:
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
       os: 'ubuntu_24_04'
@@ -112,7 +112,6 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-            -DENABLE_FASTER_BUILD=ON
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -138,7 +137,7 @@ jobs:
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   Python_Unit_Tests:
@@ -147,7 +146,7 @@ jobs:
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
 
@@ -157,7 +156,7 @@ jobs:
     uses: ./.github/workflows/job_python_api_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
 
@@ -167,7 +166,7 @@ jobs:
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
 
@@ -177,7 +176,7 @@ jobs:
     uses: ./.github/workflows/job_pytorch_fx_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
 
@@ -187,7 +186,7 @@ jobs:
     uses: ./.github/workflows/job_jax_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
 
@@ -197,7 +196,7 @@ jobs:
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
 
@@ -208,7 +207,7 @@ jobs:
     with:
       runner: 'aks-linux-4-cores-16gb'
       shell: bash
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
       target-branch: ${{ inputs.target-branch }}

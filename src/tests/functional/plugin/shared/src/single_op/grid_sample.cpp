@@ -12,16 +12,8 @@
 namespace ov {
 namespace test {
 std::string GridSampleLayerTest::getTestCaseName(const testing::TestParamInfo<GridSampleParams>& obj) {
-    ov::Shape data_shape;
-    ov::Shape grid_shape;
-    bool align_corners;
-    ov::op::v9::GridSample::InterpolationMode mode;
-    ov::op::v9::GridSample::PaddingMode padding_mode;
-    ov::element::Type model_type;
-    ov::element::Type grid_type;
-    std::string target_device;
-
-    std::tie(data_shape, grid_shape, align_corners, mode, padding_mode, model_type, grid_type, target_device) = obj.param;
+    const auto& [data_shape, grid_shape, align_corners, mode, padding_mode, model_type, grid_type, target_device] =
+        obj.param;
 
     std::ostringstream result;
     result << "DS=" << ov::test::utils::vec2str(data_shape) << "_";
@@ -36,15 +28,9 @@ std::string GridSampleLayerTest::getTestCaseName(const testing::TestParamInfo<Gr
 }
 
 void GridSampleLayerTest::SetUp() {
-    ov::Shape data_shape;
-    ov::Shape grid_shape;
-    bool align_corners;
-    ov::op::v9::GridSample::InterpolationMode mode;
-    ov::op::v9::GridSample::PaddingMode padding_mode;
-    ov::element::Type model_type;
-    ov::element::Type grid_type;
-
-    std::tie(data_shape, grid_shape, align_corners, mode, padding_mode, model_type, grid_type, targetDevice) = this->GetParam();
+    const auto& [data_shape, grid_shape, align_corners, mode, padding_mode, model_type, grid_type, _targetDevice] =
+        this->GetParam();
+    targetDevice = _targetDevice;
 
     auto data = std::make_shared<ov::op::v0::Parameter>(model_type, data_shape);
     auto grid = std::make_shared<ov::op::v0::Parameter>(grid_type, grid_shape);

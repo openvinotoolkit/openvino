@@ -33,4 +33,4 @@ ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
 
 ov_developer_package_export_targets(TARGET openvino::npu_common
                                     INSTALL_INCLUDE_DIRECTORIES
-                                        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+                                        ${CMAKE_CURRENT_SOURCE_DIR}/include/)

@@ -59,14 +59,13 @@ Result MMShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
                 m_shapeY[i] = shapeA[i];
                 continue;
             }
-            if (shapeA[i] != 1) {
-                OPENVINO_THROW("Incompatible MatMul batch dimension. Cant merge the first input dimension=",
-                               shapeA[i],
-                               " with second input dimension=",
-                               shapeB[i],
-                               " at index=",
-                               i);
-            }
+            OPENVINO_ASSERT(shapeA[i] == 1,
+                            "Incompatible MatMul batch dimension. Cant merge the first input dimension=",
+                            shapeA[i],
+                            " with second input dimension=",
+                            shapeB[i],
+                            " at index=",
+                            i);
         }
         m_shapeY[i] = shapeB[i];
     }

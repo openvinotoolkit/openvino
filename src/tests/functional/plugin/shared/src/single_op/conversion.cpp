@@ -15,12 +15,7 @@ std::map<ov::test::utils::ConversionTypes, std::string> conversionNames = {
 }
 
 std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<ConversionParamsTuple>& obj) {
-    ov::test::utils::ConversionTypes conversion_type;
-    ov::element::Type input_type, convert_type;
-    std::string device_name;
-    std::vector<InputShape> shapes;
-    std::tie(conversion_type, shapes, input_type, convert_type, device_name) =
-        obj.param;
+    const auto& [conversion_type, shapes, input_type, convert_type, device_name] = obj.param;
     std::ostringstream result;
     result << "conversionOpType=" << conversionNames[conversion_type] << "_";
     result << "IS=(";
@@ -42,10 +37,8 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
 }
 
 void ConversionLayerTest::SetUp() {
-    ov::test::utils::ConversionTypes conversion_type;
-    ov::element::Type input_type, convert_type;
-    std::vector<InputShape> shapes;
-    std::tie(conversion_type, shapes, input_type, convert_type, targetDevice) = GetParam();
+    const auto& [conversion_type, shapes, input_type, convert_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     ov::ParameterVector params;

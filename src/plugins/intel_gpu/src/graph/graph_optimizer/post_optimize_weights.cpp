@@ -109,6 +109,8 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 if (onednn_weights_params &&
                    (updated_input_layout.format != onednn::find_data_format(onednn_weights_params->_in_desc) ||
                     onednn::convert_data_type(updated_input_layout.data_type) != onednn_weights_params->_in_desc.get_data_type())) {
+                    auto shape_consistent = onednn::keep_weights_reorder_shape_consistent(updated_input_layout, onednn_weights_params->_out_desc);
+                    OPENVINO_ASSERT(shape_consistent, "[GPU] Input shape and output shape of weight reorder should be same.");
                     onednn_weights_params->_in_desc = onednn::layout_to_memory_desc(updated_input_layout);
                 }
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -125,7 +127,7 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 if (node.type() == lstm_seq::type_id()) {
                     program_node& prev_node = node.get_dependency(i);
                     if (i == 5) {
-                        add_lstm_bias_reorder(prev_node.id(), weights_reorder_params, p, prev_node, node);
+                        add_lstm_bias_reorder(prev_node.id(), weights_reorder_params, p, prev_node, node, i);
                     } else {
                         add_lstm_weights_reorder(prev_node.id(), weights_reorder_params, p, prev_node, node, i);
                     }
@@ -185,6 +187,17 @@ void post_optimize_weights::add_gru_weights_reorder(primitive_id input_id, std::
 void post_optimize_weights::add_lstm_weights_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
                                                      cldnn::program_node& prev, cldnn::program_node& node, size_t i) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
+
+    reorder_cache_key ckey{prev.id(), reorder_params->get_output_layout()};
+    auto itr = _cached_lstm_weights_reorder.find(ckey);
+
+    // If we already did the lstm weight optimization, reuse existing node.
+    if (itr != _cached_lstm_weights_reorder.end()) {
+            node.replace_dependency(i, *itr->second, false);
+            return;
+    }
+
+    // This is first time. Run lstm weight optimization.
     std::string reorder_id = input_id + "_reo_" + std::to_string(i);
     const auto dir_num = static_cast<int>(reorder_params->get_input_layout().get_shape()[0]);
     auto hiddenSize = reorder_params->get_input_layout().get_shape()[1] / 4;
@@ -236,11 +249,24 @@ void post_optimize_weights::add_lstm_weights_reorder(primitive_id input_id, std:
     set_implementation_and_output(crop2_node);
     set_implementation_and_output(con_node);
     set_implementation_and_output(permute_node);
+
+    _cached_lstm_weights_reorder[ckey] = &permute_node;
 }
 
 void post_optimize_weights::add_lstm_bias_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
-                                                  cldnn::program_node& prev, cldnn::program_node& node) {
+                                                  cldnn::program_node& prev, cldnn::program_node& node, size_t i) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
+
+    reorder_cache_key ckey{prev.id(), reorder_params->get_output_layout()};
+    auto itr = _cached_lstm_bias_reorder.find(ckey);
+
+    // If we already did the lstm bias optimization, reuse existing node.
+    if (itr != _cached_lstm_bias_reorder.end()) {
+            node.replace_dependency(i, *itr->second, false);
+            return;
+    }
+
+    // This is first time. Run lstm bias optimization.
     const auto dir_num = static_cast<int>(reorder_params->get_input_layout().get_shape()[0]);
     auto hiddenSize = reorder_params->get_output_layout().get_shape()[1] / 4;
     auto cropSize = cldnn::tensor{dir_num, static_cast<int>(hiddenSize), 1, 1};
@@ -276,6 +302,8 @@ void post_optimize_weights::add_lstm_bias_reorder(primitive_id input_id, std::sh
     set_implementation_and_output(crop1_node);
     set_implementation_and_output(crop2_node);
     set_implementation_and_output(con_node);
+
+    _cached_lstm_bias_reorder[ckey] = &con_node;
 }
 
 void post_optimize_weights::run(program& p) {
@@ -297,5 +325,4 @@ void post_optimize_weights::run(program& p) {
     if (found_lstm)
         p.get_processing_order().calc_processing_order(p);
 }
-
 }  // namespace cldnn

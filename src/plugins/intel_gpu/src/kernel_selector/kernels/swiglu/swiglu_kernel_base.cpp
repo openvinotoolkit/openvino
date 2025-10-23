@@ -78,7 +78,7 @@ KernelsData SwiGLUKernelBase::GetKernelsData(const Params& params) const {
 
 bool SwiGLUKernelBase::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

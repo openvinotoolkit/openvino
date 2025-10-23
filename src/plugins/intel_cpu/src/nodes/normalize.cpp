@@ -55,7 +55,7 @@
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include <cpu/x64/jit_generator.hpp>
 
@@ -63,6 +63,7 @@
 #    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;
@@ -123,16 +124,16 @@ static inline bool isFloatCompatible(memory::data_type type) {
 }
 
 template <cpu_isa_t isa>
-struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_kernel, public jit_generator {
+struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_modulo_kernel_f32)
 
-    jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp)
+    explicit jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp)
         : jit_uni_normalize_modulo_kernel(jcp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = ov::intel_cpu::jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -197,7 +198,7 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
 private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    size_t vlen = cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_work_amount = r9;
@@ -246,16 +247,16 @@ private:
 
 // dst = src * modulo_inv
 template <cpu_isa_t isa>
-struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public jit_generator {
+struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_kernel_f32)
 
     explicit jit_uni_normalize_kernel_f32(jit_normalize_config_params jcp, const dnnl_primitive_attr& attr)
         : jit_uni_normalize_kernel(jcp, attr),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = ov::intel_cpu::jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -263,12 +264,12 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
-                                                                                            post_op.eltwise.alg,
-                                                                                            post_op.eltwise.alpha,
-                                                                                            post_op.eltwise.beta,
-                                                                                            post_op.eltwise.scale,
-                                                                                            data_type::f32));
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
+                                                                                              post_op.eltwise.alg,
+                                                                                              post_op.eltwise.alpha,
+                                                                                              post_op.eltwise.beta,
+                                                                                              post_op.eltwise.scale,
+                                                                                              data_type::f32));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op));
             } else if (post_op.is_quantization()) {
@@ -320,7 +321,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    size_t vlen = cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_dst = r9;
@@ -354,7 +355,7 @@ private:
 
     std::unique_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16 = nullptr;
 
-    std::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector_t<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
@@ -816,7 +817,7 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
         }
 
         const auto mode = norm->get_eps_mode();
-        if (!one_of(mode, ov::op::EpsMode::ADD, ov::op::EpsMode::MAX)) {
+        if (none_of(mode, ov::op::EpsMode::ADD, ov::op::EpsMode::MAX)) {
             errorMessage = "Doesn't support eps_mode: " + ov::as_string(mode);
             return false;
         }
@@ -833,13 +834,9 @@ NormalizeL2::NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (inputShapes.size() != 2 || outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges");
-    }
-
-    if (getInputShapeAtPort(DATA).getRank() > 4 || getInputShapeAtPort(DATA).getRank() < 2) {
-        THROW_CPU_NODE_ERR("has invalid input shape. Normalize supports from 2D to 4D blobs.");
-    }
+    CPU_NODE_ASSERT(inputShapes.size() == 2 && outputShapes.size() == 1, "has incorrect number of input/output edges");
+    CPU_NODE_ASSERT(getInputShapeAtPort(DATA).getRank() <= 4 && getInputShapeAtPort(DATA).getRank() >= 2,
+                    "has invalid input shape. Normalize supports from 2D to 4D blobs.");
 
     auto norm = ov::as_type_ptr<const ov::op::v0::NormalizeL2>(op);
     attrs.eps = norm->get_eps();
@@ -870,26 +867,23 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    if (one_of(ov::element::f16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
+    if (any_of(ov::element::f16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
 
-    if (!one_of(inputPrecision,
-                ov::element::f32,
-                ov::element::bf16,
-                ov::element::f16,
-                ov::element::i8,
-                ov::element::u8)) {
-        THROW_CPU_NODE_ERR("has unsupported input precision: ", inputPrecision);
-    }
-    if (!one_of(outputPrecision,
-                ov::element::f32,
-                ov::element::bf16,
-                ov::element::f16,
-                ov::element::i8,
-                ov::element::u8)) {
-        THROW_CPU_NODE_ERR("has unsupported output precision: ", outputPrecision);
-    }
+    CPU_NODE_ASSERT(
+        any_of(inputPrecision, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8),
+        "has unsupported input precision: ",
+        inputPrecision);
+
+    CPU_NODE_ASSERT(any_of(outputPrecision,
+                           ov::element::f32,
+                           ov::element::bf16,
+                           ov::element::f16,
+                           ov::element::i8,
+                           ov::element::u8),
+                    "has unsupported output precision: ",
+                    outputPrecision);
 
     attrs.input_prec = inputPrecision;
     attrs.output_prec = outputPrecision;
@@ -960,11 +954,11 @@ void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs,
             continue;
         }
 
-        THROW_CPU_NODE_ERR("Fusing of ",
-                           NameFromType(node->getType()),
-                           " operation to ",
-                           NameFromType(this->getType()),
-                           " node is not implemented");
+        CPU_NODE_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     kernel_attrs.set_post_ops(ops);
@@ -973,15 +967,9 @@ void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs,
 void NormalizeL2::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(DATA);
     auto srcMemPtr = getSrcMemoryAtPort(DATA);
-    if (!dstMemPtr) {
-        THROW_CPU_NODE_ERR("can't get destination memory");
-    }
-    if (!srcMemPtr) {
-        THROW_CPU_NODE_ERR("can't get input memory");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has nullable preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(dstMemPtr, "can't get destination memory");
+    CPU_NODE_ASSERT(srcMemPtr, "can't get input memory");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "has nullable preferable primitive descriptor");
 
     if (!attrs.cornerCase) {
         if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
@@ -993,7 +981,7 @@ void NormalizeL2::createPrimitive() {
         } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
             attrs.layout = LayoutType::nspc;
         } else {
-            THROW_CPU_NODE_ERR("has selected layout which is not supported");
+            CPU_NODE_THROW("has selected layout which is not supported");
         }
     }
 
@@ -1027,9 +1015,7 @@ void NormalizeL2::prepareParams() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
-    if (!result.first) {
-        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
-    }
+    CPU_NODE_ASSERT(result.first, "Primitive descriptor was not found.");
 
     execPtr = result.first;
 }
@@ -1039,9 +1025,7 @@ void NormalizeL2::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void NormalizeL2::execute([[maybe_unused]] const dnnl::stream& strm) {
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
-    }
+    CPU_NODE_ASSERT(execPtr, "doesn't have a compiled executor.");
 
     const auto* src_ptr = getSrcDataAtPortAs<const uint8_t>(DATA);
     auto* dst_ptr = getDstDataAtPortAs<uint8_t>(DATA);
@@ -1053,7 +1037,7 @@ void NormalizeL2::execute([[maybe_unused]] const dnnl::stream& strm) {
 template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2CornerCaseExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
-    NormalizeL2CornerCaseExecutor(const VectorDims& dims)
+    explicit NormalizeL2CornerCaseExecutor(const VectorDims& dims)
         : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>())) {}
 
     void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, [[maybe_unused]] const void** post_ops_data) override {
@@ -1081,10 +1065,9 @@ public:
                            const dnnl::primitive_attr& kernel_attrs,
                            const VectorDims& dims)
         : attrs(attrs_) {
-        if (attrs.layout != LayoutType::ncsp && attrs.layout != LayoutType::nspc &&
-            attrs.layout != LayoutType::nCsp8c && attrs.layout != LayoutType::nCsp16c) {
-            OPENVINO_THROW("Normalaize2L executor has selected layout which is not supported");
-        }
+        OPENVINO_ASSERT(
+            any_of(attrs.layout, LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp8c, LayoutType::nCsp16c),
+            "Normalaize2L executor has selected layout which is not supported");
 
         jcp.src_dt = DnnlExtensionUtils::ElementTypeToDataType(attrs.input_prec);
         jcp.dst_dt = DnnlExtensionUtils::ElementTypeToDataType(attrs.output_prec);
@@ -1424,9 +1407,8 @@ public:
         : dims(std::move(dims)),
           kernel_attrs(kernel_attrs),
           attrs(attrs) {
-        if (attrs.layout != LayoutType::ncsp) {
-            OPENVINO_THROW("Reference Executor of 'NormalizeL2' supports only ncsp layout!");
-        }
+        OPENVINO_ASSERT(attrs.layout == LayoutType::ncsp,
+                        "Reference Executor of 'NormalizeL2' supports only ncsp layout!");
 
         const auto& p = (*kernel_attrs.get()).post_ops_;
         for (int i = 0; i < p.len(); i++) {

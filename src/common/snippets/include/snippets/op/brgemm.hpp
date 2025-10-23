@@ -18,22 +18,22 @@ namespace ov::snippets::op {
 class Brgemm : virtual public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("Brgemm", "SnippetsOpset");
-    Brgemm(const Output<Node>& A,
-           const Output<Node>& B,
-           size_t offset_a = 0lu,
-           size_t offset_b = 0lu,
-           size_t offset_c = 0lu,
-           const std::vector<size_t>& layout_a = {},
-           const std::vector<size_t>& layout_b = {},
-           const std::vector<size_t>& layout_c = {});
-    Brgemm(const Output<Node>& A,
-           const Output<Node>& B,
-           const PortDescriptor& desc_a,
-           const PortDescriptor& desc_b,
-           const PortDescriptor& desc_c,
-           const std::vector<size_t>& layout_a = {},
-           const std::vector<size_t>& layout_b = {},
-           const std::vector<size_t>& layout_c = {});
+    explicit Brgemm(const Output<Node>& A,
+                    const Output<Node>& B,
+                    size_t offset_a = 0LU,
+                    size_t offset_b = 0LU,
+                    size_t offset_c = 0LU,
+                    const std::vector<size_t>& layout_a = {},
+                    const std::vector<size_t>& layout_b = {},
+                    const std::vector<size_t>& layout_c = {});
+    explicit Brgemm(const Output<Node>& A,
+                    const Output<Node>& B,
+                    const PortDescriptor& desc_a,
+                    const PortDescriptor& desc_b,
+                    const PortDescriptor& desc_c,
+                    const std::vector<size_t>& layout_a = {},
+                    const std::vector<size_t>& layout_b = {},
+                    const std::vector<size_t>& layout_c = {});
     Brgemm() = default;
 
     size_t get_offset_a() const {

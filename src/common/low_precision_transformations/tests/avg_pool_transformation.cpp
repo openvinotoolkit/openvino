@@ -53,12 +53,7 @@ class AvgPoolTransformation : public LayerTransformation,
                               public testing::WithParamInterface<AvgPoolTransformationParams> {
 public:
     void SetUp() override {
-        ov::element::Type precision;
-        ov::PartialShape shape;
-        bool addFakeQuantize;
-        std::string additionalLayer;
-        AvgPoolTransformationTestValues testValues;
-        std::tie(precision, shape, addFakeQuantize, additionalLayer, testValues) = GetParam();
+        const auto& [precision, shape, addFakeQuantize, additionalLayer, testValues] = GetParam();
         actualFunction = ov::builder::subgraph::AvgPoolFunction::getOriginal(precision,
                                                                                  testValues.actual.inputPrecision,
                                                                                  shape,
@@ -84,12 +79,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AvgPoolTransformationParams> obj) {
-        ov::element::Type precision;
-        ov::PartialShape shape;
-        bool addFakeQuantize;
-        std::string additionalLayer;
-        AvgPoolTransformationTestValues testValues;
-        std::tie(precision, shape, addFakeQuantize, additionalLayer, testValues) = obj.param;
+        const auto& [precision, shape, addFakeQuantize, additionalLayer, testValues] = obj.param;
 
         std::ostringstream result;
         result << precision << "_"

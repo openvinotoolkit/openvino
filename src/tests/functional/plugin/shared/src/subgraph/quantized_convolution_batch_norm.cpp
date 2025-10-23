@@ -59,23 +59,16 @@ std::ostream& operator<<(std::ostream& os, IntervalsType type) {
 
 std::string QuantizedConvolutionBatchNorm::getTestCaseName(const testing::TestParamInfo<QuantizedConvolutionBatchNormParams>& obj) {
     std::ostringstream name;
-    ConvType conv_type;
-    QuantizeType quantize_type;
-    IntervalsType intervals_type;
-    bool transpose_on_weights;
-    std::string device;
-    std::tie(conv_type, quantize_type, intervals_type, transpose_on_weights, device) = obj.param;
-    name << "conv_type=" << conv_type << "_quantize_type=" << quantize_type << "_intervals_type=" << intervals_type <<
-        "_transpose_on_weights=" << std::boolalpha << transpose_on_weights << "_device=" << device;
+
+    const auto& [conv_type, quantize_type, intervals_type, transpose_on_weights, device] = obj.param;
+    name << "conv_type=" << conv_type << "_quantize_type=" << quantize_type << "_intervals_type=" << intervals_type
+         << "_transpose_on_weights=" << std::boolalpha << transpose_on_weights << "_device=" << device;
     return name.str();
 }
 
 void QuantizedConvolutionBatchNorm::SetUp() {
-    ConvType conv_type;
-    QuantizeType quantize_type;
-    IntervalsType intervals_type;
-    bool transpose_on_weights;
-    std::tie(conv_type, quantize_type, intervals_type, transpose_on_weights, targetDevice) = GetParam();
+    const auto& [conv_type, quantize_type, intervals_type, transpose_on_weights, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     size_t input_channels = 3;
     size_t output_channels = 4;

@@ -33,6 +33,12 @@ namespace intel_gpu {
 static constexpr Property<uint64_t, PropertyMutability::RO> device_total_mem_size{"GPU_DEVICE_TOTAL_MEM_SIZE"};
 
 /**
+ * @brief Read-only property which defines max size of memory object allocation in bytes
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<uint64_t, PropertyMutability::RO> device_max_alloc_mem_size{"GPU_DEVICE_MAX_ALLOC_MEM_SIZE"};
+
+/**
  * @brief Read-only property to get microarchitecture identifier in major.minor.revision format
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
@@ -147,9 +153,19 @@ static constexpr Property<bool> enable_kernels_reuse{"GPU_ENABLE_KERNELS_REUSE"}
  * @ingroup ov_runtime_cpp_prop_api
  *
  * If dynamic_quantization_group_size is larger than this max value, dynamic quantization will be disabled.
+ * This property is intended to be set from model rt-info to limit dynamic quantization group size for certain models.
  */
 static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{
     "GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
+
+/**
+ * @brief Turning on this key switches addressing mode to allow allocations larger than 4GB
+ * as described here:
+ * https://github.com/intel/compute-runtime/blob/master/programmers-guide/ALLOCATIONS_GREATER_THAN_4GB.md#creating-allocations-greater-than-4GB
+ * Note: Performance may be lower with this option enabled.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOCATIONS"};
 
 }  // namespace hint
 

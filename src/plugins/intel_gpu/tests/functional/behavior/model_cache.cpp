@@ -61,11 +61,7 @@ typedef std::tuple<Import_API, bool, ov::element::Type, ov::element::Type> testP
 class CheckWeightlessCacheAccuracy : public ::testing::Test, public ::testing::WithParamInterface<testParams> {
 public:
     static std::string get_test_case_name(::testing::TestParamInfo<testParams> obj) {
-        Import_API import_api_;
-        bool do_encryption_;
-        ov::element::Type inference_mode_;
-        ov::element::Type model_dtype_;
-        std::tie(import_api_, do_encryption_, inference_mode_, model_dtype_) = obj.param;
+        const auto& [import_api_, do_encryption_, inference_mode_, model_dtype_] = obj.param;
 
         std::ostringstream result;
         const char separator = '_';

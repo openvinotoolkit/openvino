@@ -22,6 +22,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/mark_invariant_shape_path.hpp"
 #include "snippets/op/loop.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
 
@@ -49,7 +50,7 @@ bool SetBufferRegGroup::can_be_in_one_reg_group(const UnifiedLoopInfo::LoopPortI
     const auto equal_is_incremented = lhs_is_incremented == rhs_is_incremented;
     return equal_invariant_shape_paths && equal_is_incremented &&
            (equal_element_type_sizes || !lhs_is_incremented ||
-            (lhs_info.desc.ptr_increment == 0 && lhs_info.desc.finalization_offset == 0));
+            utils::all_of(0, lhs_info.desc.ptr_increment, lhs_info.desc.finalization_offset));
 }
 
 bool SetBufferRegGroup::are_adjacent(const BufferMap::value_type& lhs, const BufferMap::value_type& rhs) {
@@ -70,8 +71,8 @@ bool SetBufferRegGroup::are_adjacent(const BufferMap::value_type& lhs, const Buf
         lhs_ids.size() != rhs_ids.size() &&
         std::equal(rhs_ids.cbegin(), rhs_ids.cbegin() + count_outer_loops, lhs_ids.cbegin());
     const auto outer_buffer_has_zero_shifts =
-        outer_buffer.second.desc.ptr_increment == 0 && outer_buffer.second.desc.finalization_offset == 0;
-    return !(are_outer_loops_the_same && outer_buffer_has_zero_shifts);
+        utils::all_of(0, outer_buffer.second.desc.ptr_increment, outer_buffer.second.desc.finalization_offset);
+    return !are_outer_loops_the_same || !outer_buffer_has_zero_shifts;
 }
 
 void SetBufferRegGroup::update_adj_matrix(const BufferMap::value_type& lhs,

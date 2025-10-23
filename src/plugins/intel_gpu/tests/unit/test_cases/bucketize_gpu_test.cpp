@@ -26,10 +26,7 @@ using bucketize_test_params = std::tuple<bucketize_test_inputs<I, B, O>, format:
 template <class I, class B, class O>
 struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
     void test() {
-        format fmt = format::bfyx;
-        bucketize_test_inputs<I, B, O> p;
-        bool is_caching_test;
-        std::tie(p, fmt, is_caching_test) = testing::TestWithParam<bucketize_test_params<I, B, O>>::GetParam();
+        const auto& [p, fmt, is_caching_test] = testing::TestWithParam<bucketize_test_params<I, B, O>>::GetParam();
         auto& engine = get_test_engine();
 
         const layout in_layout(ov::element::from<I>(),

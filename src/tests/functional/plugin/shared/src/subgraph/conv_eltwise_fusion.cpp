@@ -20,16 +20,9 @@ namespace ov {
 namespace test {
 
 std::string ConvEltwiseFusion::getTestCaseName(const testing::TestParamInfo<ConvEltwiseFusionParams>& obj) {
-    std::tuple<NodeTypeInfo, size_t> conv_params;
-    NodeTypeInfo conv_type, eltwise_type;
-    bool negative;
-    Shape input_shape, weights_shape, const_shape;
-    element::Type precision;
-    std::string targetName;
-    std::tie(conv_params, eltwise_type, negative, input_shape, weights_shape, const_shape, precision, targetName) =
+    const auto& [conv_params, eltwise_type, negative, input_shape, weights_shape, const_shape, precision, targetName] =
         obj.param;
-    size_t num_inputs;
-    std::tie(conv_type, num_inputs) = conv_params;
+    const auto& [conv_type, num_inputs] = conv_params;
     std::ostringstream results;
 
     results << conv_type.name << "_";
@@ -45,15 +38,16 @@ std::string ConvEltwiseFusion::getTestCaseName(const testing::TestParamInfo<Conv
 }
 
 void ConvEltwiseFusion::SetUp() {
-    std::tuple<NodeTypeInfo, size_t> conv_params;
-    NodeTypeInfo conv_type, eltwise_type;
-    bool negative;
-    Shape input_shape, weights_shape, const_shape;
-    element::Type precision;
-    size_t num_inputs;
-    std::tie(conv_params, eltwise_type, negative, input_shape, weights_shape, const_shape, precision, targetDevice) =
-        this->GetParam();
-    std::tie(conv_type, num_inputs) = conv_params;
+    const auto& [conv_params,
+                 eltwise_type,
+                 negative,
+                 input_shape,
+                 weights_shape,
+                 const_shape,
+                 precision,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+    const auto& [conv_type, num_inputs] = conv_params;
     pass::Manager manager;
 
     {

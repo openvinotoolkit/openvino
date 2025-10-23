@@ -117,7 +117,7 @@ using FuseConvertParams = std::tuple<std::pair<ov::element::Type, ov::element::T
 
 class FuseConvertTests : public FuseBrgemmCPUPostopsTests, public WithParamInterface<FuseConvertParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseConvertParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseConvertParams>& obj) {
         auto [input_precisions, convert_dst_type] = obj.param;
         std::ostringstream result;
         result << "InputPrecisions=(" << input_precisions.first << "_" << input_precisions.second
@@ -163,7 +163,7 @@ using FuseScalarEltwiseParams = std::tuple<std::pair<ov::element::Type, ov::elem
 
 class FuseScalarEltwiseTests : public FuseBrgemmCPUPostopsTests, public WithParamInterface<FuseScalarEltwiseParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseScalarEltwiseParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseScalarEltwiseParams>& obj) {
         auto [input_precisions, scalar_op_type] = obj.param;
         std::ostringstream result;
         result << "InputPrecisions=(" << input_precisions.first << "_" << input_precisions.second
@@ -235,7 +235,7 @@ using FuseBinaryEltwiseParams = std::tuple<std::pair<ov::element::Type, ov::elem
 
 class FuseBinaryEltwiseTests : public FuseBrgemmCPUPostopsTests, public WithParamInterface<FuseBinaryEltwiseParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseBinaryEltwiseParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseBinaryEltwiseParams>& obj) {
         auto [input_precisions, binary_op_type, postop_input_shape] = obj.param;
         std::ostringstream result;
         result << "InputPrecisions=(" << input_precisions.first << "_" << input_precisions.second

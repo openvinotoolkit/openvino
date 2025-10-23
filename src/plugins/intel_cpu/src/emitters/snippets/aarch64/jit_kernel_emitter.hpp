@@ -60,6 +60,13 @@ protected:
     virtual void init_data_pointers(const std::vector<Xbyak_aarch64::XReg>& arg_regs,
                                     const std::vector<Xbyak_aarch64::XReg>& data_ptr_regs) const = 0;
 
+    // Helper method to load source/destination pointers using optimized pair loads where possible
+    void load_data_pointers(const Xbyak_aarch64::XReg& reg_runtime_params,
+                            const std::vector<Xbyak_aarch64::XReg>& data_ptr_regs,
+                            size_t start_idx,
+                            size_t end_idx,
+                            int32_t base_offset) const;
+
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
                         const std::vector<size_t>& pool_vec_idxs,

@@ -185,11 +185,11 @@ KernelsPriority ConvolutionKernel_bfyx_os_iyx_osv32::GetKernelsPriority(const Pa
 
 bool ConvolutionKernel_bfyx_os_iyx_osv32::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (!IsSIMDSizeSupported(p.engineInfo, 16)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // To prevent big sized filter which causes lots of CL build time.
@@ -197,7 +197,7 @@ bool ConvolutionKernel_bfyx_os_iyx_osv32::Validate(const Params& p) const {
     const auto& params = static_cast<const convolution_params&>(p);
     auto filter_size = params.filterSize.x * params.filterSize.y;
     if (filter_size >= acceptable_filter_size) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

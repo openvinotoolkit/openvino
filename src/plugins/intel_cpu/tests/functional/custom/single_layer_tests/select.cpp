@@ -20,13 +20,8 @@ class SelectLayerCPUTest : public testing::WithParamInterface<selectParams>,
                            virtual public SubgraphBaseTest,
                            public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<selectParams> obj) {
-        std::vector<InputShape> shapes;
-        ElementType precision;
-        ov::op::AutoBroadcastSpec broadcast;
-        fusingSpecificParams fusingParams;
-        std::tie(shapes, precision, broadcast, fusingParams) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<selectParams>& obj) {
+        const auto& [shapes, precision, broadcast, fusingParams] = obj.param;
         std::ostringstream result;
         result << "Condition_prc_" << ElementType::boolean << "_Then_Else_prc_" << precision << "_";
         result << "IS=(";
@@ -49,11 +44,7 @@ protected:
     void SetUp() override {
         abs_threshold = 0;
         targetDevice = ov::test::utils::DEVICE_CPU;
-        std::vector<InputShape> shapes;
-        ElementType precision;
-        ov::op::AutoBroadcastSpec broadcast;
-        fusingSpecificParams fusingParams;
-        std::tie(shapes, precision, broadcast, fusingParams) = this->GetParam();
+        const auto& [shapes, precision, broadcast, fusingParams] = this->GetParam();
         init_input_shapes(shapes);
         std::tie(inFmts, outFmts, priority, selectedType) = emptyCPUSpec;
         selectedType = makeSelectedTypeStr(getPrimitiveType(), ov::element::i8);

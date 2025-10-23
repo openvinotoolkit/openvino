@@ -4,7 +4,30 @@
 
 #include "acl_pooling.hpp"
 
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Error.h>
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/core/Types.h>
+#include <arm_compute/runtime/IFunction.h>
+#include <arm_compute/runtime/NEON/functions/NEPooling3dLayer.h>
+#include <arm_compute/runtime/NEON/functions/NEPoolingLayer.h>
+
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "acl_utils.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/pooling.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 
@@ -23,28 +46,26 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
                                      Pooling3dLayerInfo* pool3d_info,
                                      bool ignoreOutShapeErrors) {
     unsigned int pad_left =
-        (poolingAttrs.data_pad_begin.size() >= 2u) ? poolingAttrs.data_pad_begin[1] : poolingAttrs.data_pad_begin[0];
+        (poolingAttrs.data_pad_begin.size() >= 2U) ? poolingAttrs.data_pad_begin[1] : poolingAttrs.data_pad_begin[0];
     unsigned int pad_right =
-        (poolingAttrs.data_pad_end.size() >= 2u) ? poolingAttrs.data_pad_end[1] : poolingAttrs.data_pad_end[0];
-    unsigned int pad_top = (poolingAttrs.data_pad_begin.size() >= 2u) ? poolingAttrs.data_pad_begin[0] : 0;
-    unsigned int pad_bottom = (poolingAttrs.data_pad_end.size() >= 2u) ? poolingAttrs.data_pad_end[0] : 0;
-    unsigned int kernel_w = (poolingAttrs.kernel.size() >= 2u) ? poolingAttrs.kernel[1] : poolingAttrs.kernel[0];
-    unsigned int kernel_h = (poolingAttrs.kernel.size() >= 2u) ? poolingAttrs.kernel[0] : 1;
-    unsigned int stride_x = (poolingAttrs.stride.size() >= 2u) ? poolingAttrs.stride[1] : poolingAttrs.stride[0];
-    unsigned int stride_y = (poolingAttrs.stride.size() >= 2u) ? poolingAttrs.stride[0] : 1;
+        (poolingAttrs.data_pad_end.size() >= 2U) ? poolingAttrs.data_pad_end[1] : poolingAttrs.data_pad_end[0];
+    unsigned int pad_top = (poolingAttrs.data_pad_begin.size() >= 2U) ? poolingAttrs.data_pad_begin[0] : 0;
+    unsigned int pad_bottom = (poolingAttrs.data_pad_end.size() >= 2U) ? poolingAttrs.data_pad_end[0] : 0;
+    unsigned int kernel_w = (poolingAttrs.kernel.size() >= 2U) ? poolingAttrs.kernel[1] : poolingAttrs.kernel[0];
+    unsigned int kernel_h = (poolingAttrs.kernel.size() >= 2U) ? poolingAttrs.kernel[0] : 1;
+    unsigned int stride_x = (poolingAttrs.stride.size() >= 2U) ? poolingAttrs.stride[1] : poolingAttrs.stride[0];
+    unsigned int stride_y = (poolingAttrs.stride.size() >= 2U) ? poolingAttrs.stride[0] : 1;
 
-    PoolingType pool_type;
-    bool exclude_padding = false;
-    if (poolingAttrs.algorithm == Algorithm::PoolingMax) {
-        pool_type = PoolingType::MAX;
-        exclude_padding = (poolingAttrs.pad_type != op::PadType::EXPLICIT);
-    } else if (poolingAttrs.algorithm == Algorithm::PoolingAvg) {
-        pool_type = PoolingType::AVG;
-        exclude_padding = poolingAttrs.exclude_pad;
-    } else {
+    auto [pool_type, exclude_padding] = [&]() -> std::pair<PoolingType, bool> {
+        if (poolingAttrs.algorithm == Algorithm::PoolingMax) {
+            return {PoolingType::MAX, (poolingAttrs.pad_type != op::PadType::EXPLICIT)};
+        }
+        if (poolingAttrs.algorithm == Algorithm::PoolingAvg) {
+            return {PoolingType::AVG, poolingAttrs.exclude_pad};
+        }
         DEBUG_LOG("Unknown pooling algorithm: ", static_cast<int>(poolingAttrs.algorithm));
-        return false;
-    }
+        return {PoolingType::MAX, false};
+    }();
 
     // The combination of parameters: NCHW + CEIL gives an accuracy problem in AvgPool.
     // One workaround is to disable the ACL executor for these parameters.
@@ -54,22 +75,18 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         DEBUG_LOG("NCHW + CEIL gives an accuracy problem in ACL AvgPool. ACL executor will not be created.");
         return false;
     }
-    DimensionRoundingType round;
-    switch (poolingAttrs.rounding) {
-    case op::RoundingType::FLOOR:
-        round = DimensionRoundingType::FLOOR;
-        break;
-    case op::RoundingType::CEIL:
-        round = DimensionRoundingType::CEIL;
-        break;
-    // CEIL_TORCH type is mapped to ACL CEIL type
-    case op::RoundingType::CEIL_TORCH:
-        round = DimensionRoundingType::CEIL;
-        break;
-    default:
-        DEBUG_LOG("Unknown rounding type: ", poolingAttrs.rounding);
-        return false;
-    }
+    auto round = [&]() -> DimensionRoundingType {
+        switch (poolingAttrs.rounding) {
+        case op::RoundingType::FLOOR:
+            return DimensionRoundingType::FLOOR;
+        case op::RoundingType::CEIL:
+        case op::RoundingType::CEIL_TORCH:
+            return DimensionRoundingType::CEIL;
+        default:
+            DEBUG_LOG("Unknown rounding type: ", poolingAttrs.rounding);
+            return DimensionRoundingType::FLOOR;
+        }
+    }();
 
     if (srcDimsSize == 5) {
         if (dstDescsSize > 1) {
@@ -159,8 +176,8 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
     dstTensor.allocator()->init(dstTensorInfo);
 
     std::function<std::unique_ptr<IFunction>(void)> exec_func;
-    if (srcDims.size() == 5u) {
-        if (dstDescs.size() == 1u) {
+    if (srcDims.size() == 5U) {
+        if (dstDescs.size() == 1U) {
             Pooling3dLayerInfo pool_info;
             if (!isSupported(srcTensorInfo,
                              dstTensorInfo,
@@ -181,7 +198,7 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
         }
     } else {
         arm_compute::PoolingLayerInfo pool_info;
-        if (dstDescs.size() > 1u) {
+        if (dstDescs.size() > 1U) {
             if (!isSupported(srcTensorInfo,
                              dstTensorInfo,
                              poolingAttrs,
@@ -234,18 +251,20 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
 
 void AclPoolingExecutor::exec(const std::vector<MemoryCPtr>& src,
                               const std::vector<MemoryPtr>& dst,
-                              std::unordered_map<int, MemoryPtr> postOpsArgs) {
+                              [[maybe_unused]] std::unordered_map<int, MemoryPtr> postOpsArgs) {
     srcTensor.allocator()->import_memory(src[0]->getData());
     dstTensor.allocator()->import_memory(dst[0]->getData());
-    if (dst.size() > 1u)
+    if (dst.size() > 1U) {
         indTensor.allocator()->import_memory(dst[1]->getData());
+    }
 
     ifunc->run();
 
     srcTensor.allocator()->free();
     dstTensor.allocator()->free();
-    if (dst.size() > 1u)
+    if (dst.size() > 1U) {
         indTensor.allocator()->free();
+    }
 }
 
 }  // namespace ov::intel_cpu

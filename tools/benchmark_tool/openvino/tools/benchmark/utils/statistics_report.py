@@ -8,7 +8,7 @@ import csv
 import numpy as np
 from enum import Enum
 from datetime import timedelta
-from typing import Dict, List, Tuple, Any
+from typing import Any
 from .logging import logger
 
 ## statistics reports types
@@ -164,7 +164,7 @@ class JsonStatisticsReport(StatisticsReport):
         StatisticsReport.__init__(self, config)
 
     def dump(self):
-        def list_to_dict(parameters: List[Tuple[str, str]]) -> Dict[str, str]:
+        def list_to_dict(parameters: list[tuple[str, str]]) -> dict[str, str]:
             return {key: value for key, value in parameters}
 
         filename = os.path.join(self.config.report_folder, 'benchmark_report.json')
@@ -185,7 +185,7 @@ class JsonStatisticsReport(StatisticsReport):
             json.dump(json_statistics, file)
             logger.info(f"Statistics report is stored to {file.name}")
 
-    def dump_performance_counters(self, prof_info_list: List[List[Any]]): #ProfilingInfo
+    def dump_performance_counters(self, prof_info_list: list[list[Any]]): #ProfilingInfo
         def profiling_info_to_dict_list(prof_info_list):
             
             profiling_info_json_list = [0]*len(prof_info_list)
@@ -259,7 +259,7 @@ class JsonStatisticsReport(StatisticsReport):
             logger.info(f'Performance counters report is stored to {filename}')
 
     def dump_performance_counters_sorted(self, prof_sorted_info) -> None:
-        def profiling_info_to_dict_list(prof_info_matrix: np.ndarray) -> List[Dict[str, str]]:
+        def profiling_info_to_dict_list(prof_info_matrix: np.ndarray) -> list[dict[str, str]]:
             total, total_cpu = 0, 0
 
             nodes_info_list = [0]*len(prof_info_matrix)

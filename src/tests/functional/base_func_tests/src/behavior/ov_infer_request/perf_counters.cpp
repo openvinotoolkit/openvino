@@ -21,9 +21,8 @@ void OVInferRequestPerfCountersTest::SetUp() {
 }
 
 std::string OVInferRequestPerfCountersTest::getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
-    std::string targetDevice;
-    ov::AnyMap configuration;
-    std::tie(targetDevice, configuration) = obj.param;
+    const auto& [_targetDevice, configuration] = obj.param;
+    auto targetDevice = _targetDevice;
     std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
     std::ostringstream result;
     result << "targetDevice=" << targetDevice << "_";

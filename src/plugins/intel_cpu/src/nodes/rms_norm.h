@@ -45,7 +45,7 @@ private:
     struct RMSNormExecutor;
     friend struct RMSNormKey;
 
-    float m_eps = 0.0f;
+    float m_eps = 0.0F;
 };
 
 }  // namespace ov::intel_cpu::node

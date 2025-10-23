@@ -29,8 +29,9 @@ public:
                            bool use_score_outputs,
                            bool allow_cache_rotation,
                            bool allow_score_aggregation,
+                           bool allow_xattention,
                            ParameterVector& rotated_block_indices_inputs_for_each_layer,
                            ParameterVector& rotation_deltas_inputs_for_each_layer,
-                           std::shared_ptr<op::v0::Parameter> model_rotation_trig_lut,
+                           ParameterVector& xattention_threshold_inputs_for_each_layer,
                            const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params);
 };

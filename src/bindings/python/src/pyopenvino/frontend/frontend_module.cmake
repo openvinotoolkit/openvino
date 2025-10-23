@@ -22,7 +22,7 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
     add_dependencies(${TARGET_NAME} pyopenvino)
     add_dependencies(py_ov_frontends ${TARGET_NAME})
 
-    if(ENABLE_NO_GIL_PYTHON_API)
+    if(NOT ENABLE_GIL_PYTHON_API)
         # disable GIL for free-threaded python build
         target_compile_definitions(${TARGET_NAME} PRIVATE Py_GIL_DISABLED=1)
     endif()

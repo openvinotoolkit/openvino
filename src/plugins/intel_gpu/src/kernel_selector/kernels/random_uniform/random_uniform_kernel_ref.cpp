@@ -92,14 +92,14 @@ ParamsKey RandomUniformKernelRef::GetSupportedKey() const {
 
 bool RandomUniformKernelRef::Validate(const Params &params) const {
     if (params.GetType() != KernelType::RANDOM_UNIFORM) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // output shape, min value, max value
     constexpr uint32_t number_of_inputs = 3;
     auto &randomUniformParams = dynamic_cast<const random_uniform_params &>(params);
     if (randomUniformParams.inputs.size() != number_of_inputs) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

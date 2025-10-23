@@ -59,6 +59,14 @@
 #    define OV_CPU_DNNL_X64(...)
 #endif
 
+#if defined(OPENVINO_ARCH_ARM64)
+#    define OV_CPU_INSTANCE_ARM64(...) {__VA_ARGS__},
+#    define OV_CPU_ARM64(...)          __VA_ARGS__
+#else
+#    define OV_CPU_INSTANCE_ARM64(...)
+#    define OV_CPU_ARM64(...)
+#endif
+
 #if defined(OV_CPU_WITH_DNNL) && defined(OPENVINO_ARCH_ARM64)
 #    define OV_CPU_INSTANCE_DNNL_ARM64(...) {__VA_ARGS__},
 #    define OV_CPU_DNNL_ARM64(...)          __VA_ARGS__
@@ -97,6 +105,14 @@
 #else
 #    define OV_CPU_INSTANCE_SHL(...)
 #    define OV_CPU_SHL(...)
+#endif
+
+#if defined(OPENVINO_ARCH_RISCV64)
+#    define OV_CPU_INSTANCE_RISCV64(...) {__VA_ARGS__},
+#    define OV_CPU_RISCV64(...)          __VA_ARGS__
+#else
+#    define OV_CPU_INSTANCE_RISCV64(...)
+#    define OV_CPU_RISCV64(...)
 #endif
 
 #define OV_CPU_INSTANCE_COMMON(...) {__VA_ARGS__},

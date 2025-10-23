@@ -14,11 +14,7 @@
 namespace ov {
 namespace test {
 std::string CTCGreedyDecoderLayerTest::getTestCaseName(const testing::TestParamInfo<ctcGreedyDecoderParams>& obj) {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::string targetDevice;
-    bool merge_repeated;
-    std::tie(model_type, shapes, merge_repeated, targetDevice) = obj.param;
+    const auto& [model_type, shapes, merge_repeated, targetDevice] = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -43,10 +39,8 @@ std::string CTCGreedyDecoderLayerTest::getTestCaseName(const testing::TestParamI
 }
 
 void CTCGreedyDecoderLayerTest::SetUp() {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    bool merge_repeated;
-    std::tie(model_type, shapes, merge_repeated, targetDevice) = GetParam();
+    const auto& [model_type, shapes, merge_repeated, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

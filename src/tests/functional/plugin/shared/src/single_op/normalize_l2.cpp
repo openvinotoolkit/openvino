@@ -12,13 +12,7 @@
 namespace ov {
 namespace test {
 std::string NormalizeL2LayerTest::getTestCaseName(const testing::TestParamInfo<NormalizeL2LayerTestParams>& obj) {
-    std::vector<int64_t> axes;
-    float eps;
-    ov::op::EpsMode eps_mode;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::string targetDevice;
-    std::tie(axes, eps, eps_mode, shapes, model_type, targetDevice) = obj.param;
+    const auto& [axes, eps, eps_mode, shapes, model_type, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -42,12 +36,8 @@ std::string NormalizeL2LayerTest::getTestCaseName(const testing::TestParamInfo<N
 }
 
 void NormalizeL2LayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    std::vector<int64_t> axes;
-    float eps;
-    ov::op::EpsMode eps_mode;
-    ov::element::Type model_type;
-    std::tie(axes, eps, eps_mode, shapes, model_type, targetDevice) = this->GetParam();
+    const auto& [axes, eps, eps_mode, shapes, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

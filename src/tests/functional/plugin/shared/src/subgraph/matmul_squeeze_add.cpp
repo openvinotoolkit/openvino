@@ -15,12 +15,7 @@ namespace ov {
 namespace test {
 
 std::string MatmulSqueezeAddTest::getTestCaseName(const testing::TestParamInfo<matmulSqueezeAddParams>& obj) {
-    ov::element::Type element_type;
-    ov::Shape input_shape;
-    std::size_t outputSize;
-    std::string targetDevice;
-    ov::AnyMap configuration;
-    std::tie(element_type, targetDevice, configuration, input_shape, outputSize) = obj.param;
+    const auto& [element_type, targetDevice, configuration, input_shape, outputSize] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
@@ -35,11 +30,9 @@ std::string MatmulSqueezeAddTest::getTestCaseName(const testing::TestParamInfo<m
 
 void MatmulSqueezeAddTest::SetUp() {
     auto seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-    ov::element::Type element_type;
-    ov::AnyMap tempConfig;
-    ov::Shape inputShape;
-    size_t outputSize;
-    std::tie(element_type, targetDevice, tempConfig, inputShape, outputSize) = this->GetParam();
+
+    const auto& [element_type, _targetDevice, tempConfig, inputShape, outputSize] = this->GetParam();
+    targetDevice = _targetDevice;
     configuration.insert(tempConfig.begin(), tempConfig.end());
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};

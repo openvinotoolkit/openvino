@@ -4,7 +4,7 @@
 
 #include "jit_tpp_emitter.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <array>
@@ -50,7 +50,7 @@ VectorDims TppEmitter::get_projected_subtensor(const snippets::lowered::PortDesc
     return subtensor;
 }
 
-TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {

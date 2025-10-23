@@ -6,20 +6,26 @@
 
 #include <cstddef>
 #include <cstring>
+#include <fstream>
 #include <istream>
 #include <memory>
 #include <set>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
+#if defined(__APPLE__)
+#    include <sys/sysctl.h>
+#    include <sys/types.h>
+#endif
 
 #include "compiled_model.h"
 #include "config.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/xbyak/xbyak_util.h"
 #include "cpu_streams_calculation.hpp"
 #include "graph_context.h"
+#include "internal_properties.hpp"
 #include "itt.h"
 #include "node.h"
 #include "openvino/core/except.hpp"
@@ -43,15 +49,18 @@
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "sigstack_manager.h"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/codec_xor.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/denormals.hpp"
+#include "utils/graph_serializer/deserializer.hpp"
+#include "utils/graph_serializer/serializer.hpp"
 #include "utils/precision_support.h"
-#include "utils/serialize.hpp"
 #include "weights_cache.hpp"
+#include "xbyak/xbyak_util.h"
 
 using namespace ov::threading;
 
@@ -65,8 +74,134 @@ static std::string getDeviceFullName() {
     // TODO: extract actual device name
     brand_string = "RISCV-64 CPU";
 #elif defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // TODO: extract actual device name
-    brand_string = "ARM CPU";
+#    if defined(__APPLE__) || defined(__MACOSX)
+    {
+        auto read_sysctl_str = [](const char* name) -> std::string {
+            size_t size = 0;
+            if (sysctlbyname(name, nullptr, &size, nullptr, 0) != 0 || size == 0) {
+                return {};
+            }
+            std::string out(size, '\0');
+            if (sysctlbyname(name, out.data(), &size, nullptr, 0) != 0 || size == 0) {
+                return {};
+            }
+            if (!out.empty() && out.back() == '\0') {
+                out.pop_back();
+            }
+            return out;
+        };
+
+        brand_string = read_sysctl_str("machdep.cpu.brand_string");
+        if (brand_string.empty()) {
+            brand_string = read_sysctl_str("hw.model");
+        }
+    }
+#    elif defined(__linux__)
+    {
+        auto trim = [](std::string s) -> std::string {
+            const auto start = s.find_first_not_of(" \t\r\n");
+            const auto end = s.find_last_not_of(" \t\r\n");
+            if (start == std::string::npos || end == std::string::npos) {
+                return {};
+            }
+            return s.substr(start, end - start + 1);
+        };
+        auto read_first_line = [&](const char* path) -> std::string {
+            std::ifstream f(path);
+            if (!f.is_open()) {
+                return {};
+            }
+            std::string line;
+            std::getline(f, line);
+            return trim(line);
+        };
+        auto pick_value = [&](const std::string& s) -> std::string {
+            const auto pos = s.find(':');
+            if (pos == std::string::npos) {
+                return {};
+            }
+            return trim(s.substr(pos + 1));
+        };
+
+        // 1) Prefer device-tree model if available (not present in many containers)
+        brand_string = read_first_line("/sys/firmware/devicetree/base/model");
+        if (brand_string.empty()) {
+            brand_string = read_first_line("/proc/device-tree/model");
+        }
+
+        // 2) Fall back to /proc/cpuinfo keys commonly seen on ARM
+        if (brand_string.empty()) {
+            std::ifstream cpuinfo("/proc/cpuinfo");
+            std::string line;
+            std::string implementer_hex;  // e.g., 0x41
+            std::string part_hex;         // e.g., 0xd40
+            while (cpuinfo.is_open() && std::getline(cpuinfo, line)) {
+                if (line.rfind("model name", 0) == 0 || line.rfind("Hardware", 0) == 0 ||
+                    line.rfind("Processor", 0) == 0 || line.rfind("Model", 0) == 0) {
+                    auto v = pick_value(line);
+                    if (!v.empty()) {
+                        brand_string = v;
+                        break;
+                    }
+                } else if (line.rfind("CPU implementer", 0) == 0) {
+                    implementer_hex = pick_value(line);
+                } else if (line.rfind("CPU part", 0) == 0) {
+                    part_hex = pick_value(line);
+                }
+            }
+
+            // 3) If we still don't have a friendly string, synthesize something readable
+            if (brand_string.empty()) {
+                auto vendor_from_impl = [](const std::string& hex) -> const char* {
+                    // Map common implementer IDs (see Linux arch/arm64/include/asm/sysreg.h / MIDR)
+                    static const std::unordered_map<uint32_t, const char*> vendor_map = {
+                        {0x41, "ARM"},
+                        {0x42, "Broadcom"},
+                        {0x43, "Cavium"},
+                        {0x44, "DEC"},
+                        {0x46, "Fujitsu"},
+                        {0x48, "HiSilicon"},
+                        {0x49, "Infineon"},
+                        {0x4C, "Motorola"},
+                        {0x4D, "MediaTek"},
+                        {0x4E, "NVIDIA"},
+                        {0x50, "Applied Micro"},
+                        {0x51, "Qualcomm"},
+                        {0x53, "Samsung"},
+                        {0x56, "Marvell"},
+                        {0x61, "Apple"},
+                        {0x69, "Intel"},
+                        {0x7A, "Allwinner"},
+                        {0xC0, "Ampere"},
+                    };
+
+                    if (hex.length() >= 3) {
+                        try {
+                            auto id = std::stoul(hex, nullptr, 16);
+                            auto it = vendor_map.find(id);
+                            return it != vendor_map.end() ? it->second : nullptr;
+                        } catch (const std::exception&) {
+                            return nullptr;
+                        }
+                    }
+                    return nullptr;
+                };
+
+                const char* vendor = vendor_from_impl(implementer_hex);
+                if (vendor) {
+                    if (!part_hex.empty()) {
+                        brand_string = std::string(vendor) + " (" + part_hex + ")";
+                    } else {
+                        brand_string = vendor;
+                    }
+                }
+            }
+        }
+    }
+#    endif
+    if (brand_string.empty()) {
+        brand_string = "ARM CPU";
+    }
 #elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     const unsigned int addr_list[3] = {0x80000002, 0x80000003, 0x80000004};
     unsigned int regs[4];
@@ -87,6 +222,10 @@ static std::string getDeviceFullName() {
 #else
 #    error "Unkown CPU architecture. Please, add support to openvino/core/visibility.hpp"
 #endif
+    // Strip any extra null terminators
+    while (!brand_string.empty() && brand_string.back() == '\0') {
+        brand_string.pop_back();
+    }
     return brand_string;
 }
 
@@ -181,14 +320,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     for (const auto& ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
         static const std::set<ov::element::Type_t> supported_precisions = {
-            ov::element::Type_t::u4,     ov::element::Type_t::i4,      ov::element::Type_t::u8,
-            ov::element::Type_t::i8,     ov::element::Type_t::f8e4m3,  ov::element::Type_t::f8e5m2,
-            ov::element::Type_t::u16,    ov::element::Type_t::i16,     ov::element::Type_t::u32,
-            ov::element::Type_t::i32,    ov::element::Type_t::u64,     ov::element::Type_t::i64,
-            ov::element::Type_t::bf16,   ov::element::Type_t::f16,     ov::element::Type_t::f32,
-            ov::element::Type_t::f64,    ov::element::Type_t::boolean, ov::element::Type_t::string,
-            ov::element::Type_t::nf4,    ov::element::Type_t::f4e2m1,  ov::element::Type_t::f8e8m0,
-            ov::element::Type_t::dynamic};
+            ov::element::Type_t::u4,   ov::element::Type_t::i4,      ov::element::Type_t::u8,
+            ov::element::Type_t::i8,   ov::element::Type_t::f8e4m3,  ov::element::Type_t::f8e5m2,
+            ov::element::Type_t::u16,  ov::element::Type_t::i16,     ov::element::Type_t::u32,
+            ov::element::Type_t::i32,  ov::element::Type_t::u64,     ov::element::Type_t::i64,
+            ov::element::Type_t::bf16, ov::element::Type_t::f16,     ov::element::Type_t::f32,
+            ov::element::Type_t::f64,  ov::element::Type_t::boolean, ov::element::Type_t::string,
+            ov::element::Type_t::nf4,  ov::element::Type_t::f4e2m1,  ov::element::Type_t::f8e8m0,
+            ov::element::Type_t::u2,   ov::element::Type_t::dynamic};
 
         if (supported_precisions.find(input_precision) == supported_precisions.end()) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
@@ -226,18 +365,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     DEBUG_LOG(PrintableModel(*cloned_model, "cpu_"));
 
-    if ((cloned_model->inputs().size() != model->inputs().size()) ||
-        (cloned_model->outputs().size() != model->outputs().size())) {
-        OPENVINO_THROW("Input/output ports count mismatch between the original model and after the transformation! "
-                       "Original model inputs count: ",
-                       model->inputs().size(),
-                       " after the transformations ",
-                       cloned_model->inputs().size(),
-                       ". Original model outputs count:",
-                       model->inputs().size(),
-                       " after the transformations ",
-                       cloned_model->outputs().size());
-    }
+    OPENVINO_ASSERT(cloned_model->inputs().size() == model->inputs().size() &&
+                        cloned_model->outputs().size() == model->outputs().size(),
+                    "Input/output ports count mismatch between the original model and after the transformation! "
+                    "Original model inputs count: ",
+                    model->inputs().size(),
+                    " after the transformations ",
+                    cloned_model->inputs().size(),
+                    ". Original model outputs count:",
+                    model->inputs().size(),
+                    " after the transformations ",
+                    cloned_model->outputs().size());
     // Make output ports have the same tensor names with original model
     for (size_t idx = 0; idx < cloned_model->outputs().size(); idx++) {
         auto new_result = cloned_model->output(idx);
@@ -375,6 +513,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::value_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
     }
 
+    if (name == ov::weights_path) {
+        return decltype(ov::weights_path)::value_type(std::string(""));
+    }
+
     return get_ro_property(name, options);
 }
 
@@ -384,6 +526,9 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     };
     auto RW_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+    };
+    auto WO_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::WO);
     };
 
     if (name == ov::supported_properties) {
@@ -399,35 +544,37 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RO_property(ov::device::architecture.name()),
         };
         // the whole config is RW before model is loaded.
-        std::vector<ov::PropertyName> rwProperties{
-            RW_property(ov::num_streams.name()),
-            RW_property(ov::inference_num_threads.name()),
-            RW_property(ov::enable_profiling.name()),
-            RW_property(ov::hint::inference_precision.name()),
-            RW_property(ov::hint::performance_mode.name()),
-            RW_property(ov::hint::execution_mode.name()),
-            RW_property(ov::hint::num_requests.name()),
-            RW_property(ov::hint::enable_cpu_pinning.name()),
-            RW_property(ov::hint::enable_cpu_reservation.name()),
-            RW_property(ov::hint::scheduling_core_type.name()),
-            RW_property(ov::hint::model_distribution_policy.name()),
-            RW_property(ov::hint::enable_hyper_threading.name()),
-            RW_property(ov::device::id.name()),
-            RW_property(ov::intel_cpu::denormals_optimization.name()),
-            RW_property(ov::log::level.name()),
-            RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
-            RW_property(ov::hint::dynamic_quantization_group_size.name()),
-            RW_property(ov::hint::kv_cache_precision.name()),
-            RW_property(ov::key_cache_precision.name()),
-            RW_property(ov::value_cache_precision.name()),
-            RW_property(ov::key_cache_group_size.name()),
-            RW_property(ov::value_cache_group_size.name()),
-        };
+        std::vector<ov::PropertyName> rwProperties{RW_property(ov::num_streams.name()),
+                                                   RW_property(ov::inference_num_threads.name()),
+                                                   RW_property(ov::enable_profiling.name()),
+                                                   RW_property(ov::hint::inference_precision.name()),
+                                                   RW_property(ov::hint::performance_mode.name()),
+                                                   RW_property(ov::hint::execution_mode.name()),
+                                                   RW_property(ov::hint::num_requests.name()),
+                                                   RW_property(ov::hint::enable_cpu_pinning.name()),
+                                                   RW_property(ov::hint::enable_cpu_reservation.name()),
+                                                   RW_property(ov::hint::scheduling_core_type.name()),
+                                                   RW_property(ov::hint::model_distribution_policy.name()),
+                                                   RW_property(ov::hint::enable_hyper_threading.name()),
+                                                   RW_property(ov::device::id.name()),
+                                                   RW_property(ov::intel_cpu::denormals_optimization.name()),
+                                                   RW_property(ov::log::level.name()),
+                                                   RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+                                                   RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
+                                                   RW_property(ov::hint::dynamic_quantization_group_size.name()),
+                                                   RW_property(ov::hint::kv_cache_precision.name()),
+                                                   RW_property(ov::key_cache_precision.name()),
+                                                   RW_property(ov::value_cache_precision.name()),
+                                                   RW_property(ov::key_cache_group_size.name()),
+                                                   RW_property(ov::value_cache_group_size.name())};
+
+        std::vector<ov::PropertyName> wo_properties{WO_property(ov::weights_path.name())};
 
         std::vector<ov::PropertyName> supportedProperties;
-        supportedProperties.reserve(roProperties.size() + rwProperties.size());
+        supportedProperties.reserve(roProperties.size() + rwProperties.size() + wo_properties.size());
         supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
         supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
+        supportedProperties.insert(supportedProperties.end(), wo_properties.begin(), wo_properties.end());
 
         return decltype(ov::supported_properties)::value_type(std::move(supportedProperties));
     }
@@ -488,6 +635,9 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             engConfig.fcSparseWeiDecompressionRate);
     }
+    if (name == ov::intel_cpu::enable_tensor_parallel) {
+        return static_cast<decltype(ov::intel_cpu::enable_tensor_parallel)::value_type>(engConfig.enableTensorParallel);
+    }
     if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};
     }
@@ -516,10 +666,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
     WeightsSharing::Ptr fake_w_cache;
 
-    if (model == nullptr) {
-        OPENVINO_THROW("Only ngraph-based models are supported!");
-    }
-
+    OPENVINO_ASSERT(model, "Only ngraph-based models are supported!");
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
     conf.applyRtInfo(model);
@@ -554,39 +701,70 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
+static std::string get_origin_weights_path(const ov::AnyMap& config) {
+    ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
+    std::string origin_weights_path;
+
+    auto cm_it = config.find(ov::cache_mode.name());
+    if (cm_it != config.end()) {
+        cache_mode = cm_it->second.as<ov::CacheMode>();
+        if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
+            auto wp_it = config.find(ov::weights_path.name());
+            if (wp_it != config.end()) {
+                origin_weights_path = wp_it->second.as<std::string>();
+            }
+        }
+    }
+
+    return origin_weights_path;
+}
+
+static bool get_cache_decrypt_fn(const ov::AnyMap& config, CacheDecrypt& decrypt) {
+    if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
+        const auto& encryption_callbacks = it->second.as<EncryptionCallbacks>();
+        decrypt.m_decrypt_str = encryption_callbacks.decrypt;
+        return true;
+    } else {
+        return false;
+    }
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
-    bool decript_from_string = false;
-    if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
-        const auto& encryption_callbacks = it->second.as<EncryptionCallbacks>();
-        decrypt.m_decrypt_str = encryption_callbacks.decrypt;
-        decript_from_string = true;
-    }
+    auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
+    const auto origin_weights_path = get_origin_weights_path(config);
 
-    auto _config = config;
-    std::shared_ptr<ov::AlignedBuffer> model_buffer;
-    if (auto blob_it = _config.find(ov::hint::compiled_blob.name()); blob_it != _config.end()) {
-        auto compiled_blob = blob_it->second.as<ov::Tensor>();
-        model_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
-                                                                      compiled_blob.get_byte_size(),
-                                                                      compiled_blob);
-        _config.erase(blob_it);
-    }
+    ModelDeserializer deserializer(model_stream, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 
-    ModelDeserializer deserializer(
-        model_stream,
-        model_buffer,
-        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
-            return get_core()->read_model(model, weights);
-        },
-        decrypt,
-        decript_from_string);
+    return deserialize_model(deserializer, config);
+}
 
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model_tensor,
+                                                         const ov::AnyMap& config) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
+
+    CacheDecrypt decrypt{codec_xor};
+    auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
+    const auto origin_weights_path = get_origin_weights_path(config);
+
+    std::shared_ptr<ov::AlignedBuffer> model_buffer =
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(model_tensor.data()),
+                                                       model_tensor.get_byte_size(),
+                                                       model_tensor);
+
+    ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
+
+    return deserialize_model(deserializer, config);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializer& deserializer,
+                                                              const ov::AnyMap& config) const {
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
 
+    auto _config = config;
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
     conf.applyRtInfo(model);

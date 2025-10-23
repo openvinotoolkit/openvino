@@ -19,6 +19,14 @@ on:
       - 'src/plugins/intel_cpu/src/nodes/executors/aarch64/**'
       - 'src/plugins/intel_cpu/src/nodes/executors/shl/**'
       - 'src/plugins/intel_cpu/src/nodes/kernels/riscv64/**'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/classes/activation.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/classes/comparison.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/classes/eltwise.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/classes/logical.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/common/activation.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/common/comparison.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/common/eltwise.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/common/logical.*'
       - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/riscv64/**'
       - 'src/plugins/intel_cpu/thirdparty/xbyak_riscv/**'
 
@@ -168,6 +176,7 @@ jobs:
           -DCMAKE_VERBOSE_MAKEFILE=ON
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
+          -DENABLE_SYSTEM_TBB=ON
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-100-xuantie-gnu.toolchain.cmake
           -S ${OPENVINO_REPO}
           -B ${BUILD_DIR}
@@ -228,12 +237,17 @@ jobs:
       GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*' }}
 
     steps:
-      - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download OpenVINO artifacts (package)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_[package|tests]*
+          name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+      
+      - name: Download OpenVINO artifacts (tests)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
           
       - name: Extract OpenVINO packages and tests
         run: |

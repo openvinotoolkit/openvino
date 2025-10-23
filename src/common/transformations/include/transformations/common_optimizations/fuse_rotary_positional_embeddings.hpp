@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API RoPEShareCosSin;
 class ov::pass::RoPEFusionGPTNEOX : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionGPTNEOX");
-    RoPEFusionGPTNEOX();
+    RoPEFusionGPTNEOX(int rank);
 };
 
 class ov::pass::RoPEFusionFlux : public ov::pass::MatcherPass {
@@ -46,7 +46,7 @@ public:
 class ov::pass::RoPEFusionChatGLM : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionChatGLM");
-    RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope = false);
+    RoPEFusionChatGLM(const bool support_2d_rope = false);
 };
 
 class ov::pass::RoPEFusionChatGLMHF : public ov::pass::MatcherPass {
@@ -58,7 +58,7 @@ public:
 class ov::pass::RoPEFusionQwen : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionQwen");
-    RoPEFusionQwen(int split_output_id);
+    RoPEFusionQwen();
 };
 
 class ov::pass::RoPEFusionIOSlicing : public ov::pass::MatcherPass {

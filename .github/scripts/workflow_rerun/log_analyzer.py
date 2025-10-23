@@ -81,6 +81,9 @@ class LogAnalyzer:
                 for log_file in _file.iterdir():
                     self._log_files.append(LogFile(file_name=log_file.name,
                                                    path=log_file.resolve()))
+            elif _file.suffix == '.txt':
+                self._log_files.append(LogFile(file_name=_file.name,
+                                               path=_file.resolve()))
 
     def _is_error_in_log(self,
                          error_to_look_for: str,

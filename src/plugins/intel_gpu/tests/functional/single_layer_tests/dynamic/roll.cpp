@@ -28,13 +28,8 @@ using RollGPUTestParams = typename std::tuple<
 class RollLayerGPUTest : public testing::WithParamInterface<RollGPUTestParams>,
                          virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RollGPUTestParams> obj) {
-        InputShape inputShape;
-        ov::element::Type inputPrecision;
-        std::vector<int64_t> shift;
-        std::vector<int64_t> axes;
-        std::string targetDevice;
-        std::tie(inputShape, inputPrecision, shift, axes, targetDevice) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<RollGPUTestParams>& obj) {
+        const auto& [inputShape, inputPrecision, shift, axes, targetDevice] = obj.param;
 
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
@@ -52,12 +47,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape inputShape;
-        ov::element::Type inputPrecision;
-        std::vector<int64_t> shift;
-        std::vector<int64_t> axes;
-
-        std::tie(inputShape, inputPrecision, shift, axes, targetDevice) = GetParam();
+        const auto& [inputShape, inputPrecision, shift, axes, _targetDevice] = GetParam();
+        targetDevice = _targetDevice;
 
         init_input_shapes({inputShape});
 

@@ -2,10 +2,16 @@
 
 ## Install
 
-To run samples, install dependencies first. In current directory run:
+To run samples, install dependencies first
+
+- When you use the [openvino](https://github.com/openvinotoolkit/openvino) **release branch**, install dependencies before running samples.
+In the current directory, run:
 ```bash
 npm install
 ```
+- If you use the master branch, please follow 
+[this instruction](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/docs/README.md#build) 
+to build the latest version of `openvino-node` from source first, then install dependencies.
 
 Note: Perform this step also before running notebooks.
 

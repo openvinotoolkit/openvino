@@ -119,15 +119,13 @@ void SubgraphBaseTest::serialize() {
 
     auto result = core->read_model(out_xml_path, out_bin_path);
 
-    bool success;
-    std::string message;
-    std::tie(success, message) = compare_functions(result,
-                                                   function,
-                                                   false,
-                                                   false,
-                                                   false,
-                                                   true,   // precision
-                                                   true);  // attributes
+    const auto& [success, message] = compare_functions(result,
+                                                       function,
+                                                       false,
+                                                       false,
+                                                       false,
+                                                       true,   // precision
+                                                       true);  // attributes
 
     EXPECT_TRUE(success) << message;
 
@@ -519,8 +517,8 @@ void SubgraphBaseTest::validate() {
 }
 
 void SubgraphBaseTest::init_thresholds() {
-    double max_abs_threshold = 0.f, max_rel_threshold = 0.f;
-    std::tie(max_abs_threshold, max_rel_threshold) = ov::test::utils::calculate_thresholds_by_model(function, functionRefs, inference_precision);
+    const auto& [max_abs_threshold, max_rel_threshold] =
+        ov::test::utils::calculate_thresholds_by_model(function, functionRefs, inference_precision);
     if (abs_threshold == disable_threshold) {
         abs_threshold = max_abs_threshold;
     }

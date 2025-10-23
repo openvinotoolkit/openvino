@@ -102,7 +102,7 @@ JitConstants ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetJitConstants(co
 
 bool ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
@@ -117,11 +117,11 @@ bool ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::Validate(const Params& p) 
                                  (params.outputs[0].Feature().v == filter_ofm_num);
 
     if (!bInputValidated) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if ((filter_ofm_num * batch_size) % 16 != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

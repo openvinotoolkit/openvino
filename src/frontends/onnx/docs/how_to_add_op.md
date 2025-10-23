@@ -74,7 +74,7 @@ The complete tutorial about custom frontends extensions can be found in [fronten
 ### C++ based extensions
 To register your ONNX node-OV subgraph mapping, you can use `ConversionExtension` with syntax as below:
 ```cpp
-core.add_extension(ov::frontend::onnx::ConversionExtension("org.openvinotoolkit", "CustomAdd", ov::frontend::CreatorFunction(
+core.add_extension(ov::frontend::onnx::ConversionExtension("CustomAdd", "org.openvinotoolkit", ov::frontend::CreatorFunction(
                                                             [](const ov::frontend::NodeContext& context)
                                                             {
                                                                 const auto add = std::make_shared<ov::opset9::Add>(context.get_input(0), context.get_input(1));
@@ -83,7 +83,7 @@ core.add_extension(ov::frontend::onnx::ConversionExtension("org.openvinotoolkit"
 ```
 If an OpenVINO Core operation provides exactly what you need (without decomposition to subgraph), `OpExtension` can be a good choice. An example of usage can look like below:
 ```cpp
-core.add_extension(ov::frontend::onnx::OpExtension<ov::opset9::Add>("org.openvinotoolkit", "CustomAdd"));
+core.add_extension(ov::frontend::onnx::OpExtension<ov::opset9::Add>("CustomAdd", "org.openvinotoolkit"));
 ```
 ### Python-based extensions
 C++ based extensions have their equivalents in Python. For `ConversionExtension`, an example of usage can look like:

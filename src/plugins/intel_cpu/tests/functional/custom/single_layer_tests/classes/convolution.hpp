@@ -11,6 +11,7 @@
 #include "utils/convolution_params.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "utils/quantization_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -19,19 +20,20 @@ namespace test {
 namespace Convolution {
 
 typedef std::tuple<
-        convSpecificParams,
-        ElementType,     // Net precision
-        ElementType,     // Input precision
-        ElementType,     // Output precision
-        InputShape,      // Input shape
-        ov::test::TargetDevice   // Device name
-> convLayerTestParamsSet;
+    convSpecificParams,
+    ElementType,     // Net precision
+    ElementType,     // Input precision
+    ElementType,     // Output precision
+    InputShape,      // Input shape
+    ov::test::TargetDevice   // Device name
+    > convLayerTestParamsSet;
 
 typedef std::tuple<
-        convLayerTestParamsSet,
-        CPUSpecificParams,
-        fusingSpecificParams,
-        ov::AnyMap > convLayerCPUTestParamsSet;
+    convLayerTestParamsSet,
+    CPUSpecificParams,
+    ExtraOperationsParams,
+    ov::AnyMap
+    > convLayerCPUTestParamsSet;
 
 class ConvolutionLayerCPUTest : public testing::WithParamInterface<convLayerCPUTestParamsSet>,
                                 virtual public SubgraphBaseTest, public CpuTestWithFusing {
@@ -48,6 +50,7 @@ protected:
                                               ov::ParameterVector &params,
                                               const std::shared_ptr<ov::Node> &lastNode) override;
     void SetUp() override;
+    void generate_inputs(const std::vector<ov::Shape> &targetInputStaticShapes) override;
 };
 
     using SizeVector = std::vector<size_t>;
@@ -92,7 +95,7 @@ protected:
     const ov::Shape& numOutChannels();
     const ov::Shape& numOutChannels_Gemm();
 
-    const std::vector<fusingSpecificParams>& fusingParamsSetWithEmpty();
+    const std::vector<ExtraOperationsParams>& fusingParamsSetWithEmpty();
 
     using convParams_ExplicitPaddingType = decltype(::testing::Combine(
                                                         ::testing::ValuesIn(kernels2d()),

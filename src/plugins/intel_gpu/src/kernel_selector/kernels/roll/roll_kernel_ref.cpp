@@ -88,12 +88,12 @@ JitConstants RollKernelRef::GetJitConstants(const roll_params& kernel_params) co
 
 bool RollKernelRef::Validate(const Params& params) const {
     if (params.GetType() != KernelType::ROLL) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& kernel_params = dynamic_cast<const roll_params&>(params);
     if (kernel_params.inputs.size() != 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

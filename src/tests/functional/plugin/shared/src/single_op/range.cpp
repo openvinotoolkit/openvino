@@ -9,10 +9,7 @@
 namespace ov {
 namespace test {
 std::string RangeLayerTest::getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {
-    ov::element::Type model_type;
-    float start, stop, step;
-    std::string target_device;
-    std::tie(start, stop, step, model_type, target_device) = obj.param;
+    const auto& [start, stop, step, model_type, target_device] = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -25,9 +22,8 @@ std::string RangeLayerTest::getTestCaseName(const testing::TestParamInfo<RangePa
 }
 
 void RangeLayerTest::SetUp() {
-    ov::element::Type model_type;
-    float start, stop, step;
-    tie(start, stop, step, model_type, targetDevice) = GetParam();
+    const auto& [start, stop, step, model_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape()),
                                std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape()),

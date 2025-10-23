@@ -30,12 +30,8 @@ typedef std::tuple<
 class GatherNDGPUTest : public testing::WithParamInterface<GatherNDGPUTestParams>,
                         virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherNDGPUTestParams> obj) {
-        GatherNDShapeParams Shapes;
-        ov::element::Type model_type;
-        bool isIndicesConstant;
-
-        std::tie(Shapes, model_type, isIndicesConstant) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherNDGPUTestParams>& obj) {
+        const auto& [Shapes, model_type, isIndicesConstant] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -61,12 +57,9 @@ public:
 
 protected:
     void SetUp() override {
-        GatherNDShapeParams Shapes;
-        ov::element::Type model_type;
-        bool isIndicesConstant;
         const auto intInputsPrecision = ov::element::i32;
 
-        std::tie(Shapes, model_type, isIndicesConstant) = this->GetParam();
+        const auto& [Shapes, model_type, isIndicesConstant] = this->GetParam();
         const int batchDims = Shapes.batch_dims;
         targetDevice = ov::test::utils::DEVICE_GPU;
         std::shared_ptr<ov::Node> indicesNode;

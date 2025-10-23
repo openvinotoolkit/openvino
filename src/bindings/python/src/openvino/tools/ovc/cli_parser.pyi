@@ -18,7 +18,7 @@ import openvino as openvino
 import os as os
 import pathlib as pathlib
 import re as re
-__all__ = ['CanonicalizePathCheckExistenceAction', 'Dimension', 'Error', 'Formatter', 'OrderedDict', 'ParamDescription', 'PartialShape', 'Type', 'add_args_by_description', 'argparse', 'canonicalize_and_check_paths', 'check_bool', 'depersonalize', 'get_absolute_path', 'get_all_cli_parser', 'get_available_front_ends', 'get_common_cli_options', 'get_common_cli_parser', 'get_convert_model_help_specifics', 'get_mo_convert_params', 'get_mo_root_dir', 'get_model_name', 'get_model_name_from_args', 'get_node_name_with_port_from_input_value', 'get_params_with_paths_list', 'get_shape_from_input_value', 'input_model_details', 'input_to_input_cut_info', 'inspect', 'is_shape_type', 'is_single_input', 'is_type', 'namedtuple', 'openvino', 'os', 'parse_input_value', 'parse_inputs', 'pathlib', 're', 'readable_dirs_or_files_or_empty', 'readable_file_or_dir_or_object', 'remove_shape_from_input_value', 'single_input_to_input_cut_info', 'split_inputs', 'to_ov_type', 'to_partial_shape']
+__all__: list[str] = ['CanonicalizePathCheckExistenceAction', 'Dimension', 'Error', 'Formatter', 'OrderedDict', 'ParamDescription', 'PartialShape', 'Type', 'add_args_by_description', 'argparse', 'canonicalize_and_check_paths', 'check_bool', 'depersonalize', 'get_absolute_path', 'get_all_cli_parser', 'get_available_front_ends', 'get_common_cli_options', 'get_common_cli_parser', 'get_convert_model_help_specifics', 'get_mo_convert_params', 'get_mo_root_dir', 'get_model_name', 'get_model_name_from_args', 'get_node_name_with_port_from_input_value', 'get_params_with_paths_list', 'get_shape_from_input_value', 'input_model_details', 'input_to_input_cut_info', 'inspect', 'is_shape_type', 'is_single_input', 'is_type', 'namedtuple', 'openvino', 'os', 'parse_input_value', 'parse_inputs', 'pathlib', 're', 'readable_dirs_or_files_or_empty', 'readable_file_or_dir_or_object', 'remove_shape_from_input_value', 'single_input_to_input_cut_info', 'split_inputs', 'to_ov_type', 'to_partial_shape']
 class CanonicalizePathCheckExistenceAction(argparse.Action):
     """
     
@@ -27,7 +27,7 @@ class CanonicalizePathCheckExistenceAction(argparse.Action):
         
     """
     @staticmethod
-    def check_value(values: typing.Union[str, typing.List[str], NoneType], param_name, try_mo_root = False, check_existence = True) -> typing.List[str]:
+    def check_value(values: typing.Union[str, list[str], NoneType], param_name, try_mo_root = False, check_existence = True) -> list[str]:
         ...
     def __call__(self, parser, namespace, values, option_string = None):
         ...
@@ -38,7 +38,7 @@ class Formatter(argparse.HelpFormatter):
         ...
 def add_args_by_description(args_group, params_description):
     ...
-def canonicalize_and_check_paths(values: typing.Union[str, typing.List[str], NoneType], param_name, try_mo_root = False, check_existence = True) -> typing.List[str]:
+def canonicalize_and_check_paths(values: typing.Union[str, list[str], NoneType], param_name, try_mo_root = False, check_existence = True) -> list[str]:
     ...
 def check_bool(value):
     ...

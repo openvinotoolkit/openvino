@@ -24,6 +24,7 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <oneapi/dnnl/dnnl_types.h>
@@ -116,7 +117,7 @@ public:
                     work.k0 = start_blkK * reg_blk_K_size;
                     work.k1 = (start_blkK + blk_K) * reg_blk_K_size;
                     work.quant_i8 = is_quantized;
-                    work.is_f16 = std::is_same<T, ov::float16>::value;
+                    work.is_f16 = std::is_same_v<T, ov::float16>;
 
                     start_blkK += blk_K;
                     used_nthr++;
@@ -151,7 +152,7 @@ public:
              const LLMMLPNode::Config& config,
              MatrixDynQuantPerRow& src_dq,
              float* w_scale) {
-        static ReduceAdd2bh jit_reduce2cvt(true, std::is_same<T, ov::float16>::value);
+        static ReduceAdd2bh jit_reduce2cvt(true, std::is_same_v<T, ov::float16>);
 
         ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
@@ -213,8 +214,8 @@ public:
     // and post-ops will compute  silu(gate)*up in unit of 16 elements
     // and store out as bfloat16.
     void setup(void* p_weight_gate, void* p_weight_up, int stride, int N, int K, const LLMMLPNode::Config& config) {
-        static GateUpCombine jit_gateup_silu(dnnl_eltwise_swish, std::is_same<T, ov::float16>::value);
-        static GateUpCombine jit_gateup_gelu(dnnl_eltwise_gelu_tanh, std::is_same<T, ov::float16>::value);
+        static GateUpCombine jit_gateup_silu(dnnl_eltwise_swish, std::is_same_v<T, ov::float16>);
+        static GateUpCombine jit_gateup_gelu(dnnl_eltwise_gelu_tanh, std::is_same_v<T, ov::float16>);
 
         if (config.act == LLMMLPNode::ACT_FN::GELU) {
             jit_gateup = &jit_gateup_gelu;
@@ -262,7 +263,7 @@ public:
                 work.k0 = 0;
                 work.k1 = K;
                 work.quant_i8 = quantized_int8;
-                work.is_f16 = std::is_same<T, ov::float16>::value;
+                work.is_f16 = std::is_same_v<T, ov::float16>;
                 used_nthr++;
             }
 
@@ -369,7 +370,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
         : m_pnode(pnode),
           m_config(config),
           m_scrachPad(std::move(scrachPad)),
-          m_rt_prec_f16(std::is_same<T, ov::float16>::value) {
+          m_rt_prec_f16(std::is_same_v<T, ov::float16>) {
         PlainTensor w_gate(pnode->getSrcMemoryAtPort(1));
         PlainTensor w_up(pnode->getSrcMemoryAtPort(2));
         PlainTensor w_down(pnode->getSrcMemoryAtPort(3));
@@ -560,9 +561,7 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    OPENVINO_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
-                    "Unexpected rtPrecision:",
-                    rtPrecision);
+    OPENVINO_ASSERT(any_of(rtPrecision, ov::element::bf16, ov::element::f16), "Unexpected rtPrecision:", rtPrecision);
 
     if (m_mlp_config.gate_up_quantized) {
         auto weightPrecision = ov::element::i8;
@@ -621,7 +620,7 @@ void LLMMLP::createPrimitive() {
     }
 #endif
     if (!m_executor) {
-        THROW_CPU_NODE_ERR("Executor creation fails with precision " + rtPrecision.to_string());
+        CPU_NODE_THROW("Executor creation fails with precision " + rtPrecision.to_string());
     }
 }
 

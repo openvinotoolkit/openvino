@@ -147,20 +147,23 @@ void regmodule_offline_transformations(py::module m) {
            bool use_block_indices_inputs,
            bool use_score_outputs,
            bool allow_score_aggregation,
-           bool allow_cache_rotation) {
+           bool allow_cache_rotation,
+           bool allow_xattention) {
             const auto model = Common::utils::convert_to_model(ie_api_model);
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::SDPAToPagedAttention>(use_block_indices_inputs,
                                                                   use_score_outputs,
                                                                   allow_score_aggregation,
-                                                                  allow_cache_rotation);
+                                                                  allow_cache_rotation,
+                                                                  allow_xattention);
             manager.run_passes(model);
         },
         py::arg("model"),
         py::arg("use_block_indices_inputs") = false,
         py::arg("use_score_outputs") = false,
         py::arg("allow_score_aggregation") = false,
-        py::arg("allow_cache_rotation") = false);
+        py::arg("allow_cache_rotation") = false,
+        py::arg("allow_xattention") = false);
 
     m_offline_transformations.def(
         "stateful_to_stateless_transformation",

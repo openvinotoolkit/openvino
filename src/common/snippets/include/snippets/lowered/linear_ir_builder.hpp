@@ -17,14 +17,14 @@ namespace ov::snippets::lowered {
 class LinearIRBuilder {
 public:
     struct Config {
-        Config(bool deep_copy_of_shapes_ = true) : deep_copy_of_shapes(deep_copy_of_shapes_) {}
+        explicit Config(bool deep_copy_of_shapes_ = true) : deep_copy_of_shapes(deep_copy_of_shapes_) {}
 
         // If True, copy of stored pointer in `PortDescriptor::m_tensor_shape`.
         // If False, copy shapes as shared pointers.
         const bool deep_copy_of_shapes = true;
     };
 
-    LinearIRBuilder(Config config = {}) : m_config(config) {}
+    explicit LinearIRBuilder(Config config = Config{}) : m_config(config) {}
 
     /**
      * @brief Make a full copy of LinearIR by rules described in `m_config`

@@ -19,7 +19,7 @@ public:
         const ov::PartialShape& inputShape,
         const ov::element::Type precisionBeforeDequantization,
         const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        const Shape& tagetShape,
+        const Shape& targetShape,
         const Shape& axesMapping,
         const ov::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };

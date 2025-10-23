@@ -79,10 +79,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GetDequantizationBelowParams> obj) {
-        ov::element::Type precision;
-        ov::Shape shape;
-        GetDequantizationBelowTestValues testValues;
-        std::tie(precision, shape, testValues) = obj.param;
+        const auto& [precision, shape, testValues] = obj.param;
 
         std::ostringstream result;
         result << precision << "_" << shape << "_" << testValues;

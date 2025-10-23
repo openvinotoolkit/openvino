@@ -21,8 +21,8 @@
 namespace ExecutionGraphTests {
 
 std::string ExecGraphNmsTransformLastNode::getTestCaseName(
-    testing::TestParamInfo<std::string> obj) {
-  std::string targetDevice = obj.param;
+    const testing::TestParamInfo<std::string>& obj) {
+  const std::string& targetDevice = obj.param;
   return "Dev=" + targetDevice;
 }
 
@@ -35,7 +35,7 @@ std::string ExecGraphNmsTransformLastNode::getTestCaseName(
 TEST_P(ExecGraphNmsTransformLastNode, CheckIfCanBeInfered) {
   SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-  auto device_name = this->GetParam();
+  const auto& device_name = this->GetParam();
   ov::Shape boxes_shape = {1, 2, 4};
   ov::Shape scores_shape = {1, 1, 2};
   float in_boxes[8] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};

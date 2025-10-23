@@ -12,7 +12,6 @@
 #include <limits>
 #include <memory>
 #include <set>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -137,8 +136,7 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
     const auto& loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
     const auto& loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
 
-    BufferMap input_buffers, output_buffers;
-    std::tie(input_buffers, output_buffers) = get_direct_buffers(loop_info, expr);
+    auto [input_buffers, output_buffers] = get_direct_buffers(loop_info, expr);
 
     for (const auto& in : input_buffers) {
         create_new_cluster(in.first);
@@ -186,9 +184,9 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
                 // If allocation sizes are undefined, we can check if they have the same allocation sizes in runtime:
                 //  - they should calculate allocation size using the common algorithm from
                 //  `BufferExpression::init_allocation_size`.
-                if (!utils::everyone_is(BufferExpression::get_type_info_static(),
-                                        input_buffer_expr->get_type_info(),
-                                        output_buffer_expr->get_type_info())) {
+                if (!utils::all_of(BufferExpression::get_type_info_static(),
+                                   input_buffer_expr->get_type_info(),
+                                   output_buffer_expr->get_type_info())) {
                     continue;
                 }
             }

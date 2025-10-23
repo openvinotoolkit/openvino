@@ -14,12 +14,7 @@ namespace test {
 std::string FakeConvertLayerTest::getTestCaseName(const testing::TestParamInfo<FakeConvertParams>& obj) {
     FakeConvertParams params = obj.param;
 
-    std::vector<InputShape> data_shapes;
-    Shape scale_shape, shift_shape;
-    element::Type_t data_prec, dst_prec;
-    bool default_shift;
-    std::string target_device;
-    std::tie(data_shapes, scale_shape, shift_shape, data_prec, dst_prec, default_shift, target_device) = params;
+    const auto& [data_shapes, scale_shape, shift_shape, data_prec, dst_prec, default_shift, target_device] = params;
 
     std::ostringstream result;
     result << "IS=(";
@@ -46,11 +41,8 @@ std::string FakeConvertLayerTest::getTestCaseName(const testing::TestParamInfo<F
 void FakeConvertLayerTest::SetUp() {
     FakeConvertParams params = this->GetParam();
 
-    std::vector<InputShape> data_shapes;
-    Shape scale_shape, shift_shape;
-    element::Type_t data_prec, dst_prec;
-    bool default_shift;
-    std::tie(data_shapes, scale_shape, shift_shape, data_prec, dst_prec, default_shift, targetDevice) = params;
+    const auto& [data_shapes, scale_shape, shift_shape, data_prec, dst_prec, default_shift, _targetDevice] = params;
+    targetDevice = _targetDevice;
 
     init_input_shapes(data_shapes);
 

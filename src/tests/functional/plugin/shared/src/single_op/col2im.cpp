@@ -18,21 +18,9 @@ namespace test {
 namespace Col2Im {
 
 std::string Col2ImLayerSharedTest::getTestCaseName(const testing::TestParamInfo<Col2ImLayerSharedTestParams>& obj) {
-    ov::element::Type data_precision;
-    ov::element::Type size_precision;
-    std::string target_device;
-    Col2ImOpsSpecificParams col2im_param;
+    const auto& [col2im_param, data_precision, size_precision, target_device] = obj.param;
 
-    std::tie(col2im_param, data_precision, size_precision, target_device) = obj.param;
-
-    ov::Shape input_shape;
-    std::vector<int64_t> output_size;
-    std::vector<int64_t> kernel_size;
-    ov::Strides strides;
-    ov::Strides dilations;
-    ov::Shape pads_begin;
-    ov::Shape pads_end;
-    std::tie(input_shape, output_size, kernel_size, strides, dilations, pads_begin, pads_end) = col2im_param;
+    const auto& [input_shape, output_size, kernel_size, strides, dilations, pads_begin, pads_end] = col2im_param;
 
     std::ostringstream result;
 
@@ -71,23 +59,11 @@ void Col2ImLayerSharedTest::generate_inputs(const std::vector<ov::Shape>& target
 }
 
 void Col2ImLayerSharedTest::SetUp() {
-    Col2ImOpsSpecificParams col2im_param;
-    ov::element::Type data_precision;
-    ov::element::Type size_precision;
-    std::string target_device;
-
-    std::tie(col2im_param, data_precision, size_precision, target_device) = this->GetParam();
+    const auto& [col2im_param, data_precision, size_precision, target_device] = this->GetParam();
 
     targetDevice = target_device;
 
-    ov::Shape data_input_shape;
-    std::vector<int64_t> outputSize;
-    std::vector<int64_t> kernelSize;
-    ov::Strides strides;
-    ov::Strides dilations;
-    ov::Shape pads_begin;
-    ov::Shape pads_end;
-    std::tie(data_input_shape, outputSize, kernelSize, strides, dilations, pads_begin, pads_end) = col2im_param;
+    const auto& [data_input_shape, outputSize, kernelSize, strides, dilations, pads_begin, pads_end] = col2im_param;
 
     auto dataParameter = std::make_shared<ov::op::v0::Parameter>(data_precision, data_input_shape);
     // Required option which is fixed size input : ov::Shape{2}

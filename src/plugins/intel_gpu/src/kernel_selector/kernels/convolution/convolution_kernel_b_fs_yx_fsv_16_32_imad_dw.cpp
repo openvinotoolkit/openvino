@@ -77,28 +77,28 @@ DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::get_required_devi
 
 bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::Validate(const Params& params) const {
     if (!Parent::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     auto conv_params = static_cast<const convolution_params&>(params);
 
     if (conv_params.inputs[0].GetLayout() != conv_params.outputs[0].GetLayout())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (conv_params.inputs[0].Feature().is_dynamic || conv_params.outputs[0].Feature().is_dynamic)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (conv_params.groups != conv_params.outputs[0].Feature().v || conv_params.groups != conv_params.inputs[0].Feature().v)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     // Incorrect choose of TILE_X leads to accuracy issue
     if (conv_params.outputs[0].X().is_dynamic)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     // For asymmetric data, kernel needs compensation optimization
     if (conv_params.compensation.empty() &&
         (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA ||
          conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

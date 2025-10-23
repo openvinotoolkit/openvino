@@ -79,13 +79,13 @@ bool ReorgYoloKernelRef::Validate(const Params& p) const {
     const auto& input = params.inputs[0];
 
     if (input.GetDims().size() != 4) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (!(input.Feature().v >= params.stride * params.stride
             && input.X().v % params.stride == 0
             && input.Y().v % params.stride == 0)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

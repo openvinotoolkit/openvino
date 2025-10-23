@@ -71,6 +71,17 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         return {kernels_cache.get_cached_kernel_id(_kernels[0])};
     }
 
+    void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
+        OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
+        auto& kernel_vec = kernels.begin()->second;
+        _kernels.clear();
+        _kernels.resize(kernel_vec.size());
+        for (auto& k : kernel_vec) {
+            auto sub_kernel_idx = k.second;
+            _kernels[sub_kernel_idx] = k.first;
+        }
+    }
+
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
@@ -211,14 +222,16 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_OFFSET", std::to_string(offset)));
 }
 
-static std::string get_jit_constant(const custom_gpu_primitive_node& outer, const kernel_impl_params& impl_param) {
+static std::string get_jit_constant(const custom_gpu_primitive_node& outer,
+                                    const kernel_impl_params& impl_param,
+                                    const std::vector<size_t>& gws,
+                                    const std::vector<size_t>& lws) {
     kernel_selector::jit_constants mem_consts{
         kernel_selector::MakeJitConstant("NUM_INPUTS", std::to_string(outer.get_dependencies().size()))};
-    const auto primitive = outer.get_primitive().get();
 
     mem_consts.AddConstants({
-        kernel_selector::MakeJitConstant("GLOBAL_WORKSIZE", primitive->gws),
-        kernel_selector::MakeJitConstant("LOCAL_WORKSIZE", primitive->lws),
+        kernel_selector::MakeJitConstant("GLOBAL_WORKSIZE", gws),
+        kernel_selector::MakeJitConstant("LOCAL_WORKSIZE", lws),
     });
 
     for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
@@ -239,17 +252,38 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer, cons
 static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& arg, const kernel_impl_params& impl_param) {
     const auto primitive = arg.get_primitive().get();
 
+    const auto& orig_output_layout = impl_param.get_output_layout();
+    OPENVINO_ASSERT(orig_output_layout.is_static(), "out layouts should be static for create primitive_impl!");
+
+    std::vector<size_t> gws, lws;
+    custom_gpu_primitive::update_work_group_size(orig_output_layout.get_partial_shape(),
+                                                 primitive->calcWgDimInputIdx,
+                                                 orig_output_layout.get_partial_shape(),
+                                                 primitive->globalSizeRules,
+                                                 primitive->localSizeRules,
+                                                 gws,
+                                                 lws);
+
+    if (gws.empty()) {
+        gws = primitive->gws;
+    }
+    if (lws.empty()) {
+        lws = primitive->lws;
+    }
+
     auto cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
     cl_kernel->code.kernelString = std::make_shared<kernel_selector::kernel_string>();
     cl_kernel->code.kernelString->entry_point = primitive->kernel_entry_point;
     cl_kernel->code.kernelString->options = primitive->build_options;
-    cl_kernel->code.kernelString->jit = get_jit_constant(arg, impl_param);
+    const std::vector<size_t> const_gws = gws;
+    const std::vector<size_t> const_lws = lws;
+    cl_kernel->code.kernelString->jit = get_jit_constant(arg, impl_param, const_gws, const_lws);
     for (const auto& s : primitive->kernels_code) {
         cl_kernel->code.kernelString->str += s + "\n";
     }
 
-    cl_kernel->params.workGroups.global = primitive->gws;
-    cl_kernel->params.workGroups.local = primitive->lws;
+    cl_kernel->params.workGroups.global = gws;
+    cl_kernel->params.workGroups.local = lws;
 
     for (const auto& p : primitive->kernel_arguments) {
         cl_kernel->params.arguments.push_back(get_arg(p));

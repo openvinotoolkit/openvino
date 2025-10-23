@@ -7,6 +7,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/llm_builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"
@@ -70,30 +71,30 @@ public:
         const bool with_scale = p.with_scale;
         const bool compressed = p.compressed;
 
-        auto model = tests::make_llm_kv_cache_sdpa_pattern(ov::Dimension::dynamic(),
-                                                           n_heads,
-                                                           k_features,
-                                                           v_features,
-                                                           element_type,
-                                                           qkv_order,
-                                                           causal,
-                                                           with_mask,
-                                                           with_scale,
-                                                           stateful,
-                                                           p.with_rearrange,
-                                                           p.num_groups);
-        auto ref_model = tests::make_llm_kv_cache_sdpa_pattern(ov::Dimension::dynamic(),
-                                                               n_heads,
-                                                               k_features,
-                                                               v_features,
-                                                               element_type,
-                                                               qkv_order,
-                                                               causal,
-                                                               with_mask,
-                                                               with_scale,
-                                                               !stateful,
-                                                               p.with_rearrange,
-                                                               p.num_groups);
+        auto model = ov::test::utils::make_llm_kv_cache_sdpa_pattern(ov::Dimension::dynamic(),
+                                                                     n_heads,
+                                                                     k_features,
+                                                                     v_features,
+                                                                     element_type,
+                                                                     qkv_order,
+                                                                     causal,
+                                                                     with_mask,
+                                                                     with_scale,
+                                                                     stateful,
+                                                                     p.with_rearrange,
+                                                                     p.num_groups);
+        auto ref_model = ov::test::utils::make_llm_kv_cache_sdpa_pattern(ov::Dimension::dynamic(),
+                                                                         n_heads,
+                                                                         k_features,
+                                                                         v_features,
+                                                                         element_type,
+                                                                         qkv_order,
+                                                                         causal,
+                                                                         with_mask,
+                                                                         with_scale,
+                                                                         !stateful,
+                                                                         p.with_rearrange,
+                                                                         p.num_groups);
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();

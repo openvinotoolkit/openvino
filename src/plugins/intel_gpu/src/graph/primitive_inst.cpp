@@ -17,6 +17,7 @@
 #include "pooling_inst.h"
 #include "permute_inst.h"
 #include "resample_inst.h"
+#include "non_max_suppression_inst.h"
 #include "reshape_inst.h"
 #include "reorder_inst.h"
 #include "eltwise_inst.h"
@@ -378,11 +379,15 @@ void primitive_inst::update_shape() {
                 break;
             }
         }
+
         if (!subgraph_input_changed) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": skip shape_update, because it is in shape_of_subgraph and input shape is not changed\n";
             unset_flag(ExecutionFlags::SHAPE_CHANGED);
             return;
         }
+
+        // If the input shape of root ShapeOf node has changed, update node's parameters as well.
+        set_flag(ExecutionFlags::SHAPE_CHANGED, subgraph_input_changed);
     }
 
     // Even though the predecessors' shapes are not changed, the output shape might be updated by the mem_dep
@@ -462,58 +467,24 @@ void primitive_inst::update_shape() {
     _impl_params->memory_deps = memory_deps;
 
     auto new_layouts = get_node().type()->calc_output_layouts(*_node, *_impl_params);
-
-    // WA: Skip dynamic quantization for the case where OneDNN has accuracy issue with post-op fusion
-    // This is a temporal workaround that should be removed in next release
-    if (get_node().is_type<dynamic_quantize>()) {
-        // if user instance is fully_connected, print user's input layouts
-        auto user = get_node().get_users().front();
-        if (user->is_type<fully_connected>()) {
-            auto fc_inst = _users[0];
-            auto fc_impl_params = fc_inst->get_impl_params();
-            for (auto& fd : fc_impl_params->fused_desc) {
-                if (!fd.has_outer_dep())
-                    continue;
-                const auto &layout_post_op = fc_inst->get_input_layout(fd.outer_dep_start_idx);
-                const auto &shape_post_op = layout_post_op.get_partial_shape();;
-                const auto &layout_input = _impl_params->get_input_layout(0);
-                const auto &shape_input = layout_input.get_partial_shape();
-
-                // If binary post-op is fused and its f-axis is broadcasted, skip dynamic quantization
-                if (shape_post_op.rank().is_static() && shape_post_op.rank().get_length() >= 3 &&
-                    shape_post_op[1].is_static() && shape_post_op[1].get_length() == 1 &&
-                    shape_input.rank().get_length() >= 3 &&
-                    shape_input[1].is_static() && shape_input[1].get_length() > 1 &&
-                    shape_input[0].is_static() && shape_input[0].get_length() > 1) {
-                    GPU_DEBUG_TRACE_DETAIL << fc_inst->id() << ": skip dynamic quantization because of unsupported broadcast - "
-                                    << layout_input.to_short_string() << ", " << layout_post_op.to_short_string() << std::endl;
-                    new_layouts[0] = _impl_params->get_input_layout(0);
-                    for (size_t i = 1; i < new_layouts.size(); i++) {
-                        auto output_shape = new_layouts[i].get_partial_shape();
-                        *output_shape.begin() = 0;
-                        new_layouts[i].set_partial_shape(output_shape);
-                    }
-                    break;
-                }
-            }
-        }
-    }
     for (size_t idx = 0; idx != new_layouts.size(); ++idx) {
         auto& new_layout = new_layouts[idx];
+        auto new_pshape = new_layout.get_partial_shape();
+        auto& impl_layout = _impl_params->get_output_layout(idx);
         if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
-            auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, new_layout.data_padding);
+            auto data_padding = padding::max(impl_layout.data_padding, new_layout.data_padding);
             new_layout.data_padding = padding::max(get_node().get_primitive()->get_output_padding(idx), data_padding);
         }
 
-        if (_impl_params->get_output_layout(idx) != new_layout) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
+        if (impl_layout != new_layout) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << impl_layout.to_short_string()
                                     << " now: " << new_layout.to_short_string() << std::endl;
             set_flag(ExecutionFlags::SHAPE_CHANGED);
         }
 
         _impl_params->output_layouts[idx].data_padding = new_layout.data_padding;
-        _impl_params->output_layouts[idx].set_partial_shape(new_layouts[idx].get_partial_shape());
-        _impl_params->output_layouts[idx].data_type = new_layouts[idx].data_type;
+        _impl_params->output_layouts[idx].set_partial_shape(new_pshape);
+        _impl_params->output_layouts[idx].data_type = new_layout.data_type;
     }
 
     // Update descriptors of fused operations and set output_layout's shape to all fused ops
@@ -559,9 +530,25 @@ void primitive_inst::update_shape() {
         else
             set_can_be_optimized(false);
     }
+
+    // required to zero out the number of valid boxes (third output) when NMS is not executed
+    if (get_node().is_type<non_max_suppression>()) {
+        if (!_impl_params->output_layouts[0].count() && _outputs.size() == 3 && _outputs[2]) {
+            const bool out_of_order_queue = queue_type == QueueTypes::out_of_order;
+            auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                                 : std::vector<event::ptr>{};
+            add_dep_event(_outputs[2]->fill(get_network().get_stream(), dep_events));
+        }
+    }
 }
 
-kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
+kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(program_node const& node, kernel_impl_params const& orig_impl_param) {
+    // disable if fake alignment is not necessary
+    if (node.is_output()) {
+        GPU_DEBUG_TRACE_DETAIL << " Disable fake alignment : " << node.id() << " is output node" << std::endl;
+        return orig_impl_param;
+    }
+
     auto updated_params = get_node().type()->get_fake_aligned_params(orig_impl_param);
 
     const auto &dev_info = get_node().get_program().get_engine().get_device_info();
@@ -602,6 +589,48 @@ bool primitive_inst::all_dependencies_cpu_impl() const {
     return check_all_deps_cpu(this);
 }
 
+bool primitive_inst::need_reset_output_memory() const {
+    for (const auto& user_inst : get_user_insts()) {
+        // Check users of optimized_out inst, as the optimized out inst will not be able to
+        // reset it's memory
+        if (user_inst->can_be_optimized()) {
+            if (user_inst->need_reset_output_memory())
+                return true;
+            continue;
+        }
+
+        if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
+            return true;
+
+        // OneDNN requires zero-filled input for padded area
+        const bool is_user_onednn_impl = user_inst->get_node().get_preferred_impl_type() == impl_types::onednn;
+        const bool is_user_conv = user_inst->get_node().is_type<convolution>();
+        if (is_user_conv && is_user_onednn_impl) {
+            auto& output_layout = _impl_params->get_output_layout(0);
+
+            auto get_feature_block_size = [](format fmt) {
+                        int feature_block_size = 1;
+                        for (auto &e : fmt.block_sizes()) {
+                            if (e.first == 1) {
+                                OPENVINO_ASSERT(feature_block_size == 1, "UNSUPPORTED: multi-blocking for feature axis is not considered");
+                                feature_block_size = e.second;
+                            }
+                        }
+                        return feature_block_size;
+                    };
+
+            const auto fmt = output_layout.format;
+            auto feature_block_size = get_feature_block_size(fmt);
+            // if layout is single blocked and feature size is not aligned with the blocking size, need to reset output so that we can guarantee zero-filling
+            // NOTE: We may improve this logic to avoid reset if we are sure that it is not "corrupted" by other layers.
+            if (output_layout.feature() % feature_block_size != 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void primitive_inst::clear_output_memory() {
     _outputs[0] = nullptr;
     _max_output_layout_count[0] = 0;
@@ -626,7 +655,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     }
 
     // Update param if fake_alignment is available
-    auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
+    auto updated_params = get_fake_aligned_params_if_possible(get_node(), *_impl_params);
 
     const auto& actual_layouts = updated_params.output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
@@ -935,7 +964,6 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
 
     // Handle runtime dynamic concat optimization
     if (get_node().is_type<concatenation>() && can_be_optimized() && _allocation_done_by_other) {
-        _allocation_done_by_other = false;
         GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("concat_alloc_by_other");
         return;
     }
@@ -983,15 +1011,10 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             } else {
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
             }
-            // TODO: check need_reset_output_memory per output
-            if (need_reset_output_memory() && !can_be_optimized()) {
-                GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
-                add_dep_event(_outputs[i]->fill(get_network().get_stream()));
-            }
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
         } else {
             GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. " << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " outputs[" << i << "] "
+            GPU_DEBUG_TRACE_DETAIL << " outputs[" << i << "] " << get_node().id()
                                    << " Current buffer_size=" << _max_output_layout_count[i]
                                    << " Requested buffer_size=" << updated_layouts[i].get_linear_size()
                                    << std::endl;
@@ -1003,7 +1026,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                                           get_network_id(),
                                           get_network().is_internal(),
                                           i,
-                                          need_reset_output_memory(),
+                                          false /* reset */,
                                           is_output_buffer(this, true),
                                           output_memory_ptr(i).get(),
                                           true);
@@ -1172,6 +1195,14 @@ bool primitive_inst::use_async_compilation() {
             // Disable async compilation for all int4 FC, except in the case of batch_size == 1
             if (one_of(weights_dt, {data_types::i4, data_types::u4}) && batch_size != 1)
                 compile_fc_impls = false;
+        } else {
+            auto input_dt = fc_node.input().get_output_layout().data_type;
+            auto weights_dt = fc_node.weights().get_output_layout().data_type;
+            auto output_dt = fc_node.input().get_output_layout().data_type;
+            // Disable async compilation for int8 quantize FC
+            if (one_of(weights_dt, {data_types::i8, data_types::u8})
+                && (one_of(input_dt, {data_types::i8, data_types::u8}) || one_of(output_dt, {data_types::i8, data_types::u8})))
+                compile_fc_impls = false;
         }
     }
 
@@ -1183,7 +1214,12 @@ bool primitive_inst::use_async_compilation() {
         compile_gemm_impls |= _impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
     }
 
-    return (get_node().is_type<convolution>() || compile_fc_impls || compile_gemm_impls ||
+    bool compile_conv_impls = get_node().is_type<convolution>();
+    if (compile_conv_impls) {
+        compile_conv_impls = !_impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
+    }
+
+    return (compile_conv_impls || compile_fc_impls || compile_gemm_impls ||
             (get_node().is_type<softmax>() && get_node().get_selected_impl() &&
              get_node().get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
@@ -1704,6 +1740,10 @@ void primitive_inst::do_runtime_in_place_concat() {
     if (!concat_inst->get_flag(ExecutionFlags::SHAPE_CHANGED))
         return;
 
+    // Reset the allocation flag when the output shape has changed, to allow buffer reallocation
+    // by predecessors or by the concat primitive itself if in-place optimization is not possible
+    concat_inst->_allocation_done_by_other = false;
+
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
         concat_inst->set_can_be_optimized(false);
         GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << " cannot be optimized " << std::endl;
@@ -1985,6 +2025,7 @@ void primitive_inst::prepare_primitive() {
         // even if the input shapes haven't been changed
         if (get_node().is_type<paged_attention>() && !get_flag(ExecutionFlags::IMPL_CHANGED) && _impl->requires_update(*this, *_impl_params)) {
             _impl->update(*this, *_impl_params);
+            set_flag(ExecutionFlags::SHAPE_CHANGED);
 
             realloc_if_needed(prev_execution_skipped);
         }
@@ -2046,6 +2087,27 @@ void primitive_inst::prepare_primitive() {
         if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) || (can_be_optimized() && needs_completion_event() && !is_output())) {
             for (auto& input : _exec_deps) {
                 add_dep_event(input->get_impl_params()->out_event);
+            }
+        }
+    }
+
+    // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
+    // is a convolution that requires zeroed-out data paddings)
+    if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
+        const auto& users = get_user_insts();
+        const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
+                                 users.front()->_allocation_done_by_other;
+        const auto skip_reset = skip_concat;
+
+        if (!skip_reset) {
+            for (const auto& output : _outputs) {
+                if (output != nullptr) {
+                    GPU_DEBUG_TRACE_DETAIL << id() << " : Resetting output memory (" << output->buffer_ptr() << ")" << std::endl;
+                    // Use marker to ensure proper synchronization for both events and barriers
+                    auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                                         : std::vector<event::ptr>{};
+                    add_dep_event(output->fill(get_network().get_stream(), dep_events));
+                }
             }
         }
     }
@@ -2205,16 +2267,25 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             }
         }
 
-        // TODO: Remove WA for arg_max_min node.
-        // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
-        // but kernels always write both outputs to the same memory object which leads to wrong result.
-        if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>()
-                                                       && !node.is_type<experimental_detectron_roi_feature_extractor>()) {
-            for (auto& user : node.get_users())
-                if (user->is_type<mutable_data>())
-                    _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
+        if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
+            // sum post-op can use the input buffer as the output buffer
+            auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
+            const auto& eltw_inst = _network.get_primitive(eltw_node.id());
+            auto& eltw_mem = eltw_inst->output_memory();
+            auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node.get_output_layout());
+            _outputs.push_back(new_mem);
         } else {
-            _outputs = allocate_outputs();
+            // TODO: Remove WA for arg_max_min node.
+            // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
+            // but kernels always write both outputs to the same memory object which leads to wrong result.
+            if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>() &&
+                !node.is_type<experimental_detectron_roi_feature_extractor>()) {
+                for (auto& user : node.get_users())
+                    if (user->is_type<mutable_data>())
+                        _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
+            } else {
+                _outputs = allocate_outputs();
+            }
         }
     }
     if (_node) {
@@ -2916,7 +2987,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     auto& kernels_cache = prog.get_kernels_cache();
 
     // Update param if fake_alignment is available
-    auto updated_params = inst.get_fake_aligned_params_if_possible(params);
+    auto updated_params = inst.get_fake_aligned_params_if_possible(inst.get_node(), params);
     // Change weights layout of `updated_params` to original one to have valid information
     // in _impl->_weights_reorder_params about required weights format after impl selection
     if (inst.get_node().is_type<fully_connected>() || inst.get_node().is_type<convolution>() || inst.get_node().is_type<deconvolution>()) {
@@ -2991,7 +3062,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
     // 5. Finally, if no impl found so far, we just enforce static impl compilation
     auto static_impl = find_impl(node, updated_params, shape_types::static_shape);
-    assert(static_impl != nullptr);
+    OPENVINO_ASSERT(static_impl != nullptr, "No static impl " + node->id());
     static_impl->set_node_params(*node);
     if (!inst.can_be_optimized()) {
         auto& kernels_cache = prog.get_kernels_cache();

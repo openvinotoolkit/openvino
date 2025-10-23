@@ -4,7 +4,25 @@
 
 #include "acl_convert.hpp"
 
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Error.h>
+#include <arm_compute/core/TensorShape.h>
+#include <arm_compute/core/Types.h>
+#include <arm_compute/runtime/NEON/functions/NECast.h>
+#include <arm_compute/runtime/NEON/functions/NECopy.h>
+
+#include <cassert>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "acl_utils.hpp"
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/convert.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -83,7 +101,7 @@ bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
                                             [[maybe_unused]] const MemoryDescPtr& srcDesc,
                                             [[maybe_unused]] const MemoryDescPtr& dstDesc) const {
     if (convertParams.srcPrc != convertParams.dstPrc) {
-        if (!one_of(convertParams.srcPrc,
+        if (none_of(convertParams.srcPrc,
                     ov::element::i8,
                     ov::element::u8,
                     ov::element::u16,
@@ -95,23 +113,23 @@ bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
             return false;
         }
         if ((convertParams.srcPrc == ov::element::i8 &&
-             !one_of(convertParams.dstPrc, ov::element::i16, ov::element::i32, ov::element::f16, ov::element::f32)) ||
-            (convertParams.srcPrc == ov::element::u8 && !one_of(convertParams.dstPrc,
+             none_of(convertParams.dstPrc, ov::element::i16, ov::element::i32, ov::element::f16, ov::element::f32)) ||
+            (convertParams.srcPrc == ov::element::u8 && none_of(convertParams.dstPrc,
                                                                 ov::element::u16,
                                                                 ov::element::i16,
                                                                 ov::element::i32,
                                                                 ov::element::f16,
                                                                 ov::element::f32)) ||
             (convertParams.srcPrc == ov::element::u16 &&
-             !one_of(convertParams.dstPrc, ov::element::u8, ov::element::u32)) ||
+             none_of(convertParams.dstPrc, ov::element::u8, ov::element::u32)) ||
             (convertParams.srcPrc == ov::element::i16 &&
-             !one_of(convertParams.dstPrc, ov::element::i8, ov::element::u8, ov::element::i32)) ||
+             none_of(convertParams.dstPrc, ov::element::i8, ov::element::u8, ov::element::i32)) ||
             (convertParams.srcPrc == ov::element::f16 &&
-             !one_of(convertParams.dstPrc, ov::element::i8, ov::element::f32, ov::element::i32, ov::element::u8)) ||
+             none_of(convertParams.dstPrc, ov::element::i8, ov::element::f32, ov::element::i32, ov::element::u8)) ||
             (convertParams.srcPrc == ov::element::i32 &&
-             !one_of(convertParams.dstPrc, ov::element::i8, ov::element::f16, ov::element::f32, ov::element::u8)) ||
+             none_of(convertParams.dstPrc, ov::element::i8, ov::element::f16, ov::element::f32, ov::element::u8)) ||
             (convertParams.srcPrc == ov::element::f32 &&
-             !one_of(convertParams.dstPrc, ov::element::bf16, ov::element::f16, ov::element::i32))) {
+             none_of(convertParams.dstPrc, ov::element::bf16, ov::element::f16, ov::element::i32))) {
             DEBUG_LOG("NECopy does not support passed combination of source and destination precisions. ",
                       "source precision: ",
                       convertParams.srcPrc.to_string(),

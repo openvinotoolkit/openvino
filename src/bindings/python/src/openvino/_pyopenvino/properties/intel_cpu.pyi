@@ -5,7 +5,7 @@ import typing
 """
 openvino.properties.intel_cpu submodule that simulates ov::intel_cpu
 """
-__all__ = ['denormals_optimization', 'sparse_weights_decompression_rate']
+__all__: list[str] = ['denormals_optimization', 'sparse_weights_decompression_rate']
 @typing.overload
 def denormals_optimization() -> str:
     ...
@@ -16,5 +16,5 @@ def denormals_optimization(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]
 def sparse_weights_decompression_rate() -> str:
     ...
 @typing.overload
-def sparse_weights_decompression_rate(arg0: float) -> tuple[str, openvino._pyopenvino.OVAny]:
+def sparse_weights_decompression_rate(arg0: typing.SupportsFloat) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...

@@ -13,6 +13,7 @@
 #include "decoder_proto.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/util/common_util.hpp"
@@ -440,8 +441,8 @@ void InputModel::InputModelImpl::create_temp_consts() {
             const auto& tensor = var_desc.type().tensor_array().tensor();
             const auto& type = get_ov_type(tensor.data_type());
 
-            std::cout << "WARNING: The PaddlePaddle model has \"TENSOR_ARRAY\" variables, which is supported "
-                      << " under limited situations.\n";
+            util::log_message("WARNING: The PaddlePaddle model has \"TENSOR_ARRAY\" variables, which is supported "
+                              "under limited situations.");
 
             PartialShape tensor_ps(std::vector<Dimension>(tensor.dims().cbegin(), tensor.dims().cend()));
             tensor_ps.insert(tensor_ps.begin(), 1);  // unsqueeze

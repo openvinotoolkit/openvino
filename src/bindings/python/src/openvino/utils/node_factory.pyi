@@ -7,20 +7,20 @@ from openvino._pyopenvino import NodeFactory as _NodeFactory
 from openvino._pyopenvino import Output
 from openvino.exceptions import UserInputError
 from pathlib import Path
-from typing import Any
 import openvino._pyopenvino
-__all__ = ['Any', 'DEFAULT_OPSET', 'Extension', 'Node', 'NodeFactory', 'Output', 'Path', 'UserInputError', 'singledispatchmethod']
+import typing
+__all__: list[str] = ['DEFAULT_OPSET', 'Extension', 'Node', 'NodeFactory', 'Output', 'Path', 'UserInputError', 'singledispatchmethod']
 class NodeFactory:
     """
     Factory front-end to create node objects.
     """
     @staticmethod
-    def _arguments_as_outputs(arguments: typing.List[typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output]]) -> typing.List[openvino._pyopenvino.Output]:
+    def _arguments_as_outputs(arguments: list[openvino._pyopenvino.Node | openvino._pyopenvino.Output]) -> list[openvino._pyopenvino.Output]:
         ...
     @staticmethod
     def add_extension(*args, **kwargs) -> None:
         ...
-    def _(self, extension: typing.Union[openvino._pyopenvino.Extension, typing.List[openvino._pyopenvino.Extension]]) -> None:
+    def _(self, extension: typing.Union[openvino._pyopenvino.Extension, list[openvino._pyopenvino.Extension]]) -> None:
         """
         Add custom operations from extension library.
         
@@ -51,7 +51,7 @@ class NodeFactory:
                 :param      opset_version:  The opset version the factory will use to produce ops from.
                 
         """
-    def create(self, op_type_name: str, arguments: typing.Optional[typing.List[typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output]]] = None, attributes: typing.Optional[typing.Dict[str, typing.Any]] = None) -> openvino._pyopenvino.Node:
+    def create(self, op_type_name: str, arguments: typing.Optional[list[typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output]]] = None, attributes: typing.Optional[dict[str, typing.Any]] = None) -> openvino._pyopenvino.Node:
         """
         Create node object from provided description.
         

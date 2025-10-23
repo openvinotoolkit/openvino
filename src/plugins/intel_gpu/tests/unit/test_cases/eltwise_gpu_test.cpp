@@ -4372,7 +4372,7 @@ INSTANTIATE_TEST_SUITE_P(eltwise_same_input,
                         ));
 
 // mode, input type, input sizes
-using eltwise_test_params = std::tuple<eltwise_mode, data_types, std::vector<std::vector<int32_t>>>;
+using eltwise_test_params = std::tuple<eltwise_mode, data_types, std::vector<std::vector<ov::Dimension::value_type>>>;
 
 template<typename T>
 class BaseEltwiseTest : public ::testing::TestWithParam<T> {
@@ -4504,7 +4504,7 @@ TEST_P(eltwise_test, fsv16) {
 
 static std::vector<eltwise_mode> modes = {eltwise_mode::sum, eltwise_mode::prod};
 static std::vector<data_types> types = {data_types::f32, data_types::f16};
-static std::vector<std::vector<std::vector<int32_t>>> inputs = {
+static std::vector<std::vector<std::vector<ov::Dimension::value_type>>> inputs = {
         {{1, 2, 3, 4}, {1, 2, 3, 4}},
         {{1, 16, 8, 2}, {1, 16, 8, 2}},
         {{1, 128, 16, 8}, {1, 1, 16, 8}},
@@ -4608,7 +4608,7 @@ TEST_P(eltwise_test_6d, bfwzyx) {
     }
 }
 
-static std::vector<std::vector<std::vector<int32_t>>> inputs_6d = {
+static std::vector<std::vector<std::vector<ov::Dimension::value_type>>> inputs_6d = {
         {{1, 2, 3, 4, 5, 6},  {1, 2, 3, 4, 5, 6}},
         {{1, 32, 1, 1, 1, 1}, {8, 32, 4, 5, 6, 7}},
         {{1, 32, 1, 1, 1, 7}, {8, 32, 4, 5, 6, 7}},
@@ -4706,8 +4706,8 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_precision,
 
 struct eltwise_layout_test_params {
     eltwise_mode mode;
-    std::vector<int32_t> input0_size;
-    std::vector<int32_t> input1_size;
+    std::vector<ov::Dimension::value_type> input0_size;
+    std::vector<ov::Dimension::value_type> input1_size;
     format input0_format;
     format input1_format;
     std::string selected_kernel_name;
@@ -4751,15 +4751,15 @@ TEST_P(eltwise_test_mixed_layout, mixed_layout) {
     auto format1 = p.input1_format;
     auto selected_kernel = p.selected_kernel_name;
 
-    int b0 = input0_size[0];
-    int f0 = input0_size[1];
-    int y0 = input0_size[2];
-    int x0 = input0_size[3];
+    auto b0 = input0_size[0];
+    auto f0 = input0_size[1];
+    auto y0 = input0_size[2];
+    auto x0 = input0_size[3];
 
-    int b1 = input1_size[0];
-    int f1 = input1_size[1];
-    int y1 = input1_size[2];
-    int x1 = input1_size[3];
+    auto b1 = input1_size[0];
+    auto f1 = input1_size[1];
+    auto y1 = input1_size[2];
+    auto x1 = input1_size[3];
 
     int min_random = -2, max_random = 2;
     VVVVVVF<float> input1_rnd = rg.generate_random_6d<float>(b0, f0, 1, 1, y0, x0, min_random, max_random);

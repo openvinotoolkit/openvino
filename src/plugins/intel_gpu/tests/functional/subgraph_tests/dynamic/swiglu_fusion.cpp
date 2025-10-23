@@ -21,11 +21,8 @@ using SwiGLUFusionParams = std::tuple<std::vector<InputShape>,   // input shapes
 class SwiGLUFusion : public testing::WithParamInterface<SwiGLUFusionParams>,
                             virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SwiGLUFusionParams> obj) {
-        std::vector<InputShape> input_shapes;
-        ov::element::Type input_precision;
-
-        std::tie(input_shapes, input_precision) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<SwiGLUFusionParams>& obj) {
+        const auto& [input_shapes, input_precision] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -70,10 +67,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        std::vector<InputShape> input_shapes;
-        ov::element::Type input_precision;
-
-        std::tie(input_shapes, input_precision) = GetParam();
+        const auto& [input_shapes, input_precision] = GetParam();
 
         init_input_shapes(input_shapes);
 

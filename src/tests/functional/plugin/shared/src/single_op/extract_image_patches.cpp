@@ -13,12 +13,7 @@ namespace ov {
 namespace test {
 
 std::string ExtractImagePatchesTest::getTestCaseName(const testing::TestParamInfo<extractImagePatchesTuple> &obj) {
-    std::vector<InputShape> shapes;
-    std::vector<size_t> kernel, strides, rates;
-    ov::op::PadType pad_type;
-    ov::element::Type model_type;
-    std::string device_name;
-    std::tie(shapes, kernel, strides, rates, pad_type, model_type, device_name) = obj.param;
+    const auto& [shapes, kernel, strides, rates, pad_type, model_type, device_name] = obj.param;
     std::ostringstream result;
 
     result << "IS=(";
@@ -43,11 +38,8 @@ std::string ExtractImagePatchesTest::getTestCaseName(const testing::TestParamInf
 }
 
 void ExtractImagePatchesTest::SetUp() {
-    std::vector<InputShape> shapes;
-    std::vector<size_t> kernel, strides, rates;
-    ov::op::PadType pad_type;
-    ov::element::Type model_type;
-    std::tie(shapes, kernel, strides, rates, pad_type, model_type, targetDevice) = this->GetParam();
+    const auto& [shapes, kernel, strides, rates, pad_type, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

@@ -40,8 +40,8 @@ private:
     bool m_adjoint = false;
 
     /// Shape inference
-    static constexpr size_t INPUT_PORT = 0lu;
-    static constexpr size_t OUTPUT_PORT = 0lu;
+    static constexpr size_t INPUT_PORT = 0LU;
+    static constexpr size_t OUTPUT_PORT = 0LU;
     bool m_const_input = false;
 
     /// General algorithm variables

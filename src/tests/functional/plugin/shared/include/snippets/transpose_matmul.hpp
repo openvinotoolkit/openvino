@@ -24,7 +24,7 @@ typedef std::tuple<
 class TransposeMatMul : public testing::WithParamInterface<ov::test::snippets::TransposeMatMulParams>,
                         virtual public MatMulBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeMatMulParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::TransposeMatMulParams>& obj);
 
 protected:
     void SetUp() override;

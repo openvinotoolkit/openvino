@@ -24,6 +24,7 @@ UNRESOLVED_NAMES = [
     "RemoteTensorWrapper",                    # In openvino._pyopenvino.Tensor.copy_* : Can't find/import 'RemoteTensorWrapper'
     "capsule",                                # In openvino._pyopenvino.VAContext.__init__ : Can't find/import 'capsule'
     "VASurfaceTensorWrapper",                 # In openvino._pyopenvino.VAContext.create_tensor : Can't find/import 'VASurfaceTensorWrapper'
+    "typing_extensions.CapsuleType",          # In openvino._pyopenvino.VAContext.__init__ : Can't find/import 'typing_extensions.CapsuleType'
     "_abc._abc_data",                         # In openvino.utils.data_helpers.wrappers.OVDict : Can't find/import '_abc._abc_data'
     "openvino._ov_api.undefined_deprecated",  # In openvino._ov_api : Can't find/import 'openvino._ov_api.undefined_deprecated'
     "InputCutInfo",                           # In openvino.tools.ovc.cli_parser : Can't find/import 'InputCutInfo'

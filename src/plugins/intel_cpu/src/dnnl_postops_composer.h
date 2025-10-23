@@ -24,6 +24,15 @@
 
 namespace ov::intel_cpu {
 
+enum class PostOpsMode : std::uint8_t {
+    // Original mode using original post ops with modern zero points
+    Original,
+    // Legacy mode with fallback mechanism - try modern first, then legacy
+    Legacy,
+    // Forced legacy mode - directly use legacy post ops without trying original
+    ForcedLegacy
+};
+
 // so far the API only support per-Tensor or per-OC
 class DnnlPostOpsComposer {
 public:
@@ -36,8 +45,9 @@ public:
                         const MemoryArgs& memory,
                         dnnl::memory::data_type outDataType,
                         const std::vector<float>& legacyDqScales = {},
-                        bool useLegacyPostOps = false,
-                        bool useLegacyZeroPoints = false);
+                        PostOpsMode postOpsMode = PostOpsMode::Original,
+                        bool useLegacyZeroPoints = false,
+                        dnnl::post_ops ops = dnnl::post_ops());
     DnnlPrimitiveAttrs compose();
     void appendDecompressionScales(const MemoryCPtr& scales_ptr,
                                    bool needTranspose,
@@ -93,8 +103,8 @@ private:
     const int weightScaleMaskPerChannel;
     bool weightScaleAvailable = false;
     const dnnl::memory::data_type outDataType;
-    bool useLegacyPostOps;
-    bool useLegacyZeroPoints;
+    const PostOpsMode postOpsMode;
+    const bool useLegacyZeroPoints;
 
     dnnl::primitive_attr attr;
     MemoryArgs cpuArgs;
@@ -105,7 +115,7 @@ private:
     Dim OC;
     int wei_scale_mask = -1;
     std::vector<float> wei_scale_values;
-    float dst_scale_val = 0.0f;
+    float dst_scale_val = 0.0F;
     dnnl::post_ops ops;
 
     void updateWeiScales();

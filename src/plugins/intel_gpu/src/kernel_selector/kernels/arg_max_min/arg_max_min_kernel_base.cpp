@@ -7,7 +7,7 @@
 namespace kernel_selector {
 bool ArgMaxMinKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::ARG_MAX_MIN) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

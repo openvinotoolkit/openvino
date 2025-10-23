@@ -18,8 +18,8 @@ As it was demonstrated in the :doc:`Changing Input Shapes <changing-input-shape>
 Reshaping models provides an ability to customize the model input shape for the exact size required in the end application.
 This article explains how the ability of model to reshape can further be leveraged in more dynamic scenarios.
 
-Applying Dynamic Shapes
-#######################
+When to Use Dynamic Shapes
+##########################
 
 Conventional "static" model reshaping works well when it can be done once per many model inference calls with the same shape.
 However, this approach does not perform efficiently if the input tensor shape is changed on every inference call. Calling the ``reshape()`` and ``compile_model()`` methods each time a new size comes is extremely time-consuming.
@@ -40,12 +40,14 @@ The methods are sensitive to model internals, do not always give optimal perform
 For a short overview of the methods, refer to the :doc:`When Dynamic Shapes API is Not Applicable <dynamic-shapes/openvino-without-dynamic-shapes-api>` page.
 Apply those methods only if native dynamic shape API described in the following sections does not work or does not perform as expected.
 
-The decision about using dynamic shapes should be based on proper benchmarking of a real application with real data.
-Unlike statically shaped models, dynamically shaped ones require different inference time, depending on input data shape or input tensor content.
-Furthermore, using the dynamic shapes can bring more overheads in memory and running time of each inference call depending on hardware plugin and model used.
+It is recommended to benchmark your application with real data to see if you need dynamic shapes and how it affects performance and resource use. Dynamic shapes can change inference performance and memory requirements compared to static shapes. The impact depends on the hardware plugin  used, such as CPU, GPU, or NPU, and on the specific model.
 
-Handling Dynamic Shapes
-#######################
+.. note::
+
+    **GPU Dynamic Shape Support:** GPUs support dynamic shapes, but optimization is still in progress for a broader range of models. Performance may vary depending on the specific model and use case. Consider testing with your specific workload to evaluate performance.
+
+How to Use Dynamic Shapes
+#########################
 
 This section describes how to handle dynamically shaped models with OpenVINO Runtime API version 2022.1 and higher. When using dynamic shapes, there are three main differences in the workflow than with static shapes:
 

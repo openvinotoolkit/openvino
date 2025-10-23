@@ -181,7 +181,7 @@ cls.def(py::init([](std::vector<float>& list) {
         R"(
             MyTensor's constructor.
 
-            :param list: List to create new `MyTensor` from.
+            :param list: list to create new `MyTensor` from.
             :type list: list
         )");
 

@@ -41,6 +41,7 @@ void prior_box_clustered(const T* data,
     }
 
     size_t var_size = variances.size();
+    const auto out_shape_d1 = out_shape[1];
     for (int64_t h = 0; h < layer_height; ++h) {
         for (int64_t w = 0; w < layer_width; ++w) {
             float center_x = (w + attrs.offset) * step_w;
@@ -79,10 +80,10 @@ void prior_box_clustered(const T* data,
                 // 2. 4 variance values
                 if (var_size == 1) {
                     for (size_t j = 0; j < 4; j++)
-                        dst_data[idx + j + out_shape[1]] = variances[0];
+                        dst_data[idx + j + out_shape_d1] = variances[0];
                 } else {
                     for (size_t j = 0; j < var_size; j++)
-                        dst_data[idx + j + out_shape[1]] = variances[j];
+                        dst_data[idx + j + out_shape_d1] = variances[j];
                 }
             }
         }

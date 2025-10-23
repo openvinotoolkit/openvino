@@ -110,9 +110,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     manager.run_passes(expected);
     auto result = core.read_model(m_out_xml_path, m_out_bin_path);
 
-    bool success;
-    std::string message;
-    std::tie(success, message) = compare_functions(result, expected, true, false, false, true, true);
+    const auto& [success, message] = compare_functions(result, expected, true, false, false, true, true);
 
     ASSERT_TRUE(success) << message;
 }

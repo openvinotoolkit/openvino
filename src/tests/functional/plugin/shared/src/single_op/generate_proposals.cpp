@@ -11,21 +11,22 @@ namespace ov {
 namespace test {
 std::string GenerateProposalsLayerTest::getTestCaseName(
         const testing::TestParamInfo<GenerateProposalsTestParams>& obj) {
-    std::vector<InputShape> shapes;
     ov::op::v9::GenerateProposals::Attributes attributes;
-    ov::element::Type model_type;
-    ov::element::Type roi_num_type;
-    std::string targetName;
-    std::tie(
-        shapes,
-        attributes.min_size,
-        attributes.nms_threshold,
-        attributes.post_nms_count,
-        attributes.pre_nms_count,
-        attributes.normalized,
-        model_type,
-        roi_num_type,
-        targetName) = obj.param;
+
+    const auto& [shapes,
+                 _min_size,
+                 _nms_threshold,
+                 _post_nms_count,
+                 _pre_nms_count,
+                 _normalized,
+                 model_type,
+                 roi_num_type,
+                 targetName] = obj.param;
+    attributes.min_size = _min_size;
+    attributes.nms_threshold = _nms_threshold;
+    attributes.post_nms_count = _post_nms_count;
+    attributes.pre_nms_count = _pre_nms_count;
+    attributes.normalized = _normalized;
 
     std::ostringstream result;
     using ov::test::operator<<;
@@ -51,20 +52,23 @@ std::string GenerateProposalsLayerTest::getTestCaseName(
 }
 
 void GenerateProposalsLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
     ov::op::v9::GenerateProposals::Attributes attributes;
-    ov::element::Type model_type;
-    ov::element::Type roi_num_type;
-    std::tie(
-        shapes,
-        attributes.min_size,
-        attributes.nms_threshold,
-        attributes.post_nms_count,
-        attributes.pre_nms_count,
-        attributes.normalized,
-        model_type,
-        roi_num_type,
-        targetDevice) = this->GetParam();
+
+    const auto& [shapes,
+                 _min_size,
+                 _nms_threshold,
+                 _post_nms_count,
+                 _pre_nms_count,
+                 _normalized,
+                 model_type,
+                 roi_num_type,
+                 _targetDevice] = this->GetParam();
+    attributes.min_size = _min_size;
+    attributes.nms_threshold = _nms_threshold;
+    attributes.post_nms_count = _post_nms_count;
+    attributes.pre_nms_count = _pre_nms_count;
+    attributes.normalized = _normalized;
+    targetDevice = _targetDevice;
 
     inType = outType = model_type;
     if (targetDevice == ov::test::utils::DEVICE_GPU) {

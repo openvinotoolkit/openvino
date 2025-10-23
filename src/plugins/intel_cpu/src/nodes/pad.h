@@ -46,7 +46,7 @@ private:
 
     struct PadAttrs {
         PadMode padMode = CONSTANT;
-        float padValue = 0.f;
+        float padValue = 0.F;
         VectorIdxs padsBegin;
         VectorIdxs padsEnd;
         int beginPadIdx = 0;
@@ -100,25 +100,25 @@ private:
             VectorDims dstStrides;
             VectorDims srcDimsForReflectOrSymmetric;
             int nThreads = 0;
-            size_t nDimsForWork = 0lu;
-            size_t workAmount = 0lu;
-            size_t lastDstDim = 1lu;
-            size_t shift = 0lu;
-            size_t dataSize = 1lu;
-            size_t innerBeginShift = 0lu;
-            size_t innerEndShift = 0lu;
-            size_t innerSrcShift = 0lu;
-            size_t innerCopySize = 0lu;
-            size_t innerBeginPadCount = 0lu;
-            size_t innerEndPadCount = 0lu;
+            size_t nDimsForWork = 0LU;
+            size_t workAmount = 0LU;
+            size_t lastDstDim = 1LU;
+            size_t shift = 0LU;
+            size_t dataSize = 1LU;
+            size_t innerBeginShift = 0LU;
+            size_t innerEndShift = 0LU;
+            size_t innerSrcShift = 0LU;
+            size_t innerCopySize = 0LU;
+            size_t innerBeginPadCount = 0LU;
+            size_t innerEndPadCount = 0LU;
             PadMode padMode = PadMode::CONSTANT;
         } params;
     };
 
-    static constexpr size_t DATA_ID = 0lu;
-    static constexpr size_t PADS_BEGIN_ID = 1lu;
-    static constexpr size_t PADS_END_ID = 2lu;
-    static constexpr size_t PAD_VALUE_ID = 3lu;
+    static constexpr size_t DATA_ID = 0LU;
+    static constexpr size_t PADS_BEGIN_ID = 1LU;
+    static constexpr size_t PADS_END_ID = 2LU;
+    static constexpr size_t PAD_VALUE_ID = 3LU;
 
     bool isPadValueSpecified = false;
 

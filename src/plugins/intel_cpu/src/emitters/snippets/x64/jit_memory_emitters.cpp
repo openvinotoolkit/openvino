@@ -4,7 +4,7 @@
 
 #include "jit_memory_emitters.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -34,11 +34,11 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 
-using jit_generator = dnnl::impl::cpu::x64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::x64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-jit_memory_emitter::jit_memory_emitter(jit_generator* h,
+jit_memory_emitter::jit_memory_emitter(jit_generator_t* h,
                                        cpu_isa_t isa,
                                        const ExpressionPtr& expr,
                                        emitter_in_out_map in_out_type)
@@ -81,7 +81,7 @@ size_t jit_memory_emitter::aux_gprs_count() const {
 
 size_t jit_memory_emitter::get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
     OV_CPU_JIT_EMITTER_ASSERT(expr->get_input_port_connectors().size() == 1, "MemoryAccess must have one parent");
-    const auto& parent_expr = expr->get_input_port_connector(0)->get_source().get_expr();
+    const auto& parent_expr = expr->get_input_expr_ptr(0);
     if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(parent_expr)) {
         return buffer->get_cluster_id();
     }
@@ -141,7 +141,7 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
     emitter_postamble();
 }
 
-jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_load_memory_emitter::jit_load_memory_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::Load>(expr->get_node()), "expects Load node");
     load_emitter = std::make_unique<jit_load_emitter>(h, isa, src_prc, dst_prc, count);
@@ -156,7 +156,7 @@ void jit_load_memory_emitter::emit_data() const {
     load_emitter->emit_data();
 }
 
-jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::BroadcastLoad>(expr->get_node()), "expects BroadcastLoad node");
     if (src_prc != dst_prc) {
@@ -203,7 +203,7 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
     }
 }
 
-jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_store_memory_emitter::jit_store_memory_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::vec_to_gpr) {
     if (ov::is_type<ov::intel_cpu::StoreConvertTruncation>(expr->get_node())) {
         store_emitter =

@@ -18,19 +18,11 @@ using ov::test::utils::SequenceTestsMode;
 using ov::test::utils::is_tensor_iterator_exist;
 
 std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj) {
-    std::vector<InputShape> shapes;
-    SequenceTestsMode mode;
-    std::vector<std::string> activations;
     std::vector<float> activations_alpha;
     std::vector<float> activations_beta;
-    float clip;
-    bool linear_before_reset;
-    ov::op::RecurrentSequenceDirection direction;
-    InputLayerType WRBType;
-    ov::element::Type type;
-    std::string targetDevice;
-    std::tie(mode, shapes, activations, clip, linear_before_reset, direction, WRBType,
-                type, targetDevice) = obj.param;
+
+    const auto& [mode, shapes, activations, clip, linear_before_reset, direction, WRBType, type, targetDevice] =
+        obj.param;
     std::ostringstream result;
     result << "mode=" << mode << "_";
     result << "IS=(";
@@ -54,17 +46,13 @@ std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSeq
 }
 
 void GRUSequenceTest::SetUp() {
-    std::vector<InputShape> shapes;
-    std::vector<std::string> activations;
     std::vector<float> activations_alpha;
     std::vector<float> activations_beta;
-    float clip;
-    bool linear_before_reset;
-    ov::op::RecurrentSequenceDirection direction;
-    InputLayerType wbr_type;
-    ov::test::utils::SequenceTestsMode mode;
-    std::tie(mode, shapes, activations, clip, linear_before_reset, direction, wbr_type,
-            inType, targetDevice) = this->GetParam();
+
+    const auto& [mode, shapes, activations, clip, linear_before_reset, direction, wbr_type, _inType, _targetDevice] =
+        this->GetParam();
+    inType = _inType;
+    targetDevice = _targetDevice;
     outType = inType;
     init_input_shapes(shapes);
     rel_threshold = 1e-2;

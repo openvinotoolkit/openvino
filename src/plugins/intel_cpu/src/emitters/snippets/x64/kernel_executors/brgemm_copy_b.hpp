@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -32,7 +32,7 @@ namespace ov::intel_cpu {
 struct BrgemmCopyBKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
     BrgemmCopyBKernelConfig() = default;
-    BrgemmCopyBKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config);
+    explicit BrgemmCopyBKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config);
 
     bool operator==(const BrgemmCopyBKernelConfig& rhs) const;
     bool operator!=(const BrgemmCopyBKernelConfig& rhs) const {
@@ -166,7 +166,7 @@ private:
     size_t m_hash{SIZE_MAX};
 };
 
-struct BrgemmCopyBKernel : public InputRepackerKernel, public dnnl::impl::cpu::x64::jit_generator {
+struct BrgemmCopyBKernel : public InputRepackerKernel, public dnnl::impl::cpu::x64::jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(BrgemmCopyBKernel)
     struct call_args {
         const void* src = nullptr;
@@ -175,7 +175,7 @@ struct BrgemmCopyBKernel : public InputRepackerKernel, public dnnl::impl::cpu::x
     };
 
     BrgemmCopyBKernel();
-    BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf);
+    explicit BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf);
 
     dnnl::impl::status_t create_kernel() override;
 

@@ -37,7 +37,7 @@ float8_e5m2::float8_e5m2(uint32_t sign, uint32_t biased_exponent, uint32_t fract
     : m_value((sign & 0x01) << (f8e5m2_e_size + f8e5m2_m_size) |
               (biased_exponent & (f8e5m2_e_mask >> f8e5m2_m_size)) << f8e5m2_m_size | (fraction & f8e5m2_m_mask)) {}
 
-float8_e5m2::float8_e5m2(const float value) : m_value(f32_to_f8e5m2_bits(value)){};
+float8_e5m2::float8_e5m2(const float value) : m_value(f32_to_f8e5m2_bits(value)) {};
 
 float8_e5m2::operator float() const {
     return static_cast<float>(float16::from_bits((static_cast<uint16_t>(m_value) << byte_shift)));

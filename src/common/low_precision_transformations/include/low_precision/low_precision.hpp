@@ -71,8 +71,8 @@ public:
 
     static bool isFunctionQuantized(
         const std::shared_ptr<const ov::Model>& model,
-        const std::set<levels>& supported_levels = all_levels);
-    static bool isFQLevelsPresent(const std::shared_ptr<const ov::Model>& model, const std::set<size_t>& levels);
+        const std::set<levels>& supported_levels = all_levels,
+        bool check_fake_convert = false);
 
     template <typename T, class... Args>
     std::shared_ptr<T> add_main(Args&&... args) {
@@ -84,7 +84,6 @@ public:
 protected:
     std::vector<PrecisionsRestriction> precisionRestrictions;
     std::vector<QuantizationGranularityRestriction> quantizationRestrictions;
-    // remove
     LayerTransformation::Params params;
 
     std::vector<std::shared_ptr<MatcherPass>> additional_main_passes;

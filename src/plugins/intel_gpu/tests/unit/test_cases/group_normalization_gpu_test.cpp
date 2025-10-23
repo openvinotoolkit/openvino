@@ -23,12 +23,13 @@ using namespace ::tests;
 namespace {
 
 typedef std::tuple<
-    std::vector<std::int32_t>,  // Input shape
-    std::size_t,                // Number of groups
-    double,                     // Epsilon
-    format,                     // First input layout
-    format,                     // Output layout
-    padding                     // Output padding
+    std::vector<ov::Dimension::value_type>, // Input shape
+    std::size_t,                            // Number of groups
+    double,                                 // Epsilon
+    format,                                 // First input layout
+    padding,                                // First input padding
+    format,                                 // Output layout
+    padding                                 // Output padding
 >
 GroupNormalizationParams;
 
@@ -37,9 +38,14 @@ public:
     GroupNormalizationGPUTest() = default;
 
     void SetUp() override {
-        std::vector<std::int32_t> input_shape;
         const auto& params = GetParam();
-        std::tie(input_shape, num_groups_, epsilon_, in_format_, out_format_, output_pad_) = params;
+        const auto& [input_shape, _num_groups_, _epsilon_, _in_format_, _in_pad_, _out_format_, _output_pad_] = params;
+        num_groups_ = _num_groups_;
+        epsilon_ = _epsilon_;
+        in_format_ = _in_format_;
+        in_pad_ = _in_pad_;
+        out_format_ = _out_format_;
+        output_pad_ = _output_pad_;
         std::copy(std::begin(input_shape), std::end(input_shape), std::back_inserter(data_shape_));
         tests::random_generator rg{"GroupNormalizationGPUTest"};
         data_ = rg.generate_random_1d<float>(ov::shape_size(input_shape), -1, 1);
@@ -67,7 +73,7 @@ public:
         }
         tp.add(input_layout{scale_primitive_, scale_bias_layout_});
         tp.add(input_layout{bias_primitive_, scale_bias_layout_});
-        tp.add(reorder{reordered_data_primitive, data_primitive_, in_format_, data_types::f32});
+        tp.add(reorder{reordered_data_primitive, data_primitive_, layout{input_shape, data_types::f32, in_format_, in_pad_}});
 
         auto g = group_normalization{
             "group_normalization_output",
@@ -127,6 +133,7 @@ private:
     std::size_t num_groups_{};
     double epsilon_{};
     format in_format_{format::any};
+    padding in_pad_{padding()};
     format out_format_{format::any};
     padding output_pad_{padding()};
     network::ptr network_{};
@@ -166,30 +173,36 @@ const std::vector<cldnn::format> f_planar_5d_formats {
 INSTANTIATE_TEST_SUITE_P(
     GroupNormalizationGPUTest_planar_layouts_support_4d, GroupNormalizationGPUTest,
     ::testing::Combine(
-        ::testing::ValuesIn({std::vector<int32_t>{3, 64, 32, 64}, std::vector<int32_t>{3, 124, 97, 61}, std::vector<int32_t>{1, 1536, 151, 1}, std::vector<int32_t>{1, 12, 2175, 1}}),
+        ::testing::ValuesIn({std::vector<ov::Dimension::value_type>{3, 64, 32, 64}, std::vector<ov::Dimension::value_type>{3, 124, 97, 61},
+                             std::vector<ov::Dimension::value_type>{1, 1536, 151, 1}, std::vector<ov::Dimension::value_type>{1, 12, 2175, 1}}),
         ::testing::ValuesIn(std::vector<size_t>{1, 4}),
         ::testing::Values(0.0025),
         ::testing::ValuesIn(f_planar_4d_formats),
+        ::testing::ValuesIn({padding()}),
         ::testing::ValuesIn(f_4d_formats),
         ::testing::ValuesIn({padding(), padding({0, 0, 1, 1})})));
 
 INSTANTIATE_TEST_SUITE_P(
     GroupNormalizationGPUTest_blocked_layouts_support_4d, GroupNormalizationGPUTest,
     ::testing::Combine(
-        ::testing::ValuesIn({std::vector<int32_t>{3, 64, 32, 64}, std::vector<int32_t>{3, 124, 97, 61}, std::vector<int32_t>{1, 1536, 151, 1}, std::vector<int32_t>{1, 12, 2175, 1}}),
+        ::testing::ValuesIn({std::vector<ov::Dimension::value_type>{3, 64, 32, 64}, std::vector<ov::Dimension::value_type>{3, 124, 97, 61},
+                             std::vector<ov::Dimension::value_type>{1, 1536, 151, 1}, std::vector<ov::Dimension::value_type>{1, 12, 2175, 1}}),
         ::testing::ValuesIn(std::vector<size_t>{1, 2, 4}),
         ::testing::Values(0.0025),
         ::testing::ValuesIn(f_blocked_4d_formats),
+        ::testing::ValuesIn({padding(), padding({0, 0, 1, 1})}),
         ::testing::ValuesIn(f_4d_formats),
         ::testing::ValuesIn({padding(), padding({0, 16, 0, 0})})));
 
 INSTANTIATE_TEST_SUITE_P(
     GroupNormalizationGPUTest_planar_layouts_support_5d, GroupNormalizationGPUTest,
     ::testing::Combine(
-        ::testing::ValuesIn({std::vector<int32_t>{3, 64, 28, 32, 12}, std::vector<int32_t>{3, 124, 10, 97, 61}, std::vector<int32_t>{1, 1536, 9, 151, 1}, std::vector<int32_t>{1, 12, 8, 2175, 1}}),
+        ::testing::ValuesIn({std::vector<ov::Dimension::value_type>{3, 64, 28, 32, 12}, std::vector<ov::Dimension::value_type>{3, 124, 10, 97, 61},
+                             std::vector<ov::Dimension::value_type>{1, 1536, 9, 151, 1}, std::vector<ov::Dimension::value_type>{1, 12, 8, 2175, 1}}),
         ::testing::ValuesIn(std::vector<size_t>{1, 4}),
         ::testing::Values(0.0025),
         ::testing::ValuesIn(f_planar_5d_formats),
+        ::testing::ValuesIn({padding()}),
         ::testing::ValuesIn(f_planar_5d_formats),
         ::testing::ValuesIn({padding(), padding({0, 0, 1, 1})})));
 

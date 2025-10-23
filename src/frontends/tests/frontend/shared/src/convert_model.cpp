@@ -11,8 +11,7 @@
 using namespace ov::frontend;
 
 std::string FrontEndConvertModelTest::getTestCaseName(const testing::TestParamInfo<ConvertParam>& obj) {
-    std::string fe, path, fileName;
-    std::tie(fe, path, fileName) = obj.param;
+    const auto& [fe, path, fileName] = obj.param;
     return fe + "_" + FrontEndTestUtils::fileToTestName(fileName);
 }
 

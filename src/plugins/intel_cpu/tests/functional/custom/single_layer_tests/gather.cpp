@@ -5,6 +5,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/general_utils.h"
 #include "openvino/op/gather.hpp"
 
 using namespace CPUTestUtils;
@@ -24,16 +25,9 @@ class GatherLayerTestCPU : public testing::WithParamInterface<GatherLayerTestCPU
                            virtual public ov::test::SubgraphBaseTest,
                            public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherLayerTestCPUParams> obj) {
-        std::vector<InputShape> inputShapes;
-        std::tuple<int, int> axisAndBatchDims;
-        ElementType netPrecision;
-        bool isAxisConstant;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShapes, axisAndBatchDims, netPrecision, isAxisConstant, cpuParams, additionalConfig) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherLayerTestCPUParams>& obj) {
+        const auto& [inputShapes, axisAndBatchDims, netPrecision, isAxisConstant, cpuParams, additionalConfig] =
+            obj.param;
         std::ostringstream result;
         result << "IS=(";
         for (size_t i = 0lu; i < inputShapes.size(); i++) {
@@ -68,15 +62,8 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> inputShapes;
-        std::tuple<int, int> axisAndBatchDims;
-        ElementType netPrecision;
-        bool isAxisConstant;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
         const ElementType intInputsPrecision = ElementType::i64;
-
-        std::tie(inputShapes, axisAndBatchDims, netPrecision, isAxisConstant, cpuParams, additionalConfig) =
+        const auto &[inputShapes, axisAndBatchDims, netPrecision, isAxisConstant, cpuParams, additionalConfig] =
             this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         axis = std::get<0>(axisAndBatchDims);
@@ -85,7 +72,7 @@ protected:
         init_input_shapes(inputShapes);
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::bf16) {
+        if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
@@ -165,15 +152,8 @@ class GatherInPlaceLayerTestCPU : public testing::WithParamInterface<GatherInPla
                                   virtual public ov::test::SubgraphBaseTest,
                                   public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherInPlaceLayerTestCPUParams> obj) {
-        InputShape inputShapes;
-        std::vector<int64_t> indices;
-        int axis;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-
-        std::tie(inputShapes, indices, axis, netPrecision, cpuParams) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherInPlaceLayerTestCPUParams>& obj) {
+        const auto &[inputShapes, indices, axis, netPrecision, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=(";
 
@@ -195,15 +175,9 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape inputShapes;
-        std::vector<int64_t> indices;
-        int axis;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
         constexpr ElementType intInputsPrecision = ElementType::i64;
         constexpr int batchDims = 0;
-
-        std::tie(inputShapes, indices, axis, netPrecision, cpuParams) = this->GetParam();
+        const auto &[inputShapes, indices, axis, netPrecision, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({inputShapes});

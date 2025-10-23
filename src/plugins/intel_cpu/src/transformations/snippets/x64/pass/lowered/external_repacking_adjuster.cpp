@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <numeric>
@@ -105,10 +106,13 @@ void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& exe
     const auto idx = config->is_transposed_B() ? 0 : 1;
     const auto copy_wei_stride =
         ov::snippets::utils::get_dim_in_stride(shape, layout, idx) * dnnl_data_type_size(config->get_original_wei_dt());
+    OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(N) && !ov::snippets::utils::is_dynamic_value(K),
+                    "N and K shape should not be dynamic at BrgemmExternalRepackingAdjuster update kernel stage.");
+    const auto N_signed = static_cast<int64_t>(N);
+    const auto K_signed = static_cast<int64_t>(K);
     const auto LDB =
-        brgemm_utils::repacking::compute_K_blocked_stride(N, config->get_wei_N_blk(), config->are_wei_blocked());
-    OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
-    config->update(N, N, K, K, copy_wei_stride, LDB);
+        brgemm_utils::repacking::compute_K_blocked_stride(N_signed, config->get_wei_N_blk(), config->are_wei_blocked());
+    config->update(N_signed, N_signed, K_signed, K_signed, copy_wei_stride, LDB);
     executor->update_by_config(*config);
 }
 
@@ -146,7 +150,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         const auto src_data = N * K * src_dt_size;
         const auto dst_data = std::accumulate(buffer_b_allocation_shape.cbegin(),
                                               buffer_b_allocation_shape.cend(),
-                                              size_t(1),
+                                              static_cast<size_t>(1),
                                               std::multiplies<>()) *
                               dst_dt_size;
         data_size += src_data + dst_data;
@@ -178,12 +182,6 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         }
 
         const auto& config = static_cast<const BrgemmCopyBKernelConfig&>(executor->get_config());
-        const auto [blocked_dims, blocked_order] =
-            brgemm_utils::repacking::get_wei_blocked_shape(planar_shape,
-                                                           prc,
-                                                           config.get_wei_K_blk(),
-                                                           config.get_wei_N_blk(),
-                                                           config.are_wei_blocked());
         const auto desc = get_desc(planar_shape,
                                    prc,
                                    config.get_wei_K_blk(),
@@ -205,6 +203,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
             auto& offsets = cpu_config->io_data_offsets[i];
             std::fill(offsets.begin(), offsets.end(), 0);
         } else {
+            const auto blocked_dims = desc->getBlockDims();
             const auto inner_blocks_num = blocked_dims.size() - planar_shape.size();
             const auto rank = in_offsets.size() + inner_blocks_num;  // to align with src offsets rank
             OPENVINO_ASSERT(rank >= blocked_dims.size(), "Incorrect target rank for dst offsets");

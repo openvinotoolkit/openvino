@@ -10,6 +10,7 @@
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -189,8 +190,8 @@ protected:
             : m_option(option) {
             auto val = PluginConfig::read_env(name, prefix, &option);
             if (!val.empty()) {
-                std::cout << "Non default global config value for " << name << " = " << val.template as<std::string>()
-                          << std::endl;
+                util::log_message("Non default global config value for " + name + " = " +
+                                  val.template as<std::string>());
                 option.set_any(val);
             }
         }

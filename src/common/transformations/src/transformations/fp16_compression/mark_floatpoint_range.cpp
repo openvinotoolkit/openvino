@@ -16,7 +16,6 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
 void ov::pass::mark_range_path(const std::shared_ptr<Node>& node) {
@@ -35,7 +34,6 @@ void ov::pass::erase_range_path(const std::shared_ptr<Node>& node) {
 ov::pass::MarkFloatingPointRange::MarkFloatingPointRange() {
     MATCHER_SCOPE(MarkFloatingPointRange);
     using namespace ov::pass::pattern;
-    using namespace ov::gen_pattern;
     // through these nodes
     const auto range_propagating_nodes = pattern::wrap_type<ov::op::v0::Convert,
                                                             ov::op::v1::Greater,

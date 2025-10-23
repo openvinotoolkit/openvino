@@ -60,16 +60,16 @@ JitConstants PoolingKernelGPUByxfOpt::GetJitConstants(const pooling_params& para
 
 bool PoolingKernelGPUByxfOpt::Validate(const Params& p) const {
     if (!PoolingKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const pooling_params& params = static_cast<const pooling_params&>(p);
     if (params.inputs[0].Feature().v % 8 != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (NeedsBoundaryCheck(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

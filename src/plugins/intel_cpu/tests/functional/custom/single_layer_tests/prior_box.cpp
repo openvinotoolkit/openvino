@@ -40,19 +40,7 @@ class PriorBoxLayerCPUTest : public testing::WithParamInterface<priorBoxLayerPar
         virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<priorBoxLayerParams>& obj) {
-        ov::test::ElementType netPrecision;
-        ov::test::ElementType inPrc, outPrc;
-        ov::test::InputShape inputShapes;
-        ov::test::InputShape imageShapes;
-        std::string targetDevice;
-        priorBoxSpecificParams specParams;
-        std::tie(specParams,
-                 netPrecision,
-                 inPrc, outPrc,
-                 inputShapes,
-                 imageShapes,
-                 targetDevice) = obj.param;
-
+        const auto& [specParams, netPrecision, inPrc, outPrc, inputShapes, imageShapes, targetDevice] = obj.param;
         ov::op::v0::PriorBox::Attributes attributes;
         std::tie(
             attributes.min_size,
@@ -94,15 +82,8 @@ public:
 
 protected:
     void SetUp() override {
-        priorBoxSpecificParams specParams;
-
-        ov::test::ElementType netPrecision;
-        ov::test::ElementType inPrc;
-        ov::test::ElementType outPrc;
-        ov::test::InputShape inputShapes;
-        ov::test::InputShape imageShapes;
-        std::tie(specParams, netPrecision, inPrc, outPrc, inputShapes, imageShapes, targetDevice) = GetParam();
-
+        const auto& [specParams, netPrecision, inPrc, outPrc, inputShapes, imageShapes, _targetDevice] = GetParam();
+        targetDevice = _targetDevice;
         selectedType = makeSelectedTypeStr("ref_any", ov::test::ElementType::i32);
         targetDevice = ov::test::utils::DEVICE_CPU;
 

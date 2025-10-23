@@ -38,26 +38,26 @@ JitConstants EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetJitConstants(const e
 
 bool EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::Validate(const Params& params) const {
     if (!EltwiseKernelBase::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& ewParams = static_cast<const eltwise_params&>(params);
 
     const auto& inputs = ewParams.inputs;
     if (inputs.size() != 2) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     for (auto in : inputs) {
         if (in.GetLayout() != DataLayout::fs_b_yx_fsv32 && in.GetLayout() != DataLayout::byxf)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& input1 = inputs[0];
     const auto& input2 = inputs[1];
 
     if (input1.Feature().v % 32 != 0 || input2.Feature().v % 32 != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

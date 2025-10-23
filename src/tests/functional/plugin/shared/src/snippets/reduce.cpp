@@ -12,14 +12,8 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string Reduce::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ReduceParams> obj) {
-    InputShape input_shape;
-    ov::test::utils::ReductionType reduce_type;
-    std::vector<int> axes;
-    bool keep_dims;
-    size_t num_nodes, num_subgraphs;
-    std::string targetDevice;
-    std::tie(input_shape, reduce_type, axes, keep_dims, num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string Reduce::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ReduceParams>& obj) {
+    const auto& [input_shape, reduce_type, axes, keep_dims, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::partialShape2str({input_shape.first}) << "_";
@@ -36,11 +30,11 @@ std::string Reduce::getTestCaseName(testing::TestParamInfo<ov::test::snippets::R
 }
 
 void Reduce::SetUp() {
-    InputShape input_shape;
-    ov::test::utils::ReductionType reduce_type;
-    std::vector<int> axes;
-    bool keep_dims;
-    std::tie(input_shape, reduce_type, axes, keep_dims, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [input_shape, reduce_type, axes, keep_dims, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] =
+        this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({input_shape});
 
     auto f = ov::test::snippets::ReduceFunction(inputDynamicShapes, reduce_type, axes, keep_dims);

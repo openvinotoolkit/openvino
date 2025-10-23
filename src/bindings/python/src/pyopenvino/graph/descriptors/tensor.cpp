@@ -85,7 +85,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                R"(
                 Set names for tensor.
 
-                :param names: Set of names.
+                :param names: set of names.
                 :type names: set
              )");
 
@@ -149,10 +149,10 @@ void regclass_graph_descriptor_Tensor(py::module m) {
     tensor.def("get_value_symbol",
                &ov::descriptor::Tensor::get_value_symbol,
                R"(
-                Returns the List of symbols.
+                Returns the list of symbols.
 
-                :return: List of Symbols.
-                :rtype: List[openvino.Symbol]
+                :return: list of Symbols.
+                :rtype: list[openvino.Symbol]
              )");
 
     tensor.def("set_value_symbol",
@@ -161,8 +161,8 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                R"(
                 Sets the value symbol of the tensor.
 
-                :param value_symbol: List of Symbols
-                :type value_symbol: List[openvino.Symbol]
+                :param value_symbol: list of Symbols
+                :type value_symbol: list[openvino.Symbol]
              )");
 
     tensor.def_property_readonly("shape", &ov::descriptor::Tensor::get_shape);

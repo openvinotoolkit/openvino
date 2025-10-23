@@ -64,7 +64,7 @@ void PhiloxGenerator::set_operator_seed(const uint64_t op_seed) {
 }
 
 // ====== MockPhiloxGenerator functions ======
-MockPhiloxGenerator::MockPhiloxGenerator() : PhiloxGenerator(op::PhiloxAlignment::MOCK, 0, 0, {0, 0}){};
+MockPhiloxGenerator::MockPhiloxGenerator() : PhiloxGenerator(op::PhiloxAlignment::MOCK, 0, 0, {0, 0}) {};
 
 std::pair<uint64_t, uint64_t> MockPhiloxGenerator::get_next_state() {
     return get_previous_state();

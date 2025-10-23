@@ -38,11 +38,11 @@ CommonDispatchData LRNKernelAcrossChannel_b8::SetDefault(const lrn_params& param
 
 bool LRNKernelAcrossChannel_b8::Validate(const Params& p) const {
     if (!LRNKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (!IsSIMDSizeSupported(p.engineInfo, 8))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const lrn_params& params = static_cast<const lrn_params&>(p);
     const auto& out = params.outputs[0];
@@ -51,7 +51,7 @@ bool LRNKernelAcrossChannel_b8::Validate(const Params& p) const {
     const bool bSupportedBatch = (out.Batch().v % 8) == 0 && ((out.Batch().v * out.Feature().v) % 64) == 0;
 
     if (!bSupportedPitch || !bSupportedBatch) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

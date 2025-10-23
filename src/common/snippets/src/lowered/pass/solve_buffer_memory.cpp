@@ -119,7 +119,7 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const Buffers& 
     for (auto& p : map_boxes) {
         auto& box = p.second;
         // Align with cache line size. The experiments show that it affects performance.
-        box.size = utils::div_up(box.size, byte_alignment);
+        box.size = static_cast<int64_t>(utils::div_up(box.size, byte_alignment));
 
         boxes.push_back(box);
     }
@@ -168,8 +168,7 @@ bool SolveBufferMemory::run(LinearIR& linear_ir) {
 
     // TODO [143395] : MemoryManager will be able to return two containers with dynamic and static buffers
     //                 without additional `extract` functions in all passes
-    Buffers static_buffer_exprs, dynamic_buffer_exprs;
-    std::tie(static_buffer_exprs, dynamic_buffer_exprs) = extract_static_and_dynamic_buffers(linear_ir.get_buffers());
+    auto [static_buffer_exprs, dynamic_buffer_exprs] = extract_static_and_dynamic_buffers(linear_ir.get_buffers());
 
     if (!static_buffer_exprs.empty()) {
         solve_static_buffer_memory(static_buffer_exprs, linear_ir);

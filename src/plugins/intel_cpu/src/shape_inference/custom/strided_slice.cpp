@@ -25,6 +25,7 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
 #include "slice_shape_inference_utils.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -48,11 +49,11 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
     static constexpr size_t STRIDE_ID = 3;
     const VectorDims& shapeIn = input_shapes[DATA_ID].get();
     const VectorDims& shapeBegin = input_shapes[BEGIN_ID].get();
-    if (data_dependency.at(BEGIN_ID)->getDesc().getPrecision() != ov::element::i32 ||
-        data_dependency.at(END_ID)->getDesc().getPrecision() != ov::element::i32 ||
-        data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != ov::element::i32) {
-        OPENVINO_THROW("The data type of begin/end/stride is NOT I32, which is unexpected!");
-    }
+    OPENVINO_ASSERT(all_of(ov::element::i32,
+                           data_dependency.at(BEGIN_ID)->getDesc().getPrecision(),
+                           data_dependency.at(END_ID)->getDesc().getPrecision(),
+                           data_dependency.at(STRIDE_ID)->getDesc().getPrecision()),
+                    "The data type of begin/end/stride is NOT I32, which is unexpected!");
     auto* beginPtr = data_dependency.at(BEGIN_ID)->getDataAs<int32_t>();
     auto* endPtr = data_dependency.at(END_ID)->getDataAs<int32_t>();
     auto* stridePtr = data_dependency.at(STRIDE_ID)->getDataAs<int32_t>();

@@ -28,10 +28,7 @@ using MarkupBiasTestValues = std::tuple<ov::element::Type, MarkupBiasTestParams,
 class MarkupBiasTests : public testing::WithParamInterface<MarkupBiasTestValues>, public LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MarkupBiasTestValues>& obj) {
-        ov::element::Type precision;
-        MarkupBiasTestParams test_values;
-        std::string layer_type;
-        std::tie(precision, test_values, layer_type) = obj.param;
+        const auto& [precision, test_values, layer_type] = obj.param;
 
         std::ostringstream result;
         result << precision << "IS=" << test_values.input_shape << "_bias_shape=" << test_values.bias_shape << "_"
@@ -41,10 +38,7 @@ public:
 
 protected:
     void SetUp() override {
-        ov::element::Type precision;
-        MarkupBiasTestParams test_values;
-        std::string layer_type;
-        std::tie(precision, test_values, layer_type) = GetParam();
+        const auto& [precision, test_values, layer_type] = GetParam();
 
         actualFunction = ov::builder::subgraph::MarkupBiasFunction::get(precision,
                                                                             test_values.input_shape,

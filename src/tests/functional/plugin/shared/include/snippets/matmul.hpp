@@ -28,6 +28,7 @@ protected:
      */
     void filter_shape_info(const std::set<size_t>& idces_to_remove);
     virtual std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) = 0;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
     MatMulType matmul_type;
 };
@@ -35,7 +36,7 @@ protected:
 class MatMul : public testing::WithParamInterface<ov::test::snippets::MatMulParams>,
                virtual public MatMulBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MatMulParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MatMulParams>& obj);
 
 protected:
     void SetUp() override;

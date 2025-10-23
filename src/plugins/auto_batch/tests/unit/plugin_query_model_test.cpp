@@ -19,11 +19,8 @@ public:
     ov::SupportedOpsMap m_supported_ops_map;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<query_model_params> obj) {
-        ov::AnyMap properties;
-        bool throw_exception;
-
-        std::tie(properties, throw_exception) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<query_model_params>& obj) {
+        const auto& [properties, throw_exception] = obj.param;
         std::string res = "";
         if (properties.size() > 0) {
             res += "QueryModel_";

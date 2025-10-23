@@ -4,7 +4,7 @@
 
 """Factory functions for all openvino ops."""
 from functools import partial
-from typing import List, Optional
+from typing import Optional
 
 from openvino import Node
 from openvino.utils.node_factory import _get_node_factory
@@ -13,7 +13,6 @@ from openvino.utils.types import (
     NodeInput,
     as_nodes,
     as_node,
-    make_constant_node,
 )
 
 _get_node_factory_opset4 = partial(_get_node_factory, "opset4")
@@ -29,8 +28,8 @@ def interpolate(
     scales: NodeInput,
     mode: str,
     shape_calculation_mode: str,
-    pads_begin: Optional[List[int]] = None,
-    pads_end: Optional[List[int]] = None,
+    pads_begin: Optional[list[int]] = None,
+    pads_end: Optional[list[int]] = None,
     coordinate_transformation_mode: str = "half_pixel",
     nearest_mode: str = "round_prefer_floor",
     antialias: bool = False,

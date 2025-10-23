@@ -152,11 +152,7 @@ class NgramCPUTest : public testing::WithParamInterface<NgramTestParams>,
                      public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NgramTestParams>& obj) {
-        std::vector<InputShape> input_shapes;
-        size_t k;
-        ElementType data_et;
-        ElementType idces_et;
-        std::tie(input_shapes, data_et, idces_et, k) = obj.param;
+        const auto& [input_shapes, data_et, idces_et, k] = obj.param;
         std::ostringstream results;
 
         results << "IS=(";
@@ -205,11 +201,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        std::vector<InputShape> inputShapes;
-        ElementType data_et;
-        ElementType idces_et;
-        size_t k;
-        std::tie(inputShapes, data_et, idces_et, k) = this->GetParam();
+        const auto& [inputShapes, data_et, idces_et, k] = this->GetParam();
         init_input_shapes(inputShapes);
         function = initNgram(inputDynamicShapes, data_et, idces_et, k);
 

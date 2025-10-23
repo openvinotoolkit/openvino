@@ -9,11 +9,7 @@
 namespace ov {
 namespace test {
 std::string SqueezeUnsqueezeLayerTest::getTestCaseName(const testing::TestParamInfo<squeezeParams>& obj) {
-    ov::element::Type model_type;
-    ShapeAxesTuple shape_item;
-    std::string targetDevice;
-    ov::test::utils::SqueezeOpType op_type;
-    std::tie(shape_item, op_type, model_type, targetDevice) = obj.param;
+    const auto& [shape_item, op_type, model_type, targetDevice] = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -38,13 +34,9 @@ std::string SqueezeUnsqueezeLayerTest::getTestCaseName(const testing::TestParamI
 }
 
 void SqueezeUnsqueezeLayerTest::SetUp() {
-    ov::element::Type model_type;
-    std::vector<InputShape> input_shapes;
-    std::vector<int> axes;
-    ShapeAxesTuple shape_item;
-    ov::test::utils::SqueezeOpType op_type;
-    std::tie(shape_item, op_type, model_type, targetDevice) = GetParam();
-    std::tie(input_shapes, axes) = shape_item;
+    const auto& [shape_item, op_type, model_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
+    const auto& [input_shapes, axes] = shape_item;
 
     init_input_shapes(input_shapes);
 

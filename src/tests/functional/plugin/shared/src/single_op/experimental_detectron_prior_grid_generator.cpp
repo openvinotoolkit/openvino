@@ -10,12 +10,9 @@ namespace test {
 
 std::string ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName(
         const testing::TestParamInfo<ExperimentalDetectronPriorGridGeneratorTestParams>& obj) {
-    std::vector<InputShape> shapes;
-    ov::op::v6::ExperimentalDetectronPriorGridGenerator::Attributes attributes;
     std::pair<std::string, std::vector<ov::Tensor>> inputTensors;
-    ElementType model_type;
-    std::string targetName;
-    std::tie(shapes, attributes, model_type, targetName) = obj.param;
+
+    const auto& [shapes, attributes, model_type, targetName] = obj.param;
 
     std::ostringstream result;
     using ov::test::operator<<;
@@ -38,11 +35,7 @@ std::string ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName(
 }
 
 void ExperimentalDetectronPriorGridGeneratorLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::op::v6::ExperimentalDetectronPriorGridGenerator::Attributes attributes;
-    ElementType model_type;
-    std::string targetName;
-    std::tie(shapes, attributes, model_type, targetName) = this->GetParam();
+    const auto& [shapes, attributes, model_type, targetName] = this->GetParam();
 
     inType = outType = model_type;
     targetDevice = targetName;

@@ -16,9 +16,9 @@ AvgPool
 
 ``H_out = (H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1``
 
-``W_out = (H + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1``
+``W_out = (W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1``
 
-``D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1``
+``D_out = (D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1``
 
 **Attributes**: *Pooling* attributes are specified in the ``data`` node, which is a child of the layer node.
 

@@ -506,7 +506,7 @@ KernelsPriority Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsPriority(const
 
 bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params) const {
     if (!Parent::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     KernelData kd = KernelData::Default<convolution_params>(params);
@@ -515,19 +515,19 @@ bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params) cons
     if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
         if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
             (conv_params.compensation.empty()))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
         if ((conv_params.activations_zero_points.empty()) &&
             (conv_params.compensation.empty()))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
         if (conv_params.weights_zero_points.empty())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else {
         if (!conv_params.activations_zero_points.empty() ||
             !conv_params.weights_zero_points.empty() ||
             !conv_params.compensation.empty())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

@@ -206,11 +206,11 @@ bool ReorderWeightsOpt::Validate(const Params& params) const {
     const auto& output = p.output;
 
     if (input.GroupedLayout() != output.GroupedLayout()) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (input.GetDims().size() != output.GetDims().size()) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

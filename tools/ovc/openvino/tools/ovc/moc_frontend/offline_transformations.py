@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List
-
 from openvino.tools.ovc.error import Error
 
 
@@ -89,7 +87,7 @@ def apply_user_transformations(func: object, transforms: list):
         available_transformations[name](func, **args)
 
 
-def apply_moc_legacy_transformations(func: object, params_with_custom_types: List[str]):
+def apply_moc_legacy_transformations(func: object, params_with_custom_types: list[str]):
     from openvino._offline_transformations import \
         apply_moc_legacy_transformations  # pylint: disable=import-error,no-name-in-module
     apply_moc_legacy_transformations(func, params_with_custom_types)

@@ -1168,6 +1168,54 @@ const auto notFuseTestParamsSmoke =
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC, FCNotFuseFQCPUTest, notFuseTestParamsSmoke, FCNotFuseFQCPUTest::getTestCaseName);
 
+// small matmul implementation test
+class SmallMatMulLayerCPUTest : public MatMulLayerCPUTest {
+    void SetUp() override {
+        MatMulLayerCPUTest::SetUp();
+        expectPostOpsToBeFused = true;
+    }
+};
+
+TEST_P(SmallMatMulLayerCPUTest, CompareWithRefs) {
+    run();
+}
+
+const std::vector<ShapeRelatedParams> IS_x64_small = {
+    {static_shapes_to_test_representation({{128, 2, 2}, {128, 2, 2}}), {false, false}},
+    {static_shapes_to_test_representation({{10, 64, 2, 2}, {10, 64, 2, 2}}), {false, false}},
+    {static_shapes_to_test_representation({{100, 1, 2, 2}, {100, 1, 2, 1}}), {false, false}},
+    {static_shapes_to_test_representation({{100, 2, 1, 2}, {100, 2, 2, 1}}), {false, false}},
+    {
+        {
+            {{-1, -1, -1, -1}, {{10, 10, 2, 2}, {2, 2, 1, 2}, {1, 10, 2, 2}}},
+            {{-1, -1, -1, -1}, {{10, 10, 2, 2}, {2, 2, 2, 2}, {1, 10, 2, 1}}}
+        },
+        {false, false}
+    },
+    {
+        {
+            {{-1, -1, -1, -1, -1}, {{128, 1, 1, 2, 2}, {1, 1, 64, 1, 2}, {10, 3, 3, 2, 1}}},
+            {{-1, -1, -1, -1, -1}, {{128, 1, 1, 2, 2}, {1, 1, 64, 2, 1}, {10, 3, 3, 1, 2}}}
+        },
+        {false, false}
+    }
+};
+
+const auto matMulParams_x64_small = ::testing::Combine(::testing::ValuesIn(IS_x64_small),
+                                                       ::testing::Values(element::f32),
+                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::Values(utils::InputLayerType::PARAMETER),
+                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                       ::testing::Values(ov::AnyMap{}));
+
+const auto testParams_IS_x64_small = ::testing::Combine(matMulParams_x64_small,
+                                     ::testing::Values(MatMulNodeType::MatMul),
+                                     ::testing::ValuesIn(matmulFusingParams()),
+                                     ::testing::Values(CPUSpecificParams()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_IS_x64_small, SmallMatMulLayerCPUTest, testParams_IS_x64_small, SmallMatMulLayerCPUTest::getTestCaseName);
+
 }  // namespace
 }  // namespace MatMul
 }  // namespace test

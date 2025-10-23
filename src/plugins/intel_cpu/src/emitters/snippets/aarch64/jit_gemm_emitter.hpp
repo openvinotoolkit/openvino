@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "emitters/snippets/aarch64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/aarch64/kernel_executors/gemm.hpp"
 #include "emitters/snippets/brgemm_generic.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
-class jit_gemm_emitter : public jit_emitter {
+class jit_gemm_emitter : public jit_binary_call_emitter {
 public:
     jit_gemm_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
                      dnnl::impl::cpu::aarch64::cpu_isa_t isa,
@@ -27,11 +28,14 @@ public:
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
+    void emit_call(const std::vector<size_t>& mem_ptrs_idxs) const;
 
-    const uintptr_t get_execute_function_ptr() const;
-    const uintptr_t get_compiled_kernel_ptr() const;
+    static uintptr_t get_execute_function_ptr();
+    uintptr_t get_compiled_kernel_ptr() const;
 
     std::shared_ptr<GemmKaiKernelExecutor> m_kernel_executor_kai = nullptr;
+    std::vector<size_t> m_memory_offsets;
+    std::vector<size_t> m_buffer_ids;
 };
 
 }  // namespace ov::intel_cpu::aarch64

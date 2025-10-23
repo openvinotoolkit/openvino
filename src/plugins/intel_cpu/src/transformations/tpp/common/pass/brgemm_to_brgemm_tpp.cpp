@@ -23,6 +23,7 @@
 #include "snippets/op/brgemm.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::tpp::pass {
 
@@ -30,7 +31,7 @@ using namespace snippets::lowered;
 
 bool BrgemmToBrgemmTPP::is_supported_brgemm_configuration(const std::vector<std::vector<size_t>>& layouts,
                                                           const ov::element::TypeVector& precisions) {
-    OPENVINO_ASSERT(layouts.size() == 3 && precisions.size() == 3,
+    OPENVINO_ASSERT(all_of(3, layouts.size(), precisions.size()),
                     "snippets::op::Brgemm must have 2 inputs and 1 output");
     const bool supported_layouts = std::all_of(layouts.begin(), layouts.end(), [](const std::vector<size_t>& layout) {
         return layout.empty() || layout.back() == layout.size() - 1;
@@ -51,9 +52,8 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToBrgemmTPP")
         const auto node = m.get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
-        if (!brgemm || ov::as_type_ptr<tpp::op::BrgemmTPP>(node)) {
-            OPENVINO_THROW("BrgemmCPU cannot be in body before BrgemmToBrgemmTPP pass");
-        }
+        OPENVINO_ASSERT(brgemm && !ov::is_type<tpp::op::BrgemmTPP>(node),
+                        "BrgemmCPU cannot be in body before BrgemmToBrgemmTPP pass");
 
         if (brgemm->is_dynamic()) {
             return false;

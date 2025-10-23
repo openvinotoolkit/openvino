@@ -242,11 +242,11 @@ void MockPluginBase<DeviceType>::create_implementation() {
         .WillByDefault([](const ov::AnyMap& remote_properties) -> ov::SoPtr<ov::IRemoteContext> {
             return std::make_shared<MockRemoteContext>(device_name);
         });
-    ON_CALL(*this, import_model(testing::_, testing::_))
+    ON_CALL(*this, import_model(testing::A<std::istream&>(), testing::_))
         .WillByDefault([](std::istream& model, const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
             OPENVINO_NOT_IMPLEMENTED;
         });
-    ON_CALL(*this, import_model(testing::_, testing::_, testing::_))
+    ON_CALL(*this, import_model(testing::A<std::istream&>(), testing::_, testing::_))
         .WillByDefault([](std::istream& model,
                           const ov::SoPtr<ov::IRemoteContext>& context,
                           const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {

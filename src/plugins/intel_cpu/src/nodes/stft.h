@@ -46,10 +46,10 @@ private:
     bool m_is_frame_step_const = false;
 
     // Input indices
-    static constexpr size_t DATA_IDX = 0lu;
-    static constexpr size_t WINDOW_IDX = 1lu;
-    static constexpr size_t FRAME_SIZE_IDX = 2lu;
-    static constexpr size_t FRAME_STEP_IDX = 3lu;
+    static constexpr size_t DATA_IDX = 0LU;
+    static constexpr size_t WINDOW_IDX = 1LU;
+    static constexpr size_t FRAME_SIZE_IDX = 2LU;
+    static constexpr size_t FRAME_STEP_IDX = 3LU;
 };
 
 }  // namespace ov::intel_cpu::node

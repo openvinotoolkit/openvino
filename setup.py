@@ -6,7 +6,6 @@ import os.path
 import sys
 import errno
 import subprocess  # nosec
-import typing
 import platform
 import re
 import shutil
@@ -26,7 +25,9 @@ from setuptools.errors import SetupError
 WHEEL_PACKAGE_DIR = "openvino"
 WHEEL_LIBS_INSTALL_DIR = f"{WHEEL_PACKAGE_DIR}/libs"
 WHEEL_LIBS_PACKAGE = "openvino.libs"
-PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
+
+suffix = 't' if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled() else ''
+PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}{suffix}"
 
 LIBS_DIR = "bin" if platform.system() == "Windows" else "lib"
 
@@ -791,7 +792,7 @@ PACKAGE_DIR = get_package_dir(PY_INSTALL_CFG)
 os.makedirs(PACKAGE_DIR, exist_ok=True)
 
 packages = find_namespace_packages(PACKAGE_DIR)
-package_data: typing.Dict[str, list] = {}
+package_data: dict[str, list] = {}
 ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
 entry_points = find_entry_points(PY_INSTALL_CFG)
 

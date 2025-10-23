@@ -7,11 +7,14 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <iterator>
 #include <map>
+#include <queue>
 #include <set>
 #include <stack>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "openvino/core/except.hpp"
@@ -89,8 +92,7 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
                 const auto parent = tensor->get_source();
                 const auto parent_expr = parent.get_expr();
                 if (ov::is_type<op::Fill>(parent_expr->get_node())) {
-                    if (ov::is_type<op::VectorBuffer>(
-                            parent_expr->get_input_port_connector(0)->get_source().get_expr()->get_node())) {
+                    if (ov::is_type<op::VectorBuffer>(parent_expr->get_input_expr_ptr(0)->get_node())) {
                         manually_assigned[parent.get_descriptor_ptr()->get_reg()] =
                             manually_assigned[parent_expr->get_input_port_descriptor(0)->get_reg()] = assigned;
                     }
@@ -162,10 +164,13 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         }
     }
 
-    auto linescan_assign_registers = [](const decltype(live_intervals_vec)& live_intervals,
-                                        const std::set<Reg>& reg_pool) {
-        // http://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf
-        std::map<LiveInterval, Reg, by_ending> active;
+    auto assign_registers = [](const decltype(live_intervals_vec)& live_intervals, const std::set<Reg>& reg_pool) {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AssignRegisters::LinearScanOptimized")
+        // Optimized O(n log n) register assignment using priority queue
+        // Priority queue to track active intervals by end time
+        using QueueElem = std::pair<decltype(Expression().get_exec_num()), Reg>;
+        std::priority_queue<QueueElem, std::vector<QueueElem>, std::greater<>> active;
+
         // uniquely defined register => reused reg (reduced subset enabled by reg by reusage)
         std::map<Reg, Reg> register_map;
         std::stack<Reg> bank;
@@ -174,33 +179,28 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             bank.push(*rit);
         }
 
-        LiveInterval interval, active_interval;
-        Reg unique_reg, active_unique_reg;
         for (const auto& interval_reg : live_intervals) {
-            std::tie(interval, unique_reg) = interval_reg;
-            // check expired
-            while (!active.empty()) {
-                std::tie(active_interval, active_unique_reg) = *active.begin();
-                // if end of active interval has not passed yet => stop removing actives since they are sorted by end
-                if (active_interval.second >= interval.first) {
-                    break;
-                }
-                active.erase(active_interval);
-                bank.push(register_map[active_unique_reg]);
+            auto [interval, unique_reg] = interval_reg;
+            // Remove expired intervals from active set - O(log k) where k is number of active intervals
+            while (!active.empty() && active.top().first < interval.first) {
+                bank.push(active.top().second);
+                active.pop();
             }
             // allocate
             OPENVINO_ASSERT(active.size() != reg_pool.size(),
                             "Can't allocate registers for a snippet: not enough registers");
             register_map[unique_reg] = bank.top();
             bank.pop();
-            active.insert(interval_reg);
+
+            // Add current interval to active set - O(log k)
+            active.emplace(interval.second, register_map[unique_reg]);
         }
         return register_map;
     };
 
-    const auto& map_vec = linescan_assign_registers(live_intervals_vec, vec_pool);
+    const auto& map_vec = assign_registers(live_intervals_vec, vec_pool);
     assigned_reg_map.insert(map_vec.begin(), map_vec.end());
-    const auto& map_gpr = linescan_assign_registers(live_intervals_gpr, gpr_pool);
+    const auto& map_gpr = assign_registers(live_intervals_gpr, gpr_pool);
     assigned_reg_map.insert(map_gpr.begin(), map_gpr.end());
 
     for (const auto& expr : exprs) {

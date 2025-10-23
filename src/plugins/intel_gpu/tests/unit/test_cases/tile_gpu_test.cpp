@@ -718,10 +718,8 @@ struct PrintToStringParamName {
     template<class T>
     std::string operator()(const testing::TestParamInfo<ParamsWithLayout<T> > &param) {
         std::stringstream buf;
-        Params<T> p;
-        format::type plain_layout;
-        format::type target_layout;
-        std::tie(p, plain_layout, target_layout) = param.param;
+
+        const auto& [p, plain_layout, target_layout] = param.param;
         buf << " input tensor " << p.input_tensor.to_string()
             << " output tensor " << p.output_tensor.to_string()
             << " plain layout " << plain_layout
@@ -737,11 +735,8 @@ struct tile_test
 public:
     void test(bool is_caching_test) {
         const auto data_type = ov::element::from<T>();
-        Params<T> params;
-        format::type plain_layout;
-        format::type target_layout;
 
-        std::tie(params, plain_layout, target_layout) = this->GetParam();
+        const auto& [params, plain_layout, target_layout] = this->GetParam();
 
         const bool need_reorder = target_layout != plain_layout;
 

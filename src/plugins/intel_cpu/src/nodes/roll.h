@@ -57,9 +57,9 @@ private:
     ExecutorPtr execPtr = nullptr;
 
     static constexpr std::array<size_t, 3> supportedPrecisionSizes{1, 2, 4};
-    static constexpr size_t DATA_INDEX = 0ul;
-    static constexpr size_t SHIFT_INDEX = 1ul;
-    static constexpr size_t AXES_INDEX = 2ul;
+    static constexpr size_t DATA_INDEX = 0UL;
+    static constexpr size_t SHIFT_INDEX = 1UL;
+    static constexpr size_t AXES_INDEX = 2UL;
 };
 
 }  // namespace ov::intel_cpu::node

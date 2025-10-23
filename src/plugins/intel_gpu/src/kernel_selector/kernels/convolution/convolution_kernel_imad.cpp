@@ -185,34 +185,34 @@ KernelsPriority ConvolutionKernel_imad::GetKernelsPriority(const Params& /*param
 
 bool ConvolutionKernel_imad::Validate(const Params& params) const {
     if (!Parent::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     auto& conv_params = static_cast<const convolution_params&>(params);
     if (conv_params.groups > 1 && conv_params.weights.IFM().v % 4 != 0 &&
         conv_params.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     size_t min_block_size_x = (conv_params.weights.X().v - 1) * conv_params.dilation.x + 1;
     if (min_block_size_x > SIMD_SIZE)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
         if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
             (conv_params.compensation.empty()))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
         if ((conv_params.activations_zero_points.empty()) &&
             (conv_params.compensation.empty()))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
         if (conv_params.weights_zero_points.empty())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else {
         if (!conv_params.activations_zero_points.empty() ||
             !conv_params.weights_zero_points.empty() ||
             !conv_params.compensation.empty())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

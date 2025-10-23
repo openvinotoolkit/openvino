@@ -41,6 +41,10 @@ public:
     [[nodiscard]] bool isExecutable() const override;
     [[nodiscard]] bool needPrepareParams() const override;
     void prepareParams() override;
+    // TODO: Move to base Node class when more nodes support fuse convert
+    bool supportConvertFusion() const {
+        return supportFuseConvert;
+    }
 
 private:
     size_t axis = 0;
@@ -49,6 +53,7 @@ private:
     bool canOptimizeNspc = false;
     bool canOptimize1DCase = false;
     void execRef();
+    void execWithFuseConvert();  // Handle FP16 to FP32 conversion
     static size_t inverseOrder(const VectorDims& order, size_t axis);
     void execNspcSpecCase();
     void exec1DCase();
@@ -61,6 +66,8 @@ private:
     ov::element::Type inputPrecision = ov::element::f32;
     ov::element::Type outputPrecision = ov::element::f32;
     bool canExecRef = false;
+    bool supportFuseConvert = true;  // support FP16 to FP32 conversion
+    bool doFuseConvert = false;      // whether to perform FP16 to FP32 conversion
     static constexpr size_t MAX_RANK_REF = 6;
     dnnl::primitive prim;
 };

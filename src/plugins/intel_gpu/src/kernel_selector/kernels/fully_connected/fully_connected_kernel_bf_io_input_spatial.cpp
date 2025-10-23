@@ -61,7 +61,7 @@ KernelsPriority FullyConnected_bf_io_input_spatial::GetKernelsPriority(const Par
 
 bool FullyConnected_bf_io_input_spatial::Validate(const Params& p) const {
     if (!FullyConnectedKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const fully_connected_params&>(p);
@@ -70,11 +70,11 @@ bool FullyConnected_bf_io_input_spatial::Validate(const Params& p) const {
     const auto& output = params.outputs[0];
     if ((input.GetLayout() != DataLayout::bfyx && input.GetLayout() != DataLayout::bf) ||
         (output.GetLayout() != DataLayout::bf)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     if (!params.bias.empty()) {
         if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

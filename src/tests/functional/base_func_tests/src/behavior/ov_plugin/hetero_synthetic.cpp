@@ -27,9 +27,7 @@ static std::vector<std::function<std::shared_ptr<ov::Model>()>> builders = {
 };
 
 std::string OVHeteroSyntheticTest::getTestCaseName(const ::testing::TestParamInfo<OVHeteroSyntheticTestParameters>& obj) {
-    std::vector<PluginParameter> pluginParameters;
-    FunctionParameter functionParamter;
-    std::tie(pluginParameters, functionParamter) = obj.param;
+    const auto& [pluginParameters, functionParamter] = obj.param;
     std::string name = "function=" + functionParamter._function->get_friendly_name();
     name += "_layers=";
     std::size_t num = functionParamter._majorPluginNodeIds.size() - 1;

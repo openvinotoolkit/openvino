@@ -24,12 +24,8 @@ typedef std::tuple<
 class SpaceToDepthLayerGPUTest : public testing::WithParamInterface<SpaceToDepthLayerGPUTestParams>,
                                  virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SpaceToDepthLayerGPUTestParams> obj) {
-        InputShape shapes;
-        ov::element::Type model_type;
-        SpaceToDepth::SpaceToDepthMode mode;
-        std::size_t block_size;
-        std::tie(shapes, model_type, mode, block_size) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<SpaceToDepthLayerGPUTestParams>& obj) {
+        const auto& [shapes, model_type, mode, block_size] = obj.param;
 
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -55,11 +51,7 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        SpaceToDepth::SpaceToDepthMode mode;
-        std::size_t block_size;
-        ov::element::Type model_type;
-        std::tie(shapes, model_type, mode, block_size) = this->GetParam();
+        const auto& [shapes, model_type, mode, block_size] = this->GetParam();
 
         targetDevice = ov::test::utils::DEVICE_GPU;
         init_input_shapes({shapes});

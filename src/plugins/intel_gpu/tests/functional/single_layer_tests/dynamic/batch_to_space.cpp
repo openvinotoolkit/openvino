@@ -32,12 +32,7 @@ class BatchToSpaceLayerGPUTest : public testing::WithParamInterface<BatchToSpace
                                  virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BatchToSpaceParamsLayerParamSet>& obj) {
-        InputShape shapes;
-        BatchToSpaceParams params;
-        ov::element::Type model_type;
-        ov::test::utils::InputLayerType restInputType;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(shapes, params, model_type, restInputType, additionalConfig) = obj.param;
+        const auto& [shapes, params, model_type, restInputType, additionalConfig] = obj.param;
 
         std::ostringstream results;
         results << "IS=" <<  ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -98,11 +93,8 @@ protected:
     size_t inferRequestNum = 0;
 
     void SetUp() override {
-        InputShape shapes;
-        BatchToSpaceParams ssParams;
-        ov::test::utils::InputLayerType restInputType;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(shapes, ssParams, inType, restInputType, additionalConfig) = this->GetParam();
+        const auto& [shapes, ssParams, _inType, restInputType, additionalConfig] = this->GetParam();
+        inType = _inType;
 
         block = ssParams.block;
         begin = ssParams.begin;

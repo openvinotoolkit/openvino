@@ -11,10 +11,7 @@ namespace ov {
 namespace test {
 
 std::string ConvStridesOpt::getTestCaseName(const testing::TestParamInfo<ConvStridesOptParams>& obj) {
-    Shape input_shape;
-    op::PadType pad;
-    std::string targetName;
-    std::tie(input_shape, pad, targetName) = obj.param;
+    const auto& [input_shape, pad, targetName] = obj.param;
     std::ostringstream results;
 
     results << "inputShape=" << input_shape << "_";
@@ -24,9 +21,8 @@ std::string ConvStridesOpt::getTestCaseName(const testing::TestParamInfo<ConvStr
 }
 
 void ConvStridesOpt::SetUp() {
-    Shape input_shape;
-    op::PadType pad_type;
-    std::tie(input_shape, pad_type, targetDevice) = this->GetParam();
+    const auto& [input_shape, pad_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, input_shape);
     auto C = input_shape[1];
     auto weights1 = ov::test::utils::make_constant(element::f32, {C, C, 3, 3});

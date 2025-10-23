@@ -10,10 +10,10 @@ permissions: read-all
 jobs:
   Cleanup_PIP:
     name: Cleanup PIP cache
-    runs-on: aks-linux-small
+    runs-on: aks-linux-medium
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
       volumes:
         - /mount:/mount
     env:
@@ -40,7 +40,7 @@ jobs:
     runs-on: aks-linux-4-cores-16gb
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
       volumes:
         - /mount:/mount
     env:
@@ -64,10 +64,10 @@ jobs:
 
   Cleanup_ccache_lin:
     name: Cleanup Linux ccache
-    runs-on: aks-linux-small
+    runs-on: aks-linux-medium
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
       volumes:
         - /mount:/mount
     env:

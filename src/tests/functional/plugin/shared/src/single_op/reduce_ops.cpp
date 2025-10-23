@@ -9,14 +9,7 @@
 namespace ov {
 namespace test {
 std::string ReduceOpsLayerTest::getTestCaseName(const testing::TestParamInfo<reduceOpsParams>& obj) {
-    std::vector<size_t> input_shape;
-    ov::element::Type model_type;
-    bool keep_dims;
-    ov::test::utils::ReductionType reduction_type;
-    std::vector<int> axes;
-    ov::test::utils::OpType op_type;
-    std::string target_device;
-    std::tie(axes, op_type, keep_dims, reduction_type, model_type, input_shape, target_device) = obj.param;
+    const auto& [axes, op_type, keep_dims, reduction_type, model_type, input_shape, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
     result << "axes=" << ov::test::utils::vec2str(axes) << "_";
@@ -29,13 +22,8 @@ std::string ReduceOpsLayerTest::getTestCaseName(const testing::TestParamInfo<red
 }
 
 void ReduceOpsLayerTest::SetUp() {
-    std::vector<size_t> input_shape;
-    ov::element::Type model_type;
-    bool keep_dims;
-    ov::test::utils::ReductionType reduction_type;
-    std::vector<int> axes;
-    ov::test::utils::OpType op_type;
-    std::tie(axes, op_type, keep_dims, reduction_type, model_type, input_shape, targetDevice) = GetParam();
+    const auto& [axes, op_type, keep_dims, reduction_type, model_type, input_shape, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shape));
 

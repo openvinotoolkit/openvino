@@ -23,7 +23,7 @@ class HorizonMax : public ov::op::Op {
 public:
     OPENVINO_OP("HorizonMax", "SnippetsOpset");
 
-    HorizonMax(const Output<Node>& x);
+    explicit HorizonMax(const Output<Node>& x);
     HorizonMax() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

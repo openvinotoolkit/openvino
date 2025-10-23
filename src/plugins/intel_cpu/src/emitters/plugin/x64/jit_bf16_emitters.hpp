@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -21,7 +21,7 @@ namespace ov::intel_cpu {
 class jit_uni_vcvtneps2bf16 : public jit_emitter {
 public:
     enum class conversion_mode : uint8_t { default_mode, saturation_mode };
-    jit_uni_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_uni_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator_t* host,
                           dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                           ov::element::Type exec_prc = ov::element::bf16,
                           conversion_mode mode = conversion_mode::default_mode)

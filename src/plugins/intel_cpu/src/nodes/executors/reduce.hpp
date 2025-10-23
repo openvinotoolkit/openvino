@@ -24,7 +24,7 @@ struct ReduceAttrs {
 
 class ReduceExecutor {
 public:
-    ReduceExecutor(ExecutorContext::CPtr context);
+    explicit ReduceExecutor(ExecutorContext::CPtr context);
     virtual bool init(const ReduceAttrs& reduceAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,

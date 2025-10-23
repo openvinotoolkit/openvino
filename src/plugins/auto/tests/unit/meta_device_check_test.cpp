@@ -10,10 +10,8 @@ using ConfigParams = std::tuple<std::string,  // Priority devices
                                 >;
 class IsMetaDeviceInCandidateListTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::string priorityDevices;
-        bool expectedRet;
-        std::tie(priorityDevices, expectedRet) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
+        const auto& [priorityDevices, expectedRet] = obj.param;
         std::ostringstream result;
         result << "priorityDevices_" << priorityDevices;
         if (expectedRet) {

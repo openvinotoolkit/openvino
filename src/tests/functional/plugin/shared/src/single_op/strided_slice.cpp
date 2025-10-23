@@ -8,10 +8,7 @@
 namespace ov {
 namespace test {
 std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<StridedSliceParams> &obj) {
-    StridedSliceSpecificParams params;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(params, model_type, target_device) = obj.param;
+    const auto& [params, model_type, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < params.input_shape.size(); i++) {
@@ -40,9 +37,8 @@ std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void StridedSliceLayerTest::SetUp() {
-    StridedSliceSpecificParams ssParams;
-    ov::element::Type model_type;
-    std::tie(ssParams, model_type, targetDevice) = this->GetParam();
+    const auto& [ssParams, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(ssParams.input_shape);
 

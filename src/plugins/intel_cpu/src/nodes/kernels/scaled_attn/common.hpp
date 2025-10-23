@@ -9,6 +9,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include "openvino/core/type/bfloat16.hpp"
@@ -36,6 +37,7 @@ static constexpr size_t vec_len_f32_avx512 = vec_len_avx512 / sizeof(float);
 static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
 static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
 static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
+static constexpr size_t vec_len_epi8_avx2 = vec_len_avx2 / sizeof(int8_t);
 
 #if defined(HAVE_SVE)
 inline size_t vec_len_f32_sve() {
@@ -49,7 +51,7 @@ inline size_t vec_len_f16_sve() {
 #endif
 
 constexpr size_t get_sub_byte_multiplier(ov::element::Type type) {
-    return (type == ov::element::i4 || type == ov::element::u4) ? 2 : 1;
+    return ov::intel_cpu::any_of(type, ov::element::i4, ov::element::u4) ? 2 : 1;
 }
 
 uint8_t inline insert_half_byte(uint8_t dst, uint8_t val, bool high_half) {
@@ -390,7 +392,7 @@ inline svfloat32_t exp_ps_sve(svbool_t& pg, svfloat32_t& src) {
     const auto log2_e = svdup_n_f32(1.4426950409f);
     const auto ln2 = svdup_n_f32(0.6931473921f);
     const auto half_ln2_sq = svdup_n_f32(0.2413862043f);
-    const auto not_mask17 = svdup_n_u32(~((1u << 17) - 1));
+    const auto not_mask17 = svdup_n_u32(~((1U << 17) - 1));
     const auto one = svdup_n_f32(1.0f);
 
     // Algorithm starts here
@@ -430,7 +432,7 @@ inline svfloat32_t exp_ps_sve_legacy(svbool_t& pg, svfloat32_t& src) {
 
     const auto inf = svdup_n_f32(std::numeric_limits<float>::infinity());
     const auto max_input = svdup_n_f32(88.37f);  // Approximately ln(2^127.5)
-    const auto zero = svdup_n_f32(0.f);
+    const auto zero = svdup_n_f32(0.F);
     const auto min_input = svdup_n_f32(-86.64f);  // Approximately ln(2^-125)
 
     const auto z = svmla_f32_z(pg, shift, src, inv_ln2);
@@ -473,7 +475,7 @@ inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
 
     const auto inf = vdupq_n_f32(std::numeric_limits<float>::infinity());
     const auto max_input = vdupq_n_f32(88.37f);  // Approximately ln(2^127.5)
-    const auto zero = vdupq_n_f32(0.f);
+    const auto zero = vdupq_n_f32(0.F);
     const auto min_input = vdupq_n_f32(-86.64f);  // Approximately ln(2^-125)
 
     const auto z = vmlaq_f32(shift, src, inv_ln2);

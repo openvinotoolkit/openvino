@@ -2,11 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "utils/general_utils.h"
 
 namespace CPUTestUtils {
+
+// Ensure VNNI is available, so quantized computations do not lead to complete accuracy fail
+std::vector<CPUSpecificParams> filterCPUInfoVNNI(const std::vector<CPUSpecificParams>& CPUParams) {
+    std::vector<CPUSpecificParams> filteredParams = filterCPUInfo(CPUParams);
+    std::vector<CPUSpecificParams> cpuParamsVNNI;
+    constexpr int selectedTypeIndex = 3;
+
+    for (const auto& param : filteredParams) {
+        auto selectedTypeStr = std::get<selectedTypeIndex>(param);
+        if (selectedTypeStr.find("avx2") != std::string::npos && !ov::with_cpu_x86_avx2_vnni())
+            continue;
+        if (selectedTypeStr.find("avx512") != std::string::npos && !ov::with_cpu_x86_avx512_core_vnni())
+            continue;
+
+        cpuParamsVNNI.push_back(param);
+    }
+
+    return cpuParamsVNNI;
+}
 
 std::vector<CPUSpecificParams> filterCPUInfo(const std::vector<CPUSpecificParams>& CPUParams) {
     std::vector<CPUSpecificParams> archCPUParams = filterCPUInfoForArch(CPUParams);
@@ -32,16 +52,16 @@ std::vector<CPUSpecificParams> filterCPUInfoForArch(const std::vector<CPUSpecifi
 
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams) {
     std::vector<CPUSpecificParams> resCPUParams;
-    const int selectedTypeIndex = 3;
-    const int inputFormatIndex = 0;
+    constexpr int selectedTypeIndex = 3;
+    constexpr int inputFormatIndex = 0;
 
     for (auto param : CPUParams) {
         auto selectedTypeStr = std::get<selectedTypeIndex>(param);
         auto inputsFormat = std::get<inputFormatIndex>(param);
         if (!inputsFormat.empty() && !selectedTypeStr.empty() && selectedTypeStr == "any_type") {
-            if (ov::intel_cpu::one_of(inputsFormat[0], nCw8c, nChw8c, nCdhw8c) && !ov::with_cpu_x86_sse42())
+            if (ov::intel_cpu::any_of(inputsFormat[0], nCw8c, nChw8c, nCdhw8c) && !ov::with_cpu_x86_sse42())
                 continue;
-            if (ov::intel_cpu::one_of(inputsFormat[0], nCw16c, nChw16c, nCdhw16c) && !ov::with_cpu_x86_avx512f())
+            if (ov::intel_cpu::any_of(inputsFormat[0], nCw16c, nChw16c, nCdhw16c) && !ov::with_cpu_x86_avx512f())
                 continue;
         }
         if (selectedTypeStr.find("jit") != std::string::npos && !ov::with_cpu_x86_sse42())

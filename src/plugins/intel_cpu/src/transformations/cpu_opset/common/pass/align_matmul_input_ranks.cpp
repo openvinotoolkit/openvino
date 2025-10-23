@@ -27,6 +27,7 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "utils/general_utils.h"
 
 ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
     MATCHER_SCOPE(AlignMatMulInputRanks);
@@ -82,7 +83,7 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
         auto matmul_new_inputs = matmul->input_values();
         ov::NodeVector new_ops;
 
-        if (input0shape.size() == 1 && input1shape.size() == 1) {
+        if (all_of(1U, input0shape.size(), input1shape.size())) {
             // If the input is 1D tensor, it is unsqueezed to 2D tensor (row vector)
             // for the first input:  by adding axes with size 1 at ROW_INDEX_DIM
             //                       to the left of the shape {S} -> {1, S}

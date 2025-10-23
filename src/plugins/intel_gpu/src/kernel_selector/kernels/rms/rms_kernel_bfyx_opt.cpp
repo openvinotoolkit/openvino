@@ -194,7 +194,7 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
 
 bool RMSKernelBfyxOpt::Validate(const Params& p) const {
     if (!Parent::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const rms_params& params = static_cast<const rms_params&>(p);
     const auto& gamma = params.inputs[1];
@@ -202,7 +202,7 @@ bool RMSKernelBfyxOpt::Validate(const Params& p) const {
     if (!gamma.is_dynamic()) {
         size_t data_size = gamma.LogicalSize();
         if (data_size < subgroup_size) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
     return true;

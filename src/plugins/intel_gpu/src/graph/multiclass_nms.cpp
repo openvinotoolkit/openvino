@@ -54,19 +54,19 @@ layout multiclass_nms_inst::calc_output_layout(const multiclass_nms_node& node, 
 
     // see shape_infer() call in MulticlassNmsIEInternal::validate_and_infer_types() - ignore_bg_class == true
     if (attrs.background_class >= 0 && attrs.background_class < num_classes) {
-        num_classes = std::max(1, num_classes - 1);
+        num_classes = std::max<ov::Dimension::value_type>(1, num_classes - 1);
     }
 
     int max_output_boxes_per_class = 0;
     if (attrs.nms_top_k >= 0) {
-        max_output_boxes_per_class = std::min(num_boxes, attrs.nms_top_k);
+        max_output_boxes_per_class = std::min<ov::Dimension::value_type>(num_boxes, attrs.nms_top_k);
     } else {
         max_output_boxes_per_class = num_boxes;
     }
 
     auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
     if (attrs.keep_top_k >= 0) {
-        max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, attrs.keep_top_k);
+        max_output_boxes_per_batch = std::min<ov::Dimension::value_type>(max_output_boxes_per_batch, attrs.keep_top_k);
     }
 
     const auto dim = max_output_boxes_per_batch * num_batches;

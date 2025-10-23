@@ -23,7 +23,7 @@ from openvino.frontend.pytorch.torchdynamo.compile import openvino_compile
 from openvino import Core, Type, PartialShape
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_aot_autograd
 
-from typing import Callable, Optional, Any
+from typing import Optional, Any
 
 from torch.fx.experimental.proxy_tensor import make_fx, wrapper_and_args_for_make_fx
 
@@ -71,7 +71,13 @@ def execute_cached(compiled_model, *args):
     return result
 
 
-def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition_id, options):
+def openvino_execute(
+    gm: GraphModule,
+    *args,
+    executor_parameters=None,
+    partition_id: int = 0,
+    options=None,
+):
 
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
 

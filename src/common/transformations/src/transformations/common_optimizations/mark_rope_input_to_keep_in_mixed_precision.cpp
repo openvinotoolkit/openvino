@@ -13,16 +13,14 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPrecision() {
     MATCHER_SCOPE(MarkRopeInputsToKeepInMixedPrecision);
     using namespace ov::pass::pattern;
-    using namespace ov::gen_pattern;
     auto cos_tab = any_input();
     auto sin_tab = any_input();
-    auto rope = makePattern<ov::op::internal::RoPE>({any_input(), cos_tab, sin_tab});
+    auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), cos_tab, sin_tab});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

@@ -16,7 +16,7 @@
 namespace ov::intel_cpu::aarch64 {
 
 // Arithmetic modes for data type conversion in store_emitter
-enum class arithmetic_mode { saturation, truncation };
+enum class arithmetic_mode : uint8_t { saturation, truncation };
 
 class jit_load_emitter : public jit_emitter {
 public:

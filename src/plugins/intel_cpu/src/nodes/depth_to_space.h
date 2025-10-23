@@ -36,10 +36,10 @@ public:
     struct DepthToSpaceAttrs {
         LayoutType layoutType = LayoutType::nspc;
         Mode mode = BLOCKS_FIRST;
-        size_t blockSize = 0lu;
-        size_t blockStep = 0lu;
-        size_t dataSize = 1lu;
-        size_t nSpatialDims = 0lu;
+        size_t blockSize = 0LU;
+        size_t blockStep = 0LU;
+        size_t dataSize = 1LU;
+        size_t nSpatialDims = 0LU;
         VectorDims srcBlockedDims;
         [[nodiscard]] size_t hash() const;
         bool operator==(const DepthToSpaceAttrs& rhs) const;
@@ -51,7 +51,7 @@ protected:
 private:
     DepthToSpaceAttrs attrs;
     struct DepthToSpaceExecutor {
-        DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
+        explicit DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
         void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB);
         ~DepthToSpaceExecutor() = default;
 

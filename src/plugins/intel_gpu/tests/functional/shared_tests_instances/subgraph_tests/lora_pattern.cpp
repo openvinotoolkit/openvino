@@ -8,7 +8,7 @@ using namespace ov::test;
 
 namespace {
 
-const std::vector<size_t> M = { 1, 20, 256 };
+const std::vector<size_t> M = { 1, 3, 20, 256 };
 const std::vector<size_t> N = { 2048 };
 const std::vector<size_t> K = { 512, 563 };
 const std::vector<size_t> lora_rank = { 16, 25, 64, 128 };

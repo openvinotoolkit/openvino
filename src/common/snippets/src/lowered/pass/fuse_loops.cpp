@@ -9,7 +9,6 @@
 #include <iterator>
 #include <memory>
 #include <set>
-#include <tuple>
 #include <vector>
 
 #include "openvino/core/except.hpp"
@@ -81,8 +80,9 @@ bool FuseLoops::can_be_fused(const UnifiedLoopInfoPtr& loop_upper, const Unified
         (utils::is_dynamic_value(work_amount_upper) || utils::is_dynamic_value(work_amount_lower)) &&
         increment_upper == increment_lower;
     const bool equal_parameters = (work_amount_upper == work_amount_lower) && increment_upper == increment_lower;
-    const bool bcastable_upper = work_amount_upper == 1 && increment_upper == 1;
-    const bool bcastable_lower = work_amount_lower == 1 && increment_lower == 1;
+    const bool bcastable_upper = utils::all_of(1U, work_amount_upper, increment_upper);
+    const bool bcastable_lower = utils::all_of(1U, work_amount_lower, increment_lower);
+    const bool is_parallel_match = loop_upper->is_parallel() == loop_lower->is_parallel();
     // WA: we can't fuse 2 loops if one of them has first iteration handler but second hasn't,
     // because in this case Main/Tail body handlers of the loop wo first iter handler must be reset with new parameters
     // (e.g. tail size). This logic is not implemented for now, so fusion for such loops is skipped.
@@ -96,7 +96,7 @@ bool FuseLoops::can_be_fused(const UnifiedLoopInfoPtr& loop_upper, const Unified
         (!ispl_loop_upper && !ispl_loop_lower) ||
         (ispl_loop_upper && ispl_loop_lower &&
          ispl_loop_upper->get_outer_splitted_loop_info() == ispl_loop_lower->get_outer_splitted_loop_info());
-    return first_iter_handlers_match && inner_splitted_loop_compatible &&
+    return is_parallel_match && first_iter_handlers_match && inner_splitted_loop_compatible &&
            (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
 }
 
@@ -161,8 +161,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir,
         return false;
     }
 
-    LinearIR::constExprIt target_loop_begin_pos, target_loop_end_pos;
-    std::tie(target_loop_begin_pos, target_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, target_loop_id);
+    auto [target_loop_begin_pos, target_loop_end_pos] = loop_manager->get_loop_bounds(linear_ir, target_loop_id);
     loop_manager->fuse_loops(target_loop_begin_pos, target_loop_end_pos, target_loop_id, current_loop_id, false);
     const auto insertion_place = current_loop_begin_pos;
     const auto is_move_needed = target_loop_end_pos != current_loop_begin_pos;
@@ -210,8 +209,7 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir,
         return false;
     }
 
-    LinearIR::constExprIt target_loop_begin_pos, target_loop_end_pos;
-    std::tie(target_loop_begin_pos, target_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, target_loop_id);
+    auto [target_loop_begin_pos, target_loop_end_pos] = loop_manager->get_loop_bounds(linear_ir, target_loop_id);
     loop_manager->fuse_loops(target_loop_begin_pos, target_loop_end_pos, current_loop_id, target_loop_id);
 
     const auto insertion_place = current_loop_end_pos;
@@ -253,8 +251,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
             bool need_fusion_checks = true;
             while (need_fusion_checks) {
                 auto current_loop_info = loop_manager->get_loop_info(current_loop_id);
-                LinearIR::constExprIt current_loop_begin_pos, current_loop_end_pos;
-                std::tie(current_loop_begin_pos, current_loop_end_pos) =
+                auto [current_loop_begin_pos, current_loop_end_pos] =
                     loop_manager->get_loop_bounds(linear_ir, current_loop_id);
 
                 // Loop_0 (Upper)                 |

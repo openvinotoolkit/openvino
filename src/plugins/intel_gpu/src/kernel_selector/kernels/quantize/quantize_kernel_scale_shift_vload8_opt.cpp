@@ -79,7 +79,7 @@ JitConstants QuantizeKernelScaleShift_vload8::GetJitConstants(const quantize_par
 bool QuantizeKernelScaleShift_vload8::Validate(const Params& p) const {
     const quantize_params& params = static_cast<const quantize_params&>(p);
     if (params.inputs.size() != 9)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // this kernel is opt for per tensor quantization params for now
     if (!params.per_tensor_input_range || !params.per_tensor_output_range || !params.per_tensor_input_scale ||
@@ -87,7 +87,7 @@ bool QuantizeKernelScaleShift_vload8::Validate(const Params& p) const {
         (params.has_pre_shift && !params.per_tensor_input_shift) ||
         params.outputs[0].GetLayout() != params.inputs[0].GetLayout() ||
         params.inputs[1].GetDType() != params.inputs[3].GetDType())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // for blocked format, if extra padding exist in a block, will be opt in a seprate kernel
     if (!params.inputs[0].SimpleLayout()) {
@@ -113,10 +113,10 @@ bool QuantizeKernelScaleShift_vload8::Validate(const Params& p) const {
                 ((input_layout == DataLayout::bs_fs_yx_bsv16_fsv32 ||
                   input_layout == DataLayout::bs_fs_zyx_bsv16_fsv32) &&
                  (feature_size % 32 != 0 || batch_size % 16 != 0)))
-                return false;
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     if (CalculateTotalWorkItemCount(params) < vec_size)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

@@ -15,12 +15,12 @@ std::string ExecutorTypeToString(const ExecutorType type) {
     switch (type) {
         CASE(Undefined);
         CASE(Graph);
+        CASE(Reference);
         CASE(Common);
-        CASE(jit_x64);
+        CASE(Jit);
         CASE(Dnnl);
         CASE(Acl);
         CASE(Mlas);
-        CASE(jit_aarch64);
         CASE(Shl);
         CASE(Kleidiai);
     }
@@ -35,12 +35,12 @@ ExecutorType ExecutorTypeFromString(const std::string& typeStr) {
     }
     CASE(Undefined);
     CASE(Graph);
+    CASE(Reference);
     CASE(Common);
-    CASE(jit_x64);
+    CASE(Jit);
     CASE(Dnnl);
     CASE(Acl);
     CASE(Mlas);
-    CASE(jit_aarch64);
     CASE(Shl);
     CASE(Kleidiai);
 #undef CASE
