@@ -18,7 +18,7 @@
 #    include "common_utils/jitter.hpp"
 #    include "debug_helper.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
-#    include "intel_gpu/primitives/moe_compressed.hpp"
+#    include "intel_gpu/primitives/moe_fused_compressed.hpp"
 #    include "intel_gpu/runtime/lru_cache.hpp"
 #    include "intel_gpu/runtime/stream.hpp"
 #    include "intel_gpu/runtime/utils.hpp"
@@ -347,32 +347,32 @@ struct onednn_linear {
     }
 };
 
-// class MOEOptSoftMaxTopK : public KernelGenerator {
-// public:
-//     MOEOptSoftMaxTopK() : KernelGenerator("moe_opt", "softmax_topk") {}
+class MOEOptSoftMaxTopK : public KernelGenerator {
+public:
+    MOEOptSoftMaxTopK() : KernelGenerator("moe_opt", "softmax_topk") {}
 
-// protected:
-//     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-//         auto jit = KernelGenerator::get_jit_constants(params);
-//         auto desc = params.typed_desc<moe_compressed>();
-//         jit.make("SOFTMAX_TOPK_ENABLE", 1);
-//         jit.make("TOP_K", desc->_config.top_k);
-//         jit.make("VALUE_NUM", desc->_config.num_expert);
-//         jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
-//         jit.make("MOE_TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
-//         return jit;
-//     }
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_fused_compressed>();
+        jit.make("SOFTMAX_TOPK_ENABLE", 1);
+        jit.make("TOP_K", desc->_config.top_k);
+        jit.make("VALUE_NUM", desc->_config.num_expert);
+        jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+        jit.make("MOE_TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+        return jit;
+    }
 
-//     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-//         Arguments args;
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
 
-//         return args;
-//     }
+        return args;
+    }
 
-//     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-//         return DispatchDataFunc{nullptr};
-//     }
-// };
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{nullptr};
+    }
+};
 
 class MOEOptGather : public KernelGenerator {
 public:
@@ -381,7 +381,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_compressed>();
+        auto desc = params.typed_desc<moe_fused_compressed>();
         jit.make("GATHER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
         jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
@@ -407,7 +407,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_compressed>();
+        auto desc = params.typed_desc<moe_fused_compressed>();
         jit.make("SCATTER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
         jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
@@ -429,7 +429,7 @@ protected:
 #    define SUBGROUP_NUM 8
 
 static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
-    auto desc = params.typed_desc<moe_compressed>();
+    auto desc = params.typed_desc<moe_fused_compressed>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
     jit.make("MAX_TOPK", desc->_config.top_k);
@@ -451,7 +451,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_compressed>();
+        auto desc = params.typed_desc<moe_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
         return jit;
@@ -474,7 +474,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_compressed>();
+        auto desc = params.typed_desc<moe_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
         return jit;
@@ -497,7 +497,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_compressed>();
+        auto desc = params.typed_desc<moe_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("REDUCE_ENABLE", 1);
         return jit;
@@ -521,7 +521,7 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
 class MOEOptImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MOEOptImpl)
-    // Stage::Ptr softmax_topk = make_stage<MOEOptSoftMaxTopK>();
+    Stage::Ptr softmax_topk = make_stage<MOEOptSoftMaxTopK>();
     Stage::Ptr gather = make_stage<MOEOptGather>();
     Stage::Ptr scatter = make_stage<MOEOptScatter>();
     Stage::Ptr mlp_gate_up = make_stage<MOEOptMLPGateUp>();
@@ -559,8 +559,8 @@ public:
 
     struct scratch_buffers {
         // softmax+topk
-        // memory::ptr topk_id;
-        // memory::ptr topk_weights;
+        memory::ptr topk_id;
+        memory::ptr topk_weights;
 
         // fast single batch: scratch.up = up(x) * silu(gate(x))
         //                    scratch.y = down(scratch.up) * routing_weights
@@ -588,9 +588,9 @@ public:
 
     MOEOptImpl() : PrimitiveImplOCL(MOEOpt::get_type_info_static()) {}
     MOEOptImpl(const program_node& node, const RuntimeParams& params) : MOEOptImpl() {
-        init(node.as<moe_compressed>().get_primitive());
+        init(node.as<moe_fused_compressed>().get_primitive());
 
-        // add_stage(softmax_topk, params);
+        add_stage(softmax_topk, params);
         add_stage(gather, params);
         add_stage(scatter, params);
         add_stage(mlp_gate_up, params);
@@ -598,13 +598,13 @@ public:
         add_stage(mlp_reduce, params);
     }
 
-    void init(const std::shared_ptr<const moe_compressed>& cur_moe) {
+    void init(const std::shared_ptr<const moe_fused_compressed>& cur_moe) {
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
         _group_size = static_cast<int>(cur_moe->_config.group_size);
     }
 
-    void init_dnnl_weights(const std::shared_ptr<const moe_compressed>& cur_moe,
+    void init_dnnl_weights(const std::shared_ptr<const moe_fused_compressed>& cur_moe,
                            cldnn::engine& engine,
                            const struct moe_fusion_weights_base_addr& moe_fusion_wei_addr) {
         if (_dnnl_weights.size() == cur_moe->_config.num_expert)
@@ -650,7 +650,7 @@ public:
     void load(BinaryInputBuffer& ib) override {
         PrimitiveImplOCL::load(ib);
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
-        init(impl_params->typed_desc<moe_compressed>());
+        init(impl_params->typed_desc<moe_fused_compressed>());
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -663,7 +663,7 @@ public:
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
-        auto cur_moe = params.typed_desc<moe_compressed>();
+        auto cur_moe = params.typed_desc<moe_fused_compressed>();
         const auto& config = cur_moe->_config;
         int max_topk = static_cast<int>(config.top_k);
         int expert_num = static_cast<int>(config.num_expert);
@@ -674,54 +674,51 @@ public:
 
         std::vector<BufferDescriptor> internal_buffers;
         // softmax+topk
-        // layout layout_topk_id(ov::PartialShape{batch, max_topk}, data_types::u32, cldnn::format::bfyx);
-        // layout layout_topk_weights(ov::PartialShape{batch, max_topk}, data_type, cldnn::format::bfyx);
-        // internal_buffers.emplace_back(layout_topk_id, true);       // 0: topk_id
-        // internal_buffers.emplace_back(layout_topk_weights, true);  // 1: topk_weights
+        layout layout_topk_id(ov::PartialShape{batch, max_topk}, data_types::u32, cldnn::format::bfyx);
+        layout layout_topk_weights(ov::PartialShape{batch, max_topk}, data_type, cldnn::format::bfyx);
+        internal_buffers.emplace_back(layout_topk_id, true);       // 0: topk_id
+        internal_buffers.emplace_back(layout_topk_weights, true);  // 1: topk_weights
         // fast single batch: scratch.up = up(x) * silu(gate(x)); scratch.y = down(scratch.up) * weight[expert_no]
         layout layout_gateup_out(ov::PartialShape{batch, static_cast<int>(config.inter_size)}, data_type, cldnn::format::bfyx);
         layout layout_down_out(ov::PartialShape{batch, static_cast<int>(config.hidden_size)}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_gateup_out, true);  // 0: up
-        internal_buffers.emplace_back(layout_down_out, true);    // 1: y
+        internal_buffers.emplace_back(layout_gateup_out, true);  // 2: up
+        internal_buffers.emplace_back(layout_down_out, true);    // 3: y
         // onednn: scratch.x, scratch.routing_weights = gather(x, ...)
         //         scratch.up = up(scratch.x)
         //         scratch.gate = gate(scratch.x) * scratch.up
         //         scratch.y = down(scratch.gate) * routing_weights
-        internal_buffers.emplace_back(layout_down_out, true);  // 2: x, scratch.x has same layout with down output
+        internal_buffers.emplace_back(layout_down_out, true);  // 4: x, scratch.x has same layout with down output
         layout routing_layout(ov::PartialShape{batch * max_topk}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(routing_layout, true);    // 3: routing_weights
-        internal_buffers.emplace_back(layout_gateup_out, true);  // 4: gate, scratch.gate has same layout with up
+        internal_buffers.emplace_back(routing_layout, true);    // 5: routing_weights
+        internal_buffers.emplace_back(layout_gateup_out, true);  // 6: gate, scratch.gate has same layout with up
         // expert masks for gpu
         layout index_layout(ov::PartialShape{batch}, ov::element::i32, cldnn::format::bfyx);
         for (int i = 0; i < expert_num; i++) {
-            internal_buffers.emplace_back(index_layout, true);  // batch
-            internal_buffers.emplace_back(index_layout, true);  // topk
+            internal_buffers.emplace_back(index_layout, true);  // 7: batch
+            internal_buffers.emplace_back(index_layout, true);  // 8: topk
         }
 
         return internal_buffers;
     }
 
-    void prepare_internal_buffers(typed_primitive_inst<moe_compressed>& instance, scratch_buffers& scratch, bool is_single_batch) {
+    void prepare_internal_buffers(typed_primitive_inst<moe_fused_compressed>& instance, scratch_buffers& scratch, bool is_single_batch) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
-        // scratch.topk_id = intermediates_memories[0];
-        // scratch.topk_weights = intermediates_memories[1];
-        scratch.up = intermediates_memories[0];
-        scratch.y = intermediates_memories[1];
+        scratch.topk_id = intermediates_memories[0];
+        scratch.topk_weights = intermediates_memories[1];
+        scratch.up = intermediates_memories[2];
+        scratch.y = intermediates_memories[3];
         if (!is_single_batch) {
-            scratch.x = intermediates_memories[2];
-            scratch.routing_weights = intermediates_memories[3];
-            scratch.gate = intermediates_memories[4];
-            const auto& config = instance.get_typed_desc<moe_compressed>()->_config;
+            scratch.x = intermediates_memories[4];
+            scratch.routing_weights = intermediates_memories[5];
+            scratch.gate = intermediates_memories[6];
+            const auto& config = instance.get_typed_desc<moe_fused_compressed>()->_config;
             int expert_num = static_cast<int>(config.num_expert);
             scratch.expert_masks.resize(expert_num);
             for (int i = 0; i < expert_num; i++) {
-                scratch.expert_masks[i].batch = intermediates_memories[5 + 2 * i + 0];
-                scratch.expert_masks[i].topk = intermediates_memories[5 + 2 * i + 1];
+                scratch.expert_masks[i].batch = intermediates_memories[7 + 2 * i + 0];
+                scratch.expert_masks[i].topk = intermediates_memories[7 + 2 * i + 1];
             }
         }
-
-        scratch.input_routing_weights = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ROUTING_WEIGHTS));
-        scratch.input_router_topk_idx = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ROUTER_TOPK_OUTPUT_INDICES));
 
         // gate
         scratch.moe_fusion_wei_addr.weight[0] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::WEIGHT_0));
@@ -739,7 +736,7 @@ public:
         scratch.moe_fusion_wei_addr.zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ZP_2));
     }
 
-    void get_expert_mask_from_gpu(const MOECompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
+    void get_expert_mask_from_gpu(const MOEFusedCompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
         // shape: [batch, topk]
         auto layout = mem->get_layout();
         const auto& shape = layout.get_shape();
@@ -831,23 +828,21 @@ public:
         return stream.enqueue_kernel(*stage.kernel, desc, {}, events, needs_completion_event);
     }
 
-    auto get_input_info(typed_primitive_inst<moe_compressed>& instance, int idx) {
+    auto get_input_info(typed_primitive_inst<moe_fused_compressed>& instance, int idx) {
         auto mem = instance.input_memory_ptr(idx);
         auto dep = instance.dependencies()[idx];
         auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
         return std::make_tuple(mem, layout);
     }
 
-    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe_compressed>& instance, scratch_buffers& scratch) {
-        auto cur_moe = instance.get_typed_desc<moe_compressed>();
+    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe_fused_compressed>& instance, scratch_buffers& scratch) {
+        auto cur_moe = instance.get_typed_desc<moe_fused_compressed>();
         int max_topk = static_cast<int>(cur_moe->_config.top_k);
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
-        // auto batch_mem_ptr = scratch.topk_id;
-        auto batch_mem_ptr = scratch.input_router_topk_idx;
+        auto batch_mem_ptr = scratch.topk_id;
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOEInputIndex::HIDDEN_STATES));
-        // auto routing_mem_ptr = scratch.topk_weights;
-        auto routing_mem_ptr = scratch.input_routing_weights;
+        auto routing_mem_ptr = scratch.topk_weights;
 
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
@@ -919,7 +914,7 @@ public:
 
     using lru_cache_hash = LruCache<std::pair<int, int>, std::shared_ptr<onednn_kernel>, PairHash>;
     lru_cache_hash _kernels = lru_cache_hash(1024);
-    onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_compressed>& instance) {
+    onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_fused_compressed>& instance) {
         auto key = std::make_pair(n_token, expert_no);
         if (_kernels.has(key)) {
             return *_kernels.get(key);
@@ -995,8 +990,8 @@ public:
     //
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MOEOptImpl::execute"));
-        auto& instance = reinterpret_cast<typed_primitive_inst<moe_compressed>&>(ins);
-        auto cur_moe = instance.get_typed_desc<moe_compressed>();
+        auto& instance = reinterpret_cast<typed_primitive_inst<moe_fused_compressed>&>(ins);
+        auto cur_moe = instance.get_typed_desc<moe_fused_compressed>();
         const auto& config = cur_moe->_config;
         int max_topk = static_cast<int>(config.top_k);
         auto& cur_net = instance.get_network();
@@ -1009,14 +1004,14 @@ public:
         prepare_internal_buffers(instance, scratch, batch == 1);
 
         // softmax+topk
-        // auto lws_size = cur_moe->_config.num_expert;
-        // auto topk_event = execute_stage(events,
-        //                                 instance,
-        //                                 *softmax_topk,
-        //                                 {instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ROUTING_WEIGHTS))},
-        //                                 {scratch.topk_id, scratch.topk_weights},
-        //                                 {static_cast<size_t>(batch), lws_size},
-        //                                 {1, lws_size});
+        auto lws_size = cur_moe->_config.num_expert;
+        auto topk_event = execute_stage(events,
+                                        instance,
+                                        *softmax_topk,
+                                        {instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ROUTING_WEIGHTS))},
+                                        {scratch.topk_id, scratch.topk_weights},
+                                        {static_cast<size_t>(batch), lws_size},
+                                        {1, lws_size});
 
         // Single batch is a special case, we don't need to do gather/scatter,
         // and we can apply optimal kernels against memory bound to improve performance.
@@ -1034,22 +1029,17 @@ public:
         final_hidden_states_mem_ptr->fill(stream, false);
 
         // Wait for topk is ready
-        // topk_event->wait();
+        topk_event->wait();
         // [batch, max_topk]
-        // auto topk_id_mem = scratch.topk_id;
-        auto topk_id_mem = scratch.input_router_topk_idx;
+        auto topk_id_mem = scratch.topk_id;
 
-        // Wait for topk is ready
-        for(auto &ev : events) {
-            ev->wait();
-        }
         expert_mask_cpu expert_mask;
         get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
 
         auto& dnn_stream = stream.get_onednn_stream();
         cldnn::event::ptr result_event;
 
-        auto routing_mem_ptr = scratch.input_routing_weights;
+        auto routing_mem_ptr = scratch.topk_weights;
         auto get_best_lws = [](size_t hidden_size) {
             const size_t candidate[] = {128, 64, 32, 16, 8};
             for (size_t i = 0; i < sizeof(candidate) / sizeof(size_t); i++) {
@@ -1059,7 +1049,7 @@ public:
             }
             OPENVINO_ASSERT(false, "hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
         };
-        auto lws_size = get_best_lws(_hidden_size);
+        lws_size = get_best_lws(_hidden_size);
         // std::cout << "routing_mem_ptr layout: " << routing_mem_ptr->get_layout().to_short_string() << std::endl;
 
         OPENVINO_ASSERT(batch != 1, "batch size shouldn't be 1 for this path!");
@@ -1078,17 +1068,11 @@ public:
             auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
             onednn_kernel& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
 
-            ov::Shape router_wei_shape = {static_cast<size_t>(1), static_cast<size_t>(batch)};
-            auto router_wei_layout = cldnn::layout(router_wei_shape, cldnn::data_types::f16, cldnn::format::get_default_format(router_wei_shape.size()));
-            auto current_expert_routing_mem_ptr = engine.create_subbuffer(*routing_mem_ptr, router_wei_layout, batch * expert_no * 2); // f16 size=2
-            // auto current_expert_routing_mem_ptr = scratch.input_routing_weights;
-            // std::cout << "MOEOptImpl::execute expert_no=" << expert_no << ", n_token=" << n_token << ", total_token_num = " << batch << std::endl;
-
             // gather
             execute_stage(events,
                           instance,
                           *gather,
-                          {hidden_states_mem_ptr, current_expert_routing_mem_ptr, expert_mask_mem.batch, expert_mask_mem.topk},
+                          {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem.batch, expert_mask_mem.topk},
                           {scratch.x, scratch.routing_weights},
                           {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
                           {1, lws_size});
@@ -1131,13 +1115,13 @@ public:
 }  // namespace
 
 std::unique_ptr<primitive_impl> MOEOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
-    assert(node.is_type<moe_compressed>());
+    assert(node.is_type<moe_fused_compressed>());
     return std::make_unique<MOEOptImpl>(node, params);
 }
 
 }  // namespace ov::intel_gpu::ocl
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_compressed)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_fused_compressed)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::MOEOptImpl)
 
 #else

@@ -92,9 +92,8 @@ KERNEL (gather_2d_ref)(
     #endif
 
     if (off == 0) {
-        // int top_idx = top_index[k];
-        // dst_rweight[k] = src_rweight[top_idx];
-        dst_rweight[k] = src_rweight[tok_idx];
+        int top_idx = top_index[k];
+        dst_rweight[k] = src_rweight[top_idx];
     }
 }
 

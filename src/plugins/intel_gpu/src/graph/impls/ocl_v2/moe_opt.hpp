@@ -22,16 +22,15 @@ namespace ov::intel_gpu::ocl {
 enum class MOEInputIndex : uint8_t {
     HIDDEN_STATES = 0,
     ROUTING_WEIGHTS = 1,
-    ROUTER_TOPK_OUTPUT_INDICES = 2,
-    WEIGHT_0 = 3,
-    SCALE_0 = 4,
-    ZP_0 = 5,
-    WEIGHT_1 = 6,
-    SCALE_1 = 7,
-    ZP_1 = 8,
-    WEIGHT_2 = 9,
-    SCALE_2 = 10,
-    ZP_2 = 11
+    WEIGHT_0 = 2,
+    SCALE_0 = 3,
+    ZP_0 = 4,
+    WEIGHT_1 = 5,
+    SCALE_1 = 6,
+    ZP_1 = 7,
+    WEIGHT_2 = 8,
+    SCALE_2 = 9,
+    ZP_2 = 10
 };
 
 struct MOEOpt : public ImplementationManager {

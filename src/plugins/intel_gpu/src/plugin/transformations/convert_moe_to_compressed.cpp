@@ -117,7 +117,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         config.inter_size = weight_shape[1];
         config.num_expert = weight_shape[0];
         config.group_size = weight_shape[3];
-        config.top_k = topk_shape[1].get_length();
+        config.top_k = topk_shape[topk_shape.size() - 1].get_length();
         config.out_type = ov::element::f16;
         auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
 
@@ -144,7 +144,8 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         ov::copy_runtime_info(moe, moe_compressed);
         ov::replace_node(moe, moe_compressed);
 
-        std::cout << "ConvertMOEToMOECompressed is hit : config.top_k = " << config.top_k << std::endl;
+        std::cout << "ConvertMOEToMOECompressed is hit : num_expert = " << config.num_expert << ", top_k = " << config.top_k
+                  << ", hidden_size = " << config.hidden_size << ", inter_size = " << config.inter_size << ", group_size = " << config.group_size << std::endl;
         return true;
     };
 

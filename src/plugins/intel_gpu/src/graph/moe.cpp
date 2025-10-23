@@ -13,7 +13,7 @@
 #include "program_node.h"
 
 namespace cldnn {
-GPU_DEFINE_PRIMITIVE_TYPE_ID(moe_compressed)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(moe_fused_compressed)
 
 /*
     Calc_output_layout method is called only when output layout is invalidated.
