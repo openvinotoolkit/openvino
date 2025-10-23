@@ -227,21 +227,6 @@ public:
      */
     void write(std::ostream& stream) override;
 
-    // TODO: move this comment somewhere else
-    /**
-     * @brief Checks if metadata is supported.
-     *
-     * @return Returns:
-     *              - false:
-     *                  - if blob metadata does not match current metadata.
-     *                  - if blob OpenVINO version does not match current one.
-     *
-     *              - true: if all versions match.
-     *
-     * @note The version check can be disabled if the "OV_NPU_DISABLE_VERSION_CHECK" environment variable is set to
-     * 'YES'.
-     */
-
     size_t get_metadata_size() const override;
 
 protected:
@@ -344,6 +329,9 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
  *
  * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
  * MetadataBase object; otherwise, returns 'nullptr'.
+ *
+ * @note The version check can be disabled if the "OV_NPU_DISABLE_VERSION_CHECK" environment variable is set to
+ * 'YES'.
  */
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
 
