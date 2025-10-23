@@ -134,6 +134,7 @@ struct PyramidAttentionInfo {
     std::vector<Param> params;
     std::size_t mask_idx = 0u;
     std::size_t query_size = 0u;  // Added for PositionIDs selector compatibility
+    std::size_t context_length = 0u;  // Context length this pyramid model supports
 };
 
 // Compile-time pyramid attention information
@@ -141,6 +142,7 @@ struct PyramidAttention {
     std::vector<PyramidAttentionInfo> _attention_infos;
     std::vector<std::shared_ptr<ov::Model>> _models;
     std::vector<ov::SoPtr<ov::ICompiledModel>> _compiled_models;
+    std::vector<std::size_t> _context_lengths;  // Context length for each pyramid model
 
     std::size_t query_size = 0u;
     std::size_t full_context_size = 0u;
@@ -155,6 +157,9 @@ struct PyramidAttention {
         size_t initial_memory_kb = get_process_memory_kb();
         std::cout << "=== PyramidAttention Memory Tracking Start: " << initial_memory_kb << " KB RSS ===" << std::endl;
 
+        // Reserve space for context lengths
+        _context_lengths.reserve(d._attentions.size());
+
         for (size_t i = 0; i < d._attentions.size(); ++i) {
             size_t before_attention_kb = get_process_memory_kb();
 
@@ -168,15 +173,17 @@ struct PyramidAttention {
                 std::size_t p_idx = model->get_parameter_index(input.param);
                 attention_info.params.push_back({p_idx, input.dim});
             }
-            // Extract mask index and query size
+            // Extract mask index, query size, and context length
             attention_info.mask_idx = model->get_parameter_index(func_attn._mask);
             attention_info.query_size = func_attn.query_len();
+            attention_info.context_length = func_attn.context_len();
 
             size_t after_attention_kb = get_process_memory_kb();
             size_t attention_increase_kb =
                 (after_attention_kb > before_attention_kb) ? (after_attention_kb - before_attention_kb) : 0;
 
             _attention_infos.push_back(attention_info);
+            _context_lengths.push_back(attention_info.context_length);
 
             size_t before_model_kb = get_process_memory_kb();
 
