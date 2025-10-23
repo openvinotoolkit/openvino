@@ -14,11 +14,10 @@ static void CreateIdentityOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
-    auto targetFormat = cldnn::format::get_default_format(op->get_input_partial_shape(0).size());
 
-    auto permutePrim = cldnn::reorder(layerName, inputs[0], targetFormat, op->get_element_type());
-    permutePrim.output_data_types = get_output_data_types(op);
-    p.add_primitive(*op, permutePrim);
+    auto reorderPrim = cldnn::reorder(layerName, inputs[0], cldnn::format::any, op->get_element_type());
+    reorderPrim.output_data_types = get_output_data_types(op);
+    p.add_primitive(*op, reorderPrim);
 }
 
 REGISTER_FACTORY_IMPL(v16, Identity);
