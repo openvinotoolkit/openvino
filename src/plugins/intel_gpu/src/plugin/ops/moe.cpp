@@ -36,15 +36,15 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     } else  {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives
         std::cout << "create moe op!" << std::endl;
-        // input0 : input
-        // input1 : topk_weight
-        // input2 : topk_idx
-        // input3 : compressed_weights_input_up
-        // input4 : scale_input_up
-        // input5 : bias_up
-        // input6 : compressed_weights_input_down
-        // input7 : scale_input_down
-        // input8 : bias_down
+        // input0 : input {#tokens, hidden_size}
+        // input1 : topk_weight {#tokens, num_experts_per_token}
+        // input2 : topk_idx {#tokens, num_experts_per_token}
+        // input3 : compressed_weights_input_up {#experts, ofm, num_groups, group_size}
+        // input4 : scale_input_up {#experts, ofm, num_groups, 1}
+        // input5 : bias_up {#experts, 1, ofm}
+        // input6 : compressed_weights_input_down {#experts, ofm, num_groups, group_size}
+        // input7 : scale_input_down {#experts, ofm, num_groups, 1}
+        // input8 : bias_down {#experts, 1, ofm}
         // mask
         // gather
         // gemm_up
@@ -87,16 +87,13 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_ID),
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
+            input_infos[5],  // bias_up
             input_infos[4],  // scale_input_up
         };
         auto moe_gemm_up = cldnn::moe_gemm(moe_gemm_up_name, moe_gemm_up_inputs, config.top_k);
-        moe_gemm_up.has_bias = false;
+        moe_gemm_up.has_bias = true;
         p.add_primitive(*op, moe_gemm_up);
-//        auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-//        auto moe_bias_up_prim = cldnn::eltwise(moe_bias_up_name, {input_info(moe_gemm_up_name), input_infos[5]}, cldnn::eltwise_mode::sum, {}, out_dt);  // bias_up
-//        p.add_primitive(*op, moe_bias_up_prim);
         auto moe_swiglu_prim = cldnn::swiglu(moe_swiglu_name,
-//                                             input_info(moe_bias_up_name),
                                              input_info(moe_gemm_up_name),
                                              2,  // axis
                                              config.hidden_size,
@@ -114,13 +111,13 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_ID),
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
+            input_infos[8],  // bias_down
             input_infos[7],  // scale_input_down
         };
-        p.add_primitive(*op, cldnn::moe_gemm(moe_gemm_down_name, moe_gemm_down_inputs, config.top_k));
-//        auto moe_bias_down_prim = cldnn::eltwise(moe_bias_down_name, {input_info(moe_gemm_down_name), input_infos[8]}, cldnn::eltwise_mode::sum, {}, out_dt);  // bias_down
-//        p.add_primitive(*op, moe_bias_down_prim);
+        auto moe_gemm_down = cldnn::moe_gemm(moe_gemm_down_name, moe_gemm_down_inputs, config.top_k);
+        moe_gemm_down.has_bias = true;
+        p.add_primitive(*op, moe_gemm_down);
         auto moe_scatter_reduce_prim = cldnn::moe_scatter_reduction(moe_scatter_reduce_name,
-//                                                                 input_info(moe_bias_down_name),
                                                                  input_info(moe_gemm_down_name),
                                                                  input_infos[2],
                                                                  input_infos[1],
