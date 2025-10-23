@@ -585,6 +585,12 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     if (m_pyramid_selector) {
         m_pyramid_selector->prepare(get_history_size());
 
+        // Get the pyramid model ID based on current sequence length
+        auto pyramid_id = m_pyramid_selector->get_pyramid_id();
+
+        std::cout << "past length: " << m_pyramid_selector->past_length() << std::endl;
+        std::cout << "pyramid_id: " << pyramid_id << std::endl;
+
         for (auto&& id : m_funcall_heads) {
             auto& comp_model_desc = m_npuw_model->m_compiled_submodels[id];
             if (comp_model_desc.pyramid_attention.has_value()) {
