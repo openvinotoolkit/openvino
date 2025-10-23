@@ -192,7 +192,6 @@ protected:
         const ov::element::Type compressed_weights_precision = std::get<2>(test_param);
         const bool use_matmul_decompression_impl = std::get<10>(test_param);
 
-        const auto runtime_model = compiledModel.get_runtime_model();
         const size_t expected_gather_mm_count = [&]() {
             switch (std::get<1>(test_param)) {
             case MoEType::MoE2GeMM:
@@ -203,8 +202,10 @@ protected:
                 OPENVINO_THROW("Unsupported MoEType");
             }
         }();
-        const std::string expected_gather_mm_type =
-            use_matmul_decompression_impl ? "BatchGatherMatmulCompressed" : "BatchGatherMatmul";
+
+        const auto runtime_model = compiledModel.get_runtime_model();
+
+        const std::string expected_gather_mm_type = "GatherMatmul";
         std::set<std::shared_ptr<ov::Node>> gather_mm_nodes;
         for (const auto& node : runtime_model->get_ordered_ops()) {
             if (node->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == expected_gather_mm_type) {
@@ -230,7 +231,7 @@ TEST_P(MoESubgraphTest, CompareWithRefs) {
 TEST_P(MoECompressedWeightsSubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    //    check_results();
+    check_results();
 }
 
 namespace {
