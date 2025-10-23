@@ -8,11 +8,6 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
-# On Android cross-compilation, disable CPU Snippets by default via compile definition
-if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Android")
-    add_definitions(-DOV_CPU_SNIPPETS_MODE_DISABLE_DEFAULT)
-endif()
-
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
     ov_add_compiler_flags(/wd4018)

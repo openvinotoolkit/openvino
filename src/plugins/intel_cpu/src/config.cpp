@@ -37,11 +37,6 @@ using namespace dnnl::impl::cpu::x64;
 Config::Config() {
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
 
-#ifdef OV_CPU_SNIPPETS_MODE_DISABLE_DEFAULT
-    // Disable CPU Snippets by default (set from CMake for Android)
-    snippetsMode = SnippetsMode::Disable;
-#endif
-
     updateProperties();
 }
 
