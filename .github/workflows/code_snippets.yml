@@ -1,16 +1,5 @@
 name: Code snippets
-on:
-  push:
-    paths:
-      - '.github/workflows/code_snippets.yml'
-      - 'docs/snippets/**'
-    branches:
-      - 'master'
-      - 'releases/**'
-  pull_request:
-    paths:
-      - '.github/workflows/code_snippets.yml'
-      - 'docs/snippets/**'
+on: []
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -6,19 +6,6 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-  schedule:
-    # at 00:00 on workdays
-    - cron: '0 0 * * 1,2,3,4,5'
-  push:
-   paths-ignore:
-     - '**/docs/**'
-     - 'docs/**'
-     - '**/**.md'
-     - '**.md'
-     - '**/layer_tests_summary/**'
-     - '**/conformance/**'
-   branches:
-     - 'releases/**'
   # pull_request:
   #  paths-ignore:
   #    - '**/docs/**'

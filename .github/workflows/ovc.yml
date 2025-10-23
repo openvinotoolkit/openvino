@@ -6,12 +6,6 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-  merge_group:
-  push:
-    branches:
-      - 'master'
-      - 'releases/**'
-  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

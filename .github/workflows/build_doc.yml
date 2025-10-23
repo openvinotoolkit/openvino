@@ -1,7 +1,5 @@
 name: Documentation
-on:
-  pull_request:
-  merge_group:
+on: []
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref && github.ref || github.run_id }}

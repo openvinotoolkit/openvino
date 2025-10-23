@@ -10,17 +10,6 @@ on:
         description: 'Filter for google tests {SMOKE | CONCISE}'
         required: true
         default: 'CONCISE'
-  pull_request:
-    paths:
-      - '.github/workflows/linux_riscv_xuantie_dev_cpu.yml'
-      - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'
-      - 'src/plugins/intel_cpu/src/emitters/plugin/riscv64/**'
-      - 'src/plugins/intel_cpu/src/emitters/plugin/x64/**'
-      - 'src/plugins/intel_cpu/src/nodes/executors/aarch64/**'
-      - 'src/plugins/intel_cpu/src/nodes/executors/shl/**'
-      - 'src/plugins/intel_cpu/src/nodes/kernels/riscv64/**'
-      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/riscv64/**'
-      - 'src/plugins/intel_cpu/thirdparty/xbyak_riscv/**'
 
 concurrency:
   # github.ref is not unique in post-commit

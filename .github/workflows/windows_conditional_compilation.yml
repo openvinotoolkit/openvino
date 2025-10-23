@@ -6,15 +6,6 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-  schedule:
-    # run daily at 00:00
-    - cron: '0 0 * * *'
-  pull_request:
-  merge_group:
-  push:
-    branches:
-      - master
-      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit

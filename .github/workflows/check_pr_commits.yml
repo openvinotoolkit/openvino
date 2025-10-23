@@ -1,5 +1,5 @@
 name: PR Commits
-on: [pull_request]
+on: []
 
 permissions: read-all
 

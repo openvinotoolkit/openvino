@@ -2,19 +2,6 @@ name: Python API Checks
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'src/bindings/python/**'
-      - 'samples/python/**'
-      - '.github/workflows/py_checks.yml'
-    branches:
-      - 'master'
-      - 'releases/**'
-  pull_request:
-    paths:
-      - 'src/bindings/python/**'
-      - 'samples/python/**'
-      - '.github/workflows/py_checks.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

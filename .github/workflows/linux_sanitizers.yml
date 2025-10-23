@@ -1,8 +1,5 @@
 name: Linux Sanitizers (Ubuntu 20.04, Python 3.9)
 on:
-  schedule:
-    # run daily at 00:00
-    - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
       # to be defined for specified test scopes (e.g. CPU func. tests)
@@ -18,9 +15,6 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-  pull_request:
-    paths:
-    - '.github/workflows/linux_sanitizers.yml'
 
 concurrency:
   # github.ref is not unique in post-commit
