@@ -100,8 +100,8 @@ ConvolutionKernel_fs_byx_fsv32_depthwise::AutoTuneOption ConvolutionKernel_fs_by
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32_depthwise::SetDefault(const convolution_params& arg,
-                                                                                         const Params& p, int autoTuneIndex) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg, p);
+                                                                                         int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg);
 
     AutoTuneOption option = GetAutoTuneOptions(arg, autoTuneIndex);
 
@@ -147,8 +147,8 @@ bool ConvolutionKernel_fs_byx_fsv32_depthwise::Validate(const Params& p) const {
 }
 
 JitConstants ConvolutionKernel_fs_byx_fsv32_depthwise::GetJitConstants(const convolution_params& params,
-                                                                       const DispatchData& dispatchData, const Params& p) const {
-    auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData, p);
+                                                                       const DispatchData& dispatchData) const {
+    auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("INPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.inputBlockWidth));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));

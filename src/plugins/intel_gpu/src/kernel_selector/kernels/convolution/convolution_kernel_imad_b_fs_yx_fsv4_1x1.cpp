@@ -139,8 +139,8 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::AutoTuneParams ConvolutionKernel_imad_b
 }
 
 JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetJitConstants(const convolution_params& params,
-                                                                      const DispatchData& dispatchData, const Params& p) const {
-    auto mem_consts = Parent::GetJitConstants(params, dispatchData, p);
+                                                                      const DispatchData& dispatchData) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     auto simd = dispatchData.lws[0];
     auto features_per_wi = dispatchData.cldnnStyle.blockHeight;
@@ -171,7 +171,7 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetJitConstants(const conv
 }  // GetJitConstants
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::SetDefault(const convolution_params& params,
-                                                                                         const Params& p, int autoTuneIndex) const {
+                                                                                        int autoTuneIndex) const {
     DispatchData dispatchData;
     auto& out = params.outputs[0];
 

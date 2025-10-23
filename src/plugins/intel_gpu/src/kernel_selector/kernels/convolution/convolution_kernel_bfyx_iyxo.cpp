@@ -33,8 +33,8 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_iyxo::get_required_device_features_key(
     return k;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_iyxo::SetDefault(const convolution_params& cp, const Params& p, int) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp, p);
+ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_iyxo::SetDefault(const convolution_params& cp, int) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
     dispatchData.gws[0] = CeilDiv(cp.outputs[0].X().v, sub_group_size) / 4;
     dispatchData.gws[1] = cp.outputs[0].Y().v;
@@ -73,8 +73,8 @@ bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ConvolutionKernel_bfyx_iyxo::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params& p) const {
-    auto jit = Parent::GetJitConstants(params, dispatchData, p);
+JitConstants ConvolutionKernel_bfyx_iyxo::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[2]));
 

@@ -122,7 +122,7 @@ ConvolutionKernel_bfyx_os_iyx_osv32::AutoTuneOption ConvolutionKernel_bfyx_os_iy
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv32::SetDefault(const convolution_params& cp,
-                                                                                     const Params& p, int autoTuneIndex) const {
+                                                                                    int autoTuneIndex) const {
     auto get_bfyx_req_input_block_dims = [](size_t output_block_width,
                                             size_t output_block_height,
                                             const uSize& filter_size,
@@ -148,7 +148,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv32::SetDefa
         return std::make_pair(input_block_array_size, input_block_read_width);
     };
 
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp, p);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
     const auto of_maps = CeilDiv(cp.outputs[0].Feature().v, 2);
     const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
@@ -204,12 +204,12 @@ bool ConvolutionKernel_bfyx_os_iyx_osv32::Validate(const Params& p) const {
 }
 
 JitConstants ConvolutionKernel_bfyx_os_iyx_osv32::GetJitConstants(const convolution_params& params,
-                                                                  const DispatchData& dispatchData, const Params& p) const {
+                                                                  const DispatchData& dispatchData) const {
     const auto of_maps = params.outputs[0].Feature().v;
     const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
     size_t leftovers = of_threads_per_batch - of_maps;
 
-    auto jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData, p);
+    auto jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);

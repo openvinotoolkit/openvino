@@ -25,10 +25,10 @@ public:
 
 protected:
     bool Validate(const Params& params) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params&) const override;
-    DispatchData SetDefault(const convolution_params& params, const Params& p, int autoTuneIndex = -1) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
+    DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return true; }
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params&, const Params&) const override;
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,

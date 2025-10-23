@@ -35,8 +35,8 @@ DeviceFeaturesKey ConvolutionKernel_Winograd_2x3_s1_fused::get_required_device_f
 }
 
 JitConstants ConvolutionKernel_Winograd_2x3_s1_fused::GetJitConstants(const convolution_params& params,
-                                                                      const DispatchData& dispatchData, const Params& p) const {
-    JitConstants jit = Parent::GetJitConstants(params, dispatchData, p);
+                                                                      const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     const auto idepth = params.inputs[0].Feature().v;
     const auto input_pad_y = params.inputs[0].Y().pad.before + params.inputs[0].Y().pad.after;

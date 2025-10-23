@@ -62,8 +62,8 @@ bool ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::Validate(const Params& p) const {
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::SetDefault(const convolution_params& cp,
-                                                                                         const Params& p, int /*autoTuneIndex*/) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp, p);
+                                                                                        int /*autoTuneIndex*/) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
     auto in_layout = cp.inputs[0].GetLayout();
     auto out_layout = cp.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::FEATURE },
@@ -82,8 +82,8 @@ KernelsPriority ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetKernelsPriority(cons
 
 // TODO: optimize this kernel
 JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetJitConstants(const convolution_params& params,
-                                                                      const DispatchData& dispatchData, const Params& p) const {
-    auto jit = Parent::GetJitConstants(params, dispatchData, p);
+                                                                      const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);

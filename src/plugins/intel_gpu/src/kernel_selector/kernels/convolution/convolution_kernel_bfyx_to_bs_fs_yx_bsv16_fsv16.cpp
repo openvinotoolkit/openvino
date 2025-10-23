@@ -42,8 +42,8 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::get_required_devic
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::SetDefault(const convolution_params& params,
-                                                                                            const Params& p, int autoTuneIndex) const {
-    DispatchData dispatchData = ConvolutionKernel_bfyx_to_bfyx_f16::SetDefault(params, p, autoTuneIndex);
+                                                                                           int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernel_bfyx_to_bfyx_f16::SetDefault(params, autoTuneIndex);
 
     return dispatchData;
 }

@@ -79,7 +79,7 @@ KernelsPriority DeformableConvolutionKernel_bfyx_opt::GetKernelsPriority(const P
 }
 
 JitConstants DeformableConvolutionKernel_bfyx_opt::GetJitConstants(const convolution_params& params,
-                                                                    const DispatchData& /*dispatchData*/, const Params&) const {
+                                                                    const DispatchData& /*dispatchData*/) const {
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
     jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", 16));
     jit.AddConstant(MakeJitConstant("INPUT_CHANNELS", params.inputs[0].Feature().v));
@@ -130,7 +130,7 @@ KernelsData DeformableConvolutionKernel_bfyx_opt::GetKernelsData(const Params& p
     if (!conv_params.deformable_mode)
         return {};
 
-    auto preferredWeightsLayout = GetPreferredWeightsLayout(conv_params, params);
+    auto preferredWeightsLayout = GetPreferredWeightsLayout(conv_params);
     bool succeed = UpdateWeightsParams(*static_cast<convolution_params*>(kd.params.get()),
                                        preferredWeightsLayout,
                                        kd.weightsReorderParams,
@@ -151,7 +151,7 @@ KernelsData DeformableConvolutionKernel_bfyx_opt::GetKernelsData(const Params& p
     for (size_t i = 0; i < kKernelsNum; i++) {
         DispatchData dispatchData = set_default(conv_params, static_cast<int>(i));
         auto entry_point = GetEntryPoint(kernelName, conv_params.layerID, params, i);
-        auto cldnn_jit = GetJitConstants(conv_params, dispatchData, params);
+        auto cldnn_jit = GetJitConstants(conv_params, dispatchData);
         cldnn_jit.AddConstant(MakeJitConstant("DEFORMABLE_CONV_STAGE_" + std::to_string(i), true));
 
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);

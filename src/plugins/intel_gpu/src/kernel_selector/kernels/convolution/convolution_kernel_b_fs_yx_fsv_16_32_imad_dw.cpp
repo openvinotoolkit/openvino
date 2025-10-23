@@ -104,7 +104,7 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::Validate(const Params& params)
     return true;
 }
 
-WeightsLayout ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetPreferredWeightsLayout(const convolution_params &params, const Params& p) const {
+WeightsLayout ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetPreferredWeightsLayout(const convolution_params& params) const {
     if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16)
         return WeightsLayout::gs_oi_yxs_gsv16_yxsv4;
     else
@@ -264,7 +264,7 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const c
 }
 
 ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::DispatchData
-ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::SetDefault(const convolution_params& params, const Params& p, int autoTuneIndex) const {
+ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::SetDefault(const convolution_params& params, int autoTuneIndex) const {
     DispatchData dispatchData;
     auto& out = params.outputs[0];
 
@@ -348,9 +348,8 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ParamsHavePadding(const convol
     return needs_pad;
 }
 
-JitConstants ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params& p)
-    const {
-    auto mem_consts = Parent::GetJitConstants(params, dispatchData, p);
+JitConstants ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     constexpr size_t imad_width = 4;
     auto filter_spatial = params.weights.X().v * params.weights.Y().v;

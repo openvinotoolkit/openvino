@@ -109,8 +109,8 @@ KernelsPriority ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsPriority(
 }
 
 JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetJitConstants(const convolution_params &params,
-                                                                        const DispatchData &dispatchData, const Params& p) const {
-    auto jit = Parent::GetJitConstants(params, dispatchData, p);
+                                                                        const DispatchData &dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[0]));
     jit.AddConstant(MakeJitConstant("OSV", 32));

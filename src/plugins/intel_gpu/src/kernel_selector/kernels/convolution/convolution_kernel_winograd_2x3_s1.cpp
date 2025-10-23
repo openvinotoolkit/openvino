@@ -39,8 +39,8 @@ DeviceFeaturesKey ConvolutionKernel_Winograd_2x3_s1::get_required_device_feature
 }
 
 JitConstants ConvolutionKernel_Winograd_2x3_s1::GetJitConstants(const convolution_params& params,
-                                                                const DispatchData& dispatchData, const Params& p) const {
-    JitConstants jit = Parent::GetJitConstants(params, dispatchData, p);
+                                                                const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     const size_t input_tile_width = winograd_input_tile_width;
     const size_t input_tile_height = winograd_input_tile_height;
@@ -66,8 +66,8 @@ JitConstants ConvolutionKernel_Winograd_2x3_s1::GetJitConstants(const convolutio
 }
 
 ConvolutionKernel_Winograd_2x3_s1::Parent::DispatchData ConvolutionKernel_Winograd_2x3_s1::SetDefault(const convolution_params& arg,
-                                                                                                      const Params& p, int) const {
-    Parent::DispatchData dispatchData = Parent::SetDefault(arg, p);
+                                                                                                      int) const {
+    Parent::DispatchData dispatchData = Parent::SetDefault(arg);
 
     const size_t tile_n = winograd_tile_n;  // goes in-depth
     const size_t tile_m = winograd_tile_m;  // goes over flattened x and y

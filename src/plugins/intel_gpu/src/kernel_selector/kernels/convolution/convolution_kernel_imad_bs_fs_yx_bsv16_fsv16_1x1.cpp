@@ -53,9 +53,8 @@ KernelsData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::GetKernelsData(con
     return GetCommonKernelsData(params);
 }
 
-JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::GetJitConstants(const convolution_params& params, \
-                                                               const DispatchData& dispatchData, const Params& p) const {
-    auto mem_consts = Parent::GetJitConstants(params, dispatchData, p);
+JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf_scalar = {"",
@@ -73,7 +72,7 @@ JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::GetJitConstants(c
     return mem_consts;
 }  // GetJitConstants
 
-ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::SetDefault(const convolution_params& params, const Params& p, int) const {
+ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::SetDefault(const convolution_params& params, int) const {
     DispatchData dispatchData;
     const auto& output = params.outputs[0];
 

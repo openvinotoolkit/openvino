@@ -22,10 +22,10 @@ public:
 
 protected:
     bool Validate(const Params& params) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params&) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return true; }
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &p, , const Params&, const Params&) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &p) const override {
         return p.groups > 1 ? WeightsLayout::g_os_is_yx_osv16_isv4 : WeightsLayout::os_is_yx_osv16_isv4;
     }
 

@@ -161,8 +161,8 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefault(const convolution_params& cp,
-                                                                                     const Params& p, int autoTuneIndex) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp, p);
+                                                                                    int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
     const auto& sub_group_size = GetSubGroupSize(cp);
 
     const auto of_maps = cp.outputs[0].Feature().v;
@@ -212,7 +212,7 @@ bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p) const {
 }
 
 JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolution_params& params,
-                                                                  const DispatchData& dispatchData, const Params& p) const {
+                                                                  const DispatchData& dispatchData) const {
     const convolution_params& cp = static_cast<const convolution_params&>(params);
     const auto& sub_group_size = GetSubGroupSize(cp);
 
@@ -221,7 +221,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size);
     size_t leftovers = of_threads_per_batch - of_maps_per_group;
 
-    auto jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData, p);
+    auto jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
@@ -251,7 +251,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
 }
 
 WeightsLayout ConvolutionKernel_bfyx_os_iyx_osv16::GetPreferredWeightsLayout(
-        const convolution_params &params, const Params&) const {
+        const convolution_params &params) const {
     return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv16 : WeightsLayout::os_iyx_osv16;
 }
 

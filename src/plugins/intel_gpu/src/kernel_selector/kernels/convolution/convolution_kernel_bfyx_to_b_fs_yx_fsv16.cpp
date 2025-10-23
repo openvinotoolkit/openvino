@@ -66,8 +66,8 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_to_bfyx_f16::get_required_device_featur
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_f16::SetDefault(const convolution_params& params,
-                                                                                    const Params& p, int autoTuneIndex) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, p);
+                                                                                   int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.outputs[0];
 
@@ -120,10 +120,10 @@ bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p) const {
 }
 
 JitConstants ConvolutionKernel_bfyx_to_bfyx_f16::GetJitConstants(const convolution_params& params,
-                                                                 const DispatchData& dispatchData, const Params& p) const {
+                                                                 const DispatchData& dispatchData) const {
     auto input = params.inputs[0];
     auto output = params.outputs[0];
-    auto jit = Parent::GetJitConstants(params, dispatchData, p);
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
 

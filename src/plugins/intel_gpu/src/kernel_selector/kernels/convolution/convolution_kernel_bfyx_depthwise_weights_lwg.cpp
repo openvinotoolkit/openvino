@@ -49,8 +49,8 @@ bool ConvolutionKernel_bfyx_depthwise_weights_lwg::Validate(const Params& p) con
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_depthwise_weights_lwg::SetDefault(const convolution_params& params,
-                                                                                              const Params& p, int) const {
-    DispatchData dispatchData = Parent::SetDefault(params, p);
+                                                                                             int) const {
+    DispatchData dispatchData = Parent::SetDefault(params);
     const auto& out = params.outputs[0];
 
     dispatchData.gws = { Align(out.X().v * out.Y().v, 16), out.Feature().v, out.Batch().v };
@@ -64,8 +64,8 @@ KernelsPriority ConvolutionKernel_bfyx_depthwise_weights_lwg::GetKernelsPriority
 }
 
 JitConstants ConvolutionKernel_bfyx_depthwise_weights_lwg::GetJitConstants(const convolution_params& params,
-                                                                           const DispatchData& dispatchData, const Params& p) const {
-    auto mem_consts = ConvolutionKernelBase::GetJitConstants(params, dispatchData, p);
+                                                                           const DispatchData& dispatchData) const {
+    auto mem_consts = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
     if (params.padding_begin.x != 0 || params.padding_begin.y != 0)
         mem_consts.AddConstant(MakeJitConstant("BOUNDARY_CHECK", 1));

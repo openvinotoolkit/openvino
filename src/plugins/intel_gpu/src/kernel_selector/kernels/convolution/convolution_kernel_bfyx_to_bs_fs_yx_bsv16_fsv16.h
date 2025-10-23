@@ -21,7 +21,7 @@ public:
     KernelsPriority GetKernelsPriority(const Params& params) const override;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params&, const Params&) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
         return WeightsLayout::os_is_yx_isv16_osv16;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
@@ -31,6 +31,6 @@ protected:
     }
 
     bool Validate(const Params& p) const override;
-    DispatchData SetDefault(const convolution_params& arg, const Params& p, int autoTuneIndex = -1) const override;
+    DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
 };
 }  // namespace kernel_selector

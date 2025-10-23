@@ -70,8 +70,8 @@ size_t GetOfmPerWorkitem(Datatype dataType) {
 }  // namespace
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b16::SetDefault(const convolution_params& arg,
-                                                                                const Params& p, int) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg, p);
+                                                                                int) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg);
 
     const auto filter_ofm_num = arg.weights.OFM().v * arg.weights.G().v;
     const auto batch_size = arg.outputs[0].Batch().v;
@@ -139,8 +139,8 @@ bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p) const {
 }
 
 JitConstants ConvolutionKernel_yxfb_yxio_b16::GetJitConstants(const convolution_params& params,
-                                                              const DispatchData& dispatchData, const Params& p) const {
-    auto jit = Parent::GetJitConstants(params, dispatchData, p);
+                                                              const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     const auto local_work_group_size = dispatchData.lws[0];
     const auto batch_size = params.outputs[0].Batch().v;

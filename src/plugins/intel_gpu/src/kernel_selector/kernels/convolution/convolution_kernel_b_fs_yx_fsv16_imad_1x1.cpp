@@ -75,8 +75,8 @@ DeviceFeaturesKey Convolution_kernel_b_fs_yx_fsv16_imad_1x1::get_required_device
 }
 
 JitConstants Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetJitConstants(const convolution_params& params,
-                                                                        const DispatchData& dispatchData, const Params& p) const {
-    auto mem_consts = Parent::GetJitConstants(params, dispatchData, p);
+                                                                        const DispatchData& dispatchData) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
     mem_consts.AddConstant(MakeJitConstant("OUT_BLOCK_SPATIAL", dispatchData.cldnnStyle.blockWidth));
     mem_consts.AddConstant(MakeJitConstant("OUT_BLOCK_FEATURES", dispatchData.cldnnStyle.blockHeight));
     mem_consts.AddConstant(MakeJitConstant("FEATURE_SLM_SPLIT", dispatchData.cldnnStyle.prefetch));
@@ -104,7 +104,7 @@ JitConstants Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetJitConstants(const co
 }  // GetJitConstants
 
 ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::SetDefault(const convolution_params& params,
-                                                                                          const Params& p, int index) const {
+                                                                                          int index) const {
     DispatchData dispatchData;
     const auto& output = params.outputs[0];
     auto tune_params = GetAutoTuneParams(params, index);
@@ -214,7 +214,7 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params) c
     return true;
 }
 
-WeightsLayout Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetPreferredWeightsLayout(const convolution_params &params, const Params&) const {
+WeightsLayout Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetPreferredWeightsLayout(const convolution_params& params) const {
     // TODO Auto tune index is needed in GetPreferredWeightsLayout to select correct weights layout
     auto tparams = GetAutoTuneParams(params, -1);
     if (tparams.out_block_features == 2)

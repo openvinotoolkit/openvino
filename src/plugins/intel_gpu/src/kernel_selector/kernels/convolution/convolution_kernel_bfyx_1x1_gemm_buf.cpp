@@ -27,8 +27,8 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_1x1_gemm_buf::get_required_device_featu
     return k;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1_gemm_buf::SetDefault(const convolution_params& params, const Params& p, int) const {
-    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, p);
+ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1_gemm_buf::SetDefault(const convolution_params& params, int) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.outputs[0];
 
@@ -76,8 +76,8 @@ bool ConvolutionKernel_bfyx_1x1_gemm_buf::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ConvolutionKernel_bfyx_1x1_gemm_buf::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params& p) const {
-    auto jit = Parent::GetJitConstants(params, dispatchData, p);
+JitConstants ConvolutionKernel_bfyx_1x1_gemm_buf::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     const auto& out = params.outputs[0];
     const auto& input = params.inputs[0];

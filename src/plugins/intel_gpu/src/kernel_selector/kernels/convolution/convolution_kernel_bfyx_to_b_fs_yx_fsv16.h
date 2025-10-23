@@ -26,7 +26,7 @@ public:
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params&, const Params&) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
         return WeightsLayout::os_is_yx_isv16_osv16;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
@@ -37,8 +37,8 @@ protected:
 
     bool NeedPaddedInput() const override { return false; }
     bool Validate(const Params& p) const override;
-    DispatchData SetDefault(const convolution_params& arg, const Params& p, int autoTuneIndex = -1) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params&) const override;
+    DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     struct AutoTuneOption {
         size_t blockWidth;
         std::string exeMode;

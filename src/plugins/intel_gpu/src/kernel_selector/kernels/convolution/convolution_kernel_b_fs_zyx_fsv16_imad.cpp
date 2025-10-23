@@ -401,8 +401,8 @@ KernelsData Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsData(const Params&
 }
 
 JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convolution_params& params,
-                                                                     const DispatchData& dispatchData, const Params& p) const {
-    auto mem_consts = Parent::GetJitConstants(params, dispatchData, p);
+                                                                     const DispatchData& dispatchData) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     auto block_params = GetBlockParams(params);
 
@@ -462,7 +462,7 @@ JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convo
 }  // GetJitConstants
 
 ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetDefault(const convolution_params& params,
-                                                                                        const Params& p, int) const {
+                                                                                       int) const {
     const BlockParams& block_params = GetBlockParams(params);
     return CalcDispatchDataWithBlockParams(params, block_params);
 }  // SetDefault

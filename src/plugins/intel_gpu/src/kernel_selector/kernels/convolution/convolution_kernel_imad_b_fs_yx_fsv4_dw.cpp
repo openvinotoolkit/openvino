@@ -268,8 +268,8 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
 }
 
 JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetJitConstants(const convolution_params& params,
-                                                                     const DispatchData& dispatchData, const Params& p) const {
-    auto mem_consts = Parent::GetJitConstants(params, dispatchData, p);
+                                                                     const DispatchData& dispatchData) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     size_t filter_block_size = 4;
     size_t min_blocked_leftovers = 4;
@@ -339,7 +339,7 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetJitConstants(const convo
 }  // GetJitConstants
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::SetDefault(const convolution_params& params,
-                                                                                        const Params& p, int autoTuneIndex) const {
+                                                                                       int autoTuneIndex) const {
     DispatchData dispatchData;
     auto& out = params.outputs[0];
 

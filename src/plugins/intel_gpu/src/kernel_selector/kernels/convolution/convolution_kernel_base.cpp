@@ -25,7 +25,7 @@ bool ConvolutionKernelBase::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData, const Params&) const {
+JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
     JitConstants mem_consts = WeightBiasKernelBase::GetJitConstants(params);
     mem_consts.Merge(GetFusedPrimitivesJitConstants(params, dispatchData));
     const auto& padding = params.padding_begin;
@@ -86,8 +86,8 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
     return mem_consts;
 }
 
-JitConstants ConvolutionKernelBase::GetJitConstantsWithLoopUnroll(const convolution_params& params, const DispatchData& dispatchData, const Params& p) const {
-    JitConstants mem_consts = ConvolutionKernelBase::GetJitConstants(params, dispatchData, p);
+JitConstants ConvolutionKernelBase::GetJitConstantsWithLoopUnroll(const convolution_params& params, const DispatchData& dispatchData) const {
+    JitConstants mem_consts = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
     std::vector<uint32_t> unrollLoopParams{params.filterSize.x,
                                         params.filterSize.y,
@@ -120,7 +120,7 @@ bool ConvolutionKernelBase::CheckWorkGroups(const ConvolutionKernelBase::Dispatc
     return true;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const convolution_params& params, const Params& p, int) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const convolution_params& params, int) const {
     DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
@@ -164,7 +164,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
 void ConvolutionKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const convolution_params&>(params);
-        auto dispatchData = SetDefault(prim_params, params);
+        auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
@@ -186,7 +186,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
         return {};
     }
 
-    auto preferredWeightsLayout = GetPreferredWeightsLayout(newParams, params);
+    auto preferredWeightsLayout = GetPreferredWeightsLayout(newParams);
     bool succeed = UpdateWeightsParams(newParams,
                                        preferredWeightsLayout,
                                        kd.weightsReorderParams,
@@ -221,7 +221,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     }
 
     auto finalKernelName = GetKernelName(newParams);
-    auto cldnnJit = GetJitConstants(newParams, dispatchData, params);
+    auto cldnnJit = GetJitConstants(newParams, dispatchData);
     auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
