@@ -259,6 +259,19 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
+    uint16_t major = MetadataBase::get_major(version),
+             minor = MetadataBase::get_minor(version);
+    if (major != CURRENT_METADATA_MAJOR_VERSION || minor > CURRENT_METADATA_MINOR_VERSION) {
+        OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
+                major,
+                ".",
+                minor,
+                " but the current version is: ",
+                CURRENT_METADATA_MAJOR_VERSION,
+                ".",
+                CURRENT_METADATA_MINOR_VERSION);
+    }
+
     switch (version) {
     case METADATA_VERSION_2_0:
         return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize);
@@ -269,14 +282,7 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
     case METADATA_VERSION_2_3:
         return std::make_unique<Metadata<METADATA_VERSION_2_3>>(blobSize);
     default:
-        OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
-                       MetadataBase::get_major(version),
-                       ".",
-                       MetadataBase::get_minor(version),
-                       " but the current version is: ",
-                       CURRENT_METADATA_MAJOR_VERSION,
-                       ".",
-                       CURRENT_METADATA_MINOR_VERSION);
+        return nullptr;
     }
 }
 
@@ -326,34 +332,13 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 
     uint32_t metaVersion;
     stream.read(reinterpret_cast<char*>(&metaVersion), sizeof(metaVersion));
-    
-    uint16_t metaVersionMajor = MetadataBase::get_major(metaVersion),
-             metaVersionMinor = MetadataBase::get_minor(metaVersion);
-    if (metaVersionMajor != CURRENT_METADATA_MAJOR_VERSION || metaVersionMinor > CURRENT_METADATA_MINOR_VERSION) {
-        OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
-                metaVersionMajor,
-                ".",
-                metaVersionMinor,
-                " but the current version is: ",
-                CURRENT_METADATA_MAJOR_VERSION,
-                ".",
-                CURRENT_METADATA_MINOR_VERSION);
-    }
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
         storedMeta = create_metadata(metaVersion, blobDataSize);
         storedMeta->read(stream);
     } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what(),
-                       "Imported blob metadata version: ",
-                       MetadataBase::get_major(metaVersion),
-                       ".",
-                       MetadataBase::get_minor(metaVersion),
-                       " but the current version is: ",
-                       CURRENT_METADATA_MAJOR_VERSION,
-                       ".",
-                       CURRENT_METADATA_MINOR_VERSION);
+        OPENVINO_THROW(ex.what());
     } catch (...) {
         OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
     }
@@ -379,19 +364,6 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
     uint32_t metaVersion;
     metaVersion = *reinterpret_cast<const decltype(metaVersion)*>(tensor.data<const char>() + blobDataSize);
 
-    uint16_t metaVersionMajor = MetadataBase::get_major(metaVersion),
-             metaVersionMinor = MetadataBase::get_minor(metaVersion);
-    if (metaVersionMajor != CURRENT_METADATA_MAJOR_VERSION || metaVersionMinor > CURRENT_METADATA_MINOR_VERSION) {
-        OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
-                metaVersionMajor,
-                ".",
-                metaVersionMinor,
-                " but the current version is: ",
-                CURRENT_METADATA_MAJOR_VERSION,
-                ".",
-                CURRENT_METADATA_MINOR_VERSION);
-    }
-
     std::unique_ptr<MetadataBase> storedMeta;
     try {
         const ov::Tensor roiTensor(tensor,
@@ -400,15 +372,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
         storedMeta = create_metadata(metaVersion, blobDataSize);
         storedMeta->read(roiTensor);
     } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what(),
-                       "Imported blob metadata version: ",
-                       MetadataBase::get_major(metaVersion),
-                       ".",
-                       MetadataBase::get_minor(metaVersion),
-                       " but the current version is: ",
-                       CURRENT_METADATA_MAJOR_VERSION,
-                       ".",
-                       CURRENT_METADATA_MINOR_VERSION);
+        OPENVINO_THROW(ex.what());
     } catch (...) {
         OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
     }
