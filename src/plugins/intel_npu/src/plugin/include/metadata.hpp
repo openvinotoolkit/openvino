@@ -43,8 +43,6 @@ public:
      */
     virtual void write(std::ostream& stream) = 0;
 
-    virtual bool is_compatible() = 0;
-
     virtual uint64_t get_blob_size() const;
 
     /**
@@ -229,6 +227,7 @@ public:
      */
     void write(std::ostream& stream) override;
 
+    // TODO: move this comment somewhere else
     /**
      * @brief Checks if metadata is supported.
      *
@@ -242,7 +241,6 @@ public:
      * @note The version check can be disabled if the "OV_NPU_DISABLE_VERSION_CHECK" environment variable is set to
      * 'YES'.
      */
-    bool is_compatible() override;
 
     size_t get_metadata_size() const override;
 

@@ -280,21 +280,6 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
     }
 }
 
-bool Metadata<METADATA_VERSION_2_0>::is_compatible() {
-    // checking if we can import the blob
-    if (_ovVersion != CURRENT_OPENVINO_VERSION) {
-        _logger.error("Imported blob OpenVINO version: %d.%d.%d, but the current OpenVINO version is: %d.%d.%d",
-                      _ovVersion.get_major(),
-                      _ovVersion.get_minor(),
-                      _ovVersion.get_patch(),
-                      OPENVINO_VERSION_MAJOR,
-                      OPENVINO_VERSION_MINOR,
-                      OPENVINO_VERSION_PATCH);
-        return false;
-    }
-    return true;
-}
-
 std::streampos MetadataBase::getFileSize(std::istream& stream) {
     auto log = Logger::global().clone("getFileSize");
     if (!stream) {
