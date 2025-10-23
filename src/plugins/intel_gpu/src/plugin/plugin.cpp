@@ -448,7 +448,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
-    SharedStreamBuffer buf{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    SharedStreamBuffer buf{model.data(), model.get_byte_size()};
     std::istream stream(&buf);
     return import_model(stream, context, config);
 }
@@ -464,7 +464,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::internal::supported_properties)::value_type{get_supported_internal_properties()};
     } else if (name == ov::available_devices) {
         std::vector<std::string> available_devices = { };
-        for (auto const& dev : m_device_map)
+        for (const auto& dev : m_device_map)
             available_devices.push_back(dev.first);
         return decltype(ov::available_devices)::value_type {available_devices};
     } else if (name == ov::internal::caching_properties) {

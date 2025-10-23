@@ -37,7 +37,7 @@ public:
                                        const std::string& buildFlags,
                                        const uint32_t& flags) const;
 
-    GraphDescriptor getGraphDescriptor(void* data, size_t size) const;
+    GraphDescriptor getGraphDescriptor(const void* data, size_t size) const;
 
     NetworkMetadata getNetworkMeta(GraphDescriptor& graphDescriptor) const;
 
@@ -67,7 +67,7 @@ private:
 
     void initializeGraphThroughCommandList(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
 
-    bool canCpuVaBeImported(void* data, size_t size) const;
+    bool canCpuVaBeImported(const void* data, size_t size) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;

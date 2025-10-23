@@ -318,7 +318,7 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(SerializedIR seri
     return parseQueryResult(supportedLayers);
 }
 
-bool ZeGraphExtWrappers::canCpuVaBeImported(void* data, size_t size) const {
+bool ZeGraphExtWrappers::canCpuVaBeImported(const void* data, size_t size) const {
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 13) ||
         !utils::memory_and_size_aligned_to_standard_page_size(data, size)) {
         return false;
@@ -363,7 +363,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
     return GraphDescriptor{graphHandle};
 }
 
-GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(void* blobData, size_t blobSize) const {
+GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(const void* blobData, size_t blobSize) const {
     ze_graph_handle_t graphHandle = nullptr;
 
     if (blobSize == 0) {
