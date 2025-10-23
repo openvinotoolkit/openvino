@@ -507,6 +507,8 @@ public:
             opp::wrap_type<ov::op::v13::BitwiseOr>({look_only_future_mask, forget_left_tokens_mask});
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
+            LOG_INFO("Found (4.51) pattern for Phi-3 Sliding Window Attention, will be replaced with custom for static "
+                     "shapes.");
             auto& node_to_output = m.get_pattern_value_map();
             auto node_past_kv_len = node_to_output.at(past_kv_len).get_node_shared_ptr();
             auto node_pos_ids_param = node_to_output.at(pos_ids_param).get_node_shared_ptr();
@@ -631,15 +633,15 @@ public:
         auto full_ctx_len_2 = opp::wrap_type<ov::op::v1::Add>({pos_ids_len_squeezed, past_kv_len});
         auto key_range = opp::wrap_type<ov::op::v4::Range>({zero_const, full_ctx_len_2, opp::any_input()});
         auto key_range_row = unsqueeze_sequence(key_range);
-        auto key_range_row_f32 = opp::wrap_type<ov::op::v0::Convert>({key_range_row});
+        auto opt_key_range_row_f32 = opp::optional<ov::op::v0::Convert>({key_range_row->output(0)});
 
         auto neg_window_size = opp::wrap_type<ov::op::v0::Constant>();
         auto query_left_bound_range = opp::wrap_type<ov::op::v1::Add>({query_range_column, neg_window_size});
         // True in mask means that we should attend this token
-        auto sliding_mask = opp::wrap_type<ov::op::v1::Greater>({key_range_row_f32, query_left_bound_range});
+        auto sliding_mask = opp::wrap_type<ov::op::v1::Greater>({opt_key_range_row_f32, query_left_bound_range});
         auto sliding_and_true = opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), sliding_mask});
         // Basically it is a reference triangle self-attention mask
-        auto causal_mask = opp::wrap_type<ov::op::v1::LessEqual>({key_range_row_f32, query_range_column});
+        auto causal_mask = opp::wrap_type<ov::op::v1::LessEqual>({opt_key_range_row_f32, query_range_column});
 
         auto sliding_and_causal_mask = opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_and_true, causal_mask});
         auto sliding_causal_and_true =
@@ -657,12 +659,13 @@ public:
             opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_causal_and_true, atten_mask_reshaped_3});
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
+            LOG_INFO("Found (4.53) pattern for Phi-3 Sliding Window Attention, will be replaced with custom for static "
+                     "shapes.");
             auto& node_to_output = m.get_pattern_value_map();
             auto node_past_kv_len = node_to_output.at(past_kv_len).get_node_shared_ptr();
             auto node_pos_ids_param = node_to_output.at(pos_ids_param).get_node_shared_ptr();
             auto node_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
             auto node_atten_mask_boolean = node_to_output.at(atten_mask_boolean).get_node_shared_ptr();
-            auto node_key_row_range_f32 = node_to_output.at(key_range_row_f32).get_node_shared_ptr();
             auto node_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
             auto node_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
             auto node_sliding_and_causal_mask = node_to_output.at(sliding_and_causal_mask).get_node_shared_ptr();
@@ -671,7 +674,14 @@ public:
             auto matched_pos_ids_input = std::static_pointer_cast<ov::op::v0::Parameter>(node_pos_ids_param);
             auto matched_full_ctx_len = std::static_pointer_cast<ov::op::v1::Add>(node_full_ctx_len);
             auto matched_atten_mask_boolean = std::static_pointer_cast<ov::op::v0::Parameter>(node_atten_mask_boolean);
-            auto matched_key_row_range_f32 = std::static_pointer_cast<ov::op::v0::Convert>(node_key_row_range_f32);
+            std::shared_ptr<ov::Node> matched_key_range_row = nullptr;
+            if (node_to_output.count(opt_key_range_row_f32)) {
+                auto node_key_range_row_f32 = node_to_output[opt_key_range_row_f32].get_node_shared_ptr();
+                matched_key_range_row = std::static_pointer_cast<ov::op::v0::Convert>(node_key_range_row_f32);
+            } else {
+                auto node_key_range_row = node_to_output.at(key_range_row).get_node_shared_ptr();
+                matched_key_range_row = std::static_pointer_cast<ov::op::v0::Unsqueeze>(node_key_range_row);
+            }
             auto matched_neg_window_size = std::static_pointer_cast<ov::op::v0::Constant>(node_neg_window_size);
             auto matched_sliding_mask = std::static_pointer_cast<ov::op::v1::Greater>(node_sliding_mask);
             auto matched_sliding_and_causal_mask =
@@ -685,19 +695,27 @@ public:
             auto const_three = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 3);
 
             // 1.(K range > (Q_pos range - sliding window).T) & (K range <= Q range.T)
-            auto query_range_as_pos_ids =
-                std::make_shared<ov::op::v0::Convert>(matched_pos_ids_input, ov::element::f32);
-            auto unsqueeze_1 = std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids, const_zero);
-            auto query_range_as_pos_ids_col = std::make_shared<ov::op::v0::Unsqueeze>(unsqueeze_1, const_three);
+            std::shared_ptr<ov::Node> query_range_as_pos_ids = matched_pos_ids_input;
+            if (matched_neg_window_size->output(0).get_element_type() == ov::element::f32) {
+                query_range_as_pos_ids = std::make_shared<ov::op::v0::Convert>(matched_pos_ids_input, ov::element::f32);
+            }
+            auto query_range_as_pos_ids_unsqueezed =
+                std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids, const_zero);
+            auto query_range_as_pos_ids_col =
+                std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids_unsqueezed, const_three);
             auto query_range_as_pos_left_bound =
                 std::make_shared<ov::op::v1::Add>(query_range_as_pos_ids_col, matched_neg_window_size);
             auto sliding_mask_for_right_padding =
-                std::make_shared<ov::op::v1::Greater>(matched_key_row_range_f32, query_range_as_pos_left_bound);
+                std::make_shared<ov::op::v1::Greater>(matched_key_range_row, query_range_as_pos_left_bound);
             matched_sliding_and_causal_mask->input(0).replace_source_output(sliding_mask_for_right_padding);
 
             // 2. (K range > (Q range - sliding window).T) | (K range < shape(past_key_values, 2))
-            auto past_kv_len_f32 = std::make_shared<ov::op::v0::Convert>(matched_past_kv_len, ov::element::f32);
-            auto only_past_tokens_mask = std::make_shared<ov::op::v1::Less>(matched_key_row_range_f32, past_kv_len_f32);
+            std::shared_ptr<ov::Node> past_kv_len_argument = matched_past_kv_len;
+            if (matched_neg_window_size->output(0).get_element_type() == ov::element::f32) {
+                past_kv_len_argument = std::make_shared<ov::op::v0::Convert>(matched_past_kv_len, ov::element::f32);
+            }
+            auto only_past_tokens_mask =
+                std::make_shared<ov::op::v1::Less>(matched_key_range_row, past_kv_len_argument);
             auto sliding_mask_for_left_padding_or_only_past =
                 std::make_shared<ov::op::v13::BitwiseOr>(matched_sliding_mask, only_past_tokens_mask);
 
