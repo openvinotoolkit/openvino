@@ -859,7 +859,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Sequences supported by the plugin shouldn't be converted to TensorIterator.
         // sequence_lengths input is not supported in all Sequences, so if is_seq_len_provided() == true, we
         // should always convert to TensorIterator. But we can ignore this input for batch_size == 1 case when dynamic shape.
-        // RNN Sequence is not supported in GPU plugin
+        // RNN Sequence is not supported in GPU plugin and is always converted to TensorIterator
         // LSTM Sequence supported with clip == 0, and activations have default values (sigmoid, tanh, tanh)
         // GRU Sequence supported with clip == 0, and activations have default values (sigmoid, tanh)
         auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
@@ -870,12 +870,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (ov::as_type_ptr<const ov::op::v5::RNNSequence>(node)) {
                 return false;
             } else if (const auto &gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
+                bool is_batch_one_with_dynamic_seq_len = data_pshape[0] == 1 && !data_pshape[1].is_static();
                 return gru_seq->get_clip() == 0.0f &&
                     gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
                     max_seq_len != 1 &&
                     (!ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
                                                        gru_seq->get_input_node_shared_ptr(2)) ||
-                    (data_pshape[0] == 1 && !data_pshape[1].is_static())) &&
+                    is_batch_one_with_dynamic_seq_len) &&
                     gru_seq->get_linear_before_reset();
             } else if (const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
                 return lstm_seq->get_clip() == 0.0f &&
