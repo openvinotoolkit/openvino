@@ -146,6 +146,8 @@ protected:
     // Same thing about this one
     runtime::attention::Selector::Ptr m_attention_selector;
 
+    runtime::attention::Selector::Ptr m_pyramid_selector;
+
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters
     // and results. Again, is managed by subclasses

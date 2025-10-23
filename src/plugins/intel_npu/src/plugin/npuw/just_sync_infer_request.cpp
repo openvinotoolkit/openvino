@@ -203,7 +203,9 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     bool failover_happened = false;
     bool has_spatial = false;
     bool has_dynamic = false;
+    bool has_pyramid = false;
     std::size_t dynamic_sub_idx = -1;
+    std::size_t pyramid_sub_idx = -1;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -260,6 +262,15 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 dynamic_sub_idx = real_idx;
                 m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
             }  // if(dynamic)
+
+            if (proto_comp_model_desc.pyramid_attention) {
+                // Sanity check first
+                if (has_pyramid && pyramid_sub_idx != real_idx) {
+                    OPENVINO_THROW("Only single pyramid attention type is permitted for model");
+                }
+                has_pyramid = true;
+                pyramid_sub_idx = real_idx;
+            }  // if(pyramid)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
@@ -450,6 +461,15 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             }
         }
         LOG_VERB("Done");
+    }
+
+    if (has_pyramid) {
+        const auto& pyramid_dyn = m_npuw_model->m_compiled_submodels.at(pyramid_sub_idx).pyramid_attention.value();
+        m_pyramid_selector = runtime::attention::PositionIDs::find(pyramid_dyn, *this);
+        if (!m_pyramid_selector) {
+            LOG_WARN("Pyramid dynamic capability is enabled, but no run-time features were found.");
+            m_pyramid_selector.reset(new runtime::attention::All());
+        }
     }
 }
 
@@ -656,7 +676,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         return not_param && not_mask;
     };
 
-    const auto non_pyramid_act_in = [](const ov::npuw::compiled::Attention& d, std::size_t in_idx) {
+    const auto non_pyramid_act_in = [](const ov::npuw::compiled::PyramidAttentionInfo& d, std::size_t in_idx) {
         const bool not_param = std::none_of(d.params.begin(), d.params.end(), [&](auto&& p) {
             return p.idx == in_idx;
         });
@@ -704,7 +724,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             } else {
                 if (is_pyramid) {
                     std::cout << "is pyramid" << std::endl;
-                    if (!non_pyramid_act_in(func_desc.pyramid_attention.value()._attentions.back(), i)) {
+                    if (!non_pyramid_act_in(func_desc.pyramid_attention.value()._attention_infos.back(), i)) {
                         // Print iport information
                         std::cout << "iport[" << i << "] name: " << iport.get_any_name() << std::endl;
                         std::cout << "iport[" << i << "] shape: " << iport.get_shape() << std::endl;
