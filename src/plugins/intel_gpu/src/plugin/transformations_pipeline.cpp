@@ -1280,15 +1280,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();
             bool precomputed_reduction = config.get_dynamic_quantization_precomputed_reduction();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
-                GPU_DEBUG_IF(config.get_dynamic_quantization_bisect() != std::numeric_limits<int64_t>::max() ||
-                                config.get_dynamic_quantization_single() >= 0) {
+                const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
+                const int64_t dyn_quan_single = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_single(), 0);    // 0 will be ignored from GPU_DEBUG_IF
+                GPU_DEBUG_IF(dyn_quan_bisect != std::numeric_limits<int64_t>::max() ||
+                                dyn_quan_single >= 0) {
                     static int64_t fc_count = 0;
 
-                    if (++fc_count > config.get_dynamic_quantization_bisect())
+                    if (++fc_count > dyn_quan_bisect)
                         return true;
 
-                    if (config.get_dynamic_quantization_single() >= 0) {
-                        if (fc_count != config.get_dynamic_quantization_single())
+                    if (dyn_quan_single >= 0) {
+                        if (fc_count != dyn_quan_single)
                             return true;
                         else
                             GPU_DEBUG_COUT << "Try to apply dyn_quan only to " << root->get_friendly_name() << std::endl;
