@@ -907,7 +907,8 @@ struct MHAHelper {
                                                new_causal,
                                                rnd_up(cur_kv_len, _block_size) - start_idx,
                                                precision_of<DATA_TYPE>::value,
-                                               precision_of<DATA_TYPE>::value);
+                                               precision_of<DATA_TYPE>::value,
+                                               nullptr);
 
                     memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                 } else {
@@ -929,6 +930,7 @@ struct MHAHelper {
                                                rnd_up(cur_kv_len, _block_size),
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
+                                               nullptr,
                                                alibi_slope);
                 }
                 if (score_output && m >= q_start_idx_score) {
@@ -1083,7 +1085,8 @@ struct MHAHelper {
                                                new_causal,
                                                rnd_up(cur_kv_len, _block_size) - start_idx,
                                                precision_of<DATA_TYPE>::value,
-                                               precision_of<DATA_TYPE>::value);
+                                               precision_of<DATA_TYPE>::value,
+                                               nullptr);
 
                     memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                 } else {
@@ -1105,6 +1108,7 @@ struct MHAHelper {
                                                rnd_up(cur_kv_len, _block_size),
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
+                                               nullptr,
                                                alibi_slope);
                 }
                 if (score_output && m >= q_start_idx_score) {
@@ -1223,6 +1227,7 @@ struct MHAHelper {
                                            cur_kv_len,
                                            ov::element::f32,
                                            ov::element::f32,
+                                           nullptr,
                                            alibi_slope);
                 if (score_output) {
                     // aligned to cache line to avoid false sharing
@@ -1400,6 +1405,7 @@ struct MHAHelper {
                                        cur_kv_len,
                                        ov::element::f32,
                                        ov::element::f32,
+                                       nullptr,
                                        alibi_slope);
         };
 
