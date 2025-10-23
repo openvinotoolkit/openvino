@@ -441,7 +441,6 @@ in_out_fmts_t ConvolutionImplementationManager::query_formats(const program_node
             if (node.get_output_layout().get_rank() == 4 && node.get_dependency(0).is_type<permute>()) {
                 auto& pnode = node.get_dependency(0).as<permute>();
                 can_optimize_permute = pnode.get_users().size() == 1
-                    && pnode.get_output_layout().data_type == node.get_output_layout().data_type
                     && !pnode.has_fused_primitives()
                     && !pnode.is_output() && pnode.get_input_layout(0).is_static()
                     && pnode.is_reverse_rotating_except_batch();
