@@ -2956,8 +2956,10 @@ jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
 void jit_clamp_emitter::prepare_min_max(double alpha, double beta) {
     switch (exec_prc_) {
     case element::i32:
-        minimum = static_cast<int>(std::max<int64_t>(static_cast<int64_t>(alpha), std::numeric_limits<int32_t>::min()));
-        maximum = static_cast<int>(std::min<int64_t>(static_cast<int64_t>(beta), std::numeric_limits<int32_t>::max()));
+        minimum =
+            static_cast<int32_t>(std::max<int64_t>(static_cast<int64_t>(alpha), std::numeric_limits<int32_t>::min()));
+        maximum =
+            static_cast<int32_t>(std::min<int64_t>(static_cast<int64_t>(beta), std::numeric_limits<int32_t>::max()));
         break;
     case element::f32:
         minimum = x64::float2int(static_cast<float>(alpha));
