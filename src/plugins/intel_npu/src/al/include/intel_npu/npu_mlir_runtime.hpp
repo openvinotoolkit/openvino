@@ -142,11 +142,11 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Predit output shape based on input shape
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimePredictOutputShape(
-    npu_mlir_runtime_handle_t hRuntime,              ///< [in][release] handle of mlir runtime object
-    ze_graph_argument_properties_3_t** pInputArgs,   ///< [in] pointer to input argument properties
-    uint32_t numOfInputArgs,                         ///< [in] number of input arguments
-    ze_graph_argument_properties_3_t** pOutputArgs,  ///< [out] pointer to output argument properties
-    uint32_t numOfOutputArgs                         ///< [in] number of
+    npu_mlir_runtime_handle_t hRuntime,        ///< [in][release] handle of mlir runtime object
+    npu_mlir_runtime_mem_ref_t** pInputArgs,   ///< [in] pointer to input argument mem descriptor pointer array
+    uint32_t numOfInputArgs,                   ///< [in] number of input arguments
+    npu_mlir_runtime_mem_ref_t** pOutputArgs,  ///< [out] pointer to output argument mem descriptor pointer array
+    uint32_t numOfOutputArgs                   ///< [in] number of
 );
 
 #if defined(__cplusplus)

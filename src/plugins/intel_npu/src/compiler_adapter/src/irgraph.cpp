@@ -133,8 +133,8 @@ public:
                       ze_graph_profiling_pool_handle_t profiling) override;
     void getBinding(IRGraph::GraphArguments& binding) override;
     virtual ~IRGraphImpl() {}
-    void predictOutputShape(std::vector<ArgumentDescriptor>& inputDescriptors,
-                            std::vector<ArgumentDescriptor>& outputDescriptors) override;
+    void predictOutputShape(std::vector<MemRefType>& inputDescriptors,
+                            std::vector<MemRefType>& outputDescriptors) override;
 
 public:
     npu_mlir_runtime_handle_t _engine = nullptr;
@@ -496,15 +496,15 @@ void IRGraphImpl::executeGraph(std::vector<MemRefType*>& inputMefRefs,
     }
 }
 
-void IRGraphImpl::predictOutputShape(std::vector<ArgumentDescriptor>& inputDescriptors,
-                                     std::vector<ArgumentDescriptor>& outputDescriptors) {
-    std::vector<ze_graph_argument_properties_3_t*> inputs;
+void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
+                                     std::vector<MemRefType>& outputDescriptors) {
+    std::vector<npu_mlir_runtime_mem_ref_t*> inputs;
     for (auto& in : inputDescriptors) {
-        inputs.push_back(&in.info);
+        inputs.push_back(&in.memRef);
     }
-    std::vector<ze_graph_argument_properties_3_t*> outputs;
+    std::vector<npu_mlir_runtime_mem_ref_t*> outputs;
     for (auto& out : outputDescriptors) {
-        outputs.push_back(&out.info);
+        outputs.push_back(&out.memRef);
     }
     if (npuMLIRRuntimePredictOutputShape(_engine, inputs.data(), inputs.size(), outputs.data(), outputs.size()) !=
         NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
@@ -933,8 +933,8 @@ uint64_t IRGraph::get_num_subgraphs() const {
     return _num_of_subgraphs;
 }
 
-void IRGraph::predict_output_shape(std::vector<ArgumentDescriptor>& inputDescriptors,
-                                   std::vector<ArgumentDescriptor>& outputDescriptors) {
+void IRGraph::predict_output_shape(std::vector<MemRefType>& inputDescriptors,
+                                   std::vector<MemRefType>& outputDescriptors) {
     auto impl = reinterpret_cast<IRGraphImpl*>(_impl.get());
 
     if (impl == nullptr)

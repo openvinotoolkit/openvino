@@ -376,43 +376,43 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
         OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
 
-    // Update graphDescriptor
-    std::vector<ArgumentDescriptor> inputPros = _graphInputDescriptors;
-    std::vector<ArgumentDescriptor> outputPros = _graphOutputDescriptors;
+    /* // Update graphDescriptor
+     std::vector<ArgumentDescriptor> inputPros = _graphInputDescriptors;
+     std::vector<ArgumentDescriptor> outputPros = _graphOutputDescriptors;
 
-    const ov::Shape& shape = tensor->get_shape();
-    if (foundPort.is_input()) {
-        inputPros[foundPort.idx].info.dims_count = shape.size();
-        for (size_t i = 0; i < shape.size(); i++) {
-            inputPros[foundPort.idx].info.dims[i] = shape[i];
-        }
-    } else {
-        if (outputPros[foundPort.idx].info.dims_count != shape.size()) {
-            OPENVINO_THROW("Output tensor shape size not match, expected size: ",
-                           outputPros[foundPort.idx].info.dims_count,
-                           ", got size: ",
-                           shape.size());
-        }
-    }
+     const ov::Shape& shape = tensor->get_shape();
+     if (foundPort.is_input()) {
+         inputPros[foundPort.idx].info.dims_count = shape.size();
+         for (size_t i = 0; i < shape.size(); i++) {
+             inputPros[foundPort.idx].info.dims[i] = shape[i];
+         }
+     } else {
+         if (outputPros[foundPort.idx].info.dims_count != shape.size()) {
+             OPENVINO_THROW("Output tensor shape size not match, expected size: ",
+                            outputPros[foundPort.idx].info.dims_count,
+                            ", got size: ",
+                            shape.size());
+         }
+     }
 
-    intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(_graph.get());
-    if (irGraph) {
-        irGraph->predict_output_shape(inputPros, outputPros);
-    }
+     intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(_graph.get());
+     if (irGraph) {
+         irGraph->predict_output_shape(inputPros, outputPros);
+     }
 
-    // If set output tensor, need check size
-    size_t preferedOutputSize = 1;
-    if (foundPort.is_output()) {
-        for (size_t i = 0; i < _graphOutputDescriptors[foundPort.idx].info.dims_count; i++) {
-            preferedOutputSize *= _graphOutputDescriptors[foundPort.idx].info.dims[i];
-        }
-        if (preferedOutputSize != tensor->get_size()) {
-            OPENVINO_THROW("Output tensor shape size not match, expected size: ",
-                           preferedOutputSize,
-                           ", got size: ",
-                           tensor->get_size());
-        }
-    }
+     // If set output tensor, need check size
+     size_t preferedOutputSize = 1;
+     if (foundPort.is_output()) {
+         for (size_t i = 0; i < _graphOutputDescriptors[foundPort.idx].info.dims_count; i++) {
+             preferedOutputSize *= _graphOutputDescriptors[foundPort.idx].info.dims[i];
+         }
+         if (preferedOutputSize != tensor->get_size()) {
+             OPENVINO_THROW("Output tensor shape size not match, expected size: ",
+                            preferedOutputSize,
+                            ", got size: ",
+                            tensor->get_size());
+         }
+     }*/
 
     if (foundPort.is_input()) {
         _logger.debug("update input tensor");
@@ -517,13 +517,13 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                 auto batch = _graph->get_batch_size();
                 // levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), batch);
 
-                IODescriptor descriptor =
+                /*IODescriptor descriptor =
                     foundPort.is_input() ? _metadata.inputs.at(foundPort.idx) : _metadata.outputs.at(foundPort.idx);
                 if (!foundPort.is_input()) {
                     // For output, need update descriptor shape with predicted shape
                     ov::Shape predictedShape;
                     descriptor.shapeFromCompiler = shape;
-                }
+                }*/
                 levelZeroTensor = allocate_tensor_for_pipeline(
                     foundPort.is_input() ? _metadata.inputs.at(foundPort.idx) : _metadata.outputs.at(foundPort.idx),
                     foundPort.idx,
@@ -884,6 +884,45 @@ void ZeroDynamicInferRequest::infer_async() {
 
     {
         std::lock_guard<std::mutex> lock(_graph->get_mutex());
+
+        intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(_graph.get());
+        if (irGraph) {
+            IRGraph::GraphArguments graphArgs;
+            irGraph->getBinding(graphArgs);
+            std::vector<IRGraph::MemRefType> inputPros;
+            std::vector<IRGraph::MemRefType> outputPros;
+
+            for (const auto& inDesc : graphArgs._inputs) {
+                inputPros.push_back(*inDesc);
+            }
+            for (const auto& outDesc : graphArgs._outputs) {
+                outputPros.push_back(*outDesc);
+            }
+
+            irGraph->predict_output_shape(inputPros, outputPros);
+
+            bool shapeChanged = false;
+            for (size_t i = 0; i < outputPros.size(); i++) {
+                for (size_t j = 0; j < 4; j++) {
+                    if (graphArgs._outputs[i]->memRef.sizes[j] != outputPros[i].memRef.sizes[j]) {
+                        _logger.warning(
+                            "Output tensor %d shape and predicted shape mimsmatch at dim %zu, changed from %zu to %zu",
+                            i,
+                            j,
+                            graphArgs._outputs[i]->memRef.sizes[j],
+                            outputPros[i].memRef.sizes[j]);
+                        shapeChanged = true;
+                        break;
+                    }
+                }
+                if (shapeChanged) {
+                    break;
+                }
+            }
+            if (!shapeChanged) {
+                _logger.debug("No output shape changed detected");
+            }
+        }
 
         if (!_pipelineIsCreated || _dynamicBatchValueChanged) {
             OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
