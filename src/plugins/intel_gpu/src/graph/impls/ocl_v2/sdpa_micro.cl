@@ -546,9 +546,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #else
         #define greater_than(offset_k, offset_q) (offset_k > offset_q)
     #endif
-
-    #endif
-
+                             
         int col_offset = wg_j0 + sg_j0_kq;
     #if IS_PAGED_ATTENTION && IS_PREFILL == 0
         col_offset += k - q;
