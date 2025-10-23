@@ -31,7 +31,7 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
 
     # Experts computation part (GEMM2_BIAS_SWIGLU_CLAMP)
     # Fused gate_up computation
-    gate_up = matmul(reshaped_hidden_states, weight_0, transpose_a=False, transpose_b=False) + bias_0
+    gate_up = matmul(reshaped_hidden_states, weight_0, transpose_a=False, transpose_b=True) + bias_0
     # Slice gate_up into two halves along last dimension, taking every second element with step two
     slice_1 = gate_up[..., ::2]      # every second element starting from index 0
     slice_2 = gate_up[..., 1::2]     # every second element starting from index 1
@@ -44,7 +44,7 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
     # Multiply branches
     fused = add_1 * swish_1
     # Down projection
-    down_proj = matmul(fused, weight_1, transpose_a=False, transpose_b=False) + bias_1
+    down_proj = matmul(fused, weight_1, transpose_a=False, transpose_b=True) + bias_1
 
     # Common part: Routing and summation
     routed_experts = reshape(down_proj, [num_experts, batch_size, -1, hidden_size]) * routing_weights
@@ -61,11 +61,11 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
     reshaped_hidden_states = reshape(tiled_hidden_states, [num_experts, -1, 0], special_zero=True)
 
     # Experts computation part (GEMM3_SWIGLU)
-    x_proj = matmul(reshaped_hidden_states, weight_0, transpose_a=False, transpose_b=False)
-    x_proj2 = matmul(reshaped_hidden_states, weight_1, transpose_a=False, transpose_b=False)
+    x_proj = matmul(reshaped_hidden_states, weight_0, transpose_a=False, transpose_b=True)
+    x_proj2 = matmul(reshaped_hidden_states, weight_1, transpose_a=False, transpose_b=True)
     swiglu = swish(x_proj, beta=expert_beta)
     x_proj = x_proj2 * swiglu
-    down_proj = matmul(x_proj, weight_2, transpose_a=False, transpose_b=False)
+    down_proj = matmul(x_proj, weight_2, transpose_a=False, transpose_b=True)
     
     # Common part: Routing and summation
     routed_experts = reshape(down_proj, [num_experts, batch_size, -1, hidden_size]) * routing_weights
