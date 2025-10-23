@@ -37,7 +37,6 @@
 #include "convolution_kernel_imad_b_fs_yx_fsv4_dw.hpp"
 #include "convolution_kernel_mmad_bfyx_to_b_fs_yx_fsv4.h"
 #include "convolution_kernel_mmad_b_fs_yx_fsv32.h"
-#include "convolution_kernel_mmad_b_fs_yx_fsv32_simd16.h"
 #include "convolution_kernel_mmad_b_fs_yx_fsv32_dw.h"
 #include "convolution_kernel_mmad_bfyx_to_b_fs_yx_fsv32.h"
 #include "convolution_kernel_bfyx_to_bs_fs_yx_bsv16_fsv16.h"
@@ -50,6 +49,7 @@
 
 namespace kernel_selector {
 convolution_kernel_selector::convolution_kernel_selector() {
+    /*
     Attach<ConvolutionKernel_Ref>();
 
     // b_fs_yx_fsv16 and b_fs_zyx_fsv16 int8
@@ -103,16 +103,17 @@ convolution_kernel_selector::convolution_kernel_selector() {
     Attach<ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4>();
     Attach<ConvolutionKernel_imad_b_fs_yx_fsv4_dw>();
     Attach<ConvolutionKernel_b_fs_yx_fsv4_int8>();
-
+    */
     // b_fs_yx_fsv32 kernels
     Attach<ConvolutionKernel_mmad_b_fs_yx_fsv32>();
-    Attach<ConvolutionKernel_mmad_b_fs_yx_fsv32_simd16>();
+    /*
     Attach<ConvolutionKernel_mmad_b_fs_yx_fsv32_dw>();
     Attach<ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32>();
     Attach<ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw>();
 
     Attach<DeformableConvolutionKernel_bfyx_Ref>();
     Attach<DeformableConvolutionKernel_bfyx_opt>();
+    */
 }
 
 KernelsData convolution_kernel_selector::GetBestKernels(const Params& params) const {
