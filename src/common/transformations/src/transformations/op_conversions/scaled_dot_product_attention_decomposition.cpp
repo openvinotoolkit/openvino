@@ -204,8 +204,8 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         auto scaled_attn_sink = register_new_node<v0::Concat>(OutputVector{scaled_atten, sink_broadcast}, -1);
         scaled_atten = register_new_node<v8::Softmax>(scaled_attn_sink, -1);
 
-        auto seq_len = register_new_node<v8::Gather>(q_shape, minus_two, zero_i);
-        scaled_atten = register_new_node<v8::Slice>(scaled_atten, zero_i, seq_len, one_i, minus_one);
+        auto prev_seq_len = register_new_node<v8::Gather>(k_shape, minus_two, zero_i);
+        scaled_atten = register_new_node<v8::Slice>(scaled_atten, zero_i, prev_seq_len, one_i, minus_one);
     } else {
         scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
     }
