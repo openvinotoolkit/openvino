@@ -967,11 +967,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
                 : _globalConfig.get<IMPORT_RAW_BLOB>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = compiled_blob.get_byte_size();
+<<<<<<< HEAD
         if (!importRawBlob && !skipCompatibility) {
             metadata = read_metadata_from(compiled_blob);
             if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
+=======
+
+        if (!skipCompatibility) {
+            metadata = read_metadata_from(compiled_blob);
+>>>>>>> f6d59595e1 (Revert incorrect call to read_metadata_from(tensor))
             blobSize = metadata->get_blob_size();
         } else {
             _logger.info("Blob compatibility check skipped.");
