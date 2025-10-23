@@ -341,9 +341,22 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     }
 
     std::unique_ptr<MetadataBase> storedMeta;
-    storedMeta = create_metadata(metaVersion, blobDataSize);
-
-    storedMeta->read(stream);
+    try {
+        storedMeta = create_metadata(metaVersion, blobDataSize);
+        storedMeta->read(stream);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW(ex.what(),
+                       "Imported blob metadata version: ",
+                       MetadataBase::get_major(metaVersion),
+                       ".",
+                       MetadataBase::get_minor(metaVersion),
+                       " but the current version is: ",
+                       CURRENT_METADATA_MAJOR_VERSION,
+                       ".",
+                       CURRENT_METADATA_MINOR_VERSION);
+    } catch (...) {
+        OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
+    }
 
     stream.seekg(-stream.tellg() + currentStreamPos, std::ios::cur);
 
