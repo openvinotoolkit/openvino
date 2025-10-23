@@ -49,6 +49,7 @@
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "sigstack_manager.h"
 #include "transformations/transformation_pipeline.h"
@@ -568,7 +569,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
                                                    RW_property(ov::key_cache_group_size.name()),
                                                    RW_property(ov::value_cache_group_size.name())};
 
-        std::vector<ov::PropertyName> wo_properties{WO_property(ov::weights_path.name())};
+        std::vector<ov::PropertyName> wo_properties{WO_property(ov::weights_path.name()),
+                                                    WO_property(ov::enable_weightless.name())};
 
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size() + wo_properties.size());
@@ -704,7 +706,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 static std::string get_origin_weights_path(const ov::AnyMap& config) {
     std::string origin_weights_path;
 
-    if (ov::internal::is_weightless_enabled(config)) {
+    if (ov::util::is_weightless_enabled(config)) {
         auto wp_it = config.find(ov::weights_path.name());
         if (wp_it != config.end()) {
             origin_weights_path = wp_it->second.as<std::string>();

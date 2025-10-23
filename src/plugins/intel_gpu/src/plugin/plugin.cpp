@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/plugin.hpp"
-
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -19,6 +17,7 @@
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
+#include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
@@ -27,6 +26,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
@@ -37,13 +37,12 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/weights_path.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/op/util/op_types.hpp"
-
 
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
@@ -170,7 +169,7 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
 
     // Set weighless cache attribute only for non IR (e.g. onnxruntime) models
     // This is a temporary solution. A common way of handling weightless caching will be defined later.
-    if (ov::internal::is_weightless_enabled(config.get_user_properties())) {
+    if (ov::util::is_weightless_enabled(config.get_user_properties())) {
         const std::string& weights_path = config.get_weights_path();
 
         if (!ov::util::validate_weights_path(weights_path) && !is_weightless_cache_attributes_set(cloned_model))
@@ -412,7 +411,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         return nullptr;
     }
 
-    if (ov::internal::is_weightless_enabled(config.get_user_properties())) {
+    if (ov::util::is_weightless_enabled(config.get_user_properties())) {
         const std::string& weights_path = config.get_weights_path();
 
         if (!ov::util::validate_weights_path(weights_path)) {
@@ -462,7 +461,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::internal::supported_properties)::value_type{get_supported_internal_properties()};
     } else if (name == ov::available_devices) {
         std::vector<std::string> available_devices = { };
-        for (auto const& dev : m_device_map)
+        for (const auto& dev : m_device_map)
             available_devices.push_back(dev.first);
         return decltype(ov::available_devices)::value_type {available_devices};
     } else if (name == ov::internal::caching_properties) {
