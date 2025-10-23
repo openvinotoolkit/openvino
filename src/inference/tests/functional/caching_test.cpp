@@ -1682,8 +1682,15 @@ TEST_P(CachingTest, TestCacheFileCorrupted) {
     {
         auto blobs = ov::test::utils::listFilesWithExt(m_cacheDir, "blob");
         for (const auto& fileName : blobs) {
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::add);
             std::ofstream stream(fileName, std::ios_base::binary);
             stream << "SomeCorruptedText";
+            stream.close();
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::remove);
         }
     }
     m_post_mock_net_callbacks.pop_back();
@@ -1762,8 +1769,16 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
             } else {
                 return;  // skip test
             }
+
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::add);
             std::ofstream out(fileName, std::ios_base::binary);
             out.write(content.c_str(), static_cast<std::streamsize>(content.size()));
+            out.close();
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::remove);
         }
     }
     m_post_mock_net_callbacks.pop_back();
@@ -1861,8 +1876,15 @@ TEST_P(CachingTest, TestCacheFileWithCompiledModelRuntimeProperties) {
             } else {
                 return;  // skip test
             }
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::add);
             std::ofstream out(fileName, std::ios_base::binary);
             out.write(content.c_str(), static_cast<std::streamsize>(content.size()));
+            out.close();
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::remove);
         }
     }
     m_post_mock_net_callbacks.pop_back();
