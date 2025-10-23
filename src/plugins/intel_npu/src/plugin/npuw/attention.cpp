@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "attention.hpp"
-#include "pyramid_attention.hpp"
 
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -136,6 +135,7 @@ ov::npuw::runtime::attention::PositionIDs::PositionIDs(std::size_t param_idx,
                                                        const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
       m_query_size(d.query_size),
+      m_pyramid_attention(&d),
       m_rq(rq) {
     // FIXME: speculative decode is indistinguishable at this point!
     m_case = m_query_size == 1 ? Case::GENERATE : Case::PREFILL;
@@ -177,6 +177,26 @@ ov::npuw::runtime::attention::Selector::Ptr ov::npuw::runtime::attention::Positi
         return Selector::Ptr{new PositionIDs(param_idx, d, rq)};
     }
     return Selector::Ptr{};
+}
+
+std::size_t ov::npuw::runtime::attention::PositionIDs::get_pyramid_id() const {
+    if (!m_pyramid_attention) {
+        OPENVINO_THROW("get_pyramid_id() is only available for PyramidAttention");
+    }
+
+    // Find the smallest pyramid model that can handle the current sequence length
+    const auto& context_lengths = m_pyramid_attention->_context_lengths;
+    const int64_t current_seq_length = m_query_size + m_past_length;
+
+    // Find the smallest model that can accommodate current_seq_length
+    for (std::size_t i = 0; i < context_lengths.size(); ++i) {
+        if (current_seq_length <= static_cast<int64_t>(context_lengths[i])) {
+            return i;
+        }
+    }
+
+    // If no model can handle the sequence length, return the largest model
+    return context_lengths.size() - 1;
 }
 
 void ov::npuw::runtime::attention::PositionIDs::prepare(int64_t past_len) {
