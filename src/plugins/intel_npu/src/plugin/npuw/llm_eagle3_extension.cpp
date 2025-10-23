@@ -5,6 +5,7 @@
 #include "llm_eagle3_extension.hpp"
 
 #include <algorithm>
+#include <cstring>
 
 #include "logging.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -32,21 +33,6 @@ void Eagle3Extension::validate_tensor(const ov::SoPtr<ov::ITensor>& tensor, cons
 
 namespace {
 
-// Forward declaration of padding function
-void pad_hidden_state_input(const ov::SoPtr<ov::ITensor>& padded_hidden_state,
-                            const ov::SoPtr<ov::ITensor>& hidden_state);
-
-template <typename T>
-void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
-    T* tensor_data = tensor->data<T>();
-    std::fill(tensor_data + offset, tensor_data + tensor->get_size(), fill_val);
-}
-
-void fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
-    auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
-    std::fill_n(tensor_data, tensor->get_byte_size(), fill_val);
-}
-
 void pad_hidden_state_input(const ov::SoPtr<ov::ITensor>& padded_hidden_state,
                             const ov::SoPtr<ov::ITensor>& hidden_state) {
     // Pad the token_length dimension (dimension 1) of hidden state input [batch, token_length, embedding_size]
@@ -56,60 +42,34 @@ void pad_hidden_state_input(const ov::SoPtr<ov::ITensor>& padded_hidden_state,
                     "Hidden state input should have 3 dimensions: [batch, token_length, embedding_size]");
     OPENVINO_ASSERT(padded_shape.size() == 3,
                     "Padded hidden state should have 3 dimensions: [batch, token_length, embedding_size]");
-    // Check batch size and embedding size match
-    OPENVINO_ASSERT(padded_shape[0] == hidden_state_shape[0], "Batch size must match");
+
+    OPENVINO_ASSERT(hidden_state_shape[0] == 1, "Batch size must be 1 for Eagle3 hidden states");
+    OPENVINO_ASSERT(padded_shape[0] == 1, "Padded batch size must be 1 for Eagle3 hidden states");
+
     OPENVINO_ASSERT(padded_shape[2] == hidden_state_shape[2], "Embedding size must match");
-    // Check token length padding is valid
     OPENVINO_ASSERT(padded_shape[1] >= hidden_state_shape[1], "Padded token length must be >= input token length");
 
-    // Calculate dimensions
-    const size_t batch_size = hidden_state_shape[0];
+    // Calculate dimensions (batch size is always 1)
     const size_t input_token_len = hidden_state_shape[1];
     const size_t padded_token_len = padded_shape[1];
     const size_t embedding_size = hidden_state_shape[2];
     const size_t token_padding = padded_token_len - input_token_len;
+    const size_t elem_size = hidden_state->get_element_type().size();
 
-    // Get data pointers based on element type
-    if (hidden_state->get_element_type() == ov::element::f32) {
-        // Handle float32 data
-        float* padded_data = padded_hidden_state->data<float>();
-        const float* input_data = hidden_state->data<float>();
+    // Calculate byte sizes for efficient bulk operations
+    const size_t input_bytes = input_token_len * embedding_size * elem_size;
+    const size_t padding_bytes = token_padding * embedding_size * elem_size;
+    const size_t total_bytes = padded_hidden_state->get_byte_size();
 
-        // Fill with zeros first (left padding)
-        fill_tensor<float>(padded_hidden_state, 0.0f);
+    // Get raw data pointers
+    const uint8_t* src_data = reinterpret_cast<const uint8_t*>(hidden_state->data());
+    uint8_t* dst_data = reinterpret_cast<uint8_t*>(padded_hidden_state->data());
 
-        // Copy actual data to the right side of each batch
-        for (size_t b = 0; b < batch_size; ++b) {
-            size_t input_batch_offset = b * input_token_len * embedding_size;
-            size_t padded_batch_offset = b * padded_token_len * embedding_size + token_padding * embedding_size;
+    // Use memset for efficient zero-filling (left padding)
+    std::memset(dst_data, 0, total_bytes);
 
-            std::copy_n(input_data + input_batch_offset,
-                        input_token_len * embedding_size,
-                        padded_data + padded_batch_offset);
-        }
-    } else if (hidden_state->get_element_type() == ov::element::f16) {
-        // Handle float16 data (using byte copy for simplicity)
-        uint8_t* padded_data = reinterpret_cast<uint8_t*>(padded_hidden_state->data());
-        const uint8_t* input_data = reinterpret_cast<const uint8_t*>(hidden_state->data());
-
-        // Fill with zeros first
-        fill_tensor_bytes(padded_hidden_state, 0);
-
-        const size_t elem_size = hidden_state->get_element_type().size();
-
-        // Copy actual data to the right side of each batch
-        for (size_t b = 0; b < batch_size; ++b) {
-            size_t input_batch_offset = b * input_token_len * embedding_size * elem_size;
-            size_t padded_batch_offset =
-                b * padded_token_len * embedding_size * elem_size + token_padding * embedding_size * elem_size;
-
-            std::copy_n(input_data + input_batch_offset,
-                        input_token_len * embedding_size * elem_size,
-                        padded_data + padded_batch_offset);
-        }
-    } else {
-        OPENVINO_THROW("Unsupported element type for hidden state input: ", hidden_state->get_element_type());
-    }
+    // Use memcpy for efficient data copying (right-aligned after padding)
+    std::memcpy(dst_data + padding_bytes, src_data, input_bytes);
 }
 
 }  // anonymous namespace
@@ -136,14 +96,13 @@ void Eagle3Extension::initialize(const std::unordered_map<std::string, ov::Outpu
     }
 }
 
-void Eagle3Extension::prepare_inputs_impl(std::shared_ptr<ov::IAsyncInferRequest> request,
-                                          const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports) {
+void Eagle3Extension::prepare_inputs(std::shared_ptr<ov::IAsyncInferRequest> request,
+                                     const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports) {
     // Only draft models need to prepare Eagle3 inputs
     if (m_role != Eagle3ModelRole::Draft) {
         return;
     }
 
-    // Set hidden_states input if available
     auto hidden_states_it = in_ports.find(Eagle3LayerNames::hidden_states);
     if (hidden_states_it != in_ports.end() && m_hidden_states) {
         auto padded_hidden_states = request->get_tensor(hidden_states_it->second);
@@ -151,7 +110,6 @@ void Eagle3Extension::prepare_inputs_impl(std::shared_ptr<ov::IAsyncInferRequest
         LOG_VERB("Eagle3 Draft: Set hidden_states input tensor");
     }
 
-    // Set internal_hidden_states input if available
     auto internal_hidden_states_it = in_ports.find(Eagle3LayerNames::internal_hidden_states);
     if (internal_hidden_states_it != in_ports.end() && m_internal_hidden_states) {
         auto padded_internal_hidden_states = request->get_tensor(internal_hidden_states_it->second);
@@ -160,9 +118,8 @@ void Eagle3Extension::prepare_inputs_impl(std::shared_ptr<ov::IAsyncInferRequest
     }
 }
 
-void Eagle3Extension::process_outputs_impl(
-    std::shared_ptr<ov::IAsyncInferRequest> request,
-    const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports) {
+void Eagle3Extension::process_outputs(std::shared_ptr<ov::IAsyncInferRequest> request,
+                                      const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports) {
     // Both draft and target models have last_hidden_state output
     if (m_role == Eagle3ModelRole::Draft || m_role == Eagle3ModelRole::Target) {
         auto last_hidden_state_it = out_ports.find(Eagle3LayerNames::last_hidden_state);
@@ -172,24 +129,6 @@ void Eagle3Extension::process_outputs_impl(
                                << ": Retrieved last_hidden_state output tensor");
         }
     }
-}
-
-void Eagle3Extension::prepare_inputs(std::shared_ptr<ov::IAsyncInferRequest> request,
-                                     const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports) {
-    // Automatically handle inputs based on model role
-    if (m_role == Eagle3ModelRole::Draft) {
-        prepare_inputs_impl(request, in_ports);
-    }
-    // Target models and non-Eagle3 models require no input preparation
-}
-
-void Eagle3Extension::process_outputs(std::shared_ptr<ov::IAsyncInferRequest> request,
-                                      const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports) {
-    // Automatically handle outputs based on model role
-    if (m_role == Eagle3ModelRole::Target || m_role == Eagle3ModelRole::Draft) {
-        process_outputs_impl(request, out_ports);
-    }
-    // non-Eagle3 models require no output processing
 }
 
 void Eagle3Extension::prepare_inputs_for_chunk(
