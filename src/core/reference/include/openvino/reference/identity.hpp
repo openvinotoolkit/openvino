@@ -34,9 +34,7 @@ static inline void identity(const std::string* input, std::string* output, const
     if (input == output) {
         return;
     }
-    for (size_t i = 0; i < shape_size; i++) {
-        output[i] = input[i];
-    }
+    std::copy_n(input, shape_size, output);
 }
 
 }  // namespace reference
