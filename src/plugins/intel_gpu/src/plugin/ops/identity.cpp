@@ -6,7 +6,7 @@
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/primitives/permute.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov::intel_gpu {
 
@@ -14,16 +14,9 @@ static void CreateIdentityOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
+    auto targetFormat = cldnn::format::get_default_format(op->get_input_partial_shape(0).size());
 
-    std::vector<uint16_t> order;
-    int rank = std::max(4, static_cast<int>(op->get_input_partial_shape(0).size()));
-
-    // Create an identity permutation order of size 'rank' (at least 4)
-    for (int o = 0; o < rank; o++) {
-        order.push_back((uint16_t)o);
-    }
-
-    auto permutePrim = cldnn::permute(layerName, inputs[0], order);
+    auto permutePrim = cldnn::reorder(layerName, inputs[0], targetFormat, op->get_element_type());
     permutePrim.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, permutePrim);
 }
