@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "attention.hpp"
+#include "pyramid_attention.hpp"
 
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -124,14 +125,43 @@ ov::npuw::runtime::attention::PositionIDs::PositionIDs(std::size_t param_idx,
                                                        const ov::npuw::compiled::Attention& d,
                                                        const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
-      m_d(d),
+      m_query_size(d.query_size),
       m_rq(rq) {
     // FIXME: speculative decode is indistinguishable at this point!
-    m_case = m_d.query_size == 1 ? Case::GENERATE : Case::PREFILL;
+    m_case = m_query_size == 1 ? Case::GENERATE : Case::PREFILL;
+}
+
+ov::npuw::runtime::attention::PositionIDs::PositionIDs(std::size_t param_idx,
+                                                       const ov::npuw::compiled::PyramidAttention& d,
+                                                       const ov::ISyncInferRequest& rq)
+    : m_position_ids_idx(param_idx),
+      m_query_size(d.query_size),
+      m_rq(rq) {
+    // FIXME: speculative decode is indistinguishable at this point!
+    m_case = m_query_size == 1 ? Case::GENERATE : Case::PREFILL;
 }
 
 ov::npuw::runtime::attention::Selector::Ptr ov::npuw::runtime::attention::PositionIDs::find(
     const ov::npuw::compiled::Attention& d,
+    const ov::ISyncInferRequest& rq) {
+    auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
+        const auto& shape = p.get_shape();
+        // FIXME: 2D/3D position IDs are not supported here YET
+        return p.get_node()->get_friendly_name() == "position_ids" &&
+               (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1));
+    };
+
+    const auto& inputs = rq.get_inputs();
+    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), is_position_ids);
+    if (pos_ids_iter != inputs.end()) {
+        const auto param_idx = std::distance(inputs.begin(), pos_ids_iter);
+        return Selector::Ptr{new PositionIDs(param_idx, d, rq)};
+    }
+    return Selector::Ptr{};
+}
+
+ov::npuw::runtime::attention::Selector::Ptr ov::npuw::runtime::attention::PositionIDs::find(
+    const ov::npuw::compiled::PyramidAttention& d,
     const ov::ISyncInferRequest& rq) {
     auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
         const auto& shape = p.get_shape();
@@ -176,7 +206,7 @@ void ov::npuw::runtime::attention::PositionIDs::prepare(int64_t past_len) {
             case Case::PREFILL:
                 // chunked prefill case. calculate the past_length in full chunks
                 // FIXME: We know too much about chunking here
-                m_past_length = ((past_len + m_d.query_size - 1) / m_d.query_size) * m_d.query_size;
+                m_past_length = ((past_len + m_query_size - 1) / m_query_size) * m_query_size;
                 break;
             default:
                 NPUW_ASSERT(false && "Reached the unreachable code");

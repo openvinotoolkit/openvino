@@ -125,9 +125,20 @@ struct PyramidAttention {
 
 namespace compiled {
 
+// Simplified pyramid attention parameter info
+struct PyramidAttentionInfo {
+    struct Param {
+        std::size_t idx;  // function input index for this spatial parameter
+        std::size_t dim;
+    };
+    std::vector<Param> params;
+    std::size_t mask_idx = 0u;
+    std::size_t query_size = 0u;  // Added for PositionIDs selector compatibility
+};
+
 // Compile-time pyramid attention information
 struct PyramidAttention {
-    std::vector<struct Attention> _attentions;
+    std::vector<PyramidAttentionInfo> _attention_infos;
     std::vector<std::shared_ptr<ov::Model>> _models;
     std::vector<ov::SoPtr<ov::ICompiledModel>> _compiled_models;
 
@@ -147,14 +158,25 @@ struct PyramidAttention {
         for (size_t i = 0; i < d._attentions.size(); ++i) {
             size_t before_attention_kb = get_process_memory_kb();
 
-            // Don't create ov::Tensor attend_all for pyramid attention
-            auto compiled_attn = ov::npuw::compiled::Attention(d._attentions[i], d._models[i], false);
+            const auto& func_attn = d._attentions[i];
+            const auto& model = d._models[i];
+
+            PyramidAttentionInfo attention_info;
+            // Extract parameters
+            attention_info.params.reserve(func_attn._inputs.size());
+            for (const auto& input : func_attn._inputs) {
+                std::size_t p_idx = model->get_parameter_index(input.param);
+                attention_info.params.push_back({p_idx, input.dim});
+            }
+            // Extract mask index and query size
+            attention_info.mask_idx = model->get_parameter_index(func_attn._mask);
+            attention_info.query_size = func_attn.query_len();
 
             size_t after_attention_kb = get_process_memory_kb();
             size_t attention_increase_kb =
                 (after_attention_kb > before_attention_kb) ? (after_attention_kb - before_attention_kb) : 0;
 
-            _attentions.push_back(compiled_attn);
+            _attention_infos.push_back(attention_info);
 
             size_t before_model_kb = get_process_memory_kb();
 
@@ -164,7 +186,7 @@ struct PyramidAttention {
             size_t after_model_kb = get_process_memory_kb();
             size_t model_increase_kb = (after_model_kb > before_model_kb) ? (after_model_kb - before_model_kb) : 0;
 
-            std::cout << "Model[" << i << "]: Attention constructor increased RSS by " << attention_increase_kb
+            std::cout << "Model[" << i << "]: Attention info extraction increased RSS by " << attention_increase_kb
                       << " KB (" << (attention_increase_kb / 1024) << " MB)" << std::endl;
             std::cout << "Model[" << i << "]: push_back increased RSS by " << model_increase_kb << " KB ("
                       << (model_increase_kb / 1024) << " MB), total: " << after_model_kb << " KB" << std::endl;
@@ -176,9 +198,9 @@ struct PyramidAttention {
                   << (total_increase_kb / 1024) << " MB) ===" << std::endl;
     }
 
-    // Remove model access methods since we don't store models anymore
+    // Return number of pyramid models
     size_t num_models() const {
-        return _attentions.size();
+        return _attention_infos.size();
     }
 };
 
