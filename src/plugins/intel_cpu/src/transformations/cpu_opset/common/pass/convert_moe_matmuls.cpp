@@ -60,7 +60,7 @@ std::shared_ptr<ov::op::v0::Unsqueeze> introduce_n_experts_dim(const ov::Output<
 ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
     MATCHER_SCOPE(MoE2GeMM);
 
-    auto data_input = pattern::any_input(pattern::rank_equals(3));
+    auto data_input = pattern::any_input(pattern::rank_equals(3) && pattern::has_static_rank());
     auto experts_input = pattern::wrap_type<ov::op::v1::Reshape>({data_input, pattern::any_input()});
     auto tile = pattern::wrap_type<ov::op::v0::Tile>({experts_input, pattern::any_input()});
     auto after_tile_reshape = pattern::wrap_type<ov::op::v1::Reshape>({tile, pattern::any_input()});
@@ -90,7 +90,8 @@ ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
                                                                    {{"transpose_a", false}, {"transpose_b", true}});
     auto down_proj_bias = pattern::wrap_const();
     auto down_proj_add = pattern::wrap_type<ov::op::v1::Add>({down_proj_matmul, down_proj_bias});
-    auto end_reshape = pattern::wrap_type<ov::op::v1::Reshape>({down_proj_add, pattern::any_input()});
+    auto end_reshape_target_shape = pattern::any_input();
+    auto end_reshape = pattern::wrap_type<ov::op::v1::Reshape>({down_proj_add, end_reshape_target_shape});
 
     // Routing weights/mask
     auto zero_constant = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
@@ -114,19 +115,19 @@ ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
                                        {{"reduction", "none"}});
 
     auto router_transpose = pattern::wrap_type<ov::op::v1::Transpose>({scatter_elements_update, pattern::any_input()});
-    auto router_reshape = pattern::wrap_type<ov::op::v1::Reshape>({router_transpose, pattern::any_input()},
-                                                                  ov::pass::pattern::rank_equals(3));
+    auto router_reshape =
+        pattern::wrap_type<ov::op::v1::Reshape>({router_transpose, pattern::any_input()},
+                                                ov::pass::pattern::rank_equals(3) || ov::pass::pattern::rank_equals(4));
     auto unsqueeze_axis =
         pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("3") || pattern::value_matches("-1"));
     auto unsqueeze_routing_weights =
-        pattern::wrap_type<ov::op::v0::Unsqueeze>({router_reshape, unsqueeze_axis}, ov::pass::pattern::rank_equals(4));
+        pattern::optional<ov::op::v0::Unsqueeze>({router_reshape, unsqueeze_axis}, ov::pass::pattern::rank_equals(4));
 
     auto mul3 = pattern::wrap_type<ov::op::v1::Multiply>({end_reshape, unsqueeze_routing_weights});
     auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()}, {{"keep_dims", false}});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& data = pattern_map.at(data_input);
         const auto& experts_subgraph_input = pattern_map.at(experts_input);
         const auto& active_indices = pattern_map.at(router_topk_indices);
 
@@ -157,20 +158,29 @@ ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
         const auto new_router_transpose =
             router_transpose_node->clone_with_new_inputs({chosen_experts_input, router_transpose_node->input_value(1)});
 
-        const auto router_unsqueeze_node = pattern_map.at(unsqueeze_routing_weights).get_node_shared_ptr();
-        const auto new_unsqueeze_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
-        const auto new_router_unsqueeze =
-            router_unsqueeze_node->clone_with_new_inputs({new_router_transpose, new_unsqueeze_const});
+        const auto router_unsqueeze_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
+        const auto router_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(new_router_transpose, router_unsqueeze_const);
 
         const auto final_mul_node = pattern_map.at(mul3).get_node_shared_ptr();
         const auto new_final_mul =
-            final_mul_node->clone_with_new_inputs({down_gathered_mm->output(0), new_router_unsqueeze->output(0)});
+            final_mul_node->clone_with_new_inputs({down_gathered_mm->output(0), router_unsqueeze->output(0)});
         ov::replace_node_update_name(final_mul_node, new_final_mul);
 
         validate_nodes(pattern_map, {reduce_sum});
+
         const auto& reduce_sum_out = pattern_map.at(reduce_sum);
-        const auto original_shape = std::make_shared<ov::op::v3::ShapeOf>(data, ov::element::i32);
-        const auto reshape = std::make_shared<ov::op::v1::Reshape>(reduce_sum_out, original_shape, true);
+        const auto& end_reshape_out = pattern_map.at(end_reshape);
+        const auto end_reshape_rank = end_reshape_out.get_partial_shape().rank();
+        const auto& end_reshape_shape = pattern_map.at(end_reshape_target_shape);
+        // n_all_experts dimension is cut off after ReduceSum
+        const auto slice = std::make_shared<ov::op::v8::Slice>(
+            end_reshape_shape,
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}),
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {end_reshape_rank.get_length()}),
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}),
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0}));
+
+        const auto reshape = std::make_shared<ov::op::v1::Reshape>(reduce_sum_out, slice, true);
         ov::replace_output_update_name(reduce_sum_out, reshape->output(0));
 
         return true;
@@ -183,7 +193,7 @@ ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
 ov::intel_cpu::MoE3GeMM::MoE3GeMM() {
     MATCHER_SCOPE(MoE3GeMM);
 
-    auto data_input = pattern::any_input(pattern::rank_equals(3));
+    auto data_input = pattern::any_input(pattern::rank_equals(3) && pattern::has_static_rank());
     auto experts_input =
         pattern::wrap_type<ov::op::v1::Reshape>({data_input, pattern::any_input()}, pattern::rank_equals(2));
     auto tile = pattern::wrap_type<ov::op::v0::Tile>({experts_input, pattern::any_input()});
@@ -202,7 +212,8 @@ ov::intel_cpu::MoE3GeMM::MoE3GeMM() {
     // Third GEMM (down_projection)
     auto down_matmul = pattern::wrap_type<ov::op::v0::MatMul>({swiglu, pattern::any_input()},
                                                               {{"transpose_a", false}, {"transpose_b", true}});
-    auto end_reshape = pattern::wrap_type<ov::op::v1::Reshape>({down_matmul, pattern::any_input()});
+    auto end_reshape_target_shape = pattern::any_input();
+    auto end_reshape = pattern::wrap_type<ov::op::v1::Reshape>({down_matmul, end_reshape_target_shape});
 
     auto zero_constant = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
     auto broadcasted_const = pattern::wrap_type<ov::op::v3::Broadcast>({zero_constant, pattern::any_input()}) |
@@ -219,19 +230,19 @@ ov::intel_cpu::MoE3GeMM::MoE3GeMM() {
                                        {{"reduction", "none"}});
 
     auto router_transpose = pattern::wrap_type<ov::op::v1::Transpose>({scatter_elements_update, pattern::any_input()});
-    auto router_reshape = pattern::wrap_type<ov::op::v1::Reshape>({router_transpose, pattern::any_input()},
-                                                                  ov::pass::pattern::rank_equals(3));
+    auto router_reshape =
+        pattern::wrap_type<ov::op::v1::Reshape>({router_transpose, pattern::any_input()},
+                                                ov::pass::pattern::rank_equals(3) || ov::pass::pattern::rank_equals(4));
     auto unsqueeze_axis =
         pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("3") || pattern::value_matches("-1"));
     auto unsqueeze_routing_weights =
-        pattern::wrap_type<ov::op::v0::Unsqueeze>({router_reshape, unsqueeze_axis}, ov::pass::pattern::rank_equals(4));
+        pattern::optional<ov::op::v0::Unsqueeze>({router_reshape, unsqueeze_axis}, ov::pass::pattern::rank_equals(4));
 
     auto mul3 = pattern::wrap_type<ov::op::v1::Multiply>({end_reshape, unsqueeze_routing_weights});
     auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()}, {{"keep_dims", false}});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& data = pattern_map.at(data_input);
         const auto& experts_subgraph_input = pattern_map.at(experts_input);
         const auto& active_indices = pattern_map.at(router_topk_indices);
 
@@ -258,20 +269,29 @@ ov::intel_cpu::MoE3GeMM::MoE3GeMM() {
         const auto new_router_transpose =
             router_transpose_node->clone_with_new_inputs({chosen_experts_input, router_transpose_node->input_value(1)});
 
-        const auto router_unsqueeze_node = pattern_map.at(unsqueeze_routing_weights).get_node_shared_ptr();
-        const auto new_unsqueeze_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
-        const auto new_router_unsqueeze =
-            router_unsqueeze_node->clone_with_new_inputs({new_router_transpose, new_unsqueeze_const});
+        const auto router_unsqueeze_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
+        const auto router_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(new_router_transpose, router_unsqueeze_const);
 
         const auto final_mul_node = pattern_map.at(mul3).get_node_shared_ptr();
         const auto new_final_mul =
-            final_mul_node->clone_with_new_inputs({down_gathered_mm->output(0), new_router_unsqueeze->output(0)});
+            final_mul_node->clone_with_new_inputs({down_gathered_mm->output(0), router_unsqueeze->output(0)});
         ov::replace_node_update_name(final_mul_node, new_final_mul);
 
         validate_nodes(pattern_map, {reduce_sum});
+
         const auto& reduce_sum_out = pattern_map.at(reduce_sum);
-        const auto original_shape = std::make_shared<ov::op::v3::ShapeOf>(data, ov::element::i32);
-        const auto reshape = std::make_shared<ov::op::v1::Reshape>(reduce_sum_out, original_shape, true);
+        const auto& end_reshape_out = pattern_map.at(end_reshape);
+        const auto end_reshape_rank = end_reshape_out.get_partial_shape().rank();
+        const auto& end_reshape_shape = pattern_map.at(end_reshape_target_shape);
+        // n_all_experts dimension is cut off after ReduceSum
+        const auto slice = std::make_shared<ov::op::v8::Slice>(
+            end_reshape_shape,
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}),
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {end_reshape_rank.get_length()}),
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}),
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0}));
+
+        const auto reshape = std::make_shared<ov::op::v1::Reshape>(reduce_sum_out, slice, true);
         ov::replace_output_update_name(reduce_sum_out, reshape->output(0));
         return true;
     };
