@@ -3,6 +3,7 @@
 
 #include "pyramid_attention.hpp"
 
+#include <algorithm>
 #include <iostream>
 
 #include "openvino/op/add.hpp"
@@ -584,5 +585,97 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
 }
 
 }  // namespace function
+
+namespace runtime {
+namespace pyramid_attention {
+
+// Pyramid Attention PositionIDs implementation
+PositionIDs::PositionIDs(std::size_t param_idx, const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq)
+    : m_position_ids_idx(param_idx),
+      m_query_size(d.query_size),
+      m_pyramid_attention(&d),
+      m_rq(rq) {
+    // FIXME: speculative decode is indistinguishable at this point!
+    m_case = m_query_size == 1 ? Case::GENERATE : Case::PREFILL;
+}
+
+Selector::Ptr PositionIDs::find(const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq) {
+    auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
+        const auto& shape = p.get_shape();
+        // FIXME: 2D/3D position IDs are not supported here YET
+        return p.get_node()->get_friendly_name() == "position_ids" &&
+               (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1));
+    };
+
+    const auto& inputs = rq.get_inputs();
+    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), is_position_ids);
+    if (pos_ids_iter != inputs.end()) {
+        const auto param_idx = std::distance(inputs.begin(), pos_ids_iter);
+        return Selector::Ptr{new PositionIDs(param_idx, d, rq)};
+    }
+    return Selector::Ptr{};
+}
+
+std::size_t PositionIDs::get_pyramid_id() const {
+    if (!m_pyramid_attention) {
+        OPENVINO_THROW("get_pyramid_id() requires PyramidAttention data");
+    }
+
+    // Find the smallest pyramid model that can handle the current sequence length
+    const auto& context_lengths = m_pyramid_attention->_context_lengths;
+    const int64_t current_seq_length = m_query_size + m_past_length;
+
+    // Find the smallest model that can accommodate current_seq_length
+    for (std::size_t i = 0; i < context_lengths.size(); ++i) {
+        if (current_seq_length <= static_cast<int64_t>(context_lengths[i])) {
+            return i;
+        }
+    }
+
+    // If no model can handle the sequence length, return the largest model
+    return context_lengths.size() - 1;
+}
+
+void PositionIDs::prepare(int64_t past_len) {
+    const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
+    const auto in_tensor = m_rq.get_tensor(iport);
+    const auto in_dims = in_tensor->get_shape();
+
+    // Same logic as regular attention PositionIDs
+    auto* pos_data_ptr = in_tensor->data<int64_t>();
+    for (auto idx = in_dims.back() - 1; idx >= 0; idx--) {
+        if (pos_data_ptr[idx] > 0) {
+            // Initialize fields
+            m_current_length = pos_data_ptr[idx];
+            switch (m_case) {
+            case Case::GENERATE:
+                // decode case, we have pos_id-1 past elements to take from kvcache
+                m_past_length = m_current_length;
+                break;
+            case Case::PREFILL:
+                // chunked prefill case. calculate the past_length in full chunks
+                // FIXME: We know too much about chunking here
+                m_past_length = ((past_len + m_query_size - 1) / m_query_size) * m_query_size;
+                break;
+            default:
+                NPUW_ASSERT(false && "Reached the unreachable code");
+            }
+            return;
+        }
+    }
+    LOG_WARN("Dynamic selector - no data found in the feature?");
+    m_current_length = -1;
+}
+
+int64_t PositionIDs::length() const {
+    return m_current_length;
+}
+
+int64_t PositionIDs::past_length() const {
+    return m_past_length;
+}
+
+}  // namespace pyramid_attention
+}  // namespace runtime
 }  // namespace npuw
 }  // namespace ov

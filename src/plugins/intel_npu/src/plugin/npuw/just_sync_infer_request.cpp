@@ -19,6 +19,7 @@
 #include "plugin.hpp"
 #include "util.hpp"
 #include "weights_bank.hpp"
+#include "pyramid_attention.hpp"
 
 ov::npuw::MemAccessSim::MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model) {
     LOG_VERB("Running memory access simulation...");
@@ -467,10 +468,12 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     if (has_pyramid) {
         const auto& pyramid_dyn = m_npuw_model->m_compiled_submodels.at(pyramid_sub_idx).pyramid_attention.value();
-        m_pyramid_selector = runtime::attention::PositionIDs::find(pyramid_dyn, *this);
+        m_pyramid_selector = runtime::pyramid_attention::PositionIDs::find(pyramid_dyn, *this);
         if (!m_pyramid_selector) {
             LOG_WARN("Pyramid dynamic capability is enabled, but no run-time features were found.");
-            m_pyramid_selector.reset(new runtime::attention::All());
+            // Create All selector with the number of pyramid models
+            const auto pyramid_count = pyramid_dyn._compiled_models.size();
+            m_pyramid_selector.reset(new runtime::pyramid_attention::All(pyramid_count));
         }
     }
 }
