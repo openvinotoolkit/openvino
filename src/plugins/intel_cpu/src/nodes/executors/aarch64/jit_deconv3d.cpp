@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "cpu_memory.h"
-#include "nodes/executors/aarch64/jit_conv3d_f32.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"

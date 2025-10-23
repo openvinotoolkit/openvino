@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "nodes/executors/aarch64/jit_conv3d.hpp"
-#include "nodes/executors/aarch64/jit_conv3d_f32.hpp"
 #include "nodes/executors/deconv.hpp"
 
 namespace ov::intel_cpu {

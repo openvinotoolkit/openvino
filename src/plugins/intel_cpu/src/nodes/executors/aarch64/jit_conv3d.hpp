@@ -14,7 +14,6 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 #include <cpu/aarch64/jit_generator.hpp>
-#include "nodes/executors/aarch64/jit_conv3d_f32.hpp"
 
 namespace ov::intel_cpu {
 
@@ -42,6 +41,23 @@ struct jit_conv3d_call_args {
     size_t wei_dy;          // bytes to advance weights base between successive ky taps
 };
 
+struct jit_conv3d_f32_call_args {
+    const float* src;
+    const float* wei;
+    const float* wei2;
+    size_t repeats;
+    size_t tail;
+    size_t src_stride;
+    size_t wei_stride;
+    size_t src_blk_stride;
+    size_t wei_blk_stride;
+    float* acc;
+    float* acc2;
+    size_t kw_cnt;
+    size_t src_dx;
+    size_t wei_dx;
+};
+
 class JitConv3DKernelF16 : public dnnl::impl::cpu::aarch64::jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(JitConv3DKernelF16)
@@ -64,6 +80,24 @@ private:
     bool m_force_single_kh_{true};
 public:
     void set_force_single_kh(bool v) { m_force_single_kh_ = v; }
+};
+
+class JitConv3DKernelF32 : public dnnl::impl::cpu::aarch64::jit_generator {
+public:
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(JitConv3DKernelF32)
+    using jit_fn = void (*)(const jit_conv3d_f32_call_args*);
+
+    JitConv3DKernelF32() = default;
+
+    void create_ker();
+    inline void operator()(const jit_conv3d_f32_call_args* p) const {
+        ker_(p);
+    }
+
+private:
+    void generate() override;
+
+    jit_fn ker_{nullptr};
 };
 
 class JitConv3DExecutor : public Executor {
