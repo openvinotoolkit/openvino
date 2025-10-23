@@ -198,10 +198,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     init_pre_alloc_device();
     init_lora_states();
 
-    // Initialize Eagle3 extension - auto-detect if model is Eagle3 target or draft
+    // Eagle3: Detect model role and enable role-based input/output handling
     m_eagle3_ext.initialize(m_prefill_in_ports, m_prefill_out_ports);
     if (m_eagle3_ext.is_enabled()) {
-        LOG_INFO("Eagle3 Model detected - role-based processing enabled");
+        LOG_INFO("Eagle3 model detected: role-based processing active");
     }
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
@@ -707,8 +707,8 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
     auto position_id = position_ids->data<int64_t>()[0];
     auto dirty_num = kvcache_desc.num_stored_tokens - static_cast<uint32_t>(position_id);
     if (dirty_num > 0) {
-        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length" << " to " << position_id
-                                        << " length");
+        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length"
+                                        << " to " << position_id << " length");
     }
     kvcache_desc.num_stored_tokens -= dirty_num;
 }
@@ -822,8 +822,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // Copy with proper stride handling
         actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
 
-        // Eagle3: Prepare inputs for current chunk based on model role
-        // For chunked prefill, Eagle3 inputs should correspond to the current chunk being processed
+        // Eagle3: Prepare hidden state inputs for current chunk
         m_eagle3_ext.prepare_inputs_for_chunk(m_prefill_request,
                                               m_prefill_in_ports,
                                               kvcache_desc.num_stored_tokens,
@@ -901,7 +900,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
     pad_position_ids(padded_position_ids, position_ids);
 
-    // Eagle3: Prepare inputs automatically based on model role
+    // Eagle3: Prepare hidden state inputs
     m_eagle3_ext.prepare_inputs(m_prefill_request, m_prefill_in_ports);
 
     m_prefill_request->infer();
@@ -947,7 +946,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
     }
 
-    // Eagle3: Process outputs automatically based on model role
+    // Eagle3: Process last_hidden_state output
     m_eagle3_ext.process_outputs(m_prefill_request, m_prefill_out_ports);
 
     m_generate_initialized = false;
@@ -1038,7 +1037,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
     pad_position_ids(kv_pos_ids, position_ids);
 
-    // Eagle3: Prepare inputs automatically based on model role
+    // Eagle3: Prepare hidden state inputs
     m_eagle3_ext.prepare_inputs(m_kvcache_request, m_kvcache_in_ports);
 
     m_kvcache_request->infer();
@@ -1070,7 +1069,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
     }
 
-    // Eagle3: Process outputs automatically based on model role
+    // Eagle3: Process last_hidden_state output
     m_eagle3_ext.process_outputs(m_kvcache_request, m_kvcache_out_ports);
 
     LOG_DEBUG("Done");
@@ -1159,7 +1158,6 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
         return m_logits;
     }
 
-    // Eagle3: Handle last_hidden_state output (only available for target models)
     if (port_names.count(Eagle3LayerNames::last_hidden_state) > 0) {
         if (!m_eagle3_ext.is_enabled()) {
             OPENVINO_THROW("Last hidden state is only available for Eagle3 models.");
