@@ -876,7 +876,7 @@ std::unique_ptr<XmlSerializer> XmlSerializer::make_visitor(pugi::xml_node& data,
                                            data_is_temporary);
 }
 
-namespace{
+namespace {
 void find_postponed_constants_and_exclude_nodes(const std::vector<std::shared_ptr<ov::Node>>& sorted_ops,
                                                 std::unordered_set<ov::Node*>& postponed_constants,
                                                 std::unordered_set<ov::Node*>& nodes_to_exclude) {
@@ -928,7 +928,7 @@ void find_postponed_constants_and_exclude_nodes(const std::vector<std::shared_pt
         }
     }
 }
-}
+}  // namespace
 
 void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
     // If determinism is not required, include auto-generated names into xml
@@ -968,7 +968,6 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
         sorted_ops = std::move(result);
     }
 
-
     // Mark nodes that are only used by postponed_constant nodes
     std::unordered_set<ov::Node*> nodes_to_exclude;
     std::unordered_set<ov::Node*> postponed_constants;
@@ -977,12 +976,12 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
 
     for (const auto& n : sorted_ops) {
         ov::Node* node = n.get();
-        
+
         // Skip nodes that are marked for exclusion (only used by postponed_constant nodes)
         if (nodes_to_exclude.count(node)) {
             continue;
         }
-        
+
         int node_id{};
         {
             auto it = layer_ids.find(node);
@@ -1149,10 +1148,11 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
     for (auto e : edge_mapping) {
         // Skip edges that involve excluded nodes
         if (nodes_to_exclude.count(ordered_ops[e.from_layer].get()) ||
-            nodes_to_exclude.count(ordered_ops[e.to_layer].get())) {
+            nodes_to_exclude.count(ordered_ops[e.to_layer].get()) ||
+            postponed_constants.count(ordered_ops[e.to_layer].get())) {
             continue;
         }
-        
+
         // v0::LSTMCell peephole input shall not be serialized
         if (e.to_port == 6) {
             const auto& type_info = ordered_ops[e.to_layer]->get_type_info();
@@ -1160,13 +1160,13 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
                 continue;
             }
         }
-        
+
         // If source node was postponed_constant, it's now a Constant with only output port 0
         int from_port = e.from_port;
         if (postponed_constants.count(ordered_ops[e.from_layer].get())) {
             from_port = 0;
         }
-        
+
         pugi::xml_node edge = edges.append_child("edge");
         edge.append_attribute("from-layer").set_value(e.from_layer);
         edge.append_attribute("from-port").set_value(from_port);
