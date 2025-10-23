@@ -292,7 +292,7 @@ void ConvertI32ToU8CPULayerTest::generate_inputs(const std::vector<ov::Shape>& t
     const auto& funcInputs = function->inputs();
     const auto& funcInput = funcInputs[0];
     ov::Tensor tensor(funcInput.get_element_type(), targetInputStaticShapes[0]);
-    std::fill_n(tensor.data<int32_t>(), tensor.get_size(), -1);
+    ov::test::utils::fill_data_random(tensor.data<int32_t>(), tensor.get_size(), 1024, -512);
     inputs.insert({funcInput.get_node_shared_ptr(), tensor});
 }
 
