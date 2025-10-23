@@ -1,15 +1,6 @@
 name: GitHub Actions Workflows Scans
 on:
   workflow_dispatch: {}
-  push:
-    paths:
-      - '.github/workflows/**'
-    branches:
-      - 'master'
-      - 'releases/**'
-  pull_request:
-    paths:
-      - '.github/workflows/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

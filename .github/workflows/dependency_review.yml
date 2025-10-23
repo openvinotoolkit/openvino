@@ -1,5 +1,5 @@
 name: 'Dependency Review'
-on: [pull_request, merge_group]
+on: []
 
 permissions: read-all
 

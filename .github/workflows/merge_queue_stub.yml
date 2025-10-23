@@ -1,5 +1,4 @@
-on:
-  merge_group:
+on: []
 
 permissions: read-all
 

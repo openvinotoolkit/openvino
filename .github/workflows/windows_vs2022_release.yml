@@ -6,12 +6,7 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-  pull_request:
-  merge_group:
-  push:
-    branches:
-      - master
-      - 'releases/**'
+
 concurrency:
   # github.ref is not unique in post-commit
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows

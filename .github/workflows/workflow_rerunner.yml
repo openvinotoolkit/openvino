@@ -23,10 +23,6 @@ on:
       - "Documentation"
     types:
       - completed
-  pull_request:
-    paths:
-      - '.github/workflows/workflow_rerunner.yml'
-      - '.github/scripts/workflow_rerun/**'
 
 permissions: read-all
 
