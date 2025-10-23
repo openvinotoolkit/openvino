@@ -1625,39 +1625,108 @@ void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t r
 void ov::npuw::util::XARCH::copy(const ov::Tensor& from, ov::Tensor& to) {
 #if defined(HAVE_AVX2)
     const auto et = from.get_element_type();
-    const size_t elem_size = et.size();
     size_t bytes_total = 0;
-
-    if (et == ov::element::u4 || et == ov::element::i4 ||
-        et == ov::element::f4e2m1 || et == ov::element::nf4) {
-        // 4-bit packed: 2 elements per byte
-        OPENVINO_ASSERT((from.get_size() & 1) == 0, "4-bit tensor element count must be even.");
-        bytes_total = from.get_size() / 2;
+    if (et == ov::element::u4 || et == ov::element::i4 || et == ov::element::f4e2m1 || et == ov::element::nf4) {
+        OPENVINO_ASSERT((from.get_size() & 1) == 0);
+        bytes_total = from.get_size() / 2;  // 4bit: 2 elements / byte
     } else {
-        bytes_total = from.get_size() * elem_size;
+        bytes_total = from.get_size() * et.size();
     }
-    if (bytes_total == 0) return;
+    if (bytes_total == 0)
+        return;
 
     const uint8_t* src = static_cast<const uint8_t*>(from.data());
     uint8_t* dst = static_cast<uint8_t*>(to.data());
 
-    constexpr size_t block_bytes = 32; // 256-bit
-    const size_t blocks = bytes_total / block_bytes;
-    const size_t tail   = bytes_total % block_bytes;
-
-    // Generic parallel: each block moves 256 bits
-    if (blocks) {
-        ov::parallel_for(blocks, [&](size_t i) {
-            const uint8_t* ps = src + i * block_bytes;
-            uint8_t* pd = dst + i * block_bytes;
-            __m256i v = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps));
-            _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd), v);
-        });
+    // Small size: use memcpy
+    if (bytes_total < 64 * 1024) {
+        std::memcpy(dst, src, bytes_total);
+        return;
     }
 
-    // Tail handling
-    if (tail) {
-        std::memcpy(dst + blocks * block_bytes, src + blocks * block_bytes, tail);
+    unsigned thread = std::max(1u, std::thread::hardware_concurrency());
+    constexpr size_t MIN_CHUNK = 1ull * 1024 * 1024;
+
+    size_t n_chunks = thread;
+    size_t chunk = bytes_total / thread;
+
+    while (chunk < MIN_CHUNK && n_chunks > 1) {
+        n_chunks -= 1;
+        chunk = bytes_total / n_chunks;
+    }
+
+    auto worker = [&](size_t p) {
+        size_t off = p * chunk;
+
+        const uint8_t* ps = src + off;
+        uint8_t* pd = dst + off;
+
+        bool block_aligned = ((reinterpret_cast<uintptr_t>(ps) | reinterpret_cast<uintptr_t>(pd)) & 31) == 0;
+
+        size_t i = 0;
+        // Unrolled: 256B per iteration (8 x 32B)
+        while (i + 256 <= chunk) {
+            if (block_aligned) {
+                __m256i v0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + i + 0));
+                __m256i v1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + i + 32));
+                __m256i v2 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + i + 64));
+                __m256i v3 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + i + 96));
+                __m256i v4 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + i + 128));
+                __m256i v5 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + i + 160));
+                __m256i v6 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + i + 192));
+                __m256i v7 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + i + 224));
+                _mm256_store_si256(reinterpret_cast<__m256i*>(pd + i + 0), v0);
+                _mm256_store_si256(reinterpret_cast<__m256i*>(pd + i + 32), v1);
+                _mm256_store_si256(reinterpret_cast<__m256i*>(pd + i + 64), v2);
+                _mm256_store_si256(reinterpret_cast<__m256i*>(pd + i + 96), v3);
+                _mm256_store_si256(reinterpret_cast<__m256i*>(pd + i + 128), v4);
+                _mm256_store_si256(reinterpret_cast<__m256i*>(pd + i + 160), v5);
+                _mm256_store_si256(reinterpret_cast<__m256i*>(pd + i + 192), v6);
+                _mm256_store_si256(reinterpret_cast<__m256i*>(pd + i + 224), v7);
+            } else {
+                __m256i v0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + i + 0));
+                __m256i v1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + i + 32));
+                __m256i v2 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + i + 64));
+                __m256i v3 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + i + 96));
+                __m256i v4 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + i + 128));
+                __m256i v5 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + i + 160));
+                __m256i v6 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + i + 192));
+                __m256i v7 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + i + 224));
+                _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + i + 0), v0);
+                _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + i + 32), v1);
+                _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + i + 64), v2);
+                _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + i + 96), v3);
+                _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + i + 128), v4);
+                _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + i + 160), v5);
+                _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + i + 192), v6);
+                _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + i + 224), v7);
+            }
+            i += 256;
+        }
+
+        while (i + 32 <= chunk) {
+            if (block_aligned) {
+                __m256i v = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + i));
+                _mm256_store_si256(reinterpret_cast<__m256i*>(pd + i), v);
+            } else {
+                __m256i v = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + i));
+                _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + i), v);
+            }
+            i += 32;
+        }
+
+        // Tail
+        if (i < chunk) {
+            std::memcpy(pd + i, ps + i, chunk - i);
+        }
+    };
+
+    if (n_chunks == 1) {
+        worker(0);
+    } else {
+        ov::parallel_for(n_chunks, [&](size_t p) {
+            worker(p);
+        });
     }
 #else
     from.copy_to(to);
