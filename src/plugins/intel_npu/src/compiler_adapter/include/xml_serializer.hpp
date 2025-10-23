@@ -32,7 +32,8 @@ public:
     XmlSerializer(pugi::xml_node& data,
                   const std::string& node_type_name,
                   ov::util::ConstantWriter& constant_write_handler,
-                  int64_t version)
+                  int64_t version,
+                  std::shared_ptr<WeightlessWriter> weightless_constant_writer = nullptr)
         : ov::util::XmlSerializer(data,
                                   node_type_name,
                                   constant_write_handler,
@@ -41,8 +42,10 @@ public:
                                   false,
                                   ov::element::dynamic,
                                   false),
-          m_weightless_constant_writer(constant_write_handler),
-          m_base_constant_writer(std::ref(constant_write_handler)) {}
+          m_base_constant_writer(std::ref(constant_write_handler)),
+          m_weightless_constant_writer(weightless_constant_writer
+                                           ? weightless_constant_writer
+                                           : std::make_shared<WeightlessWriter>(constant_write_handler)) {}
 
 private:
     /**
@@ -66,13 +69,13 @@ private:
                                                           bool) const override;
 
     /**
-     * @brief Writes nothing. The visitor pattern will be used in order to store weights metadata instead.
-     */
-    WeightlessWriter m_weightless_constant_writer;
-    /**
      * @brief The base OV writer, copies the weights in a dedicated buffer.
      */
     std::reference_wrapper<ov::util::ConstantWriter> m_base_constant_writer;
+    /**
+     * @brief Writes nothing. The visitor pattern will be used in order to store weights metadata instead.
+     */
+    std::shared_ptr<WeightlessWriter> m_weightless_constant_writer = nullptr;
     bool m_use_weightless_writer = false;
 };
 

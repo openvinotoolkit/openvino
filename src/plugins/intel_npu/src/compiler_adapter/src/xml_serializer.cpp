@@ -11,7 +11,7 @@ namespace intel_npu {
 
 ov::util::ConstantWriter& XmlSerializer::get_constant_write_handler() {
     if (m_use_weightless_writer) {
-        return m_weightless_constant_writer;
+        return *m_weightless_constant_writer;
     } else {
         return m_base_constant_writer;
     }
@@ -34,7 +34,11 @@ std::unique_ptr<ov::util::XmlSerializer> XmlSerializer::make_visitor(pugi::xml_n
                                                                      bool,
                                                                      ov::element::Type,
                                                                      bool) const {
-    return std::make_unique<XmlSerializer>(data, node_type_name, constant_write_handler, version);
+    return std::make_unique<XmlSerializer>(data,
+                                           node_type_name,
+                                           constant_write_handler,
+                                           version,
+                                           m_weightless_constant_writer);
 }
 
 }  // namespace intel_npu
