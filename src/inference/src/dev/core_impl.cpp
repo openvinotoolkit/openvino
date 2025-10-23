@@ -30,6 +30,7 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/variant_visitor.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
@@ -803,12 +804,12 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             try {
                 std::vector<ov::Extension::Ptr> ext;
                 desc.extensionCreateFunc(ext);
-                add_extensions_unsafe(ext);
+                add_extensions_unsafe(ext, deviceName);
             } catch (const ov::Exception&) {
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
-            try_to_register_plugin_extensions(desc.libraryLocation);
+            try_to_register_plugin_extensions(desc.libraryLocation, deviceName);
         }
 
         return plugins.emplace(deviceName, plugin).first->second;
@@ -851,6 +852,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         const auto compiled_config = create_compile_config(plugin, parsed._config);
         cache_content.blobId = ModelCache::compute_hash(model, cache_content.modelPath, compiled_config);
         cache_content.model = model;
+
+        const auto& cache_mode_it = config.find(cache_mode.name());
+        if (cache_mode_it != config.end() && cache_mode_it->second == CacheMode::OPTIMIZE_SIZE) {
+            const auto& rt_info = model->get_rt_info();
+            auto weights_path = rt_info.find("__weights_path");
+            if (weights_path != rt_info.end()) {
+                parsed._config[ov::weights_path.name()] = weights_path->second;
+            }
+        }
+
         const auto lock = cacheGuard.get_hash_lock(cache_content.blobId);
         res = load_model_from_cache(cache_content, plugin, parsed._config, {}, [&]() {
             return compile_model_and_cache(plugin, model, parsed._config, {}, cache_content);
@@ -1290,6 +1301,8 @@ void ov::CoreImpl::unload_plugin(const std::string& deviceName) {
         OPENVINO_THROW("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
     }
 
+    remove_extensions_for_device_unsafe(deviceName);
+
     plugins.erase(deviceName);
 }
 
@@ -1437,29 +1450,43 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         });
     }
 }
-void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& exts) const {
+void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& exts,
+                                         const std::string& device_name) const {
     for (const auto& ext : exts) {
-        extensions.emplace_back(ext);
+        extensions.emplace_back(ext, device_name);
         auto ext_obj = ext;
         if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext_obj))
             ext_obj = so_ext->extension();
         if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext_obj)) {
             for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
-                extensions.emplace_back(attached_ext);
+                extensions.emplace_back(attached_ext, device_name);
             }
         }
     }
 }
 
+void ov::CoreImpl::remove_extensions_for_device_unsafe(const std::string& device_name) const {
+    extensions.erase(std::remove_if(extensions.begin(),
+                                    extensions.end(),
+                                    [&device_name](const auto& item) {
+                                        return item.second == device_name;
+                                    }),
+                     extensions.end());
+}
+
 std::vector<ov::Extension::Ptr> ov::CoreImpl::get_extensions_copy() const {
     std::lock_guard<std::mutex> lock(get_mutex());
-    std::vector<ov::Extension::Ptr> extensions_copy(extensions.begin(), extensions.end());
-    return extensions_copy;
+    std::vector<ov::Extension::Ptr> only_extensions;
+    only_extensions.reserve(extensions.size());
+    for (const auto& item : extensions) {
+        only_extensions.push_back(item.first);
+    }
+    return only_extensions;
 };
 
-void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
+void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions, const std::string& device_name) {
     std::lock_guard<std::mutex> lock(get_mutex());
-    add_extensions_unsafe(extensions);
+    add_extensions_unsafe(extensions, device_name);
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const std::string& device_name) const {
@@ -1594,10 +1621,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     update_config[ov::hint::model.name()] = cacheContent.model;
                 }
 
-                if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::model) &&
-                    cacheContent.model) {
-                    update_config[ov::hint::model.name()] = cacheContent.model;
-                }
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
                     util::Path weights_path;
 
@@ -1606,7 +1629,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                         weights_path = path_hint->second.as<std::string>();
                     } else if (weights_path = extract_weight_path(header.get_runtime_info()); weights_path.empty()) {
                         weights_path = cacheContent.modelPath;
-                        weights_path.replace_extension(".bin");
                     }
                     weights_path.replace_extension(".bin");
 
@@ -1638,9 +1660,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
         // throw;
     }
 
-    // fallback scenario
-    if (!compiled_model)
+    // Fallback scenario
+    if (!compiled_model) {
+        OPENVINO_WARN("Could not load model from cache.");
         compiled_model = compile_model_lambda();
+    }
 
     return compiled_model;
 }
@@ -1773,14 +1797,7 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov
 ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::string& dir) {
     CacheConfig cache_config{dir, nullptr};
     if (!dir.empty()) {
-        if constexpr (std::is_same_v<std::filesystem::path::value_type, std::wstring::value_type>) {
-            // if path native type is same as wstring type (e.g. Windows) convert to wstring
-            // in case of string has unicode without conversion wrong created dir may have incorrect name
-            // should be removed if cache_dir will path instead of string
-            ov::util::create_directory_recursive(ov::util::string_to_wstring(dir));
-        } else {
-            ov::util::create_directory_recursive(dir);
-        }
+        ov::util::create_directory_recursive(ov::util::make_path(dir));
         cache_config._cacheManager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
     return cache_config;

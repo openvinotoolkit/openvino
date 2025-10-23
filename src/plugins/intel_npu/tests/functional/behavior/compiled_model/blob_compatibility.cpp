@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "overload/compiled_model/blob_compatibility.hpp"
+#include "blob_compatibility.hpp"
 
 #include <gtest/gtest.h>
 

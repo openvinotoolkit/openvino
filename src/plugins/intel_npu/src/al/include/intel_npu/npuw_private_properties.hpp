@@ -236,6 +236,22 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 
 /**
  * @brief
+ * Type: boolean.
+ * Enable dynamic dispatch for the attention block, if detected
+ * Default value: true
+ */
+static constexpr ov::Property<bool> attn_dyn{"NPUW_ATTN_DYN"};
+
+/**
+ * @brief
+ * Type: boolean.
+ * Force no-copy mode for the attention block, if detected
+ * Default value: false
+ */
+static constexpr ov::Property<bool> attn_no_copy{"NPUW_ATTN_NO_COPY"};
+
+/**
+ * @brief
  * Type: boolean
  * Force subgraph interconnect tensors to f16 precision if those are in f32
  * Default value: false
@@ -302,6 +318,14 @@ static constexpr ov::Property<bool> funcall_async{"NPUW_FUNCALL_ASYNC"};
  * Default value: false.
  */
 static constexpr ov::Property<bool> unfold_ireqs{"NPUW_UNFOLD_IREQS"};
+
+/**
+ * @brief
+ * Type: boolean
+ * Fallback in case of runtime failure
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> fallback_exec{"NPUW_FALLBACK_EXEC"};
 
 namespace accuracy {
 /**
@@ -476,6 +500,37 @@ static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHU
 
 /**
  * @brief
+ * Type: bool.
+ * This toggle enables the prefix caching feature.
+ * When activated, it stores the prefilled key-value pairs (KV) for current prompts in the cache during each
+ * conversation round.
+ * In subsequent rounds, if the prompt's KV is found in the cache, it allows skipping the prefill for certain tokens,
+ * thereby enhancing the latency of the first token.
+ * Default value: false.
+ */
+static constexpr ov::Property<uint64_t> enable_prefix_caching{"NPUW_LLM_ENABLE_PREFIX_CACHING"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Prefilled KV tensors are cached in blocks when prefix caching is enabled.
+ * This value describes the number of tokens in each block.
+ * This value should be not greater than prefill_chunk_size.
+ * Default value: 256.
+ */
+static constexpr ov::Property<uint64_t> prefix_caching_block_size{"NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Prefilled KV tensors are cached in blocks when prefix caching is enabled.
+ * This value describes the maximum number of blocks in cache.
+ * Default value: 128.
+ */
+static constexpr ov::Property<uint64_t> prefix_caching_max_num_blocks{"NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS"};
+
+/**
+ * @brief
  * Type: std::string.
  * Hint for prefill stage. NPUW will use optimal configuration based on the passed preference via hint.
  * Passing this hint with "NPUW_LLM_PREFILL_CONFIG" will generate a error.
@@ -582,6 +637,16 @@ static constexpr ov::Property<ov::AnyMap> shared_lm_head_config{"NPUW_LLM_SHARED
  */
 static constexpr ov::Property<ov::AnyMap> additional_shared_lm_head_config{"++NPUW_LLM_SHARED_HEAD_CONFIG"};
 }  // namespace llm
+
+namespace whisper {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass Whisper model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_WHISPER"};
+}  // namespace whisper
 
 }  // namespace npuw
 }  // namespace intel_npu
