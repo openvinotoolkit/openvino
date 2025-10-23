@@ -71,7 +71,8 @@ TEST_P(FrontEndTelemetryTest, TestTelemetryMock) {
                 break;
             }
         }
-        EXPECT_TRUE(is_found) << "Unexpected set of operations received from telemetry.";
+        EXPECT_TRUE(is_found) << "Unexpected set of operations received from telemetry: received "
+                              << m_test_telemetry.m_event_cnt;
         EXPECT_EQ(m_test_telemetry.m_trace_cnt, 0);
         EXPECT_EQ(m_test_telemetry.m_error_cnt, 0);
 
@@ -88,7 +89,8 @@ TEST_P(FrontEndTelemetryTest, TestTelemetryMock) {
                 break;
             }
         }
-        EXPECT_TRUE(is_found) << "Unexpected set of operations received from telemetry.";
+        EXPECT_TRUE(is_found) << "Unexpected set of operations received from telemetry: received "
+                              << m_test_telemetry.m_event_cnt;
         EXPECT_EQ(m_test_telemetry.m_trace_cnt, 0);
         EXPECT_EQ(m_test_telemetry.m_error_cnt, 0);
     }
