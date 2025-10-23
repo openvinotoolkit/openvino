@@ -78,7 +78,7 @@ bool hasOtherDynamicDims(const ov::PartialShape& shape, const ov::Layout& layout
 
     for (size_t dim_idx = 0; dim_idx < shape.size(); dim_idx++) {
         // Skip the batch dimension
-        if (dim_idx == batch_idx) {
+        if (dim_idx == static_cast<size_t>(batch_idx)) {
             continue;
         }
 
