@@ -158,7 +158,7 @@ void patch_broadcast_constants(const std::shared_ptr<ov::Model>& model, size_t t
 
 // Helper function to patch reshape constants for pre-reshape (-1 substitution)
 void patch_reshape_constants_pre_reshape(const std::shared_ptr<ov::Model>& model,
-                                         const ov::npuw::function::Attention& dyn) {
+                                         const std::map<std::string, size_t>& past_value_sequence_dims) {
     for (auto&& op : model->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v1::Reshape>(op)) {
             continue;
@@ -193,14 +193,15 @@ void patch_reshape_constants_pre_reshape(const std::shared_ptr<ov::Model>& model
         auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
         auto shape_values = shape_const->cast_vector<int32_t>();
 
-        int64_t value_seq_dim = -1;
-        for (auto parm : dyn._inputs) {
-            auto parm_node = parm.param;
-            if (ov::npuw::util::isPastKeyValuesValue(parm_node->get_friendly_name())) {
-                value_seq_dim = static_cast<int64_t>(parm.dim);
-            }
+        // Find the first past value sequence dimension from the map
+        // All past value parameters should have the same sequence dimension
+        if (past_value_sequence_dims.empty()) {
+            LOG_WARN("No past value sequence dimensions provided for reshape patching");
+            continue;
         }
-        NPUW_ASSERT(value_seq_dim != -1);
+
+        size_t value_seq_dim = past_value_sequence_dims.begin()->second;
+        NPUW_ASSERT(value_seq_dim < shape_values.size());
         shape_values[value_seq_dim] = -1;
 
         auto new_const = std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(),
@@ -208,6 +209,50 @@ void patch_reshape_constants_pre_reshape(const std::shared_ptr<ov::Model>& model
                                                                 shape_values);
         op->input(1).replace_source_output(new_const);
     }
+}
+
+// Helper function to create Attention instance from a model
+std::optional<ov::npuw::function::Attention> create_attention_from_model(
+    const std::shared_ptr<ov::Model>& model,
+    const std::map<std::string, size_t>& past_key_sequence_dims,
+    const std::map<std::string, size_t>& past_value_sequence_dims) {
+    // Find SDPA pattern nodes in the model
+    auto pattern_nodes = findSDPAPatternNodes(model);
+    if (!pattern_nodes.isValid()) {
+        LOG_WARN("Could not find SDPA pattern in model");
+        return std::nullopt;
+    }
+
+    // Find mask parameter in the model
+    auto mask_param = find_mask_parameter(pattern_nodes.add_node);
+    if (!mask_param) {
+        LOG_WARN("Could not find mask parameter in model");
+        return std::nullopt;
+    }
+
+    // Create Attention instance
+    ov::npuw::function::Attention attention;
+    attention._mask = mask_param;
+    attention._mask_shape = mask_param->get_shape();
+
+    // Add past key/value inputs to attention
+    const auto& params = model->get_parameters();
+    for (const auto& param : params) {
+        const std::string param_name = param->get_friendly_name();
+        if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
+            auto dim_iter = past_key_sequence_dims.find(param_name);
+            if (dim_iter != past_key_sequence_dims.end()) {
+                attention._inputs.push_back(ov::npuw::function::Attention::Param{param, dim_iter->second});
+            }
+        } else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
+            auto dim_iter = past_value_sequence_dims.find(param_name);
+            if (dim_iter != past_value_sequence_dims.end()) {
+                attention._inputs.push_back(ov::npuw::function::Attention::Param{param, dim_iter->second});
+            }
+        }
+    }
+
+    return attention;
 }
 
 // Helper function to process a single pyramid model (clone, reshape, patch, optimize)
@@ -228,22 +273,15 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     LOG_DEBUG("  Context length: " << current_context_length);
     LOG_DEBUG("  Past length: " << current_past_length);
 
-    // Create Attention instance for this model
-    ov::npuw::function::Attention dyn;
-
-    // Find SDPA pattern nodes in the cloned model
-    auto cloned_pattern_nodes = findSDPAPatternNodes(cloned_model);
-    if (!cloned_pattern_nodes.isValid()) {
-        LOG_WARN("Could not find SDPA pattern in cloned model " << model_idx);
+    // Create initial Attention instance to get mask parameter for reshaping
+    auto initial_attention =
+        create_attention_from_model(cloned_model, past_key_sequence_dims, past_value_sequence_dims);
+    if (!initial_attention) {
+        LOG_WARN("Could not create attention from cloned model " << model_idx);
         return std::nullopt;
     }
 
-    // Find mask parameter in the cloned model
-    auto cloned_mask_param = find_mask_parameter(cloned_pattern_nodes.add_node);
-    if (!cloned_mask_param) {
-        LOG_WARN("Could not find mask parameter in cloned model " << model_idx);
-        return std::nullopt;
-    }
+    auto cloned_mask_param = initial_attention->_mask;
 
     // Create reshape map for this model
     std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
@@ -274,8 +312,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 new_shapes[param->output(0)] = new_shape;
                 LOG_DEBUG("  Past key param '" << param_name << "' shape: " << original_shape << " -> " << new_shape);
 
-                // Record past key input in dyn
-                dyn._inputs.push_back(ov::npuw::function::Attention::Param{param, sequence_dim_idx});
+                // Record past key input (will be handled later)
             } else {
                 LOG_WARN("No pre-analyzed sequence dimension for past key param: " << param_name);
                 return std::nullopt;
@@ -291,8 +328,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 new_shapes[param->output(0)] = new_shape;
                 LOG_DEBUG("  Past value param '" << param_name << "' shape: " << original_shape << " -> " << new_shape);
 
-                // Record past value input in dyn
-                dyn._inputs.push_back(ov::npuw::function::Attention::Param{param, sequence_dim_idx});
+                // Record past value input (will be handled later)
             } else {
                 LOG_WARN("No pre-analyzed sequence dimension for past value param: " << param_name);
                 return std::nullopt;
@@ -308,7 +344,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 
     // Apply pre-reshape patching using helper functions
     patch_broadcast_constants(cloned_model, full_context_length);
-    patch_reshape_constants_pre_reshape(cloned_model, dyn);
+    patch_reshape_constants_pre_reshape(cloned_model, past_value_sequence_dims);
 
     cloned_model->reshape(new_shapes);
     cloned_model->validate_nodes_and_infer_types();
@@ -333,32 +369,23 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
         std::cout << "Failed to dump reshaped model " << model_idx << ": " << e.what() << std::endl;
     }
 
-    auto updated_pattern_nodes = findSDPAPatternNodes(cloned_model);
-    if (!updated_pattern_nodes.isValid()) {
-        LOG_WARN("Could not find updated SDPA pattern after reshape for model " << model_idx
-                                                                                << ", skipping this model");
+    // Create final Attention instance after reshape
+    auto final_attention = create_attention_from_model(cloned_model, past_key_sequence_dims, past_value_sequence_dims);
+    if (!final_attention) {
+        LOG_WARN("Could not create final attention after reshape for model " << model_idx);
         return std::nullopt;
     }
 
-    auto updated_mask_param = find_mask_parameter(updated_pattern_nodes.add_node);
-    if (!updated_mask_param) {
-        LOG_WARN("Could not find updated mask parameter after reshape for model " << model_idx
-                                                                                  << ", skipping this model");
-        return std::nullopt;
-    }
-
-    dyn._mask = updated_mask_param;
-    dyn._mask_shape = updated_mask_param->get_shape();
-    LOG_DEBUG("  Updated mask parameter after reshape");
+    LOG_DEBUG("  Updated attention after reshape");
 
     // Log attention information for this model
-    LOG_DEBUG("  Attention info - mask: " << (dyn._mask ? "present" : "absent"));
-    LOG_DEBUG("  Attention info - inputs count: " << dyn._inputs.size());
-    if (dyn._mask) {
-        LOG_DEBUG("  Mask shape: " << dyn._mask_shape);
+    LOG_DEBUG("  Attention info - mask: " << (final_attention->_mask ? "present" : "absent"));
+    LOG_DEBUG("  Attention info - inputs count: " << final_attention->_inputs.size());
+    if (final_attention->_mask) {
+        LOG_DEBUG("  Mask shape: " << final_attention->_mask_shape);
     }
 
-    return PyramidModelResult{cloned_model, std::move(dyn)};
+    return PyramidModelResult{cloned_model, std::move(*final_attention)};
 }
 
 // Helper function to validate model and extract necessary information for pyramid attention
@@ -507,19 +534,36 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     std::vector<Attention> pyramid_attentions;
 
     for (size_t model_idx = 0; model_idx < num_models; ++model_idx) {
-        // Process each pyramid model using the helper function
-        auto result = process_pyramid_model(model,
-                                            model_idx,
-                                            query_length,
-                                            full_context_length,
-                                            past_key_sequence_dims,
-                                            past_value_sequence_dims);
-        if (!result) {
-            return std::nullopt;
-        }
+        // Optimization: The last model (num_models - 1) is the same as the original model
+        // Skip reshape and directly use the original model pointer
+        if (model_idx == num_models - 1) {
+            LOG_INFO("Using original model for pyramid model[" << model_idx << "] (optimization)");
+            pyramid_models.push_back(model);  // Direct use of original model pointer
 
-        pyramid_models.push_back(result->model);
-        pyramid_attentions.push_back(std::move(result->attention));
+            // Create Attention instance using the helper function
+            auto last_attention = create_attention_from_model(model, past_key_sequence_dims, past_value_sequence_dims);
+            if (!last_attention) {
+                LOG_WARN("Could not create attention for original model");
+                return std::nullopt;
+            }
+
+            pyramid_attentions.push_back(std::move(*last_attention));
+            LOG_INFO("Successfully setup attention for original model[" << model_idx << "]");
+        } else {
+            // Process pyramid models 0 to num_models-2 using the helper function
+            auto result = process_pyramid_model(model,
+                                                model_idx,
+                                                query_length,
+                                                full_context_length,
+                                                past_key_sequence_dims,
+                                                past_value_sequence_dims);
+            if (!result) {
+                return std::nullopt;
+            }
+
+            pyramid_models.push_back(result->model);
+            pyramid_attentions.push_back(std::move(result->attention));
+        }
     }
 
     LOG_INFO("Successfully created " << pyramid_models.size() << " pyramid attention models");
