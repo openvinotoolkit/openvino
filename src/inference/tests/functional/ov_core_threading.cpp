@@ -93,9 +93,9 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
     const auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                                 std::string("mock_engine") + OV_BUILD_POSTFIX);
     runParallel(
-        [path = plugin_path, &core, &index]() {
+        [&]() {
             const auto deviceName = std::to_string(index++);
-            core.register_plugin(path, deviceName);
+            core.register_plugin(plugin_path, deviceName);
             core.get_versions(deviceName);
             core.unload_plugin(deviceName);
         },
@@ -114,14 +114,13 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
     const auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                                 std::string("mock_engine") + OV_BUILD_POSTFIX);
 
-    auto getPluginXml =
-        [path = plugin_path, prefix = file_prefix, &index]() -> std::tuple<std::filesystem::path, std::string> {
+    auto getPluginXml = [&]() -> std::tuple<std::filesystem::path, std::string> {
         const auto indexStr = std::to_string(index++);
-        std::filesystem::path pluginsXML = prefix + indexStr + ".xml";
+        std::filesystem::path pluginsXML = file_prefix + indexStr + ".xml";
         std::ofstream file(pluginsXML);
 
         file << "<ie><plugins><plugin location=\"";
-        file << path;
+        file << plugin_path;
         file << "\" name=\"";
         file << indexStr;
         file << "\"></plugin></plugins></ie>";
@@ -132,7 +131,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
     };
 
     runParallel(
-        [&getPluginXml, &core]() {
+        [&]() {
             const auto& [fileName, deviceName] = getPluginXml();
             core.register_plugins(fileName.string());
             core.get_versions(deviceName);
