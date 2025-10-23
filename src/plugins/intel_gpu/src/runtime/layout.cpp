@@ -38,11 +38,11 @@ std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, const
 
 }  // namespace
 
-format layout::get_format() const {
+const format& layout::get_format() const {
     return format;
 }
 
-padding layout::get_padding() const {
+const padding& layout::get_padding() const {
     return data_padding;
 }
 
