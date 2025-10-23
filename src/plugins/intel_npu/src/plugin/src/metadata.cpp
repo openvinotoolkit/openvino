@@ -259,17 +259,16 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
-    uint16_t major = MetadataBase::get_major(version),
-             minor = MetadataBase::get_minor(version);
+    uint16_t major = MetadataBase::get_major(version), minor = MetadataBase::get_minor(version);
     if (major != CURRENT_METADATA_MAJOR_VERSION || minor > CURRENT_METADATA_MINOR_VERSION) {
         OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
-                major,
-                ".",
-                minor,
-                " but the current version is: ",
-                CURRENT_METADATA_MAJOR_VERSION,
-                ".",
-                CURRENT_METADATA_MINOR_VERSION);
+                       major,
+                       ".",
+                       minor,
+                       " but the current version is: ",
+                       CURRENT_METADATA_MAJOR_VERSION,
+                       ".",
+                       CURRENT_METADATA_MINOR_VERSION);
     }
 
     switch (version) {

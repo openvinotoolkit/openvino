@@ -323,8 +323,7 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithRemovedField) {
 
     // removing fields between metadata version and blob data size
     std::string temp = stream.str();
-    size_t offset = sizeof(CURRENT_METADATA_VERSION),
-           size   = offset + MAGIC_BYTES.size() + sizeof(uint64_t);
+    size_t offset = sizeof(CURRENT_METADATA_VERSION), size = offset + MAGIC_BYTES.size() + sizeof(uint64_t);
     temp.replace(offset, temp.length() - size, "");
     stream.str("");
     stream << temp;
