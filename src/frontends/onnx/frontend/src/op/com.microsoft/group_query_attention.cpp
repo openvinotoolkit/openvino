@@ -89,7 +89,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(V);
     }
 
-    for (int i = 3; i < 9; ++i) {
+    for (int i = 3; i < onnx_op_inputs.size(); ++i) {
         // skip total_sequence_length
         if (i == 6)
             continue;
