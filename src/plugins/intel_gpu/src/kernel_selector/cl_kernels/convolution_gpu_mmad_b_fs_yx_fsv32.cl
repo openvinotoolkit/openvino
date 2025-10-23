@@ -256,8 +256,8 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
         const uint idx0 = fg*OSV_SIZE + OF_TO_DO*lid + 0;
         const uint idx1 = fg*OSV_SIZE + OF_TO_DO*lid + 1;
 #if SUB_GROUP_SIZE == 8
-        const uint idx0 = fg*OSV_SIZE + OF_TO_DO*lid + 2;
-        const uint idx1 = fg*OSV_SIZE + OF_TO_DO*lid + 3;
+        const uint idx2 = fg*OSV_SIZE + OF_TO_DO*lid + 2;
+        const uint idx3 = fg*OSV_SIZE + OF_TO_DO*lid + 3;
 #endif
         res0 -= acc_assym_weights[i] * TO_ACCUMULATOR_TYPE(weights_zp[idx0]);
         res1 -= acc_assym_weights[i] * TO_ACCUMULATOR_TYPE(weights_zp[idx1]);
