@@ -92,7 +92,6 @@ public:
             core.reset();
             ov::test::utils::PluginCache::get().reset();
             auto test = ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cache_dir, "blob");
-            std::cout << "test: " << test << std::endl;
             auto test1 = ov::test::utils::removeDir(m_cache_dir);
         }
 
