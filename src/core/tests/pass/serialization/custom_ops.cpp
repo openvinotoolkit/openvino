@@ -8,7 +8,10 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
@@ -165,4 +168,147 @@ TEST(PostponedOpSerializationTest, IncorrectRtInfo) {
 
     std::stringstream serialized_model, serialized_weigths;
     ov::pass::Serialize(serialized_model, serialized_weigths).run_on_model(model);
+}
+
+TEST(PostponedConstantTest, ConcatWithPostponedConstant) {
+    std::stringstream serialized_xml, serialized_bin;
+    {
+        auto const1 =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, std::vector<float>{1, 2, 3, 4});
+        auto const2 =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, std::vector<float>{5, 6, 7, 8});
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{const1, const2}, 0);
+        concat->get_rt_info()["postponed_constant"] = true;
+
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 2});
+        auto add = std::make_shared<ov::op::v1::Add>(concat, param);
+
+        auto model = std::make_shared<ov::Model>(add->outputs(), ov::ParameterVector{param}, "ConcatAddModel");
+
+        ov::pass::Serialize(serialized_xml, serialized_bin).run_on_model(model);
+    }
+    ov::Core core;
+
+    auto weights = serialized_bin.str();
+    ov::Tensor weights_tensor(ov::element::u8, ov::Shape{weights.size()}, weights.data());
+
+    auto deserialized_model = core.read_model(serialized_xml.str(), weights_tensor);
+
+    {
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                               ov::Shape{4, 2},
+                                                               std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 2});
+        auto add = std::make_shared<ov::op::v1::Add>(constant, param);
+
+        auto expected = std::make_shared<ov::Model>(add->outputs(), ov::ParameterVector{param}, "ConcatAddModel");
+
+        const auto& [success, message] =
+            compare_functions(deserialized_model, expected, true, false, false, true, true);
+        ASSERT_TRUE(success) << message;
+    }
+}
+
+TEST(PostponedConstantTest, SubgraphExclusion) {
+    GTEST_SKIP() << "Subgraph exclusion is not supported in the current implementation";
+    std::stringstream serialized_xml, serialized_bin;
+    {
+        auto const1 =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, std::vector<float>{1, 2, 3, 4});
+        auto const2 =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, std::vector<float>{5, 6, 7, 8});
+
+        auto add1 = std::make_shared<ov::op::v1::Add>(const1, const2);
+        auto multiply = std::make_shared<ov::op::v1::Multiply>(add1, const2);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{multiply, const2}, 0);
+        concat->get_rt_info()["postponed_constant"] = true;
+
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 2});
+        auto final_add = std::make_shared<ov::op::v1::Add>(concat, param);
+
+        auto model =
+            std::make_shared<ov::Model>(final_add->outputs(), ov::ParameterVector{param}, "SubgraphExclusionModel");
+
+        ov::pass::Serialize(serialized_xml, serialized_bin).run_on_model(model);
+    }
+    ov::Core core;
+
+    auto weights = serialized_bin.str();
+    ov::Tensor weights_tensor(ov::element::u8, ov::Shape{weights.size()}, weights.data());
+
+    auto deserialized_model = core.read_model(serialized_xml.str(), weights_tensor);
+
+    {
+        // Expected: const1, const2 used for Add -> [6,8,10,12]
+        // Then multiply by const2 [5,6,7,8] -> [30,48,70,96]
+        // Then concat with const2 [5,6,7,8] along axis 0 -> [30,48,70,96,5,6,7,8] reshaped to {4,2}
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                               ov::Shape{4, 2},
+                                                               std::vector<float>{30, 48, 70, 96, 5, 6, 7, 8});
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 2});
+        auto final_add = std::make_shared<ov::op::v1::Add>(constant, param);
+
+        auto expected =
+            std::make_shared<ov::Model>(final_add->outputs(), ov::ParameterVector{param}, "SubgraphExclusionModel");
+
+        const auto& [success, message] =
+            compare_functions(deserialized_model, expected, true, false, false, true, true);
+        ASSERT_TRUE(success) << message;
+    }
+}
+
+TEST(PostponedConstantTest, NodeWithMultipleConsumers) {
+    std::stringstream serialized_xml, serialized_bin;
+    {
+        auto const1 =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, std::vector<float>{1, 2, 3, 4});
+        auto const2 =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, std::vector<float>{5, 6, 7, 8});
+
+        auto add = std::make_shared<ov::op::v1::Add>(const1, const2);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{const1, const2}, 0);
+
+        auto model =
+            std::make_shared<ov::Model>(ov::OutputVector{concat, add}, ov::ParameterVector{}, "MultipleConsumersModel");
+
+        concat->get_rt_info()["postponed_constant"] = true;
+
+        ov::pass::Serialize(serialized_xml, serialized_bin).run_on_model(model);
+    }
+    ov::Core core;
+
+    auto weights = serialized_bin.str();
+    ov::Tensor weights_tensor(ov::element::u8, ov::Shape{weights.size()}, weights.data());
+
+    auto deserialized_model = core.read_model(serialized_xml.str(), weights_tensor);
+
+    {
+        auto const1 =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, std::vector<float>{1, 2, 3, 4});
+        auto const2 =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, std::vector<float>{5, 6, 7, 8});
+
+        auto add = std::make_shared<ov::op::v1::Add>(const1, const2);
+        auto concat = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                             ov::Shape{4, 2},
+                                                             std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
+
+        auto expected =
+            std::make_shared<ov::Model>(ov::OutputVector{concat, add}, ov::ParameterVector{}, "MultipleConsumersModel");
+
+        const auto& [success, message] =
+            compare_functions(deserialized_model, expected, true, false, false, true, true);
+        ASSERT_TRUE(success) << message;
+    }
+}
+
+TEST(PostponedConstantTest, ParameterNotExcluded) {
+    std::stringstream serialized_xml, serialized_bin;
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{param}, 0);
+    auto model = std::make_shared<ov::Model>(concat->outputs(), ov::ParameterVector{param}, "ParameterModel");
+
+    concat->get_rt_info()["postponed_constant"] = true;
+
+    EXPECT_THROW(ov::pass::Serialize(serialized_xml, serialized_bin).run_on_model(model), ov::Exception);
 }
