@@ -9,8 +9,6 @@
 
 #pragma once
 
-#include <variant>
-
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
