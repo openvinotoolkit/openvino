@@ -41,7 +41,7 @@ public:
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 
-    static void init_microkernels(const kernel_impl_params& params, micro::Package& gemm_moe, bool is_prefill);
+    static void init_microkernels(const kernel_impl_params& params, micro::Package& gemm_moe, bool is_prefill) noexcept;
 
     bool m_is_prefill;
     static std::mutex mtx;
