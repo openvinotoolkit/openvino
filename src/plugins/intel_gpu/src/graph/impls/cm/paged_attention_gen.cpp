@@ -781,9 +781,7 @@ DispatchDataFunc XAttentionEstimatePostProc::get_dispatch_data_func() const {
 
         auto& wgs = kd.params.workGroups;
 
-        const uint32_t q_block_pad_merged = ceil_div(rtp->q_block_pad, MERGED_Q_NUM);
-
-        wgs.global = {q_block_pad_merged, desc->heads_num, 1};
+        wgs.global = {rtp->q_block_pad_merged, desc->heads_num, 1};
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
