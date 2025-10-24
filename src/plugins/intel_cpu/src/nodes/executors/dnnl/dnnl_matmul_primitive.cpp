@@ -422,6 +422,8 @@ static std::pair<VectorDims, VectorDims> makeDummyInputDims(const Shape& in0,
                 } else {
                     inDims1[idx1] = inDims0[idx0];
                 }
+            } else if (inDims0[idx0] != Shape::UNDEFINED_DIM && inDims1[idx1] != Shape::UNDEFINED_DIM) {
+                inDims1[idx1] = inDims0[idx0];
             }
         }
     };
@@ -519,13 +521,16 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
     if (srcDesc->getShape().isDynamic() || weiDesc->getShape().isDynamic()) {
         const auto& srcShape = srcDesc->getShape();
         const auto& weiShape = weiDesc->getShape();
-        const auto& [inDymmyDims, weiDymmyDims] =
+        auto [inDymmyDims, weiDymmyDims] =
             makeDummyInputDims(srcShape, weiShape, dstDesc->getShape(), attrs.transposeA, attrs.transposeB);
         const auto& outDymmyDims = makeDummyOutputDims(inDymmyDims,
                                                        weiDymmyDims,
                                                        attrs.transposeA,
                                                        attrs.transposeB,
                                                        dstDesc->getShape().getRank());
+        if (attrs.weightsNonTransposed) {
+            std::swap(weiDymmyDims[weiDymmyDims.size() - 1], weiDymmyDims[weiDymmyDims.size() - 2]);
+        }
         srcDesc = std::make_shared<DnnlBlockedMemoryDesc>(srcDesc->getPrecision(), Shape(inDymmyDims));
         weiDesc = std::make_shared<DnnlBlockedMemoryDesc>(weiDesc->getPrecision(), Shape(weiDymmyDims));
         dstDesc = std::make_shared<DnnlBlockedMemoryDesc>(dstDesc->getPrecision(), Shape(outDymmyDims));
