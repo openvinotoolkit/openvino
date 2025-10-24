@@ -5,6 +5,7 @@
 #include "just_sync_infer_request.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <future>
 #include <map>
 #include <memory>
@@ -476,6 +477,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
     }
 }
+
+ov::npuw::JustInferRequest::~JustInferRequest() = default;
 
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                             const ov::SoPtr<ov::ITensor>& tensor) {
@@ -1056,7 +1059,36 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
         try {
             LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
             LOG_BLOCK();
-            unsafe_run_this_prep_next(idx, next_prepared);
+
+            // Check if this is a pyramid attention model and measure execution time
+            bool is_pyramid = false;
+            std::size_t pyramid_id = 0;
+            if (comp_model_desc.replaced_by) {
+                const auto real_idx = comp_model_desc.replaced_by.value();
+                auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
+                if (func_desc.pyramid_attention.has_value() && m_pyramid_selector) {
+                    is_pyramid = true;
+                    pyramid_id = m_pyramid_selector->pyramid_id();
+                }
+            }
+
+            if (is_pyramid) {
+                auto execution_time = ov::npuw::perf::ms_to_run([&]() {
+                    unsafe_run_this_prep_next(idx, next_prepared);
+                });
+
+                // Update pyramid model statistics (collect data only, print at end of infer())
+                update_pyramid_statistics(pyramid_id, execution_time);
+            } else {
+                // Measure execution time for non-pyramid model
+                auto execution_time = ov::npuw::perf::ms_to_run([&]() {
+                    unsafe_run_this_prep_next(idx, next_prepared);
+                });
+
+                // Update non-pyramid model statistics (collect data only, print at end of infer())
+                update_non_pyramid_statistics(real_idx, execution_time);
+            }
+
             job_done = true;
             LOG_DEBUG("Done: " << idx << "(exec subrequest)");
         } catch (const std::exception& ex) {
