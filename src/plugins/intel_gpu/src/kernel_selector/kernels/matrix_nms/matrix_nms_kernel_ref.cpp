@@ -81,18 +81,48 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
 
     const int batches_num = static_cast<const int>(new_params.inputs[1].Batch().v);
     const int classes_num = static_cast<const int>(new_params.inputs[1].Feature().v);
+    const int NUM_BOXES = static_cast<const int>(new_params.inputs[0].Feature().v);
+    std::cout << "[MatrixNmsKernelRef] --> batches_num " << batches_num << std::endl;
+    std::cout << "[MatrixNmsKernelRef] --> classes_num " << classes_num << std::endl;
+    std::cout << "[MatrixNmsKernelRef] --> NUM_BOXES " << NUM_BOXES << std::endl;
 
     int max_boxes_per_class, max_boxes_per_batch;
     std::tie(max_boxes_per_class, max_boxes_per_batch) = GetMaxBoxes(new_params);
+    std::cout << "[MatrixNmsKernelRef] --> max_boxes_per_class " << max_boxes_per_class << std::endl;
+    std::cout << "[MatrixNmsKernelRef] --> max_boxes_per_batch " << max_boxes_per_batch << std::endl;
+    max_boxes_per_class = std::min(max_boxes_per_class, batches_num * max_boxes_per_batch);
+    std::cout << "[MatrixNmsKernelRef] --> max_boxes_per_class new " << max_boxes_per_class << std::endl;
 
     const size_t box_info_num = batches_num * classes_num * max_boxes_per_class;
+    std::cout << "[MatrixNmsKernelRef] --> box_info_num " << box_info_num << std::endl;
 
     const size_t box_info_buffer_size = box_info_num * BOX_INFO_SIZE;
     const size_t sel_boxes_num_buffer_size = batches_num * classes_num * sizeof(int);
+    const size_t sorted_score_indices_buffer_size = batches_num * classes_num * NUM_BOXES * sizeof(int);
+    std::cout << "[MatrixNmsKernelRef] --> box_info_buffer_size " << box_info_buffer_size << std::endl;
+    std::cout << "[MatrixNmsKernelRef] --> sel_boxes_num_buffer_size " << sel_boxes_num_buffer_size << std::endl;
+    std::cout << "[MatrixNmsKernelRef] --> sorted_score_indices_buffer_size " << sorted_score_indices_buffer_size << std::endl;
+
+    size_t datatype_size = 0;
+    switch (new_params.inputs[1].GetDType()) {
+    case Datatype::F16:
+        datatype_size = sizeof(float) / 2;
+        break;
+    case Datatype::F32:
+    default:
+        datatype_size = sizeof(float);
+    }
+    const size_t iou_matrix_buffer_size = batches_num * classes_num * max_boxes_per_class * datatype_size;
+    const size_t iou_max_buffer_size = iou_matrix_buffer_size;
+    std::cout << "[MatrixNmsKernelRef] --> iou_matrix_buffer_size " << iou_matrix_buffer_size << std::endl;
+    std::cout << "[MatrixNmsKernelRef] --> iou_max_buffer_size " << iou_max_buffer_size << std::endl;
 
     kernel_data.internalBuffers.push_back(box_info_buffer_size);
     kernel_data.internalBuffers.push_back(sel_boxes_num_buffer_size);
-    kernel_data.internalBufferDataType = Datatype::F32;
+    kernel_data.internalBuffers.push_back(sorted_score_indices_buffer_size);
+    kernel_data.internalBuffers.push_back(iou_matrix_buffer_size);
+    kernel_data.internalBuffers.push_back(iou_max_buffer_size);
+    kernel_data.internalBufferDataType = new_params.inputs[1].GetDType(); // input_scores
 
     for (size_t i{}; i < kernels_num; ++i) {
         auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, i);
@@ -167,6 +197,9 @@ void MatrixNmsKernelRef::SetKernelArguments(const matrix_nms_params& params, clK
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});
         break;
 
     case 1:
