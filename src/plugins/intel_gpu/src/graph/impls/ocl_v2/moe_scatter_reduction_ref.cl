@@ -21,6 +21,8 @@ KERNEL(moe_scatter_reduction_ref)(
     __global OUTPUT_TYPE* output
 )
 {
+    // TODO : tmp fix
+    return;
     const uint token_group_id = (uint)get_group_id(0);
     const uint threads_index = (uint)get_local_id(0);
 
