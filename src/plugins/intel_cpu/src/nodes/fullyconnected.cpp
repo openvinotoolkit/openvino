@@ -688,8 +688,7 @@ void FullyConnected::needUpdateTensorParalelConfig() {
             tp_cfg.enable_tensor_parallel = false;
             return;
         }
-        const auto rank = shape.getRank();
-        if (rank == 3 && shape.getDims()[2] > 1) {
+        if (shape.getRank() == 3 && shape.getDims().back() > 1) {
             tp_cfg.enable_tensor_parallel = false;
             return;
         }

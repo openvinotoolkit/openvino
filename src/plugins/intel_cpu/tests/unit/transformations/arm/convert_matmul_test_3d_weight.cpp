@@ -5,13 +5,13 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/core/model.hpp>
+#include "openvino/core/model.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
-#include <openvino/pass/manager.hpp>
-#include <ov_ops/type_relaxed.hpp>
-#include <transformations/cpu_opset/common/pass/convert_matmul_to_fc.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "openvino/pass/manager.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "transformations/cpu_opset/common/pass/convert_matmul_to_fc.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/constant.hpp"
