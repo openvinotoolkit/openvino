@@ -352,11 +352,13 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 
     LOG_DEBUG("Model " << model_idx << " reshaped successfully");
 
+#if 0
     // For model 0, past length is 0, so we can optimize by removing empty KV inputs
     if (model_idx == 0 && current_past_length == 0) {
         bool kv_optimization_applied = remove_empty_kv_inputs(cloned_model);
         LOG_DEBUG("KV optimization applied for model 0: " << (kv_optimization_applied ? "yes" : "no"));
     }
+#endif
 
     // Dump the reshaped model for debugging using OpenVINO serialize pass
     std::string model_path = "pyramid_model_" + std::to_string(model_idx) + "_after_reshape.xml";
@@ -616,26 +618,6 @@ Selector::Ptr PositionIDs::find(const compiled::PyramidAttention& d, const ov::I
     return Selector::Ptr{};
 }
 
-std::size_t PositionIDs::get_pyramid_id() const {
-    if (!m_pyramid_attention) {
-        OPENVINO_THROW("get_pyramid_id() requires PyramidAttention data");
-    }
-
-    // Find the smallest pyramid model that can handle the current sequence length
-    const auto& context_lengths = m_pyramid_attention->_context_lengths;
-    const int64_t current_seq_length = m_query_size + m_past_length;
-
-    // Find the smallest model that can accommodate current_seq_length
-    for (std::size_t i = 0; i < context_lengths.size(); ++i) {
-        if (current_seq_length <= static_cast<int64_t>(context_lengths[i])) {
-            return i;
-        }
-    }
-
-    // If no model can handle the sequence length, return the largest model
-    return context_lengths.size() - 1;
-}
-
 void PositionIDs::prepare(int64_t past_len) {
     const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
     const auto in_tensor = m_rq.get_tensor(iport);
@@ -660,11 +642,32 @@ void PositionIDs::prepare(int64_t past_len) {
             default:
                 NPUW_ASSERT(false && "Reached the unreachable code");
             }
+
+            // Select the optimal pyramid model based on current sequence length
+            NPUW_ASSERT(m_pyramid_attention && "PyramidAttention reference must not be null");
+
+            const auto& context_lengths = m_pyramid_attention->_context_lengths;
+            const int64_t current_seq_length = m_query_size + m_past_length;
+
+            // Find the smallest pyramid model that can handle the current sequence length
+            for (std::size_t i = 0; i < context_lengths.size(); ++i) {
+                if (current_seq_length <= static_cast<int64_t>(context_lengths[i])) {
+                    m_pyramid_id = i;
+                    return;
+                }
+            }
+
+            // If sequence length exceeds all models' capacity, use the largest model
+            m_pyramid_id = context_lengths.size() - 1;
             return;
         }
     }
     LOG_WARN("Dynamic selector - no data found in the feature?");
     m_current_length = -1;
+
+    NPUW_ASSERT(m_pyramid_attention && "PyramidAttention reference must not be null");
+    // Default to largest model if no data found (safest choice for unknown sequence length)
+    m_pyramid_id = m_pyramid_attention->_context_lengths.size() - 1;
 }
 
 int64_t PositionIDs::length() const {
