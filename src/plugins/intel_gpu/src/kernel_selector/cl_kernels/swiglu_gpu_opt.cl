@@ -61,7 +61,7 @@ KERNEL(swiglu_gpu_opt)(
 #endif
 
     #if GLU_TYPE == 0   // Swish
-        gate /= ACCUMULATOR_VAL_ONE + native_exp(-(ACCUMULATOR_VAL_ONE * gate));
+        gate /= ACCUMULATOR_VAL_ONE + native_exp(-(SWISH_BETA) * gate);
     #elif GLU_TYPE == 1 // Gelu
         gate = (GEGLU_HALF * gate * (ACCUMULATOR_VAL_ONE + (FUNC_CALL(fast_erf)(gate * GEGLU_MULT))));
     #elif GLU_TYPE == 2 // Gelu_Tanh
@@ -69,5 +69,9 @@ KERNEL(swiglu_gpu_opt)(
     #endif
 
     value *= gate;
+
+    #if GLU_TYPE == 0 && defined(CLAMP_MIN) && defined(CLAMP_MAX) // For Swish only
+        value = ACCUMULATOR_MAX_FUNC(TO_OUTPUT_TYPE(CLAMP_MIN), ACCUMULATOR_MIN_FUNC(value, TO_OUTPUT_TYPE(CLAMP_MAX)));
+    #endif
     output[x] = TO_OUTPUT_TYPE(value);
 }
