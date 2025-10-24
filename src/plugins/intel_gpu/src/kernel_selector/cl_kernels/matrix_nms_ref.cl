@@ -31,6 +31,20 @@ inline void FUNC(swap)(int* a, int* b) {
     *b = temp;
 }
 
+inline void FUNC(mycheck)(const __global INPUT1_TYPE* scores,
+                                      const int batchId,
+                                      const int classId,
+                                      int* indices,
+                                      const int size) {
+    for (int i = 0; i < size; i++) {
+	const INPUT1_TYPE score_curr = scores[INPUT1_GET_INDEX(batchId, classId, 0, indices[i])];
+	if (score_curr > 0) {
+	    printf("[%d/%d] index_%d score_%f\n", i,size, indices[i], score_curr);
+	}
+    }
+    printf("\n");
+}
+
 inline void FUNC(sortIterative)(const __global INPUT1_TYPE* scores,
                                       const int batchId,
                                       const int classId,
@@ -132,6 +146,15 @@ inline COORD_TYPE_4 FUNC(getBoxCoords)(const __global INPUT0_TYPE* boxes, const 
     return coords;
 }
 
+inline void FUNC(mycheckboxes)(const __global INPUT0_TYPE* boxes,
+                                      const int batch,
+                                      const int size) {
+    for (int i = 0; i < 10; i++) {
+        const COORD_TYPE_4 box_i = FUNC_CALL(getBoxCoords)(boxes, batch, i);
+	printf("[%d/%d] check x1,y1, x2,y2 %f,%f %f,%f\n", i,size, box_i[0],box_i[1], box_i[2],box_i[3]);
+    }
+}
+
 inline INPUT0_TYPE FUNC(area)(const INPUT0_TYPE w, const INPUT0_TYPE h) {
     return (w + NORM) * (h + NORM);
 }
@@ -175,11 +198,19 @@ KERNEL(matrix_nms_ref_stage_0)
 
     if (classId == BACKGROUND_CLASS)
         return;
-
     const int offset = batchId * NUM_CLASSES + classId;
-    __global int* sorted_score_indices = input_score_indices + offset * NUM_BOXES * sizeof(int);
 
+    printf("[kernel] --> Batch %d Class %d offset_%d input_boxes:\n", batchId, classId, offset);
+    FUNC_CALL(mycheckboxes)(input_boxes, batchId, NUM_BOXES);
+
+    __global int* sorted_score_indices = input_score_indices + offset * NUM_BOXES * sizeof(int);
     int valid_boxes_num = 0;
+    //for (int i = 0; i < NUM_BOXES; ++i)
+    //    sorted_score_indices[i] = 0;
+
+    printf("[kernel] --> Batch %d Class %d offset_%d input_scores[1]:\n", batchId, classId, offset);
+    FUNC_CALL(mycheck)(input_scores, batchId, classId, sorted_score_indices, valid_boxes_num);
+
     const int BLOCK_SIZE = 256;
     const int num_blocks = (NUM_BOXES + BLOCK_SIZE - 1) / BLOCK_SIZE;
     for (int i = 0; i < num_blocks; i++) {
@@ -194,8 +225,17 @@ KERNEL(matrix_nms_ref_stage_0)
         }
     }
 
+    printf("[kernel] --> Batch %d Class %d valid_boxes_num_%d input_scores[2]:\n", batchId, classId, valid_boxes_num);
+    FUNC_CALL(mycheck)(input_scores, batchId, classId, sorted_score_indices, valid_boxes_num);
+
+    //for (int i = valid_boxes_num; i < NUM_BOXES; ++i)
+    //    sorted_score_indices[i] = 0;
+
     // TODO: consider faster sorting algorithm
     FUNC_CALL(sortIterative)(input_scores, batchId, classId, sorted_score_indices, valid_boxes_num);
+
+    printf("[kernel] --> Batch %d Class %d valid_boxes_num_%d input_scores[3]:\n", batchId, classId, valid_boxes_num);
+    FUNC_CALL(mycheck)(input_scores, batchId, classId, sorted_score_indices, valid_boxes_num);
 
     valid_boxes_num = min(valid_boxes_num, MAX_BOXES_PER_CLASS);
 
@@ -208,14 +248,18 @@ KERNEL(matrix_nms_ref_stage_0)
         INPUT1_TYPE max_iou = INPUT1_VAL_ZERO;
         INPUT1_TYPE min_decay = INPUT1_VAL_ONE;
         const COORD_TYPE_4 box_i = FUNC_CALL(getBoxCoords)(input_boxes, batchId, sorted_score_indices[i]);
+        printf("[kernel] --> Batch %d Class %d i_%d indices_%d %f,%f,%f,%f\n", batchId, classId, i, sorted_score_indices[i], box_i[0], box_i[1], box_i[2], box_i[3]);
         for (int j = 0; j < i; ++j) {
             const COORD_TYPE_4 box_j = FUNC_CALL(getBoxCoords)(input_boxes, batchId, sorted_score_indices[j]);
+            printf("[kernel] --> Batch %d Class %d j_%d indices_%d %f,%f,%f,%f\n", batchId, classId, j,sorted_score_indices[j], box_j[0], box_j[1], box_j[2], box_j[3]);
             const INPUT1_TYPE iou = FUNC_CALL(intersectionOverUnion)(box_i, box_j);
+            printf("[kernel] --> Batch %d Class %d valid_boxes_num_%d iou[%d]: %f\n", batchId, classId, valid_boxes_num, j, iou);
 
             max_iou = max(iou, max_iou);
             iou_matrix[j] = iou;
         }
         iou_max[i] = max_iou;
+        printf("[kernel] --> Batch %d Class %d valid_boxes_num_%d iou_max[%d]: %f\n", batchId, classId, valid_boxes_num, i, iou_max[i]);
 
         for (int j = 0; j < i; ++j) {
             INPUT1_TYPE decay =
@@ -223,6 +267,7 @@ KERNEL(matrix_nms_ref_stage_0)
             min_decay = min(min_decay, decay);
         }
         min_decays[i] = min_decay;
+        printf("[kernel] --> Batch %d Class %d valid_boxes_num_%d min_decays[%d]: %f\n", batchId, classId, valid_boxes_num, i, min_decays[i]);
     }
 
     const INPUT1_TYPE first_score = input_scores[INPUT1_GET_INDEX(batchId, classId, 0, sorted_score_indices[0])];
@@ -236,11 +281,13 @@ KERNEL(matrix_nms_ref_stage_0)
         box_info[box_info_counter].score = first_score;
         box_info[box_info_counter].box_idx = sorted_score_indices[0];
         box_info[box_info_counter].batch_idx = batchId;
+        printf("[kernel] --> Batch %d Class %d box_info[%d]: box_idx,score %d,%f\n", batchId, classId, box_info_counter, sorted_score_indices[0], first_score);
         ++box_info_counter;
     }
 
     for (int i = 1; i < valid_boxes_num; ++i) {
         INPUT1_TYPE ds = min_decays[i] * input_scores[INPUT1_GET_INDEX(batchId, classId, 0, sorted_score_indices[i])];
+        printf("[kernel] --> Batch %d Class %d i_%d indices_%d ds: %f\n", batchId, classId, i, sorted_score_indices[i], ds);
 
         if (ds <= POST_THRESHOLD)
             continue;
@@ -249,6 +296,7 @@ KERNEL(matrix_nms_ref_stage_0)
         box_info[box_info_counter].class_idx = classId;
         box_info[box_info_counter].box_idx = sorted_score_indices[i];
         box_info[box_info_counter].score = ds;
+        printf("[kernel] --> Batch %d Class %d box_info[%d]: i_%d box_idx,score %d,%f\n", batchId, classId, box_info_counter, i,sorted_score_indices[i],first_score);
         ++box_info_counter;
     }
 
