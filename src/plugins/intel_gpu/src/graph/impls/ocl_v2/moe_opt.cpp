@@ -513,7 +513,7 @@ protected:
     }
 };
 
-dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& dim, dnnl::memory::format_tag tag, int offset = 0) {
+dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& dim, dnnl::memory::format_tag tag, int64_t offset = 0) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("convert2dnnl"));
     return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
 }
@@ -626,19 +626,19 @@ public:
             dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
                 // weight shape: [ic, oc], type: u4
-                size_t wei_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / 2;
+                int64_t wei_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / 2;
                 dnnl_weights[i].weight =
                     convert2dnnl(moe_fusion_wei_addr.weight[i], {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset);
 
                 // scale shape: [ic / ic_group_size, oc], type: f16
-                size_t scale_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size * 2;
+                int64_t scale_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size * 2;
                 dnnl_weights[i].scale = convert2dnnl(moe_fusion_wei_addr.scale[i],
                                                      {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
                                                      dnnl::memory::format_tag::ab,
                                                      scale_offset);
 
                 // zp shape: [ic / ic_group_size, oc], type: u4
-                size_t zp_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size / 2;
+                int64_t zp_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size / 2;
                 dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
                                                   {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
                                                   dnnl::memory::format_tag::ab,
@@ -689,7 +689,7 @@ public:
         //         scratch.y = down(scratch.gate) * routing_weights
         internal_buffers.emplace_back(layout_down_out, true);  // 4: x, scratch.x has same layout with down output
         layout routing_layout(ov::PartialShape{batch * max_topk}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(routing_layout, true);    // 5: routing_weights
+        internal_buffers.emplace_back(routing_layout, true);     // 5: routing_weights
         internal_buffers.emplace_back(layout_gateup_out, true);  // 6: gate, scratch.gate has same layout with up
         // expert masks for gpu
         layout index_layout(ov::PartialShape{batch}, ov::element::i32, cldnn::format::bfyx);
