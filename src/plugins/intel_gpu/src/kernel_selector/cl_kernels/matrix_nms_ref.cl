@@ -36,10 +36,11 @@ inline void FUNC(mycheck)(const __global INPUT1_TYPE* scores,
                                       const int classId,
                                       int* indices,
                                       const int size) {
-    for (int i = 0; i < size; i++) {
-	const INPUT1_TYPE score_curr = scores[INPUT1_GET_INDEX(batchId, classId, 0, indices[i])];
+    for (int i = 0; i < size && i < 20; i++) {
+	const INPUT1_TYPE score_curr = (size == 10000) ? scores[INPUT1_GET_INDEX(batchId, classId, 0, i)] :
+            scores[INPUT1_GET_INDEX(batchId, classId, 0, indices[i])];
 	if (score_curr > 0) {
-	    printf("[%d/%d] index_%d score_%f\n", i,size, indices[i], score_curr);
+	    printf("[%d/%d] index_%d score_%f\n", i,size, (size == 10000) ? i : indices[i], score_curr);
 	}
     }
     printf("\n");
@@ -149,7 +150,7 @@ inline COORD_TYPE_4 FUNC(getBoxCoords)(const __global INPUT0_TYPE* boxes, const 
 inline void FUNC(mycheckboxes)(const __global INPUT0_TYPE* boxes,
                                       const int batch,
                                       const int size) {
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < size && i < 10; i++) {
         const COORD_TYPE_4 box_i = FUNC_CALL(getBoxCoords)(boxes, batch, i);
 	printf("[%d/%d] check x1,y1, x2,y2 %f,%f %f,%f\n", i,size, box_i[0],box_i[1], box_i[2],box_i[3]);
     }
@@ -200,7 +201,7 @@ KERNEL(matrix_nms_ref_stage_0)
         return;
     const int offset = batchId * NUM_CLASSES + classId;
 
-    printf("[kernel] --> Batch %d Class %d offset_%d input_boxes:\n", batchId, classId, offset);
+    printf("[kernel] --> Batch %d Class %d offset_%d input_boxes[1]:\n", batchId, classId, offset);
     FUNC_CALL(mycheckboxes)(input_boxes, batchId, NUM_BOXES);
 
     __global int* sorted_score_indices = input_score_indices + offset * NUM_BOXES * sizeof(int);
@@ -209,7 +210,7 @@ KERNEL(matrix_nms_ref_stage_0)
     //    sorted_score_indices[i] = 0;
 
     printf("[kernel] --> Batch %d Class %d offset_%d input_scores[1]:\n", batchId, classId, offset);
-    FUNC_CALL(mycheck)(input_scores, batchId, classId, sorted_score_indices, valid_boxes_num);
+    FUNC_CALL(mycheck)(input_scores, batchId, classId, sorted_score_indices, 10000);
 
     const int BLOCK_SIZE = 256;
     const int num_blocks = (NUM_BOXES + BLOCK_SIZE - 1) / BLOCK_SIZE;
@@ -225,6 +226,9 @@ KERNEL(matrix_nms_ref_stage_0)
         }
     }
 
+    printf("[kernel] --> Batch %d Class %d offset_%d input_boxes[2]:\n", batchId, classId, offset);
+    FUNC_CALL(mycheckboxes)(input_boxes, batchId, NUM_BOXES);
+
     printf("[kernel] --> Batch %d Class %d valid_boxes_num_%d input_scores[2]:\n", batchId, classId, valid_boxes_num);
     FUNC_CALL(mycheck)(input_scores, batchId, classId, sorted_score_indices, valid_boxes_num);
 
@@ -233,6 +237,9 @@ KERNEL(matrix_nms_ref_stage_0)
 
     // TODO: consider faster sorting algorithm
     FUNC_CALL(sortIterative)(input_scores, batchId, classId, sorted_score_indices, valid_boxes_num);
+
+    printf("[kernel] --> Batch %d Class %d offset_%d input_boxes[3]:\n", batchId, classId, offset);
+    FUNC_CALL(mycheckboxes)(input_boxes, batchId, NUM_BOXES);
 
     printf("[kernel] --> Batch %d Class %d valid_boxes_num_%d input_scores[3]:\n", batchId, classId, valid_boxes_num);
     FUNC_CALL(mycheck)(input_scores, batchId, classId, sorted_score_indices, valid_boxes_num);
@@ -269,6 +276,12 @@ KERNEL(matrix_nms_ref_stage_0)
         min_decays[i] = min_decay;
         printf("[kernel] --> Batch %d Class %d valid_boxes_num_%d min_decays[%d]: %f\n", batchId, classId, valid_boxes_num, i, min_decays[i]);
     }
+
+    printf("[kernel] --> Batch %d Class %d offset_%d input_boxes[4]:\n", batchId, classId, offset);
+    FUNC_CALL(mycheckboxes)(input_boxes, batchId, NUM_BOXES);
+
+    printf("[kernel] --> Batch %d Class %d valid_boxes_num_%d input_scores[4]:\n", batchId, classId, valid_boxes_num);
+    FUNC_CALL(mycheck)(input_scores, batchId, classId, sorted_score_indices, valid_boxes_num);
 
     const INPUT1_TYPE first_score = input_scores[INPUT1_GET_INDEX(batchId, classId, 0, sorted_score_indices[0])];
 
