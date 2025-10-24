@@ -686,6 +686,11 @@ void FullyConnected::needUpdateTensorParalelConfig() {
         const auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
         if (shape.isDynamic() || shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
             tp_cfg.enable_tensor_parallel = false;
+            return;
+        }
+        if (shape.getRank() == 3 && shape.getDims().back() > 1) {
+            tp_cfg.enable_tensor_parallel = false;
+            return;
         }
     }
 }
