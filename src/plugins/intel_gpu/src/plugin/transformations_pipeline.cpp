@@ -24,6 +24,7 @@
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/qdq_stripping.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
@@ -389,8 +390,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::disable_keep_const_precision(node);
         }
 
-        auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        using namespace ov::pass::low_precision;
+        auto is_model_quantized = LowPrecision::isFunctionQuantized(func, std::set<levels>{levels::int8, levels::int8_narrow_range});
         enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
+        {
+            // QDQ stripping pipeline
+            // 1. Transform DQ part to canonicalized form: Multiply->Add => Subtract->Multiply
+            manager.register_pass<AddTransformation>();
+            // 2. Fuse FQ->Convert->DQ to a single FQ
+            manager.register_pass<ov::pass::ConvertQuantizeDequantize>(ov::element::TypeVector{ov::element::i16, ov::element::u16});
+            // 3. Strip FQ layers with unsupported levels
+            bool replace_with_clamp = true;
+            manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, replace_with_clamp);
+        }
 
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
