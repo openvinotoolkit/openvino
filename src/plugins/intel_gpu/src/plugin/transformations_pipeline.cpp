@@ -1321,11 +1321,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 return false;
             });
-            if (dynamic_quantization_group_size_max < dynamic_quantization_group_size) {
+            const bool is_per_token = dynamic_quantization_group_size == UINT64_MAX;
+            const bool group_dyn_quan_allowed = m_context->get_engine().get_device_info().supports_non_uniform_work_group;
+            // WA: when platform does not support non-uniform-work-group, it may fail to run dynamic quantization for gs128.
+            // This is unlikely to happen. But this WA is added just in case.
+            const bool is_dyn_quan_supported = is_per_token || group_dyn_quan_allowed;
+
+            const bool model_allows_group_size = dynamic_quantization_group_size_max >= dynamic_quantization_group_size;
+            if (!model_allows_group_size || !is_dyn_quan_supported) {
                 GPU_DEBUG_INFO << "dyn_quan is turned off because group_size is larger than max size "
                                << dynamic_quantization_group_size << "/" << dynamic_quantization_group_size_max << std::endl;
             } else {
-                const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe_hpg;
+                const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
+                    && group_dyn_quan_allowed;
                 manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size,
                                                                                     asymmetric_dyn_quant,
                                                                                     precomputed_reduction,
