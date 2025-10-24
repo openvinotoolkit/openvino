@@ -102,7 +102,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
     _logger.debug("compile start");
-    auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, config);
+    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
+    const auto setCacheDir = config.get<CACHE_DIR>();
+    bool bypassCache = !setCacheDir.empty() || config.get<BYPASS_UMD_CACHING>();
+    auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, bypassCache);
     _logger.debug("compile end");
 
     OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
@@ -177,7 +180,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
         buildFlags += irSerializer.serializeConfig(updatedConfig, compilerVersion);
 
         _logger.debug("compile start");
-        auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, config);
+        // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
+        const auto setCacheDir = config.get<CACHE_DIR>();
+        bool bypassCache = !setCacheDir.empty() || config.get<BYPASS_UMD_CACHING>();
+        auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, bypassCache);
         _logger.debug("compile end");
 
         OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");

@@ -8,7 +8,6 @@
 
 #include <string_view>
 
-#include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -336,13 +335,11 @@ bool ZeGraphExtWrappers::canCpuVaBeImported(void* data, size_t size) const {
 
 GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR,
                                                        const std::string& buildFlags,
-                                                       const Config& config) const {
+                                                       const bool bypassUmdCache) const {
     ze_graph_handle_t graphHandle = nullptr;
 
-    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
     uint32_t flags = ZE_GRAPH_FLAG_NONE;
-    const auto set_cache_dir = config.get<CACHE_DIR>();
-    if (!set_cache_dir.empty() || config.get<BYPASS_UMD_CACHING>()) {
+    if (bypassUmdCache) {
         flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
     }
 

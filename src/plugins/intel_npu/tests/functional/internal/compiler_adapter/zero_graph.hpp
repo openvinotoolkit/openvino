@@ -12,12 +12,10 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
-#include "openvino/runtime/intel_npu/properties.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 #include "zero_init_mock.hpp"
 
@@ -79,15 +77,6 @@ protected:
 
         model = ov::test::utils::make_multi_single_conv();
 
-        options->add<::intel_npu::BYPASS_UMD_CACHING>();
-        options->add<::intel_npu::CACHE_DIR>();
-
-        if (!configuration.empty()) {
-            for (auto& configItem : configuration) {
-                npu_config.update({{configItem.first, configItem.second.as<std::string>()}});
-            }
-        }
-
         std::shared_ptr<ZeroInitStructsMock> zeroInitMock = std::make_shared<ZeroInitStructsMock>(graphExtVersion);
         zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
         zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
@@ -108,12 +97,29 @@ protected:
         serializedIR = irSerializer->serializeIR(model, compilerVersion, maxOpsetVersion);
     }
 
+    bool bypassUmdCache() {
+        if (!configuration.empty()) {
+            for (auto& configItem : configuration) {
+                if (configItem.first == "CACHE_DIR") {
+                    const auto set_cache_dir = configItem.second;
+                    if (!set_cache_dir.empty()) {
+                        return true;
+                    }
+                }
+                if (configItem.first == "NPU_BYPASS_UMD_CACHING") {
+                    if (configItem.second.as<bool>()) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> zeGraphExt;
     ov::AnyMap configuration;
-
-    std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
-    ::intel_npu::Config npu_config = ::intel_npu::Config(options);
 
     SerializedIR serializedIR;
     GraphDescriptor graphDescriptor;
@@ -130,7 +136,7 @@ using ZeroGraphCompilationTests = ZeroGraphTest;
 
 TEST_P(ZeroGraphCompilationTests, GetGraphInitIR) {
     serializeIR();
-    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", npu_config));
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
 
     uint32_t initCommandQueueOrdinal = 0;
     OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
@@ -141,7 +147,7 @@ TEST_P(ZeroGraphCompilationTests, GetGraphInitIR) {
 
 TEST_P(ZeroGraphCompilationTests, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
     serializeIR();
-    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", npu_config));
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
 
     uint32_t initCommandQueueOrdinal = 0;
     OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
@@ -183,7 +189,7 @@ TEST_P(ZeroGraphTest, GetGraphInitBlob) {
 
 TEST_P(ZeroGraphTest, GetNetworkMeta) {
     serializeIR();
-    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", npu_config));
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
 
     OV_ASSERT_NO_THROW(NetworkMetadata meta = zeGraphExt->getNetworkMeta(graphDescriptor));
 }
@@ -223,7 +229,7 @@ TEST_P(ZeroGraphTest, GetGraphBinary) {
 TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
     serializeIR();
 
-    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", npu_config));
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
 
     uint32_t initCommandQueueOrdinal = 0;
     OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
@@ -310,7 +316,8 @@ TEST_P(ZeroGraphTest, SetUnalignedAddressBlob) {
         auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
         GraphDescriptor localGraphDescriptor;
         serializeIR();
-        OV_ASSERT_NO_THROW(localGraphDescriptor = localZeGraphExt->getGraphDescriptor(serializedIR, "", npu_config));
+        OV_ASSERT_NO_THROW(localGraphDescriptor =
+                               localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
         const uint8_t* blobPtr = nullptr;
         std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
         size_t blobSize;
@@ -345,7 +352,8 @@ TEST_P(ZeroGraphTest, SetUnalignedSizeBlob) {
         auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
         GraphDescriptor localGraphDescriptor;
         serializeIR();
-        OV_ASSERT_NO_THROW(localGraphDescriptor = localZeGraphExt->getGraphDescriptor(serializedIR, "", npu_config));
+        OV_ASSERT_NO_THROW(localGraphDescriptor =
+                               localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
         const uint8_t* blobPtr = nullptr;
         std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
         size_t blobSize;
@@ -380,7 +388,8 @@ TEST_P(ZeroGraphTest, SetAlignedBlob) {
         auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
         GraphDescriptor localGraphDescriptor;
         serializeIR();
-        OV_ASSERT_NO_THROW(localGraphDescriptor = localZeGraphExt->getGraphDescriptor(serializedIR, "", npu_config));
+        OV_ASSERT_NO_THROW(localGraphDescriptor =
+                               localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
         const uint8_t* blobPtr = nullptr;
         std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
         size_t blobSize;
