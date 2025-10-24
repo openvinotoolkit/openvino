@@ -75,6 +75,11 @@ private:
         }
     }
 
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        writeIt = startIt + pos;
+        return pos;
+    }
+
     OutputIt startIt;
     OutputIt writeIt;
 };
