@@ -3,13 +3,13 @@
 //
 
 #include "behavior/compiled_model/model_cache.hpp"
-
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "common_test_utils/test_assertions.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/codec_xor.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
 
@@ -24,7 +24,11 @@ std::string WeightlessCacheAccuracy::get_test_case_name(const ::testing::TestPar
     result << "_do_encryption="        << utils::bool2str(std::get<1>(obj.param));
     result << "_inference_mode="       << std::get<2>(obj.param);
     result << "_model_dtype="          << std::get<3>(obj.param);
-    result << "_device="               << std::get<4>(obj.param);
+    result << "_config=";
+    for (const auto& [name, value] : std::get<4>(obj.param)) {
+        result << name << "[" << value.as<std::string>() << "]|";
+    }
+    result << "_device=" << std::get<5>(obj.param);
 
     return result.str();
 }
@@ -36,7 +40,8 @@ void WeightlessCacheAccuracy::SetUp() {
     m_cache_path = filePrefix + ".blob";
     m_cache_dir = filePrefix + "_cache_dir";
 
-    std::tie(m_use_compile_model_api, m_do_encryption, m_inference_mode, m_model_dtype, m_target_device) = GetParam();
+    std::tie(m_use_compile_model_api, m_do_encryption, m_inference_mode, m_model_dtype, std::ignore, m_target_device) =
+        GetParam();
 }
 
 void WeightlessCacheAccuracy::TearDown() {
@@ -50,12 +55,16 @@ void WeightlessCacheAccuracy::TearDown() {
 }
 
 void WeightlessCacheAccuracy::run() {
-    ov::AnyMap config = {ov::cache_dir(m_cache_dir),
-                         ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE),
-                         ov::hint::inference_precision(m_inference_mode)};
-    ov::AnyMap config_with_weights_path = {ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE),
-                                           ov::weights_path(m_bin_path),
-                                           ov::hint::inference_precision(m_inference_mode)};
+    ov::AnyMap config = {ov::cache_dir(m_cache_dir), ov::hint::inference_precision(m_inference_mode)};
+    for (const auto& property : std::get<4>(GetParam())) {
+        config.insert(property);
+    }
+
+    auto config_with_weights_path = config;
+    if (ov::util::is_weightless_enabled(config).value_or(false)) {
+        config_with_weights_path.insert(ov::weights_path(m_bin_path));
+    }
+    config_with_weights_path.erase(ov::cache_dir.name());
 
     if (m_do_encryption) {
         ov::EncryptionCallbacks encryption_callbacks;
