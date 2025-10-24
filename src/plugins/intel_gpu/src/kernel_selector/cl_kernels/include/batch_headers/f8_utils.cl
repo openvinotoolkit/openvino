@@ -4,22 +4,63 @@
 
 // TODO: Replace `_intel_convert*` with bultins when ready, current implementations are copied from XeTLA:
 
-uchar _intel_convert_f16_to_bf8(half val) {
+uchar _f16_to_bf8_universal(half val, bool is_saturation) {
     half val_fp16 = val;
     ushort *p = (ushort *)&val_fp16;
     ushort sign = p[0] >> 15;
     ushort exp = (p[0] >> 10) & 0b11111;
     ushort mant = p[0] & 0x3FF;
     ushort q_mant = (mant >> 8) & 0b11;
+
+    bool is_inf = (exp == 0x1F) && (mant == 0);
+    bool is_nan = (exp == 0x1F) && (mant != 0);
+
+    //const ushort src_exp_size = 5;
+    //const ushort src_exp_bias = (1 << (src_exp_size - 1)) - 1;
+    //const max_exp_unbiased = 16;
+    //short src_exp_unbiased = exp - src_exp_bias;
+    //bool is_overflow = (src_exp_unbiased == max_exp_unbiased) && (mant > 0x0300);
+    //bool is_overflow = false; //(exp == 0x1E) && (mant > 0x0380);
+
+    const uchar inf_val = 0x7C;
+    const uchar nan_val = 0x7F;
+    const uchar overflow_val = is_saturation ? 0x7B : inf_val;
+
     uchar ret_tmp;
-    q_mant += (mant & 0x80) && ((mant & 0x7F) || (mant & 0x100));
-    ret_tmp = sign << 7 | exp << 2;
-    ret_tmp += q_mant;
-    return ret_tmp;
+    if (is_inf) {
+        ret_tmp = inf_val;
+    } else if (is_nan) {
+        ret_tmp = nan_val;
+    } else {
+        q_mant += (mant & 0x80) && ((mant & 0x7F) || (mant & 0x100)); // RTE
+        ret_tmp = exp << 2;
+        ret_tmp += q_mant;
+        if (is_saturation) {
+            bool is_overflow = ret_tmp & 0b01111100;
+            ret_tmp -= is_overflow;
+        }
+    }
+    return (sign << 7) | ret_tmp;
+
+    //half val_fp16 = val;
+    //ushort *p = (ushort *)&val_fp16;
+    //ushort sign = p[0] >> 15;
+    //ushort exp = (p[0] >> 10) & 0b11111;
+    //ushort mant = p[0] & 0x3FF;
+    //ushort q_mant = (mant >> 8) & 0b11;
+    //uchar ret_tmp;
+    //q_mant += (mant & 0x80) && ((mant & 0x7F) || (mant & 0x100));
+    //ret_tmp = sign << 7 | exp << 2;
+    //ret_tmp += q_mant;
+    //return ret_tmp;
+}
+
+uchar _intel_convert_f16_to_bf8(half val) {
+    return _f16_to_bf8_universal(val, false);
 }
 
 uchar _intel_convert_f16_to_bf8_sat(half val) {
-    return _intel_convert_f16_to_bf8(val);
+    return _f16_to_bf8_universal(val, true);
 }
 
 half _intel_convert_bf8_to_f16(uchar val) {
