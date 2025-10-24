@@ -32,6 +32,7 @@ void register_implementations() {
     REGISTER_CPU(select);
     REGISTER_CPU(reduce);
     REGISTER_CPU(fake_convert);
+    REGISTER_CPU(moe_gather);
 }
 
 }  // namespace cpu
