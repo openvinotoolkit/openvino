@@ -94,7 +94,6 @@ public:
             auto test = ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cache_dir, "blob");
             std::cout << "test: " << test << std::endl;
             auto test1 = ov::test::utils::removeDir(m_cache_dir);
-            std::cout << "test1: " << test1 << std::endl;
         }
 
         if (!configuration.empty()) {
