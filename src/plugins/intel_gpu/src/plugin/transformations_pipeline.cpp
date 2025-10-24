@@ -93,6 +93,7 @@
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -486,6 +487,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
         manager.register_pass<ov::pass::RMSFusion>(false, true);
+        manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
@@ -1278,6 +1280,23 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();
             bool precomputed_reduction = config.get_dynamic_quantization_precomputed_reduction();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
+                const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
+                const int64_t dyn_quan_single = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_single(), 0);    // 0 will be ignored from GPU_DEBUG_IF
+                GPU_DEBUG_IF(dyn_quan_bisect != std::numeric_limits<int64_t>::max() ||
+                                dyn_quan_single >= 0) {
+                    static int64_t fc_count = 0;
+
+                    if (++fc_count > dyn_quan_bisect)
+                        return true;
+
+                    if (dyn_quan_single >= 0) {
+                        if (fc_count != dyn_quan_single)
+                            return true;
+                        else
+                            GPU_DEBUG_COUT << "Try to apply dyn_quan only to " << root->get_friendly_name() << std::endl;
+                    }
+                }
+
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
                     if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
                         GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
@@ -1323,9 +1342,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 GPU_DEBUG_INFO << "dyn_quan is turned off because group_size is larger than max size "
                                << dynamic_quantization_group_size << "/" << dynamic_quantization_group_size_max << std::endl;
             } else {
+                const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe_hpg;
                 manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size,
                                                                                     asymmetric_dyn_quant,
-                                                                                    precomputed_reduction);
+                                                                                    precomputed_reduction,
+                                                                                    use_gs128_for_int8_per_token);
             }
         }
 

@@ -101,7 +101,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
         graph_iterator->initialize(path);
         graph_iterator->reset();
-        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap);
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     if (variants[0].is<std::wstring>()) {
@@ -114,7 +114,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
         graph_iterator->initialize(path);
         graph_iterator->reset();
-        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap);
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
     }
 #endif
     if (variants[0].is<std::istream*>()) {
@@ -144,10 +144,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     // !!! End of Experimental feature
     if (variants[0].is<GraphIterator::Ptr>()) {
         auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
-        return std::make_shared<unify::InputModel>(
-            graph_iterator,
-            enable_mmap);  // enable_mmap is a hint for a fallback in case external GraphIterator cannot work with
-                           // external data
+        // enable_mmap is a hint for a fallback in case external GraphIterator cannot work with external data
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
     }
     return nullptr;
 }
@@ -375,8 +373,8 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
     translate_session.set_fail_fast(fail_fast);
     try {
         ov_model = translate_session.get_converted_model();
-    } catch (const std::exception& e) {
-        throw e;
+    } catch (const std::exception&) {
+        throw;
     }
     return;
 }
