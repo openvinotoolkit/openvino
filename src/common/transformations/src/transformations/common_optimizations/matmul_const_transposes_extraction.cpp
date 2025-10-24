@@ -10,6 +10,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction() {
@@ -36,6 +37,10 @@ ov::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction() {
         std::shared_ptr<Node> transpose = std::make_shared<ov::op::v1::Transpose>(
             weights,
             ov::op::v0::Constant::create(element::i32, {transpose_order.size()}, transpose_order));
+        if (ov::is_type<ov::op::v0::Constant>(weights.get_node_shared_ptr())) {
+            transpose->get_rt_info()["postponed_constant"] = true;
+            ov::pass::disable_constant_folding(transpose);
+        }
         auto new_matmul = std::make_shared<ov::op::v0::MatMul>(pattern_value_map.at(data_pattern),
                                                                transpose,
                                                                matmul->get_transpose_a(),
