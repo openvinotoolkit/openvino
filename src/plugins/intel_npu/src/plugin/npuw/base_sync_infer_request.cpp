@@ -4,7 +4,11 @@
 
 #include "base_sync_infer_request.hpp"
 
+#include <iomanip>
+#include <iostream>
+
 #include "compiled_model.hpp"
+#include "infer_request_utils.hpp"  // to utilize copy_tensor_by_dim
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
@@ -254,6 +258,11 @@ std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
 
 void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
+
+    // Reset performance statistics for this infer session
+    reset_pyramid_statistics();
+    reset_non_pyramid_statistics();
+
     prepare_for_infer();
     bool failover_happened = false;
     for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
@@ -282,6 +291,13 @@ void ov::npuw::IBaseInferRequest::infer() {
         LOG_BLOCK();
         m_npuw_model->log_device_dist();
     }
+
+    // Print performance statistics only for prefill case
+    if (is_prefill_case()) {
+        print_pyramid_statistics();
+        print_non_pyramid_statistics();
+    }
+
     m_now_idx.reset();
 }
 
@@ -492,6 +508,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     const bool is_spatial = proto_comp_model_desc.spatial.has_value();
     const bool is_attention = proto_comp_model_desc.attention.has_value();
+    const bool is_pyramid_attention = proto_comp_model_desc.pyramid_attention.has_value();
 
     // a list of ports to copy tensors, if needed: FROM -> TO
     std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
@@ -518,6 +535,18 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         });
     };
 
+    auto is_pyramid_attn_param = [&](std::size_t sub_in_idx) -> bool {
+        if (!is_pyramid_attention) {
+            return false;  // Early return
+        }
+
+        auto pyramid_id = m_pyramid_selector->pyramid_id();
+        auto& pyramid_attn = proto_comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+        return std::any_of(pyramid_attn.params.begin(), pyramid_attn.params.end(), [&](const auto& p) -> bool {
+            return p.idx == sub_in_idx;
+        });
+    };
+
     for (auto&& it : iodesc.global_params) {
         std::size_t param_idx{}, sub_in_idx{};
         std::tie(param_idx, sub_in_idx) = it;
@@ -540,6 +569,11 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
         } else if (is_attn_param(sub_in_idx)) {
             // Register for future use
+            m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
+        } else if (is_pyramid_attn_param(sub_in_idx)) {
+            // Register for future use
+            // std::cout << "Subgraph " << idx << " Registering pyramid attention input: " << g_port.get_any_name()
+            //           << std::endl;
             m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
             // Input parameter is non-spatial, do normal handling
@@ -579,6 +613,8 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     m_profile["attn(io)"].record([&]() {
         bind_attention_inputs(idx, request);
     });
+
+    bind_pyramid_attention_inputs(idx, request);
 
     LOG_DEBUG("Done");
 }
@@ -729,6 +765,66 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
             }
         }  // for(params)
     }
+
+    LOG_DEBUG("Done");
+}
+
+void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx, RqPtr request) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    if (!comp_model_desc.pyramid_attention) {
+        return;
+    }
+
+    LOG_DEBUG("Binding Pyramid Attention inputs...");
+    LOG_BLOCK();
+
+    auto pyramid_id = m_pyramid_selector->pyramid_id();
+    const auto& dynamic = comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+    auto& r = request;
+
+    const auto past_len = m_pyramid_selector->past_length();
+    const auto do_copy = needs_copy(idx) && !m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
+
+    // Set the past k/v values first
+    for (auto&& param : dynamic.params) {
+        // const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+        const auto& iport = comp_model_desc.pyramid_attention.value()._compiled_models[pyramid_id]->inputs()[param.idx];
+        const auto& input = m_attention_io[idx].inputs.at(param.idx);
+
+        auto input_shape = input->get_shape();
+        if (input_shape[param.dim] == past_len) {
+            // Optimization: Direct tensor reuse when pyramid model's expected context length
+            // matches the current past length, avoiding unnecessary tensor copying or reshaping
+            r->set_tensor(iport, input);
+            continue;
+        }
+
+        const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
+        const auto shape = view->get_shape();
+
+        LOG_DEBUG(iport);
+        LOG_BLOCK();
+        if (do_copy && ov::shape_size(shape) > 0) {
+            // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
+            const auto& dst = r->get_tensor(iport);
+            LOG_DEBUG("Do copy: " << shape << "...");
+            ov::npuw::util::copy_tensor_by_dim(view,
+                                               dst,
+                                               static_cast<uint32_t>(param.dim),
+                                               static_cast<uint32_t>(param.dim));
+
+            if (!is_zero_remote_tensor(dst)) {
+                std::cout << "bind_pyramid_attention_inputs: dst is not zero memory!!" << std::endl;
+            }
+        } else if (do_copy && ov::shape_size(shape) == 0) {
+            // Special case for 0ths chunk.
+            // Zero the tensor shape
+            auto new_tensor = ov::get_tensor_impl(ov::Tensor(view->get_element_type(), shape, view->data()));
+            r->set_tensor(iport, new_tensor);
+        } else {
+            r->set_tensor(iport, view);
+        }
+    }  // for(params)
 
     LOG_DEBUG("Done");
 }
@@ -959,4 +1055,128 @@ std::size_t ov::npuw::IBaseInferRequest::real(std::size_t idx) const {
 
 ov::npuw::IBaseInferRequest::now_t ov::npuw::IBaseInferRequest::now_idx() const {
     return m_now_idx;
+}
+
+bool ov::npuw::IBaseInferRequest::is_prefill_case() const {
+    // Check pyramid attention selector first
+    if (m_pyramid_selector) {
+        using namespace ov::npuw::runtime;
+        return m_pyramid_selector->this_case() == pyramid_attention::Selector::Case::PREFILL;
+    }
+
+    // Check regular attention selector
+    if (m_attention_selector) {
+        using namespace ov::npuw::runtime;
+        return m_attention_selector->this_case() == attention::Selector::Case::PREFILL;
+    }
+
+    // If no selector is available, assume it's not prefill
+    return false;
+}
+
+bool ov::npuw::IBaseInferRequest::is_zero_remote_tensor(const ov::SoPtr<ov::ITensor>& tensor) const {
+    auto remote_ctx =
+        m_npuw_model->get_plugin()->get_core()->get_default_context(m_npuw_model->global_mem_device())._ptr;
+    auto zrh = remote_ctx->get_property().at(ov::intel_npu::l0_context.name());
+    return ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(
+               static_cast<ze_context_handle_t>(zrh.as<void*>()),
+               tensor->data()) > 0;
+}
+
+void ov::npuw::IBaseInferRequest::update_pyramid_statistics(std::size_t pyramid_id, double execution_time) const {
+    std::lock_guard<std::mutex> lock(m_pyramid_stats_mutex);
+    m_pyramid_total_time[pyramid_id] += execution_time;
+    m_pyramid_count[pyramid_id]++;
+}
+
+void ov::npuw::IBaseInferRequest::reset_pyramid_statistics() const {
+    std::lock_guard<std::mutex> lock(m_pyramid_stats_mutex);
+    m_pyramid_total_time.clear();
+    m_pyramid_count.clear();
+}
+
+void ov::npuw::IBaseInferRequest::update_non_pyramid_statistics(std::size_t submodel_id, double execution_time) const {
+    std::lock_guard<std::mutex> lock(m_non_pyramid_stats_mutex);
+    m_non_pyramid_total_time[submodel_id] += execution_time;
+    m_non_pyramid_count[submodel_id]++;
+}
+
+std::map<std::size_t, double> ov::npuw::IBaseInferRequest::get_non_pyramid_avg_times() const {
+    std::lock_guard<std::mutex> lock(m_non_pyramid_stats_mutex);
+    std::map<std::size_t, double> avg_times;
+
+    for (const auto& [submodel_id, total_time] : m_non_pyramid_total_time) {
+        auto count_it = m_non_pyramid_count.find(submodel_id);
+        if (count_it != m_non_pyramid_count.end() && count_it->second > 0) {
+            avg_times[submodel_id] = total_time / count_it->second;
+        }
+    }
+
+    return avg_times;
+}
+
+void ov::npuw::IBaseInferRequest::print_non_pyramid_statistics() const {
+    auto avg_times = get_non_pyramid_avg_times();
+
+    if (avg_times.empty()) {
+        return;  // No statistics to print
+    }
+
+    std::cout << "\n=== Non-Pyramid Model Performance Statistics ===" << std::endl;
+    for (const auto& [submodel_id, avg_time] : avg_times) {
+        std::lock_guard<std::mutex> lock(m_non_pyramid_stats_mutex);
+        auto count_it = m_non_pyramid_count.find(submodel_id);
+        std::size_t count = count_it != m_non_pyramid_count.end() ? count_it->second : 0;
+        auto total_it = m_non_pyramid_total_time.find(submodel_id);
+        double total_time = total_it != m_non_pyramid_total_time.end() ? total_it->second : 0.0;
+
+        std::cout << "Submodel[" << submodel_id << "]: "
+                  << "Count=" << count << ", "
+                  << "Total=" << std::fixed << std::setprecision(2) << total_time << "ms, "
+                  << "Average=" << std::fixed << std::setprecision(2) << avg_time << "ms" << std::endl;
+    }
+    std::cout << "================================================\n" << std::endl;
+}
+
+void ov::npuw::IBaseInferRequest::reset_non_pyramid_statistics() const {
+    std::lock_guard<std::mutex> lock(m_non_pyramid_stats_mutex);
+    m_non_pyramid_total_time.clear();
+    m_non_pyramid_count.clear();
+}
+
+std::map<std::size_t, double> ov::npuw::IBaseInferRequest::get_pyramid_avg_times() const {
+    std::lock_guard<std::mutex> lock(m_pyramid_stats_mutex);
+    std::map<std::size_t, double> avg_times;
+
+    for (const auto& [pyramid_id, total_time] : m_pyramid_total_time) {
+        auto count_it = m_pyramid_count.find(pyramid_id);
+        if (count_it != m_pyramid_count.end() && count_it->second > 0) {
+            avg_times[pyramid_id] = total_time / count_it->second;
+        }
+    }
+
+    return avg_times;
+}
+
+void ov::npuw::IBaseInferRequest::print_pyramid_statistics() const {
+    auto avg_times = get_pyramid_avg_times();
+
+    if (avg_times.empty()) {
+        return;  // No statistics to print
+    }
+
+    std::cout << "\n=== Pyramid Model Performance Statistics ===" << std::endl;
+    for (const auto& [pyramid_id, avg_time] : avg_times) {
+        std::lock_guard<std::mutex> lock(m_pyramid_stats_mutex);
+        auto count_it = m_pyramid_count.find(pyramid_id);
+        std::size_t count = count_it != m_pyramid_count.end() ? count_it->second : 0;
+        auto total_it = m_pyramid_total_time.find(pyramid_id);
+        double total_time = total_it != m_pyramid_total_time.end() ? total_it->second : 0.0;
+
+        std::cout << "Pyramid Model[" << pyramid_id << "]: "
+                  << "Count=" << count << ", "
+                  << "Total=" << std::fixed << std::setprecision(2) << total_time << "ms, "
+                  << "Average=" << std::fixed << std::setprecision(2) << avg_time << "ms" << std::endl;
+    }
+    std::cout << "============================================\n" << std::endl;
 }
