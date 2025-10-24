@@ -4,6 +4,9 @@
 
 #include "base_sync_infer_request.hpp"
 
+#include <iomanip>
+#include <iostream>
+
 #include "compiled_model.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
@@ -254,6 +257,11 @@ std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
 
 void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
+
+    // Reset performance statistics for this infer session
+    reset_pyramid_statistics();
+    reset_non_pyramid_statistics();
+
     prepare_for_infer();
     bool failover_happened = false;
     for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
@@ -282,6 +290,13 @@ void ov::npuw::IBaseInferRequest::infer() {
         LOG_BLOCK();
         m_npuw_model->log_device_dist();
     }
+
+    // Print performance statistics only for prefill case
+    if (is_prefill_case()) {
+        print_pyramid_statistics();
+        print_non_pyramid_statistics();
+    }
+
     m_now_idx.reset();
 }
 
@@ -1026,4 +1041,119 @@ std::size_t ov::npuw::IBaseInferRequest::real(std::size_t idx) const {
 
 ov::npuw::IBaseInferRequest::now_t ov::npuw::IBaseInferRequest::now_idx() const {
     return m_now_idx;
+}
+
+bool ov::npuw::IBaseInferRequest::is_prefill_case() const {
+    // Check pyramid attention selector first
+    if (m_pyramid_selector) {
+        using namespace ov::npuw::runtime;
+        return m_pyramid_selector->this_case() == pyramid_attention::Selector::Case::PREFILL;
+    }
+
+    // Check regular attention selector
+    if (m_attention_selector) {
+        using namespace ov::npuw::runtime;
+        return m_attention_selector->this_case() == attention::Selector::Case::PREFILL;
+    }
+
+    // If no selector is available, assume it's not prefill
+    return false;
+}
+
+void ov::npuw::IBaseInferRequest::update_pyramid_statistics(std::size_t pyramid_id, double execution_time) const {
+    std::lock_guard<std::mutex> lock(m_pyramid_stats_mutex);
+    m_pyramid_total_time[pyramid_id] += execution_time;
+    m_pyramid_count[pyramid_id]++;
+}
+
+void ov::npuw::IBaseInferRequest::reset_pyramid_statistics() const {
+    std::lock_guard<std::mutex> lock(m_pyramid_stats_mutex);
+    m_pyramid_total_time.clear();
+    m_pyramid_count.clear();
+}
+
+void ov::npuw::IBaseInferRequest::update_non_pyramid_statistics(std::size_t submodel_id, double execution_time) const {
+    std::lock_guard<std::mutex> lock(m_non_pyramid_stats_mutex);
+    m_non_pyramid_total_time[submodel_id] += execution_time;
+    m_non_pyramid_count[submodel_id]++;
+}
+
+std::map<std::size_t, double> ov::npuw::IBaseInferRequest::get_non_pyramid_avg_times() const {
+    std::lock_guard<std::mutex> lock(m_non_pyramid_stats_mutex);
+    std::map<std::size_t, double> avg_times;
+
+    for (const auto& [submodel_id, total_time] : m_non_pyramid_total_time) {
+        auto count_it = m_non_pyramid_count.find(submodel_id);
+        if (count_it != m_non_pyramid_count.end() && count_it->second > 0) {
+            avg_times[submodel_id] = total_time / count_it->second;
+        }
+    }
+
+    return avg_times;
+}
+
+void ov::npuw::IBaseInferRequest::print_non_pyramid_statistics() const {
+    auto avg_times = get_non_pyramid_avg_times();
+
+    if (avg_times.empty()) {
+        return;  // No statistics to print
+    }
+
+    std::cout << "\n=== Non-Pyramid Model Performance Statistics ===" << std::endl;
+    for (const auto& [submodel_id, avg_time] : avg_times) {
+        std::lock_guard<std::mutex> lock(m_non_pyramid_stats_mutex);
+        auto count_it = m_non_pyramid_count.find(submodel_id);
+        std::size_t count = count_it != m_non_pyramid_count.end() ? count_it->second : 0;
+        auto total_it = m_non_pyramid_total_time.find(submodel_id);
+        double total_time = total_it != m_non_pyramid_total_time.end() ? total_it->second : 0.0;
+
+        std::cout << "Submodel[" << submodel_id << "]: "
+                  << "Count=" << count << ", "
+                  << "Total=" << std::fixed << std::setprecision(2) << total_time << "ms, "
+                  << "Average=" << std::fixed << std::setprecision(2) << avg_time << "ms" << std::endl;
+    }
+    std::cout << "================================================\n" << std::endl;
+}
+
+void ov::npuw::IBaseInferRequest::reset_non_pyramid_statistics() const {
+    std::lock_guard<std::mutex> lock(m_non_pyramid_stats_mutex);
+    m_non_pyramid_total_time.clear();
+    m_non_pyramid_count.clear();
+}
+
+std::map<std::size_t, double> ov::npuw::IBaseInferRequest::get_pyramid_avg_times() const {
+    std::lock_guard<std::mutex> lock(m_pyramid_stats_mutex);
+    std::map<std::size_t, double> avg_times;
+
+    for (const auto& [pyramid_id, total_time] : m_pyramid_total_time) {
+        auto count_it = m_pyramid_count.find(pyramid_id);
+        if (count_it != m_pyramid_count.end() && count_it->second > 0) {
+            avg_times[pyramid_id] = total_time / count_it->second;
+        }
+    }
+
+    return avg_times;
+}
+
+void ov::npuw::IBaseInferRequest::print_pyramid_statistics() const {
+    auto avg_times = get_pyramid_avg_times();
+
+    if (avg_times.empty()) {
+        return;  // No statistics to print
+    }
+
+    std::cout << "\n=== Pyramid Model Performance Statistics ===" << std::endl;
+    for (const auto& [pyramid_id, avg_time] : avg_times) {
+        std::lock_guard<std::mutex> lock(m_pyramid_stats_mutex);
+        auto count_it = m_pyramid_count.find(pyramid_id);
+        std::size_t count = count_it != m_pyramid_count.end() ? count_it->second : 0;
+        auto total_it = m_pyramid_total_time.find(pyramid_id);
+        double total_time = total_it != m_pyramid_total_time.end() ? total_it->second : 0.0;
+
+        std::cout << "Pyramid Model[" << pyramid_id << "]: "
+                  << "Count=" << count << ", "
+                  << "Total=" << std::fixed << std::setprecision(2) << total_time << "ms, "
+                  << "Average=" << std::fixed << std::setprecision(2) << avg_time << "ms" << std::endl;
+    }
+    std::cout << "============================================\n" << std::endl;
 }
