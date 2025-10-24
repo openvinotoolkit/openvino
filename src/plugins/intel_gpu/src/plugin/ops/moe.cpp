@@ -81,7 +81,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         auto moe_gather_prim = cldnn::moe_gather(moe_gather_name,
                                                  input_infos[0],  // input
                                                  input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_PER_EXPERT),
-                                                 static_cast<uint32_t>(config.top_k));
+                                                 config);
         p.add_primitive(*op, moe_gather_prim);
         std::vector<cldnn::input_info> moe_gemm_up_inputs = {
             input_info(moe_gather_name),  // topk_weight
@@ -107,8 +107,6 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
                                              config.expert_alpha,  // clamp_max
                                              config.expert_beta,   // swish beta
                                              cldnn::tensor());
-        std::cout << "expert_alpha : " << config.expert_alpha << std::endl;
-        std::cout << "expert beta : " << config.expert_beta << std::endl;
         p.add_primitive(*op, moe_swiglu_prim);
         std::vector<cldnn::input_info> moe_gemm_down_inputs = {
             input_info(moe_swiglu_name),
@@ -129,7 +127,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
                 input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_PER_EXPERT),
                 input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
                 input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
-                static_cast<uint32_t>(config.top_k));
+                config);
         p.add_primitive(*op, moe_scatter_reduce_prim);
     }
 }

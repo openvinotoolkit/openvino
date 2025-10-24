@@ -17,24 +17,21 @@ layout moe_gather_inst::calc_output_layout(moe_gather_node const& node, kernel_i
     return output_layouts[0];
 }
 
-template<typename ShapeType>
-std::vector<layout> moe_gather_inst::calc_output_layouts(moe_gather_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> moe_gather_inst::calc_output_layouts(const moe_gather_node& /*node*/, const kernel_impl_params& impl_param) {
     const auto& desc = impl_param.typed_desc<moe_gather>();
     const auto num_experts_per_token = desc->num_experts_per_token;
-
-    const auto& input_shapes = impl_param.input_layouts[0].get<ShapeType>();
-    const auto& hidden_size = input_shapes[input_shapes.size() - 1];
-    std::cout << "moe_gather hidden_size : " << hidden_size << std::endl;
+    const auto& in_layout = impl_param.input_layouts[0];
+    const auto& input_shape = in_layout.get<ShapeType>();
+    const auto& hidden_size = input_shape[input_shape.size() - 1];
     OPENVINO_ASSERT(hidden_size.is_static(), impl_param.desc->id, " hidden size dimension (shape[1]) must be static");
 
-
-    if (impl_param.input_layouts[0].is_dynamic())
-        return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)},
-                impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
-    const auto num_tokens = impl_param.input_layouts[0].get_shape()[0] == 1 ? impl_param.input_layouts[0].get_shape()[1] :
-                                                                              impl_param.input_layouts[0].get_shape()[0];
+    if (in_layout.is_dynamic()) {
+        return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)}, in_layout.data_type, in_layout.format}};
+    }
+    const auto num_tokens = desc->has_batch_dim ? input_shape[1] : input_shape[0];
     const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens * num_experts_per_token), ov::Dimension(1), ov::Dimension(hidden_size)};
-    return {layout{out_shape, impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
+    return {layout{out_shape, in_layout.data_type, in_layout.format}};
 }
 
 template std::vector<layout> moe_gather_inst::calc_output_layouts<ov::PartialShape>(moe_gather_node const& node, const kernel_impl_params& impl_param);
