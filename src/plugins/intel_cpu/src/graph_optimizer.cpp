@@ -2311,10 +2311,10 @@ void GraphOptimizer::FuseClampAndFakeQuantize(Graph& graph) {
         std::vector<float> newCropLow(cropLowData.size());
         std::vector<float> newCropHigh(cropHighData.size());
         for (size_t i = 0; i < cropLowData.size(); i++) {
-            newCropLow[i] = std::max(cropLowData[i], eltwiseNode->getAlpha());
+            newCropLow[i] = std::max(cropLowData[i], static_cast<float>(eltwiseNode->getAlpha()));
         }
         for (size_t i = 0; i < cropHighData.size(); i++) {
-            newCropHigh[i] = std::min(cropHighData[i], eltwiseNode->getBeta());
+            newCropHigh[i] = std::min(cropHighData[i], static_cast<float>(eltwiseNode->getBeta()));
         }
 
         fakeQuantizeNode->setCropLow(newCropLow);

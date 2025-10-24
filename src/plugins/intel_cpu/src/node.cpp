@@ -1710,8 +1710,8 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
     } else if (any_of(getAlgorithm(), Algorithm::EltwisePowerStatic)) {
         const auto* const power = dynamic_cast<const Eltwise*>(this);
         OPENVINO_ASSERT(power, "Cannot cast ", getName(), " to Eltwise");
-        scales.push_back(power->getBeta());
-        shifts.push_back(power->getGamma());
+        scales.push_back(static_cast<float>(power->getBeta()));
+        shifts.push_back(static_cast<float>(power->getGamma()));
     } else {
         OPENVINO_THROW("Can't fill scale and shifts for node: ", getName(), " with type: ", NameFromType(getType()));
     }
