@@ -1,0 +1,25 @@
+{
+    "type" : "object",
+    "required" : ["data", "element_type", "model", "shape"],
+    "properties" : {
+        "data": {
+            "$comment": "Contains binary data of the tensor affiliated to either a models input or output"
+         },
+        "element_type": {
+            "$comment": "Specifies an element type of the data of the tensor affiliated to either a models input or output",
+            "type": "string"
+        },
+        "layout": {
+            "$comment": "Optional. Specifies a layout of the tensor",
+            "type": ["array", "string"]
+        },
+        "model": {
+            "$comment": "Defines a model name which the tensor belongs to",
+            "type": "string"
+        },
+        "shape": {
+            "$comment": "Specifies a shape of the tensor affiliated to either a models input or output",
+            "type": ["array", "string"]
+        }
+    }
+}
