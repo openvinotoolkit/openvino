@@ -75,8 +75,13 @@ public:
         const auto& params = *instance.get_impl_params();
         bool is_prefill = is_prefill_stage(params);
         update_rt_params(instance);
-        if (is_prefill && has_stage(regular_micro_multi_tokens)) {
-            return execute_stage(events, instance, regular_micro_multi_tokens);
+        if (is_prefill) {
+            if (has_stage(regular_micro_multi_tokens)) {
+                GPU_DEBUG_TRACE_DETAIL << "Execute prefill micro_multi_tokens stage" << std::endl;
+                return execute_stage(events, instance, regular_micro_multi_tokens);
+            } else {
+                OPENVINO_THROW("Prefill stage is not available");
+            }
         } else {
             return execute_stage(events, instance, regular_micro_single_token);
         }
