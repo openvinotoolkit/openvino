@@ -1068,6 +1068,7 @@ inline void attn_softmax_kernel(T* a,
                                 size_t total_size,
                                 ov::element::Type attn_mask_prec,
                                 ov::element::Type dst_precision,
+                                const float* sink,
                                 float alibi_slope = 0);
 
 template <>
@@ -1082,6 +1083,7 @@ inline void attn_softmax_kernel<float>(float* a,
                                        size_t total_size,
                                        ov::element::Type attn_mask_prec,
                                        ov::element::Type dst_precision,
+                                       const float* sink,
                                        float alibi_slope) {
     using func_fp32_type =
         void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float, float&);
@@ -1148,8 +1150,14 @@ inline void attn_softmax_kernel<float>(float* a,
     }
 
     float sum = 0.0f;
+    if (sink != nullptr) {
+        max = max > (*sink) ? max : (*sink);
+    }
     // exp sum
     exp_reduce_sum(a, max, len, sum);
+    if (sink != nullptr) {
+        sum += std::exp(*sink - max);
+    }
     // divide sum
     float scalar = 1.0f / sum;
     if (dst_precision == ov::element::f32) {
@@ -1185,6 +1193,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                              size_t total_size,
                                              ov::element::Type attn_mask_prec,
                                              ov::element::Type dst_precision,
+                                             const float* sink,
                                              float alibi_slope) {
     using func_fp32_type = void (*)(ov::float16*,
                                     float,

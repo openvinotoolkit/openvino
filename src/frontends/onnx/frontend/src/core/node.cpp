@@ -800,6 +800,7 @@ Tensor Node::get_attribute_value(const std::string& name) const {
             std::vector<std::string>{*tensor_meta_info.m_tensor_name},
             tensor_meta_info.m_tensor_data,
             tensor_meta_info.m_tensor_data_size,
+            tensor_meta_info.m_tensor_data_any,
             tensor_meta_info.m_external_location,
             tensor_meta_info.m_is_raw);
         return {tensor_place};
@@ -826,6 +827,7 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
             std::vector<std::string>{*values_meta_info.m_tensor_name},
             values_meta_info.m_tensor_data,
             values_meta_info.m_tensor_data_size,
+            values_meta_info.m_tensor_data_any,
             values_meta_info.m_external_location,
             values_meta_info.m_is_raw);
 
@@ -839,6 +841,7 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
             std::vector<std::string>{*indices_meta_info.m_tensor_name},
             indices_meta_info.m_tensor_data,
             indices_meta_info.m_tensor_data_size,
+            indices_meta_info.m_tensor_data_any,
             indices_meta_info.m_external_location,
             indices_meta_info.m_is_raw);
         return {values_place, indices_place, sparse_tensor_info.m_partial_shape};
@@ -943,12 +946,16 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name) co
         return m_pimpl->template get_attribute_value<std::shared_ptr<ov::Model>>(name);
     } else if (m_decoder != nullptr) {
         auto graph_iterator = m_decoder->get_attribute(name).as<const ov::frontend::onnx::GraphIterator::Ptr>();
+        FRONT_END_GENERAL_CHECK(graph_iterator != nullptr,
+                                "GraphIterator attribute is missing or of wrong type for attribute: " + name);
         graph_iterator->reset();
-        auto input_model =
-            std::make_shared<onnx::unify::InputModel>(graph_iterator, m_translate_session->get_input_model().get());
+        auto parent_model = std::dynamic_pointer_cast<onnx::unify::InputModel>(m_translate_session->get_input_model());
+        FRONT_END_GENERAL_CHECK(parent_model != nullptr, "Parent model is expected to be of onnx InputModel type.");
+        auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator, parent_model);
         TranslateSession translate_session(input_model, m_translate_session, get_name());
         std::shared_ptr<ov::Model> ov_model(nullptr);
         translate_session.translate_graph(input_model, ov_model);
+        FRONT_END_GENERAL_CHECK(ov_model != nullptr, "Failed to translate ONNX model to OpenVINO model.");
         return ov_model;
     }
     FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
