@@ -282,20 +282,6 @@ void ConvertToBooleanCPULayerTest::generate_inputs(const std::vector<ov::Shape>&
     inputs.insert({funcInputs[0].get_node_shared_ptr(), tensor});
 }
 
-void ConvertI32ToU8CPULayerTest::validate_out_prc() const {
-    if (inPrc != ov::element::i32 || outPrc != ov::element::u8)
-        FAIL() << "ConvertI32ToU8CPULayerTest supports only i32->u8 conversion.";
-}
-
-void ConvertI32ToU8CPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    inputs.clear();
-    const auto& funcInputs = function->inputs();
-    const auto& funcInput = funcInputs[0];
-    ov::Tensor tensor(funcInput.get_element_type(), targetInputStaticShapes[0]);
-    ov::test::utils::fill_data_random(tensor.data<int32_t>(), tensor.get_size(), 1024, -512);
-    inputs.insert({funcInput.get_node_shared_ptr(), tensor});
-}
-
 TEST_P(ConvertCPULayerTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Convert", "Subgraph"});
@@ -307,11 +293,6 @@ TEST_P(ConvertToBooleanCPULayerTest, CompareWithRefs) {
     // To align output precision of model, Plugin insertes Convert[U8->Boolean] on output.
     // To avoid conflicts of mapping node types and prim types in CheckPluginRelatedResults, we set empty set of node types
     CheckPluginRelatedResults(compiledModel, std::set<std::string>{});
-}
-
-TEST_P(ConvertI32ToU8CPULayerTest, CompareWithRefs) {
-    run();
-    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Convert", "Subgraph"});
 }
 
 namespace Conversion {
