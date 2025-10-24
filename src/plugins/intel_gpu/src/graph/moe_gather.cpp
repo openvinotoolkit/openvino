@@ -31,7 +31,8 @@ std::vector<layout> moe_gather_inst::calc_output_layouts(moe_gather_node const& 
     if (impl_param.input_layouts[0].is_dynamic())
         return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)},
                 impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
-    const auto num_tokens = impl_param.input_layouts[0].get_shape()[1];
+    const auto num_tokens = impl_param.input_layouts[0].get_shape()[0] == 1 ? impl_param.input_layouts[0].get_shape()[1] :
+                                                                              impl_param.input_layouts[0].get_shape()[0];
     const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens * num_experts_per_token), ov::Dimension(1), ov::Dimension(hidden_size)};
     return {layout{out_shape, impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
 }
