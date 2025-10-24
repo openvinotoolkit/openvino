@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -37,7 +38,7 @@ namespace ov::snippets::pass {
  *               |
  *            Result0
  */
-class OnlineSoftmaxDecomposition : public ov::pass::MatcherPass {
+class SNIPPETS_API OnlineSoftmaxDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::OnlineSoftmaxDecomposition");
     OnlineSoftmaxDecomposition();

@@ -17,6 +17,7 @@
 #include "shape_infer_op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 
@@ -25,7 +26,7 @@ namespace ov::snippets::op {
  * @brief Reshape input tensor to reqiured target shape
  * @ingroup snippets
  */
-class Reshape : public ShapeInferOp {
+class SNIPPETS_API Reshape : public ShapeInferOp {
 public:
     OPENVINO_OP("Reshape", "SnippetsOpset", ShapeInferOp);
     Reshape(const Output<Node>& arg, ov::PartialShape target_shape);
@@ -38,7 +39,7 @@ public:
     const ov::PartialShape& get_target_shape() const;
     void set_target_shape(ov::PartialShape shape);
 
-    class ShapeInfer : public IShapeInferSnippets {
+    class SNIPPETS_API ShapeInfer : public IShapeInferSnippets {
         VectorDims target_shape;
         size_t target_shape_volume = 0;
 

@@ -7,6 +7,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/op/op.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 
@@ -15,7 +16,7 @@ namespace ov::snippets::op {
  * @brief OnlineSoftmax is a softmax that evaluate with online manner with axis on last dimension.
  * @ingroup snippets
  */
-class OnlineSoftmax : public ov::op::Op {
+class SNIPPETS_API OnlineSoftmax : public ov::op::Op {
 public:
     OPENVINO_OP("OnlineSoftmax", "SnippetsOpset");
 

@@ -11,6 +11,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -38,7 +39,7 @@ namespace ov::snippets::pass {
  *          Scalar constants are placed as is into subgraph due to optimization purpose
  * @ingroup snippets
  */
-class TokenizeSnippets : public ov::pass::MatcherPass {
+class SNIPPETS_API TokenizeSnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeSnippets");
     explicit TokenizeSnippets(const TokenizationConfig& config);

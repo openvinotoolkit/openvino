@@ -6,6 +6,7 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -14,7 +15,7 @@ namespace ov::snippets::pass {
  * @brief The pass tokenizes FullyConnected like (with constant path on B input) MatMuls
  * @ingroup snippets
  */
-class TokenizeFCSnippets : public ov::pass::MatcherPass {
+class SNIPPETS_API TokenizeFCSnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeFCSnippets");
     explicit TokenizeFCSnippets(const TokenizationConfig& config);

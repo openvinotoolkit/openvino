@@ -7,6 +7,7 @@
 #include "memory_access.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 
@@ -15,7 +16,7 @@ namespace ov::snippets::op {
  * @brief Brgemm is a batch-reduced matrix multiplication with the support of arbitrary strides between matrices rows
  * @ingroup snippets
  */
-class Brgemm : virtual public modifier::MemoryAccess, public ov::op::Op {
+class SNIPPETS_API Brgemm : virtual public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("Brgemm", "SnippetsOpset");
     explicit Brgemm(const Output<Node>& A,
