@@ -75,6 +75,9 @@ void prepare_padding::run(program& p) {
             if (node->get_preferred_impl_type() == impl_types::onednn)
                 continue;
 
+            if (node->get_preferred_impl_type() == impl_types::cm)
+                continue;
+
             auto add_required_padding = [&p](program_node& node, padding& needed_padding) {
                 // Add extra reorder for cldnn primitive to handle required padding if needed
                 auto& input = node.get_dependency(0);

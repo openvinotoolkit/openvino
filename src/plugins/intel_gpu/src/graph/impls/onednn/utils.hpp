@@ -10,6 +10,7 @@
 #include <intel_gpu/runtime/engine.hpp>
 #include <intel_gpu/runtime/memory.hpp>
 #include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/group_normalization.hpp>
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/format.hpp"
 #include <data_inst.h>
