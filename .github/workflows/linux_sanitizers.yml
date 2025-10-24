@@ -235,7 +235,7 @@ jobs:
     name: C++ unit tests
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
-    timeout-minutes: 180
+    timeout-minutes: 580
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
@@ -482,7 +482,7 @@ jobs:
     name: C++ func tests
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
-    timeout-minutes: 180
+    timeout-minutes: 580
     runs-on: aks-linux-8-cores-16gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
@@ -554,7 +554,7 @@ jobs:
       - name: CPU plugin func tests
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         env:
-          GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*Conv_*' }}
+          GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 \
