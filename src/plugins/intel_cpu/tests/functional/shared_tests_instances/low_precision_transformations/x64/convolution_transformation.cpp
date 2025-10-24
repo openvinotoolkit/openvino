@@ -153,12 +153,18 @@ const std::vector<ov::Shape> shapes = {
     { 4, 3, 16, 16 }
 };
 
+const std::vector<bool> useMaxPool = {
+    true,
+    false
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(params)),
+        ::testing::ValuesIn(params),
+        ::testing::ValuesIn(useMaxPool)),
     ConvolutionTransformation::getTestCaseName);
 
 const std::vector<LayerTestsDefinitions::ConvolutionWIthIncorrectWeightsParam> incorrectWeightsParams = {
@@ -206,7 +212,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
              ::testing::ValuesIn(netPrecisions),
              ::testing::ValuesIn(shapes),
              ::testing::Values(ov::test::utils::DEVICE_CPU),
-             ::testing::ValuesIn(params)),
+             ::testing::ValuesIn(params),
+             ::testing::ValuesIn(useMaxPool)),
              ConvolutionTransformation::getTestCaseName);
 }  // namespace convolution3D
 }  // namespace

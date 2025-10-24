@@ -26,7 +26,8 @@ public:
         const ov::element::Type precision,
         const ov::PartialShape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData,
-        const FakeQuantizeOnWeights& fakeQuantizeOnWeights);
+        const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+        const bool useMaxPool);
 
     static std::shared_ptr<ov::Model> get(
         const ov::element::Type precision,

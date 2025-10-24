@@ -19,7 +19,8 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
     const ov::element::Type precision,
     const ov::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData,
-    const FakeQuantizeOnWeights& fqOnWeights) {
+    const FakeQuantizeOnWeights& fqOnWeights,
+    const bool useMaxPool) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
     OPENVINO_ASSERT(rankLength == 3ul || rankLength == 4ul || rankLength == 5ul, "not supported input shape rank: ", rankLength);
 
@@ -51,7 +52,7 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
     maxPool->set_friendly_name("maxPool");
 
     const auto convolution = std::make_shared<ov::opset1::Convolution>(
-        maxPool, //fqOnData.empty() ? input : fakeQuantizeOnActivations,
+        useMaxPool ? maxPool : fqOnData.empty() ? input : fakeQuantizeOnActivations,
         fqOnWeights.empty() ?
             weights->output(0) :
             ov::test::utils::make_fake_quantize(
