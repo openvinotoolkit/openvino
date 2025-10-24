@@ -372,7 +372,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(void* blobData, size_t bl
     }
 
     uint32_t flags = 0;
-    setPersistentFlag = canCpuVaBeImported(blobData, blobSize);
+    bool setPersistentFlag = canCpuVaBeImported(blobData, blobSize);
     if (setPersistentFlag) {
         _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT");
         flags = ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
