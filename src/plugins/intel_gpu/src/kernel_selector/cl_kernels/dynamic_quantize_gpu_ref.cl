@@ -8,12 +8,18 @@
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
 
-#if (ASYMMETRIC_QUANTIZATION && UNSIGNED_OUTPUT) || OUTPUT_TYPE == fp8e5m2_t
-    #define TO_OUTPUT_TYPE_RTE(val)  convert_uchar_rte(val)
-    #define TO_OUTPUT_VEC_TYPE_RTE(val)  convert_uchar8_rte(val)
+#if F8E5M2_OUTPUT
+    #define TO_OUTPUT_TYPE_CUSTOM(val)  _convert_fp8e5m2_t_sat(val)
+    #define TO_OUTPUT_VEC_TYPE_CUSTOM(val)  _convert_fp8e5m2_t8_sat(val)
+#elif F8E4M3_OUTPUT
+    #define TO_OUTPUT_TYPE_CUSTOM(val)  _convert_fp8e4m3_t_sat(val)
+    #define TO_OUTPUT_VEC_TYPE_CUSTOM(val)  _convert_fp8e4m3_t8_sat(val)
+#elif (ASYMMETRIC_QUANTIZATION && UNSIGNED_OUTPUT)
+    #define TO_OUTPUT_TYPE_CUSTOM(val)  convert_uchar_rte(val)
+    #define TO_OUTPUT_VEC_TYPE_CUSTOM(val)  convert_uchar8_rte(val)
 #else
-    #define TO_OUTPUT_TYPE_RTE(val)  convert_char_rte(val)
-    #define TO_OUTPUT_VEC_TYPE_RTE(val)  convert_char8_rte(val)
+    #define TO_OUTPUT_TYPE_CUSTOM(val)  convert_char_rte(val)
+    #define TO_OUTPUT_VEC_TYPE_CUSTOM(val)  convert_char8_rte(val)
 #endif
 
 #if OUTPUT_DIMS != 4
@@ -31,6 +37,8 @@ inline uint FUNC(get_scales_offset)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint
     return FUNC_CALL(get_scales_offset_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, y, x);
 #endif
 }
+
+#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
 
 KERNEL(dynamic_quantize_gpu_ref)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -117,8 +125,14 @@ KERNEL(dynamic_quantize_gpu_ref)(
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
 #else  // !ASYMMETRIC_QUANTIZATION
     max_val = work_group_reduce_max(max_val);
+#if IS_F8
+    float out_dt_max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)));
+    float max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(max_val));
+    half scale = out_dt_max_val_rounded_down / max_val_rounded_down;
+#else
     half scale = _convert_half(OUTPUT_VAL_MAX) / max_val;
-#endif
+#endif // IS_FP8
+#endif // ASYMMETRIC_QUANTIZATION
 
     for (int b_off = 0; b_off < (GROUP_SIZE_DIM0 == 1 ? 1 : INPUT0_BATCH_NUM); b_off++) {
     for (int f_off = 0; f_off < (GROUP_SIZE_DIM1 == 1 ? 1 : INPUT0_FEATURE_NUM); f_off++) {
@@ -132,7 +146,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION
         val += zp;
 #endif
-        output[out_offset] = TO_OUTPUT_TYPE_RTE(val);
+        output[out_offset] = TO_OUTPUT_TYPE_CUSTOM(val);
 #else
         const uint in_offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, 0);
         const uint out_offset = OUTPUT_GET_INDEX(b + b_off, f + f_off, y + y_off, 0);
@@ -143,7 +157,11 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION
             val += zp;
 #endif
-            vstore8(TO_OUTPUT_VEC_TYPE_RTE(val), 0, output + out_offset + x * 8);
+#if IS_F8
+            BLOCK_WRITEN(OUTPUT_TYPE, 8, output + out_offset + x * 8, 0, TO_OUTPUT_VEC_TYPE_CUSTOM(val));
+#else
+            vstore8(TO_OUTPUT_VEC_TYPE_CUSTOM(val), 0, output + out_offset + x * 8);
+#endif
         }
         x *= 8;
         for (; x < INPUT0_SIZE_X; x++) {
@@ -152,7 +170,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION
             val += zp;
 #endif
-            output[out_offset + x] = TO_OUTPUT_TYPE_RTE(val);
+            output[out_offset + x] = TO_OUTPUT_TYPE_CUSTOM(val);
         }
 #endif
     }

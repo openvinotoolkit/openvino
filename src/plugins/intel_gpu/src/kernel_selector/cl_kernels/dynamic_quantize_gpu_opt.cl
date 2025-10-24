@@ -14,13 +14,13 @@
 #define VSTORE_N CAT(vstore, VEC_SIZE)
 #define CONVERT_UCHAR_N CAT(convert_uchar, VEC_SIZE)
 #define CONVERT_CHAR_N CAT(convert_char, VEC_SIZE)
-#define TYPE_N_(type, n) type##n
-#define TYPE_N(type, n) TYPE_N_(type, n)
-#define TO_TYPE_N_(type, n, x) _convert_##type##n(x)
-#define TO_TYPE_N(type, n, x) TO_TYPE_N_(type, n, x)
+#define TO_TYPE_N_SAT_(type, n, x) _convert_##type##n##_sat(x)
+#define TO_TYPE_N_SAT(type, n, x) TO_TYPE_N_SAT_(type, n, x)
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
+
+#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
 
 // ***********************************************
 #if DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS
@@ -54,7 +54,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
     const uint quantize_block = QUANTIZE_GROUP_SIZE / 4;
     half4 input_0[quantize_block];
-    TYPE_N(OUTPUT_TYPE, 4) quantized_value[quantize_block];
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4) quantized_value[quantize_block];
     half  max[quantize_block];
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
@@ -67,11 +67,26 @@ KERNEL(dynamic_quantize_gpu_opt)(
         max_value = fmax(max_value, max[i]);
     }
 
+#if IS_F8
+    float out_dt_max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)));
+    float max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(max_value));
+    half quan_scale = out_dt_max_val_rounded_down / max_val_rounded_down;
+#else
     half quan_scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
+#endif // IS_F8
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
-        quantized_value[i] = TO_TYPE_N(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale);
-        vstore4(quantized_value[i].data, 0, (char*)(&output[output_offset + i * 4]));
+#if IS_F8
+        quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale);
+        //BLOCK_WRITEN(OUTPUT_TYPE, 4, output + output_offset + i * 4, 0, quantized_value[i]);
+        output[output_offset + i * 4] = AS_OUTPUT_TYPE(quantized_value[i].data[0]);
+        output[output_offset + i * 4 + 1] = AS_OUTPUT_TYPE(quantized_value[i].data[1]);
+        output[output_offset + i * 4 + 2] = AS_OUTPUT_TYPE(quantized_value[i].data[2]);
+        output[output_offset + i * 4 + 3] = AS_OUTPUT_TYPE(quantized_value[i].data[3]);
+#else
+        quantized_value[i] = convert_char4(input_0[i] * (half4)quan_scale);
+        vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
+#endif // IS_F8
     }
 
 #if OUTPUT_DIMS == 2

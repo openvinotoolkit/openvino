@@ -158,8 +158,9 @@ public:
             cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_buffers[i], get_test_stream());
             cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr_ref(ref_output_buffers[i], get_test_stream());
 
-            for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
-                auto abs_diff = std::abs(output_ptr_ref[i] - output_ptr[i]);
+            for (size_t j = 0; j < output_ptr_ref.size(); ++j) {
+                std::cout << i << " " << j << " " << input_data[j] << " " << output_ptr[j] << " " << output_ptr_ref[j] << std::endl;
+                auto abs_diff = std::abs(output_ptr_ref[j] - output_ptr[j]);
                 ASSERT_LE(abs_diff, 2);
             }
         }

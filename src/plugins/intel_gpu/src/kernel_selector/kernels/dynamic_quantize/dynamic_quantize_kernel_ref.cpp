@@ -58,6 +58,8 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
     jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
     jit.AddConstant(MakeJitConstant("UNSIGNED_OUTPUT", params.outputs[0].GetDType() == Datatype::UINT8 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
 
     // Use FP32 accumulator type for scale/zp calculation
     jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACCUMULATOR"));
