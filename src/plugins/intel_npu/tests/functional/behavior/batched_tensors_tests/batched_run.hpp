@@ -34,7 +34,6 @@ protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> ov_model;
-    ov::CompiledModel compiled_model;
     ov::Output<const ov::Node> input;
     ov::Output<const ov::Node> output;
     std::string m_cache_dir;
@@ -85,7 +84,7 @@ public:
             core->set_property({ov::cache_dir()});
             core.reset();
             ov::test::utils::PluginCache::get().reset();
-            ov::test::utils::removeFilesWithExt(m_cache_dir, "blob");
+            ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cache_dir, "blob");
             ov::test::utils::removeDir(m_cache_dir);
         }
 

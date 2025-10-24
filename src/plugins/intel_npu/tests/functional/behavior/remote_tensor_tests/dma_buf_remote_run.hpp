@@ -40,7 +40,6 @@ protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> ov_model;
-    ov::CompiledModel compiled_model;
     int _fd_dma_heap = -1;
 
 public:
@@ -115,6 +114,7 @@ public:
 TEST_P(DmaBufRemoteRunTests, CheckRemoteTensorSharedBuf) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
@@ -147,6 +147,7 @@ TEST_P(DmaBufRemoteRunTests, CheckRemoteTensorSharedBuf) {
 TEST_P(DmaBufRemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
@@ -201,6 +202,7 @@ TEST_P(DmaBufRemoteRunTests, CheckOutputDataFromMultipleRuns) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     float* data;
 

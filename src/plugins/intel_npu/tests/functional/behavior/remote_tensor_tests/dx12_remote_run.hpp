@@ -58,7 +58,6 @@ protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> ov_model;
-    ov::CompiledModel compiled_model;
 
     Microsoft::WRL::ComPtr<IDXCoreAdapter> adapter;
     Microsoft::WRL::ComPtr<ID3D12Device9> device;
@@ -260,6 +259,7 @@ public:
 TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
@@ -285,6 +285,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
 TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
@@ -332,6 +333,7 @@ TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     float* data;
 
