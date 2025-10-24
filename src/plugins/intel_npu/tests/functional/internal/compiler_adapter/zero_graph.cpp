@@ -9,8 +9,8 @@ const std::vector<ov::AnyMap> configsGraphCompilationTests = {{},
                                                               {ov::cache_dir("test")},
                                                               {ov::intel_npu::bypass_umd_caching(true)}};
 
-// tested versions interval is [1.4, CURRENT + 1)
-auto graphExtVersions = ::testing::Range(ZE_MAKE_VERSION(1, 4), ZE_GRAPH_EXT_VERSION_CURRENT + 1);
+// tested versions interval is [1.5, CURRENT + 1)
+auto graphExtVersions = ::testing::Range(ZE_MAKE_VERSION(1, 5), ZE_GRAPH_EXT_VERSION_CURRENT + 1);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ZeroGraphCompilationTests,
