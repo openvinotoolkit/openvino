@@ -783,11 +783,16 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                     // here we can store values like GPU.0, GPU.1 and we need to set properties to plugin
                     // for each such .0, .1, .# device to make sure plugin can handle different settings for different
                     // device IDs
-                    for (auto pluginDesc : pluginRegistry) {
-                        ov::DeviceIDParser parser(pluginDesc.first);
-                        if (pluginDesc.first.find(deviceName) != std::string::npos && !parser.get_device_id().empty()) {
-                            pluginDesc.second.defaultConfig[deviceKey] = parser.get_device_id();
-                            plugin.set_property(pluginDesc.second.defaultConfig);
+                    {
+                        std::unique_lock<std::mutex> g_lock(get_mutex());
+                        for (auto pluginDesc : pluginRegistry) {
+                            ov::DeviceIDParser parser(pluginDesc.first);
+                            if (pluginDesc.first.find(deviceName) != std::string::npos &&
+                                !parser.get_device_id().empty()) {
+                                g_lock.unlock();
+                                pluginDesc.second.defaultConfig[deviceKey] = parser.get_device_id();
+                                plugin.set_property(pluginDesc.second.defaultConfig);
+                            }
                         }
                     }
                 }

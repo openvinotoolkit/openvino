@@ -19,7 +19,7 @@
 
 class MockInternalPlugin : public ov::IPlugin {
     ov::IPlugin* m_plugin = nullptr;
-    ov::AnyMap config;
+    ov::AnyMap config{};
 
 public:
     explicit MockInternalPlugin(ov::IPlugin* target) : m_plugin(target) {}
@@ -57,7 +57,7 @@ public:
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
         if (m_plugin)
             return m_plugin->get_property(name, arguments);
-        OPENVINO_NOT_IMPLEMENTED;
+        return "";
     }
 
     ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {

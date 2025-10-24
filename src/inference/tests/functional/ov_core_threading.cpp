@@ -90,11 +90,11 @@ TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
 TEST_F(CoreThreadingTests, RegisterPlugin) {
     ov::Core core;
     std::atomic<int> index{0};
-    auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                          std::string("mock_engine") + OV_BUILD_POSTFIX);
+    const auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                                std::string("mock_engine") + OV_BUILD_POSTFIX);
     runParallel(
         [&]() {
-            const std::string deviceName = std::to_string(index++);
+            const auto deviceName = std::to_string(index++);
             core.register_plugin(plugin_path, deviceName);
             core.get_versions(deviceName);
             core.unload_plugin(deviceName);
@@ -110,12 +110,12 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 #    endif
     ov::Core core;
     std::atomic<unsigned int> index{0};
-    auto file_prefix = ov::test::utils::generateTestFilePrefix();
-    auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                          std::string("mock_engine") + OV_BUILD_POSTFIX);
+    const auto file_prefix = ov::test::utils::generateTestFilePrefix();
+    const auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                                std::string("mock_engine") + OV_BUILD_POSTFIX);
 
     auto getPluginXml = [&]() -> std::tuple<std::filesystem::path, std::string> {
-        std::string indexStr = std::to_string(index++);
+        const auto indexStr = std::to_string(index++);
         std::filesystem::path pluginsXML = file_prefix + indexStr + ".xml";
         std::ofstream file(pluginsXML);
 
@@ -127,7 +127,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
         file.flush();
         file.close();
 
-        return std::tie(pluginsXML, indexStr);
+        return std::make_tuple(pluginsXML, indexStr);
     };
 
     runParallel(

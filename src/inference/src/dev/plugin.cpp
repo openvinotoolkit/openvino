@@ -45,7 +45,7 @@ const ov::Version ov::Plugin::get_version() const {
 }
 
 void ov::Plugin::set_property(const ov::AnyMap& config) {
-    m_ptr->set_property(config);
+    OV_PLUGIN_CALL_STATEMENT(m_ptr->set_property(config));
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -108,7 +108,7 @@ ov::SoPtr<ov::IRemoteContext> ov::Plugin::get_default_context(const AnyMap& para
 }
 
 ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& arguments) const {
-    return {m_ptr->get_property(name, arguments), {m_so}};
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->get_property(name, arguments), {m_so}});
 }
 
 bool ov::Plugin::supports_model_caching(const ov::AnyMap& arguments) const {
