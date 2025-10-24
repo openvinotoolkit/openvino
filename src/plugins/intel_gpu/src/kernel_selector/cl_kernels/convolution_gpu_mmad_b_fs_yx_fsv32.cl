@@ -373,7 +373,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 
     const bool full_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + OUTPUT_X_BLOCK_SIZE <= OUTPUT_SIZE_X;
     const bool full_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || (fg + 1) * OSV_SIZE <= OUTPUT_FEATURE_NUM;
-    if (full_x && full_f) {
+    if (SUB_GROUP_SIZE == 8 && full_x && full_f) {
 #if OUTPUT_DIMS == 5
         const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, z, y, x)) / OF_TO_DO;
 #elif OUTPUT_DIMS <= 4
