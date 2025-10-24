@@ -494,37 +494,37 @@ void convert_impl(const TI* arg, TO* out, size_t count) {
 }  // namespace
 
 template <>
-void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count) {
+void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count, bool cast) {
     convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
-void convert<float16, float>(const float16* arg, float* out, size_t count) {
+void convert<float16, float>(const float16* arg, float* out, size_t count, bool cast) {
     convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
-void convert<float, float16>(const float* arg, float16* out, size_t count) {
+void convert<float, float16>(const float* arg, float16* out, size_t count, bool cast) {
     convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
-void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
+void convert<float, int8_t>(const float* arg, int8_t* out, size_t count, bool cast) {
     convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
-void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
+void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count, bool cast) {
     convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
-void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count) {
+void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count, bool cast) {
     convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
-void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count) {
+void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count, bool cast) {
     convert_impl<NoClamp>(arg, out, count);
 }
 
@@ -533,7 +533,7 @@ void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t c
 }
 
 template <>
-void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count) {
+void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count, bool cast) {
     Converter<int32_t, float16>::apply<Clamp<int32_t, float16>>(arg, out, count);
 }
 
