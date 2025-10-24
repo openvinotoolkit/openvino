@@ -177,6 +177,7 @@ static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization
 static constexpr Property<bool, ov::PropertyMutability::RW> validate_output_buffer{"GPU_VALIDATE_OUTPUT_BUFFER"};
 static constexpr Property<float, ov::PropertyMutability::RW> mem_pool_util_threshold{"GPU_MEM_POOL_UTIL_THRESHOLD"};
 static constexpr Property<bool, ov::PropertyMutability::RW> dump_src_after_exec{"GPU_DUMP_SRC_TENSORS_AFTER_EXEC"};
+static constexpr Property<bool, ov::PropertyMutability::RW> allow_bypass_xattn{"GPU_ALLOW_BYPASS_XATTN_EXEC"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {
