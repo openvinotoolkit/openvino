@@ -1454,13 +1454,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
-        rewr.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
         if (generate_attn_dyn) {
             rewr.run_on_model(kvcache_model);
         }
         if (prefill_attn_dyn) {
             rewr.run_on_model(prefill_model);
         }
+
+        // FIXME: generally all these patterns are supposed to improve the partitioning - thus
+        // the performance. However, ShapeOfParameter seems to be working fine for all known case,
+        // while AttentionBroadcast patterns might break the partitioning (related to F16IC).
+        ov::pass::GraphRewrite rewr2;
+        rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
+        rewr2.run_on_model(kvcache_model);
+        rewr2.run_on_model(prefill_model);
     }
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
