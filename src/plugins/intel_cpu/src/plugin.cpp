@@ -518,6 +518,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::weights_path)::value_type(std::string(""));
     }
 
+    if (name == ov::enable_weightless) {
+        return {decltype(ov::enable_weightless)::value_type{false}};
+    }
+
     return get_ro_property(name, options);
 }
 

@@ -43,6 +43,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::device::architecture.name()),
         // Write only
         WO_property(ov::weights_path.name()),
+        WO_property(ov::enable_weightless.name()),
         // read write
         RW_property(ov::num_streams.name()),
         RW_property(ov::inference_num_threads.name()),
