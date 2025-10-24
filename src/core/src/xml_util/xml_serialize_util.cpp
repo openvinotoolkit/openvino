@@ -25,6 +25,7 @@
 #include "openvino/op/util/max_pool_base.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/xml_util/constant_writer.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
@@ -52,6 +53,9 @@ public:
         if (node->get_rt_info().count("postponed_constant")) {
             OPENVINO_ASSERT(node->get_output_size() == 1);
             ov::OutputVector outputs(1);
+            if (ov::pass::constant_folding_is_disabled(node)) {
+                node->get_rt_info().erase(ov::pass::DisableConstantFolding::get_type_info_static());
+            }
             OPENVINO_ASSERT(
                 node->constant_fold(outputs, node->input_values()),
                 "Node with set `postponed_constant` attribute cannot be fold to constant when saving model to IR file");
