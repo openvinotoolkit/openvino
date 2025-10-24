@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include "compiled_model.hpp"
+#include "infer_request_utils.hpp"  // to utilize copy_tensor_by_dim
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
@@ -792,6 +793,15 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
         // const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
         const auto& iport = comp_model_desc.pyramid_attention.value()._compiled_models[pyramid_id]->inputs()[param.idx];
         const auto& input = m_attention_io[idx].inputs.at(param.idx);
+
+        auto input_shape = input->get_shape();
+        if (input_shape[param.dim] == past_len) {
+            // Optimization: Direct tensor reuse when pyramid model's expected context length
+            // matches the current past length, avoiding unnecessary tensor copying or reshaping
+            r->set_tensor(iport, input);
+            continue;
+        }
+
         const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
         const auto shape = view->get_shape();
 
@@ -801,7 +811,10 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
             // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
             const auto& dst = r->get_tensor(iport);
             LOG_DEBUG("Do copy: " << shape << "...");
-            view->copy_to(dst._ptr);
+            ov::npuw::util::copy_tensor_by_dim(view,
+                                               dst,
+                                               static_cast<uint32_t>(param.dim),
+                                               static_cast<uint32_t>(param.dim));
         } else if (do_copy && ov::shape_size(shape) == 0) {
             // Special case for 0ths chunk.
             // Zero the tensor shape
