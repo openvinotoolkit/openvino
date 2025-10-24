@@ -198,6 +198,18 @@ public:
     void dump(uint32_t id, uint32_t iter, std::string dump_dir_path = "");
     size_t get_total_mem_pool_size(allocation_type type);
 
+    // Helper function to extract unique_ids from memory_record users
+    static std::vector<uint32_t> extract_user_unique_ids(const memory_record& record) {
+        std::vector<uint32_t> unique_ids;
+        for (const auto& user : record._users) {
+            unique_ids.push_back(static_cast<uint32_t>(user._unique_id));
+        }
+        return unique_ids;
+    }
+
+    // Get memory records from non_padded_pool that have memory size within specified range for a specific network
+    std::vector<memory_record> get_non_padded_memory_records(uint32_t network_id, size_t min_size, size_t max_size) const;
+
 private:
     void dump_to_screen(uint32_t id, uint32_t iter);
     void dump_to_file(uint32_t id, uint32_t iter, std::string dump_dir_path);
