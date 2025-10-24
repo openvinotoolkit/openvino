@@ -13,8 +13,9 @@ SwiGluWithClamp::SwiGluWithClamp(const ov::Output<Node>& data,
                                  int64_t split_lengths,
                                  const GluType glu_type,
                                  const size_t split_to_glu_idx,
-                                 double clamp_min,
-                                 double clamp_max,
+                                 float clamp_min,
+                                 float clamp_max,
+                                 float swiglu_beta,
                                  const ov::element::Type output_type)
     : Op({data}),
       m_axis(axis),
@@ -23,6 +24,7 @@ SwiGluWithClamp::SwiGluWithClamp(const ov::Output<Node>& data,
       m_split_to_glu_idx(split_to_glu_idx),
       m_clamp_min(clamp_min),
       m_clamp_max(clamp_max),
+      m_swiglu_beta(swiglu_beta),
       m_output_type(output_type) {
     validate_and_infer_types();
 }
@@ -69,6 +71,7 @@ std::shared_ptr<ov::Node> SwiGluWithClamp::clone_with_new_inputs(const ov::Outpu
                                              m_split_to_glu_idx,
                                              m_clamp_min,
                                              m_clamp_max,
+                                             m_swiglu_beta,
                                              m_output_type);
 }
 

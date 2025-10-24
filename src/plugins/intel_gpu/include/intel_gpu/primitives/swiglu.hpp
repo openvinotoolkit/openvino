@@ -27,8 +27,9 @@ struct swiglu : public primitive_base<swiglu> {
            const int64_t& split_lengths,
            const ov::op::internal::GLU::GluType glu_type,
            const size_t split_to_glu_idx,
-           const double clamp_min,
-           const double clamp_max,
+           const float clamp_min,
+           const float clamp_max,
+           const float swish_beta,
            const tensor output_size)
            : primitive_base(id, {input}),
              axis(axis),
@@ -37,6 +38,7 @@ struct swiglu : public primitive_base<swiglu> {
              split_to_glu_idx(split_to_glu_idx),
              clamp_min(clamp_min),
              clamp_max(clamp_max),
+             swish_beta(swish_beta),
              output_size(output_size) {}
 
     swiglu(const primitive_id& id,
@@ -47,14 +49,15 @@ struct swiglu : public primitive_base<swiglu> {
            const size_t split_to_glu_idx,
            const tensor output_size)
            : swiglu(id, input, axis, split_lengths, glu_type,
-               split_to_glu_idx, 0.0, 0.0, output_size) {}
+               split_to_glu_idx, 0.0, 0.0, 1.0, output_size) {}
 
     int64_t axis = 0;
     int64_t split_lengths = 0;
     ov::op::internal::GLU::GluType glu_type = ov::op::internal::GLU::GluType::Swish;
     size_t split_to_glu_idx = 0;
-    double clamp_min = 0.0;
-    double clamp_max = 0.0;
+    float clamp_min = 0.0;
+    float clamp_max = 0.0;
+    float swish_beta = 0.0f;
     tensor output_size;
 
     size_t hash() const override {
@@ -65,6 +68,7 @@ struct swiglu : public primitive_base<swiglu> {
         seed = hash_combine(seed, split_to_glu_idx);
         seed = hash_combine(seed, clamp_min);
         seed = hash_combine(seed, clamp_max);
+        seed = hash_combine(seed, swish_beta);
         return seed;
     }
 
@@ -75,7 +79,8 @@ struct swiglu : public primitive_base<swiglu> {
         auto rhs_casted = downcast<const swiglu>(rhs);
         return axis == rhs_casted.axis && split_lengths == rhs_casted.split_lengths &&
                glu_type == rhs_casted.glu_type && split_to_glu_idx == rhs_casted.split_to_glu_idx &&
-               clamp_min == rhs_casted.clamp_min && clamp_max == rhs_casted.clamp_max;
+               clamp_min == rhs_casted.clamp_min && clamp_max == rhs_casted.clamp_max &&
+               swish_beta == rhs_casted.swish_beta;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -87,6 +92,7 @@ struct swiglu : public primitive_base<swiglu> {
         ob << split_to_glu_idx;
         ob << clamp_min;
         ob << clamp_max;
+        ob << swish_beta;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -98,6 +104,7 @@ struct swiglu : public primitive_base<swiglu> {
         ib >> split_to_glu_idx;
         ib >> clamp_min;
         ib >> clamp_max;
+        ob >> swish_beta;
     }
 };
 }  // namespace cldnn

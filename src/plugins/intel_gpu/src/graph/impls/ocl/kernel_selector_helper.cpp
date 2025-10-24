@@ -1043,11 +1043,13 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
         auto split_to_glu_idx = casted->_desc->split_to_glu_idx;
         auto clamp_min = casted->_desc->clamp_min;
         auto clamp_max = casted->_desc->clamp_max;
+        auto swish_beta = casted->_desc->swish_beta;
         return std::make_shared<kernel_selector::swiglu_fuse_params>(axis,
                                                                      split_length,
                                                                      split_to_glu_idx,
                                                                      clamp_min,
-                                                                     clamp_max);
+                                                                     clamp_max,
+                                                                     swish_beta);
     } else if (p->type() == activation::type_id()) {
         auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(p);
         auto desc = casted->_desc;

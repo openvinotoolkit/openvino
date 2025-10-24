@@ -26,6 +26,7 @@ static void CreateGLUClampOp(ProgramBuilder& p, const std::shared_ptr<ov::op::in
                                   op->get_split_to_glu_idx(),
                                   op->get_clamp_min(),
                                   op->get_clamp_max(),
+                                  op->get_swiglu_beta(),
                                   cldnn::tensor());
         prim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, prim);
@@ -38,6 +39,7 @@ static void CreateGLUClampOp(ProgramBuilder& p, const std::shared_ptr<ov::op::in
                                   op->get_split_to_glu_idx(),
                                   op->get_clamp_min(),
                                   op->get_clamp_max(),
+                                  op->get_swiglu_beta(),
                                   tensor_from_dims(op->get_output_shape(0)));
         prim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, prim);
