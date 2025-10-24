@@ -72,13 +72,12 @@ If a package version differs between `requirements.txt` files, it can't be unifi
 - Exclude this `requirements.txt` file from the constraints system
 
 ## Implementation in OpenVINO
-The implementation in OpenVINO is a subject to change. At the time of writing, there are three `constraints.txt` files with the following requirement coverage:
+The implementation in OpenVINO is subject to change. At the time of writing, there are two `constraints.txt` files with the following requirement coverage:
 
 |Constraints file                               |Coverage                   |
 |-----------------------------------------------|---------------------------|
 |`openvino/src/bindings/python/constraints.txt` |Python bindings, frontends |
 |`openvino/tests/constraints.txt`               |tests                      |
-|`openvino/tools/constraints.txt`               |tools, openvino_dev        |
 
 ## See also
 

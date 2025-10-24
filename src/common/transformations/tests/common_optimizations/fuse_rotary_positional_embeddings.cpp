@@ -16,8 +16,10 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -152,6 +154,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_no_gather) {
                                                        {"config.is_interleaved", false},
                                                        {"config.is_chatglm", false},
                                                        {"config.support_2d_rope", false},
+                                                       {"config.support_3d_rope", false},
                                                        {"config.is_qwen", false},
                                                        {"config.use_rope_cache", false},
                                                        {"config.head_cnt", 0},
@@ -190,6 +193,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_with_gather) {
                                                        {"config.is_interleaved", false},
                                                        {"config.is_chatglm", false},
                                                        {"config.support_2d_rope", false},
+                                                       {"config.support_3d_rope", false},
                                                        {"config.is_qwen", false},
                                                        {"config.use_rope_cache", false},
                                                        {"config.head_cnt", 0},
@@ -202,13 +206,13 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_with_gather) {
     }
 }
 
-static std::shared_ptr<ov::Model> buildROPE_GPTNEOX(const int batch,
-                                                    const int seq_length,
-                                                    const int max_position_embeddings,
-                                                    const int ndims,
-                                                    const int num_heads,
-                                                    const int rotary_ndims,
-                                                    bool sin_cos_preprocessing) {
+static std::shared_ptr<ov::Model> buildROPE_GPTNEOX_4D(const int batch,
+                                                       const int seq_length,
+                                                       const int max_position_embeddings,
+                                                       const int ndims,
+                                                       const int num_heads,
+                                                       const int rotary_ndims,
+                                                       bool sin_cos_preprocessing) {
     auto batch_s = static_cast<size_t>(batch);
     auto seq_length_s = static_cast<size_t>(seq_length);
     auto ndims_s = static_cast<size_t>(ndims);
@@ -305,6 +309,60 @@ static std::shared_ptr<ov::Model> buildROPE_GPTNEOX(const int batch,
     return std::make_shared<ov::Model>(ov::OutputVector{cat_Concat_458}, parameters);
 }
 
+static std::shared_ptr<ov::Model> buildROPE_GPTNEOX_3D(const int seq_length,
+                                                       const int num_heads,
+                                                       const int rotary_ndims,
+                                                       std::string split_op_type) {
+    auto seq_length_s = static_cast<size_t>(seq_length);
+    auto rotary_ndims_s = static_cast<size_t>(rotary_ndims);
+    auto num_heads_s = static_cast<size_t>(num_heads);
+    auto input =
+        std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_length_s, num_heads_s, rotary_ndims_s});
+    auto Constant_396096 = makeConst(ov::element::f32, ov::Shape({1, 1, 1}), {-1.000000f});
+
+    auto param_cos =
+        std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_length_s, 1, rotary_ndims_s});
+    auto param_sin =
+        std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_length_s, 1, rotary_ndims_s});
+    ov::Output<ov::Node> cat_Concat;
+    if (split_op_type == "VariadicSplit") {
+        auto split = makeOP<ov::opset1::VariadicSplit>({input, {2}, {rotary_ndims / 2, rotary_ndims / 2}});
+        auto neg_Multiply =
+            makeOP<ov::opset1::Multiply>({split->output(1), Constant_396096}, {{"auto_broadcast", "numpy"}});
+        cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, split->output(0)}, {{"axis", -1}});
+    } else if (split_op_type == "Slice") {
+        auto slice_right_part = makeOP<ov::opset8::Slice>({input, {rotary_ndims / 2}, {INT_MAX}, {1}, {2}});
+        auto slice_left_part = makeOP<ov::opset8::Slice>({input, {0}, {rotary_ndims / 2}, {1}, {2}});
+        auto neg_Multiply =
+            makeOP<ov::opset1::Multiply>({slice_right_part, Constant_396096}, {{"auto_broadcast", "numpy"}});
+        cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, slice_left_part}, {{"axis", -1}});
+    } else if (split_op_type == "StridedSlice") {
+        auto slice_right_part =
+            makeOP<ov::opset1::StridedSlice>({input, {0, 0, rotary_ndims / 2}, {0, 0, INT_MAX}, {1, 1, 1}},
+                                             {{"begin_mask", {1, 1, 0}},
+                                              {"end_mask", {1, 1, 0}},
+                                              {"new_axis_mask", {}},
+                                              {"shrink_axis_mask", {}},
+                                              {"ellipsis_mask", {}}});
+        auto slice_left_part = makeOP<ov::opset1::StridedSlice>({input, {0, 0, 0}, {0, 0, rotary_ndims / 2}, {1, 1, 1}},
+                                                                {{"begin_mask", {1, 1, 0}},
+                                                                 {"end_mask", {1, 1, 0}},
+                                                                 {"new_axis_mask", {}},
+                                                                 {"shrink_axis_mask", {}},
+                                                                 {"ellipsis_mask", {}}});
+        auto neg_Multiply =
+            makeOP<ov::opset1::Multiply>({slice_right_part, Constant_396096}, {{"auto_broadcast", "numpy"}});
+        cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, slice_left_part}, {{"axis", -1}});
+    } else {
+        return nullptr;
+    }
+    auto mul_sin_Multiply = makeOP<ov::opset1::Multiply>({cat_Concat, param_sin}, {{"auto_broadcast", "numpy"}});
+    auto mul_cos_Multiply = makeOP<ov::opset1::Multiply>({input, param_cos}, {{"auto_broadcast", "numpy"}});
+    auto add_Add = makeOP<ov::opset1::Add>({mul_cos_Multiply, mul_sin_Multiply}, {{"auto_broadcast", "numpy"}});
+    ov::ParameterVector parameters = ov::ParameterVector{input, param_cos, param_sin};
+    return std::make_shared<ov::Model>(ov::OutputVector{add_Add}, parameters);
+}
+
 TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
     disable_rt_info_check();
     const int batch = 2;
@@ -314,7 +372,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
     const int rotary_ndims = 20;
     const int max_position_embeddings = 2048;
 
-    model = buildROPE_GPTNEOX(batch, seq_len, max_position_embeddings, ndims, num_heads, rotary_ndims, false);
+    model = buildROPE_GPTNEOX_4D(batch, seq_len, max_position_embeddings, ndims, num_heads, rotary_ndims, false);
     manager.register_pass<ov::pass::RoPEFusion>();
     {
         auto input =
@@ -331,6 +389,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
                                                     {"config.is_interleaved", false},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", false},
                                                     {"config.head_cnt", 0},
@@ -351,7 +410,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_with_gather) {
     const int num_heads = 32;
     const int max_position_embeddings = 2048;
 
-    model = buildROPE_GPTNEOX(batch, seq_len, max_position_embeddings, ndims, num_heads, rotary_ndims, true);
+    model = buildROPE_GPTNEOX_4D(batch, seq_len, max_position_embeddings, ndims, num_heads, rotary_ndims, true);
     manager.register_pass<ov::pass::RoPEFusion>();
     {
         auto cos_sin = makeCosSinCache(max_position_embeddings, rotary_ndims);
@@ -369,6 +428,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_with_gather) {
                                                     {"config.is_interleaved", false},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", false},
                                                     {"config.head_cnt", 0},
@@ -487,6 +547,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
                                                     {"config.is_interleaved", true},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", false},
                                                     {"config.head_cnt", 0},
@@ -609,6 +670,7 @@ TEST_P(ConvertToROPETest, ConvertToROPE_chatGLM) {
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", false},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", true},
                                                     {"config.head_cnt", num_heads},
@@ -696,6 +758,7 @@ TEST_P(ConvertToROPETest, ConvertToROPE_chatGLM_Slice) {
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", false},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", true},
                                                     {"config.head_cnt", num_heads},
@@ -708,6 +771,55 @@ TEST_P(ConvertToROPETest, ConvertToROPE_chatGLM_Slice) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TransformationTestsF, ConvertToROPETest, ::testing::ValuesIn({0, 1}));
+
+class ConvertToROPETestGPTNEOX_3D : public TransformationTestsF, public ::testing::WithParamInterface<std::string> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+        const auto& split_op_type = obj.param;
+        std::ostringstream result;
+        result << "split_op_type=" << split_op_type;
+        return result.str();
+    }
+};
+TEST_P(ConvertToROPETestGPTNEOX_3D, ConvertToROPE_qwen) {
+    disable_rt_info_check();
+    const int seq_len = 16;
+    const int num_heads = 32;
+    const int rotary_ndims = 80;
+    const std::string split_op_type = GetParam();
+    model = buildROPE_GPTNEOX_3D(seq_len, num_heads, rotary_ndims, split_op_type);
+    ASSERT_TRUE(model != nullptr);
+    manager.register_pass<ov::pass::RoPEFusionGPTNEOX>(3);
+    {
+        auto input =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_len, num_heads, rotary_ndims});
+        auto param_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_len, 1, rotary_ndims});
+        auto param_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_len, 1, rotary_ndims});
+        auto rope = makeOP<ov::op::internal::RoPE>({input, param_cos, param_sin},
+                                                   {{"config.slice_start", 0},
+                                                    {"config.slice_stop", 0},
+                                                    {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", false},
+                                                    {"config.is_chatglm", false},
+                                                    {"config.support_2d_rope", false},
+                                                    {"config.support_3d_rope", true},
+                                                    {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", false},
+                                                    {"config.head_cnt", 0},
+                                                    {"config.head_size", 0},
+                                                    {"config.rotary_ndims", rotary_ndims},
+                                                    {"config.gather_position_arg_id", 0}});
+        model_ref =
+            std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
+    }
+}
+
+const std::vector<std::string> vit_param = {"VariadicSplit", "Slice", "StridedSlice"};
+INSTANTIATE_TEST_SUITE_P(TransformationTestsF,
+                         ConvertToROPETestGPTNEOX_3D,
+                         ::testing::ValuesIn(vit_param),
+                         ConvertToROPETestGPTNEOX_3D::getTestCaseName);
 
 TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
     disable_rt_info_check();
@@ -782,6 +894,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
                                                     {"config.is_interleaved", true},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", false},
                                                     {"config.head_cnt", 0},
@@ -900,6 +1013,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_2d_rope) {
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", true},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", true},
                                                     {"config.head_cnt", num_heads},
@@ -1010,6 +1124,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_nano_2d_rope) {
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", true},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", true},
                                                     {"config.head_cnt", num_heads},
@@ -1102,6 +1217,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope) {
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", true},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", false},
                                                     {"config.head_cnt", num_heads},
@@ -1345,6 +1461,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM3_PagedAttention) {
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", false},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", true},
                                                     {"config.head_cnt", num_heads},
@@ -1424,6 +1541,7 @@ TEST_P(ConvertToROPETest, ConvertToROPE_Qwen_PagedAttention) {
                                                     {"config.rotary_ndims", 128},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", true},
                                                     {"config.use_rope_cache", false},
                                                     {"config.head_cnt", head_cnt},
@@ -1508,6 +1626,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_PagedAttention) {
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", false},
                                                     {"config.head_cnt", 0},
@@ -1582,6 +1701,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention) {
                                                     {"config.rotary_ndims", 64},
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", true},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", true},
                                                     {"config.head_cnt", 32},
@@ -1668,6 +1788,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention_GPU) {
                                                     {"config.rotary_ndims", 64},
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", true},
+                                                    {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
                                                     {"config.use_rope_cache", true},
                                                     {"config.head_cnt", 32},

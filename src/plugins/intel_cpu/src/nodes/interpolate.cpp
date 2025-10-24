@@ -2017,33 +2017,10 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             if (isAxesSpecified) {
                 axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(AXES_ID))
                            ->cast_vector<int>();
-                if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2) {
-                    interpAttrs.NCHWAsNHWC = true;
-                    axes[0] = 2;
-                    axes[1] = 3;
-                }
             } else {
-                const auto& outputShape = getOutputShapeAtPort(0);
-                // For the static shapes, we can avoid reordering NHWC to NCHW
-                // if the last dimension of input and output shapes are equal.
-                auto avoidReorder = [](const auto& inputDataShape, const auto& outputShape) {
-                    auto lastInDim = inputDataShape.getDims().back();
-
-                    // Dynamic shape
-                    if (lastInDim == Shape::UNDEFINED_DIM) {
-                        return false;
-                    }
-                    auto lastOutDim = outputShape.getDims().back();
-                    return static_cast<bool>(lastOutDim == lastInDim);
-                };
-                if (dataRank == 4 && avoidReorder(inputDataShape, outputShape)) {
-                    interpAttrs.NCHWAsNHWC = true;
-                    axes = {0, 2, 3, 1};  // NHWC
-                } else {
-                    axes.resize(dataRank);
-                    for (int i = 0; i < static_cast<int>(dataRank); i++) {
-                        axes[i] = i;
-                    }
+                axes.resize(dataRank);
+                for (int i = 0; i < static_cast<int>(dataRank); i++) {
+                    axes[i] = i;
                 }
             }
         } else if (const auto interp = ov::as_type_ptr<const ov::op::v11::Interpolate>(op)) {

@@ -11,6 +11,10 @@
 
 namespace ov::util {
 
+uint64_t OstreamHashWrapperBin::get_result() const {
+    return m_res;
+}
+
 std::streamsize OstreamHashWrapperBin::xsputn(const char* s, std::streamsize n) {
     m_res = u64_hash_combine(m_res, *reinterpret_cast<const uint64_t*>(s));
     return n;

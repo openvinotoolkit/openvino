@@ -4,6 +4,7 @@
 #include "node/include/helper.hpp"
 
 #include "node/include/compiled_model.hpp"
+#include "node/include/node_wrap.hpp"
 #include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
 
@@ -282,13 +283,20 @@ Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info
 
 Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Model> model) {
     const auto& prototype = env.GetInstanceData<AddonData>()->model;
-    if (!prototype) {
-        OPENVINO_THROW("Invalid pointer to Model prototype.");
-    }
+    OPENVINO_ASSERT(prototype, "Invalid pointer to Model prototype.");
     const auto& model_js = prototype.New({});
     const auto mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
     mw->set_model(model);
     return model_js;
+}
+
+Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Node> node) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->node;
+    OPENVINO_ASSERT(prototype, "Invalid pointer to Node prototype.");
+    const auto& node_js = prototype.New({});
+    const auto nw = Napi::ObjectWrap<NodeWrap>::Unwrap(node_js);
+    nw->set_node(node);
+    return node_js;
 }
 
 template <>
@@ -298,9 +306,7 @@ Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, con
 
 Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_model) {
     const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
-    if (!prototype) {
-        OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
-    }
+    OPENVINO_ASSERT(prototype, "Invalid pointer to CompiledModel prototype.");
     auto obj = prototype.New({});
     const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
     cm->set_compiled_model(compiled_model);

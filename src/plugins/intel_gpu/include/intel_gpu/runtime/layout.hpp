@@ -347,6 +347,9 @@ struct layout {
         }
     }
 
+    const cldnn::format& get_format() const;
+    const padding& get_padding() const;
+
     size_t get_rank() const;
 
     size_t get_spatial_rank() const;

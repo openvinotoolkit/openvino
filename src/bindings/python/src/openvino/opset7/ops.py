@@ -19,7 +19,6 @@ from openvino.utils.input_validation import (
 from openvino.utils.node_factory import NodeFactory, _get_node_factory
 from openvino.utils.types import (
     NodeInput,
-    NumericData,
     NumericType,
     ScalarData,
     TensorShape,
@@ -28,7 +27,6 @@ from openvino.utils.types import (
     get_dtype,
     get_element_type,
     get_element_type_str,
-    make_constant_node,
 )
 
 _get_node_factory_opset7 = partial(_get_node_factory, "opset7")

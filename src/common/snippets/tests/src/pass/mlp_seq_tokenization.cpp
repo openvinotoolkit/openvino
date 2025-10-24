@@ -23,17 +23,25 @@ void TokenizeMLPSeqSnippetsTests::run() {
     manager.register_pass<ov::snippets::pass::CommonOptimizations>(common_config);
     disable_rt_info_check();
 }
+
+using TokenizeMLPSeqSnippetsParams = std::tuple<std::vector<PartialShape>, ov::element::Type, int>;
 class TokenizeMLPSeqSnippetsParamTests : public TokenizeMLPSeqSnippetsTests,
-                                         public testing::WithParamInterface<std::tuple<std::vector<PartialShape>, ov::element::Type, int>> {
+                                         public testing::WithParamInterface<TokenizeMLPSeqSnippetsParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<TokenizeMLPSeqSnippetsParams>& info) {
+        const auto& [shapes, elem_type, hidden_layers] = info.param;
+        std::ostringstream result;
+        result << "InputShape=" << ov::test::utils::partialShape2str(shapes) << "_";
+        result << "ElementType=" << elem_type << "_";
+        result << "HiddenLayers=" << hidden_layers << "_";
+        return result.str();
+    }
+
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        auto params = GetParam();
-        auto shape = std::get<0>(params);
-        auto elem_type = std::get<1>(params);
-        auto hidden_layers = std::get<2>(params);
-
-        const auto& f = MLPSeqQuantizedTypeRelaxedFunction(shape,
+        const auto& [shapes, elem_type, hidden_layers] = GetParam();
+        const auto& f = MLPSeqQuantizedTypeRelaxedFunction(shapes,
                                                           std::vector<ov::element::Type>({elem_type}),
                                                           hidden_layers,
                                                           128);
@@ -46,27 +54,15 @@ TEST_P(TokenizeMLPSeqSnippetsParamTests, TypeRelaxed_2D) {
     run();
 }
 
-static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::vector<PartialShape>, ov::element::Type, int>>& info) {
-    std::vector<PartialShape> shape = std::get<0>(info.param);
-    ov::element::Type elem_type = std::get<1>(info.param);
-    int hidden_layers = std::get<2>(info.param);
-    std::ostringstream result;
-    result << "InputShape=" << ov::test::utils::partialShape2str(shape) << "_";
-    result << "ElementType=" << elem_type.get_type_name() << "_";
-    result << "HiddenLayers=" << hidden_layers << "_";
-    result << "Precision=" << elem_type.get_type_name() << "_";
-    return result.str();
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Snippets_MLP_SEQ,
-    TokenizeMLPSeqSnippetsParamTests,
-    testing::Combine(
-        testing::Values(std::vector<PartialShape>{{64, 64}}, std::vector<PartialShape>{{128, 128}}),
-        testing::Values(ov::element::f32, ov::element::u8),
-        testing::Values(1, 2, 3, 5, 7)),
-    getTestCaseName);
-
+namespace {
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ,
+                         TokenizeMLPSeqSnippetsParamTests,
+                         testing::Combine(testing::Values(std::vector<PartialShape>{{64, 64}},
+                                                          std::vector<PartialShape>{{128, 128}}),
+                                          testing::Values(ov::element::f32, ov::element::u8),
+                                          testing::Values(1, 2, 3, 5, 7)),
+                         TokenizeMLPSeqSnippetsParamTests::getTestCaseName);
+}  // namespace
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

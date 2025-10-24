@@ -44,6 +44,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
     auto xattention_threshold = pattern::any_input(pattern::has_static_rank());
     auto xattention_block_size = pattern::any_input(pattern::has_static_rank());
     auto xattention_stride = pattern::any_input(pattern::has_static_rank());
+    auto sinks = pattern::any_input(pattern::has_static_rank());
 
     auto result = pattern::wrap_type<op::PagedAttentionExtension>({Q,
                                                                    K,
@@ -64,7 +65,8 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                                                                    rotation_trig_lut,
                                                                    xattention_threshold,
                                                                    xattention_block_size,
-                                                                   xattention_stride});
+                                                                   xattention_stride,
+                                                                   sinks});
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
