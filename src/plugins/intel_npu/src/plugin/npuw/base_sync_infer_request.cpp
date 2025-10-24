@@ -929,7 +929,7 @@ bool ov::npuw::IBaseInferRequest::needs_copy(std::size_t idx, std::size_t cidx) 
         return false;
     }
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    if (comp_model_desc.is_remote[cidx]) {
+    if (comp_model_desc.is_remote.get()[cidx]) {
         // FIXME: Test if the tensor device and the request device are
         // the same or compatible!
         return false;

@@ -185,15 +185,15 @@ private:
         // other entities need to wait for the closure to be populated first
         // (meaning to wait for async weights processing to end).
         ov::npuw::util::Delayed<std::vector<ov::Tensor>> closure;
+        ov::npuw::util::Delayed<std::vector<int64_t>> closure_uid;  // Note: value -1 is considered uninitialized
+        ov::npuw::util::Delayed<std::vector<bool>> is_remote;
 
         // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
         //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
         //     lazy_closure is used for weights sharing and allocating device memory.
         std::vector<weights::LazyTensor> lazy_closure;
-        std::vector<int64_t> closure_uid;  // Note: value -1 is considered uninitialized
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
-        std::vector<bool> is_remote;
 
         bool forced_to_fcall = false;
 
