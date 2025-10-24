@@ -24,6 +24,7 @@
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "impls/ocl/kernels_cache.hpp"
+#include <functional>
 
 // TODO: add generic interface for weights_reorder_params and get rid of this dependency
 #include "impls/ocl/kernel_selector_helper.h"
@@ -271,6 +272,49 @@ public:
     void reset_events();
 
     void prepare_primitive();
+
+    // ExecutionContext structure for sharing data between preparation phases
+    struct ExecutionContext {
+        bool need_deferred_allocation = false;
+
+        bool needs_immediate_execution = false;  // For shape-dependent primitives
+        bool execution_completed = false;        // Track if execution is done
+
+        bool need_notify_mem_changed = false;  // After calling on_execute()
+
+        // POC: Deferred memory information storage
+        struct MemoryInfo {
+            layout mem_layout;
+            size_t output_idx;
+            bool is_output_buffer;
+            allocation_type alloc_type;
+        };
+
+        std::vector<memory::ptr> original_outputs;
+        std::map<size_t, MemoryInfo> deferred_mem_infos;
+        std::map<size_t, MemoryInfo> prev;
+
+        // Default constructor for container usage
+        ExecutionContext() = default;
+
+        bool is_deferred() const {
+            return need_deferred_allocation;
+        }
+
+        allocation_type get_deferred_alloc_type(size_t idx) {
+            if (deferred_mem_infos.empty() || deferred_mem_infos.count(idx))
+                return allocation_type::unknown;
+            return deferred_mem_infos[idx].alloc_type;
+        }
+    };
+
+    // Optional execution context for dynamic execution
+    ExecutionContext _execution_context;
+
+    // Split prepare_primitive2 into two phases
+    void prepare_memory_and_impl();
+    void prepare_execution();
+
     void execute();
     void init_kernels(const kernels_cache& kernels_cache) {
         _impl->init_kernels(kernels_cache, *_impl_params);
@@ -320,6 +364,9 @@ public:
                                        memory* curr_memory = nullptr,
                                        bool runtime_alloc = false);
 
+    // Allocate all deferred memory outputs from ExecutionContext
+    void allocate_deferred_outputs();
+
     const std::vector<memory::ptr>& get_intermediates_memories() const { return _intermediates_memory; }
     size_t get_max_output_layout_count(size_t idx = 0) const { return _max_output_layout_count[idx]; }
 
@@ -350,6 +397,7 @@ public:
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
     kernel_impl_params get_fake_aligned_params_if_possible(program_node const& node, kernel_impl_params const& orig_impl_param);
     bool all_dependencies_cpu_impl() const;
+    void clear_deferred_outputs();
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -443,7 +491,19 @@ protected:
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     void update_impl(bool use_async_compilation);
-    void realloc_if_needed(bool prev_execution_skipped = false);
+
+    // POC: Deferred memory info collection function type
+    // Parameters: (layout, output_idx, is_output_buffer)
+    //   - layout: Memory layout information
+    //   - output_idx: Output index for this allocation
+    //   - is_output_buffer: Whether this is an output buffer or intermediate buffer
+    using DeferredMemoryCollector = std::function<void(const layout&, allocation_type alloc_type, size_t, bool)>;
+
+    void realloc_if_needed(bool prev_execution_skipped = false, DeferredMemoryCollector collector = nullptr);
+
+    // POC: Memory allocation analysis functions
+    bool is_reusable_memory_allocation(const layout& required_layout, size_t output_idx, bool is_output_buffer, bool runtime_alloc) const;
+    allocation_type determine_allocation_type(const layout& layout, bool is_output_buffer, bool runtime_alloc) const;
 
     cldnn::network::ptr get_unfused_subgraph();
 
@@ -484,6 +544,8 @@ protected:
     virtual bool need_reset_output_memory() const;
 
     void clear_output_memory();
+
+    void release_memory(memory* mem);
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key
