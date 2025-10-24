@@ -460,6 +460,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ", ov::intel_cpu::enable_sage_attn.name());
             }
+        } else if (key == ov::enable_weightless.name()) {
+            try {
+                enableWeightless = val.as<bool>();
+            } catch (...) {
+                OPENVINO_THROW("Wrong value for property key ", ov::enable_weightless.name());
+            }
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }

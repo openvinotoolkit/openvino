@@ -519,7 +519,11 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
 
     if (name == ov::enable_weightless) {
-        return {decltype(ov::enable_weightless)::value_type{false}};
+        if (engConfig.enableWeightless) {
+            return decltype(ov::enable_weightless)::value_type{*engConfig.enableWeightless};
+        } else {
+            return decltype(ov::enable_weightless)::value_type{engConfig.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE};
+        }
     }
 
     return get_ro_property(name, options);
@@ -571,10 +575,10 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
                                                    RW_property(ov::key_cache_precision.name()),
                                                    RW_property(ov::value_cache_precision.name()),
                                                    RW_property(ov::key_cache_group_size.name()),
-                                                   RW_property(ov::value_cache_group_size.name())};
+                                                   RW_property(ov::value_cache_group_size.name()),
+                                                   RW_property(ov::enable_weightless.name())};
 
-        std::vector<ov::PropertyName> wo_properties{WO_property(ov::weights_path.name()),
-                                                    WO_property(ov::enable_weightless.name())};
+        std::vector<ov::PropertyName> wo_properties{WO_property(ov::weights_path.name())};
 
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size() + wo_properties.size());
