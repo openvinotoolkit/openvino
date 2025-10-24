@@ -26,6 +26,7 @@ public:
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
     bool needPrepareParams() const override;
+    void prepareParams() override;
 
     bool isExecutable() const override;
 
@@ -60,10 +61,12 @@ private:
     Algorithm algorithm = Algorithm::GatherMatmulDefault;
     MemoryArgs memory;
     GemvImplPtr gemv_impl = nullptr;
+    GemvImplPtr gemm_impl = nullptr;
 
     MemoryPtr m_weightsMemory = nullptr;
     MemoryPtr m_scalesMemory = nullptr;
     MemoryPtr m_zpMemory = nullptr;
+    MemoryPtr m_tmpInpBuffer = nullptr;
 };
 
 }  // namespace ov::intel_cpu::node

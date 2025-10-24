@@ -7,8 +7,11 @@
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
+#include <common/primitive_hashing_utils.hpp>
+#include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -33,6 +36,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/gathermatmul.hpp"
@@ -43,6 +47,34 @@
 
 namespace ov::intel_cpu::node {
 
+struct onednn_matmul_key {
+    dnnl::memory::desc src_md;
+    dnnl::memory::desc weights_md;
+    int k_groups;
+    bool has_scale;
+    bool has_zp;
+    bool has_bias;
+
+    [[nodiscard]] size_t hash() const {
+        using namespace dnnl::impl;
+        using namespace dnnl::impl::primitive_hashing;
+
+        size_t seed = 0;
+        hash_combine(seed, get_md_hash(*src_md.get()));
+        hash_combine(seed, get_md_hash(*weights_md.get()));
+        hash_combine(seed, k_groups);
+        hash_combine(seed, has_scale);
+        hash_combine(seed, has_zp);
+        hash_combine(seed, has_bias);
+        return seed;
+    }
+
+    bool operator==(const onednn_matmul_key& rhs) const {
+        return src_md == rhs.src_md && weights_md == rhs.weights_md && k_groups == rhs.k_groups &&
+               has_scale == rhs.has_scale && has_zp == rhs.has_zp && has_bias == rhs.has_bias;
+    }
+};
+
 class GatherMatmul::onednn_matmul {
 public:
     onednn_matmul() = delete;
@@ -51,62 +83,42 @@ public:
     onednn_matmul& operator=(const onednn_matmul&) = delete;
     onednn_matmul& operator=(onednn_matmul&&) = delete;
 
-    onednn_matmul(const dnnl::engine& eng,
-                  ov::element::Type src_dtype,
-                  ov::element::Type weights_dtype,
-                  int k,
-                  int n,
-                  int k_group_size,
-                  bool has_scale,
-                  bool has_zp,
-                  bool has_bias = false)
-        : m_src_type(DnnlExtensionUtils::ElementTypeToDataType(src_dtype)),
-          m_weights_type(DnnlExtensionUtils::ElementTypeToDataType(weights_dtype)),
-          m_K(k),
-          m_N(n),
-          m_has_bias(has_bias) {
+    onednn_matmul(const dnnl::engine& eng, const onednn_matmul_key& key) : m_has_bias(key.has_bias) {
+        const auto& src_md = key.src_md;
+        const auto& weights_md = key.weights_md;
+        const auto K_groups = key.k_groups;
+        const auto has_scale = key.has_scale;
+        const auto has_zp = key.has_zp;
+
+        const auto K = weights_md.get_dims()[1];
+        const auto N = weights_md.get_dims()[0];
+        const auto M = src_md.get_dims()[0];
+
         if (has_scale) {
-            if (k_group_size <= 0) {
-                m_K_groups = 1;
-            } else {
-                OPENVINO_ASSERT((m_K % k_group_size) == 0, "Incompatible k_group_size ", k_group_size, " for K ", m_K);
-                m_K_groups = m_K / k_group_size;
-            }
-            init_w_scales();
+            OPENVINO_ASSERT((K % K_groups) == 0, "Incompatible number of groups ", K_groups, " for K ", K);
+            init_w_scales(N, K_groups);
             if (has_zp) {
-                init_w_zp();
+                init_w_zp(N, K_groups);
             }
         }
 
-        m_input_md = dnnl::memory::desc(dnnl::memory::dims({m_M, m_K}), m_src_type, dnnl::memory::format_tag::ab);
-        m_output_md = dnnl::memory::desc(dnnl::memory::dims({m_M, m_N}), m_weights_type, dnnl::memory::format_tag::ab);
-
-        if (postops.len() > 0) {
-            attr.set_post_ops(postops);
-        }
-
-        dnnl::memory::desc src_md =
-            dnnl::memory::desc(dnnl::memory::dims({m_M, m_K}), m_src_type, dnnl::memory::format_tag::ab);
-        dnnl::memory::desc dst_md =
-            dnnl::memory::desc(dnnl::memory::dims({m_M, m_N}), m_src_type, dnnl::memory::format_tag::ab);
-
-        dnnl::memory::desc weights_md =
-            dnnl::memory::desc(dnnl::memory::dims({m_N, m_K}), m_weights_type, dnnl::memory::format_tag::any);
+        m_input_md = src_md;
+        m_output_md =
+            dnnl::memory::desc(dnnl::memory::dims({M, N}), src_md.get_data_type(), dnnl::memory::format_tag::ab);
 
         dnnl::memory::desc bias_md;
         if (m_has_bias) {
-            bias_md = dnnl::memory::desc(dnnl::memory::dims({m_N}),
-                                         dnnl::memory::data_type::f32,
-                                         dnnl::memory::format_tag::a);
+            bias_md =
+                dnnl::memory::desc(dnnl::memory::dims({N}), dnnl::memory::data_type::f32, dnnl::memory::format_tag::a);
         }
 
         auto inner_product_primitive_desc =
             dnnl::inner_product_forward::primitive_desc(eng,
                                                         dnnl::prop_kind::forward_inference,
-                                                        src_md,
+                                                        m_input_md,
                                                         weights_md,
                                                         bias_md,
-                                                        dst_md,
+                                                        m_output_md,
                                                         attr);
 
         m_impl_type = parse_impl_name(inner_product_primitive_desc.impl_info_str());
@@ -173,15 +185,15 @@ public:
     }
 
 private:
-    void init_w_scales() {
+    void init_w_scales(dnnl::memory::dim N, dnnl::memory::dim K_groups) {
         constexpr auto data_type = dnnl::memory::data_type::f32;
-        attr.set_scales_dims(DNNL_ARG_WEIGHTS, {m_N, m_K_groups}, data_type);
-        m_scale_md = dnnl::memory::desc({m_N, m_K_groups}, data_type, dnnl::memory::format_tag::ba);
+        attr.set_scales_dims(DNNL_ARG_WEIGHTS, {N, K_groups}, data_type);
+        m_scale_md = dnnl::memory::desc({N, K_groups}, data_type, dnnl::memory::format_tag::ba);
     }
-    void init_w_zp() {
+    void init_w_zp(dnnl::memory::dim N, dnnl::memory::dim K_groups) {
         constexpr auto data_type = dnnl::memory::data_type::u8;
-        attr.set_zero_points_dims(DNNL_ARG_WEIGHTS, {m_N, m_K_groups}, data_type);
-        m_zp_md = dnnl::memory::desc({m_N, m_K_groups}, data_type, dnnl::memory::format_tag::ba);
+        attr.set_zero_points_dims(DNNL_ARG_WEIGHTS, {N, K_groups}, data_type);
+        m_zp_md = dnnl::memory::desc({N, K_groups}, data_type, dnnl::memory::format_tag::ba);
     }
     static std::unordered_map<int, dnnl::memory> make_args(dnnl::memory& src,
                                                            dnnl::memory& dst,
@@ -211,17 +223,8 @@ private:
     dnnl::memory::desc m_wei_md;
     dnnl::memory::desc m_scale_md;
     dnnl::memory::desc m_zp_md;
-    dnnl::memory::desc m_bin_md;
-    dnnl::memory::data_type m_src_type = dnnl::memory::data_type::undef;
-    dnnl::memory::data_type m_weights_type = dnnl::memory::data_type::undef;
-    dnnl::memory::data_type m_sc_dtype = dnnl::memory::data_type::undef;
-    dnnl::memory::data_type m_zp_dtype = dnnl::memory::data_type::undef;
-    dnnl::memory::dim m_K = 0;
-    dnnl::memory::dim m_N = 0;
-    dnnl::memory::dim m_M = 1;  // always gemv
-    dnnl::memory::dim m_K_groups = 0;
     dnnl::primitive_attr attr;
-    dnnl::post_ops postops;
+
     ov::intel_cpu::impl_desc_type m_impl_type = ov::intel_cpu::impl_desc_type::unknown;
 
     std::unordered_map<int, dnnl::memory> args;
@@ -411,7 +414,7 @@ void GatherMatmul::createPrimitive() {
 
     int N = weiDims[weiDims.size() - 2];
     int K = weiDims[weiDims.size() - 1];
-    int groupK = 0;
+    int K_groups = 1;
 
     bool has_scale = false;
     bool has_zp = false;
@@ -421,8 +424,7 @@ void GatherMatmul::createPrimitive() {
             has_scale = true;
             const auto& scDims = scaleDesc->getShape().getStaticDims();
             CPU_NODE_ASSERT(scDims.size() == 3, "Weight scales input for GatherMatmulCompressed op should be 3D");
-            const auto n_groups = scDims[2];
-            groupK = K / n_groups;
+            K_groups = scDims[2];
         }
         auto zpDesc = getBaseMemDescAtInputPort(WEIGHT_ZERO_POINTS);
         if (zpDesc && !zpDesc->empty()) {
@@ -432,15 +434,23 @@ void GatherMatmul::createPrimitive() {
         }
     }
 
-    gemv_impl = std::make_shared<GatherMatmul::onednn_matmul>(getEngine(),
-                                                              src_precision,
-                                                              weights_precision,
-                                                              K,
-                                                              N,
-                                                              groupK,
-                                                              has_scale,
-                                                              has_zp,
-                                                              biasDesc && !biasDesc->empty());
+    dnnl::memory::desc src_md({1, K},
+                              DnnlExtensionUtils::ElementTypeToDataType(src_precision),
+                              dnnl::memory::format_tag::ab);
+
+    dnnl::memory::desc weights_md({N, K},
+                                  DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
+                                  dnnl::memory::format_tag::any);
+
+    onednn_matmul_key key{src_md, weights_md, K_groups, has_scale, has_zp, biasDesc && !biasDesc->empty()};
+
+    auto cache = context->getParamsCache();
+    const auto& eng = getEngine();
+    auto result = cache->getOrCreate(key, [&eng](const onednn_matmul_key& k) {
+        return std::make_shared<onednn_matmul>(eng, k);
+    });
+
+    gemv_impl = result.first;
 
     // repack weights
     // we build gemv impl, but in fact there is B weights to gather, so we have to process 3D weights, scales and zp
@@ -511,7 +521,70 @@ void GatherMatmul::createPrimitive() {
 }
 
 bool GatherMatmul::needPrepareParams() const {
-    return false;  // the operation is shape agnostic
+    if (Node::needPrepareParams()) {
+        auto srcMem = getSrcMemoryAtPort(DATA);
+        const auto& srcShape = srcMem->getStaticDims();
+        if (srcShape[1] != 1) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static Dim normalizeM(Dim M) {
+    if (M < 512) {
+        M = rnd_up(M, 16);
+    } else if (M < 1024) {
+        M = rnd_up(M, 32);
+    } else {
+        M = rnd_up(M, 256);
+    }
+    return M;
+}
+
+void GatherMatmul::prepareParams() {
+    auto srcMem = getSrcMemoryAtPort(DATA);
+    const auto& srcShape = srcMem->getStaticDims();
+    const Dim M = normalizeM(srcShape[1]);
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+
+    const auto batch = m_weightsMemory->getStaticDims()[0];
+
+    const auto srcPrc = srcMem->getDesc().getPrecision();
+
+    auto targetDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({batch, M, srcShape[2]}));
+    m_tmpInpBuffer = getScratchPadMem(targetDesc);
+
+    CPU_NODE_ASSERT(gemv_impl, "GEMV implementation is not created");
+
+    dnnl::memory::desc src_md({static_cast<dnnl::memory::dim>(M), static_cast<dnnl::memory::dim>(srcShape[2])},
+                              DnnlExtensionUtils::ElementTypeToDataType(srcPrc),
+                              dnnl::memory::format_tag::ab);
+    auto weights_md = gemv_impl->get_weights_md();
+    int K_groups = 1;
+    bool has_zp = false;
+    bool has_scale = false;
+
+    if (m_scalesMemory) {
+        const auto& scaleDims = m_scalesMemory->getStaticDims();
+        K_groups = scaleDims[2];
+    }
+
+    if (m_zpMemory) {
+        has_zp = true;
+    }
+
+    auto biasMemory = getSrcMemoryAtPort(BIAS);
+    const auto& biasDesc = biasMemory->getDesc();
+    onednn_matmul_key key{src_md, weights_md, K_groups, has_scale, has_zp, !biasDesc.empty()};
+
+    auto cache = context->getParamsCache();
+    const auto& eng = getEngine();
+    auto result = cache->getOrCreate(key, [&eng](const onednn_matmul_key& k) {
+        return std::make_shared<onednn_matmul>(eng, k);
+    });
+
+    gemm_impl = result.first;
 }
 
 bool GatherMatmul::isExecutable() const {
@@ -600,6 +673,14 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
                 index++;
             }
         }
+
+        // auto tmp_buffer_offset = OffsetHelper::createOffsetHelper(m_tmpInpBuffer);
+
+        // const auto element_size = m_tmpInpBuffer->getPrecision().size();
+        // const auto K_size = m_tmpInpBuffer->getStaticDims()[2];
+        // const auto M_size = m_tmpInpBuffer->getStaticDims()[1];
+
+
 
         for (size_t expert_id = 0; expert_id < max_experts; expert_id++) {
             if (0 == expert_token_counters[expert_id]) {
