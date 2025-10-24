@@ -80,10 +80,12 @@ void MvnLayerCPUTest::SetUp() {
     }
 
     rel_threshold = 5e-4;
-    if (auto it = additionalConfig.find(ov::hint::inference_precision.name()); it != additionalConfig.end()
-        && any_of(it->second, ov::element::f16, ov::element::bf16)) {
-        rel_threshold = 1e-2;
-        abs_threshold = .03f;
+    if (auto it = additionalConfig.find(ov::hint::inference_precision.name()); it != additionalConfig.end()) {
+        const auto inference_precision_hint = it->second.as<ov::element::Type>();
+        if (ov::intel_cpu::any_of(inference_precision_hint, ov::element::f16, ov::element::bf16)) {
+            rel_threshold = 1e-2;
+            abs_threshold = 3e-2f;
+        }
     }
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     updateSelectedType(getPrimitiveType(), netPrecision, configuration);
