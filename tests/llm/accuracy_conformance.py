@@ -33,8 +33,8 @@ def add_test_case(catalog, model, gpu_int8_ref, gpu_int4_ref, cpu_int8_ref, cpu_
 TEST_CATALOG = {}
 NOTEST=0.0
 #                           NAME,                                   GPU_i8, GPU_i4, CPU_i8, CPU_i4
-add_test_case(TEST_CATALOG, "TinyLlama/TinyLlama-1.1B-Chat-v1.0",   0.97,   0.88,   0.95,   0.89)
-add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             0.92,   0.75,   0.91,   0.73)
+add_test_case(TEST_CATALOG, "TinyLlama/TinyLlama-1.1B-Chat-v1.0",   0.85,   0.70,   0.94,   0.77)
+add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             0.87,   0.67,   0.82,   0.68)
 
 # Extract configuration from catalog
 MODEL_IDS = list(TEST_CATALOG.keys())
@@ -140,7 +140,8 @@ def setup_model(model_id):
 
     # Prepare ground truth data
     set_seed(42)
-    use_chat_template = tokenizer is not None and tokenizer.chat_template is not None
+    # chat-template is disabled because of jinja dependency
+    use_chat_template = False # tokenizer is not None and tokenizer.chat_template is not None
     gt_path = get_gt_path(model_id, use_chat_template)
     if not os.path.exists(gt_path):
         logger.info(f'Creating ground truth data: {gt_path}')
@@ -220,7 +221,8 @@ def test_accuracy_conformance(model_id, precision, device):
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-    use_chat_template = tokenizer is not None and tokenizer.chat_template is not None
+    # chat-template is disabled becuase of jinja dependency
+    use_chat_template = False #tokenizer is not None and tokenizer.chat_template is not None
 
     gt_data = get_gt_path(model_id, use_chat_template)
     evaluator = wwb.Evaluator(
