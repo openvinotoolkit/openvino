@@ -952,6 +952,12 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.add(make_layout_jit_constants("INPUT" + to_code_string(5), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
         }
 
+        if (desc->has_sink_input) {
+            const auto& sink_layout = params.input_layouts[PagedAttentionInputIdx::SINKS];
+            jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
+            jit.make("HAS_SINK_INPUT", 1);
+        }
+
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
         if (has_scores_output) {
             jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.output_layouts[1], out_offsets_map.at(1)));
@@ -1235,6 +1241,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
     auto data_inputs_num = micro_get_input_num(params, config);
 
     if (config.is_paged_attention) {
+        const auto desc = params.typed_desc<paged_attention>();
         if (m_is_prefill) {
             args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // Key
             args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // Q
@@ -1254,7 +1261,11 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         }
         if (!config.has_const_scale_val)
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});  // scale
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});                        // blocked_indexes_start_and_gws_mapping
+
+        if (desc->has_sink_input)
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
     } else {
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});    // K
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});  // Q
