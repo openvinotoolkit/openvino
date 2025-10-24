@@ -104,7 +104,7 @@ struct swiglu : public primitive_base<swiglu> {
         ib >> split_to_glu_idx;
         ib >> clamp_min;
         ib >> clamp_max;
-        ob >> swish_beta;
+        ib >> swish_beta;
     }
 };
 }  // namespace cldnn
