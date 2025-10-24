@@ -28,6 +28,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
+#include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
@@ -306,7 +307,8 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           [[maybe_unused]] const bool useSparseWeights,
                                           const bool useWeightsDecompression,
                                           const bool fcSemantic) {
-    if (defaultImplType == impl_desc_type::undef) {
+    // priority-based implementation selection if implementation type is not specified
+    if (defaultImplType == impl_desc_type::undef && !fcSemantic) {
         struct PrimitiveDescWithPriority {
             dnnl::primitive_desc prim_desc;
             size_t priority = 0UL;
@@ -484,21 +486,21 @@ bool DnnlMatMulPrimitive::useWeightsDecompressionImpl(const ov::element::Type in
     return (any_of(inputType, f32, bf16, f16) && any_of(weightsType, u8, i8, u4, i4));
 }
 
-DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const FCAttrs& fcAttrs,
-                                                                      const MemoryArgs& memory,
-                                                                      const ExecutorContext::CPtr& context,
-                                                                      const bool cacheWeights) {
-    MatMulAttrs attrs;
-    attrs.postOps = fcAttrs.postOps;
-    attrs.weightsNonTransposed = fcAttrs.weightsNonTransposed;
-
-    return createShapeAgnosticData(attrs, memory, context, cacheWeights);
-}
-
 DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatMulAttrs& attrs,
                                                                       const MemoryArgs& memory,
                                                                       const ExecutorContext::CPtr& context,
                                                                       const bool cacheWeights) {
+    if (attrs.fcSemantic) {
+        FCAttrs fcAttrs{attrs.withBias,
+                        attrs.weightsNonTransposed,
+                        false,
+                        0,
+                        true,
+                        ov::intel_cpu::Config::ModelType::Unknown,
+                        attrs.postOps};
+        return DnnlFCPrimitive::createShapeAgnosticData(fcAttrs, memory, context, cacheWeights);
+    }
+
     DEBUG_LOG("Creating shape agnostic data");
     auto srcDesc = memory.at(ARG_SRC)->getDescPtr();
     auto weiDesc = memory.at(ARG_WEI)->getDescPtr();
@@ -506,6 +508,7 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
     const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
 
     const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision());
+
     const auto postOpData =
         createPrimitiveAttrs(attrs, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
 
