@@ -366,7 +366,6 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
 
 GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(void* blobData, size_t blobSize) const {
     ze_graph_handle_t graphHandle = nullptr;
-    bool setPersistentFlag = false;
 
     if (blobSize == 0) {
         OPENVINO_THROW("Empty blob");
