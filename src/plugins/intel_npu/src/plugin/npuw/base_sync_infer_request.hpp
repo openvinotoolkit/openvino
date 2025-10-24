@@ -222,6 +222,9 @@ protected:
     // Helper method to check if current case is PREFILL
     bool is_prefill_case() const;
 
+    // Helper method to check if tensor is zero remote tensor
+    bool is_zero_remote_tensor(const ov::SoPtr<ov::ITensor>& tensor) const;
+
     // Pyramid model performance statistics (thread-safe)
     std::map<std::size_t, double> get_pyramid_avg_times() const;
     void print_pyramid_statistics() const;
