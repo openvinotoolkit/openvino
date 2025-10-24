@@ -17,9 +17,9 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "plugin.hpp"
+#include "pyramid_attention.hpp"
 #include "util.hpp"
 #include "weights_bank.hpp"
-#include "pyramid_attention.hpp"
 
 ov::npuw::MemAccessSim::MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model) {
     LOG_VERB("Running memory access simulation...");
@@ -271,8 +271,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 }
                 has_pyramid = true;
                 pyramid_sub_idx = real_idx;
-
-                std::cout << "Detected pyramid attention model at submodel index " << real_idx << std::endl;
+                m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
             }  // if(pyramid)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
@@ -588,18 +587,17 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     if (m_pyramid_selector) {
         m_pyramid_selector->prepare(get_history_size());
 
-        // Get the pyramid model ID based on current sequence length
-        auto pyramid_id = m_pyramid_selector->get_pyramid_id();
-
-        std::cout << "past length: " << m_pyramid_selector->past_length() << std::endl;
-        std::cout << "pyramid_id: " << pyramid_id << std::endl;
+        // Get the pyramid model ID based on current sequence length (updated in prepare())
+        auto pyramid_id = m_pyramid_selector->pyramid_id();
+        std::cout << "Switch to pyramid id: " << pyramid_id << " past length: " << m_pyramid_selector->past_length()
+                  << std::endl;
 
         for (auto&& id : m_funcall_heads) {
             auto& comp_model_desc = m_npuw_model->m_compiled_submodels[id];
             if (comp_model_desc.pyramid_attention.has_value()) {
-                m_subrequests[id] = comp_model_desc.pyramid_infer_requests.back();
+                m_subrequests[id] = comp_model_desc.pyramid_infer_requests[pyramid_id];
                 if (is_pipelined(id)) {
-                    m_funcall_pipeline[id].subrequest = comp_model_desc.pyramid_pipeline_requests.back();
+                    m_funcall_pipeline[id].subrequest = comp_model_desc.pyramid_pipeline_requests[pyramid_id];
                 }
             }
         }
@@ -746,16 +744,14 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 } else {
                     m_attention_io[idx].inputs.at(i) = i_tensor;
                 }
-            } else {
-                if (is_pyramid) {
-                    const auto past_len = m_pyramid_selector->past_length();
-                    std::cout << "Pyramid past length: " << past_len << std::endl;
-                    if (!non_pyramid_act_in(func_desc.pyramid_attention.value()._attention_infos.back(), i)) {
-                        // Print iport information
-                        std::cout << "iport[" << i << "] name: " << iport.get_any_name() << std::endl;
-                        std::cout << "iport[" << i << "] shape: " << iport.get_shape() << std::endl;
-                    }
+            } else if (is_pyramid) {
+                auto pyramid_id = m_pyramid_selector->pyramid_id();
+                if (non_pyramid_act_in(func_desc.pyramid_attention.value()._attention_infos[pyramid_id], i)) {
+                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                } else {
+                    m_attention_io[idx].inputs.at(i) = i_tensor;
                 }
+            } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
             }
@@ -767,6 +763,10 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         m_profile["attn(act)"] += ov::npuw::perf::ms_to_run([&]() {
             function_prologue_attn(real_idx, idx);
         });
+    }
+
+    if (is_pyramid) {
+        function_prologue_pyramid_attn(real_idx, idx);
     }
 
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
@@ -874,6 +874,68 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
         } else {
             NPUW_ASSERT(false && "Reached the unreachable code");
         }
+    }
+}
+
+void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real_idx, std::size_t idx) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    NPUW_ASSERT(comp_model_desc.pyramid_attention.has_value());
+
+    auto& r = m_subrequests[real_idx];
+
+    auto pyramid_id = m_pyramid_selector->pyramid_id();
+
+    const auto& dynamic = comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+    auto mask_iport =
+        comp_model_desc.pyramid_attention.value()._compiled_models[pyramid_id]->inputs()[dynamic.mask_idx];
+
+    const auto& graph_mask = m_attention_io[idx].inputs.at(dynamic.mask_idx);
+    const auto this_case = m_pyramid_selector->this_case();
+
+    const auto past_len = m_pyramid_selector->past_length();
+    const auto present_len = dynamic.query_size;
+    // FIXME: get the right dim
+    const uint32_t kv_dim = 3;
+
+    // Now set the mask. Here comes very strong chunking & SDPA knowledge again
+    using namespace ov::npuw::runtime;
+    if (this_case == pyramid_attention::Selector::Case::GENERATE) {
+        NPUW_ASSERT(false && "Not implemented for GENERATE");
+    } else if (this_case == pyramid_attention::Selector::Case::PREFILL) {
+        // Use our in-graph synthesized mask
+        if (m_cached_attention_mask) {
+            // All sub models are sharing the same attention mask, we can use the cached attention
+            // mask directly to avoid redundant tensor copy
+            m_subrequests[real_idx]->set_tensor(mask_iport, m_cached_attention_mask);
+            return;
+        }
+
+        // Handle attention mask concatenation for SDPA:
+        // The attention mask is composed with 2 parts:
+        // The 1st part is for the "present", which is at the tail: starting from past_len to context_len
+        // The 2nd part is for the "past", which is at the beginning: starting from 0 to past_len
+        auto full_mask_shape = graph_mask->get_shape();
+        auto actual_mask_shape = full_mask_shape;
+        actual_mask_shape[kv_dim] = present_len + past_len;
+
+        // Reshape the input to the proper shape
+        const auto& dst = r->get_tensor(mask_iport);
+
+        // Copy "present" attention mask
+        const auto& present_dst_view = ov::npuw::util::view(dst, kv_dim, past_len, present_len);
+        const auto& present_src_view =
+            ov::npuw::util::view(graph_mask, kv_dim, full_mask_shape[kv_dim] - present_len, present_len);
+        present_src_view->copy_to(present_dst_view._ptr);
+
+        // Copy "past" attention mask
+        if (past_len > 0) {
+            const auto& past_dst_view = ov::npuw::util::view(dst, kv_dim, 0, past_len);
+            const auto& past_src_view = ov::npuw::util::view(graph_mask, kv_dim, 0, past_len);
+            past_src_view->copy_to(past_dst_view._ptr);
+        }
+        m_cached_attention_mask = dst;
+    } else {
+        NPUW_ASSERT(false && "Reached the unreachable code");
     }
 }
 

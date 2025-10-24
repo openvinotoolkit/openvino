@@ -99,6 +99,7 @@ protected:
 
     void function_prologue(std::size_t idx);
     void function_prologue_attn(std::size_t real_idx, std::size_t idx);
+    void function_prologue_pyramid_attn(std::size_t real_idx, std::size_t idx);
 
     void unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f);
     void unsafe_infer(std::size_t real_idx, std::size_t idx);

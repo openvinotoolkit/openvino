@@ -494,6 +494,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     const bool is_spatial = proto_comp_model_desc.spatial.has_value();
     const bool is_attention = proto_comp_model_desc.attention.has_value();
+    const bool is_pyramid_attention = proto_comp_model_desc.pyramid_attention.has_value();
 
     // a list of ports to copy tensors, if needed: FROM -> TO
     std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
@@ -520,6 +521,18 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         });
     };
 
+    auto is_pyramid_attn_param = [&](std::size_t sub_in_idx) -> bool {
+        if (!is_pyramid_attention) {
+            return false;  // Early return
+        }
+
+        auto pyramid_id = m_pyramid_selector->pyramid_id();
+        auto& pyramid_attn = proto_comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+        return std::any_of(pyramid_attn.params.begin(), pyramid_attn.params.end(), [&](const auto& p) -> bool {
+            return p.idx == sub_in_idx;
+        });
+    };
+
     for (auto&& it : iodesc.global_params) {
         std::size_t param_idx{}, sub_in_idx{};
         std::tie(param_idx, sub_in_idx) = it;
@@ -542,6 +555,11 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
         } else if (is_attn_param(sub_in_idx)) {
             // Register for future use
+            m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
+        } else if (is_pyramid_attn_param(sub_in_idx)) {
+            // Register for future use
+            // std::cout << "Subgraph " << idx << " Registering pyramid attention input: " << g_port.get_any_name()
+            //           << std::endl;
             m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
             // Input parameter is non-spatial, do normal handling
@@ -582,6 +600,8 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     m_profile["attn(io)"].record([&]() {
         bind_attention_inputs(idx, request);
     });
+
+    bind_pyramid_attention_inputs(idx, request);
 
     LOG_DEBUG("Done");
 }
@@ -732,6 +752,50 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
             }
         }  // for(params)
     }
+
+    LOG_DEBUG("Done");
+}
+
+void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx, RqPtr request) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    if (!comp_model_desc.pyramid_attention) {
+        return;
+    }
+
+    LOG_DEBUG("Binding Pyramid Attention inputs...");
+    LOG_BLOCK();
+
+    auto pyramid_id = m_pyramid_selector->pyramid_id();
+    const auto& dynamic = comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+    auto& r = request;
+
+    const auto past_len = m_pyramid_selector->past_length();
+    const auto do_copy = needs_copy(idx) && !m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
+
+    // Set the past k/v values first
+    for (auto&& param : dynamic.params) {
+        // const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+        const auto& iport = comp_model_desc.pyramid_attention.value()._compiled_models[pyramid_id]->inputs()[param.idx];
+        const auto& input = m_attention_io[idx].inputs.at(param.idx);
+        const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
+        const auto shape = view->get_shape();
+
+        LOG_DEBUG(iport);
+        LOG_BLOCK();
+        if (do_copy && ov::shape_size(shape) > 0) {
+            // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
+            const auto& dst = r->get_tensor(iport);
+            LOG_DEBUG("Do copy: " << shape << "...");
+            view->copy_to(dst._ptr);
+        } else if (do_copy && ov::shape_size(shape) == 0) {
+            // Special case for 0ths chunk.
+            // Zero the tensor shape
+            auto new_tensor = ov::get_tensor_impl(ov::Tensor(view->get_element_type(), shape, view->data()));
+            r->set_tensor(iport, new_tensor);
+        } else {
+            r->set_tensor(iport, view);
+        }
+    }  // for(params)
 
     LOG_DEBUG("Done");
 }

@@ -182,6 +182,7 @@ protected:
     void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
     void bind_attention_inputs(std::size_t idx, RqPtr request);
+    void bind_pyramid_attention_inputs(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);
