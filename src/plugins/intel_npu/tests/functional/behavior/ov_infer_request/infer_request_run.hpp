@@ -91,8 +91,8 @@ public:
             core->set_property({ov::cache_dir()});
             core.reset();
             ov::test::utils::PluginCache::get().reset();
-            auto test = ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cache_dir, "blob");
-            auto test1 = ov::test::utils::removeDir(m_cache_dir);
+            ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cache_dir, "blob");
+            ov::test::utils::removeDir(m_cache_dir);
         }
 
         if (!configuration.empty()) {
