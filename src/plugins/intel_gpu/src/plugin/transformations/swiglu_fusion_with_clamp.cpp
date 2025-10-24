@@ -107,6 +107,7 @@ SwiGluFusionWithClamp::SwiGluFusionWithClamp() {
                                                             split_to_glu_idx,
                                                             clamp_min_value,
                                                             clamp_max_value,
+                                                            1.0f,  // TODO : handle case when swish_beta input is given
                                                             output_type);
         swiglu->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), swiglu);

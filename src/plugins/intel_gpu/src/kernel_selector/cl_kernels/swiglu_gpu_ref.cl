@@ -47,7 +47,7 @@ KERNEL(swiglu_gpu_ref)(
 
     res = (ACCUMULATOR_TYPE)input[gate_idx];
     #if GLU_TYPE == 0   // Swish
-        res /= ACCUMULATOR_VAL_ONE + exp(-(ACCUMULATOR_VAL_ONE * res));
+        res /= ACCUMULATOR_VAL_ONE + exp(-(SWISH_BETA * res));
     #elif GLU_TYPE == 1 // Gelu
         res = (GEGLU_HALF * res * (ACCUMULATOR_VAL_ONE + (erf(res * GEGLU_MULT))));
     #elif GLU_TYPE == 2 // Gelu_Tanh

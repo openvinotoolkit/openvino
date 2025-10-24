@@ -13,6 +13,8 @@
 #include <intel_gpu/primitives/swiglu.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 
+#include <limits>
+
 namespace ov {
 namespace op {
 namespace internal {
@@ -93,14 +95,17 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         auto moe_gemm_up = cldnn::moe_gemm(moe_gemm_up_name, moe_gemm_up_inputs, config.top_k);
         moe_gemm_up.has_bias = true;
         p.add_primitive(*op, moe_gemm_up);
+        // config.expert_alpha : clamp_max
+        // config.expert_beta : swish_beta
         auto moe_swiglu_prim = cldnn::swiglu(moe_swiglu_name,
                                              input_info(moe_gemm_up_name),
                                              2,  // axis
                                              config.hidden_size,
                                              ov::op::internal::GLU::GluType::Swish,
-                                             0,                    // ? glu_idx : to check
-                                             config.expert_beta,   // clamp_min : to check
+                                             1,                    // gate : second half
+                                             std::numeric_limits<float>::min(),   // clamp_min
                                              config.expert_alpha,  // clamp_max
+                                             config.expert_beta,   // swish beta
                                              cldnn::tensor());
         std::cout << "expert_alpha : " << config.expert_alpha << std::endl;
         std::cout << "expert beta : " << config.expert_beta << std::endl;
@@ -118,13 +123,13 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         moe_gemm_down.has_bias = true;
         p.add_primitive(*op, moe_gemm_down);
         auto moe_scatter_reduce_prim = cldnn::moe_scatter_reduction(moe_scatter_reduce_name,
-                                                                 input_info(moe_gemm_down_name),
-                                                                 input_infos[2],
-                                                                 input_infos[1],
-                                                                 input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_PER_EXPERT),
-                                                                 input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
-                                                                 input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
-                                                                 static_cast<uint32_t>(config.top_k));
+                input_info(moe_gemm_down_name),
+                input_infos[2],
+                input_infos[1],
+                input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_PER_EXPERT),
+                input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
+                input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
+                static_cast<uint32_t>(config.top_k));
         p.add_primitive(*op, moe_scatter_reduce_prim);
     }
 }
