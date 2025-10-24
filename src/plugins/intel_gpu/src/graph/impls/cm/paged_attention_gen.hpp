@@ -51,7 +51,7 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t q_block_pad;
     size_t k_block_pad;
     size_t q_stride_pad;
-    uint32_t q_block_pad_merged;
+    size_t q_block_pad_merged;
     size_t N_kq_groups;
     size_t M;
     size_t N;

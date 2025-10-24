@@ -71,6 +71,7 @@ public:
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         rt_params->q_block_pad = q_block_pad;
         rt_params->k_block_pad = k_block_pad;
+        rt_params->q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
 
         const size_t head_size = desc->k_head_size;
 
@@ -221,7 +222,7 @@ public:
 
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4
                                        << "  count_kq_exp_partial_sum=" << count_kq_exp_partial_sum * 4 << "  count_elements_mask=" << count_elements_mask * 1
-                                       << "  count_elements_mask_merged=" << count_kq_exp_partial_sum * 1 << std::endl;
+                                       << "  count_elements_mask_merged=" << count_elements_mask_merged * 1 << std::endl;
             }
         }
 
