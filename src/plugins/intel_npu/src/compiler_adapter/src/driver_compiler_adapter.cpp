@@ -58,7 +58,6 @@ void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
 }
 
 }  // namespace
-
 namespace intel_npu {
 
 DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
