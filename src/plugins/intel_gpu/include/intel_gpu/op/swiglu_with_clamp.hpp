@@ -26,15 +26,17 @@ public:
     /// \param split_lenghts A list containing the sizes of each output tensor along the split "axis"
     /// \param split_to_glu_idx Output index of variadic split, which is connected to GLU
     /// \param clamp_min Clamp output more than min value
-    /// \parma clamp_max Clamp output less than max min
+    /// \param clamp_max Clamp output less than max min
+    /// \param swiglu_beta Swiglu beta (default : 1.0f)
     /// \param output_type Output element type
     SwiGluWithClamp(const ov::Output<Node>& data,
         int64_t axis,
         int64_t split_lengths,
         const GluType glu_type,
         const size_t split_to_glu_idx,
-        const double clamp_min,
-        const double clamp_max,
+        const float clamp_min,
+        const float clamp_max,
+        const float swiglu_beta = 1.0f,
         const ov::element::Type output_type = ov::element::dynamic);
 
     void validate_and_infer_types() override;
@@ -53,11 +55,15 @@ public:
     size_t get_split_to_glu_idx() const {
         return m_split_to_glu_idx;
     }
-    int64_t get_clamp_min() const {
+    float get_clamp_min() const {
         return m_clamp_min;
     }
-    int64_t get_clamp_max() const {
+    float get_clamp_max() const {
         return m_clamp_max;
+    }
+
+    float get_swiglu_beta() const {
+        return m_swiglu_beta;
     }
 
     void set_axis(int64_t axis) {
@@ -84,8 +90,9 @@ private:
     int64_t m_split_lengths = 0;
     GluType m_glu_type = GluType::Swish;
     size_t m_split_to_glu_idx = 0;
-    double m_clamp_min = 0;
-    double m_clamp_max = 0;
+    float m_clamp_min = 0;
+    float m_clamp_max = 0;
+    float m_swiglu_beta = 1.0f;
     ov::element::Type m_output_type{};
 };
 

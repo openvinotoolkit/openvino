@@ -15,29 +15,32 @@ namespace kernel_selector {
 struct swiglu_params : public base_params {
     swiglu_params() : base_params(KernelType::SWIGLU), axis(0), split_length(0),
     glu_type(ov::op::internal::GLU::GluType::Swish), split_to_glu_idx(0),
-    clamp_min(0), clamp_max(0) {}
+    clamp_min(0), clamp_max(0), swish_beta(1.0f) {}
     int32_t axis;
     int32_t split_length;
     ov::op::internal::GLU::GluType glu_type;
     int32_t split_to_glu_idx;
-    double clamp_min;
-    double clamp_max;
+    float clamp_min;
+    float clamp_max;
+    float swish_beta = 1.0f;
 };
 
 struct swiglu_fuse_params : fuse_params {
     explicit swiglu_fuse_params(int32_t axis, size_t split_lengths, size_t split_to_glu_idx,
-        size_t clamp_min, size_t clamp_max)
+        size_t clamp_min, size_t clamp_max, float swish_beta)
         : fuse_params(KernelType::SWIGLU),
             axis(axis),
             split_length(split_lengths),
             split_to_glu_idx(split_to_glu_idx),
             clamp_min(clamp_min),
-            clamp_max(clamp_max) {}
+            clamp_max(clamp_max),
+            swish_beta(swish_beta) {}
     int32_t axis;
     size_t split_length;
     size_t split_to_glu_idx;
-    double clamp_min;
-    double clamp_max;
+    float clamp_min;
+    float clamp_max;
+    float swish_beta = 1.0f;
 };
 
 class SwiGLUKernelBase : public KernelBaseOpenCL {

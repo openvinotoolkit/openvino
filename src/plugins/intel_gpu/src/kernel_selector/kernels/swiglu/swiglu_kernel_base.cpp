@@ -42,6 +42,7 @@ JitConstants SwiGLUKernelBase::GetJitConstants(const swiglu_params& params, cons
         jit.AddConstants({MakeJitConstant("CLAMP_MAX", static_cast<float>(params.clamp_max))});
         jit.AddConstants({MakeJitConstant("CLAMP_MIN", static_cast<float>(params.clamp_min))});
     }
+    jit.AddConstants({MakeJitConstant("SWISH_BETA", static_cast<float>(params.swish_beta))});
 
     return jit;
 }
