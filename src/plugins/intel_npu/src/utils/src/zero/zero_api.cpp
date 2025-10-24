@@ -4,22 +4,57 @@
 
 #include "intel_npu/utils/zero/zero_api.hpp"
 
+#ifdef _WIN32
+#    include <windows.h>
+#    include <winver.h>
+#endif
+
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
 namespace intel_npu {
 ZeroApi::ZeroApi() {
-    const std::string baseName = "ze_loader";
+    const std::string base_name = "ze_loader";
     try {
-        auto libpath = ov::util::make_plugin_library_name({}, baseName);
+        auto lib_path = ov::util::make_plugin_library_name({}, base_name);
 #if !defined(_WIN32) && !defined(ANDROID)
-        libpath = libpath + LIB_ZE_LOADER_SUFFIX;
+        lib_path = lib_path + LIB_ZE_LOADER_SUFFIX;
 #endif
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
-#else
-        this->lib = ov::util::load_shared_object(libpath.c_str());
+        this->lib = ov::util::load_shared_object(lib_path.c_str());
+
+#ifdef _WIN32
+        DWORD handle = 0;
+#    if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+        const wchar_t* wide_path = ov::util::string_to_wstring(lib_path).c_str();
+        DWORD size = GetFileVersionInfoSizeW(wide_path, &handle);
+        if (size > 0) {
+            std::vector<BYTE> data(size);
+            if (GetFileVersionInfoW(wide_path, handle, size, data.data())) {
+                VS_FIXEDFILEINFO* loader_version = NULL;
+                uint32_t loader_version_size = 0;
+                if (VerQueryValueW(data.data(), L"\\", (LPVOID*)&loader_version, &loader_version_size) &&
+                    loader_version_size > 0 && loader_version != nullptr) {
+                    // Version is in dwFileVersionMS (high: major.minor) and dwFileVersionLS (low: build.revision)
+                    version = loader_version->dwFileVersionMS;
+                }
+            }
+        }
+#    else
+        DWORD size = GetFileVersionInfoSizeA(lib_path.c_str(), &handle);
+        if (size > 0) {
+            std::vector<BYTE> data(size);
+            if (GetFileVersionInfoA(lib_path.c_str(), handle, size, data.data())) {
+                VS_FIXEDFILEINFO* loader_version = NULL;
+                uint32_t loader_version_size = 0;
+                if (VerQueryValueA(data.data(), "\\", (LPVOID*)&loader_version, &loader_version_size) &&
+                    loader_version_size > 0 && loader_version != nullptr) {
+                    // Version is in dwFileVersionMS (high: major.minor) and dwFileVersionLS (low: build.revision)
+                    version = loader_version->dwFileVersionMS;
+                }
+            }
+        }
+#    endif
 #endif
     } catch (const std::runtime_error& error) {
         OPENVINO_THROW(error.what());
@@ -52,6 +87,10 @@ ZeroApi::ZeroApi() {
 const std::shared_ptr<ZeroApi>& ZeroApi::getInstance() {
     static std::shared_ptr<ZeroApi> instance = std::make_shared<ZeroApi>();
     return instance;
+}
+
+const uint32_t ZeroApi::getVersion() {
+    return version;
 }
 
 }  // namespace intel_npu
