@@ -7,6 +7,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -218,8 +219,33 @@ protected:
     using now_t = std::optional<std::size_t>;
     now_t now_idx() const;
 
+    // Helper method to check if current case is PREFILL
+    bool is_prefill_case() const;
+
+    // Pyramid model performance statistics (thread-safe)
+    std::map<std::size_t, double> get_pyramid_avg_times() const;
+    void print_pyramid_statistics() const;
+    void update_pyramid_statistics(std::size_t pyramid_id, double execution_time) const;
+    void reset_pyramid_statistics() const;
+
+    // Non-pyramid model performance statistics (thread-safe)
+    void update_non_pyramid_statistics(std::size_t submodel_id, double execution_time) const;
+    std::map<std::size_t, double> get_non_pyramid_avg_times() const;
+    void print_non_pyramid_statistics() const;
+    void reset_non_pyramid_statistics() const;
+
 private:
     now_t m_now_idx;
+
+    // Pyramid model performance statistics
+    mutable std::map<std::size_t, double> m_pyramid_total_time;  // pyramid_id -> total execution time
+    mutable std::map<std::size_t, std::size_t> m_pyramid_count;  // pyramid_id -> execution count
+    mutable std::mutex m_pyramid_stats_mutex;                    // Thread safety for statistics
+
+    // Non-pyramid model performance statistics
+    mutable std::map<std::size_t, double> m_non_pyramid_total_time;  // submodel_id -> total execution time
+    mutable std::map<std::size_t, std::size_t> m_non_pyramid_count;  // submodel_id -> execution count
+    mutable std::mutex m_non_pyramid_stats_mutex;                    // Thread safety for statistics
 };
 
 }  // namespace npuw
