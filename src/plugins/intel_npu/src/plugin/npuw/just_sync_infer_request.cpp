@@ -13,6 +13,7 @@
 #include <utility>
 
 #include "compiled_model.hpp"
+#include "infer_request_utils.hpp"  // to utilize copy_tensor_by_dim
 #include "logging.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
@@ -969,13 +970,13 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
         const auto& present_dst_view = ov::npuw::util::view(dst, kv_dim, past_len, present_len);
         const auto& present_src_view =
             ov::npuw::util::view(graph_mask, kv_dim, full_mask_shape[kv_dim] - present_len, present_len);
-        present_src_view->copy_to(present_dst_view._ptr);
+        ov::npuw::util::copy_tensor_by_dim(present_src_view, present_dst_view, kv_dim, kv_dim);
 
         // Copy "past" attention mask
         if (past_len > 0) {
             const auto& past_dst_view = ov::npuw::util::view(dst, kv_dim, 0, past_len);
             const auto& past_src_view = ov::npuw::util::view(graph_mask, kv_dim, 0, past_len);
-            past_src_view->copy_to(past_dst_view._ptr);
+            ov::npuw::util::copy_tensor_by_dim(past_src_view, past_dst_view, kv_dim, kv_dim);
         }
         m_cached_attention_mask = dst;
     } else {
