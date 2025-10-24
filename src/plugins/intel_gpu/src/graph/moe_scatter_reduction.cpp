@@ -22,26 +22,19 @@ std::vector<layout> moe_scatter_reduction_inst::calc_output_layouts(moe_scatter_
     const auto& desc = impl_param.typed_desc<moe_scatter_reduction>();
     const auto num_active_experts_per_token = desc->num_active_experts_per_token;
 
-    const auto& input0_layout = impl_param.get_input_layout(0);
-
-    const auto& input_shapes = impl_param.input_layouts[0].get<ShapeType>();
-    const auto& hidden_size = input_shapes[input_shapes.size() - 1];
+    const auto& input_shape = impl_param.input_layouts[0].get<ShapeType>();
+    const auto& hidden_size = input_shape[input_shape.size() - 1];
     OPENVINO_ASSERT(hidden_size.is_static(), impl_param.desc->id, " hidden size dimension (shape[1]) must be static");
 
-    const auto& input0_pshape = input0_layout.get_partial_shape();
-    auto input0_len = input0_pshape.size();
-
-    input0_len = input0_len;
     if (impl_param.input_layouts[0].is_dynamic())
         return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)},
                 impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
     const auto num_tokens = impl_param.input_layouts[0].get_shape()[0] / num_active_experts_per_token;
-    // TODO!!!
-    if (getenv("IS_PA") != nullptr) {
-        const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens), 1, ov::Dimension(hidden_size)};
-        return {layout{out_shape, impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
-    }  else {
+    if (desc->has_batch_dim) {
         const auto& out_shape = ov::PartialShape{1, ov::Dimension(num_tokens), ov::Dimension(hidden_size)};
+        return {layout{out_shape, impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
+    } else {
+        const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens), 1, ov::Dimension(hidden_size)};
         return {layout{out_shape, impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
     }
 }

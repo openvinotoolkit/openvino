@@ -11,7 +11,7 @@ namespace ov::intel_gpu {
 class ConvertMOEToMOECompressed: public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertMOEToMOECompressed");
-    ConvertMOEToMOECompressed();
+    ConvertMOEToMOECompressed(bool is_pa);
 };
 
 }   // namespace ov::intel_gpu
