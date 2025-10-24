@@ -68,7 +68,7 @@ namespace ov::intel_gpu {
          mul_m_##SUFFIX, mul2_m_##SUFFIX});
 
 
-ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
+ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
     // gemm3 pattern start
     auto reshape_ungroup = [](const ov::Output<ov::Node>& output) {
         auto in_ps = output.get_node()->get_input_partial_shape(0);
@@ -245,6 +245,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
             config.group_size = weight_shape[2] / scale_shape[scale_shape.size() - 2];
             config.top_k = topk_shape.rbegin()->get_length();
             config.out_type = ov::element::dynamic;
+            config.has_batch_dim = is_pa ? 0 : 1;
 
             args.push_back(pattern_map.at(input_gemm2_m));
             args.push_back(topk_weight_output);

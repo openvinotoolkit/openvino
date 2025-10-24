@@ -4,6 +4,7 @@
 
 #pragma once
 #include "primitive.hpp"
+#include "intel_gpu/op/moe_compressed.hpp"
 
 namespace cldnn {
 
@@ -30,15 +31,17 @@ struct moe_scatter_reduction : public primitive_base<moe_scatter_reduction> {
                           const input_info& tokens_per_expert,
                           const input_info& experts_info_offsets,
                           const input_info& tokens_len_per_expert,
-                          int32_t num_active_experts_per_token = 0)
+                          const ov::intel_gpu::op::MOECompressed::Config& moe_config)
         : primitive_base(id, {data, experts_per_token, expert_weights_per_token, tokens_per_expert,
-            experts_info_offsets, tokens_len_per_expert}), num_active_experts_per_token(num_active_experts_per_token) {}
+            experts_info_offsets, tokens_len_per_expert}), num_active_experts_per_token(moe_config.top_k), has_batch_dim(moe_config.has_batch_dim) {}
 
     int32_t num_active_experts_per_token = 0;
+    bool has_batch_dim = true;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, num_active_experts_per_token);
+        seed = hash_combine(seed, has_batch_dim);
         return seed;
     }
 
@@ -54,11 +57,13 @@ struct moe_scatter_reduction : public primitive_base<moe_scatter_reduction> {
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<moe_scatter_reduction>::save(ob);
         ob << num_active_experts_per_token;
+        ob << has_batch_dim;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<moe_scatter_reduction>::load(ib);
         ib >> num_active_experts_per_token;
+        ib >> has_batch_dim;
     }
 };
 }
