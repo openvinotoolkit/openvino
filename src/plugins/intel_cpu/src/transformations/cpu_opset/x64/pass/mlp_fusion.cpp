@@ -123,7 +123,8 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         // Check that the first input of Multiply is the gate (activation) branch and the second input is the up branch;
-        // otherwise, do not fuse.
+        // otherwise, do not fuse. Input order is critical for correctness: mismatched input order can silently cause
+        // accuracy issues.
         auto mlp_gated_up_node = pattern_map.at(mlp_gated_up).get_node_shared_ptr();
         auto input0 = mlp_gated_up_node->input_value(0);
         auto input1 = mlp_gated_up_node->input_value(1);
