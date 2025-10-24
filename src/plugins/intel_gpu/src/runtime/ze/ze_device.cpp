@@ -83,8 +83,12 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     bool supports_dp_properties =
         supports_extension(extensions, ZE_INTEL_DEVICE_MODULE_DP_PROPERTIES_EXP_NAME, ZE_INTEL_DEVICE_MODULE_DP_PROPERTIES_EXP_VERSION_1_0);
 
-    ze_device_ip_version_ext_t ip_version_properties = {ZE_STRUCTURE_TYPE_DEVICE_IP_VERSION_EXT, nullptr, 0};
-    ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES_1_2, supports_ip_version ? &ip_version_properties : nullptr};
+    void *device_properties_next = nullptr;
+    ze_device_ip_version_ext_t ip_version_properties = {ZE_STRUCTURE_TYPE_DEVICE_IP_VERSION_EXT, device_properties_next, 0};
+    if (supports_ip_version) {
+        device_properties_next = &ip_version_properties;
+    }
+    ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES_1_2, device_properties_next};
     OV_ZE_EXPECT(zeDeviceGetProperties(device, &device_properties));
 
     ze_device_compute_properties_t device_compute_properties{ZE_STRUCTURE_TYPE_DEVICE_COMPUTE_PROPERTIES};
@@ -142,7 +146,9 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.gpu_frequency = device_properties.coreClockRate;
 
-    info.supported_simd_sizes = {};
+    // Set SIMD values as reasonable default for most of the supported platforms
+    // Could not find how to retrieve all supported SIMD sizes from L0
+    info.supported_simd_sizes = {8, 16, 32};
     info.has_separate_cache = true;
 
     info.max_work_group_size = device_compute_properties.maxTotalGroupSize;
@@ -180,7 +186,8 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
 
-    info.gfx_ver = {0, 0, 0}; // could find how to retrieve this from L0 so far
+    // Could not find how to retrieve gfx_ver from L0
+    info.gfx_ver = {0, 0, 0};
     info.ip_version = ip_version_properties.ipVersion;
     info.sub_device_idx = (std::numeric_limits<uint32_t>::max)();
 
@@ -209,7 +216,6 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     }
 
     info.supports_mutable_command_list = false;
-
     if (supports_mutable_list) {
         ze_mutable_command_list_exp_properties_t mutable_list_props = { ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_PROPERTIES,  nullptr, 0, 0 };
         ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES, &mutable_list_props};
