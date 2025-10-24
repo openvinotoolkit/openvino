@@ -348,6 +348,23 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                                                                                       << "]: Unknown error");
                         NPUW_ASSERT(false && "Pyramid model infer request creation failed with unknown error");
                     }
+
+                    if (model_id > 0) {
+                        for (auto input : compiled_models[model_id]->inputs()) {
+                            // Check if tensor has names before getting the name
+                            if (!input.get_names().empty()) {
+                                auto input_name = input.get_any_name();
+                                if (ov::npuw::util::isPastKeyValuesKey(input_name) ||
+                                    ov::npuw::util::isPastKeyValuesValue(input_name)) {
+                                    auto tensor =
+                                        proto_comp_model_desc.pyramid_infer_requests[model_id]->get_tensor(input);
+                                    if (!is_zero_remote_tensor(tensor)) {
+                                        std::cout << "infer request: tensor is not zero memory!!" << std::endl;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // For the last pyramid model, reuse the original model's infer requests
@@ -358,6 +375,21 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                     if (is_piped) {
                         proto_comp_model_desc.pyramid_pipeline_requests[last_model_id] =
                             m_funcall_pipeline[real_idx].subrequest;
+                    }
+
+                    for (auto input : compiled_models[last_model_id]->inputs()) {
+                        // Check if tensor has names before getting the name
+                        if (!input.get_names().empty()) {
+                            auto input_name = input.get_any_name();
+                            if (ov::npuw::util::isPastKeyValuesKey(input_name) ||
+                                ov::npuw::util::isPastKeyValuesValue(input_name)) {
+                                auto tensor =
+                                    proto_comp_model_desc.pyramid_infer_requests[last_model_id]->get_tensor(input);
+                                if (!is_zero_remote_tensor(tensor)) {
+                                    std::cout << "infer request: last model tensor is not zero memory!!" << std::endl;
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -910,6 +942,11 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
             // All sub models are sharing the same attention mask, we can use the cached attention
             // mask directly to avoid redundant tensor copy
             m_subrequests[real_idx]->set_tensor(mask_iport, m_cached_attention_mask);
+
+            if (!is_zero_remote_tensor(m_cached_attention_mask)) {
+                std::cout << "function_prologue_pyramid_attn: m_cached_attention_mask is not zero memory!!"
+                          << std::endl;
+            }
             return;
         }
 
@@ -923,6 +960,10 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
 
         // Reshape the input to the proper shape
         const auto& dst = r->get_tensor(mask_iport);
+
+        if (!is_zero_remote_tensor(dst)) {
+            std::cout << "function_prologue_pyramid_attn: dst is not zero memory!!" << std::endl;
+        }
 
         // Copy "present" attention mask
         const auto& present_dst_view = ov::npuw::util::view(dst, kv_dim, past_len, present_len);

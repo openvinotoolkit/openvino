@@ -815,6 +815,10 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
                                                dst,
                                                static_cast<uint32_t>(param.dim),
                                                static_cast<uint32_t>(param.dim));
+
+            if (!is_zero_remote_tensor(dst)) {
+                std::cout << "bind_pyramid_attention_inputs: dst is not zero memory!!" << std::endl;
+            }
         } else if (do_copy && ov::shape_size(shape) == 0) {
             // Special case for 0ths chunk.
             // Zero the tensor shape
@@ -1071,6 +1075,15 @@ bool ov::npuw::IBaseInferRequest::is_prefill_case() const {
 
     // If no selector is available, assume it's not prefill
     return false;
+}
+
+bool ov::npuw::IBaseInferRequest::is_zero_remote_tensor(const ov::SoPtr<ov::ITensor>& tensor) const {
+    auto remote_ctx =
+        m_npuw_model->get_plugin()->get_core()->get_default_context(m_npuw_model->global_mem_device())._ptr;
+    auto zrh = remote_ctx->get_property().at(ov::intel_npu::l0_context.name());
+    return ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(
+               static_cast<ze_context_handle_t>(zrh.as<void*>()),
+               tensor->data()) > 0;
 }
 
 void ov::npuw::IBaseInferRequest::update_pyramid_statistics(std::size_t pyramid_id, double execution_time) const {
