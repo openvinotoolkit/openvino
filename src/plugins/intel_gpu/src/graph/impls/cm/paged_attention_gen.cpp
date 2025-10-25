@@ -120,8 +120,12 @@ float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
 // either threshold is larger than 1.0, or, q_len is too small
 // to compute xattn block_mask.
 bool bypass_xattn(const kernel_impl_params& params) {
-    auto xattn_thresh = get_xattn_thresh(params);
-    bool bypass = xattn_thresh >= 1.0;
+    bool bypass = false;
+    bool allow_bypass = params.get_program().get_config().get_allow_bypass_xattn();
+    if (allow_bypass) {
+        auto xattn_thresh = get_xattn_thresh(params);
+        bypass = xattn_thresh >= 1.0;
+    }
 
     auto q_len = params.output_layouts[0].get_shape()[0];
     bypass |= q_len < static_cast<size_t>(STRIDE);  //# will slient drop the tails which is less than `stride`

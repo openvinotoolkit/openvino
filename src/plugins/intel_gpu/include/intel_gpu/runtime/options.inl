@@ -57,6 +57,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, asym_dynamic_quantization, fals
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, could_use_flashattn_v2, true, "Enable/Disable SDPA primitive executing with FlashAttenV2 online softmax tricks.")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_threshold, 64, "Apply dynamic quantization only when batch size is larger than this value in OneDNN")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_precomputed_reduction, true, "Precompute reduction of activation for faster dynamic quantization in case of asymmetric weight")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_bypass_xattn, true, "Allow bypass xattn execution if threshold >= 1.0.")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, weightless_attr, nullptr, "Used to configure ov::WeightlessCacheAttribute for constants that are not loaded from a .bin file. This typically applies to non-IR inputs (e.g., ORT)")
 
 

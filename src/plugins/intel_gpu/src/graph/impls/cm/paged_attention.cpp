@@ -138,28 +138,6 @@ public:
             if (has_stage(xattn_estimate_gemmqk) && !bypass_xattn(params)) {
                 res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk)};
                 res_event = {execute_stage(res_event, instance, xattn_estimate_find_block)};
-#if DUMP_XATTN_BLOCK_MASK
-                {
-                    cldnn::stream& stream = instance.get_network().get_stream();
-                    stream.finish();
-                    static uint32_t pa_id = 0;
-                    std::cout << "finish xattn_estimate_find_block!\n";
-                    auto output_mem = instance.get_intermediates_memories()[4];
-                    mem_lock<char, mem_lock_type::read> lock(output_mem, stream);
-                    auto& layout = output_mem->get_layout();
-                    std::string data_type = ov::element::Type(layout.data_type).get_type_name();
-                    std::string format = layout.format.to_string();
-                    std::string tensor;
-                    auto dims = layout.get_dims();
-                    for (size_t r = 0 ; r < layout.get_rank() ; r++) {
-                        tensor += ("_" + to_string(dims[r]));
-                    }
-                    // std::string filename = "PA" + std::to_string(pa_id) + "__" + data_type + "_" + tensor + "__" + format + ".bin";
-                    std::string filename = "PA" + std::to_string(pa_id) + ".bin";
-                    ov::util::save_binary(filename, lock.data(), output_mem->size());
-                    pa_id++;
-                }
-#endif
                 res_event = {execute_stage(res_event, instance, xattn_estimate_post_proc)};
             }
             res_event = {execute_stage(res_event, instance, pa_multi_token)};
