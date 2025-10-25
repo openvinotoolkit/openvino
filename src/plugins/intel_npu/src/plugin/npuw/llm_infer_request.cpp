@@ -579,13 +579,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
 
-        // Handle first chunk with prefix caching: adjust chunk size and populate attention mask for restored cache
+        // Handle first chunk with prefix caching: populate attention mask for restored cache
         if (enable_prefix_caching && cache_context.restore_prefix_cache) {
-            if (current_prompts_len == chunk_prompt_len) {
-                auto token_num_to_a_full_chunk =
-                    m_prefix_caching_helper->adjust_chunk_size(kvcache_desc.num_stored_tokens, chunk_prompt_len);
-                current_prompts_len = token_num_to_a_full_chunk;
-            }
             m_prefix_caching_helper->populate_attention_mask_for_restored_cache(attention_mask,
                                                                                 attn_mask_in_tensor,
                                                                                 kvcache_desc.num_stored_tokens);
