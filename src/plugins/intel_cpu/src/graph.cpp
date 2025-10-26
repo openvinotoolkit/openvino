@@ -81,7 +81,7 @@
 #    include <atomic>
 #endif
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#if OV_THREAD_USE_TBB
 #    include <tbb/task.h>
 #endif
 
@@ -1437,7 +1437,7 @@ protected:
 };
 
 // NOLINTBEGIN(misc-include-cleaner) tbb has multiple implicit includes, which are not supposed to be included directly
-#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#    if OV_THREAD_USE_TBB
 #        if (TBB_VERSION_MAJOR > 2020)
 template <typename Body>
 class AsyncTask : public tbb::detail::d1::task {

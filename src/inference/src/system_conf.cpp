@@ -420,7 +420,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
     OPENVINO_ASSERT(totalNumberOfCpuCores != 0, "Total number of cpu cores can not be 0.");
 
     int phys_cores = totalNumberOfCpuCores;
-#        if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#        if OV_THREAD_USE_TBB
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         phys_cores = custom::info::default_concurrency(
@@ -558,7 +558,7 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
 
 int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
     int logical_cores = parallel_get_max_threads();
-#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#    if OV_THREAD_USE_TBB
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         logical_cores = custom::info::default_concurrency(

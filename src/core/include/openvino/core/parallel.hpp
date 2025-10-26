@@ -24,6 +24,7 @@
 #define OV_THREAD_TBB_ADAPTIVE 4
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#    define OV_THREAD_USE_TBB 1
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
@@ -82,6 +83,7 @@ inline void parallel_set_max_nested_levels(int levels) {
 #        define PARTITIONING
 #    endif
 #elif OV_THREAD == OV_THREAD_OMP
+#    define OV_THREAD_USE_TBB 0
 #    include <omp.h>
 #    if !defined(_OPENMP)
 #        error Undefined OpenMP version.
@@ -163,6 +165,7 @@ inline int parallel_get_nested_level() {
 }
 
 #elif OV_THREAD == OV_THREAD_SEQ
+#    define OV_THREAD_USE_TBB 0
 #    include <algorithm>
 inline int parallel_get_env_threads() {
     return 1;
@@ -232,7 +235,7 @@ namespace ov {
 
 template <typename F>
 void parallel_nt(int nthr, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#if OV_THREAD_USE_TBB
     if (nthr == 0)
         nthr = parallel_get_max_threads();
     if (nthr == 1) {
@@ -280,7 +283,7 @@ void parallel_nt_static(int nthr, const F& func) {
 
     if (nthr == 0)
         nthr = parallel_get_max_threads();
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#if OV_THREAD_USE_TBB
     tbb::parallel_for(
         0,
         nthr,
@@ -306,7 +309,7 @@ void parallel_nt_static(int nthr, const F& func) {
 
 template <typename I, typename F>
 void parallel_sort(I begin, I end, const F& comparator) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#if OV_THREAD_USE_TBB
     tbb::parallel_sort(begin, end, comparator);
 #elif OV_THREAD == OV_THREAD_OMP
     // TODO: propose OpenMP version
@@ -318,7 +321,7 @@ void parallel_sort(I begin, I end, const F& comparator) {
 
 template <typename T0, typename R, typename F>
 R parallel_sum(const T0& D0, const R& input, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#if OV_THREAD_USE_TBB
     return _TBB_REDUCE_FUNC(
         tbb::blocked_range<T0>(0, D0),
         input,
@@ -352,7 +355,7 @@ R parallel_sum(const T0& D0, const R& input, const F& func) {
 
 template <typename T0, typename T1, typename R, typename F>
 R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#if OV_THREAD_USE_TBB
     return _TBB_REDUCE_FUNC(
         tbb::blocked_range2d<T0, T1>(0, D0, 0, D1),
         input,
@@ -392,7 +395,7 @@ R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
 }
 template <typename T0, typename T1, typename T2, typename R, typename F>
 R parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#if OV_THREAD_USE_TBB
     return _TBB_REDUCE_FUNC(
         tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2),
         input,
@@ -637,7 +640,7 @@ void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
 
 template <typename T0, typename T1, typename F>
 void parallel_for2d_dynamic(const T0& D0, const T1& D1, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#if OV_THREAD_USE_TBB
     tbb::parallel_for(tbb::blocked_range2d<T0, T1>(0, D0, 0, D1), [=](const tbb::blocked_range2d<T0, T1>& r) {
         for (T0 d0 = r.rows().begin(); d0 < r.rows().end(); d0++) {
             for (T1 d1 = r.cols().begin(); d1 < r.cols().end(); d1++) {
@@ -721,7 +724,7 @@ void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
 
 template <typename T0, typename T1, typename T2, typename F>
 void parallel_for3d_dynamic(const T0& D0, const T1& D1, const T2& D2, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#if OV_THREAD_USE_TBB
     tbb::parallel_for(tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2),
                       [=](const tbb::blocked_range3d<T0, T1, T2>& r) {
                           for (T0 d0 = r.pages().begin(); d0 < r.pages().end(); d0++) {

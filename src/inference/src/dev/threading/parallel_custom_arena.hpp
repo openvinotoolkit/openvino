@@ -13,7 +13,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/common.hpp"
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#if OV_THREAD_USE_TBB
 
 #    include <cstddef>
 #    include <memory>

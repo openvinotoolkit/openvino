@@ -385,8 +385,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return enable_tensor_parallel;
     }
     if (name == ov::intel_cpu::tbb_partitioner) {
-        const auto tbb_partitioner = config.tbbPartitioner;
-        return tbb_partitioner;
+        return config.tbbPartitioner;
     }
     if (name == ov::hint::dynamic_quantization_group_size) {
         return static_cast<decltype(ov::hint::dynamic_quantization_group_size)::value_type>(

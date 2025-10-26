@@ -7,9 +7,9 @@
 #include <common/dnnl_thread.hpp>
 #include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <oneapi/dnnl/dnnl_threadpool_iface.hpp>
-#include <openvino/core/parallel.hpp>
 
 #include "cpu_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 
 namespace ov::intel_cpu {
