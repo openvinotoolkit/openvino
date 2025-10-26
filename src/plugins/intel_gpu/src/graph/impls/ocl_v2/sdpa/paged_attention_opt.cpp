@@ -308,6 +308,11 @@ public:
             jit.add(make_type_jit_constants("ALIBI_INPUT", params.input_layouts[alibi_input_idx].data_type));
         }
 
+        if (desc->has_sink_input) {
+            const auto& sink_layout = params.input_layouts[PagedAttentionInputIdx::SINKS];
+            jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
+            jit.make("HAS_SINK_INPUT", 1);
+        }
         if (params.output_layouts.size() > 1) {
             jit.make("PAGED_ATTENTION_SCORES_OUTPUT", 1);
             if (desc->has_score_aggregation) {
@@ -396,7 +401,7 @@ public:
         const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = params.output_layouts.size() > 1;
-
+        const auto has_sink_input = desc->has_sink_input;
         if (params.is_dynamic()) {
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         }
@@ -414,6 +419,10 @@ public:
 
         if (has_alibi) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ALIBI});  // alibi
+        }
+
+        if (has_sink_input) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
         }
 
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});

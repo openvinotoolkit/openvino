@@ -35,6 +35,7 @@
 #include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
+#include "transformations/common_optimizations/fuse_moe_experts.hpp"
 #include "transformations/common_optimizations/gelu_fusion.hpp"
 #include "transformations/common_optimizations/gru_cell_fusion.hpp"
 #include "transformations/common_optimizations/hsigmoid_fusion.hpp"
@@ -289,6 +290,11 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, ResolveNameCollisions, true);
+    // todo: enable after plugin support for MoE
+    // Remove pytestmark to enable e2e test:
+    // tests/model_hub_tests/transformation_tests/test_moe_transformation.py
+    // REGISTER_PASS(manager, FuseMOE)
+
     manager.run_passes(f);
 
     if (!m_use_shapes) {

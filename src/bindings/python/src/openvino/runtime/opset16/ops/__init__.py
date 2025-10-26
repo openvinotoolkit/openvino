@@ -6,3 +6,5 @@ from openvino.opset16.ops import identity
 from openvino.opset16.ops import istft
 from openvino.opset16.ops import segment_max
 from openvino.opset16.ops import sparse_fill_empty_rows
+from openvino.opset16.ops import avg_pool
+from openvino.opset16.ops import one_hot

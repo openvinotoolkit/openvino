@@ -72,13 +72,21 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
 }
 
 std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
+                                                   const ov::PartialShape& ioShape,
                                                    const std::shared_ptr<ov::ITensor>& tensor,
                                                    const std::optional<size_t> batchSize) {
     if (tensor == nullptr && !batchSize.has_value()) {
         return std::nullopt;
     }
 
-    if (!desc.shapeFromIRModel.has_value() || !desc.shapeFromIRModel.value().is_dynamic()) {
+    if (!ioShape.size()) {
+        return std::nullopt;
+    }
+
+    auto batchFromModel = ioShape[intel_npu::utils::BATCH_AXIS];
+    auto batchModelFromIR =
+        desc.shapeFromIRModel.has_value() && desc.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS].is_dynamic();
+    if (!batchFromModel.is_dynamic() && !batchModelFromIR) {
         return std::nullopt;
     }
 
@@ -90,11 +98,7 @@ std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
         return std::nullopt;
     }
 
-    if ((*desc.shapeFromIRModel)[intel_npu::utils::BATCH_AXIS].is_dynamic()) {
-        return tensor->get_shape()[intel_npu::utils::BATCH_AXIS];
-    }
-
-    return std::nullopt;
+    return tensor->get_shape()[intel_npu::utils::BATCH_AXIS];
 }
 
 }  // namespace
@@ -310,8 +314,9 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             return;
         }
 
+        auto ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
         auto batchSizeCandidate =
-            determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), tensor._ptr, std::nullopt);
+            determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
 
         if (batchSizeCandidate.has_value()) {
             if (!_dynamicBatchValueChanged) {
@@ -351,8 +356,9 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             return;
         }
 
+        auto ioShape = _compiledModel->outputs()[foundPort.idx].get_partial_shape();
         auto batchSizeCandidate =
-            determine_dynamic_batch_size(_metadata.outputs.at(foundPort.idx), tensor._ptr, std::nullopt);
+            determine_dynamic_batch_size(_metadata.outputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
 
         if (batchSizeCandidate.has_value()) {
             if (!_dynamicBatchValueChanged) {
@@ -443,7 +449,9 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
     _logger.debug("ZeroInferRequest::set_tensors: %zu", tensors.size());
 
-    auto batchSizeCandidate = determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), nullptr, tensors.size());
+    auto ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
+    auto batchSizeCandidate =
+        determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, nullptr, tensors.size());
 
     // Check if batch has been changed
     if (batchSizeCandidate.has_value()) {

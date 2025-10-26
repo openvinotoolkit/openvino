@@ -85,11 +85,13 @@ public:
                     const std::vector<std::string>& names,
                     const void* data,
                     const size_t data_size,
+                    const ov::Any& data_any,
                     std::shared_ptr<std::string> data_location,
                     const bool is_raw)
         : ov::frontend::onnx::TensorPlace(input_model, pshape, type, names),
           m_input_model(input_model),
           m_data(data),
+          m_data_any(data_any),
           m_data_size(data_size),
           m_data_location(data_location),
           m_is_raw(is_raw) {};
@@ -125,6 +127,10 @@ public:
         return m_data_size;
     }
 
+    const ov::Any get_data_any() const {
+        return m_data_any;
+    }
+
     std::shared_ptr<std::string> get_data_location() const {
         return m_data_location;
     }
@@ -140,6 +146,7 @@ protected:
     int64_t m_input_idx = -1, m_output_idx = -1;
     const ov::frontend::InputModel& m_input_model;
     const void* m_data;
+    ov::Any m_data_any;
     size_t m_data_size;
     std::shared_ptr<std::string> m_data_location;
     bool m_is_raw;
@@ -178,7 +185,7 @@ public:
           m_shape{std::begin(tensor.dims()), std::end(tensor.dims())},
           m_model_dir{model_dir},
           m_mmap_cache{mmap_cache} {
-        if (m_shape == ov::Shape{0}) {
+        if (m_shape == ov::Shape{0} && get_data_size() == 1) {
             // It's possible to construct a tensor in ONNX with "dims: 0" property
             // Such tensor contains a scalar. This results in a ov::Shape{0} stored in m_shape.
             // In OpenVINO a scalar is represented with ov::Shape{} and thus this replacement.

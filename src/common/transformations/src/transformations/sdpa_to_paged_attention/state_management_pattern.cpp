@@ -405,7 +405,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &rotation_deltas_inputs_for_each_layer,
                                           &xattention_threshold_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto real_q = pattern_map.at(q);
+        const auto& real_q = pattern_map.at(q);
 
         auto sdpa_node = pattern_map
                              .at(pattern_map.count(sdpa_with_4_inputs)   ? sdpa_with_4_inputs
@@ -671,9 +671,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         // For now we haven't seen sinks in any other model than gpt-oss, so taking -3 is generally safe
         // as there's going to be num_q_heads at -3.
-        if (pattern_map.count(sinks) &&
-            pattern_map.at(sinks).get_partial_shape()[-3] == real_q.get_partial_shape()[-3]) {
-            pa_arguments.insert(pa_arguments.begin() + 20, pattern_map.at(sinks).get_node_shared_ptr());
+        if (pattern_map.count(sinks)) {
+            const auto& sinks_val = pattern_map.at(sinks);
+            if (sinks_val.get_partial_shape()[-3] == real_q.get_partial_shape()[-3]) {
+                pa_arguments.insert(pa_arguments.begin() + 20, sinks_val.get_node_shared_ptr());
+            } else {
+                pa_arguments.insert(pa_arguments.begin() + 20,
+                                    v0::Constant::create(real_q.get_element_type(), Shape{0, 0, 0, 0}, {}));
+            }
         } else {
             pa_arguments.insert(pa_arguments.begin() + 20,
                                 v0::Constant::create(real_q.get_element_type(), Shape{0, 0, 0, 0}, {}));

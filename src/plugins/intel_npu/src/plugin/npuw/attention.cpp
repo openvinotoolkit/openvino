@@ -165,6 +165,7 @@ void ov::npuw::runtime::attention::PositionIDs::prepare(int64_t past_len) {
     const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
     const auto in_tensor = m_rq.get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
+    const auto pos_ids_len = static_cast<int64_t>(in_dims.back());
 
     // There's several cases possible:
     // a. Prefill input_ids, including chunk
@@ -175,7 +176,7 @@ void ov::npuw::runtime::attention::PositionIDs::prepare(int64_t past_len) {
     // c may require traversing the tensor backwards as Generate with N>1 is right_padded (?)
 
     auto* pos_data_ptr = in_tensor->data<int64_t>();
-    for (auto idx = in_dims.back() - 1; idx >= 0; idx--) {
+    for (auto idx = pos_ids_len - 1; idx >= 0; idx--) {
         if (pos_data_ptr[idx] > 0) {
             // Initialize fields
             m_current_length = pos_data_ptr[idx];
