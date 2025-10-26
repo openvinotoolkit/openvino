@@ -90,8 +90,6 @@ protected:
     }
 
     std::shared_ptr<ov::Model> createFunction(bool secondInputConst) {
-        int *p = new int[100];
-        (void)p;
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0])};
         params.front()->set_friendly_name("ParamsInput");
         std::shared_ptr<ov::Node> secondInput;
