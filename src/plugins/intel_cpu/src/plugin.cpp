@@ -519,11 +519,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
 
     if (name == ov::enable_weightless) {
-        if (engConfig.enableWeightless) {
-            return decltype(ov::enable_weightless)::value_type{*engConfig.enableWeightless};
-        } else {
-            return decltype(ov::enable_weightless)::value_type{engConfig.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE};
-        }
+        return decltype(ov::enable_weightless)::value_type{engConfig.enableWeightless};
     }
 
     return get_ro_property(name, options);
