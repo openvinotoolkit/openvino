@@ -86,10 +86,13 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
         jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
     }
     jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
-    jit.make("INPUT_STRIDE", params.input_layouts[1].get_shape()[2]);
+    jit.make("INPUT_STRIDE", params.input_layouts[1].get_shape()[2] * params.input_layouts[1].get_shape()[3]);
     jit.make("OUTPUT_STRIDE", params.input_layouts[1].get_shape()[1]);
     if (!m_is_prefill)
         jit.make("IS_GENERATE", 1);
+    auto slm_size = moe_gemm.getSetting("slm_size");
+    if (slm_size > 0)
+        jit.make("USE_SLM", 1);
     return jit;
 }
 
@@ -221,14 +224,12 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
 
         auto input_layout = params.get_input_layout(moe_gemm::MoEGemmInputIdx::INPUT);
         auto experts_weight_layout = params.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT);
-//        auto input_tokens_lens_layout = params.get_input_layout(moe_gemm::MoEGemmInputIdx::INPUT_TOKENS_LENS);
         auto output_layout = params.get_output_layout();
 
         size_t n = input_layout.get_shape()[0];
         const auto& experts_weight_shape = experts_weight_layout.get_shape();
         size_t m = experts_weight_shape[1];
         size_t k = experts_weight_shape[2] * experts_weight_shape[3];
-
         wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, 1};
         wgs.global = {align_to(ceil_div(m, sg_tile_m), sg_per_wg_m) * get_subgroup_size(device_info.arch),
             align_to(ceil_div(n, sg_tile_n), sg_per_wg_n),
@@ -268,7 +269,6 @@ Arguments MoEGemmMicroGenerator::get_arguments_desc(const kernel_impl_params& pa
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // m
     args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // k
 
-    args.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
 
     if (cfg.is_weight_quantized) {
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(cfg.weight_scale_idx)});
@@ -325,9 +325,14 @@ KernelData MoEGemmMicroGenerator::get_kernel_data(const kernel_impl_params& para
 
     // Micro kernel is using slm implicitly inside the kernel.
     // Therefore the slm should be allocated.
-    auto slm_size = kd.micro_kernels[0]->p.getSetting("slm_size");
+    uint32_t slm_size = kd.micro_kernels[0]->p.getSetting("slm_size");
+    GPU_DEBUG_COUT << "slm_size : " << slm_size << std::endl;
     kd.params.local_memory_args.clear();
-    kd.params.local_memory_args.push_back(slm_size > 0 ? slm_size : 1);
+    if (slm_size > 0) {
+        kd.params.local_memory_args.push_back(slm_size);
+        kd.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, slm_size});
+
+    }
     return kd;
 }
 }  // namespace ov::intel_gpu::ocl

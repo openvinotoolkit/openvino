@@ -33,9 +33,9 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #endif
         global OUTPUT_TYPE *out_ptr,
         const global INPUT2_TYPE *experts_ids,
-        const global INPUT3_TYPE * input_offset_per_expert, 
+        const global INPUT3_TYPE * input_offset_per_expert,
         const global INPUT4_TYPE *n_array,
-        int m, int k, local int* slm
+        int m, int k
 #ifdef WEIGHT_COMPRESSED_INT4
         , const global WEIGHT_SCALE_DT *weight_scales
         #ifdef WEIGHT_ZP_DT
@@ -45,9 +45,13 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef BIAS_DT
         , const global BIAS_DT *bias_ptr
 #endif
+#ifdef USE_SLM
+        , local int* slm
+#endif
 ) {
     uint batch = get_group_id(2);
     int input_offset = input_offset_per_expert[batch];
+
     #ifdef IS_GENERATE
     if (INPUT0_BATCH_NUM > 1) {
     #endif
@@ -60,12 +64,11 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 
     int ld_input = k;
 #ifdef WEIGHT_COMPRESSED_INT4
-    weight_scales += experts_ids[batch] * m;
+    weight_scales += experts_ids[batch] * m * NUM_GROUPS;
     #ifdef WEIGHT_ZP_DT
-    weight_zps += experts_ids[batch] * m;
+    weight_zps += experts_ids[batch] * m * NUM_GROUPS;
     #endif
 #endif
-
     int ld_weight = k;
     int cur_n_tokens = n_array[batch];
 
@@ -76,10 +79,13 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     uint wg_j0 = get_group_id(1) * ugemm_moe_wg_tile_n;
     uint sg_i0 = wg_i0 + sg_i * ugemm_moe_sg_tile_m;
     uint sg_j0 = wg_j0 + sg_j * ugemm_moe_sg_tile_n;
-
     if (wg_j0 >= cur_n_tokens)
         return;     /* early exit if outside batch */
+#ifdef USE_SLM
     ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, slm
+#else
+    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, 0
+#endif
 #ifdef WEIGHT_COMPRESSED_INT4
                                         , weight_scales
 #ifdef WEIGHT_ZP_DT
