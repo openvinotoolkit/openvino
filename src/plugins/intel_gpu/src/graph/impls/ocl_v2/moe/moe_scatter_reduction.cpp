@@ -90,7 +90,7 @@ protected:
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         }
 
-        uint32_t num_of_inputs = 6;
+        uint32_t num_of_inputs = 7;
 
         for (uint32_t i = 0; i < num_of_inputs; i++) {
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
@@ -106,7 +106,7 @@ protected:
             auto& wgs = kd.params.workGroups;
 
             if (!params.is_dynamic()) {
-                auto hidden_size = extract_channel(ChannelName::Y, params.input_layouts[0]);
+                size_t hidden_size = params.input_layouts[0].get_shape().back();
                 auto block_size = GetBlockSize(params);
                 auto [local_threads_count, batches_per_thread, unaligned_elements]  = calc_thread_count(
                     const_cast<RuntimeParams&>(params), block_size, hidden_size);
