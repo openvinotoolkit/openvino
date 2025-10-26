@@ -820,10 +820,10 @@ inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
 /** @endcond */
 
 /**
- * @brief Read-write property to select the cache mode between optimize_size and optimize_speed.
- * If optimize_speed is selected (default), loading time will decrease but the cache file size will increase.
- * If optimize_size is selected, smaller cache files will be created.
- * Only the GPU and NPU plugins support this for now.
+ * @brief Read-write property to select the cache mode between OPTIMIZE_SIZE and OPTIMIZE_SPEED.
+ * If OPTIMIZE_SPEED is selected (default), loading time will decrease but the cache file size will increase.
+ * If OPTIMIZE_SIZE is selected, smaller cache files will be created.
+ * The cache model default behaviour can be overridden by ENABLE_WEIGHTLESS property.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
