@@ -48,7 +48,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
-      
+
       - name: Get target branch
         id: set_target_branch
         run: |
@@ -81,8 +81,8 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'windows_2022'
       build-type: 'Debug'
-      timeout-minutes: 60
-      
+      timeout-minutes: 90
+
   Overall_Status:
     name: ci/gha_overall_status_windows_debug
     needs: [ Smart_CI, Build, CXX_Unit_Tests ]

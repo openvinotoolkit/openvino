@@ -862,6 +862,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.addcmul.default", op::translate_addcmul_fx},
         {"aten.addmm.default", op::translate_addmm_fx},
         {"aten.alias.default", op::skip_node},
+        {"aten.alias_copy.default", op::translate_alias_copy},
         {"aten.all.default", op::translate_all},
         {"aten.amax.default", op::translate_amax},
         {"aten.amin.default", op::translate_amin},
