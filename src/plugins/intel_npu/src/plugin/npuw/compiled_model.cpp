@@ -1012,10 +1012,13 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
 
         // Serialize compiled submodels
         write(model_stream, m_compiled_submodels.size());
-        for (const auto& subm : m_compiled_submodels) {
+        for (std::size_t i = 0; i < m_compiled_submodels.size(); ++i) {
+            auto& subm = m_compiled_submodels[i];
+            auto real_idx = subm.replaced_by.value_or(i);
             // Write device idx
-            std::size_t device_idx = subm.device_it - m_dev_list.begin();
-            write(model_stream, device_idx);
+            // FIXME: if there is no compiled submodel, device_it is not set.
+            std::size_t device_idx = m_compiled_submodels[real_idx].device_it - m_dev_list.begin();
+            write(model_stream, real_idx == i ? device_idx : 0);
             // Write ICompiledModel if it's there
             if (subm.compiled_model) {
                 write(model_stream, true);
