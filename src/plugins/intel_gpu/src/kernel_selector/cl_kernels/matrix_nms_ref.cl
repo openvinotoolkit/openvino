@@ -167,9 +167,9 @@ KERNEL(matrix_nms_ref_stage_0)
  const __global INPUT1_TYPE* input_scores,
  __global uchar* buffer0,
  __global int* selected_boxes_num,
- __global int* input_score_indices,
  __global INPUT1_TYPE* input_iou_matrix,
- __global INPUT1_TYPE* input_iou_max) {
+ __global INPUT1_TYPE* input_iou_max,
+ __global INPUT1_TYPE* input_min_decays) {
     const int batchId = get_global_id(0);
     const int classId = get_global_id(1);
 
@@ -177,9 +177,9 @@ KERNEL(matrix_nms_ref_stage_0)
         return;
 
     const int offset = batchId * NUM_CLASSES + classId;
-    __global int* sorted_score_indices = input_score_indices + offset * NUM_BOXES * sizeof(int);
-
+    int sorted_score_indices[NUM_BOXES];
     int valid_boxes_num = 0;
+
     const int BLOCK_SIZE = 256;
     const int num_blocks = (NUM_BOXES + BLOCK_SIZE - 1) / BLOCK_SIZE;
     for (int i = 0; i < num_blocks; i++) {
@@ -194,6 +194,9 @@ KERNEL(matrix_nms_ref_stage_0)
         }
     }
 
+    for (int i = valid_boxes_num; i < NUM_BOXES; ++i)
+        sorted_score_indices[i] = 0;
+
     // TODO: consider faster sorting algorithm
     FUNC_CALL(sortIterative)(input_scores, batchId, classId, sorted_score_indices, valid_boxes_num);
 
@@ -201,7 +204,7 @@ KERNEL(matrix_nms_ref_stage_0)
 
     __global INPUT1_TYPE* iou_matrix = input_iou_matrix + offset * MAX_BOXES_PER_CLASS * sizeof(INPUT1_TYPE);
     __global INPUT1_TYPE* iou_max = input_iou_max + offset * MAX_BOXES_PER_CLASS * sizeof(INPUT1_TYPE);
-    INPUT1_TYPE min_decays[MAX_BOXES_PER_CLASS];
+    __global INPUT1_TYPE* min_decays = input_min_decays + offset * MAX_BOXES_PER_CLASS * sizeof(INPUT1_TYPE);
 
     iou_max[0] = INPUT1_VAL_ZERO;
     for (int i = 1; i < valid_boxes_num; ++i) {

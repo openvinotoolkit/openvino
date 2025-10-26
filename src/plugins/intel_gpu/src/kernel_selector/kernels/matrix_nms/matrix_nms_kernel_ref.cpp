@@ -81,7 +81,6 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
 
     const int batches_num = static_cast<const int>(new_params.inputs[1].Batch().v);
     const int classes_num = static_cast<const int>(new_params.inputs[1].Feature().v);
-    const int NUM_BOXES = static_cast<const int>(new_params.inputs[0].Feature().v);
 
     int max_boxes_per_class, max_boxes_per_batch;
     std::tie(max_boxes_per_class, max_boxes_per_batch) = GetMaxBoxes(new_params);
@@ -91,7 +90,6 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
 
     const size_t box_info_buffer_size = box_info_num * BOX_INFO_SIZE;
     const size_t sel_boxes_num_buffer_size = batches_num * classes_num * sizeof(int);
-    const size_t sorted_score_indices_buffer_size = batches_num * classes_num * NUM_BOXES * sizeof(int);
 
     size_t datatype_size = 0;
     switch (new_params.inputs[1].GetDType()) {
@@ -104,12 +102,13 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
     }
     const size_t iou_matrix_buffer_size = batches_num * classes_num * max_boxes_per_class * datatype_size;
     const size_t iou_max_buffer_size = iou_matrix_buffer_size;
+    const size_t min_decays_buffer_size = iou_matrix_buffer_size;
 
     kernel_data.internalBuffers.push_back(box_info_buffer_size);
     kernel_data.internalBuffers.push_back(sel_boxes_num_buffer_size);
-    kernel_data.internalBuffers.push_back(sorted_score_indices_buffer_size);
     kernel_data.internalBuffers.push_back(iou_matrix_buffer_size);
     kernel_data.internalBuffers.push_back(iou_max_buffer_size);
+    kernel_data.internalBuffers.push_back(min_decays_buffer_size);
     kernel_data.internalBufferDataType = new_params.inputs[1].GetDType(); // input_scores
 
     for (size_t i{}; i < kernels_num; ++i) {
