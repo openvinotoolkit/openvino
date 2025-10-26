@@ -206,6 +206,9 @@ private:
 
         void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
         void deserialize(std::istream& stream, const ov::npuw::s11n::WeightsContext& ctx);
+
+        // Custom destructor to wait for Delayed
+        ~CompiledModelDesc();
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

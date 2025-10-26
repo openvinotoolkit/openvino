@@ -220,6 +220,12 @@ public:
     void set_future(std::shared_future<void>& f) {
         future = f;
     }
+    void wait() const {
+        if (!done && future.valid()) {
+            future.wait();
+            done = true;
+        }
+    }
 
 private:
     const T& get_impl() const {

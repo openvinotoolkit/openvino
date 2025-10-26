@@ -779,6 +779,12 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     LOG_DEBUG("DONE.");
 }
 
+ov::npuw::CompiledModel::CompiledModelDesc::~CompiledModelDesc() {
+    closure.wait();
+    closure_uid.wait();
+    is_remote.wait();
+}
+
 void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
 
