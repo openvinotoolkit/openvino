@@ -545,6 +545,11 @@ def copy_file(src, dst, verbose=False, dry_run=False):
     if dry_run:
         log.info(f"DRY RUN: Would copy '{src}' to '{dst}'")
     else:
+        # Avoid copying a symlinked file to itself
+        if os.path.realpath(src) == os.path.realpath(dst):
+            if verbose:
+                log.info(f"Skipping copy: '{src}' and '{dst}' are the same file")
+            return
         shutil.copyfile(src, dst)
         if verbose:
             log.info(f"Copied '{src}' to '{dst}'")
@@ -785,6 +790,83 @@ def concat_files(input_files, output_file):
     return output_file
 
 
+def parse_requirements_file(req_file):
+    """Parse a requirements.txt file and return list of packages."""
+    req_path = OPENVINO_SOURCE_DIR / req_file
+    if not req_path.exists():
+        return []
+    
+    packages = []
+    with open(req_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            # Skip empty lines, comments, constraints, and pip options
+            if (not line or 
+                line.startswith('#') or 
+                line.startswith('-c ') or 
+                line.startswith('--')):
+                continue
+            packages.append(line)
+    return packages
+
+
+def get_extras_require():
+    """
+    Generate extras_require from requirements.txt files.
+    This keeps requirements.txt as the single source of truth and keeps compatibility with 'pip install .../requirements.txt'
+    """
+    extras = {
+        "runtime": parse_requirements_file("src/bindings/python/requirements.txt"),
+        
+        "dev_wheel": parse_requirements_file("src/bindings/python/wheel/requirements-dev.txt"),
+        
+        "tests_pyapi": parse_requirements_file("src/bindings/python/requirements_test.txt"),
+        
+        "tests_onnx_frontend": parse_requirements_file("src/frontends/onnx/tests/requirements.txt"),
+        "tests_paddle_frontend": parse_requirements_file("src/frontends/paddle/tests/requirements.txt"),
+        "tests_tensorflow_frontend": parse_requirements_file("src/frontends/tensorflow/tests/requirements.txt"),
+        "tests_tensorflow_lite_frontend": parse_requirements_file("src/frontends/tensorflow_lite/tests/requirements.txt"),
+        "tests_layer": parse_requirements_file("tests/layer_tests/requirements.txt"),
+        "tests_e2e": parse_requirements_file("tests/e2e_tests/requirements.txt"),
+        "tests_conditional_compilation": parse_requirements_file("tests/conditional_compilation/requirements.txt"),
+        "tests_model_hub_performance": parse_requirements_file("tests/model_hub_tests/performance_tests/requirements.txt"),
+        "tests_model_hub_tensorflow": parse_requirements_file("tests/model_hub_tests/tensorflow/requirements.txt"),
+        "tests_samples": parse_requirements_file("tests/samples_tests/smoke_tests/requirements.txt"),
+        "tests_stress": parse_requirements_file("tests/stress_tests/scripts/requirements.txt"),
+        "tests_time": parse_requirements_file("tests/time_tests/scripts/requirements.txt"),
+        "tests_time_runner": parse_requirements_file("tests/time_tests/test_runner/requirements.txt"),
+        "tests_llm": parse_requirements_file("tests/llm/requirements.txt"),
+        "tests_utils_layer_summary": parse_requirements_file("src/tests/test_utils/functional_test_utils/layer_tests_summary/requirements.txt"),
+        
+        "torchvision_preprocessing": parse_requirements_file("src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt"),
+        
+        "cpu_tools": (
+            parse_requirements_file("src/plugins/intel_cpu/tools/dump_check/requirements.txt") +
+            parse_requirements_file("src/plugins/intel_cpu/tools/aggregate-average-counters/requirements.txt")
+        ),
+        
+        "docs": parse_requirements_file("docs/requirements.txt"),
+        
+        "samples_bert_benchmark": parse_requirements_file("samples/python/benchmark/bert_benchmark/requirements.txt"),
+        "samples_classification": parse_requirements_file("samples/python/classification_sample_async/requirements.txt"),
+        "samples_hello_classification": parse_requirements_file("samples/python/hello_classification/requirements.txt"),
+        "samples_hello_reshape_ssd": parse_requirements_file("samples/python/hello_reshape_ssd/requirements.txt"),
+    }
+    
+    test_groups = [k for k in extras.keys() if k.startswith("tests_")]
+    frontend_test_groups = [k for k in test_groups if "frontend" in k]
+    sample_groups = [k for k in extras.keys() if k.startswith("samples_")]
+    
+    extras["tests_all"] = [f"openvino[{','.join(test_groups)}]"]
+    extras["tests_frontends"] = [f"openvino[{','.join(frontend_test_groups)}]"]
+    extras["samples_all"] = [f"openvino[{','.join(sample_groups)}]"]
+    
+    all_groups = [key for key in extras.keys() if not extras[key][0].startswith("openvino[")]
+    extras["all"] = [f"openvino[{','.join(all_groups)}]"]
+    
+    return extras
+
+
 OPENVINO_VERSION = WHEEL_VERSION = os.getenv("WHEEL_VERSION", "0.0.0")
 PACKAGE_DIR = get_package_dir(PY_INSTALL_CFG)
 # need to create package dir, because since https://github.com/pypa/wheel/commit/e43f2fcb296c2ac63e8bac2549ab596ab79accd0
@@ -815,6 +897,7 @@ setup(
     download_url="https://github.com/openvinotoolkit/openvino/releases",
     url=docs_url,
     entry_points=entry_points,
+    extras_require=get_extras_require(),  # Dynamically loaded from requirements.txt files
     cmdclass={
         "build": CustomBuild,
         "bdist_wheel": CustomBdistWheel,
