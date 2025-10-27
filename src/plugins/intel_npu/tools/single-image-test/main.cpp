@@ -2367,7 +2367,7 @@ static int runSingleImageTest() {
                         outLayerModelLayout = getLayoutByRank(shape.size());
                         std::cout << "WARNING: Configuring preprocessing. Since --oml option isn't set, output model "
                                      "layout for layer \""
-                                  << outputInfo[i].get_any_name() << "\" is infered from shape: " << shape.to_shape()
+                                  << outputInfo[i].get_any_name() << "\" is infered from shape: " << shape.to_string()
                                   << " rank (" << shape.size() << ") as " << outLayerModelLayout.to_string()
                                   << std::endl;
                     }
@@ -2560,7 +2560,7 @@ static int runSingleImageTest() {
                     inputLayout = getLayoutByRank(shape.size());
                     std::cout << "WARNING: Loading input data. Since --iml option isn't set, input model layout for "
                                  "layer \""
-                              << inputInfo.get_any_name() << "\" is infered from shape: " << shape.to_shape()
+                              << inputInfo.get_any_name() << "\" is infered from shape: " << shape.to_string()
                               << " rank (" << shape.size() << ") as " << inputLayout.to_string() << std::endl;
                 }
 
