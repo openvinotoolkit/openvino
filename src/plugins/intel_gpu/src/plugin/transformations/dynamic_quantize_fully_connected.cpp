@@ -51,7 +51,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         const bool has_static_wzp = m_fc->get_input_size() > 4 && optional_w_zp->get_output_partial_shape(0).rank().is_static();
         const bool is_wei_i8_u8 = cldnn::one_of(m_fc->get_input_element_type(1), {ov::element::i8, ov::element::u8});
 
-        if (is_wei_i8_u8 && use_gs128_for_int8_per_token && adj_group_size == UINT64_MAX) {
+        if (DynamicQuantizeFullyConnected::ShouldUseGs128(is_wei_i8_u8, use_gs128_for_int8_per_token, adj_group_size)) {
             adj_group_size = 128;
         }
 

@@ -105,7 +105,7 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
 
         DispatchData dispatch_data = SetDefault(new_params, i);
         auto& kernel = kernel_data.kernels[i];
-        KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo.maxWorkGroupSize);
+        KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo);
         kernel.params.workGroups.global = dispatch_data.gws;
         kernel.params.workGroups.local = dispatch_data.lws;
         kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);

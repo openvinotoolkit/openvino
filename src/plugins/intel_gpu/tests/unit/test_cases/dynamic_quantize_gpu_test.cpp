@@ -30,6 +30,7 @@ enum class TestForSmallInputs { No, Yes };  // Test very small inputs to validat
 enum class PrecomputeSum { Disabled, Enabled };
 class dynamic_quantization_gpu_tests: public ::testing::Test {
 public:
+    std::string dyn_quan_kernel_id = "";
     void test_dynamic_quantization(bool is_caching_test,
                                    const ov::PartialShape& input_shape,
                                    const ov::Shape& data_shape,
@@ -188,8 +189,28 @@ public:
                 ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], abs_error_threshold);
             }
         }
+
+        auto find_kernel_id = [&network](std::string prim_id) {
+                std::string kernel = "";
+                for (auto& info : network->get_primitives_info()) {
+                        if (info.original_id == prim_id)
+                            kernel = info.kernel_id;
+                }
+                return kernel;
+            };
+
+        dyn_quan_kernel_id = find_kernel_id("dyn_quan_prim");
     }
 };
+
+TEST_F(dynamic_quantization_gpu_tests, static_quantizing_large_size_non_uniform_workgroup) {
+    // if non_uniform_workgroup is not supported, it will run on dyn_quan_ref
+    // if non_uniform_workgroup is supported, it will run on dyn_quan_opt
+    this->test_dynamic_quantization(false, {11, 1, 4096+128}, {2048, 1, 4096+128}, QuantizationType::Symmetric, 128);
+    if (get_test_engine().get_device_info().supports_non_uniform_work_group) {
+        ASSERT_TRUE(dyn_quan_kernel_id.find("_opt") != std::string::npos);
+    }
+}
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_large_size) {
     this->test_dynamic_quantization(false, {11, 1, 1, 4096}, {2048, 1, 1, 4096});

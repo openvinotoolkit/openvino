@@ -215,7 +215,7 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         int number_of_outputs,
                                         bool is_dynamic) const {
     if (!is_dynamic && !kernel.skip_execution)
-        KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info.maxWorkGroupSize);
+        KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info);
     kernel.code.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;

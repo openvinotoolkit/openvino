@@ -259,11 +259,14 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     // These flags are supported from OPENCL_300: CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT, CL_DEVICE_OPENCL_C_FEATURES
     // OpenCL C3.0: work_group_<ops> are optional. It should be checked 'work group collective functions' are supported in OpenCL C 3.0.
     info.supports_work_group_collective_functions = device.getInfo<CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT>();
+    info.supports_non_uniform_work_group = device.getInfo<CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT>();
 #elif CL_HPP_TARGET_OPENCL_VERSION >= 200
-    // OpenCL C2.0: work_group_<ops> are mandetory.
+    // OpenCL C2.0: work_group_<ops> are mandatory.
     info.supports_work_group_collective_functions = true;
+    info.supports_non_uniform_work_group = true;
 #else
     info.supports_work_group_collective_functions = false;
+    info.supports_non_uniform_work_group = false;
 #endif
 
     if (info.supports_intel_required_subgroup_size) {
