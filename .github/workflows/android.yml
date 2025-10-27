@@ -226,7 +226,7 @@ jobs:
       # Upload build logs and artifacts
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
           name: build_logs_${{ matrix.arch }}
@@ -256,14 +256,14 @@ jobs:
           find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
           cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" ${INSTALL_DIR}/lib/ || echo "libc++_shared.so not found"
       - name: Upload CPU test binaries
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: ov_cpu_tests_android_${{ matrix.arch }}
           path: ${{ env.INSTALL_TEST_DIR }}/
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO runtime package (Android)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: ov_android_package_${{ matrix.arch }}
           path: ${{ env.INSTALL_DIR }}/
@@ -355,7 +355,7 @@ jobs:
             adb pull /data/local/tmp/ov_test/unit_test_results.xml ./unit_test_results.xml || { echo "Warning: Could not pull unit test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/unit_test_results.xml" || echo "No unit test results file"; }
 
       - name: Upload test results
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
           name: cpu_tests_results_android_x64
