@@ -50,9 +50,9 @@ public:
             }
             const auto& weight_shape = params.input_layouts[moe_gemm::MoEGemmInputIdx::WEIGHT].get_shape();
             // experts weight : [#experts, ofm, num_groups, group_size]
-            auto k = weight_shape[2] * weight_shape[3];
+            auto k = (weight_shape.size() == 4) ? weight_shape[2] * weight_shape[3] : weight_shape[2];
             auto scale_group_dim = params.input_layouts[moe_cfg.weight_scale_idx].get_shape().size() - 2;
-            auto num_scale_groups = params.input_layouts[moe_cfg.weight_scale_idx].get_shape()[scale_group_dim];
+            auto num_scale_groups = (weight_shape.size() == 4) ? params.input_layouts[moe_cfg.weight_scale_idx].get_shape()[scale_group_dim] : 1;
             moe_cfg.weight_group_size = k / num_scale_groups;
             if (static_cast<int32_t>(params.input_layouts.size()) > moe_cfg.weight_zp_idx) {
                 moe_cfg.is_weight_symmetric_quantized = false;

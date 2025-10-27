@@ -68,7 +68,9 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
             jit.make("NUM_GROUPS", 1);
 
         if (is_u4_i4) {
-            jit.make("EXPERT_STRIDE", (weight_shape[1] * weight_shape[2] * weight_shape[3]) / 2);
+            size_t stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) / 2 :
+                                                          (weight_shape[1] * weight_shape[2]) / 2;
+            jit.make("EXPERT_STRIDE", stride);
             jit.make("WEIGHT_COMPRESSED_INT4", 1);
         } else {
             jit.make("EXPERT_STRIDE", (weight_shape[1] * weight_shape[2]));
@@ -86,7 +88,14 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
         jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
     }
     jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
-    jit.make("INPUT_STRIDE", params.input_layouts[1].get_shape()[2] * params.input_layouts[1].get_shape()[3]);
+    jit.make("INPUT_STRIDE",
+             params.input_layouts[1].get_shape().size() == 4 ? params.input_layouts[1].get_shape()[2] * params.input_layouts[1].get_shape()[3]
+                                                 : params.input_layouts[1].get_shape()[2]);
+    GPU_DEBUG_COUT << "input_stride : "
+                   << (params.input_layouts[1].get_shape().size() == 4 ? params.input_layouts[1].get_shape()[2] * params.input_layouts[1].get_shape()[3]
+                                                                       : params.input_layouts[1].get_shape()[2])
+                   << "\n";
+
     jit.make("OUTPUT_STRIDE", params.input_layouts[1].get_shape()[1]);
     if (!m_is_prefill)
         jit.make("IS_GENERATE", 1);
@@ -132,10 +141,8 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const auto& weight_shape = params.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT).get_shape();
     size_t m = weight_shape[1];
     size_t n = is_prefill ? 32: 8;
-    if (weight_shape.size() != 4)
-        OPENVINO_THROW("Weight tensor for MoE Gemm microkernel should have 4 dimensions. [#experts, ofm, num_groups, group_size]");
-    size_t k = weight_shape[2] * weight_shape[3];
-    GPU_DEBUG_TRACE_DETAIL << "init_microkernels for " << (is_prefill ? "prefill" : "generate") << " : " << n << " " << m << " " << k << "\n";
+    size_t k = weight_shape.size() == 4 ? weight_shape[2] * weight_shape[3] : weight_shape[2];
+    GPU_DEBUG_TRACE_DETAIL << "init_microkernels for " << (is_prefill ? "prefill" : "generate") << " : Seq_len:" << n << " Ofm:" << m << " K:" << k << "\n";
 
     micro::GEMMProblem problem_moe;
     micro::GEMMProtocol::Options opts_moe;
@@ -158,6 +165,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_moe.asPtrDims = static_cast<int>(MICRO_DIMENSIONALITY::MATRIX);
 
         problem_moe.aqGroupM = 1;
+        GPU_DEBUG_COUT << "moe_cfg::weight_group_size = " << moe_cfg.weight_group_size << std::endl;
         problem_moe.aqGroupK = (moe_cfg.weight_group_size == -1) ? k : moe_cfg.weight_group_size;
 
         opts_moe.scaleA = true;
@@ -165,7 +173,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
             const auto& zp_layout = params.get_input_layout(moe_cfg.weight_zp_idx);
             const auto zp_dt = convert_type(zp_layout.data_type);
             problem_moe.Tao = zp_dt;
-            problem_moe.AO.setAlignment(zp_dt.size());
+            problem_moe.AO.setAlignment(zp_dt == gemmstone::Type::u4 ? 1 : zp_dt.size());
             problem_moe.AO.layout = micro::MatrixLayout::T;
             problem_moe.aoPtrDims = static_cast<int>(MICRO_DIMENSIONALITY::MATRIX);
             // Calculate A/B row/column sums in kernel.
@@ -229,11 +237,16 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         size_t n = input_layout.get_shape()[0];
         const auto& experts_weight_shape = experts_weight_layout.get_shape();
         size_t m = experts_weight_shape[1];
-        size_t k = experts_weight_shape[2] * experts_weight_shape[3];
+        size_t k = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
         wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, 1};
         wgs.global = {align_to(ceil_div(m, sg_tile_m), sg_per_wg_m) * get_subgroup_size(device_info.arch),
             align_to(ceil_div(n, sg_tile_n), sg_per_wg_n),
             static_cast<size_t>(rtp->num_actually_used_experts)};
+        GPU_DEBUG_COUT << "wgs global : " << wgs.global[0] << " " << wgs.global[1] << " " << wgs.global[2] << std::endl;
+        GPU_DEBUG_COUT << "    local : " << wgs.local[0] << " " << wgs.local[1] << " " << wgs.local[2] << std::endl;
+        GPU_DEBUG_COUT << "        m : " << m << " n : " << n << " k : " << k << std::endl;
+        GPU_DEBUG_COUT << " sg_tile_m : " << sg_tile_m << " sg_tile_n : " << sg_tile_n << std::endl;
+        GPU_DEBUG_COUT << " sg_per_wg_m : " << sg_per_wg_m << " sg_per_wg_n : " << sg_per_wg_n << std::endl;
         ScalarDescriptor s_m{ScalarDescriptor::Types::INT32};
         s_m.v.s32 = m;
         scalars.push_back(s_m);

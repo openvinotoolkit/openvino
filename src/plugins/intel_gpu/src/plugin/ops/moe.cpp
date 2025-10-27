@@ -88,10 +88,19 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
             input_infos[3],  // compressed_weights_input_up
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_ID),
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
-            input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
-            input_infos[5],  // bias_up
-            input_infos[4],  // scale_input_up
+            input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT)
         };
+        size_t down_idx = 0;
+        if (config.has_zp) {
+            moe_gemm_up_inputs.push_back(input_infos[6]);  // bias_up
+            moe_gemm_up_inputs.push_back(input_infos[4]);  // scale_input_up
+            moe_gemm_up_inputs.push_back(input_infos[5]);  // zp_input_up
+            down_idx = 7;
+        } else {
+            moe_gemm_up_inputs.push_back(input_infos[5]);  // bias_up
+            moe_gemm_up_inputs.push_back(input_infos[4]);  // scale_input_up
+            down_idx = 6;
+        }
         auto moe_gemm_up = cldnn::moe_gemm(moe_gemm_up_name, moe_gemm_up_inputs, config.top_k);
         moe_gemm_up.has_bias = true;
         p.add_primitive(*op, moe_gemm_up);
@@ -110,13 +119,21 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         p.add_primitive(*op, moe_swiglu_prim);
         std::vector<cldnn::input_info> moe_gemm_down_inputs = {
             input_info(moe_swiglu_name),
-            input_infos[6],  // compressed_weights_input_down
+            input_infos[down_idx],  // compressed_weights_input_down
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_ID),
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
-            input_infos[8],  // bias_down
-            input_infos[7],  // scale_input_down
         };
+
+        if (config.has_zp) {
+            moe_gemm_down_inputs.push_back(input_infos[down_idx + 3]);  // bias_up
+            moe_gemm_down_inputs.push_back(input_infos[down_idx + 1]);  // scale_input_up
+            moe_gemm_down_inputs.push_back(input_infos[down_idx + 2]);  // zp_input_up
+        } else {
+            moe_gemm_down_inputs.push_back(input_infos[down_idx + 2]);  // bias_up
+            moe_gemm_down_inputs.push_back(input_infos[down_idx + 1]);  // scale_input_up
+        }
+
         auto moe_gemm_down = cldnn::moe_gemm(moe_gemm_down_name, moe_gemm_down_inputs, config.top_k);
         moe_gemm_down.has_bias = true;
         p.add_primitive(*op, moe_gemm_down);
