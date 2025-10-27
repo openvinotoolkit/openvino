@@ -100,8 +100,8 @@ protected:
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        // int *p = new int[100];
-        // (void)p;
+        int *p = new int[100];
+        (void)p;
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
