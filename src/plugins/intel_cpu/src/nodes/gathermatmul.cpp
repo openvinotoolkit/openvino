@@ -548,15 +548,13 @@ void GatherMatmul::prepareParams() {
     const Dim M = normalizeM(srcShape[1]);
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
-    const auto batch = m_weightsMemory->getStaticDims()[0];
-
     const auto srcPrc = srcMem->getDesc().getPrecision();
 
     auto dstMem = getDstMemoryAtPort(0);
     const auto& dstShape = dstMem->getStaticDims();
 
-    auto srcInterimDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({batch, M, srcShape[2]}));
-    auto dstInterimDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({batch, M, dstShape[2]}));
+    auto srcInterimDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, srcShape[2]}));
+    auto dstInterimDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, dstShape[2]}));
 
     const size_t srcSize = rnd_up(srcInterimDesc->getCurrentMemSize(), 64); // 64 bytes is the cache line size
     const size_t totalSize = srcSize + dstInterimDesc->getCurrentMemSize();
@@ -639,6 +637,10 @@ public:
         return m_base_ptr + offset;
     }
 
+    [[nodiscard]] void* get_base() const {
+        return m_base_ptr;
+    }
+
 private:
     OffsetHelper(uint8_t* base_ptr, const VectorDims& strides, size_t num_bits)
         : m_base_ptr(base_ptr),
@@ -673,7 +675,6 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
     auto zp_offset = OffsetHelper::createOffsetHelper(m_zpMemory);
     auto index_offset = OffsetHelper::createOffsetHelper(indexMem);
 
-    // naive version, processing token by token
     if (n_tokens > 1) {
         CPU_NODE_ASSERT(gemm_impl, "GEMM implementation is not created");
 
@@ -694,60 +695,50 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
         auto tmp_input_offset = OffsetHelper::createOffsetHelper(m_tmpInput);
 
         const auto element_size = m_tmpInput->getPrecision().size();
-        const auto K_size = m_tmpInput->getStaticDims()[2];
-        const auto M_size = m_tmpInput->getStaticDims()[1];
+        const auto K_size = m_tmpInput->getStaticDims()[1];
+        const auto M_size = m_tmpInput->getStaticDims()[0];
         const auto N_size = dstMem->getStaticDims()[2];
-
-        // Phase 1: Parallel gather across experts and tokens
-        parallel_for2d_dynamic(max_experts, M_size, [&](size_t expert_id, size_t m) {
-            //skip non active experts
-            const size_t num_valid_tokens = expert_token_counters[expert_id];
-            if (0 == num_valid_tokens) {
-                return;
-            }
-            
-            auto* dst_row = tmp_input_offset(expert_id, m);
-            
-            if (m < num_valid_tokens) {
-                const auto token = expert_tokens[expert_id * n_tokens + m].first;
-                const auto expert = expert_tokens[expert_id * n_tokens + m].second;
-                const auto* src_data = src_offset(broadcast_src ? 0 : expert, token);
-                std::memcpy(dst_row, src_data, K_size * element_size);
-            } else {
-                // Zero padding for rows beyond num_valid_tokens
-                std::memset(dst_row, 0, K_size * element_size);
-            }
-        });
 
         auto tmp_dst_offset = OffsetHelper::createOffsetHelper(m_tmpOutput);
 
         // Phase 2: Sequential GEMM per expert (oneDNN handles internal parallelism)
         for (size_t expert_id = 0; expert_id < max_experts; expert_id++) {
-            if (0 == expert_token_counters[expert_id]) {
+            const size_t num_valid_tokens = expert_token_counters[expert_id];
+            if (0 == num_valid_tokens) {
                 continue;
             }
-            auto* src = tmp_input_offset(expert_id);
-            auto* dst = tmp_dst_offset(expert_id);
+
+            parallel_for(M_size, [&](size_t m) {
+                auto* dst_row = tmp_input_offset(m);
+                
+                if (m < num_valid_tokens) {
+                    const auto token = expert_tokens[expert_id * n_tokens + m].first;
+                    const auto expert = expert_tokens[expert_id * n_tokens + m].second;
+                    const auto* src_data = src_offset(broadcast_src ? 0 : expert, token);
+                    std::memcpy(dst_row, src_data, K_size * element_size);
+                } else {
+                    // Zero padding for rows beyond num_valid_tokens
+                    std::memset(dst_row, 0, K_size * element_size);
+                }
+            });
+
+            auto* src = tmp_input_offset.get_base();
+            auto* dst = tmp_dst_offset.get_base();
             auto* wei = wei_offset(expert_id);
             auto* bias = bias_offset(expert_id);
             auto* scale = scale_offset(expert_id);
             auto* zp = zp_offset(expert_id);
             gemm_impl->exec(strm, src, dst, wei, bias, scale, zp);
+
+            // Immediately scatter results while they're hot in cache
+            parallel_for(num_valid_tokens, [&](size_t m) {
+                const auto* src_row = tmp_dst_offset(m);
+                const auto token = expert_tokens[expert_id * n_tokens + m].first;
+                const auto expert = expert_tokens[expert_id * n_tokens + m].second;
+                auto* dst_row = dst_offset(expert, token);
+                std::memcpy(dst_row, src_row, N_size * element_size);
+            });
         }
-
-        // Phase 3: Parallel scatter across experts and tokens
-        parallel_for2d_dynamic(max_experts, M_size, [&](size_t expert_id, size_t m) {
-            const size_t num_valid_tokens = expert_token_counters[expert_id];
-            if (m >= num_valid_tokens) {
-                return;
-            }
-
-            const auto* src_row = tmp_dst_offset(expert_id, m);
-            const auto token = expert_tokens[expert_id * n_tokens + m].first;
-            const auto expert = expert_tokens[expert_id * n_tokens + m].second;
-            auto* dst_row = dst_offset(expert, token);
-            std::memcpy(dst_row, src_row, N_size * element_size);
-        });
     } else {
         CPU_NODE_ASSERT(gemv_impl, "GEMM implementation is not created");
 
