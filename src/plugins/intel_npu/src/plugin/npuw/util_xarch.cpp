@@ -1728,6 +1728,13 @@ void ov::npuw::util::XARCH::copy(const ov::Tensor& from, ov::Tensor& to) {
             worker(p);
         });
     }
+
+    // Copy remaining bytes
+    if (bytes_total - (n_chunks * chunk) > 0) {
+        size_t off = n_chunks * chunk;
+        std::memcpy(dst + off, src + off, bytes_total - off);
+    }
+
 #else
     from.copy_to(to);
 #endif
