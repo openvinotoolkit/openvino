@@ -29,8 +29,6 @@
     #define MMAD MMAD_8x8
 #if SUB_GROUP_SIZE == 8    
     #define BLOCK_WRITE(ptr, val) _sub_group_block_write8((__global uint*)(ptr), as_uint8(val));
-#else //SUB_GROUP_SIZE == 8    
-    #define BLOCK_WRITE(ptr, val) _sub_group_block_write4((__global uint*)(ptr), as_uint4(val));
 #endif
 #elif OUTPUT_X_BLOCK_SIZE == 4
     #define PACKED_TYPE_VEC MAKE_VECTOR_TYPE(PACKED_IN_TYPE, 4)
@@ -41,8 +39,6 @@
     #define MMAD MMAD_4x8
 #if SUB_GROUP_SIZE == 8    
     #define BLOCK_WRITE(ptr, val) _sub_group_block_write4((__global uint*)(ptr), as_uint4(val));
-#else //SUB_GROUP_SIZE == 8  
-    #define BLOCK_WRITE(ptr, val) _sub_group_block_write2((__global uint*)(ptr), as_uint2(val));
 #endif
 #else
 #error "convolution_gpu_mmad_b_fs_yx_fsv32: Unsupported block size"
@@ -373,7 +369,8 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 
     const bool full_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + OUTPUT_X_BLOCK_SIZE <= OUTPUT_SIZE_X;
     const bool full_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || (fg + 1) * OSV_SIZE <= OUTPUT_FEATURE_NUM;
-    if (SUB_GROUP_SIZE == 8 && full_x && full_f) {
+#if SUB_GROUP_SIZE == 8
+    if (full_x && full_f) {
 #if OUTPUT_DIMS == 5
         const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, z, y, x)) / OF_TO_DO;
 #elif OUTPUT_DIMS <= 4
@@ -381,6 +378,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 #endif
         BLOCK_WRITE(output + dst_index, dst);
     } else {
+#endif //SUB_GROUP_SIZE == 8
 #if OUTPUT_FEATURE_NUM % OF_TO_DO == 0
         for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
             const bool full_it_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + i < OUTPUT_SIZE_X;
@@ -414,7 +412,9 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
             }
         }
 #endif  // OUTPUT_FEATURE_NUM % 4 == 0
+#if SUB_GROUP_SIZE == 8
     }
+#endif //SUB_GROUP_SIZE == 8
 #endif  // OUTPUT_IS_FP
 }
 
