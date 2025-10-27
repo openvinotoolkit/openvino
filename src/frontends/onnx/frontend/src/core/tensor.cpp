@@ -543,7 +543,7 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
         const auto& names = m_tensor_place->get_names();
         if (names.size() > 0) {
             constant->set_friendly_name(names[0]);
-            constant->get_default_output().set_names({names.begin(), names.end()});
+            //constant->get_default_output().set_names({names.begin(), names.end()});
         }
     }
     return constant;
@@ -551,7 +551,7 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
 
 void ov::frontend::onnx::TensorONNXPlace::translate(ov::Output<ov::Node>& output) {
     if (get_names().size() > 0) {
-        output.set_names({*get_names().begin()});
+        output.add_names({*get_names().begin()});
     }
 }
 
