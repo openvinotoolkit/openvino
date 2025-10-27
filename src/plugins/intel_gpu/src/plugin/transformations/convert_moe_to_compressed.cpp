@@ -63,9 +63,10 @@ namespace ov::intel_gpu {
     auto transpose_const_m_##SUFFIX = wrap_type<ov::op::v0::Constant>();\
     auto transpose_m_##SUFFIX = wrap_type<ov::op::v1::Transpose>({transpose_input_##SUFFIX, transpose_const_m_##SUFFIX});\
     \
+    auto convert_mul_m_##SUFFIX = wrap_type<ov::op::v0::Convert>({mul_m_##SUFFIX});\
     auto compressed_weights_input_m_##SUFFIX =\
     std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m_##SUFFIX, convert_reshape_m_##SUFFIX, transpose_m_##SUFFIX, \
-         mul_m_##SUFFIX, mul2_m_##SUFFIX});
+         mul_m_##SUFFIX, mul2_m_##SUFFIX, convert_mul_m_##SUFFIX});
 
 
 ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
@@ -233,6 +234,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
 
             auto topk_shape = pattern_map.at(topk_gemm2_m).get_node_shared_ptr()->get_output_partial_shape(1);
             auto weight_shape = pattern_map.at(compressed_weights_input_m_up).get_shape();
+            auto weight_down_shape = pattern_map.at(compressed_weights_input_m_down).get_shape();
             auto bias_shape = pattern_map.at(bias_up_gemm2_m).get_node_shared_ptr()->get_shape();
             auto scale_shape = pattern_map.at(mul_const_m_up).get_shape();
             // Weight, scale, zp are assumed to be transposed
@@ -241,8 +243,9 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             ov::intel_gpu::op::MOECompressed::Config config(moe->get_config());
             config.num_expert = weight_shape[0];
             config.hidden_size = weight_shape[2];
+            if (weight_shape.size() == 4) config.hidden_size *= weight_shape[3];
             config.inter_size = weight_shape[1];
-            config.group_size = weight_shape[2] / scale_shape[scale_shape.size() - 2];
+            config.group_size = (weight_shape.size() == 3) ? config.hidden_size : scale_shape[3];
             config.top_k = topk_shape.rbegin()->get_length();
             config.out_type = ov::element::dynamic;
             config.has_batch_dim = is_pa ? 0 : 1;
@@ -250,16 +253,25 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             args.push_back(pattern_map.at(input_gemm2_m));
             args.push_back(topk_weight_output);
             args.push_back(pattern_map.at(topk_indices_gemm2_m));
+            // params for up
             args.push_back(pattern_map.at(compressed_weights_m_up));
             args.push_back(pattern_map.at(mul_const_m_up));
             if (pattern_map.count(sub_const_m_up)) {
-                args.push_back(pattern_map.at(sub_const_m_up));
+                auto zp_shape = pattern_map.at(sub_const_m_up).get_node_shared_ptr()->get_shape();
+                auto zp = std::make_shared<ov::op::v0::Convert>(pattern_map.at(sub_const_m_up), element::f16);
+                args.push_back(zp);
+                config.has_zp = true;
             }
             args.push_back(pattern_map.at(bias_up_gemm2_m));
+            // params for down
             args.push_back(pattern_map.at(compressed_weights_m_down));
             args.push_back(pattern_map.at(mul_const_m_down));
             if (pattern_map.count(sub_const_m_down)) {
-                args.push_back(pattern_map.at(sub_const_m_down));
+                auto zp = std::make_shared<ov::op::v0::Convert>(pattern_map.at(sub_const_m_down), element::f16);
+                args.push_back(zp);
+                config.has_zp = true;
+            } else if (config.has_zp) {
+                OPENVINO_THROW("gemm_down has no zp while gemm_up has zp!");
             }
             args.push_back(pattern_map.at(bias_down_gemm2_m));
             auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
