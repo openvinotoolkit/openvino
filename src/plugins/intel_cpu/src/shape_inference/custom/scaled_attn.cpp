@@ -48,7 +48,7 @@ public:
         for (size_t i = 0; i < n_dims; i++) {
             output_dims[i] = query_dims[permute_axes[i]];
         }
-        if (inputs_size == 7 && !m_config.is_causal) {
+        if (inputs_size >= 7 && !m_config.is_causal) {
             const auto& attn_mask_dims = input_shapes[3].get();
             bool attn_mask_ok = true;
             auto attn_mask_dims_size = attn_mask_dims.size();
@@ -80,6 +80,55 @@ public:
                                ov::intel_cpu::vec2str(cur_v_dims),
                                " attn_mask_dims:",
                                ov::intel_cpu::vec2str(attn_mask_dims),
+                               " beam_idx_dims:",
+                               ov::intel_cpu::vec2str(beam_idx_dims),
+                               " cache_k_dims:",
+                               ov::intel_cpu::vec2str(cache_k_dims),
+                               " cache_v_dims:",
+                               ov::intel_cpu::vec2str(cache_v_dims));
+            }
+        }
+        if (inputs_size == 9) {
+            const auto& sink_dims = input_shapes[5].get();
+            bool sink_ok = true;
+            auto weight_dims = output_dims;
+            auto weight_dims_size = weight_dims.size();
+            if (weight_dims_size != sink_dims.size()) {
+                sink_ok = false;
+            } else {
+                weight_dims[3] = present_v_dims[length_index];
+                auto check_broadcast = [](const size_t& target, const size_t& to) -> bool {
+                    return any_of(target, to, 1U);
+                };
+                sink_ok = sink_ok && check_broadcast(sink_dims[0], weight_dims[0]);
+                sink_ok = sink_ok && (sink_dims[1] == weight_dims[1]);
+                sink_ok = sink_ok && check_broadcast(sink_dims[2], weight_dims[2]);
+                if (sink_dims[weight_dims_size - 1] != 1) {
+                    sink_ok = false;
+                };
+            }
+            if (!sink_ok) {
+                const auto& cur_k_dims = input_shapes[1].get();
+                const auto& cur_v_dims = input_shapes[2].get();
+                const auto& attn_mask_dims = input_shapes[3].get();
+                const auto& scale_dims = input_shapes[4].get();
+                const auto& sink_dims = input_shapes[5].get();
+                const auto& beam_idx_dims = input_shapes[6].get();
+                const auto& cache_k_dims = input_shapes[7].get();
+                const auto& cache_v_dims = input_shapes[8].get();
+                OPENVINO_THROW("sink input do not match q and k,",
+                               " query_dims:",
+                               ov::intel_cpu::vec2str(query_dims),
+                               " cur_k_dims:",
+                               ov::intel_cpu::vec2str(cur_k_dims),
+                               " cur_v_dims:",
+                               ov::intel_cpu::vec2str(cur_v_dims),
+                               " attn_mask_dims:",
+                               ov::intel_cpu::vec2str(attn_mask_dims),
+                               " scale_dims:",
+                               ov::intel_cpu::vec2str(scale_dims),
+                               " sink_dims:",
+                               ov::intel_cpu::vec2str(sink_dims),
                                " beam_idx_dims:",
                                ov::intel_cpu::vec2str(beam_idx_dims),
                                " cache_k_dims:",

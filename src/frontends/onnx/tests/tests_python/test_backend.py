@@ -158,7 +158,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_33596,
         "OnnxBackendSimpleModelTest.test_sequence_model5_cpu",
-        "OnnxBackendSimpleModelTest.test_sequence_model7_cpu",
         "OnnxBackendSimpleModelTest.test_sequence_model1_cpu",
         "OnnxBackendSimpleModelTest.test_sequence_model3_cpu",
         "OnnxBackendSimpleModelTest.test_sequence_model6_cpu",
