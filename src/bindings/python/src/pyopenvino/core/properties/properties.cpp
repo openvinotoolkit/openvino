@@ -42,6 +42,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::value_cache_precision, "value_cache_precision");
     wrap_property_RW(m_properties, ov::key_cache_group_size, "key_cache_group_size");
     wrap_property_RW(m_properties, ov::value_cache_group_size, "value_cache_group_size");
+    wrap_property_RW(m_properties, ov::enable_weightless, "enable_weightless");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
     wrap_property_RO(m_properties, ov::available_devices, "available_devices");

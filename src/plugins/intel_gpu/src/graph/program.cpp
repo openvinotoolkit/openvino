@@ -1876,7 +1876,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
 
     std::shared_ptr<WeightsMemory> weights_memory = nullptr;
     std::string weights_path = _config.get_weights_path();
-    if (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
+    if (_config.get_enable_weightless()) {
         if (model_ptr) {
             if (cache_attr_map) {
                 weights_memory = std::make_shared<WeightsMemory>(model_ptr, cache_attr_map);

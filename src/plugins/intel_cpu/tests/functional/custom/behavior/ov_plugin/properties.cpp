@@ -67,6 +67,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::value_cache_precision.name()),
         RW_property(ov::key_cache_group_size.name()),
         RW_property(ov::value_cache_group_size.name()),
+        RW_property(ov::enable_weightless.name()),
     };
 
     ov::Core ie;
