@@ -57,7 +57,8 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
     const auto& loop_manager = linear_ir.get_loop_manager();
     auto mark_splittable_loop_pair = [&](size_t current_loop_id,
                                          size_t parent_loop_id,
-                                         std::vector<std::pair<size_t, size_t>>& loops_to_split) -> bool {
+                                         std::vector<std::pair<size_t, size_t>>& loops_to_split,
+                                         bool allow_loop_to_fuse_with_tail) -> bool {
         const auto current_loop = loop_manager->get_loop_info<UnifiedLoopInfo>(current_loop_id);
         const auto parent_loop = loop_manager->get_loop_info<UnifiedLoopInfo>(parent_loop_id);
         const bool split_parent = parent_loop->get_increment() < current_loop->get_increment();
@@ -69,6 +70,13 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
 
         const auto& loop_to_split = split_parent ? parent_loop : current_loop;
         const auto& loop_to_fuse = !split_parent ? parent_loop : current_loop;
+        if (!allow_loop_to_fuse_with_tail) {
+            const auto work_amount = loop_to_fuse->get_work_amount();
+            const auto increment = loop_to_fuse->get_increment();
+            if (work_amount % increment != 0 || utils::is_dynamic_value(work_amount)) {
+                return false;
+            }
+        }
         if (can_be_split(loop_to_split, loop_to_fuse)) {
             const auto& to_split_id = split_parent ? parent_loop_id : current_loop_id;
             OPENVINO_ASSERT(std::find_if(loops_to_split.begin(),
@@ -108,11 +116,16 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
             }
 
             const auto& parent_loop_id = parent_loop_ids.front();
-            if (mark_splittable_loop_pair(loop_id, parent_loop_id, loops_to_split)) {
+            if (mark_splittable_loop_pair(loop_id, parent_loop_id, loops_to_split, true)) {
                 // After successfully marking the outermost loop, try to split inner loops (from outer to inner)
                 for (size_t i = 1; i < loop_ids.size(); ++i) {
-                    if (parent_loop_ids.size() <= i ||
-                        !mark_splittable_loop_pair(loop_ids[i], parent_loop_ids[i], loops_to_split)) {
+                    // WA: currently, inner loops splitting has a limited support:
+                    // only loops without tail iteration can be split
+                    bool allow_loop_to_fuse_with_tail = false;
+                    if (parent_loop_ids.size() <= i || !mark_splittable_loop_pair(loop_ids[i],
+                                                                                  parent_loop_ids[i],
+                                                                                  loops_to_split,
+                                                                                  allow_loop_to_fuse_with_tail)) {
                         break;
                     }
                 }
