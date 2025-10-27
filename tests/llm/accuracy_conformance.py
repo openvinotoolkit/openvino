@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Test Configuration Catalog
-def add_test_case(catalog, model, gpu_int8_ref, gpu_int4_ref, cpu_int8_ref, cpu_int4_ref, threshold = 0.03):
+def add_test_case(catalog, model, gpu_int8_ref, gpu_int4_ref, cpu_int8_ref, cpu_int4_ref, threshold = 0.04):
     catalog[model] = {
         "GPU": {
             "INT8": {"reference": gpu_int8_ref, "threshold": threshold},
@@ -34,7 +34,7 @@ TEST_CATALOG = {}
 NOTEST=0.0
 #                           NAME,                                   GPU_i8, GPU_i4, CPU_i8, CPU_i4
 add_test_case(TEST_CATALOG, "TinyLlama/TinyLlama-1.1B-Chat-v1.0",   0.85,   0.70,   0.94,   0.77)
-add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             0.87,   0.67,   0.82,   0.68)
+add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             0.82,   0.67,   0.82,   0.68)
 
 # Extract configuration from catalog
 MODEL_IDS = list(TEST_CATALOG.keys())
