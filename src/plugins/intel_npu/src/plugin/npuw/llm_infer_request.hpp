@@ -6,15 +6,17 @@
 
 #include <memory>
 
+#include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_lora_states.hpp"
+#include "llm_prefix_caching.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
 namespace ov {
 namespace npuw {
 
-class LLMInferRequest final : public ov::ISyncInferRequest {
+class LLMInferRequest : public ov::ISyncInferRequest {
 public:
     struct layer_names {
         static constexpr const char* input_ids = "input_ids";
@@ -26,6 +28,11 @@ public:
         static constexpr const char* logits = "logits";
         static constexpr const char* token_type_ids = "token_type_ids";
         static constexpr const char* gemma_sliding_mask = "npuw_gemma_sliding_mask";
+    };
+
+    struct layer_ids {
+        static constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
+        static constexpr std::size_t kStartOutputKVCacheLayers = 1;
     };
 
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
@@ -41,8 +48,8 @@ public:
     }
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
-private:
-    void prepare_for_new_conversation();
+protected:
+    virtual void prepare_for_new_conversation();
 
     void apply_lora();
 
@@ -78,6 +85,10 @@ private:
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
+    // Base infer request for prefill, used to update history size for dynamic context.
+    // NOTE: This is just a casted pointer for convenience. In fact it points to the
+    // same object as m_prefill_request.
+    std::shared_ptr<ov::npuw::IBaseInferRequest> m_prefill_base_request;
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
@@ -99,9 +110,17 @@ private:
     int64_t m_first_position_id = 0;
     int32_t m_gemma_sliding_window_size = 0;
 
+    uint64_t m_tokens_in_present_chunk = 0;
+
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();
+
+    // Support prefix caching
+    std::unique_ptr<PrefixCachingHelper> m_prefix_caching_helper;
+
+    // Friend declarations for PrefixCachingHelper to access protected members
+    friend class PrefixCachingHelper;
 };
 
 }  // namespace npuw
