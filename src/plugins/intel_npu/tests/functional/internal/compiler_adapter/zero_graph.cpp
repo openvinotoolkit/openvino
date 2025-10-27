@@ -4,8 +4,6 @@
 
 #include "zero_graph.hpp"
 
-#include "openvino/runtime/intel_npu/properties.hpp"
-
 namespace {
 const std::vector<ov::AnyMap> configsGraphCompilationTests = {{},
                                                               {ov::cache_dir("test")},

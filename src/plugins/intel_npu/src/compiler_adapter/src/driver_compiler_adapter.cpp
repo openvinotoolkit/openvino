@@ -103,8 +103,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("compile start");
     // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-    const auto setCacheDir = config.get<CACHE_DIR>();
-    bool bypassCache = !setCacheDir.empty() || config.get<BYPASS_UMD_CACHING>();
+    const bool bypassCache = !config.get<CACHE_DIR>().empty() || config.get<BYPASS_UMD_CACHING>();
     auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, bypassCache);
     _logger.debug("compile end");
 
@@ -181,8 +180,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
 
         _logger.debug("compile start");
         // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-        const auto setCacheDir = config.get<CACHE_DIR>();
-        bool bypassCache = !setCacheDir.empty() || config.get<BYPASS_UMD_CACHING>();
+        const bool bypassCache = !config.get<CACHE_DIR>().empty() || config.get<BYPASS_UMD_CACHING>();
         auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, bypassCache);
         _logger.debug("compile end");
 

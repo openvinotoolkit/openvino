@@ -340,7 +340,8 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
 
     uint32_t flags = ZE_GRAPH_FLAG_NONE;
     if (bypassUmdCache) {
-        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
+        _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_DISABLE_CACHING");
+        flags |= ZE_GRAPH_FLAG_DISABLE_CACHING;
     }
 
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
@@ -368,11 +369,11 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(void* blobData, size_t bl
         OPENVINO_THROW("Empty blob");
     }
 
-    uint32_t flags = 0;
+    uint32_t flags = ZE_GRAPH_FLAG_NONE;
     bool setPersistentFlag = canCpuVaBeImported(blobData, blobSize);
     if (setPersistentFlag) {
         _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT");
-        flags = ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
+        flags |= ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
     }
 
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,

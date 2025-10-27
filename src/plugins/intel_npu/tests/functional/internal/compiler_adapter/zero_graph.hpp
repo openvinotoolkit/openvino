@@ -16,6 +16,7 @@
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 #include "zero_init_mock.hpp"
 
@@ -100,13 +101,13 @@ protected:
     bool bypassUmdCache() {
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
-                if (configItem.first == "CACHE_DIR") {
+                if (configItem.first ==  ov::cache_dir.name()) {
                     const auto set_cache_dir = configItem.second;
                     if (!set_cache_dir.empty()) {
                         return true;
                     }
                 }
-                if (configItem.first == "NPU_BYPASS_UMD_CACHING") {
+                if (configItem.first == ov::intel_npu::bypass_umd_caching.name()) {
                     if (configItem.second.as<bool>()) {
                         return true;
                     }
