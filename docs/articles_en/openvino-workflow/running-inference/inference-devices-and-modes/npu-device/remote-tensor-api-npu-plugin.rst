@@ -8,13 +8,12 @@ Remote Tensor API of NPU Plugin
                  NT handle, or DMA-BUF System Heap, and provides mechanisms
                  for mapping files into memory for efficient data access.
 
-
-The NPU plugin implementation of the ``ov::RemoteContext`` and ``ov::RemoteTensor`` interface assists NPU
-pipeline developers who need memory sharing with existing native APIs (for example, OpenCL, Vulkan, DirectX 12)
-by exporting an NT handle on Windows, or DMA-BUF System Heap on Linux and passing that pointer as the
-``shared_buffer`` member to the ``remote_tensor(..., shared_buffer)`` create function; can also use file mapping
-to share memory by mapping a file into memory. They allow you to avoid any memory copy overhead when plugging
-OpenVINO™ inference into an existing NPU pipeline.
+The NPU plugin supports memory sharing between OpenVINO and native APIs such as OpenCL, Vulkan, or DirectX 12.
+It implements the ``ov::RemoteContext`` and ``ov::RemoteTensor`` interfaces, providing mechanisms for efficient memory sharing.
+On Windows, the plugin exports an NT handle; on Linux, it uses a DMA-BUF System Heap. You can share this memory by
+passing the pointer as the ``shared_buffer`` member to the ``remote_tensor(..., shared_buffer)`` create function.
+Another option is to share memory by mapping a file into memory. These methods help avoid memory copy overhead when
+plugging OpenVINO inference into an existing NPU pipeline.
 
 Supported scenario by the Remote Tensor API:
 
