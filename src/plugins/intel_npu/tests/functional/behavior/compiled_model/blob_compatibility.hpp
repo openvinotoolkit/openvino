@@ -15,6 +15,7 @@ const char* const BLOB_PREFIX = "blob_compatibility_";
 const char* const OV_VERSION_PREFIX = "ov";
 const char* const DRIVER_PREFIX = "driver";
 const char* const BLOB_SUFFIX = ".blob";
+const char* const BIN_SUFFIX = ".bin";
 
 enum class E_DUMMY_MODELS { DUMMY_MODEL, DUMMY_MODEL_STATEFUL, DUMMY_MODEL_DYNAMIC_SHAPES };
 
@@ -130,7 +131,7 @@ TEST_P(OVBlobCompatibilityNPU_PV_Driver_No_Throw, CanImportExpectedModelsForPVDr
 
 TEST_P(OVBlobCompatibilityNPU_Metadata_No_Throw, CanImportOlderMetadata) {
     std::string blobWeightsName(blobName.data(), blobName.find(BLOB_SUFFIX));
-    blobWeightsName += ".bin";
+    blobWeightsName += BIN_SUFFIX;
     config.insert(
         ov::weights_path(ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobWeightsName));
     DEFAULT_TEST_BODY(OV_ASSERT_NO_THROW);
