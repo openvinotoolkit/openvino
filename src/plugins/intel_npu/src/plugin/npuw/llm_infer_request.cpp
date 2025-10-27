@@ -185,6 +185,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
         m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
+        // Cache past_key_values ports for efficient clearing
+        if (input_port.get_any_name().find(layer_names::past_key_values) != std::string::npos) {
+            m_prefill_past_kv_ports.push_back(input_port);
+        }
     }
     for (const auto& output_port : m_prefill_request->get_compiled_model()->outputs()) {
         m_prefill_out_ports.emplace(output_port.get_any_name(), output_port);
@@ -382,13 +386,9 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
     uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
 
-    // Clear all past_key_values tensors
-    for (const auto& port_pair : m_prefill_in_ports) {
-        const std::string& port_name = port_pair.first;
-        if (port_name.find(layer_names::past_key_values) != std::string::npos) {
-            auto past_kv_tensor = m_prefill_request->get_tensor(port_pair.second);
-            uu::fill_tensor<ov::float16>(past_kv_tensor, 0);
-        }
+    // Clear all past_key_values tensors - use cached ports for efficiency
+    for (const auto& port : m_prefill_past_kv_ports) {
+        uu::fill_tensor_bytes(m_prefill_request->get_tensor(port), 0u);
     }
 
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
