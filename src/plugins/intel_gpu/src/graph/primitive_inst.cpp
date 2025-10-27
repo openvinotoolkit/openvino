@@ -2091,9 +2091,13 @@ void primitive_inst::prepare_primitive() {
         }
     }
 
+    bool reset_output_memory = false;
+    reset_output_memory |= (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>());
+    reset_output_memory |= (_impl->get_kernel_name() == "cm::conv_");
+
     // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
     // is a convolution that requires zeroed-out data paddings)
-    if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
+    if (reset_output_memory) {
         const auto& users = get_user_insts();
         const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
                                  users.front()->_allocation_done_by_other;
