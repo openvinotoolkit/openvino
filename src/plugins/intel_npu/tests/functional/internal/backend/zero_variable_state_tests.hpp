@@ -59,7 +59,6 @@ public:
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
-        targetDevice = ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
 
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";

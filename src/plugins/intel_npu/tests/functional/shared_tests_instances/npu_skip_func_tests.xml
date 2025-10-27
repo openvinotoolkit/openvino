@@ -845,18 +845,4 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#189262 -->
-    <skip_config>
-        <message>Some ZeroGraphTest run only on NPU 3720</message>
-        <enable_rules>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*smoke_BehaviorTest/ZeroGraphTest.GetGraphInitBlob.*</filter>
-            <filter>.*smoke_BehaviorTest/ZeroGraphTest.GetGraphBinary.*</filter>
-            <filter>.*smoke_BehaviorTest/ZeroGraphTest.GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob.*</filter>
-            <filter>.*smoke_BehaviorTest/ZeroGraphTest.GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob.*</filter>
-        </filters>
-    </skip_config>
-
 </skip_configs>
