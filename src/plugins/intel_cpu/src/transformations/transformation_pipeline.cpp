@@ -1644,6 +1644,10 @@ void Transformations::PostSnippets() {
 }
 
 void Transformations::Snippets() {
+#if defined(ANDROID) || defined(__ANDROID__)
+    // On Android builds, disable CPU Snippets transformations entirely
+    return;
+#endif
     const bool useSnippets = config.snippetsMode != Config::SnippetsMode::Disable &&
                              CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
     if (!useSnippets) {
