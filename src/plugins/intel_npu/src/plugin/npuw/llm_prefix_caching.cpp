@@ -315,50 +315,6 @@ void PrefixCachingHelper::store_computed_blocks(size_t chunk_size,
     store_blocks(chunk_size, prompt_hashes, token_idx);
 }
 
-size_t PrefixCachingHelper::adjust_chunk_size(size_t restored_token_num, size_t chunk_len) {
-    // This function calculates the number of tokens needed to complete a full chunk
-    // based on the current restored token number and the chunk prompt length.
-
-    // Ensure that the past KV in the inference request can accommodate a full chunk after the first inference run.
-    // Consider the scenario when prefix caching is enabled:
-    // - The input prompt length is 1024, and the chunk size is 256. Initially, the present KV length in the inference
-    // request is 256, and the past KV length is 768.
-    // - Initially, 128 tokens have been restored from the cache, leaving 1024 - 128 = 896 tokens that need to be
-    // computed.
-    // Round 1:
-    // - 128 tokens are stored in the past KV.
-    // - Infer for 256 tokens in the present KV.
-    // - After updating the KV cache, the past KV will hold 128 + 256 tokens, leaving 896 - 256 = 640 tokens.
-    // Round 2:
-    // - 128 + 256 tokens are stored in the past KV.
-    // - Infer for another 256 tokens in the present KV.
-    // - After updating the KV cache, the past KV will hold 128 + 256 + 256 tokens, leaving 896 - 256 - 256 = 384
-    // tokens.
-    // Round 3:
-    // - 128 + 256 + 256 tokens are stored in the past KV.
-    // - Infer for another 256 tokens in the present KV.
-    // - KV cache update would fail because the past KV cannot accommodate 128 + 256 + 256 + 256 tokens.
-
-    // To address this issue, ensure that the past KV can hold a full chunk after round 1:
-    // Round 1:
-    // - 128 tokens are stored in the past KV.
-    // - Infer for 128 tokens in the present KV.
-    // - After updating the KV cache, the past KV will hold 128 + 128 tokens, leaving 896 - 128 = 768 tokens.
-    // Round 2:
-    // - 256 tokens are stored in the past KV.
-    // - Infer for 256 tokens in the present KV.
-    // - After updating the KV cache, the past KV will hold 128 + 128 + 256 tokens, leaving 896 - 128 - 256 = 512
-    // tokens. Round 3:
-    // - 256 + 256 tokens are stored in the past KV.
-    // - Infer for 256 tokens in the present KV.
-    // - After updating the KV cache, the past KV will hold 128 + 128 + 256 + 256 tokens, leaving 896 - 128 - 256 - 256
-    // = 256 tokens. Round 4:
-    // - 128 + 128 + 256 + 256 tokens are stored in the past KV.
-    // - Infer for the last 256 tokens in the present KV, completing the prefill for all prompts.
-
-    return chunk_len - restored_token_num % chunk_len;
-}
-
 void PrefixCachingHelper::print_cache_status(bool verbose) const {
     if (m_cache_manager) {
         m_cache_manager->print_cache_status(verbose);
@@ -420,19 +376,22 @@ void PrefixCachingHelper::create_name_mapping() {
     }
 }
 
-uint64_t PrefixCachingHelper::restore_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
-                                             const std::vector<uint64_t>& prompt_hashes) {
+std::vector<std::shared_ptr<KVBlock>> PrefixCachingHelper::find_cached_blocks(
+    const ov::SoPtr<ov::ITensor>& input_ids,
+    const std::vector<uint64_t>& prompt_hashes) {
     const uint64_t block_size = m_request.m_npuw_llm_compiled_model->m_prefix_caching_block_size;
+    const uint64_t chunk_size = m_request.m_npuw_llm_compiled_model->m_prefill_chunk_size;
     auto& kvcache_desc = m_request.m_npuw_llm_compiled_model->m_kvcache_desc;
 
     size_t actual_token_num = input_ids->get_shape()[LLMInferRequest::layer_ids::INPUT_IDS_SEQ_LEN_DIM];
     size_t num_blocks = (actual_token_num + block_size - 1) / block_size;
 
-    uint64_t restored_token_num = 0;
-    size_t token_idx = 0;
-
     uint64_t max_restored_token_num =
         kvcache_desc.max_prompt_size - m_request.m_npuw_llm_compiled_model->m_prefill_chunk_size;
+
+    std::vector<std::shared_ptr<KVBlock>> cached_blocks;
+    size_t token_idx = 0;
+    uint64_t restored_token_num = 0;
 
     for (size_t block_index = 0; block_index < num_blocks; ++block_index) {
         if ((actual_token_num - block_index * block_size) < block_size) {
@@ -453,13 +412,54 @@ uint64_t PrefixCachingHelper::restore_blocks(const ov::SoPtr<ov::ITensor>& input
             break;
         }
 
-        // Cache hit - restore KV tensors
-        auto token_start = retrieved_block->get_token_start();
-        const KVData& block_kv_data = retrieved_block->get_block_kv_data();
-        LOG_VERB("[PrefixCache] Cache hit for block hash " << block_hash << ", restored tokens start from position "
-                                                           << token_start);
+        LOG_VERB("[PrefixCache] Cache hit for block hash " << block_hash << ", tokens start from position "
+                                                           << retrieved_block->get_token_start());
 
-        ov::parallel_for(block_kv_data.size(), [&](size_t idx) {
+        cached_blocks.push_back(retrieved_block);
+        restored_token_num += block_size;
+
+        // Ensure the cached tokens can be loaded into infer request
+        if (restored_token_num + block_size > max_restored_token_num) {
+            break;
+        }
+
+        // At least we should infer "1" token to generate "logit"
+        if (restored_token_num == actual_token_num) {
+            cached_blocks.pop_back();  // Remove the last block
+            break;
+        }
+    }
+
+    // Align restored token count down to chunk size boundary for consistency
+    // This prevents KV cache mismatches that can occur when partial chunks use different padding strategies
+    // between cache storage and runtime inference, ensuring exact numerical equivalence
+    if (restored_token_num > 0 && restored_token_num % chunk_size != 0) {
+        uint64_t aligned_token_num = (restored_token_num / chunk_size) * chunk_size;
+        uint64_t blocks_to_remove = (restored_token_num - aligned_token_num) / block_size;
+
+        LOG_VERB("[PrefixCache] Aligning restored token count from "
+                 << restored_token_num << " down to " << aligned_token_num << " (chunk size boundary), removing "
+                 << blocks_to_remove << " blocks");
+
+        // Remove the excess blocks that don't align with chunk boundary
+        for (uint64_t i = 0; i < blocks_to_remove; ++i) {
+            cached_blocks.pop_back();
+        }
+    }
+
+    return cached_blocks;
+}
+
+void PrefixCachingHelper::copy_cached_kv_data(const std::vector<std::shared_ptr<KVBlock>>& cached_blocks) {
+    auto& kvcache_desc = m_request.m_npuw_llm_compiled_model->m_kvcache_desc;
+    const uint64_t block_size = m_request.m_npuw_llm_compiled_model->m_prefix_caching_block_size;
+
+    ov::parallel_for(cached_blocks.size(), [&](size_t block_idx) {
+        const auto& block = cached_blocks[block_idx];
+        auto token_start = block->get_token_start();
+        const KVData& block_kv_data = block->get_block_kv_data();
+
+        for (size_t idx = 0; idx < block_kv_data.size(); ++idx) {
             auto kv_per_layer = block_kv_data[idx];
             auto kv_out_name = kv_per_layer.first;
             const auto& kv_in_name = m_cached_input_name_map.at(kv_out_name);
@@ -473,21 +473,24 @@ uint64_t PrefixCachingHelper::restore_blocks(const ov::SoPtr<ov::ITensor>& input
             auto kv_dst_tensor = m_request.m_prefill_request->get_tensor(m_request.m_prefill_in_ports.at(kv_in_name));
             auto kv_dst_slice = ov::npuw::util::view(kv_dst_tensor, kv_dim, token_start, block_size);
             ov::npuw::util::copy_tensor_by_dim(kv_tensor, kv_dst_slice, kv_dim, kv_dim);
-        });
-
-        restored_token_num += block_size;
-
-        // Ensure the cached tokens can be loaded into infer request
-        if (restored_token_num + block_size > max_restored_token_num) {
-            break;
         }
+    });
+}
 
-        // At least we should infer "1" token to generate "logit"
-        if (restored_token_num == actual_token_num) {
-            restored_token_num -= block_size;
-            break;
-        }
-    }
+uint64_t PrefixCachingHelper::restore_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
+                                             const std::vector<uint64_t>& prompt_hashes) {
+    // Find all cached blocks first
+    auto cached_blocks = find_cached_blocks(input_ids, prompt_hashes);
+
+    // Copy KV data from cached blocks to prefill request
+    copy_cached_kv_data(cached_blocks);
+
+    // Calculate total restored token number
+    const uint64_t block_size = m_request.m_npuw_llm_compiled_model->m_prefix_caching_block_size;
+    uint64_t restored_token_num = cached_blocks.size() * block_size;
+
+    LOG_VERB("[PrefixCache] Successfully found " << cached_blocks.size() << " cached blocks, "
+                                                 << "restored " << restored_token_num << " tokens");
 
     return restored_token_num;
 }
@@ -498,6 +501,13 @@ void PrefixCachingHelper::store_blocks(size_t chunk_size,
     const uint64_t block_size = m_request.m_npuw_llm_compiled_model->m_prefix_caching_block_size;
 
     if (chunk_size < block_size) {
+        return;
+    }
+
+    // Skip caching for partial chunks to maintain KV cache consistency
+    // Partial chunks involve padding operations during inference that can introduce numerical variations
+    // Caching only full chunks ensures deterministic behavior and avoids subtle differences
+    if (chunk_size < m_request.m_npuw_llm_compiled_model->m_prefill_chunk_size) {
         return;
     }
 

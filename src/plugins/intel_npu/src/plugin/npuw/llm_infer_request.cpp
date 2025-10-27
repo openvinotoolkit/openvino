@@ -185,6 +185,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
         m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
+        // Cache past_key_values ports for efficient clearing
+        if (input_port.get_any_name().find(layer_names::past_key_values) != std::string::npos) {
+            m_prefill_past_kv_ports.push_back(input_port);
+        }
     }
     for (const auto& output_port : m_prefill_request->get_compiled_model()->outputs()) {
         m_prefill_out_ports.emplace(output_port.get_any_name(), output_port);
@@ -381,6 +385,12 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     }
     uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
     uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
+
+    // Clear all past_key_values tensors - use cached ports for efficiency
+    for (const auto& port : m_prefill_past_kv_ports) {
+        uu::fill_tensor_bytes(m_prefill_request->get_tensor(port), 0u);
+    }
+
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 
     apply_lora();
@@ -579,13 +589,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
 
-        // Handle first chunk with prefix caching: adjust chunk size and populate attention mask for restored cache
+        // Handle first chunk with prefix caching: populate attention mask for restored cache
         if (enable_prefix_caching && cache_context.restore_prefix_cache) {
-            if (current_prompts_len == chunk_prompt_len) {
-                auto token_num_to_a_full_chunk =
-                    m_prefix_caching_helper->adjust_chunk_size(kvcache_desc.num_stored_tokens, chunk_prompt_len);
-                current_prompts_len = token_num_to_a_full_chunk;
-            }
             m_prefix_caching_helper->populate_attention_mask_for_restored_cache(attention_mask,
                                                                                 attn_mask_in_tensor,
                                                                                 kvcache_desc.num_stored_tokens);
@@ -613,6 +618,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             prefilled_bytes *= input_ids->get_shape().back();
         }
 
+        ov::npuw::util::fill_tensor_bytes(input_ids_in_tensor, 0u);
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
                     current_prefill_bytes,
                     reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
@@ -627,7 +633,15 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             static_cast<uint32_t>(last_dim),
             kvcache_desc.num_stored_tokens,
             kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
-        pad_position_ids(pos_ids_in_tensor, actual_position_ids_slice);
+
+        auto pos_ids_slice =
+            ov::npuw::util::make_tensor_slice(pos_ids_in_tensor,
+                                              static_cast<uint32_t>(last_dim),
+                                              static_cast<uint32_t>(chunk_prompt_len - current_prompts_len),
+                                              static_cast<uint32_t>(chunk_prompt_len));
+
+        // Copy with proper stride handling
+        actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
 
         // Update history size for dynamic context:
         // dynamic attention selector needs history size to determin the past KV shape and attention mask shape

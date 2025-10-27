@@ -207,11 +207,6 @@ public:
     void store_computed_blocks(size_t chunk_size, const std::vector<uint64_t>& prompt_hashes, size_t& token_idx);
 
     /**
-     * @brief Adjust chunk size for optimal prefix caching alignment
-     */
-    size_t adjust_chunk_size(size_t restored_token_num, size_t chunk_len);
-
-    /**
      * @brief Print the current status of the prefix cache
      */
     void print_cache_status(bool verbose = false) const;
@@ -235,6 +230,22 @@ private:
 
     std::vector<uint64_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids);
     void create_name_mapping();
+
+    /**
+     * @brief Find cached KV blocks from cache manager
+     * @param input_ids Input token tensor
+     * @param prompt_hashes Precomputed hash values for all tokens
+     * @return Vector of cached KV blocks found in cache
+     */
+    std::vector<std::shared_ptr<KVBlock>> find_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
+                                                             const std::vector<uint64_t>& prompt_hashes);
+
+    /**
+     * @brief Copy KV data from cached blocks to prefill request tensors
+     * @param cached_blocks Vector of cached KV blocks to copy from
+     */
+    void copy_cached_kv_data(const std::vector<std::shared_ptr<KVBlock>>& cached_blocks);
+
     uint64_t restore_blocks(const ov::SoPtr<ov::ITensor>& input_ids, const std::vector<uint64_t>& prompt_hashes);
     void store_blocks(size_t chunk_size, const std::vector<uint64_t>& prompt_hashes, size_t& token_idx);
 };
