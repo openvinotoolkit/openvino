@@ -173,7 +173,7 @@ public:
     /**
      * @brief Construct TaskChain with defined annotation handle
      */
-    TaskChain(handle_t taskHandle, std::string prefix) noexcept : _prefix(std::move(prefix)) {
+    TaskChain(handle_t taskHandle, std::string&& prefix) noexcept : _prefix(std::forward<std::string>(prefix)) {
         internal::taskBegin(domain(), taskHandle);
     }
 
