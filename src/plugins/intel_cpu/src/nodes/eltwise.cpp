@@ -549,32 +549,20 @@ void Eltwise::init() {
     // Bf16 saturation handling for PowerStatic parameters
     // to make sure they stay within the valid range for bfloat16.
     if (m_attrs.data.algo == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
-        const float lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
-        const float max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
+        static const float bf16_lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        static const float bf16_max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
 
-        // Clamp alpha parameter
-        auto& alpha = m_attrs.data.alpha;
-        if (alpha < lowest) {
-            alpha = lowest;
-        } else if (alpha > max) {
-            alpha = max;
-        }
+        // Helper lambda to clamp parameter values within bf16 range
+        auto clampBf16Parameter = [&](auto& param) {
+            if (std::isfinite(param)) {
+                param = std::clamp(static_cast<float>(param), bf16_lowest, bf16_max);
+            }
+        };
 
-        // Clamp beta parameter
-        auto& beta = m_attrs.data.beta;
-        if (beta < lowest) {
-            beta = lowest;
-        } else if (beta > max) {
-            beta = max;
-        }
-
-        // Clamp gamma parameter
-        auto& gamma = m_attrs.data.gamma;
-        if (gamma < lowest) {
-            gamma = lowest;
-        } else if (gamma > max) {
-            gamma = max;
-        }
+        // Clamp all PowerStatic parameters
+        clampBf16Parameter(m_attrs.data.alpha);
+        clampBf16Parameter(m_attrs.data.beta);
+        clampBf16Parameter(m_attrs.data.gamma);
     }
 }
 void Eltwise::getSupportedDescriptors() {
