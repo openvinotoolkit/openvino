@@ -412,10 +412,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                  : pattern_map.count(sdpa_with_5_inputs) ? sdpa_with_5_inputs
                                                                          : sdpa_with_6_inputs)
                              .get_node();
-        // E and Ev are from the SDPA specification at
-        // https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/operation-specs/sequence/scaled-dot-product-attention.html
-        auto E = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];
-        auto Ev = sdpa_node->get_input_tensor(2).get_partial_shape()[-1];  // in common case may not match E
 
         auto extract_num_kv_heads = [=, &pattern_map](std::shared_ptr<Node> unsqueeze,
                                                       const Dimension& default_heads_num) {
@@ -456,16 +452,26 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             }
         };
 
-        auto num_k_heads =
+        auto k_head_size_dim = sdpa_node->get_input_tensor(1).get_partial_shape()[-1]; // E from SDPA spec.
+        auto v_head_size_dim = sdpa_node->get_input_tensor(2).get_partial_shape()[-1]; // Ev from SDPA spec. (in common case may not match E)
+        OPENVINO_ASSERT((k_head_size_dim.is_static() && v_head_size_dim.is_static()), "k/v_head_size dimensions have to be static.");
+        auto k_head_size = k_head_size_dim.get_length();
+        auto v_head_size = v_head_size_dim.get_length();
+
+        auto num_k_heads_dim =
             extract_num_kv_heads(k_heads_unsqueeze, sdpa_node->get_input_tensor(1).get_partial_shape()[-3]);
-        auto num_v_heads =
+        auto num_v_heads_dim =
             extract_num_kv_heads(v_heads_unsqueeze, sdpa_node->get_input_tensor(2).get_partial_shape()[-3]);
-        const ov::element::Type kv_cache_type = real_q.get_element_type();
+        OPENVINO_ASSERT((num_k_heads_dim.is_static() && num_v_heads_dim.is_static()), "num_k/v_head dimensions have to be static.");
+        auto num_k_heads = num_k_heads_dim.get_length();
+        auto num_v_heads = num_v_heads_dim.get_length();
+        
         std::string layer_index_str = std::to_string(layer_index);
-        auto k_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, num_k_heads, E}),
-                                   std::string("key_cache.") + std::to_string(layer_index));
-        auto v_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, num_v_heads, Ev}),
-                                   std::string("value_cache.") + std::to_string(layer_index));
+        auto k_parameter = setName(std::make_shared<v0::Parameter>(element::dynamic, ov::PartialShape::dynamic(4)),
+                                   "key_cache." + layer_index_str);
+        auto v_parameter = setName(std::make_shared<v0::Parameter>(element::dynamic, ov::PartialShape::dynamic(4)),
+                                   "value_cache." + layer_index_str);
+        
         layer_index += 1;
         kv_parameters.push_back(k_parameter);
         kv_parameters.push_back(v_parameter);
@@ -687,6 +693,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         OPENVINO_ASSERT(pa_arguments.size() == 21);
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
+        paged_attention->get_rt_info()["num_k_heads"] = num_k_heads;
+        paged_attention->get_rt_info()["k_head_size"] = k_head_size;
+        paged_attention->get_rt_info()["num_v_heads"] = num_v_heads;
+        paged_attention->get_rt_info()["v_head_size"] = v_head_size;
 
         // The output shape of PagedAttention will be converted to [batch, 1, head_num, head_size_v], the head_size_v
         // may be different from head_size_q/head_size_k. The head_size_v could be got from the shape of value input
