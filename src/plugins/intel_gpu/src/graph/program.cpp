@@ -518,8 +518,10 @@ void program::init_graph() {
 
     apply_opt_pass<mark_nodes>();
     for (auto& node : processing_order) {
-        if (!node->is_type<data>())
+        if (!node->is_type<data>()) {
+            std::cout << "  node org_id : " << node->org_id << std::endl;
             node->get_output_layouts();
+        }
     }
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();

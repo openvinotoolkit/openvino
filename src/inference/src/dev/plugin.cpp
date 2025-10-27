@@ -50,7 +50,9 @@ void ov::Plugin::set_property(const ov::AnyMap& config) {
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                         const ov::AnyMap& properties) const {
-    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties), m_so});
+    // OV_PLUGIN_CALL_STATEMENT(
+    return {m_ptr->compile_model(model, properties), m_so};
+    // );
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::string& model_path,
