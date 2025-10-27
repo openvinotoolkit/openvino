@@ -30,12 +30,7 @@ enum class E_PLATFORMS {
 const std::map<E_PLATFORMS, std::string> PLATFORMS{{E_PLATFORMS::MTL, "MTL"}};
 const std::map<std::string, E_PLATFORMS> PARSED_PLATFORMS{{"NPU3720", E_PLATFORMS::MTL}};
 
-enum class E_OV_VERSIONS {
-    OV_2024_6_0,
-    OV_2025_0_0,
-    OV_2025_1_0,
-    OV_2025_3_0
-};
+enum class E_OV_VERSIONS { OV_2024_6_0, OV_2025_0_0, OV_2025_1_0, OV_2025_3_0 };
 
 const std::map<E_OV_VERSIONS, std::string> OV_VERSIONS{{E_OV_VERSIONS::OV_2024_6_0, "2024_6_0"},
                                                        {E_OV_VERSIONS::OV_2025_0_0, "2025_0_0"},
@@ -44,7 +39,9 @@ const std::map<E_OV_VERSIONS, std::string> OV_VERSIONS{{E_OV_VERSIONS::OV_2024_6
 
 enum class E_DRIVERS { DRIVER_1688, DRIVER_3967, DRIVER_4297 };
 
-const std::map<E_DRIVERS, std::string> DRIVERS{{E_DRIVERS::DRIVER_1688, "1688"}, {E_DRIVERS::DRIVER_3967, "1003967"}, {E_DRIVERS::DRIVER_4297, "2020426"}};
+const std::map<E_DRIVERS, std::string> DRIVERS{{E_DRIVERS::DRIVER_1688, "1688"},
+                                               {E_DRIVERS::DRIVER_3967, "1003967"},
+                                               {E_DRIVERS::DRIVER_4297, "2020426"}};
 
 }  // namespace
 
@@ -99,16 +96,14 @@ using OVBlobCompatibilityNPU_PV_Driver_No_Throw = OVBlobCompatibilityNPU;
 using OVBlobCompatibilityNPU_Metadata_No_Throw = OVBlobCompatibilityNPU;
 
 #define NO_APPEND_EXPORT(ASSERT_TYPE, ...)
-#define APPEND_EXPORT(ASSERT_TYPE)                                                                           \
-    std::shared_ptr<ov::Model> nullModel(nullptr);                                                           \
-    ov::CompiledModel compiledModel;                                                                         \
-    config.emplace(ov::hint::compiled_blob(ov::read_tensor_data(blobPath))); \
-    ASSERT_TYPE(compiledModel = core.compile_model(nullModel,                                                \
-                                                   target_device,                                            \
-                                                   config));           \
-    config.erase(ov::hint::compiled_blob.name()); \
-    std::ostringstream outBlobStream;                                                                        \
-    ASSERT_TYPE(compiledModel.export_model(outBlobStream));                                                  \
+#define APPEND_EXPORT(ASSERT_TYPE)                                                     \
+    std::shared_ptr<ov::Model> nullModel(nullptr);                                     \
+    ov::CompiledModel compiledModel;                                                   \
+    config.emplace(ov::hint::compiled_blob(ov::read_tensor_data(blobPath)));           \
+    ASSERT_TYPE(compiledModel = core.compile_model(nullModel, target_device, config)); \
+    config.erase(ov::hint::compiled_blob.name());                                      \
+    std::ostringstream outBlobStream;                                                  \
+    ASSERT_TYPE(compiledModel.export_model(outBlobStream));                            \
     EXPECT_TRUE(outBlobStream.tellp() > 0);
 
 #define APPEND_EXPORT_HELPER_(arg1, arg2, arg3, ...) arg3
@@ -117,8 +112,7 @@ using OVBlobCompatibilityNPU_Metadata_No_Throw = OVBlobCompatibilityNPU;
 #define DEFAULT_TEST_BODY(ASSERT_TYPE, ...)                                                                    \
     const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobName; \
     std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);                                       \
-    ASSERT_TYPE(core.import_model(blobStream, target_device, config),                                          \
-                ##__VA_ARGS__);                                                                                \
+    ASSERT_TYPE(core.import_model(blobStream, target_device, config), ##__VA_ARGS__);                          \
     APPEND_EXPORT_HELPER(ASSERT_TYPE, ##__VA_ARGS__)
 
 TEST_P(OVBlobCompatibilityNPU, CanImportAllPrecompiledBlobsForAllOVVersionsAndDrivers) {
@@ -137,7 +131,8 @@ TEST_P(OVBlobCompatibilityNPU_PV_Driver_No_Throw, CanImportExpectedModelsForPVDr
 TEST_P(OVBlobCompatibilityNPU_Metadata_No_Throw, CanImportOlderMetadata) {
     std::string blobWeightsName(blobName.data(), blobName.find(BLOB_SUFFIX));
     blobWeightsName += ".bin";
-    config.insert(ov::weights_path(ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobWeightsName));
+    config.insert(
+        ov::weights_path(ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobWeightsName));
     DEFAULT_TEST_BODY(OV_ASSERT_NO_THROW);
     config.erase(ov::weights_path.name());
 }

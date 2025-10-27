@@ -78,9 +78,12 @@ const auto all_drivers_except_4297 = []() -> std::vector<std::string> {
 
 const auto all_drivers_except_pv = []() -> std::vector<std::string> {
     std::vector<std::string> drivers(all_drivers_except_4297.size() - 1);
-    std::copy_if(all_drivers_except_4297.begin(), all_drivers_except_4297.end(), drivers.begin(), [](const std::string& driver) {
-        return DRIVERS.at(E_DRIVERS::DRIVER_1688) != driver;
-    });
+    std::copy_if(all_drivers_except_4297.begin(),
+                 all_drivers_except_4297.end(),
+                 drivers.begin(),
+                 [](const std::string& driver) {
+                     return DRIVERS.at(E_DRIVERS::DRIVER_1688) != driver;
+                 });
     return drivers;
 }();
 
