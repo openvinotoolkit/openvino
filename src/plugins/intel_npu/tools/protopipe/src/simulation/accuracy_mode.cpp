@@ -425,28 +425,21 @@ bool PipelinedSimulation::process(cv::GStreamingCompiled& pipeline) {
 
 }  // anonymous namespace
 
-static InferenceParamsMap& changeDeviceParam(InferenceParamsMap& params, std::string device_name) {
+static void changeDeviceParam(InferenceParamsMap& params, const std::string& device_name) {
     for (auto& [tag, inference_params] : params) {
         if (std::holds_alternative<OpenVINOParams>(inference_params)) {
             std::get<OpenVINOParams>(inference_params).device = device_name;
         }
     }
-    return params;
 }
 
 AccuracySimulation::AccuracySimulation(Simulation::Config&& cfg, AccuracySimulation::Options&& opts)
         : Simulation(std::move(cfg)),
           m_opts(std::move(opts)),
           m_strategy(std::make_shared<AccuracyStrategy>(m_opts)),
-          m_comp(ComputationBuilder{m_strategy}.build(m_cfg.graph, changeDeviceParam(m_cfg.params, m_opts.ref_device), {false /* add performance meta */})),
-        //   m_tgt_comp(ComputationBuilder{m_strategy}.build(m_cfg.graph, changeDeviceParam(m_cfg.params, m_opts.tgt_device), {false /* add performance meta */})),
-          test{new Test(m_cfg.params)} {
+          m_comp(ComputationBuilder{m_strategy}.build(m_cfg.graph, m_cfg.params, {false /* add performance meta */})) {
 }
 
-
-// Una din astea e folosita, iar apoi pointer-ul este bagat intr-un vector
-// cu functii, intr-un runner unde sunt toate rulate async.
-// Basically se compileaza, se face un pointer pipelined/sync si este returned.
 std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(DummySources&& sources,
                                                                        cv::GCompileArgs&& compile_args) {
     auto compiled = m_comp.compileStreaming(descr_of(sources), std::move(compile_args));
@@ -455,11 +448,25 @@ std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(DummySou
                                                  m_strategy->required_num_iterations);
 }
 
-std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& sources, cv::GCompileArgs&& compile_args) {
-    auto ref_compiled = m_comp.compile(descr_of(sources), std::move(compile_args));
+std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& sources, cv::GCompileArgs&& ref_compile_args, cv::GCompileArgs&& tgt_compile_args) {
+    auto ref_compiled = m_comp.compile(descr_of(sources), std::move(ref_compile_args));
     auto ref_out_meta = m_comp.getOutMeta();
-    auto compile_copy = ref_compiled;
-    auto out_meta_copy = ref_out_meta;
-    return std::make_shared<SyncSimulation>(std::move(ref_compiled), std::move(compile_copy), std::move(sources), 
-                                            std::move(ref_out_meta), std::move(out_meta_copy), m_strategy->required_num_iterations, m_opts);
+
+    for (auto src : sources) {
+        src->reset();
+    }
+
+    auto tgt_compiled = m_comp.compile(descr_of(sources), std::move(tgt_compile_args));
+    auto tgt_out_meta = m_comp.getOutMeta();
+
+    return std::make_shared<SyncSimulation>(std::move(ref_compiled), std::move(tgt_compiled), std::move(sources), 
+                                            std::move(ref_out_meta), std::move(tgt_out_meta), m_strategy->required_num_iterations, m_opts);
+}
+
+std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(const bool drop_frames) {
+    changeDeviceParam(m_cfg.params, m_opts.tgt_device);
+    auto tgt_compile_args = cv::compile_args(getNetworksPackage());
+    changeDeviceParam(m_cfg.params, m_opts.ref_device);
+    auto ref_compile_args = cv::compile_args(getNetworksPackage());
+    return compileSync(createSources(drop_frames), std::move(ref_compile_args), std::move(tgt_compile_args));
 }

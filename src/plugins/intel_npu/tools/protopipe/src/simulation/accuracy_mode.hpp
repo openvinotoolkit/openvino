@@ -6,13 +6,6 @@
 #include "simulation/simulation.hpp"
 #include "scenario/inference.hpp"
 
-struct Test {
-    Test(InferenceParamsMap& params) {
-        for (const auto& pair : params) {
-            std::cout << "Device: " << std::get<OpenVINOParams>(pair.second).device << "\n";
-        }
-    }
-};
 
 class AccuracyStrategy;
 class AccuracySimulation : public Simulation {
@@ -30,13 +23,15 @@ public:
 
     explicit AccuracySimulation(Simulation::Config&& cfg, Options&& opts);
 
+    std::shared_ptr<SyncCompiled> compileSync(const bool drop_frames) override;
+
     std::shared_ptr<PipelinedCompiled> compilePipelined(DummySources&& sources,
                                                         cv::GCompileArgs&& compile_args) override;
-    std::shared_ptr<SyncCompiled> compileSync(DummySources&& sources, cv::GCompileArgs&& compiler_args) override;
+    std::shared_ptr<SyncCompiled> compileSync(DummySources&& sources,
+                                              cv::GCompileArgs&& ref_compiler_args, cv::GCompileArgs&& tgt_compiler_args);
 
 private:
     Options m_opts;
     std::shared_ptr<AccuracyStrategy> m_strategy;
     Computation m_comp;
-    Test* test;
 };
