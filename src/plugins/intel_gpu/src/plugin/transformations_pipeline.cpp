@@ -366,17 +366,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
 #ifdef GPU_DEBUG_CONFIG
                     if (!config.get_use_cm()) {
-                        OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
-                                    "as CM for usage is disabled. Enable it by setting environment variable OV_GPU_USE_CM=ON.");
+                        OPENVINO_WARN("XAttention optimization is disabled because CM is not enabled. "
+                                    "To enable, set environment variable OV_GPU_USE_CM=ON.");
                         return true;
                     }
 #endif
 
                     if (!check_cm_jit_support(engine, config)) {
-                        OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
-                                    "as current IGC version is not compatible to the CM kernel used. Enable it by update IGC."
-                                    "Please also make sure clangFEWrapper for CM is present by checking environment varibles like "
-                                    "CM_FE_DIR or LD_LIBRARY_PATH if you are using Linux.");
+                        OPENVINO_WARN("SDPAToVLSDPA optimization for QWenVL model unavailable: IGC version incompatible with CM kernel. "
+                                    "Update IGC and ensure clangFEWrapper for CM is available (check CM_FE_DIR or LD_LIBRARY_PATH on Linux).");
                         return true;
                     }
 
@@ -510,36 +508,106 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // To handle this case, "KeepConstPrecision" is executed again.
         manager.register_pass<ov::pass::KeepConstPrecision>(supported_woq_types, !device_info.supports_immad);
 
-        ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
-        kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
-        kv_cache_config.valueCachePrecision = config.get_kv_cache_precision();
-        kv_cache_config.inferencePrecision = infer_precision;
-        kv_cache_config.keyCacheBlockSize = 16;
-        kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
-        kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
-        kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
-        kv_cache_config.valueCacheBlockSize = 16;
-        kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
-        kv_cache_config.valueCacheQuantBychannel = false;
-        kv_cache_config.valueCacheGroupSize = 0;
+        {
+            // Disable XAttention if GPU Xe2/Xe3 architectures is unavaiable or IGC incompatiable.
+            auto check_xattn_gpu_compatibility  = [&](void) -> bool {
+                        auto& engine = m_context->get_engine();
+                        const auto& info = engine.get_device_info();
+                        if (info.arch != cldnn::gpu_arch::xe2 && info.arch != cldnn::gpu_arch::xe3) { // CM optimized for systolic-array architectures
+                            return false;
+                        }
 
-        manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
-            [&infer_precision](const ov::element::Type& precision,
-               const bool bychannel,
-               const size_t group_num,
-               int64_t& head_size,
-               int64_t& block_size) {
-                if (bychannel) {
-                    // TODO: need to handle group size != block size case
-                    if (precision == ov::element::i8 || precision == ov::element::u8) {
-                        block_size += infer_precision.size() * 2;
-                    }
-                } else {
-                    if (precision == ov::element::i8 || precision == ov::element::u8) {
-                        head_size += infer_precision.size() * 2 * group_num;
-                    }
+#ifdef GPU_DEBUG_CONFIG
+                        if (!config.get_use_cm()) {
+                            OPENVINO_WARN("XAttention optimization is disabled because CM is not enabled. "
+                                        "To enable, set environment variable OV_GPU_USE_CM=ON.");
+                            return false;
+                        }
+#endif
+
+                        if (!check_cm_jit_support(engine, config)) {
+                            OPENVINO_WARN("XAttention optimization unavailable: IGC version incompatible with CM kernel. "
+                                        "Update IGC and ensure clangFEWrapper for CM is available (check CM_FE_DIR or LD_LIBRARY_PATH on Linux).");
+                            return false;
+                        }
+
+                        return true;
+                    };
+
+
+            // Check if XAttention is enabled by the user via GENAI.
+            // This is determined by inspecting the model parameters for XAttention configurations,
+            // which are introduced during the SDPAToPagedAttention pass.
+            bool use_xattention = false;
+            const auto& parameters = func->get_parameters();
+            for (const auto& param : parameters) {
+                if (param->get_friendly_name() == "xattention_block_size") {
+                    use_xattention = true;
+                    break;
                 }
-            });
+            }
+
+            if (use_xattention) {
+                // Throw exception if xattn is not supported by either GPU archieture or compiler.
+                if (!check_xattn_gpu_compatibility())
+                    OPENVINO_THROW("[GPU] XAttention is not supported by your current GPU architecture or IGC version. "
+                                "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
+                                "architecture and ensure the latest IGC is installed.");
+            }
+
+            // KVCache layout with default attention -
+            // k: [num_blocks, num_kv_heads, head_size, block_size(16)]
+            // v: [num_blocks, num_kv_heads, block_size(16), head_size]
+            // KVCache layout with XAttention -
+            // k: [num_blocks, num_kv_heads, block_size(256), head_size]
+            // v: [num_blocks, num_kv_heads, block_size(256), head_size]
+            ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
+            const auto kv_cache_precision = config.get_kv_cache_precision();
+            kv_cache_config.keyCachePrecision = kv_cache_precision;
+            kv_cache_config.valueCachePrecision = kv_cache_precision;
+            kv_cache_config.inferencePrecision = infer_precision;
+            if (use_xattention) {
+                kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size_xattn;
+                kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
+            } else {
+                kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
+                kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+            }
+            kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
+            kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
+            if (use_xattention) {
+                if (kv_cache_config.keyCacheQuantBychannel &&
+                    ((kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::u8)) )
+                    OPENVINO_THROW("[GPU] XAttention does not currently support per-channel quantized key cache.");
+
+                kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size_xattn;
+                kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+            } else {
+                kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size;
+                kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+            }
+            kv_cache_config.valueCacheQuantBychannel = false;
+            kv_cache_config.valueCacheGroupSize = 0;
+
+            manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
+                [&infer_precision](const ov::element::Type& precision,
+                const bool bychannel,
+                const size_t group_num,
+                int64_t& head_size,
+                int64_t& block_size) {
+                    OPENVINO_ASSERT(precision != ov::element::dynamic, "[GPU] kv_cache precision should be specified.");
+                    if (bychannel) {
+                        // TODO: need to handle group size != block size case
+                        if (precision == ov::element::i8 || precision == ov::element::u8) {
+                            block_size += infer_precision.size() * 2;
+                        }
+                    } else {
+                        if (precision == ov::element::i8 || precision == ov::element::u8) {
+                            head_size += infer_precision.size() * 2 * group_num;
+                        }
+                    }
+                });
+        }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
             if (!config.get_enable_sdpa_optimization())
@@ -1280,6 +1348,23 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();
             bool precomputed_reduction = config.get_dynamic_quantization_precomputed_reduction();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
+                const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
+                const int64_t dyn_quan_single = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_single(), 0);    // 0 will be ignored from GPU_DEBUG_IF
+                GPU_DEBUG_IF(dyn_quan_bisect != std::numeric_limits<int64_t>::max() ||
+                                dyn_quan_single >= 0) {
+                    static int64_t fc_count = 0;
+
+                    if (++fc_count > dyn_quan_bisect)
+                        return true;
+
+                    if (dyn_quan_single >= 0) {
+                        if (fc_count != dyn_quan_single)
+                            return true;
+                        else
+                            GPU_DEBUG_COUT << "Try to apply dyn_quan only to " << root->get_friendly_name() << std::endl;
+                    }
+                }
+
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
                     if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
                         GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
