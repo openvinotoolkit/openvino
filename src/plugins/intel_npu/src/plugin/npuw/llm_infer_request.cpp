@@ -381,6 +381,16 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     }
     uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
     uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
+
+    // Clear all past_key_values tensors
+    for (const auto& port_pair : m_prefill_in_ports) {
+        const std::string& port_name = port_pair.first;
+        if (port_name.find(layer_names::past_key_values) != std::string::npos) {
+            auto past_kv_tensor = m_prefill_request->get_tensor(port_pair.second);
+            uu::fill_tensor<ov::float16>(past_kv_tensor, 0);
+        }
+    }
+
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 
     apply_lora();
@@ -608,6 +618,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             prefilled_bytes *= input_ids->get_shape().back();
         }
 
+        ov::npuw::util::fill_tensor_bytes(input_ids_in_tensor, 0u);
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
                     current_prefill_bytes,
                     reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
@@ -622,7 +633,15 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             static_cast<uint32_t>(last_dim),
             kvcache_desc.num_stored_tokens,
             kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
-        pad_position_ids(pos_ids_in_tensor, actual_position_ids_slice);
+
+        auto pos_ids_slice =
+            ov::npuw::util::make_tensor_slice(pos_ids_in_tensor,
+                                              static_cast<uint32_t>(last_dim),
+                                              static_cast<uint32_t>(chunk_prompt_len - current_prompts_len),
+                                              static_cast<uint32_t>(chunk_prompt_len));
+
+        // Copy with proper stride handling
+        actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
 
         // Update history size for dynamic context:
         // dynamic attention selector needs history size to determin the past KV shape and attention mask shape
