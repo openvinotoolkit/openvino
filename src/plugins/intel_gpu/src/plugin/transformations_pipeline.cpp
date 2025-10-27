@@ -1293,6 +1293,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return true;
                     }
                 }
+                uint64_t adj_group_size = dynamic_quantization_group_size;
+                const bool is_wei_i8u8 = cldnn::one_of(root->get_input_element_type(1), {ov::element::i8, ov::element::u8});
+                if (ov::intel_gpu::DynamicQuantizeFullyConnected::ShouldUseGs128(is_wei_i8u8, use_gs128_for_int8_per_token, adj_group_size)) {
+                    adj_group_size = 128;
+                }
 
                 const auto& input_shape = root->get_input_partial_shape(0);
                 const size_t input_rank = input_shape.size();
@@ -1312,7 +1317,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
 
                 // AZP does not support grouped size dyn-quan
-                GPU_DEBUG_IF(asymmetric_dyn_quant && (dynamic_quantization_group_size != UINT64_MAX)) {
+                GPU_DEBUG_IF(asymmetric_dyn_quant && (adj_group_size != UINT64_MAX)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support grouped quantization" <<
                                                                    " ('DynamicQuantizeAsym' is enabled with grouped size dyn-quan)" << std::endl;
                     return true;
@@ -1326,12 +1331,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return true;
                 }
 
-                const bool is_wei_i8u8 = cldnn::one_of(root->get_input_element_type(1), {ov::element::i8, ov::element::u8});
-                const bool is_per_token = is_wei_i8u8 && dynamic_quantization_group_size == UINT64_MAX && !use_gs128_for_int8_per_token;
-                const bool is_dyn_quan_supported_for_i8u8w = is_per_token || group_dyn_quan_allowed;
-                if (is_wei_i8u8 && !is_dyn_quan_supported_for_i8u8w) {
+                const bool is_grouped = adj_group_size != UINT64_MAX;
+                // It should be either per-token or hardware should support grouped dyn_quan(through non-uniform-work-group)
+                if (is_grouped && !group_dyn_quan_allowed) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
-                                                                    " is_dyn_quan_supported_for_i8u8w " << is_dyn_quan_supported_for_i8u8w << std::endl;
+                                                                    " group_dyn_quan_allowed " << group_dyn_quan_allowed << std::endl;
                     return true;
                 }
 
