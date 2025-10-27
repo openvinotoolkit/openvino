@@ -14,7 +14,7 @@
 #include <string>
 #include <utility>
 #include <stdexcept>
-
+#include "openvino/core/except.hpp"
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -300,6 +300,25 @@ struct format {
         return (fmt == yxfb || fmt == byxf || fmt == byfx || fmt == bxfy || fmt == bfyx || fmt == fyxb || fmt == fybx ||
                 fmt == bfxy ||fmt == xbfy || fmt == ybfx || fmt == fbyx || fmt == bfzyx || fmt == bfwzyx || fmt == bfuwzyx ||
                 fmt == bfvuwzyx);
+    }
+
+    static std::vector<int64_t> get_internal_dims(const format& fmt) {
+        const auto& o_order = fmt.order();
+        const auto& i_order = fmt.internal_order();
+
+        std::vector<int64_t> i_dims;
+
+        for (size_t i = 0; i < o_order.size(); i++) {
+            auto c = o_order[i];
+            auto pos = i_order.find(c);
+
+            if (pos == std::string::npos)
+                OPENVINO_THROW("Unknown coord type: " + std::to_string(c));
+
+            i_dims.push_back(pos);
+        }
+
+        return i_dims;
     }
 
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
