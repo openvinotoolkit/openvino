@@ -378,6 +378,17 @@ struct EltwiseEmitter<jit_is_inf_emitter> {
                                                            ctx.opData.beta);
     }
 };
+
+template <>
+struct EltwiseEmitter<jit_clamp_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_clamp_emitter>(ctx.host,
+                                                          ctx.host_isa,
+                                                          ctx.exec_prc,
+                                                          ctx.opData.alpha,
+                                                          ctx.opData.beta);
+    }
+};
 }  // namespace
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -398,7 +409,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseAbs, jit_abs_emitter),
               OV_CASE(Algorithm::EltwiseSqrt, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseSoftRelu, jit_dnnl_aux_emitter),
-              OV_CASE(Algorithm::EltwiseClamp, jit_dnnl_aux_emitter),
+              OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
               OV_CASE(Algorithm::EltwiseSwish, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseHswish, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseMish, jit_dnnl_aux_emitter),
@@ -891,7 +902,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseAbs, jit_abs_emitter),
               OV_CASE(Algorithm::EltwiseSqrt, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseSoftRelu, jit_dnnl_aux_emitter),
-              OV_CASE(Algorithm::EltwiseClamp, jit_dnnl_aux_emitter),
+              OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
               OV_CASE(Algorithm::EltwiseSwish, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseHswish, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseMish, jit_dnnl_aux_emitter),
