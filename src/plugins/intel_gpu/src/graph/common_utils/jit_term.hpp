@@ -213,18 +213,22 @@ inline JitTerm operator/(const JitTerm& lhs, const JitTerm& rhs) {
         return lhs;
     }
     if (is_number(lhs) && is_number(rhs)) {
-        return JitTerm{std::to_string(as_number<int64_t>(lhs) / as_number<int64_t>(rhs))};
+        auto rhs_val = as_number<int64_t>(rhs);
+        OPENVINO_ASSERT(rhs_val != 0, "Division by zero detected in operator/");
+        return JitTerm{std::to_string(as_number<int64_t>(lhs) / rhs_val)};
     }
     return JitTerm{"(" + lhs.str() + " / " + rhs.str() + ")"};
 }
 inline JitTerm operator%(const JitTerm& lhs, const JitTerm& rhs) {
     OPENVINO_ASSERT(rhs.str() != "0");
-    if (rhs.str() == "1") {
+    if (rhs.str() == "1" || rhs.str() == "-1") {
         return JitTerm{"0"};
     }
 
     if (is_number(lhs) && is_number(rhs)) {
-        return JitTerm{std::to_string(as_number<int64_t>(lhs) % as_number<int64_t>(rhs))};
+        auto rhs_val = as_number<int64_t>(rhs);
+        OPENVINO_ASSERT(rhs_val != 0, "Modulo by zero detected in operator%");
+        return JitTerm{std::to_string(as_number<int64_t>(lhs) % rhs_val)};
     }
 
     return JitTerm{"(" + lhs.str() + " % " + rhs.str() + ")"};

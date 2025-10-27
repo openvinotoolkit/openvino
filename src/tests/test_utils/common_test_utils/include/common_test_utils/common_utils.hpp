@@ -17,6 +17,10 @@
 
 #include "openvino/core/partial_shape.hpp"
 
+namespace ov::test::opt {
+inline constexpr auto FORCE = true;
+}
+
 namespace ov {
 namespace test {
 namespace utils {
