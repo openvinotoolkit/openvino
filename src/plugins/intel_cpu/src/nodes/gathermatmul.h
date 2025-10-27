@@ -67,6 +67,8 @@ private:
     MemoryPtr m_scalesMemory = nullptr;
     MemoryPtr m_zpMemory = nullptr;
     MemoryPtr m_tmpInpBuffer = nullptr;
+    MemoryPtr m_tmpInput = nullptr;
+    MemoryPtr m_tmpOutput = nullptr;
 };
 
 }  // namespace ov::intel_cpu::node
