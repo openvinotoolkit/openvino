@@ -516,7 +516,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
 bool ov::pass::FuseMOE::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(FuseMOE);
     ov::pass::Manager manager(get_pass_config(), "FuseMOE");
-    
+
     manager.register_pass<ov::pass::FuseMOEExperts>();
     manager.run_passes(model);
     return false;
