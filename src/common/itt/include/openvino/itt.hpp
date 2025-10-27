@@ -316,10 +316,10 @@ public:
         openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(taskOrTaskName));
 
 /**
- * @def OV_ITT_SCOPED_REGION_BASE(domain, handleOrTaskName)
+ * @def OV_ITT_SCOPED_REGION_BASE(domain, handleOrRegionName)
  * @ingroup ov_dev_profiling
  * @brief Annotate region of code till scope exit for BASE/FULL modes regardless of profiling filter groups.
- * @details In case if handle or taskName absent, the current function name is used.
+ * @details In case if handle or regionName absent, the current function name is used.
  * @param domain [in] Known at compile time name of module or library (the domain name).
  * @param handleOrRegionName [in] The annotation name or handle for section of code. Parameter is optional.
  */

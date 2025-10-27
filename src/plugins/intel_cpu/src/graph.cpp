@@ -31,7 +31,6 @@
 #include <utility>
 #include <vector>
 
-#include "../../core/src/itt.hpp"
 #include "allocation_context.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"

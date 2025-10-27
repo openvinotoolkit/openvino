@@ -43,10 +43,20 @@ static thread_local uint64_t current_region_counter = 0;
 static thread_local void* current_region_handle = nullptr;
 
 domain_t domain(const char* name) {
+#if !defined(SELECTIVE_BUILD_ANALYZER) && !defined(SELECTIVE_BUILD)
+    if (!is_initialized()) {
+        return nullptr;
+    }
+#endif
     return reinterpret_cast<domain_t>(__itt_domain_create(name));
 }
 
 handle_t handle(const char* name) {
+#if !defined(SELECTIVE_BUILD_ANALYZER) && !defined(SELECTIVE_BUILD)
+    if (!is_initialized()) {
+        return nullptr;
+    }
+#endif
     return reinterpret_cast<handle_t>(__itt_string_handle_create(name));
 }
 

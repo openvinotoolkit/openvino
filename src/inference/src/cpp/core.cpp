@@ -103,7 +103,6 @@ std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& config) {
-    OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "Compile model");
     OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     return compile_model(model, ov::DEFAULT_DEVICE_NAME, config);
 }
