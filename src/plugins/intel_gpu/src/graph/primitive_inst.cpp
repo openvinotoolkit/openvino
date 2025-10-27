@@ -2432,6 +2432,11 @@ void primitive_inst::update_weights() {
         _impl_params->weights_layout = optional_layout(expected_layout);
 
         if (_reordered_weights_cache.has(expected_layout) &&
+            (expected_layout.format == cldnn::format::custom && expected_layout.bytes_count() > _reordered_weights_cache.get(expected_layout)->size())) {
+            OPENVINO_THROW("invalid _reordered_weights_cache by changed onednn weight format-tag");
+        }
+
+        if (_reordered_weights_cache.has(expected_layout) &&
             !(expected_layout.format == cldnn::format::custom && expected_layout.bytes_count() > _reordered_weights_cache.get(expected_layout)->size())) {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights for " << expected_layout.to_short_string() << std::endl;
