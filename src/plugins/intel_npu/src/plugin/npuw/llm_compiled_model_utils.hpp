@@ -23,6 +23,8 @@ public:
     }
 };
 
+bool has_input(const std::shared_ptr<ov::Model>& model, const std::string& name);
+
 // SDPA-unroll and transpose transformations
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill);
 
