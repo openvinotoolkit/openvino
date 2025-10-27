@@ -72,7 +72,7 @@ TEST_F(TransformationTestsF, SwishFusionWithClamp) {
         auto convert1 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{32,2880,5760});
         auto gemm_up = std::make_shared<ov::op::v0::MatMul>(reshape, convert1);
         auto swiglu_with_clamp = std::make_shared<ov::intel_gpu::op::SwiGluWithClamp>(gemm_up, 2,
-            2880, ov::op::internal::GLU::GluType::Swish, 0, -7, 7,  ov::element::Type_t::f32);
+            2880, ov::op::internal::GLU::GluType::Swish, 0, -7, 7,  1.0f, ov::element::Type_t::f32);
         auto result = std::make_shared<ov::op::v0::Result>(swiglu_with_clamp);
 
         model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{reshape, convert1});
