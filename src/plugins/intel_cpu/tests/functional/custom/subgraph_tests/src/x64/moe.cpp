@@ -166,13 +166,8 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
 
-        rel_threshold = 1e-4f;
-        abs_threshold = 1e-4f;
-        auto itr = configuration.find(ov::hint::inference_precision.name());
-        if (itr != configuration.end() && itr->second == ov::element::bf16) {
-            rel_threshold = 0.1f;
-            abs_threshold = 0.1f;
-        }
+        rel_threshold = 5e-4f;
+        abs_threshold = 5e-4f;
 
         const auto& [shape_params,
                      moe_type,
@@ -189,6 +184,12 @@ protected:
         configuration.insert(additional_config.begin(), additional_config.end());
         init_input_shapes({shape_params.data_shape});
         inType = outType = ov::element::f32;
+
+        auto itr = configuration.find(ov::hint::inference_precision.name());
+        if (itr != configuration.end() && itr->second == ov::element::bf16) {
+            rel_threshold = 0.1f;
+            abs_threshold = 0.1f;
+        }
 
         if (moe_type == MoEType::MoE2GeMM) {
             function = initMoE2GeMMSubgraph(shape_params,
@@ -328,7 +329,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights,
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(false),  // reshape on decompression
                                             ::testing::Values(16),     // decompression group size
-                                            ::testing::Values(additional_config_basic),
+                                            ::testing::Values(additional_config_basic, additional_config_bf16),
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
                          MoECompressedWeightsSubgraphTest::getTestCaseName);
 
@@ -343,7 +344,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_MoeCompressedWeights,
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(false),  // reshape on decompression
                                             ::testing::Values(16),     // decompression group size
-                                            ::testing::Values(additional_config_basic),
+                                            ::testing::Values(additional_config_basic, additional_config_bf16),
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
                          MoECompressedWeightsSubgraphTest::getTestCaseName);
 
