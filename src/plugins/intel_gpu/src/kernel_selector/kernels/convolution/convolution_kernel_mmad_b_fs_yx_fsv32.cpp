@@ -152,8 +152,10 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32::GetJitConstants(const convolu
     jit.Merge(MakeTypeJitConstants(GetPackedInputType(params), "PACKED_IN"));
     if (IsSIMDSizeSupported(params.engineInfo, 8)) {
         jit.Merge(MakeTypeJitConstants(GetPackedOutputType(params), "PACKED_OUT"));
+        jit.AddConstant(MakeJitConstant("OF_TO_DO", 4));
     } else {
         jit.Merge(MakeTypeJitConstants(GetPackedOutputType(params, 2), "PACKED_OUT"));
+        jit.AddConstant(MakeJitConstant("OF_TO_DO", 2));
     }
     if (params.weights.GetDType() == WeightsType::INT8) {
         jit.AddConstant(MakeJitConstant("FILTER_TYPE_CHAR", 1));

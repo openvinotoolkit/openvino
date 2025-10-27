@@ -54,12 +54,6 @@
     #error "convolution_gpu_mmad_b_fs_yx_fsv32: Unsupported FILTER_TYPE"
 #endif
 
-#if SUB_GROUP_SIZE == 8
-    #define OF_TO_DO 4   
-#else //SUB_GROUP_SIZE == 8
-    #define OF_TO_DO 2
-#endif
-
 
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, OW_GROUP, 1)))
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)

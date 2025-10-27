@@ -9110,6 +9110,7 @@ protected:
 };
 
 class convolution_random_smoke_test : public testing::TestWithParam<convolution_random_test_all_params> {};
+class convolution_random_fsv32_test : public testing::TestWithParam<convolution_random_test_all_params> {};
 
 using convolution_random_test_s8s8f32 = convolution_random_test_base<int8_t, int8_t, float>;
 using convolution_random_test_u8s8f32 = convolution_random_test_base<uint8_t, int8_t, float>;
@@ -9238,6 +9239,35 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
         return *this;
     }
 
+    params_generator& forced_mmad_b_fs_yx_fsv32_test_params(format::type input_format,
+                                        bool asymm_weights = false,
+                                        bool asymm_data = false,
+                                        bool padded_input = false,
+                                        bool bigger_pad = false) {
+        std::vector<size_t> batches = { 1, 2 };
+        for (auto b : batches) {
+            // 3x3
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 14, 14 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 14, 14 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            // 1x1
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 28, 28 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 28, 28 }, { 1, 1 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            // 5x5
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 28, 28 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 28, 28 }, { 5, 5 }, { 2, 2 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            // non_divisible_of
+            push_back(convolution_random_test_all_params{
+                b, 32, 49, { 14, 14 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+        }
+        return *this;
+    }
+
     params_generator& all_test_params(format::type input_format,
                                       bool asymm_weights = false,
                                       bool asymm_data = false,
@@ -9301,6 +9331,28 @@ INSTANTIATE_TEST_SUITE_P(
         .smoke_test_params(format::b_fs_yx_fsv16, false, false, true, true)
         .bs_test_params(format::bs_fs_yx_bsv16_fsv16)
         .bs_test_params(format::b_fs_yx_fsv16, false, true, false, false, true)
+    ),
+    to_string_convolution_all_params
+);
+
+TEST_P(convolution_random_fsv32_test, u8u8f32_forced_mmad_b_fs_yx_fsv32) {
+    convolution_random_test_u8u8f32 test;
+    const auto p = GetParam();
+    ov::intel_gpu::ImplForcingMap force_map{ { "conv", { p.input_format, "convolution_gpu_mmad_b_fs_yx_fsv32" } } };
+    test.set_forced_impl(force_map);
+    ASSERT_NO_FATAL_FAILURE(test.run_random(p));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    convolution_random_fsv32_test,
+    testing::ValuesIn(
+        params_generator()
+        .forced_mmad_b_fs_yx_fsv32_test_params(format::b_fs_yx_fsv32)
+        .forced_mmad_b_fs_yx_fsv32_test_params(format::b_fs_yx_fsv32, true, true)
+        .forced_mmad_b_fs_yx_fsv32_test_params(format::b_fs_yx_fsv32, false, true)
+        .forced_mmad_b_fs_yx_fsv32_test_params(format::b_fs_yx_fsv32, true, false)
+        .forced_mmad_b_fs_yx_fsv32_test_params(format::b_fs_yx_fsv32, false, false, true)
     ),
     to_string_convolution_all_params
 );
