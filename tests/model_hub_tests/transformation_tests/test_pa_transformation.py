@@ -53,9 +53,9 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         for name in names:
             if (("key_cache." in name) or ("value_cache." in name)):
                 shape = input.get_partial_shape()
-                # PagedAttention uses key_cache and value_cache inputs so the last 2 dimensions have to be static
-                assert shape[-1].is_static, f"Dimension {len(shape) - 1} of input '{name}' in '{model_id}' is not static: {shape}"
-                assert shape[-2].is_static, f"Dimension {len(shape) - 2} of input '{name}' in '{model_id}' is not static: {shape}"
+                for i in range(shape.rank.get_length()):
+                    # PagedAttention uses key_cache and value_cache inputs with all 4 dims being dynamic
+                    assert shape[i].is_dynamic, "Dimension {i} of input '{name}' in '{model_id}' is not dynamic: {shape}" 
 
     interesting_input_patterns = {}
     interesting_output_patterns = {}
