@@ -27,7 +27,8 @@ std::vector<layout> moe_gather_inst::calc_output_layouts(const moe_gather_node& 
     OPENVINO_ASSERT(hidden_size.is_static(), impl_param.desc->id, " hidden size dimension (shape[1]) must be static");
 
     if (in_layout.is_dynamic()) {
-        return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)}, in_layout.data_type, in_layout.format}};
+        return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)},
+                in_layout.data_type, in_layout.format}};
     }
     const auto num_tokens = desc->has_batch_dim ? input_shape[1] : input_shape[0];
     const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens * num_experts_per_token), ov::Dimension(1), ov::Dimension(hidden_size)};

@@ -331,7 +331,6 @@ KernelData MoEGemmMicroGenerator::get_kernel_data(const kernel_impl_params& para
     if (slm_size > 0) {
         kd.params.local_memory_args.push_back(slm_size);
         kd.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, slm_size});
-
     }
     return kd;
 }
