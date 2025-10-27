@@ -5,14 +5,16 @@ Remote Tensor API of NPU Plugin
 .. meta::
    :description: The Remote Tensor API of NPU plugin in OpenVINO™ supports
                  interoperability with existing native APIs, such as
-                 NT handle, or DMA-BUF System Heap.
+                 NT handle, or DMA-BUF System Heap, and provides mechanisms
+                 for mapping files into memory for efficient data access.
 
 
 The NPU plugin implementation of the ``ov::RemoteContext`` and ``ov::RemoteTensor`` interface assists NPU
 pipeline developers who need memory sharing with existing native APIs (for example, OpenCL, Vulkan, DirectX 12)
 by exporting an NT handle on Windows, or DMA-BUF System Heap on Linux and passing that pointer as the
-``shared_buffer`` member to the ``remote_tensor(..., shared_buffer)`` create function. They allow you
-to avoid any memory copy overhead when plugging OpenVINO™ inference into an existing NPU pipeline.
+``shared_buffer`` member to the ``remote_tensor(..., shared_buffer)`` create function; can also use file mapping
+to share memory by mapping a file into memory. They allow you to avoid any memory copy overhead when plugging
+OpenVINO™ inference into an existing NPU pipeline.
 
 Supported scenario by the Remote Tensor API:
 
@@ -60,7 +62,7 @@ Memory Sharing Between Application and NPU Plugin
 The classes that implement the ``ov::RemoteTensor`` interface are the wrappers for native API
 memory handles, which can be obtained from them at any time.
 
-To create a shared tensor from a native memory handle, use dedicated ``create_tensor``, ``create_l0_host_tensor``, or ``create_host_tensor``
+To create a shared tensor from a native memory handle or a file, use dedicated ``create_tensor``, ``create_l0_host_tensor``, or ``create_host_tensor``
 methods of the ``ov::RemoteContext`` sub-classes.
 ``ov::intel_npu::level_zero::LevelZero`` has multiple overloads methods which enable wrapping pre-allocated native handles with the ``ov::RemoteTensor``
 object or requesting plugin to allocate specific device memory.
@@ -69,10 +71,16 @@ For more details, see the code snippets below:
 
 .. tab-set::
 
-   .. tab-item:: Wrap native handle
-      :sync: wrap-native-handles
+   .. tab-item:: Native Handle and File Mapping
+      :sync: native-handle-and-file-mapping
 
       .. tab-set::
+         .. tab-item:: File Mapping
+            :sync: file-mapping
+
+            .. doxygensnippet:: docs/articles_en/assets/snippets/npu_remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [file_mapping]
 
          .. tab-item:: NT handle
             :sync: nthandle
