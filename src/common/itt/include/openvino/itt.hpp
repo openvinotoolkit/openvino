@@ -101,7 +101,9 @@ handle_t handle(handle_t h) {
 /**
  * @class ScopedTask
  * @ingroup ov_dev_profiling
- * @brief Used to annotate section of code which would be named at runtime
+ * @brief Used to annotate section of code which would be named at runtime.
+ * @note Uses ITT task begin/end. If a region is active on the
+ *       current thread, tasks started within it are recorded as its children.
  * @tparam The @p domain parameter is domain type which shoud be defined with OV_ITT_DOMAIN() macro.
  */
 template <domain_t (*domain)()>
@@ -127,7 +129,9 @@ struct ScopedTask {
 /**
  * @class ScopedRegion
  * @ingroup ov_dev_profiling
- * @brief Used to annotate region of code which would be named at runtime using RAII
+ * @brief Used to annotate region of code which would be named at runtime using RAII.
+ * @note Uses ITT region begin/end. At most one region is active per thread; tasks
+ *       started while a region is active attach to it as their parent.
  * @tparam The @p domain parameter is domain type which shoud be defined with OV_ITT_DOMAIN() macro.
  */
 template <domain_t (*domain)()>
@@ -261,6 +265,7 @@ public:
  * @ingroup ov_dev_profiling
  * @brief Annotate section of code till scope exit to be profiled using known @p handle or @p taskName as section id.
  * @details In case if handle or taskName absent, the current function name is used.
+ * @note Implements a task scope
  * @param group [in] ITT counter group name used for enabling/disabling at compile time.
  * @param domainName [in] Known at compile time name of module or library (the domain name).
  * @param handleOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
@@ -292,6 +297,7 @@ public:
  * @ingroup ov_dev_profiling
  * @brief Annotate section of code till scope exit to be profiled using known @p handle or @p taskName as section id.
  * @details In case if handle or taskName absent, the current function name is used.
+ * @note Implements a task scope
  * @param domainName [in] Known at compile time name of module or library (the domain name).
  * @param handleOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
  */
@@ -320,6 +326,8 @@ public:
  * @ingroup ov_dev_profiling
  * @brief Annotate region of code till scope exit for BASE/FULL modes regardless of profiling filter groups.
  * @details In case if handle or regionName absent, the current function name is used.
+ * @note Implements a region scope (single-active per thread; tasks started within
+ *       the region attach as children).
  * @param domain [in] Known at compile time name of module or library (the domain name).
  * @param handleOrRegionName [in] The annotation name or handle for section of code. Parameter is optional.
  */
