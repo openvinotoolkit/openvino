@@ -134,6 +134,10 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path) {
     return holder;
 }
 
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const int fd) {
+    OPENVINO_THROW("File descriptor-based memory mapping is not supported on Windows. Use path-based load_mmap_object instead.");
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path) {

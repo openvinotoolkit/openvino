@@ -64,7 +64,14 @@ ov::Tensor Const::eval() const {
     if (!m_weights_path.empty()) {
         NPUW_ASSERT(!m_read_from_bin &&
                     "Trying to read weight from weights file, but the weight has been already deserialized!");
-        auto mapped_memory = ov::load_mmap_object(m_weights_path);
+        std::shared_ptr<ov::MappedMemory> mapped_memory;
+        // Use fd_getter if available, otherwise use default mmap
+        if (m_fd_getter) {
+            int fd = m_fd_getter(m_weights_path);
+            mapped_memory = ov::load_mmap_object(fd);
+        } else {
+            mapped_memory = ov::load_mmap_object(m_weights_path);
+        }
         m_mmaped_weights =
             std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(), mapped_memory->size(), mapped_memory);
         return ov::Tensor(m_cached_type, m_cached_shape, m_mmaped_weights->get_ptr(m_offset));
@@ -118,6 +125,8 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
             NPUW_ASSERT(!ctx.weights_path.empty());
             // Just save weights_path for the eval() to call the actual mmap.
             m_weights_path = ctx.weights_path;
+            // Also save fd_getter if available
+            m_fd_getter = ctx.fd_getter;
         }
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
