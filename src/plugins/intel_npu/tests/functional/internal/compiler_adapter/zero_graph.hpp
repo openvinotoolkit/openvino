@@ -15,7 +15,7 @@
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "ir_serializer.hpp"
+#include "vcl_serializer.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 #include "zero_init_mock.hpp"
 
@@ -49,7 +49,7 @@ public:
 
     std::shared_ptr<ov::Model> model;
 
-    std::shared_ptr<driver_compiler_utils::IRSerializer> irSerializer;
+    std::shared_ptr<driver_compiler_utils::VCLSerializerWithWeightsCopy> vclSerializer;
 
     std::string blobPath;
 
@@ -72,10 +72,7 @@ public:
     }
 
     void serializeIR() {
-        auto compilerProperties = zeroInitStruct->getCompilerProperties();
-        const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
-        const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-        serializedIR = irSerializer->serializeIR(model, compilerVersion, maxOpsetVersion);
+        serializedIR = vclSerializer->serialize();
     }
 
 protected:
@@ -99,7 +96,8 @@ protected:
 
         auto compilerProperties = zeroInitStruct->getCompilerProperties();
         const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-        irSerializer = std::make_shared<IRSerializer>(IRSerializer(model, maxOpsetVersion));
+        vclSerializer =
+            std::make_shared<VCLSerializerWithWeightsCopy>(model, compilerProperties.compilerVersion, maxOpsetVersion);
     }
 
     void TearDown() override {
