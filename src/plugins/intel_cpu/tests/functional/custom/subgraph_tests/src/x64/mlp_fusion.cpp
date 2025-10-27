@@ -6,13 +6,13 @@
 #include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/runtime/exec_model_info.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
@@ -23,6 +23,7 @@ struct LLMMLPFusionParams {
     size_t up_size;
     std::string act_type;
     bool use_dynamic_quant;
+    bool swap_inputs;  // true = swap inputs to prevent fusion, false = normal order for fusion
 };
 
 class LLMMLPFusionTest : public testing::WithParamInterface<LLMMLPFusionParams>, public ov::test::SubgraphBaseTest {
@@ -39,6 +40,7 @@ public:
         result << "up_size=" << obj.param.up_size << "_";
         result << "act_type=" << obj.param.act_type << "_";
         result << "use_dynamic_quant=" << obj.param.use_dynamic_quant << "_";
+        result << "swap_inputs=" << obj.param.swap_inputs << "_";
         result << obj.index;
         return result.str();
     }
@@ -70,7 +72,8 @@ protected:
                 in_data.start_from = 0;
                 in_data.range = 1;
                 in_data.resolution = 128;
-                auto tensor_scale_per_oc = ov::test::utils::create_and_fill_tensor(ov::element::f32, ov::Shape{OC, 1}, in_data);
+                auto tensor_scale_per_oc =
+                    ov::test::utils::create_and_fill_tensor(ov::element::f32, ov::Shape{OC, 1}, in_data);
                 auto scale_per_oc = std::make_shared<ov::op::v0::Constant>(tensor_scale_per_oc);
 
                 auto weight_deq = std::make_shared<ov::op::v1::Multiply>(weight_const_f32, scale_per_oc);
@@ -85,7 +88,8 @@ protected:
             return std::make_shared<ov::op::v0::Constant>(tensor);
         };
         if (param.use_dynamic_quant)
-            configuration.insert({ov::hint::dynamic_quantization_group_size.name(), std::numeric_limits<uint64_t>::max()});
+            configuration.insert(
+                {ov::hint::dynamic_quantization_group_size.name(), std::numeric_limits<uint64_t>::max()});
 
         auto gate_weight = create_const(param.up_size, param.down_size, 100);
         auto up_weight = create_const(param.up_size, param.down_size, 100);
@@ -101,13 +105,22 @@ protected:
         if (param.act_type == "Gelu")
             gate_act = std::make_shared<ov::op::v7::Gelu>(gate_proj);
 
-        auto gate_up = std::make_shared<ov::op::v1::Multiply>(gate_act, up_proj);
+        // Control input order based on swap_inputs parameter
+        std::shared_ptr<ov::op::v1::Multiply> gate_up;
+        if (param.swap_inputs) {
+            // Swapped order should prevent fusion
+            gate_up = std::make_shared<ov::op::v1::Multiply>(up_proj, gate_act);
+        } else {
+            // Normal order should allow fusion
+            gate_up = std::make_shared<ov::op::v1::Multiply>(gate_act, up_proj);
+        }
+
         auto output = std::make_shared<ov::op::v0::MatMul>(gate_up, down_weight, false, true);
 
         function = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{src});
     }
 
-    void check_results() {
+    void check_fusion_result() {
         auto exec_model = compiledModel.get_runtime_model();
 
         int fused_node_found = 0;
@@ -116,7 +129,15 @@ protected:
             if (layer_type == "LLMMLP")
                 fused_node_found++;
         }
-        ASSERT_EQ(fused_node_found, 1);
+
+        auto& param = this->GetParam();
+        if (param.swap_inputs) {
+            // When inputs are swapped, fusion should NOT happen
+            ASSERT_EQ(fused_node_found, 0) << "Fusion should not occur with swapped inputs";
+        } else {
+            // Normal case, fusion should happen
+            ASSERT_EQ(fused_node_found, 1) << "Fusion should occur with correct input order";
+        }
     }
 };
 
@@ -124,18 +145,24 @@ TEST_P(LLMMLPFusionTest, CompareWithRefs) {
     if (!ov::with_cpu_x86_avx512_core_amx_bf16())
         GTEST_SKIP();
     run();
-    check_results();
+    check_fusion_result();
 }
 
 namespace {
 
-static ov::test::InputShape ishape{ov::PartialShape{-1, -1, 4096 / 4}, {ov::Shape{1, 8, 4096 / 4}, ov::Shape{5, 37, 4096 / 4}}};
+static ov::test::InputShape ishape{ov::PartialShape{-1, -1, 4096 / 4},
+                                   {ov::Shape{1, 8, 4096 / 4}, ov::Shape{5, 37, 4096 / 4}}};
 
+// Test parameters combining both normal fusion and no-fusion cases
 const std::vector<LLMMLPFusionParams> mlp_params = {
-    {ishape, 4096 / 4, 11008 / 4, "Gelu", false},
-    {ishape, 4096 / 4, 11008 / 4, "Gelu", true},
-    {ishape, 4096 / 4, 11008 / 4, "Swish", false},
-    {ishape, 4096 / 4, 11008 / 4, "Swish", true},
+    // Normal cases - should fuse (swap_inputs = false)
+    {ishape, 4096 / 4, 11008 / 4, "Gelu", false, false},
+    {ishape, 4096 / 4, 11008 / 4, "Gelu", true, false},
+    {ishape, 4096 / 4, 11008 / 4, "Swish", false, false},
+    {ishape, 4096 / 4, 11008 / 4, "Swish", true, false},
+
+    // Port order issue cases - should NOT fuse (swap_inputs = true)
+    {ishape, 4096 / 4, 11008 / 4, "Gelu", false, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LLMMLPFusion,
