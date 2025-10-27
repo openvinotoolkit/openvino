@@ -20,7 +20,6 @@
 #include "snippets/pass/softmax_reshape_elimination.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/subgraph_manager.hpp"
-#include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/validate.hpp"
 
 namespace ov::snippets::pass {
@@ -43,10 +42,8 @@ CommonOptimizations::CommonOptimizations(const CommonOptimizations::Config& conf
         const auto is_quantized = subgraph->is_quantized();
         const auto is_domain_sensitive = subgraph->has_domain_sensitive_ops();
 
-        // Firstly, we should transform all original Converts inside body to ConvertTruncation to save original
-        // behavior. Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
+        // If Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
         ov::pass::Manager manager(get_pass_config(), "Snippets:CommonOptimizations");
-        REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::TransformConvertToConvertTruncation, true);
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::ExplicitTransposeMatMulInputs, is_domain_sensitive);
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::CommonFakeQuantizeDecomposition, is_quantized);
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::SoftmaxReshapeElimination, is_domain_sensitive);
