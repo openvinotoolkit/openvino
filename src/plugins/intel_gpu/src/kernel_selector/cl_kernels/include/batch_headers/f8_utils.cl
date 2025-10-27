@@ -6,53 +6,22 @@
 
 uchar _f16_to_bf8_universal(half val, bool is_saturation) {
     half val_fp16 = val;
-    ushort *p = (ushort *)&val_fp16;
-    ushort sign = p[0] >> 15;
-    ushort exp = (p[0] >> 10) & 0b11111;
-    ushort mant = p[0] & 0x3FF;
-    ushort q_mant = (mant >> 8) & 0b11;
+    const ushort *p = (ushort *)&val_fp16;
+    const ushort mant = p[0] & 0x3FF;
+    const uchar exp_mask = 0x7C;
 
-    bool is_inf = (exp == 0x1F) && (mant == 0);
-    bool is_nan = (exp == 0x1F) && (mant != 0);
+    uchar ret_tmp = p[0] >> 8;
+    const bool is_infnan = (ret_tmp & exp_mask) == exp_mask;
 
-    //const ushort src_exp_size = 5;
-    //const ushort src_exp_bias = (1 << (src_exp_size - 1)) - 1;
-    //const max_exp_unbiased = 16;
-    //short src_exp_unbiased = exp - src_exp_bias;
-    //bool is_overflow = (src_exp_unbiased == max_exp_unbiased) && (mant > 0x0300);
-    //bool is_overflow = false; //(exp == 0x1E) && (mant > 0x0380);
-
-    const uchar inf_val = 0x7C;
-    const uchar nan_val = 0x7F;
-    const uchar overflow_val = is_saturation ? 0x7B : inf_val;
-
-    uchar ret_tmp;
-    if (is_inf) {
-        ret_tmp = inf_val;
-    } else if (is_nan) {
-        ret_tmp = nan_val;
-    } else {
-        q_mant += (mant & 0x80) && ((mant & 0x7F) || (mant & 0x100)); // RTE
-        ret_tmp = exp << 2;
-        ret_tmp += q_mant;
+    if (!is_infnan) {
+        ret_tmp += (mant & 0x80) && ((mant & 0x7F) || (mant & 0x100)); // RTE
         if (is_saturation) {
-            bool is_overflow = ret_tmp & 0b01111100;
+            bool is_overflow = (ret_tmp & exp_mask) == exp_mask;
             ret_tmp -= is_overflow;
         }
     }
-    return (sign << 7) | ret_tmp;
 
-    //half val_fp16 = val;
-    //ushort *p = (ushort *)&val_fp16;
-    //ushort sign = p[0] >> 15;
-    //ushort exp = (p[0] >> 10) & 0b11111;
-    //ushort mant = p[0] & 0x3FF;
-    //ushort q_mant = (mant >> 8) & 0b11;
-    //uchar ret_tmp;
-    //q_mant += (mant & 0x80) && ((mant & 0x7F) || (mant & 0x100));
-    //ret_tmp = sign << 7 | exp << 2;
-    //ret_tmp += q_mant;
-    //return ret_tmp;
+    return ret_tmp;
 }
 
 uchar _intel_convert_f16_to_bf8(half val) {
@@ -515,7 +484,7 @@ fp8e5m2_t16 __attribute__((overloadable)) _convert_fp8e5m2_t16(half16 val) {
 
 fp8e5m2_t __attribute__((overloadable)) _convert_fp8e5m2_t_sat(float val) {
     fp8e5m2_t res;
-    res.data = _intel_convert_f16_to_bf8((half)val);
+    res.data = _intel_convert_f16_to_bf8_sat((half)val);
     return res;
 }
 fp8e5m2_t1 __attribute__((overloadable)) _convert_fp8e5m2_t1_sat(float val[1]) {
@@ -579,7 +548,7 @@ fp8e5m2_t16 __attribute__((overloadable)) _convert_fp8e5m2_t16_sat(float16 val) 
 
 fp8e5m2_t __attribute__((overloadable)) _convert_fp8e5m2_t_sat(half val) {
     fp8e5m2_t res;
-    res.data = _intel_convert_f16_to_bf8(val);
+    res.data = _intel_convert_f16_to_bf8_sat(val);
     return res;
 }
 fp8e5m2_t1 __attribute__((overloadable)) _convert_fp8e5m2_t1_sat(half val[1]) {
