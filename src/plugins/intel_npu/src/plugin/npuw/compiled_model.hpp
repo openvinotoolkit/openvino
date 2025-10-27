@@ -207,6 +207,11 @@ private:
         void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
         void deserialize(std::istream& stream, const ov::npuw::s11n::WeightsContext& ctx);
 
+        // FIXME: it's VERY important to keep weights bank alive before closures are destroyed.
+        // Closure is calculated asynchronously, thus we need to first finish the async and only then
+        // destroy the bank. Thus keeping a reference to bank here as well.
+        std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
+
         // Custom destructor to wait for Delayed
         ~CompiledModelDesc();
     };

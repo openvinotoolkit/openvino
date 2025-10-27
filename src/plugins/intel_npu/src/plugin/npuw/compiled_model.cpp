@@ -330,6 +330,13 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // - dump the subgraphs, if necessary
     std::map<std::string, std::size_t> compiledFunctions;
     m_compiled_submodels.resize(orderedSubgraphs.size());
+
+    // Preserve bank reference in each desc to keep it alive for
+    // closure evaluation (which is done async).
+    for (std::size_t i = 0; i < m_compiled_submodels.size(); ++i) {
+        m_compiled_submodels[i].m_weights_bank = m_weights_bank;
+    }
+
     const std::size_t end_sub_idx = orderedSubgraphs.size();
 
     const std::string dump_sub_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS>();
@@ -783,6 +790,7 @@ ov::npuw::CompiledModel::CompiledModelDesc::~CompiledModelDesc() {
     closure.wait();
     closure_uid.wait();
     is_remote.wait();
+    m_weights_bank.reset();
 }
 
 void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
