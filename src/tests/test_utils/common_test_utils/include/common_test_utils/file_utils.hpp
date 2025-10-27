@@ -212,7 +212,6 @@ class MockPlugin : public ov::IPlugin {
             if (it.first == ov::num_streams.name())
                 num_streams = it.second.as<ov::streams::Num>();
         }
-        OPENVINO_NOT_IMPLEMENTED;
     }
 
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
