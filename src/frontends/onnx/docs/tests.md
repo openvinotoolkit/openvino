@@ -13,6 +13,15 @@
 ## C++ tests
 1. Install Python dependencies:
 ```
+# Modern approach (recommended) - using UV
+pip install uv
+uv pip install --group tests_onnx_frontend
+
+# Or using pip 25.1+
+pip install --upgrade pip
+pip install --group tests_onnx_frontend
+
+# Legacy approach (deprecated - will be removed)
 pip install -r <OV_REPO_DIR>/src/frontends/onnx/tests/requirements.txt
 ```
 After that CMake will produce test models from existin [*.prototxt files](../tests/models)
@@ -33,9 +42,20 @@ For example:
 2. Set up Python paths via `source <OV_INSTALL_DIR>/setupvars.sh` for Linux, `. <path-to-setupvars-folder>/setupvars.ps1` for Windows PowerShell, or `sh <INSTALL_DIR>\setupvars.bat` for Windows Command Prompt.
 3. Install Python dependencies:
 ```
+# Modern approach (recommended) - using UV
+pip install uv
+uv pip install --group runtime --group tests_pyapi
+
+# Or using pip 25.1+
+pip install --upgrade pip
+pip install --group runtime --group tests_pyapi
+
+# Legacy approach (deprecated - will be removed)
 pip install -r <OV_REPO_DIR>/src/bindings/python/requirements.txt
 pip install -r <OV_REPO_DIR>/src/bindings/python/requirements_test.txt
 ```
+
+**Note:** See the [dependency groups migration guide](../../../src/bindings/python/docs/dependency_groups_migration.md) for more information.
 
 
 ## Python frontend tests

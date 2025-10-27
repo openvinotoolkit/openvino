@@ -59,13 +59,30 @@ OpenVINO can be built based on specific virtual environments such as [venv](http
     git clone https://github.com/openvinotoolkit/openvino.git
     cd openvino
     git submodule update --init --recursive
+    
+    # Modern approach (recommended) - using UV
+    pip install uv
+    uv pip install --group runtime --group tests_pyapi
+    
+    # Or using pip 25.1+
+    pip install --upgrade pip
+    pip install --group runtime --group tests_pyapi
+    
+    # Legacy approach (deprecated - will be removed)
     pip install -r src/bindings/python/requirements.txt
     pip install -r src/bindings/python/requirements_test.txt
     ```
     If `-DENABLE_WHEEL=ON` flag is present in `cmake` command, additionally install wheel requirements:
     ```
+    # Modern approach (recommended)
+    uv pip install --group dev_wheel
+    # Or: pip install --group dev_wheel
+    
+    # Legacy approach (deprecated)
     pip install -r src/bindings/python/wheel/requirements-dev.txt
     ```
+    
+    **Note:** See the [dependency groups migration guide](./dependency_groups_migration.md) for available dependency groups and migration information.
 
 6. Add following flags to the main `cmake` command to use specific virtual environment (requires cmake 3.16 and higher):
     ```shell
@@ -75,7 +92,9 @@ OpenVINO can be built based on specific virtual environments such as [venv](http
 7. Follow the rest of building and installation steps from ["How to build OpenVINO" developer documentation](../../../../docs/dev/build.md).
 
 ## Project dependencies management
-For details please refer to [Python requirements and version constraints management](./requirements_management.md).
+For details please refer to:
+- [Dependency Groups Migration Guide](./dependency_groups_migration.md) - **Start here for current best practices**
+- [Requirements Management](./requirements_management.md) - How to use dependency groups
 
 ## Run tests to verify OpenVINO™ Python API
 

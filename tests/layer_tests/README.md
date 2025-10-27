@@ -24,8 +24,20 @@ Find instructions on how to build on [GitHub page](https://github.com/openvinoto
 3. Install requirements for running layer tests.
     ```sh
     cd tests/layer_tests
+    
+    # Modern approach (recommended) - using UV
+    pip install uv
+    uv pip install --group tests_layer
+    
+    # Or using pip 25.1+
+    pip install --upgrade pip
+    pip install --group tests_layer
+    
+    # Legacy approach (deprecated - will be removed)
     pip install -r requirements.txt
     ```
+    
+    **Note:** See the [dependency groups migration guide](../../src/bindings/python/docs/dependency_groups_migration.md) for more information.
 
 ## Run Tests
 

@@ -1,6 +1,40 @@
 # Python requirements and version constraints management
 
-OpenVINO uses a pip built-in feature called "constraints" in order to reduce the complexity of requirements. 
+
+OpenVINO now uses PEP 735 dependency groups for managing Python requirements. This is the recommended approach for all new development and usage.
+
+## How to use dependency groups
+
+Dependency groups are defined in the `[dependency-groups]` section of `pyproject.toml`. You can install them using either UV (recommended) or pip 25.1+.
+
+### Quick Start
+
+Install dependency groups:
+
+```bash
+# Install wheel dependencies
+uv pip install --group dev_wheel
+
+# Install runtime dependencies
+uv pip install --group runtime
+
+# Install test dependencies
+uv pip install --group tests_pyapi
+```
+
+Or with pip 25.1+:
+
+```bash
+pip install --group dev_wheel
+pip install --group runtime
+pip install --group tests_pyapi
+```
+
+For a complete list of available dependency groups, see the `[dependency-groups]` section in `pyproject.toml`.
+
+---
+
+The following describes the legacy constraints.txt approach, which is being phased out.
 
 ## What are constraints files?
 
