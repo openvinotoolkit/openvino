@@ -126,8 +126,13 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
         auto& weights_shape = input_shapes[1];
         // WA for legacy flow, mostly for unit tests as sometimes grouped conv has non-grouped weights
         if (legacy_flow && input_shapes[1].size() == 4 && input_shapes[0].size() == 4) {
-            weights_shape.insert(weights_shape.begin(), desc->groups);
-            weights_shape[1] /= desc->groups;
+            if (static_cast<int64_t>(desc->groups) == input_shapes[1][0].get_length()) {
+                // 1d convolution with groups, e.g. shape [g,oc,ic,x] -> [g,oc,ic,x,1]
+                weights_shape.insert(weights_shape.end(), 1);
+            } else {
+                weights_shape.insert(weights_shape.begin(), desc->groups);
+                weights_shape[1] /= desc->groups;
+            }
         }
         output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     } else {
