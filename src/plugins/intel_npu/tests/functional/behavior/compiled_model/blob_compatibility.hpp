@@ -116,7 +116,6 @@ using OVBlobCompatibilityNPU_Metadata_No_Throw = OVBlobCompatibilityNPU;
 
 #define DEFAULT_TEST_BODY(ASSERT_TYPE, ...)                                                                    \
     const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobName; \
-    std::cout << target_device << "\n\n"; \
     std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);                                       \
     ASSERT_TYPE(core.import_model(blobStream, target_device, config),                                          \
                 ##__VA_ARGS__);                                                                                \
@@ -136,7 +135,11 @@ TEST_P(OVBlobCompatibilityNPU_PV_Driver_No_Throw, CanImportExpectedModelsForPVDr
 }
 
 TEST_P(OVBlobCompatibilityNPU_Metadata_No_Throw, CanImportOlderMetadata) {
+    std::string blobWeightsName(blobName.data(), blobName.find(BLOB_SUFFIX));
+    blobWeightsName += ".bin";
+    config.insert(ov::weights_path(ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobWeightsName));
     DEFAULT_TEST_BODY(OV_ASSERT_NO_THROW);
+    config.erase(ov::weights_path.name());
 }
 
 #undef NO_APPEND_EXPORT
