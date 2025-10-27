@@ -11,7 +11,7 @@
 
 namespace {
 
-const char* const BLOB_PREFIX = "blob_compatibility_";
+const char* const BLOB_PREFIX = "blob_compat_";
 const char* const OV_VERSION_PREFIX = "ov";
 const char* const DRIVER_PREFIX = "driver";
 const char* const BLOB_SUFFIX = ".blob";

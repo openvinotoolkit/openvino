@@ -112,7 +112,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior_NPU,
                          ov::test::utils::appendPlatformTypeTestName<OVBlobCompatibilityNPU>);
 
 #ifdef _WIN32  // Linux supports only ELF backend
-INSTANTIATE_TEST_SUITE_P(smoke_Behavior_NPU,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Behavior_NPU,
                          OVBlobCompatibilityNPU_PV_Driver_No_Throw,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(pv_compatible_models),
