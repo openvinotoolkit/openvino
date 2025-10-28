@@ -17,7 +17,12 @@ namespace ov::snippets::pass {
  * @ingroup snippets
  */
 struct MatMulConfig {
-    bool is_supported_transpose = true;
+    // Transpose before MatMul on input 0
+    bool is_supported_transpose_a = true;
+    // Transpose before MatMul on input 1
+    bool is_supported_transpose_b = true;
+    // Transpose after MatMul on its output
+    bool is_supported_transpose_c = true;
 };
 
 /**
@@ -32,7 +37,8 @@ struct TokenizationConfig {
     }
 
     explicit TokenizationConfig(size_t available_gprs_count, MatMulConfig matmul_cfg)
-        : m_available_gprs_count(available_gprs_count), m_matmul_config(std::move(matmul_cfg)) {
+        : m_available_gprs_count(available_gprs_count),
+          m_matmul_config(matmul_cfg) {
         OPENVINO_ASSERT(available_gprs_count > 0, "available_gprs_count should be greater than 0");
     }
 

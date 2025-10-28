@@ -1214,10 +1214,10 @@ void Transformations::MainSnippets() {
 #endif
     TokenizationConfig tokenization_config(available_gprs_count);
 #if defined(OPENVINO_ARCH_ARM64)
-    // Disable general-purpose Transpose around MatMul on ARM64 by default
-    // The MHA/MLP tokenization passes handle their own patterns explicitly.
+    // Disable Transpose after MatMul in general tokenization on ARM64 by default.
+    // Keep Transpose before MatMul inputs allowed for flexibility.
     ov::snippets::pass::MatMulConfig mm_cfg;
-    mm_cfg.is_supported_transpose = false;
+    mm_cfg.is_supported_transpose_c = false;
     tokenization_config.set_matmul_config(mm_cfg);
 #endif
 

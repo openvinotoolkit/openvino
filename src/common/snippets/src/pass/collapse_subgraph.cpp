@@ -280,8 +280,25 @@ TokenizeSnippets::TokenizeSnippets(const TokenizationConfig& config) {
 
     auto label = ov::pass::pattern::any_input([config](const ov::Output<ov::Node>& out) {
         const auto n = out.get_node_shared_ptr();
-        if (ov::is_type<ov::op::v1::Transpose>(n) && !config.get_matmul_config().is_supported_transpose) {
-            return false;
+        // Config-aware gating: optionally reject specific Transpose cases around MatMul
+        if (ov::is_type<ov::op::v1::Transpose>(n)) {
+            const auto& mm_cfg = config.get_matmul_config();
+            // Case 1: Transpose -> MatMul (before MatMul)
+            for (const auto& ti : n->output(0).get_target_inputs()) {
+                const auto consumer = ti.get_node()->shared_from_this();
+                if (const auto mm = ov::as_type_ptr<ov::opset1::MatMul>(consumer)) {
+                    const auto port = ti.get_index();
+                    if ((port == 0 && !mm_cfg.is_supported_transpose_a) ||
+                        (port == 1 && !mm_cfg.is_supported_transpose_b)) {
+                        return false;
+                    }
+                }
+            }
+            // Case 2: MatMul -> Transpose (after MatMul)
+            const auto parent = n->get_input_node_shared_ptr(0);
+            if (ov::is_type<ov::opset1::MatMul>(parent) && !mm_cfg.is_supported_transpose_c) {
+                return false;
+            }
         }
         // todo: MatMul and Transpose ops are always skipped by the SnippetsMarkSkipped pass.
         //  This is a temporary solution. Either modify SnippetsMarkSkipped
