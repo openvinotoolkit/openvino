@@ -114,6 +114,7 @@ protected:
         if (itr != configuration.end() && itr->second == ov::element::bf16) {
             rel_threshold = 0.1f;
             abs_threshold = 0.1f;
+            inType = outType = ov::element::bf16;
         }
 
         if (moe_type == MoEType::MoE2GeMM) {
@@ -189,6 +190,7 @@ protected:
         if (itr != configuration.end() && itr->second == ov::element::bf16) {
             rel_threshold = 0.1f;
             abs_threshold = 0.1f;
+            inType = outType = ov::element::bf16;
         }
 
         if (moe_type == MoEType::MoE2GeMM) {

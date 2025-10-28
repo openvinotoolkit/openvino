@@ -2009,6 +2009,7 @@ void Graph::EnforceInferencePrecision() {
                            Type::Interpolate,     // super resolution nets
                            Type::PagedAttention,  // page attention
                            Type::QKVProjection,
+                           Type::GatherMatmul,
                            Type::LLMMLP)) {
                     continue;  // stop at significant nodes
                 }
