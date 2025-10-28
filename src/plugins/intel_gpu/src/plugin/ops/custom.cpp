@@ -239,16 +239,20 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
                                                   customLayer->LocalSizeRules());
     p.add_primitive(*op, customPrim);
 
-    auto prevLayerName = genericLayerName;
     for (size_t i = 0; i < outputLayouts.size(); i++) {
         if (outputLayouts[i].format != cldnn::format::any) {
-            // Handle output reorder
-            auto reorderPrimName = genericLayerName + ProgramBuilder::m_postCustomLayerTag + "_output_" + std::to_string(i);
-            p.add_primitive(*op,
-                            cldnn::reorder(reorderPrimName,
-                                           cldnn::input_info(genericLayerName),
-                                           cldnn::format::get_default_format(op->get_output_partial_shape(i).size()),
-                                           customPrim.output_layouts[i].data_type));
+            auto default_format = cldnn::format::get_default_format(op->get_output_partial_shape(i).size());
+            if (outputLayouts.size() > 1) {
+                OPENVINO_ASSERT(default_format == outputLayouts[i].format,
+                                "Multiple outputs doesn't support to insert reorder primitive, beacuse following node can't get correct idx when shape infer "
+                                "after inserting new primitive.");
+            } else {
+                // Handle output reorder
+                auto reorderPrimName = genericLayerName + ProgramBuilder::m_postCustomLayerTag + "_output_" + std::to_string(i);
+                auto reorderPrim =
+                    cldnn::reorder(reorderPrimName, cldnn::input_info(genericLayerName, i), default_format, customPrim.output_layouts[i].data_type);
+                p.add_primitive(*op, reorderPrim);
+            }
         }
     }
 }
