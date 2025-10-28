@@ -95,27 +95,27 @@ Pipeline::Pipeline(const Config& config,
 
             if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("Pipeline - set args for input index: %zu", io_index);
-
-                graph->set_argument_value(desc.indexUsedByDriver, input_tensors.at(io_index).at(i)->data());
-
+                const auto& tensor = input_tensors.at(io_index).at(i);
+                graph->set_argument_value(desc.indexUsedByDriver,  input_tensors.at(io_index).at(i)->data(), get_strides(tensor));
                 ++io_index;
                 continue;
             }
 
+            const auto& tensor = input_tensors.at(io_index).at(0);
             graph->set_argument_value(
                 desc.indexUsedByDriver,
-                static_cast<unsigned char*>(input_tensors.at(io_index).at(0)->data()) +
-                    (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists);
-
+                static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _number_of_command_lists,
+                get_strides(tensor));
             ++io_index;
         }
 
         io_index = 0;
-        for (const auto& desc : _graph->get_metadata().outputs) {
+        for (const auto& desc :  _graph->get_metadata().outputs) {
+            const auto& tensor = output_tensors.at(io_index);
             graph->set_argument_value(
                 desc.indexUsedByDriver,
-                static_cast<unsigned char*>(output_tensors.at(io_index)->data()) +
-                    (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists);
+                static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _number_of_command_lists,
+                get_strides(tensor));
             ++io_index;
         }
 
@@ -223,7 +223,7 @@ void Pipeline::reset() const {
     _logger.debug("Pipeline - rest() completed");
 };
 
-void Pipeline::update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size) {
+void Pipeline::update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
@@ -231,12 +231,15 @@ void Pipeline::update_graph_arguments(uint32_t arg_index, const void* arg_data, 
 
     for (size_t i = 0; i < number_of_command_lists; i++) {
         _command_lists.at(i)->updateMutableCommandList(
-            arg_index,
-            static_cast<const unsigned char*>(arg_data) + (i * byte_size) / number_of_command_lists);
+            index,
+            static_cast<const unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / number_of_command_lists,
+            get_strides(tensor));
     }
 };
 
-void Pipeline::update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t command_list_index) {
+void Pipeline::update_graph_arguments(uint32_t index,
+                                      const std::shared_ptr<ZeroTensor>& tensor,
+                                      size_t command_list_index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandListIndex");
     _logger.debug("Pipeline - updateCommandListIndex");
 
@@ -246,7 +249,7 @@ void Pipeline::update_graph_arguments_batching(uint32_t arg_index, const void* a
                     "Command list index is higher than the number of Command lists ",
                     command_list_index);
 
-    _command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data);
+    _command_lists.at(command_list_index)->updateMutableCommandList(index, tensor->data(), get_strides(tensor));
 };
 
 std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
@@ -271,5 +274,17 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
         return _profiling_query->getLayerStatistics();
     }
 }
+
+ov::Strides Pipeline::get_strides(const std::shared_ptr<ZeroTensor>& tensor) {
+    if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous()) {
+        return ov::Strides{};
+    }
+
+    if (!_graph->is_strided_tensor_supported()) {
+        OPENVINO_THROW("Strides are not supported by the current driver version.");
+    }
+
+    return tensor->get_strides();
+};
 
 }  // namespace intel_npu
