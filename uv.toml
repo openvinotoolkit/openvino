@@ -1,8 +1,4 @@
 # UV Global Configuration for OpenVINO
-# This file contains global UV settings that apply across the project
-
-# Use the same index as pip
-index-url = "https://pypi.org/simple"
 
 # Additional indexes for PyTorch CPU-only builds
 extra-index-url = [
@@ -11,6 +7,3 @@ extra-index-url = [
 
 # Use pip-compatible resolution strategy
 resolution = "highest"
-
-# Use the build isolation
-no-build-isolation = false
