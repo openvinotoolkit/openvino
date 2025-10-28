@@ -1376,11 +1376,10 @@ void ov::npuw::CompiledModel::detach_memory() {
         if ((proto_comp_model_desc.device_it + 1 == m_dev_list.end()) || no_runtime_fallback) {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
             proto_comp_model_desc.model.reset();
-            if (proto_comp_model_desc.pyramid_attention.has_value()) {
-                for (auto model : proto_comp_model_desc.pyramid_attention.value()._models) {
-                    model.reset();
-                }
-            }
+        }
+
+        if (proto_comp_model_desc.pyramid_attention.has_value()) {
+            proto_comp_model_desc.pyramid_attention.value()._models.clear();
         }
     }
     LOG_INFO("Done");
