@@ -65,6 +65,7 @@ hf-internal-testing/tiny-random-FalconForCausalLM,https://huggingface.co/hf-inte
 hf-internal-testing/tiny-random-gpt2,https://huggingface.co/hf-internal-testing/tiny-random-gpt2
 hf-internal-testing/tiny-random-GPTBigCodeForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-GPTBigCodeForCausalLM
 hf-internal-testing/tiny-random-GPTJForCausalLM,https://huggingface.co/trl-internal-testing/tiny-random-GPTJForCausalLM
+hf-internal-testing/tiny-random-GPTNeoForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-GPTNeoForCausalLM
 hf-internal-testing/tiny-random-GPTNeoXForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-GPTNeoXForCausalLM
 hf-internal-testing/tiny-random-LlamaForCausalLM,https://huggingface.co/trl-internal-testing/tiny-random-LlamaForCausalLM
 hf-internal-testing/tiny-random-MistralForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-MistralForCausalLM
@@ -90,5 +91,6 @@ katuni4ka/tiny-random-jais,https://huggingface.co/katuni4ka/tiny-random-jais
 katuni4ka/tiny-random-minicpm,https://huggingface.co/katuni4ka/tiny-random-minicpm
 katuni4ka/tiny-random-olmo-hf,https://huggingface.co/katuni4ka/tiny-random-olmo-hf
 katuni4ka/tiny-random-qwen,https://huggingface.co/katuni4ka/tiny-random-qwen
+katuni4ka/tiny-random-qwen1.5-moe,https://huggingface.co/katuni4ka/tiny-random-qwen1.5-moe
 katuni4ka/tiny-random-xverse,https://huggingface.co/katuni4ka/tiny-random-xverse
 Xenova/tiny-random-Phi3ForCausalLM,https://huggingface.co/Xenova/tiny-random-Phi3ForCausalLM
