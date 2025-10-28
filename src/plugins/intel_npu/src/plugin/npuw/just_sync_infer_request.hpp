@@ -110,6 +110,9 @@ protected:
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
 
+    // Helper function to setup pyramid attention infer requests
+    void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);
+
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
 
