@@ -86,6 +86,7 @@ jobs:
     runs-on: aks-win-4-cores-8gb
     env:
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+      PYTHONIOENCODING: utf-8
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests"
@@ -269,6 +270,7 @@ jobs:
         shell: pwsh
     runs-on: aks-win-8-cores-16gb
     env:
+      PYTHONIOENCODING: utf-8
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests"
@@ -414,6 +416,7 @@ jobs:
         shell: pwsh
     runs-on: aks-win-8-cores-16gb
     env:
+      PYTHONIOENCODING: utf-8
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests"
