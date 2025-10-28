@@ -2432,6 +2432,12 @@ void primitive_inst::update_weights() {
         _impl_params->weights_layout = optional_layout(expected_layout);
 
         if (_reordered_weights_cache.has(expected_layout) &&
+            expected_layout.format == cldnn::format::custom &&
+            !(expected_layout.format.traits() == _reordered_weights_cache.get(expected_layout)->get_layout().format.traits())) {
+            OPENVINO_THROW("==================================================================");
+        }
+
+        if (_reordered_weights_cache.has(expected_layout) &&
             // WA: Onednn format-tag of custom format can be changed for a same layer by changing of input shape. e.g. abcd->acdB16a2b
             (expected_layout.format != cldnn::format::custom ||
             expected_layout.format.traits() == _reordered_weights_cache.get(expected_layout)->get_layout().format.traits())) {
