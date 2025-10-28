@@ -64,8 +64,12 @@ struct TokenizationConfig {
         return (io_count + expected_buffer_reg_groups + expected_maximal_loop_depth) <= available_gprs_count;
     }
 
-    [[nodiscard]] const MatMulConfig& get_matmul_config() const { return m_matmul_config; }
-    void set_matmul_config(const MatMulConfig& cfg) { m_matmul_config = cfg; }
+    [[nodiscard]] const MatMulConfig& get_matmul_config() const {
+        return m_matmul_config;
+    }
+    void set_matmul_config(const MatMulConfig& cfg) {
+        m_matmul_config = cfg;
+    }
 
 protected:
     // The total number of GPRs that can be used inside snippets kernel
