@@ -931,7 +931,6 @@ ref_diff_map_optimizations = {
 		"ReadValue" : -8,
 		"ScaledDotProductAttention" : -4,
 	},
-	# Models from master branch
 	"facebook/opt-125m" : {
 		"Assign" : -24,
 		"PagedAttentionExtension" : 12,
