@@ -10,13 +10,16 @@ RUN echo "timeout=60" >> /etc/dnf/dnf.conf && \
 RUN dnf update -y && dnf install -y \
     git \
     curl \
-    python3 \
+    python3.10 \
     findutils \
     ocl-icd \
     ocl-icd-devel \
     # parallel gzip
     pigz \
     xz
+
+# Set Python 3.10 as the default python3
+RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
 
 # Install Node
 ENV NODE_VERSION=21.7.3
