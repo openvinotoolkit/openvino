@@ -453,7 +453,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                                                          : sdpa_with_6_inputs)
                              .get_node();
 
-
         auto k_head_size_dim = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];  // E from SDPA spec.
         auto v_head_size_dim = sdpa_node->get_input_tensor(2)
                                    .get_partial_shape()[-1];  // Ev from SDPA spec. (in common case may not match E)
@@ -462,21 +461,23 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         auto k_head_size = k_head_size_dim.get_length();
         auto v_head_size = v_head_size_dim.get_length();
 
-        auto num_k_heads_dim =
-            extract_num_kv_heads(k_heads_unsqueeze, sdpa_node->get_input_tensor(1).get_partial_shape()[-3], pattern_map);
-        auto num_v_heads_dim =
-            extract_num_kv_heads(v_heads_unsqueeze, sdpa_node->get_input_tensor(2).get_partial_shape()[-3], pattern_map);
+        auto num_k_heads_dim = extract_num_kv_heads(k_heads_unsqueeze,
+                                                    sdpa_node->get_input_tensor(1).get_partial_shape()[-3],
+                                                    pattern_map);
+        auto num_v_heads_dim = extract_num_kv_heads(v_heads_unsqueeze,
+                                                    sdpa_node->get_input_tensor(2).get_partial_shape()[-3],
+                                                    pattern_map);
         OPENVINO_ASSERT((num_k_heads_dim.is_static() && num_v_heads_dim.is_static()),
                         "num_k/v_head dimensions have to be static.");
         auto num_k_heads = num_k_heads_dim.get_length();
         auto num_v_heads = num_v_heads_dim.get_length();
-        
+
         std::string layer_index_str = std::to_string(layer_index);
         auto k_parameter = setName(std::make_shared<v0::Parameter>(element::dynamic, ov::PartialShape::dynamic(4)),
                                    "key_cache." + layer_index_str);
         auto v_parameter = setName(std::make_shared<v0::Parameter>(element::dynamic, ov::PartialShape::dynamic(4)),
                                    "value_cache." + layer_index_str);
-        
+
         layer_index += 1;
         kv_parameters.push_back(k_parameter);
         kv_parameters.push_back(v_parameter);
