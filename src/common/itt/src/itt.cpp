@@ -19,10 +19,8 @@ namespace internal {
 
 #ifdef ENABLE_PROFILING_ITT
 
-static __itt_collection_state state = __itt_get_collection_state();
-
 static inline bool is_initialized() {
-    return state == __itt_collection_init_successful;
+    return __itt_get_collection_state() == __itt_collection_init_successful;
 }
 
 static size_t callStackDepth() {
