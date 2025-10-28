@@ -1319,6 +1319,8 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         }
 
         comp_model_desc.closure.set_future(weights_bank_evaluation);
+        comp_model_desc.closure_uid.set_future(weights_bank_evaluation);
+        comp_model_desc.is_remote.set_future(weights_bank_evaluation);
     }
 
     LOG_INFO("Done.");
