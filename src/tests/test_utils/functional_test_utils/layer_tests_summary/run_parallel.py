@@ -788,8 +788,11 @@ class TestParallelRunner:
                     lines = log_file.readlines()
                 except:
                     lines = log.read_text(encoding="ascii", errors="ignore").split("\n")
-
+                print_fail = True
                 for line in lines:
+                    if constants.TEST_STATUS["failed"][0] in line and print_fail:
+                        print_fail = False
+                        print("LINE ", lines)
                     if constants.GTEST_FILTER in line:
                         line = line[line.find(constants.GTEST_FILTER) :]
                         test_cnt_expected = line.count(":")

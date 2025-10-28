@@ -73,6 +73,7 @@ void SubgraphBaseTest::run() {
         ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
         std::string errorMessage;
         try {
+            std::cout << "check" << std::endl;
             compile_model();
             for (const auto& targetStaticShapeVec : targetStaticShapes) {
                 generate_inputs(targetStaticShapeVec);
