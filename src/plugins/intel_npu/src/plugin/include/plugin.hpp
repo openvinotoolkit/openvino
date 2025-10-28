@@ -65,6 +65,7 @@ public:
 
 private:
     void init_options();
+    void filter_global_config_safe(const std::map<std::string, std::string>& additionalConfig = {}) const;
     void filter_config_by_compiler_support(FilteredConfig& cfg) const;
     FilteredConfig fork_local_config(const std::map<std::string, std::string>& rawConfig,
                                      const std::unique_ptr<ICompilerAdapter>& compiler,
@@ -99,6 +100,7 @@ private:
     mutable std::unique_ptr<Properties> _properties;
 
     static std::atomic<int> _compiledModelLoadCounter;
+    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu

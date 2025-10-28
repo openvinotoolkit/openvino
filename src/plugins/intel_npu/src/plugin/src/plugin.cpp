@@ -487,6 +487,19 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     cfg.setFiltered();
 }
 
+void Plugin::filter_global_config_safe(const std::map<std::string, std::string>& additionalConfig) const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (additionalConfig.size() > 0) {
+        _globalConfig.update(additionalConfig);
+    }
+    if (!_globalConfig.wasFiltered()) {
+        // filter out unsupported options
+        filter_config_by_compiler_support(_globalConfig);
+        // 2. Reset properties for the new options
+        _properties->registerProperties();
+    }
+}
+
 FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
                                          const std::unique_ptr<ICompilerAdapter>& compiler,
                                          OptionMode mode) const {
@@ -511,8 +524,8 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
 
     // If localConfig was not filtered not even by compiler type change, then _globalConfig needs also initialization
     if (!localConfig.wasFiltered()) {
-        filter_config_by_compiler_support(localConfig);
-        _globalConfig = localConfig;
+        filter_global_config_safe();
+        localConfig = _globalConfig;
     }
 
     // 2. Revalidate unknown internal configs
@@ -556,24 +569,16 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         // Set new compiler in _globalConfig
         auto it = properties.find(std::string(COMPILER_TYPE::key()));
         if (it != properties.end()) {
-            _globalConfig.update({{std::string(COMPILER_TYPE::key()), it->second.as<std::string>()}});
             // enable/disable config keys based on what the new compiler supports
-            filter_config_by_compiler_support(_globalConfig);
-            // 2. Reset properties for the new options
-            _properties->registerProperties();
+            filter_global_config_safe({{std::string(COMPILER_TYPE::key()), it->second.as<std::string>()}});
         }
     }
 
     // 2. Check if configs have been filtered
-    if (!_globalConfig.wasFiltered()) {
-        for (const auto& prop : properties) {
-            if (!_properties->isPropertyRegistered(prop.first)) {
-                // filter out unsupported options
-                filter_config_by_compiler_support(_globalConfig);
-                // 2. Reset properties for the new options
-                _properties->registerProperties();
-                break;
-            }
+    for (const auto& prop : properties) {
+        if (!_properties->isPropertyRegistered(prop.first)) {
+            filter_global_config_safe();
+            break;
         }
     }
 
@@ -595,12 +600,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     auto npu_plugin_properties = arguments;
     exclude_model_ptr_from_map(npu_plugin_properties);
 
-    if (!_globalConfig.wasFiltered() &&
-        (!_properties->isPropertyRegistered(name) || name == ov::supported_properties.name())) {
-        // filter out unsupported options
-        filter_config_by_compiler_support(_globalConfig);
-        // 2. Reset properties for the new options
-        _properties->registerProperties();
+    if ((!_properties->isPropertyRegistered(name) || name == ov::supported_properties.name())) {
+        filter_global_config_safe();
     }
     return _properties->get_property(name, npu_plugin_properties);
 }
