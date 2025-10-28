@@ -163,7 +163,7 @@ CPU::CPU() {
 
         numa_node_list.assign(_sockets, std::vector<int>());
         for (int i = 0; i < _processors; i++) {
-            if (CPU_ISSET(i, mask)) {
+            if (CPU_ISSET(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID], mask)) {
                 valid_cpu_mapping_table.emplace_back(_cpu_mapping_table[i]);
                 if (_cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == MAIN_CORE_PROC) {
                     phy_core_list.emplace_back(_cpu_mapping_table[i][CPU_MAP_CORE_ID]);
