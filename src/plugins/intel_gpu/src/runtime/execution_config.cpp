@@ -2,31 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/op/indirect_sdpa.hpp"
+#include "intel_gpu/op/kv_cache.hpp"
+#include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
-#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
-#include "intel_gpu/op/sdpa.hpp"
-#include "intel_gpu/op/indirect_sdpa.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/sparse_fill_empty_rows.hpp"
 #include "openvino/op/stft.hpp"
-#include "openvino/op/istft.hpp"
-#include "ov_ops/dynamic_quantize.hpp"
-#include "ov_ops/rms.hpp"
 #include "openvino/runtime/internal_properties.hpp"
-#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
+#include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
-#include "intel_gpu/op/kv_cache.hpp"
-
 
 namespace ov::intel_gpu {
 
@@ -162,10 +162,13 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
     apply_rt_info_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max, rt_info);
 
-    // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
-    // ov::CacheMode::OPTIMIZE_SIZE setting. Not setting WEIGHTS_PATH will result in not
+    // WEIGHTS_PATH is used for the weightless cache mechanism which is used only as defined by
+    // ov::util::is_weightless_enabled. Not setting WEIGHTS_PATH will result in not
     // using that mechanism.
-    if (get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
+    if (const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties()); enable_weightless) {
+        set_property({ov::enable_weightless(*enable_weightless)});
+    }
+    if (get_enable_weightless()) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
 }

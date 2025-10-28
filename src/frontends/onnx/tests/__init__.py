@@ -51,7 +51,6 @@ xfail_issue_38706 = xfail_test(reason="RuntimeError: output_3.0 has zero dimensi
 xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Slice): y>': "
                                       "Axes input must be constant")
 skip_bitwise_ui64 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
-xfail_issue_99949 = xfail_test(reason="Bitwise operators are not supported")
 xfail_issue_99950 = xfail_test(reason="CenterCropPad func is not supported")
 xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
 xfail_issue_99954 = xfail_test(reason="Constant Pad - RuntimeError: Shape inference of Reference node with name y failed")
