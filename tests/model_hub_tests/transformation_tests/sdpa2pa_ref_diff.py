@@ -1029,6 +1029,13 @@ ref_diff_map_optimizations = {
 		"ReadValue" : -10,
 		"ScaledDotProductAttention" : -5,
 	},
+	"hf-internal-testing/tiny-random-GPTNeoForCausalLM" : {
+		"ScaledDotProductAttention" : -4,
+		"ReadValue" : -8,
+		"PagedAttentionExtension" : 4,
+		"Parameter" : 11,
+		"Assign" : -8,
+	},
 	"hf-internal-testing/tiny-random-GPTNeoXForCausalLM" : {
 		"Assign" : -10,
 		"PagedAttentionExtension" : 5,
@@ -1204,6 +1211,13 @@ ref_diff_map_optimizations = {
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},
+	"katuni4ka/tiny-random-qwen1.5-moe" : {
+		"Assign" : -8,
+		"PagedAttentionExtension" : 4,
+		"Parameter" : 11,
+		"ReadValue" : -8,
+		"ScaledDotProductAttention" : -4,
+	},
 	"katuni4ka/tiny-random-xverse" : {
 		"Assign" : -4,
 		"PagedAttentionExtension" : 2,
@@ -1219,6 +1233,13 @@ ref_diff_map_optimizations = {
 		"ScaledDotProductAttention" : -2,
 	},
 	"katuni4ka/tiny-random-llava" : {
+		"Assign" : -4,
+		"PagedAttentionExtension" : 2,
+		"Parameter" : 7,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+	},
+	"katuni4ka/tiny-random-llava-next" : {
 		"Assign" : -4,
 		"PagedAttentionExtension" : 2,
 		"Parameter" : 7,
