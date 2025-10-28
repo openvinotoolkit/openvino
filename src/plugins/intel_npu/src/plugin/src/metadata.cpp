@@ -107,17 +107,16 @@ void MetadataBase::read(const ov::Tensor& tensor) {
 }
 
 void MetadataBase::read_data_from_source(char* destination, const size_t size) {
-    ov::util::VariantVisitor reader{[&](std::reference_wrapper<std::istream> stream) {
-                                        stream.get().read(destination, size);
-                                    },
-                                    [&](std::reference_wrapper<const ov::Tensor> tensor) {
-                                        std::memcpy(destination, tensor.get().data<const char>() + _cursorOffset, size);
-                                        _cursorOffset += size;
-                                    },
-                                    [&](uninitialized_source) {
-                                        OPENVINO_THROW("No blob has been provided to NPU plugin's metadata reader.");
-                                    }};
-    std::visit(reader, _source);
+    if (const std::reference_wrapper<std::istream>* stream =
+            std::get_if<std::reference_wrapper<std::istream>>(&_source)) {
+        stream->get().read(destination, size);
+    } else if (const std::reference_wrapper<const ov::Tensor>* tensor =
+                   std::get_if<std::reference_wrapper<const ov::Tensor>>(&_source)) {
+        std::memcpy(destination, tensor->get().data<const char>() + _cursorOffset, size);
+        _cursorOffset += size;
+    } else {
+        OPENVINO_THROW("No blob has been provided to NPU plugin's metadata reader.");
+    }
 }
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
