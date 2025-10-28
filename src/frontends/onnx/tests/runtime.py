@@ -150,7 +150,7 @@ class Computation(object):
         is_float8 = any(parameter.get_output_element_type(0) == Type.f8e4m3 or parameter.get_output_element_type(0) == Type.f8e5m2 for parameter in self.parameters)
         if is_bfloat16 or is_float8:
             input_values = self.convert_to_tensors(input_values)
-        else:
+        elif self.runtime.backend_name.startswith(("CPU", "GPU")):
             config[hints.inference_precision] = Type.f32
         compiled_model = self.runtime.backend.compile_model(model, self.runtime.backend_name, config)
         request = compiled_model.create_infer_request()
