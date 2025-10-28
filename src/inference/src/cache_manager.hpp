@@ -139,6 +139,7 @@ private:
         std::ofstream stream(blob_path, std::ios_base::binary);
         writer(stream);
         stream.close();
+        std::cout << "UUUUUUUUUUUUUUUU" << std::endl;
         std::filesystem::permissions(blob_path,
                                      std::filesystem::perms::owner_read | std::filesystem::perms::group_read);
     }
