@@ -5,7 +5,6 @@
 #include "just_sync_infer_request.hpp"
 
 #include <algorithm>
-#include <chrono>
 #include <future>
 #include <map>
 #include <memory>
@@ -493,8 +492,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     std::cout << "Final RSS: " << final_memory_kb << " KB (" << (final_memory_kb / 1024) << " MB)\n" << std::endl;
 }
 
-ov::npuw::JustInferRequest::~JustInferRequest() = default;
-
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                             const ov::SoPtr<ov::ITensor>& tensor) {
     // Check that it's I/O
@@ -925,11 +922,6 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
             // All sub models are sharing the same attention mask, we can use the cached attention
             // mask directly to avoid redundant tensor copy
             m_subrequests[real_idx]->set_tensor(mask_iport, m_cached_attention_mask);
-
-            if (!is_zero_remote_tensor(m_cached_attention_mask)) {
-                std::cout << "function_prologue_pyramid_attn: m_cached_attention_mask is not zero memory!!"
-                          << std::endl;
-            }
             return;
         }
 
@@ -941,12 +933,7 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
         auto actual_mask_shape = full_mask_shape;
         actual_mask_shape[kv_dim] = present_len + past_len;
 
-        // Reshape the input to the proper shape
         const auto& dst = r->get_tensor(mask_iport);
-
-        if (!is_zero_remote_tensor(dst)) {
-            std::cout << "function_prologue_pyramid_attn: dst is not zero memory!!" << std::endl;
-        }
 
         // Copy "present" attention mask
         const auto& present_dst_view = ov::npuw::util::view(dst, kv_dim, past_len, present_len);
@@ -1059,13 +1046,6 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
 
             // Setup primary infer request tensor
             auto tensor = proto_comp_model_desc.pyramid_infer_requests[model_id]->get_tensor(input);
-            if (!is_zero_remote_tensor(tensor)) {
-                std::cout << "infer request: tensor is not zero memory!!" << std::endl;
-            } else {
-                std::cout << "Model " << model_id << " input " << input_name
-                          << " is zero remote tensor, ptr: " << tensor->data() << std::endl;
-            }
-
             auto primary_ptr = m_subrequests[real_idx]->get_tensor(input)->data();
             auto new_tensor =
                 ov::get_tensor_impl(ov::Tensor(tensor->get_element_type(), tensor->get_shape(), primary_ptr));
@@ -1074,13 +1054,6 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
             // Setup pipeline infer request tensor if needed
             if (is_piped) {
                 auto pipeline_tensor = proto_comp_model_desc.pyramid_pipeline_requests[model_id]->get_tensor(input);
-                if (!is_zero_remote_tensor(pipeline_tensor)) {
-                    std::cout << "pipeline infer request: tensor is not zero memory!!" << std::endl;
-                } else {
-                    std::cout << "Pipeline Model " << model_id << " input " << input_name
-                              << " is zero remote tensor, ptr: " << pipeline_tensor->data() << std::endl;
-                }
-
                 auto pipeline_tensor_ptr = m_funcall_pipeline[real_idx].subrequest->get_tensor(input)->data();
                 auto pipeline_new_tensor = ov::get_tensor_impl(
                     ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), pipeline_tensor_ptr));
@@ -1097,24 +1070,6 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
         proto_comp_model_desc.pyramid_infer_requests[last_model_id] = m_subrequests[real_idx];
         if (is_piped) {
             proto_comp_model_desc.pyramid_pipeline_requests[last_model_id] = m_funcall_pipeline[real_idx].subrequest;
-        }
-
-        // Log tensor info for last model (only during initial creation)
-        for (auto input : compiled_models[last_model_id]->inputs()) {
-            if (input.get_names().empty()) {
-                continue;
-            }
-
-            auto input_name = input.get_any_name();
-            if (ov::npuw::util::isPastKeyValuesKey(input_name) || ov::npuw::util::isPastKeyValuesValue(input_name)) {
-                auto tensor = proto_comp_model_desc.pyramid_infer_requests[last_model_id]->get_tensor(input);
-                if (!is_zero_remote_tensor(tensor)) {
-                    std::cout << "infer request: last model tensor is not zero memory!!" << std::endl;
-                } else {
-                    std::cout << "Model " << last_model_id << " input " << input_name
-                              << " is zero remote tensor, ptr: " << tensor->data() << std::endl;
-                }
-            }
         }
     }
 
@@ -1162,36 +1117,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
         try {
             LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
             LOG_BLOCK();
-
-            // Check if this is a pyramid attention model and measure execution time
-            bool is_pyramid = false;
-            std::size_t pyramid_id = 0;
-            if (comp_model_desc.replaced_by) {
-                const auto real_idx = comp_model_desc.replaced_by.value();
-                auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
-                if (func_desc.pyramid_attention.has_value() && m_pyramid_selector) {
-                    is_pyramid = true;
-                    pyramid_id = m_pyramid_selector->pyramid_id();
-                }
-            }
-
-            if (is_pyramid) {
-                auto execution_time = ov::npuw::perf::ms_to_run([&]() {
-                    unsafe_run_this_prep_next(idx, next_prepared);
-                });
-
-                // Update pyramid model statistics (collect data only, print at end of infer())
-                update_pyramid_statistics(pyramid_id, execution_time);
-            } else {
-                // Measure execution time for non-pyramid model
-                auto execution_time = ov::npuw::perf::ms_to_run([&]() {
-                    unsafe_run_this_prep_next(idx, next_prepared);
-                });
-
-                // Update non-pyramid model statistics (collect data only, print at end of infer())
-                update_non_pyramid_statistics(real_idx, execution_time);
-            }
-
+            unsafe_run_this_prep_next(idx, next_prepared);
             job_done = true;
             LOG_DEBUG("Done: " << idx << "(exec subrequest)");
         } catch (const std::exception& ex) {

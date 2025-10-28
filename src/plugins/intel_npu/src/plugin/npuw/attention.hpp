@@ -18,11 +18,6 @@
 namespace ov {
 namespace npuw {
 
-namespace compiled {
-// Forward declaration
-struct PyramidAttention;
-}  // namespace compiled
-
 namespace function {
 
 // Partition-time attention information. So far assume dynamic execution in 1 dimension only
@@ -154,7 +149,9 @@ public:
 
 protected:
     Case m_case = Case::UNKNOWN;
-};  // No dynamic dispatch - just run over the whole range
+};
+
+// No dynamic dispatch - just run over the whole range
 class All final : public Selector {
     void prepare(int64_t past_len) override {}
     int64_t length() const override {
@@ -170,8 +167,8 @@ class PositionIDs final : public Selector {
     std::size_t m_position_ids_idx = 0u;
     int64_t m_current_length = 0;
     int64_t m_past_length = 0;
-    std::size_t m_query_size = 0u;
 
+    const compiled::Attention& m_d;
     const ov::ISyncInferRequest& m_rq;
 
     PositionIDs(std::size_t param_idx, const compiled::Attention& d, const ov::ISyncInferRequest& rq);
@@ -182,6 +179,7 @@ class PositionIDs final : public Selector {
 public:
     static Selector::Ptr find(const compiled::Attention& d, const ov::ISyncInferRequest& rq);
 };
+
 }  // namespace attention
 }  // namespace runtime
 
