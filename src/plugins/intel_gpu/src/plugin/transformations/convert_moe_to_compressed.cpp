@@ -83,10 +83,10 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
     auto topk_m = any_input();
 
     auto moe_root = wrap_type<ov::op::internal::MOE>({hidden_states_m, routing_weights_m, topk_m, convert_m_0, convert_m_1, convert_m_2},
-        [](const ov::Output<ov::Node>& output) {
-            auto moe = ov::as_type_ptr<ov::op::internal::MOE>(output.get_node_shared_ptr());
-            return moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
-        });
+                                                     [](const ov::Output<ov::Node>& output) {
+                                                         auto moe = ov::as_type_ptr<ov::op::internal::MOE>(output.get_node_shared_ptr());
+                                                         return moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+                                                     });
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -108,7 +108,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         auto zp_0 = pattern_map.at(zp_m_0).get_node_shared_ptr();
         auto scale_0_shape = scale_0->get_shape();
         scale_0_shape.pop_back();
-        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ scale_0_shape.size() }, scale_0_shape);
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{scale_0_shape.size()}, scale_0_shape);
         auto scale_0_reshape = std::make_shared<ov::op::v1::Reshape>(scale_0, reshape_const, false);
         auto zp_0_reshape = std::make_shared<ov::op::v1::Reshape>(zp_0, reshape_const, false);
         ov::enable_keep_const_precision(scale_0_reshape);
@@ -117,7 +117,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         std::vector<size_t> transpose_order_0(scale_0_reshape->get_shape().size());
         std::iota(transpose_order_0.begin(), transpose_order_0.end(), 0);
         std::swap(*(transpose_order_0.end() - 1), *(transpose_order_0.end() - 2));
-        auto transpose_0_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order_0.size() }, transpose_order_0);
+        auto transpose_0_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{transpose_order_0.size()}, transpose_order_0);
         auto transpose_0_scale = std::make_shared<ov::op::v1::Transpose>(scale_0_reshape, transpose_0_const);
         auto transpose_0_zp = std::make_shared<ov::op::v1::Transpose>(zp_0_reshape, transpose_0_const);
         ov::enable_keep_const_precision(transpose_0_scale);
@@ -128,7 +128,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         auto zp_1 = pattern_map.at(zp_m_1).get_node_shared_ptr();
         auto scale_1_shape = scale_1->get_shape();
         scale_1_shape.pop_back();
-        auto reshape_const_1 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ scale_1_shape.size() }, scale_1_shape);
+        auto reshape_const_1 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{scale_1_shape.size()}, scale_1_shape);
         auto scale_1_reshape = std::make_shared<ov::op::v1::Reshape>(scale_1, reshape_const_1, false);
         auto zp_1_reshape = std::make_shared<ov::op::v1::Reshape>(zp_1, reshape_const_1, false);
         ov::enable_keep_const_precision(scale_1_reshape);
@@ -137,7 +137,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         std::vector<size_t> transpose_order_1(scale_1_reshape->get_shape().size());
         std::iota(transpose_order_1.begin(), transpose_order_1.end(), 0);
         std::swap(*(transpose_order_1.end() - 1), *(transpose_order_1.end() - 2));
-        auto transpose_1_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order_1.size() }, transpose_order_1);
+        auto transpose_1_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{transpose_order_1.size()}, transpose_order_1);
         auto transpose_1_scale = std::make_shared<ov::op::v1::Transpose>(scale_1_reshape, transpose_1_const);
         auto transpose_1_zp = std::make_shared<ov::op::v1::Transpose>(zp_1_reshape, transpose_1_const);
         ov::enable_keep_const_precision(transpose_1_scale);
@@ -148,7 +148,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         auto zp_2 = pattern_map.at(zp_m_2).get_node_shared_ptr();
         auto scale_2_shape = scale_2->get_shape();
         scale_2_shape.pop_back();
-        auto reshape_const_2 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ scale_2_shape.size() }, scale_2_shape);
+        auto reshape_const_2 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{scale_2_shape.size()}, scale_2_shape);
         auto scale_2_reshape = std::make_shared<ov::op::v1::Reshape>(scale_2, reshape_const_2, false);
         auto zp_2_reshape = std::make_shared<ov::op::v1::Reshape>(zp_2, reshape_const_2, false);
         ov::enable_keep_const_precision(scale_2_reshape);
@@ -157,7 +157,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         std::vector<size_t> transpose_order_2(scale_2_reshape->get_shape().size());
         std::iota(transpose_order_2.begin(), transpose_order_2.end(), 0);
         std::swap(*(transpose_order_2.end() - 1), *(transpose_order_2.end() - 2));
-        auto transpose_2_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order_2.size() }, transpose_order_2);
+        auto transpose_2_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{transpose_order_2.size()}, transpose_order_2);
         auto transpose_2_scale = std::make_shared<ov::op::v1::Transpose>(scale_2_reshape, transpose_2_const);
         auto transpose_2_zp = std::make_shared<ov::op::v1::Transpose>(zp_2_reshape, transpose_2_const);
         ov::enable_keep_const_precision(transpose_2_scale);
@@ -217,8 +217,13 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         ov::copy_runtime_info(moe, moe_compressed);
         ov::replace_node(moe, moe_compressed);
 
-        std::cout << "ConvertMOEToMOECompressed is hit : num_expert = " << config.num_expert << ", top_k = " << config.top_k
-                  << ", hidden_size = " << config.hidden_size << ", inter_size = " << config.inter_size << ", group_size = " << config.group_size << std::endl;
+        static bool first_time = true;
+        if (first_time) {
+            first_time = false;
+            std::cout << "[ ConvertMOEToMOECompressed ]: num_expert = " << config.num_expert << ", top_k = " << config.top_k
+                      << ", hidden_size = " << config.hidden_size << ", inter_size = " << config.inter_size << ", group_size = " << config.group_size
+                      << std::endl;
+        }
         return true;
     };
 
