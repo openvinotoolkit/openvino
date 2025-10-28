@@ -32,6 +32,7 @@ from openvino._pyopenvino.properties import key_cache_precision
 from openvino._pyopenvino.properties import value_cache_precision
 from openvino._pyopenvino.properties import key_cache_group_size
 from openvino._pyopenvino.properties import value_cache_group_size
+from openvino._pyopenvino.properties import enable_weightless
 
 # Submodules
 from openvino.runtime.properties import hint
