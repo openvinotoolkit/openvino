@@ -337,7 +337,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
         storedMeta = create_metadata(metaVersion, blobDataSize);
         storedMeta->read(stream);
     } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
+        OPENVINO_THROW("Can't read NPU metadata: ", ex.what());
     } catch (...) {
         OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
     }
@@ -371,7 +371,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
         storedMeta = create_metadata(metaVersion, blobDataSize);
         storedMeta->read(roiTensor);
     } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
+        OPENVINO_THROW("Can't read NPU metadata: ", ex.what());
     } catch (...) {
         OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
     }

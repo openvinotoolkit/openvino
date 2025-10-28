@@ -59,7 +59,6 @@ if(WIN32)
     endif()
 endif()
 
-
 set_target_properties(
   ${TARGET_NAME} PROPERTIES FOLDER ${CMAKE_CURRENT_SOURCE_DIR} CXX_STANDARD 17)
 
