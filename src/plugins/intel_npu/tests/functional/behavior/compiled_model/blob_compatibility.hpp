@@ -93,7 +93,7 @@ protected:
     ov::AnyMap config;
 };
 
-using OVBlobCompatibilityNPU_PV_Driver_No_Throw = OVBlobCompatibilityNPU;
+using compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw = OVBlobCompatibilityNPU;
 using OVBlobCompatibilityNPU_Metadata_No_Throw = OVBlobCompatibilityNPU;
 
 #define NO_APPEND_EXPORT(ASSERT_TYPE, ...)
@@ -117,15 +117,10 @@ using OVBlobCompatibilityNPU_Metadata_No_Throw = OVBlobCompatibilityNPU;
     APPEND_EXPORT_HELPER(ASSERT_TYPE, ##__VA_ARGS__)
 
 TEST_P(OVBlobCompatibilityNPU, CanImportAllPrecompiledBlobsForAllOVVersionsAndDrivers) {
-    if (auto current_driver =
-            core.get_property(ov::test::utils::DEVICE_NPU, ov::intel_npu::driver_version.name()).as<std::string>();
-        current_driver == DRIVERS.at(E_DRIVERS::DRIVER_1688) && blobName.find(current_driver) == std::string::npos) {
-        GTEST_SKIP() << "FWD compatibility between drivers is not supported!";
-    }
     DEFAULT_TEST_BODY(OV_ASSERT_NO_THROW);
 }
 
-TEST_P(OVBlobCompatibilityNPU_PV_Driver_No_Throw, CanImportExpectedModelsForPVDriverAndAllOVVersions) {
+TEST_P(compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw, CanImportExpectedModelsForPVDriverAndAllOVVersions) {
     DEFAULT_TEST_BODY(OV_ASSERT_NO_THROW);
 }
 
