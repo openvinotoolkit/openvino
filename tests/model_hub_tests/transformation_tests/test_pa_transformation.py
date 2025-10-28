@@ -4,7 +4,7 @@
 from huggingface_hub import snapshot_download
 from openvino._offline_transformations import paged_attention_transformation
 from openvino._pyopenvino.op import _PagedAttentionExtension
-import openvino._pyopenvino.Type as OVType
+from openvino._pyopenvino import Type as OVType
 from optimum.intel import OVModelForCausalLM
 from optimum.intel.openvino import OVModelForVisualCausalLM
 from typing import Union
