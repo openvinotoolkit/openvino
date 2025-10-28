@@ -331,12 +331,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     std::map<std::string, std::size_t> compiledFunctions;
     m_compiled_submodels.resize(orderedSubgraphs.size());
 
-    // Preserve bank reference in each desc to keep it alive for
-    // closure evaluation (which is done async).
-    for (std::size_t i = 0; i < m_compiled_submodels.size(); ++i) {
-        m_compiled_submodels[i].m_weights_bank = m_weights_bank;
-    }
-
     const std::size_t end_sub_idx = orderedSubgraphs.size();
 
     const std::string dump_sub_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS>();
@@ -392,13 +386,13 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].host_gather = subgraph._host_gather;
             m_compiled_submodels[id].quant_unpack_gather = subgraph._quant_unpack_gather;
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
-            m_compiled_submodels[id].closure.get() = subgraph._closure;
+            m_compiled_submodels[id].closure.get().closure = subgraph._closure;
             m_compiled_submodels[id].lazy_closure = subgraph._lazy_closure;
-            m_compiled_submodels[id].closure_uid.get().resize(m_compiled_submodels[id].closure.get().size(), -1);
+            m_compiled_submodels[id].closure.get().closure_uid.resize(subgraph._closure.size(), -1);
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
             m_compiled_submodels[id].forced_to_fcall = subgraph._forced_to_fcall;
-            m_compiled_submodels[id].is_remote.get().resize(m_compiled_submodels[id].closure.get().size(), false);
+            m_compiled_submodels[id].closure.get().is_remote.resize(subgraph._closure.size(), false);
         }  // if(!funcall)
 
         if (!m_compiled_submodels[id].model && !m_compiled_submodels[id].replaced_by) {
@@ -656,22 +650,24 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, spatial);
     write(stream, attention);
 
-    write(stream, is_remote.get());
-    write(stream, closure_uid.get());
+    write(stream, closure.get().is_remote);
+    write(stream, closure.get().closure_uid);
+
+    auto closure_size = closure.get().closure.size();
 
     if (ctx.is_weightless) {
         write_weightless(stream, scales, ctx);
         write_weightless(stream, zerops, ctx);
 
-        write(stream, closure.get().size());
+        write(stream, closure_size);
         std::vector<ov::Tensor> cpu_closures;
         std::vector<std::size_t> cpu_closure_ids;
         std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
         std::vector<std::size_t> non_cpu_tensors_ids;
-        for (std::size_t cidx = 0; cidx < closure.get().size(); ++cidx) {
-            if (closure_uid.get()[cidx] == -1) {  // CPU closure
+        for (std::size_t cidx = 0; cidx < closure_size; ++cidx) {
+            if (closure.get().closure_uid[cidx] == -1) {  // CPU closure
                 cpu_closure_ids.push_back(cidx);
-                cpu_closures.push_back(closure.get()[cidx]);
+                cpu_closures.push_back(closure.get().closure[cidx]);
             } else {
                 non_cpu_tensors_ids.push_back(cidx);
                 non_cpu_tensors.push_back(lazy_closure[cidx]);  // must be there
@@ -686,13 +682,13 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
         write(stream, scales);
         write(stream, zerops);
 
-        write(stream, closure.get().size());
+        write(stream, closure_size);
         std::vector<ov::Tensor> cpu_closures;
         std::vector<std::size_t> cpu_closure_ids;
-        for (std::size_t cidx = 0; cidx < closure.get().size(); ++cidx) {
-            if (closure_uid.get()[cidx] == -1) {  // CPU closure, not in the bank
+        for (std::size_t cidx = 0; cidx < closure_size; ++cidx) {
+            if (closure.get().closure_uid[cidx] == -1) {  // CPU closure, not in the bank
                 cpu_closure_ids.push_back(cidx);
-                cpu_closures.push_back(closure.get()[cidx]);
+                cpu_closures.push_back(closure.get().closure[cidx]);
             }
         }
 
@@ -731,8 +727,8 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, spatial);
     read(stream, attention);
 
-    read(stream, is_remote.get());
-    read(stream, closure_uid.get());
+    read(stream, closure.get().is_remote);
+    read(stream, closure.get().closure_uid);
 
     if (ctx.weights || !ctx.consts_cache.empty()) {
         read_weightless(stream, scales, ctx);
@@ -740,7 +736,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
 
         std::size_t closure_size = 0;
         read(stream, closure_size);
-        closure.get().resize(closure_size);
+        closure.get().closure.resize(closure_size);
         lazy_closure.resize(closure_size);
 
         std::vector<std::size_t> cpu_closure_ids;
@@ -750,7 +746,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
         read_weightless(stream, cpu_closures, ctx);
         std::size_t tidx = 0;
         for (const auto& idx : cpu_closure_ids) {
-            closure.get()[idx] = std::move(cpu_closures[tidx++]);
+            closure.get().closure[idx] = std::move(cpu_closures[tidx++]);
         }
 
         std::vector<std::size_t> non_cpu_tensors_ids;
@@ -764,8 +760,9 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
         }
 
         // Also read weights into LazyTensors
-        for (std::size_t cidx = 0; cidx < closure.get().size(); ++cidx) {
-            if (closure_uid.get()[cidx] != -1 && lazy_closure[cidx]) {  // previously registered before serialization
+        for (std::size_t cidx = 0; cidx < closure.get().closure.size(); ++cidx) {
+            if (closure.get().closure_uid[cidx] != -1 &&
+                lazy_closure[cidx]) {  // previously registered before serialization
                 lazy_closure[cidx].read_weight(ctx);
             }
         }
@@ -777,20 +774,19 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
         read(stream, closure_size);
         std::vector<std::size_t> cpu_closure_ids;
         read(stream, cpu_closure_ids);
-        closure.get().resize(closure_size);
+        closure.get().closure.resize(closure_size);
         for (const auto& cidx : cpu_closure_ids) {
-            read(stream, closure.get()[cidx]);
+            read(stream, closure.get().closure[cidx]);
         }
     }
 
     LOG_DEBUG("DONE.");
 }
 
-ov::npuw::CompiledModel::CompiledModelDesc::~CompiledModelDesc() {
-    closure.wait();
-    closure_uid.wait();
-    is_remote.wait();
-    m_weights_bank.reset();
+ov::npuw::CompiledModel::~CompiledModel() {
+    for (const auto& comp_desc : m_compiled_submodels) {
+        comp_desc.closure.wait();
+    }
 }
 
 void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
@@ -1240,16 +1236,17 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
-        auto& desc_closure = comp_model_desc.closure.get();
+        auto& desc_closure = comp_model_desc.closure.get().closure;
 
         for (std::size_t cidx = 0; cidx < desc_closure.size(); ++cidx) {
             if (desc_closure[cidx]) {
                 // host-side closure - already set, do nothing
-                NPUW_ASSERT(!comp_model_desc.is_remote.get()[cidx]);
+                NPUW_ASSERT(!comp_model_desc.closure.get().is_remote[cidx]);
                 continue;
             }
-            NPUW_ASSERT(comp_model_desc.closure_uid.get()[cidx] != -1);
-            desc_closure[cidx] = m_weights_bank->get(comp_model_desc.closure_uid.get()[cidx], *func_desc.device_it);
+            NPUW_ASSERT(comp_model_desc.closure.get().closure_uid[cidx] != -1);
+            desc_closure[cidx] =
+                m_weights_bank->get(comp_model_desc.closure.get().closure_uid[cidx], *func_desc.device_it);
         }
     }
 }
@@ -1270,10 +1267,10 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             auto& func_desc = m_compiled_submodels[real_idx];
 
             for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
-                if (comp_model_desc.closure.unsafe_get()[tidx]) {
+                if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
                     continue;  // host-side closure
                 }
-                comp_model_desc.closure_uid.unsafe_get()[tidx] =
+                comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
                     m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
             }
         }
@@ -1292,18 +1289,19 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
             auto& func_desc = m_compiled_submodels[real_idx];
+            auto& desc_closure = comp_model_desc.closure.unsafe_get();
 
-            for (std::size_t tidx = 0; tidx < comp_model_desc.closure.unsafe_get().size(); ++tidx) {
-                if (comp_model_desc.closure.unsafe_get()[tidx]) {
+            for (std::size_t tidx = 0; tidx < desc_closure.closure.size(); ++tidx) {
+                if (desc_closure.closure[tidx]) {
                     // host-side closure - already set, do nothing
-                    comp_model_desc.is_remote.unsafe_get()[tidx] = false;
+                    desc_closure.is_remote[tidx] = false;
                     continue;
                 }
-                const auto& uid = comp_model_desc.closure_uid.unsafe_get()[tidx];
+                const auto& uid = desc_closure.closure_uid[tidx];
                 NPUW_ASSERT(uid != -1);  // All tensors should be registered at this point
-                comp_model_desc.closure.unsafe_get()[tidx] = m_weights_bank->get(uid, *func_desc.device_it);
+                desc_closure.closure[tidx] = m_weights_bank->get(uid, *func_desc.device_it);
                 // FIXME: find a more reliable way to do so
-                comp_model_desc.is_remote.unsafe_get()[tidx] = m_weights_bank->is_remote(uid);
+                desc_closure.is_remote[tidx] = m_weights_bank->is_remote(uid);
             }
         }
 
@@ -1319,8 +1317,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         }
 
         comp_model_desc.closure.set_future(weights_bank_evaluation);
-        comp_model_desc.closure_uid.set_future(weights_bank_evaluation);
-        comp_model_desc.is_remote.set_future(weights_bank_evaluation);
     }
 
     LOG_INFO("Done.");
@@ -1685,7 +1681,7 @@ std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) cons
 
 bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx) const {
     auto& comp_model_desc = m_compiled_submodels.at(idx);
-    for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.get().size(); cidx++) {
+    for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.get().closure.size(); cidx++) {
         if (unpack_required(idx, cidx)) {
             return true;
         }
@@ -1702,7 +1698,7 @@ bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx, const std::
     const auto real_idx = comp_model_desc.replaced_by.value();
     auto& func_desc = m_compiled_submodels.at(real_idx);
 
-    auto& closure = comp_model_desc.closure.get().at(cidx);
+    auto& closure = comp_model_desc.closure.get().closure.at(cidx);
     const auto closure_param_id = comp_model_desc.param_base + cidx;
 
     auto& iport = func_desc.compiled_model->inputs()[closure_param_id];

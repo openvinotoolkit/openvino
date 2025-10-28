@@ -411,7 +411,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
     std::vector<std::size_t> closure_unpack_required;
     std::vector<std::size_t> closure_copy_required;
 
-    auto& desc_closure = comp_model_desc.closure.get();
+    auto& desc_closure = comp_model_desc.closure.get().closure;
 
     for (std::size_t cidx = 0u; cidx < desc_closure.size(); cidx++) {
         auto& closure = desc_closure[cidx];
@@ -568,7 +568,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         const auto gather = request->get_tensor(gport);
 
         const auto& vocab =
-            comp_model_desc.closure.get()[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
+            comp_model_desc.closure.get().closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
         const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
         const auto lookup = request->get_tensor(lport);
 
@@ -929,7 +929,7 @@ bool ov::npuw::IBaseInferRequest::needs_copy(std::size_t idx, std::size_t cidx) 
         return false;
     }
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    if (comp_model_desc.is_remote.get()[cidx]) {
+    if (comp_model_desc.closure.get().is_remote[cidx]) {
         // FIXME: Test if the tensor device and the request device are
         // the same or compatible!
         return false;

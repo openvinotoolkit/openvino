@@ -61,6 +61,9 @@ public:
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
+    // Custom destructor to wait for Delayed
+    ~CompiledModel();
+
 private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
@@ -179,14 +182,18 @@ private:
         // w.r.t. function calls
         std::size_t param_base = 0;
 
+        struct Closure {
+            std::vector<ov::Tensor> closure;
+            std::vector<int64_t> closure_uid;  // Note: value -1 is considered uninitialized
+            std::vector<bool> is_remote;
+        };
+
         // Need to wrap closure, since finalize_weights_bank() will
         // asynchronously evaluate weights and put them in closure.
         // Other functions of CompiledModel as well as InferRequest and
         // other entities need to wait for the closure to be populated first
         // (meaning to wait for async weights processing to end).
-        ov::npuw::util::Delayed<std::vector<ov::Tensor>> closure;
-        ov::npuw::util::Delayed<std::vector<int64_t>> closure_uid;  // Note: value -1 is considered uninitialized
-        ov::npuw::util::Delayed<std::vector<bool>> is_remote;
+        ov::npuw::util::Delayed<Closure> closure;
 
         // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
         //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
@@ -206,14 +213,6 @@ private:
 
         void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
         void deserialize(std::istream& stream, const ov::npuw::s11n::WeightsContext& ctx);
-
-        // FIXME: it's VERY important to keep weights bank alive before closures are destroyed.
-        // Closure is calculated asynchronously, thus we need to first finish the async and only then
-        // destroy the bank. Thus keeping a reference to bank here as well.
-        std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
-
-        // Custom destructor to wait for Delayed
-        ~CompiledModelDesc();
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

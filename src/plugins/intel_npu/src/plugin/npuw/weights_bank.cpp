@@ -6,7 +6,6 @@
 
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
-#include "perf.hpp"
 #include "serialization.hpp"
 #include "util.hpp"
 
