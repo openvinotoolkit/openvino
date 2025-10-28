@@ -652,7 +652,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, spatial);
     write(stream, attention);
 
-    auto closure_desc = closure.get();
+    auto& closure_desc = closure.get();
 
     write(stream, closure_desc.is_remote);
     write(stream, closure_desc.closure_uid);
@@ -729,7 +729,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, spatial);
     read(stream, attention);
 
-    auto closure_desc = closure.get();
+    auto& closure_desc = closure.get();
 
     read(stream, closure_desc.is_remote);
     read(stream, closure_desc.closure_uid);
