@@ -150,7 +150,7 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::CreateProgram");
     cldnn::program::ptr program;
-    // try {
+    try {
         program = cldnn::program::build_program(m_engine,
                                                 *m_topology,
                                                 m_config,
@@ -159,9 +159,9 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
                                                 false,
                                                 false,
                                                 is_inner_program);
-    // } catch (std::exception& e) {
-    //     OPENVINO_ASSERT(false, "[GPU] ProgramBuilder build failed!\n", e.what());
-    // }
+    } catch (std::exception& e) {
+        OPENVINO_ASSERT(false, "[GPU] ProgramBuilder build failed!\n", e.what());
+    }
     cleanup_build();
 
     return program;

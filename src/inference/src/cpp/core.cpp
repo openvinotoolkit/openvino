@@ -106,10 +106,10 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
-    // OV_CORE_CALL_STATEMENT({
+    OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, device_name, config);
         return {exec._ptr, exec._so};
-    // });
+    });
 }
 
 CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& config) {
