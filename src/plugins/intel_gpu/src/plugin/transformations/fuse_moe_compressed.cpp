@@ -29,6 +29,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
@@ -62,14 +63,14 @@ FuseMOECompressed::FuseMOECompressed() {
     auto unsqueeze_moe_m = wrap_type<ov::op::v0::Unsqueeze>({reshape_m, any_input()}, consumers_count(1));
 
     auto gate_wei_m = wrap_type<ov::op::v0::Constant>();
-    auto gate_scale_m = wrap_type<ov::op::v0::Constant>();
-    auto gate_zp_m = wrap_type<ov::op::v0::Constant>();
+    auto gate_scale_m = any_input();
+    auto gate_zp_m = any_input();
     auto up_wei_m = wrap_type<ov::op::v0::Constant>();
-    auto up_scale_m = wrap_type<ov::op::v0::Constant>();
-    auto up_zp_m = wrap_type<ov::op::v0::Constant>();
+    auto up_scale_m = any_input();
+    auto up_zp_m = any_input();
     auto down_wei_m = wrap_type<ov::op::v0::Constant>();
-    auto down_scale_m = wrap_type<ov::op::v0::Constant>();
-    auto down_zp_m = wrap_type<ov::op::v0::Constant>();
+    auto down_scale_m = any_input();
+    auto down_zp_m = any_input();
 
     // moe compressed
     auto moe_compressed_m = wrap_type<ov::intel_gpu::op::MOECompressed>(
@@ -108,6 +109,9 @@ FuseMOECompressed::FuseMOECompressed() {
         config.out_type = moe_compressed_config.out_type;
 
         auto moe_fused_compressed = std::make_shared<ov::intel_gpu::op::MOEFusedCompressed>(args, config);
+        ov::enable_keep_const_precision(moe_fused_compressed->input_value(4).get_node_shared_ptr());
+        ov::enable_keep_const_precision(moe_fused_compressed->input_value(7).get_node_shared_ptr());
+        ov::enable_keep_const_precision(moe_fused_compressed->input_value(10).get_node_shared_ptr());
 
         moe_fused_compressed->set_friendly_name(moe_compressed->get_friendly_name());
         ov::copy_runtime_info(moe_compressed, moe_fused_compressed);
