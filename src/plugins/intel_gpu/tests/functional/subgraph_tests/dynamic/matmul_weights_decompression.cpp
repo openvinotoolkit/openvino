@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/rt_info/decompression.hpp"
 
@@ -200,18 +201,27 @@ protected:
             mul_parent = std::make_shared<ov::op::v1::Subtract>(weights_convert, shift_convert);
         }
 
+        bool is_mxfp = cldnn::one_of(weights_precision, {ov::element::f8e4m3, ov::element::f8e5m2});
+        ov::element::Type scale_data_precision = is_mxfp ? ov::element::f8e8m0 : data_precision;
+
         ov::test::utils::InputGenerateData in_data;
-        in_data.start_from = -0.5;
+        in_data.start_from = is_mxfp ? 0 : -0.5;
         in_data.range = 1;
         in_data.resolution = 30000;
-        auto scale_tensor = ov::test::utils::create_and_fill_tensor(data_precision, scaleshift_const_shape, in_data);
+        auto scale_tensor = ov::test::utils::create_and_fill_tensor(scale_data_precision, scaleshift_const_shape, in_data);
         for (size_t i = 0; i < scale_tensor.get_size(); i++) {
-            if (data_precision == ov::element::f16)
+            if (scale_data_precision == ov::element::f16)
                 scale_tensor.data<ov::float16>()[i] /= ov::float16(16.f);
-            else if (data_precision == ov::element::f32)
+            else if (scale_data_precision == ov::element::f32)
                 scale_tensor.data<float>()[i] /= 16.f;
         }
+
         std::shared_ptr<ov::Node> scale_const = std::make_shared<ov::op::v0::Constant>(scale_tensor);
+        if (scale_data_precision != data_precision) {
+            auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale_const, data_precision);
+            scale_const = scale_convert;
+        }
+
         if (reshape_on_decompression_constant) {
             auto scale_reshape_const = ov::op::v0::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
             auto scale_reshape = std::make_shared<ov::op::v1::Reshape>(scale_const, scale_reshape_const, false);
@@ -475,6 +485,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_3D_weight,
                                             ::testing::Values(true),
                                             ::testing::Values(0),
                                             ::testing::Values(2.0f)),
+                         MatmulWeightsDecompression::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_mxfp8_e4m3,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1024, 1, 1024}, {1, 1, 1024}, {1024, 1, 1024}}},
+                                                                            {1024, 1024}, 32}),  // shape
+                                            ::testing::Values(ov::element::f8e4m3),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false), // ?
+                                            ::testing::Values(false), // ?
+                                            ::testing::Values(false),  // per_tensor_zp
+                                            ::testing::Values(32),
+                                            ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
                          MatmulWeightsDecompression::get_test_case_name);
 
 
