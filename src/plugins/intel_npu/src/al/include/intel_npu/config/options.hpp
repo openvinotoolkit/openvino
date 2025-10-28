@@ -1426,6 +1426,7 @@ struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, b
     }
 };
 
+
 struct SERIALIZATION_WEIGHTS_SIZE_THRESHOLD final : OptionBase<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD, size_t> {
     static std::string_view key() {
         return ov::intel_npu::serialization_weights_size_threshold.name();
@@ -1437,6 +1438,24 @@ struct SERIALIZATION_WEIGHTS_SIZE_THRESHOLD final : OptionBase<SERIALIZATION_WEI
 
     static OptionMode mode() {
         return OptionMode::RunTime;
+    }
+};
+
+struct ENABLE_ROI_TENSOR final : OptionBase<ENABLE_ROI_TENSOR, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::enable_roi_tensor.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
     }
 };
 
