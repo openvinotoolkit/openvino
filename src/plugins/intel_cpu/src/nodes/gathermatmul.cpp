@@ -372,6 +372,11 @@ void GatherMatmul::initSupportedPrimitiveDescriptors() {
 
     NodeConfig nodeConfig;
 
+    if (srcTypes.front() == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+        // enable bf16 amx optimizations
+        bf16_amx_mode = true;
+    }
+
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < srcTypes.size(); i++) {
         if (srcTypes[i] == element::dynamic) {
@@ -521,7 +526,7 @@ void GatherMatmul::createPrimitive() {
 }
 
 bool GatherMatmul::needPrepareParams() const {
-    if (Node::needPrepareParams()) {
+    if (bf16_amx_mode && Node::needPrepareParams()) {
         auto srcMem = getSrcMemoryAtPort(DATA);
         const auto& srcShape = srcMem->getStaticDims();
         if (srcShape[1] != 1) {
@@ -556,7 +561,7 @@ void GatherMatmul::prepareParams() {
     auto srcInterimDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, srcShape[2]}));
     auto dstInterimDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, dstShape[2]}));
 
-    const size_t srcSize = rnd_up(srcInterimDesc->getCurrentMemSize(), 64); // 64 bytes is the cache line size
+    const size_t srcSize = rnd_up(srcInterimDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
     const size_t totalSize = srcSize + dstInterimDesc->getCurrentMemSize();
 
     auto scratchPadDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::u8, Shape({totalSize}));
@@ -676,8 +681,6 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
     auto index_offset = OffsetHelper::createOffsetHelper(indexMem);
 
     if (n_tokens > 1) {
-        CPU_NODE_ASSERT(gemm_impl, "GEMM implementation is not created");
-
         const size_t max_experts = m_weightsMemory->getStaticDims()[0];
 
         std::vector<std::pair<int32_t, int32_t>> expert_tokens(max_experts * n_tokens);
@@ -692,52 +695,79 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
             }
         }
 
-        auto tmp_input_offset = OffsetHelper::createOffsetHelper(m_tmpInput);
+        if (bf16_amx_mode) {
+            // When AMX is available, we use GEMM for better performance
+            // first we pack all the tokens corresponding to a specific expert into a temporary buffer
+            // then we call GEMM for that expert on that temporary buffer
+            // and finally scatter the results to result memory
+            CPU_NODE_ASSERT(m_tmpInput, "Temporary input memory is not created");
 
-        const auto element_size = m_tmpInput->getPrecision().size();
-        const auto K_size = m_tmpInput->getStaticDims()[1];
-        const auto M_size = m_tmpInput->getStaticDims()[0];
-        const auto N_size = dstMem->getStaticDims()[2];
+            auto tmp_input_offset = OffsetHelper::createOffsetHelper(m_tmpInput);
 
-        auto tmp_dst_offset = OffsetHelper::createOffsetHelper(m_tmpOutput);
+            const auto element_size = m_tmpInput->getPrecision().size();
+            const auto K_size = m_tmpInput->getStaticDims()[1];
+            const auto M_size = m_tmpInput->getStaticDims()[0];
+            const auto N_size = dstMem->getStaticDims()[2];
 
-        // Phase 2: Sequential GEMM per expert (oneDNN handles internal parallelism)
-        for (size_t expert_id = 0; expert_id < max_experts; expert_id++) {
-            const size_t num_valid_tokens = expert_token_counters[expert_id];
-            if (0 == num_valid_tokens) {
-                continue;
-            }
+            auto tmp_dst_offset = OffsetHelper::createOffsetHelper(m_tmpOutput);
 
-            parallel_for(M_size, [&](size_t m) {
-                auto* dst_row = tmp_input_offset(m);
-                
-                if (m < num_valid_tokens) {
+            CPU_NODE_ASSERT(gemm_impl, "GEMM implementation is not created");
+            for (size_t expert_id = 0; expert_id < max_experts; expert_id++) {
+                const size_t num_valid_tokens = expert_token_counters[expert_id];
+                if (0 == num_valid_tokens) {
+                    continue;
+                }
+
+                parallel_for(M_size, [&](size_t m) {
+                    auto* dst_row = tmp_input_offset(m);
+
+                    if (m < num_valid_tokens) {
+                        const auto token = expert_tokens[expert_id * n_tokens + m].first;
+                        const auto expert = expert_tokens[expert_id * n_tokens + m].second;
+                        const auto* src_data = src_offset(broadcast_src ? 0 : expert, token);
+                        std::memcpy(dst_row, src_data, K_size * element_size);
+                    } else {
+                        // Zero padding for rows beyond num_valid_tokens
+                        std::memset(dst_row, 0, K_size * element_size);
+                    }
+                });
+
+                auto* src = tmp_input_offset.get_base();
+                auto* dst = tmp_dst_offset.get_base();
+                auto* wei = wei_offset(expert_id);
+                auto* bias = bias_offset(expert_id);
+                auto* scale = scale_offset(expert_id);
+                auto* zp = zp_offset(expert_id);
+                gemm_impl->exec(strm, src, dst, wei, bias, scale, zp);
+
+                // Immediately scatter results while they're hot in cache
+                parallel_for(num_valid_tokens, [&](size_t m) {
+                    const auto* src_row = tmp_dst_offset(m);
                     const auto token = expert_tokens[expert_id * n_tokens + m].first;
                     const auto expert = expert_tokens[expert_id * n_tokens + m].second;
-                    const auto* src_data = src_offset(broadcast_src ? 0 : expert, token);
-                    std::memcpy(dst_row, src_data, K_size * element_size);
-                } else {
-                    // Zero padding for rows beyond num_valid_tokens
-                    std::memset(dst_row, 0, K_size * element_size);
+                    auto* dst_row = dst_offset(expert, token);
+                    std::memcpy(dst_row, src_row, N_size * element_size);
+                });
+            }
+        } else {
+            // For the default SIMD it's better to simply call GEMV
+            CPU_NODE_ASSERT(gemv_impl, "GEMM implementation is not created");
+            for (size_t expert_id = 0; expert_id < max_experts; expert_id++) {
+                if (0 == expert_token_counters[expert_id]) {
+                    continue;
                 }
-            });
-
-            auto* src = tmp_input_offset.get_base();
-            auto* dst = tmp_dst_offset.get_base();
-            auto* wei = wei_offset(expert_id);
-            auto* bias = bias_offset(expert_id);
-            auto* scale = scale_offset(expert_id);
-            auto* zp = zp_offset(expert_id);
-            gemm_impl->exec(strm, src, dst, wei, bias, scale, zp);
-
-            // Immediately scatter results while they're hot in cache
-            parallel_for(num_valid_tokens, [&](size_t m) {
-                const auto* src_row = tmp_dst_offset(m);
-                const auto token = expert_tokens[expert_id * n_tokens + m].first;
-                const auto expert = expert_tokens[expert_id * n_tokens + m].second;
-                auto* dst_row = dst_offset(expert, token);
-                std::memcpy(dst_row, src_row, N_size * element_size);
-            });
+                auto* wei = wei_offset(expert_id);
+                auto* bias = bias_offset(expert_id);
+                auto* scale = scale_offset(expert_id);
+                auto* zp = zp_offset(expert_id);
+                for (int32_t index = 0; index < expert_token_counters[expert_id]; ++index) {
+                    const auto token = expert_tokens[expert_id * n_tokens + index].first;
+                    const auto expert = expert_tokens[expert_id * n_tokens + index].second;
+                    auto* src = src_offset(broadcast_src ? 0 : expert, token);
+                    auto* dst = dst_offset(expert, token);
+                    gemv_impl->exec(strm, src, dst, wei, bias, scale, zp);
+                }
+            }
         }
     } else {
         CPU_NODE_ASSERT(gemv_impl, "GEMM implementation is not created");

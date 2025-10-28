@@ -69,6 +69,8 @@ private:
     MemoryPtr m_tmpInpBuffer = nullptr;
     MemoryPtr m_tmpInput = nullptr;
     MemoryPtr m_tmpOutput = nullptr;
+
+    bool bf16_amx_mode = false;
 };
 
 }  // namespace ov::intel_cpu::node
