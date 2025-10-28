@@ -411,7 +411,7 @@ void GatherMatmul::createPrimitive() {
     auto weights_precision = weightsMemoryDesc->getPrecision();
 
     // onednn doesn't not support bf16+f16
-    if (ov::element::bf16 == src_precision && ov::element::f16 == weights_precision) {
+    if (ov::element::bf16 == src_precision && any_of(weights_precision, ov::element::f16, ov::element::f32)) {
         weights_precision = ov::element::bf16;
     }
 
