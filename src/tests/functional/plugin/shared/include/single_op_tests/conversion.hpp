@@ -11,5 +11,8 @@ namespace test {
 TEST_P(ConversionLayerTest, Inference) {
     run();
 };
+TEST_P(ConversionSpecifyInputLayerTest, Inference) {
+    run();
+};
 }  // namespace test
 }  // namespace ov
