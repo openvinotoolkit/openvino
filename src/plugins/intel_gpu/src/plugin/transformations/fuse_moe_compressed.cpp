@@ -20,13 +20,13 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/topk.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
@@ -56,8 +56,7 @@ FuseMOECompressed::FuseMOECompressed() {
     auto concat_m = wrap_type<ov::op::v0::Concat>({unsqueeze_m, unsqueeze_const_m}, consumers_count(1));
     auto concat1_m = wrap_type<ov::op::v0::Concat>({unsqueeze_const_m, unsqueeze_m, any_input()}, consumers_count(1));
     auto bc_m = wrap_type<ov::op::v3::Broadcast>({any_input(), concat_m}, consumers_count(1));
-    auto scatter_m = wrap_type<ov::op::v12::ScatterElementsUpdate>(
-        {bc_m->output(0), topk_m->output(1), norm_m->output(0), any_input()}, consumers_count(1));
+    auto scatter_m = wrap_type<ov::op::v12::ScatterElementsUpdate>({bc_m->output(0), topk_m->output(1), norm_m->output(0), any_input()}, consumers_count(1));
     auto transpose_m = wrap_type<ov::op::v1::Transpose>({scatter_m, any_input()}, consumers_count(1));
     auto reshape_m = wrap_type<ov::op::v1::Reshape>({transpose_m, concat1_m}, consumers_count(1));
     auto unsqueeze_moe_m = wrap_type<ov::op::v0::Unsqueeze>({reshape_m, any_input()}, consumers_count(1));
@@ -73,11 +72,18 @@ FuseMOECompressed::FuseMOECompressed() {
     auto down_zp_m = any_input();
 
     // moe compressed
-    auto moe_compressed_m = wrap_type<ov::intel_gpu::op::MOECompressed>(
-        {hidden_state_m->output(0), unsqueeze_moe_m->output(0), topk_m->output(1),
-         gate_wei_m->output(0), gate_scale_m->output(0), gate_zp_m->output(0),
-         up_wei_m->output(0), up_scale_m->output(0), up_zp_m->output(0),
-         down_wei_m->output(0), down_scale_m->output(0), down_zp_m->output(0)});
+    auto moe_compressed_m = wrap_type<ov::intel_gpu::op::MOECompressed>({hidden_state_m->output(0),
+                                                                         unsqueeze_moe_m->output(0),
+                                                                         topk_m->output(1),
+                                                                         gate_wei_m->output(0),
+                                                                         gate_scale_m->output(0),
+                                                                         gate_zp_m->output(0),
+                                                                         up_wei_m->output(0),
+                                                                         up_scale_m->output(0),
+                                                                         up_zp_m->output(0),
+                                                                         down_wei_m->output(0),
+                                                                         down_scale_m->output(0),
+                                                                         down_zp_m->output(0)});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -117,8 +123,12 @@ FuseMOECompressed::FuseMOECompressed() {
         ov::copy_runtime_info(moe_compressed, moe_fused_compressed);
         ov::replace_node(moe_compressed, moe_fused_compressed);
 
-        std::cout << "FuseMOECompressed is hit : num_expert = " << config.num_expert << ", top_k = " << config.top_k << ", hidden_size = " << config.hidden_size
-                  << ", inter_size = " << config.inter_size << ", group_size = " << config.group_size << std::endl;
+        static bool first_time = true;
+        if (first_time) {
+            first_time = false;
+            std::cout << "[ FuseMOECompressed ]: num_expert = " << config.num_expert << ", top_k = " << config.top_k << ", hidden_size = " << config.hidden_size
+                      << ", inter_size = " << config.inter_size << ", group_size = " << config.group_size << std::endl;
+        }
 
         return true;
     };
