@@ -2432,7 +2432,9 @@ void primitive_inst::update_weights() {
         _impl_params->weights_layout = optional_layout(expected_layout);
 
         if (_reordered_weights_cache.has(expected_layout) &&
-            !(expected_layout.format == cldnn::format::custom && expected_layout.bytes_count() > _reordered_weights_cache.get(expected_layout)->size())) {
+            // Weight format-tag of custom format can be changed for a same layer by changing of input shape. e.g. abcd->acdB16a2b
+            (expected_layout.format != cldnn::format::custom ||
+            expected_layout.format.traits() == _reordered_weights_cache.get(expected_layout)->get_layout().format.traits())) {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights for " << expected_layout.to_short_string() << std::endl;
             return;
