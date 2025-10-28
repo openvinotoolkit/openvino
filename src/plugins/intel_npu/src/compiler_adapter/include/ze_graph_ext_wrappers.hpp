@@ -53,11 +53,16 @@ public:
                         const uint8_t*& blobPtr,
                         size_t& blobSize) const;
 
-    void setGraphArgumentValue(const GraphDescriptor& graphDescriptor, uint32_t argi_, const void* argv) const;
+    void setGraphArgumentValue(const GraphDescriptor& graphDescriptor,
+                               uint32_t id,
+                               const void* data,
+                               const std::vector<size_t>& strides = {}) const;
 
     void initializeGraph(const GraphDescriptor& graphDescriptor, uint32_t commandQueueGroupOrdinal) const;
 
     bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
+
+    bool isStridedTensorSupported(const GraphDescriptor& graphDescriptor) const;
 
 private:
     void getMetadata(ze_graph_handle_t graphHandle,

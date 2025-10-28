@@ -1475,4 +1475,22 @@ struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov:
     }
 };
 
+struct ENABLE_ROI_TENSOR final : OptionBase<ENABLE_ROI_TENSOR, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::enable_roi_tensor.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
 }  // namespace intel_npu

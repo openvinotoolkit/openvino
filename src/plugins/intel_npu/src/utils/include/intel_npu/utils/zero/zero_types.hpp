@@ -213,12 +213,6 @@ public:
         throwWhenUnsupported("pfnSetArgumentValue2", ZE_GRAPH_EXT_VERSION_1_15);
         return _impl->pfnSetArgumentValue2(hGraph, argIndex, pArgValue);
     }
-
-    // version 1.16
-    ze_result_t ZE_APICALL pfnEvict(ze_graph_handle_t hGraph) {
-        throwWhenUnsupported("pfnEvict", ZE_GRAPH_EXT_VERSION_1_16);
-        return _impl->pfnEvict(hGraph);
-    }
 };
 
 /**

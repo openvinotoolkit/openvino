@@ -36,13 +36,14 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
       _logger("ZeroTensor", config.get<LOG_LEVEL>()),
       _element_type{element_type},
       _shape{shape},
-      _capacity{_shape},
       _strides{},
       _strides_once{},
       _is_input(is_input) {
     OPENVINO_ASSERT(_element_type.is_static());
     const auto byte_size = ov::util::get_memory_size_safe(element_type, _shape);
     OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", element_type, " and shape: ", _shape);
+
+    _bytes_capacity = get_bytes_capacity();
 
     _mem_ref = ZeroMemPool::get_instance().allocate_zero_memory(_init_structs,
                                                                 byte_size.value(),
@@ -59,13 +60,14 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
                        const ov::SoPtr<ov::ITensor>& user_tensor)
     : _init_structs(init_structs),
       _logger("ZeroTensor", config.get<LOG_LEVEL>()),
-      _element_type{user_tensor->get_element_type()},
-      _shape{user_tensor->get_shape()},
-      _capacity{_shape},
-      _strides{_element_type.bitwidth() >= 8 ? user_tensor->get_strides() : ov::Strides{}},
-      _strides_once{},
-      _user_tensor(user_tensor) {
+      _user_tensor(user_tensor),
+      _element_type{_user_tensor->get_element_type()},
+      _shape{_user_tensor->get_shape()},
+      _strides{_element_type.bitwidth() >= 8 ? _user_tensor->get_strides() : ov::Strides{}},
+      _strides_once{} {
     OPENVINO_ASSERT(_element_type.is_static());
+
+    _bytes_capacity = get_bytes_capacity();
 
     // Data pointer of the given user_tensor must be a valid address in the level zero context
     // Check first if the given tensor is a ZeroRemoteTensor (which has a different method to expose the internal
@@ -81,9 +83,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     // _mem_ref will keep a reference to that allocation. Otherwise the function will try to import it into the level
     // zero context.
     _logger.debug("ZeroTensor::ZeroTensor - get tensor from pool or import it");
-    _mem_ref = ZeroMemPool::get_instance().import_standard_allocation_memory(_init_structs,
-                                                                             _ptr,
-                                                                             _user_tensor->get_byte_size());
+    _mem_ref = ZeroMemPool::get_instance().import_standard_allocation_memory(_init_structs, _ptr, _bytes_capacity);
 }
 
 // Note: Override data() members to not used OpenVINO library code to improve performance
@@ -146,20 +146,28 @@ void ZeroTensor::update_strides() const {
     }
 }
 
+size_t ZeroTensor::get_bytes_capacity() const {
+    size_t original_shape_size = shape_size(_shape);
+
+    if (_user_tensor == nullptr) {
+        return ov::util::get_memory_size(_element_type, original_shape_size);
+    }
+
+    if (_element_type.bitwidth() < 8 || original_shape_size == 0 || _shape.empty() || _strides.empty()) {
+        return ov::util::get_memory_size(_element_type, original_shape_size);
+    }
+
+    return _strides[0] * _shape[0];
+}
+
 const ov::Strides& ZeroTensor::get_strides() const {
     OPENVINO_ASSERT(_element_type.bitwidth() >= 8,
                     "Could not get strides for types with bitwidths less than 8 bit. Tensor type: ",
                     _element_type);
+
     std::call_once(_strides_once, &ZeroTensor::update_strides, this);
+
     return _strides;
-}
-
-size_t ZeroTensor::get_capacity() const {
-    return shape_size(_capacity);
-}
-
-size_t ZeroTensor::get_bytes_capacity() const {
-    return ov::util::get_memory_size(get_element_type(), get_capacity());
 }
 
 void ZeroTensor::set_shape(ov::Shape new_shape) {
@@ -169,7 +177,7 @@ void ZeroTensor::set_shape(ov::Shape new_shape) {
 
     _shape = std::move(new_shape);
 
-    if (get_size() > get_capacity()) {
+    if (get_byte_size() > _bytes_capacity) {
         OPENVINO_ASSERT(_init_structs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0),
                         "Re-shaping the tensor with a larger shape is not available using this driver version. "
                         "Please update the driver to the latest version.");
@@ -181,13 +189,15 @@ void ZeroTensor::set_shape(ov::Shape new_shape) {
         _ptr = nullptr;
 
         // allocate buffer and initialize objects from scratch
-        _capacity = _shape;
+        const auto byte_size = ov::util::get_memory_size_safe(_element_type, _shape);
+        OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", _element_type, " and shape: ", _shape);
         _mem_ref = ZeroMemPool::get_instance().allocate_zero_memory(_init_structs,
-                                                                    get_bytes_capacity(),
+                                                                    byte_size.value(),
                                                                     utils::STANDARD_PAGE_SIZE,
                                                                     _is_input);
         _ptr = _mem_ref->data();
-        OPENVINO_ASSERT(get_bytes_capacity() == 0 || _ptr != nullptr, "Failed to allocate zero memory");
+        OPENVINO_ASSERT(byte_size.value() == 0 || _ptr != nullptr, "Failed to allocate zero memory");
+        _bytes_capacity = get_byte_size();
 
         _reset_tensor_memory = true;
     }

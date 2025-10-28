@@ -149,11 +149,11 @@ std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector
     return _compiler->process_profiling_output(profData, blob, config);
 }
 
-void Graph::set_argument_value(uint32_t argi, const void* argv) const {
+void Graph::set_argument_value(uint32_t id, const void* data, const std::vector<size_t>& strides) const {
     if (_zeGraphExt == nullptr) {
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
-    _zeGraphExt->setGraphArgumentValue(_graphDesc, argi, argv);
+    _zeGraphExt->setGraphArgumentValue(_graphDesc, id, data, strides);
 }
 
 void Graph::initialize(const Config& config) {
@@ -316,6 +316,10 @@ std::optional<size_t> Graph::determine_batch_size() {
 
 const std::optional<std::size_t> Graph::get_batch_size() const {
     return _batchSize;
+}
+
+bool Graph::is_strided_tensor_supported() const {
+    return _zeGraphExt->isStridedTensorSupported(_graphDesc);
 }
 
 Graph::~Graph() {

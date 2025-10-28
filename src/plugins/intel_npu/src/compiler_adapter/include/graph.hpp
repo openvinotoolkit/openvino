@@ -33,7 +33,7 @@ public:
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const Config& config) const override;
 
-    void set_argument_value(uint32_t argi, const void* argv) const override;
+    void set_argument_value(uint32_t id, const void* data, const std::vector<size_t>& strides = {}) const override;
 
     void initialize(const Config& config) override;
 
@@ -57,6 +57,8 @@ public:
     uint32_t get_unique_id() override;
     void set_last_submitted_id(uint32_t id_index) override;
     uint32_t get_last_submitted_id() const override;
+
+    bool is_strided_tensor_supported() const override;
 
     ~Graph() override;
 
