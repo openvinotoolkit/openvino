@@ -343,30 +343,23 @@ void parse_node_info_linux(const std::vector<std::string> node_info_table,
         std::string::size_type endpos = 0;
         std::string sub_str = "";
 
-        if (((endpos = one_info.find('-', pos)) == std::string::npos) &&
-            ((endpos = one_info.find(',', pos)) != std::string::npos)) {
-            while (endpos != std::string::npos) {
+        while (pos != std::string::npos) {
+            endpos = one_info.find(',', pos);
+            if (endpos != std::string::npos) {
+                sub_str = one_info.substr(pos, endpos - pos);
+                pos = endpos + 1;
+            } else {
                 sub_str = one_info.substr(pos);
+                pos = std::string::npos;
+            }
+            if ((endpos = sub_str.find('-', 0)) != std::string::npos) {
+                core_1 = std::stoi(sub_str);
+                sub_str = sub_str.substr(endpos + 1);
+                core_2 = std::stoi(sub_str);
+                nodes_table.push_back({core_1, core_2, node_index});
+            } else {
                 core_1 = std::stoi(sub_str);
                 nodes_table.push_back({core_1, core_1, node_index});
-                endpos = one_info.find(',', pos);
-                pos = endpos + 1;
-            }
-        } else {
-            while (endpos != std::string::npos) {
-                if ((endpos = one_info.find('-', pos)) != std::string::npos) {
-                    sub_str = one_info.substr(pos, endpos - pos);
-                    core_1 = std::stoi(sub_str);
-                    sub_str = one_info.substr(endpos + 1);
-                    core_2 = std::stoi(sub_str);
-                    nodes_table.push_back({core_1, core_2, node_index});
-                    pos = one_info.find(',', endpos);
-                    if (pos == std::string::npos) {
-                        break;
-                    } else {
-                        pos = pos + 1;
-                    }
-                }
             }
         }
         node_index++;
