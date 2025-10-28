@@ -102,6 +102,7 @@ protected:
     __attribute__((noinline))
     void makeLeak() {
         // volatile = избежать оптимизации
+        OPENVINO_THROW("Leak is here");
         volatile int* p = new int[100];
         (void)p;
     }
