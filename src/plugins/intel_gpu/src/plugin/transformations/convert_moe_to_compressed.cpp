@@ -15,6 +15,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
@@ -94,30 +95,98 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         if (!moe || transformation_callback(moe)) {
             return false;
         }
+
+        auto input0 = moe->input_value(0);
+        auto input1 = moe->input_value(1);
+        auto input2 = moe->input_value(2);
+        auto input3 = moe->input_value(3);
+        auto input4 = moe->input_value(4);
+        auto input5 = moe->input_value(5);
+
+        // first proj
+        auto scale_0 = pattern_map.at(scale_m_0).get_node_shared_ptr();
+        auto zp_0 = pattern_map.at(zp_m_0).get_node_shared_ptr();
+        auto scale_0_shape = scale_0->get_shape();
+        scale_0_shape.pop_back();
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ scale_0_shape.size() }, scale_0_shape);
+        auto scale_0_reshape = std::make_shared<ov::op::v1::Reshape>(scale_0, reshape_const, false);
+        auto zp_0_reshape = std::make_shared<ov::op::v1::Reshape>(zp_0, reshape_const, false);
+        ov::enable_keep_const_precision(scale_0_reshape);
+        ov::enable_keep_const_precision(zp_0_reshape);
+
+        std::vector<size_t> transpose_order_0(scale_0_reshape->get_shape().size());
+        std::iota(transpose_order_0.begin(), transpose_order_0.end(), 0);
+        std::swap(*(transpose_order_0.end() - 1), *(transpose_order_0.end() - 2));
+        auto transpose_0_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order_0.size() }, transpose_order_0);
+        auto transpose_0_scale = std::make_shared<ov::op::v1::Transpose>(scale_0_reshape, transpose_0_const);
+        auto transpose_0_zp = std::make_shared<ov::op::v1::Transpose>(zp_0_reshape, transpose_0_const);
+        ov::enable_keep_const_precision(transpose_0_scale);
+        ov::enable_keep_const_precision(transpose_0_zp);
+
+        // second proj
+        auto scale_1 = pattern_map.at(scale_m_1).get_node_shared_ptr();
+        auto zp_1 = pattern_map.at(zp_m_1).get_node_shared_ptr();
+        auto scale_1_shape = scale_1->get_shape();
+        scale_1_shape.pop_back();
+        auto reshape_const_1 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ scale_1_shape.size() }, scale_1_shape);
+        auto scale_1_reshape = std::make_shared<ov::op::v1::Reshape>(scale_1, reshape_const_1, false);
+        auto zp_1_reshape = std::make_shared<ov::op::v1::Reshape>(zp_1, reshape_const_1, false);
+        ov::enable_keep_const_precision(scale_1_reshape);
+        ov::enable_keep_const_precision(zp_1_reshape);
+
+        std::vector<size_t> transpose_order_1(scale_1_reshape->get_shape().size());
+        std::iota(transpose_order_1.begin(), transpose_order_1.end(), 0);
+        std::swap(*(transpose_order_1.end() - 1), *(transpose_order_1.end() - 2));
+        auto transpose_1_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order_1.size() }, transpose_order_1);
+        auto transpose_1_scale = std::make_shared<ov::op::v1::Transpose>(scale_1_reshape, transpose_1_const);
+        auto transpose_1_zp = std::make_shared<ov::op::v1::Transpose>(zp_1_reshape, transpose_1_const);
+        ov::enable_keep_const_precision(transpose_1_scale);
+        ov::enable_keep_const_precision(transpose_1_zp);
+
+        // third proj
+        auto scale_2 = pattern_map.at(scale_m_2).get_node_shared_ptr();
+        auto zp_2 = pattern_map.at(zp_m_2).get_node_shared_ptr();
+        auto scale_2_shape = scale_2->get_shape();
+        scale_2_shape.pop_back();
+        auto reshape_const_2 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ scale_2_shape.size() }, scale_2_shape);
+        auto scale_2_reshape = std::make_shared<ov::op::v1::Reshape>(scale_2, reshape_const_2, false);
+        auto zp_2_reshape = std::make_shared<ov::op::v1::Reshape>(zp_2, reshape_const_2, false);
+        ov::enable_keep_const_precision(scale_2_reshape);
+        ov::enable_keep_const_precision(zp_2_reshape);
+
+        std::vector<size_t> transpose_order_2(scale_2_reshape->get_shape().size());
+        std::iota(transpose_order_2.begin(), transpose_order_2.end(), 0);
+        std::swap(*(transpose_order_2.end() - 1), *(transpose_order_2.end() - 2));
+        auto transpose_2_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order_2.size() }, transpose_order_2);
+        auto transpose_2_scale = std::make_shared<ov::op::v1::Transpose>(scale_2_reshape, transpose_2_const);
+        auto transpose_2_zp = std::make_shared<ov::op::v1::Transpose>(zp_2_reshape, transpose_2_const);
+        ov::enable_keep_const_precision(transpose_2_scale);
+        ov::enable_keep_const_precision(transpose_2_zp);
+
         OutputVector args(12);
         args[0] = pattern_map.at(hidden_states_m);
         args[1] = pattern_map.at(routing_weights_m);
         args[2] = pattern_map.at(topk_m);
         args[3] = pattern_map.at(compressed_weights_m_0);
-        args[4] = pattern_map.at(scale_m_0);
-        args[5] = pattern_map.at(zp_m_0);
+        args[4] = transpose_0_scale;
+        args[5] = transpose_0_zp;
         args[6] = pattern_map.at(compressed_weights_m_1);
-        args[7] = pattern_map.at(scale_m_1);
-        args[8] = pattern_map.at(zp_m_1);
+        args[7] = transpose_1_scale;
+        args[8] = transpose_1_zp;
         args[9] = pattern_map.at(compressed_weights_m_2);
-        args[10] = pattern_map.at(scale_m_2);
-        args[11] = pattern_map.at(zp_m_2);
+        args[10] = transpose_2_scale;
+        args[11] = transpose_2_zp;
         ov::intel_gpu::op::MOECompressed::Config config;
         auto weight_shape = pattern_map.at(compressed_weights_m_0).get_shape();
         if (weight_shape.size() != 4) {
             return false;
         }
+        auto topk_shape = pattern_map.at(topk_m).get_partial_shape();
         config.hidden_size = weight_shape[2] * weight_shape[3];
         config.inter_size = weight_shape[1];
         config.num_expert = weight_shape[0];
         config.group_size = weight_shape[3];
-        auto topk_shape = pattern_map.at(topk_m).get_partial_shape();
-        config.top_k = topk_shape[topk_shape.size() - 1].get_length();
+        config.top_k = topk_shape[1].get_length();
         config.out_type = ov::element::f16;
         auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
 
@@ -140,10 +209,15 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         ov::enable_keep_const_precision(s2);
         ov::enable_keep_const_precision(z2);
 
+        ov::enable_keep_const_precision(moe_compressed->input_value(5).get_node_shared_ptr());
+        ov::enable_keep_const_precision(moe_compressed->input_value(8).get_node_shared_ptr());
+        ov::enable_keep_const_precision(moe_compressed->input_value(11).get_node_shared_ptr());
+
         moe_compressed->set_friendly_name(moe->get_friendly_name());
         ov::copy_runtime_info(moe, moe_compressed);
         ov::replace_node(moe, moe_compressed);
 
+        std::cout << "ConvertMOEToMOECompressed is hit : config.top_k = " << config.top_k << std::endl;
         return true;
     };
 
