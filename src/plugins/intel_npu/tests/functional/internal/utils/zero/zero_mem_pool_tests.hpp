@@ -177,7 +177,7 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyIt) {
         }
 
         for (int i = 0; i < threads_no; ++i) {
-            threads[i] = std::thread([this, &data, &threads_no, &no_of_buffers]() -> void {
+            threads[i] = std::thread([this, &data, threads_no, no_of_buffers]() -> void {
                 for (int j = 0; j < threads_no; j++) {
                     std::shared_ptr<::intel_npu::ZeroMem> zero_mem;
                     OV_ASSERT_NO_THROW(zero_mem =

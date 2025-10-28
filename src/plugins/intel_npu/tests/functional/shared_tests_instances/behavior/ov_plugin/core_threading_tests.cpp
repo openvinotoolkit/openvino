@@ -24,12 +24,10 @@ const Params params_cached[] = {std::tuple<Device, Config>{ov::test::utils::DEVI
 
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(
-    compatibility_smoke_BehaviorTests_CoreThreadingTest_NPU,
-    CoreThreadingTest,
-    testing::ValuesIn(params),
-    ov::test::utils::appendDriverVersionTestName<CoreThreadingTest>);  // need to get also driver version to skip
-                                                                       // failing tests with PV driver
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_CoreThreadingTest_NPU,
+                         CoreThreadingTest,
+                         testing::ValuesIn(params),
+                         ov::test::utils::appendPlatformTypeTestName<CoreThreadingTest>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CoreThreadingTest_NPU,
                          CoreThreadingTestsWithIter,
