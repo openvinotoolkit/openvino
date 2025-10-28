@@ -302,101 +302,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         // Create infer requests for pyramid attention models if present (only for function calls)
         if (comp_model_desc.replaced_by) {
             const auto real_idx = comp_model_desc.replaced_by.value();
-            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-
-            if (proto_comp_model_desc.pyramid_attention.has_value()) {
-                LOG_INFO("Creating infer requests for pyramid attention models...");
-                LOG_BLOCK();
-
-                const auto& pyramid_attention = proto_comp_model_desc.pyramid_attention.value();
-                const auto& compiled_models = pyramid_attention._compiled_models;
-
-                // Determine number of requests per model based on pipelining
-                const int requests_per_model = is_piped ? 2 : 1;
-
-                // Initialize pyramid infer requests storage in CompiledModelDesc
-                proto_comp_model_desc.pyramid_infer_requests.resize(compiled_models.size());
-                if (is_piped) {
-                    proto_comp_model_desc.pyramid_pipeline_requests.resize(compiled_models.size());
-                }
-
-                // Create infer requests for all pyramid models except the last one
-                // The last pyramid model uses the original model's infer requests
-                for (size_t model_id = 0; model_id < compiled_models.size() - 1; ++model_id) {
-                    try {
-                        LOG_INFO("Creating " << requests_per_model << " infer request(s) for pyramid model[" << model_id
-                                             << "]...");
-
-                        // Create primary infer request
-                        auto pyramid_request = compiled_models[model_id]->create_infer_request();
-                        proto_comp_model_desc.pyramid_infer_requests[model_id] = pyramid_request;
-                        LOG_INFO("Successfully created primary infer request for pyramid model[" << model_id << "]");
-
-                        // Create pipeline infer request if needed
-                        if (is_piped) {
-                            auto pyramid_pipeline_request = compiled_models[model_id]->create_infer_request();
-                            proto_comp_model_desc.pyramid_pipeline_requests[model_id] = pyramid_pipeline_request;
-                            LOG_INFO("Successfully created pipeline infer request for pyramid model[" << model_id
-                                                                                                      << "]");
-                        }
-
-                    } catch (const std::exception& ex) {
-                        LOG_ERROR("Failed to create infer request for pyramid model[" << model_id
-                                                                                      << "]: " << ex.what());
-                        NPUW_ASSERT(false && "Pyramid model infer request creation failed");
-                    } catch (...) {
-                        LOG_ERROR("Failed to create infer request for pyramid model[" << model_id
-                                                                                      << "]: Unknown error");
-                        NPUW_ASSERT(false && "Pyramid model infer request creation failed with unknown error");
-                    }
-
-                    if (model_id > 0) {
-                        for (auto input : compiled_models[model_id]->inputs()) {
-                            // Check if tensor has names before getting the name
-                            if (!input.get_names().empty()) {
-                                auto input_name = input.get_any_name();
-                                if (ov::npuw::util::isPastKeyValuesKey(input_name) ||
-                                    ov::npuw::util::isPastKeyValuesValue(input_name)) {
-                                    auto tensor =
-                                        proto_comp_model_desc.pyramid_infer_requests[model_id]->get_tensor(input);
-                                    if (!is_zero_remote_tensor(tensor)) {
-                                        std::cout << "infer request: tensor is not zero memory!!" << std::endl;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // For the last pyramid model, reuse the original model's infer requests
-                if (compiled_models.size() > 0) {
-                    const size_t last_model_id = compiled_models.size() - 1;
-                    LOG_INFO("Reusing original infer requests for last pyramid model[" << last_model_id << "]");
-                    proto_comp_model_desc.pyramid_infer_requests[last_model_id] = m_subrequests[real_idx];
-                    if (is_piped) {
-                        proto_comp_model_desc.pyramid_pipeline_requests[last_model_id] =
-                            m_funcall_pipeline[real_idx].subrequest;
-                    }
-
-                    for (auto input : compiled_models[last_model_id]->inputs()) {
-                        // Check if tensor has names before getting the name
-                        if (!input.get_names().empty()) {
-                            auto input_name = input.get_any_name();
-                            if (ov::npuw::util::isPastKeyValuesKey(input_name) ||
-                                ov::npuw::util::isPastKeyValuesValue(input_name)) {
-                                auto tensor =
-                                    proto_comp_model_desc.pyramid_infer_requests[last_model_id]->get_tensor(input);
-                                if (!is_zero_remote_tensor(tensor)) {
-                                    std::cout << "infer request: last model tensor is not zero memory!!" << std::endl;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                LOG_INFO("Successfully created " << (compiled_models.size() - 1)
-                                                 << " new pyramid infer requests and reused 1 original request");
-            }
+            setup_pyramid_infer_requests(real_idx, is_piped, false);
         }
 
         LOG_INFO("DONE");
@@ -1003,55 +909,7 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
 
     // Recreate pyramid infer requests if present (only for function calls)
     if (comp_model_desc.replaced_by) {
-        auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-        if (proto_comp_model_desc.pyramid_attention.has_value()) {
-            LOG_INFO("Recreating pyramid infer requests...");
-            LOG_BLOCK();
-
-            const auto& pyramid_attention = proto_comp_model_desc.pyramid_attention.value();
-            const auto& compiled_models = pyramid_attention._compiled_models;
-
-            // Clear existing requests
-            proto_comp_model_desc.pyramid_infer_requests.clear();
-            proto_comp_model_desc.pyramid_pipeline_requests.clear();
-
-            // Resize storage
-            proto_comp_model_desc.pyramid_infer_requests.resize(compiled_models.size());
-            if (is_piped) {
-                proto_comp_model_desc.pyramid_pipeline_requests.resize(compiled_models.size());
-            }
-
-            // Recreate requests for all models except the last one
-            for (size_t model_id = 0; model_id < compiled_models.size() - 1; ++model_id) {
-                try {
-                    // Create primary infer request
-                    auto pyramid_request = compiled_models[model_id]->create_infer_request();
-                    proto_comp_model_desc.pyramid_infer_requests[model_id] = pyramid_request;
-
-                    // Create pipeline infer request if needed
-                    if (is_piped) {
-                        auto pyramid_pipeline_request = compiled_models[model_id]->create_infer_request();
-                        proto_comp_model_desc.pyramid_pipeline_requests[model_id] = pyramid_pipeline_request;
-                    }
-
-                    LOG_INFO("Successfully recreated infer request(s) for pyramid model[" << model_id << "]");
-                } catch (const std::exception& ex) {
-                    LOG_ERROR("Failed to recreate infer request for pyramid model[" << model_id << "]: " << ex.what());
-                    NPUW_ASSERT(false && "Pyramid model infer request recreation failed");
-                }
-            }
-
-            // For the last pyramid model, reuse the recreated original model's infer requests
-            if (compiled_models.size() > 0) {
-                const size_t last_model_id = compiled_models.size() - 1;
-                LOG_INFO("Reusing recreated original infer requests for last pyramid model[" << last_model_id << "]");
-                proto_comp_model_desc.pyramid_infer_requests[last_model_id] = m_subrequests[real_idx];
-                if (is_piped) {
-                    proto_comp_model_desc.pyramid_pipeline_requests[last_model_id] =
-                        m_funcall_pipeline[real_idx].subrequest;
-                }
-            }
-        }
+        setup_pyramid_infer_requests(real_idx, is_piped, true);
     }
 
     // After an infer request is recreated, the internal cross-request
@@ -1061,6 +919,133 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // but it is a more complex thing and can be implemented separately
     connect_subrequests();
     m_subrequest_devices[idx] = *comp_model_desc.device_it;
+}
+
+void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
+    auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+    if (!proto_comp_model_desc.pyramid_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO((is_recreate ? "Recreating" : "Creating") << " pyramid infer requests...");
+    LOG_BLOCK();
+
+    const auto& pyramid_attention = proto_comp_model_desc.pyramid_attention.value();
+    const auto& compiled_models = pyramid_attention._compiled_models;
+
+    // Clear existing requests if recreating
+    if (is_recreate) {
+        proto_comp_model_desc.pyramid_infer_requests.clear();
+        proto_comp_model_desc.pyramid_pipeline_requests.clear();
+    }
+
+    // Initialize pyramid infer requests storage
+    proto_comp_model_desc.pyramid_infer_requests.resize(compiled_models.size());
+    if (is_piped) {
+        proto_comp_model_desc.pyramid_pipeline_requests.resize(compiled_models.size());
+    }
+
+    // Create infer requests for all pyramid models except the last one
+    // The last pyramid model uses the original model's infer requests
+    for (size_t model_id = 0; model_id < compiled_models.size() - 1; ++model_id) {
+        try {
+            // Create primary infer request
+            auto pyramid_request = compiled_models[model_id]->create_infer_request();
+            proto_comp_model_desc.pyramid_infer_requests[model_id] = pyramid_request;
+
+            // Create pipeline infer request if needed
+            if (is_piped) {
+                auto pyramid_pipeline_request = compiled_models[model_id]->create_infer_request();
+                proto_comp_model_desc.pyramid_pipeline_requests[model_id] = pyramid_pipeline_request;
+            }
+
+        } catch (const std::exception& ex) {
+            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
+                                   << model_id << "]: " << ex.what());
+            NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed");
+        } catch (...) {
+            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
+                                   << model_id << "]: Unknown error");
+            NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed with unknown error");
+        }
+
+        // Setup tensor sharing for past_key_values inputs
+        for (auto input : compiled_models[model_id]->inputs()) {
+            if (input.get_names().empty()) {
+                continue;
+            }
+
+            auto input_name = input.get_any_name();
+            if (!ov::npuw::util::isPastKeyValuesKey(input_name) && !ov::npuw::util::isPastKeyValuesValue(input_name)) {
+                continue;
+            }
+
+            // Setup primary infer request tensor
+            auto tensor = proto_comp_model_desc.pyramid_infer_requests[model_id]->get_tensor(input);
+            if (!is_zero_remote_tensor(tensor)) {
+                std::cout << "infer request: tensor is not zero memory!!" << std::endl;
+            } else {
+                std::cout << "Model " << model_id << " input " << input_name
+                          << " is zero remote tensor, ptr: " << tensor->data() << std::endl;
+            }
+
+            auto primary_ptr = m_subrequests[real_idx]->get_tensor(input)->data();
+            auto new_tensor =
+                ov::get_tensor_impl(ov::Tensor(tensor->get_element_type(), tensor->get_shape(), primary_ptr));
+            proto_comp_model_desc.pyramid_infer_requests[model_id]->set_tensor(input, new_tensor);
+
+            // Setup pipeline infer request tensor if needed
+            if (is_piped) {
+                auto pipeline_tensor = proto_comp_model_desc.pyramid_pipeline_requests[model_id]->get_tensor(input);
+                if (!is_zero_remote_tensor(pipeline_tensor)) {
+                    std::cout << "pipeline infer request: tensor is not zero memory!!" << std::endl;
+                } else {
+                    std::cout << "Pipeline Model " << model_id << " input " << input_name
+                              << " is zero remote tensor, ptr: " << pipeline_tensor->data() << std::endl;
+                }
+
+                auto pipeline_tensor_ptr = m_funcall_pipeline[real_idx].subrequest->get_tensor(input)->data();
+                auto pipeline_new_tensor = ov::get_tensor_impl(
+                    ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), pipeline_tensor_ptr));
+                proto_comp_model_desc.pyramid_pipeline_requests[model_id]->set_tensor(input, pipeline_new_tensor);
+            }
+        }
+    }
+
+    // For the last pyramid model, reuse the original model's infer requests
+    if (compiled_models.size() > 0) {
+        const size_t last_model_id = compiled_models.size() - 1;
+        LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "original infer requests for last pyramid model["
+                            << last_model_id << "]");
+        proto_comp_model_desc.pyramid_infer_requests[last_model_id] = m_subrequests[real_idx];
+        if (is_piped) {
+            proto_comp_model_desc.pyramid_pipeline_requests[last_model_id] = m_funcall_pipeline[real_idx].subrequest;
+        }
+
+        // Log tensor info for last model (only during initial creation)
+        for (auto input : compiled_models[last_model_id]->inputs()) {
+            if (input.get_names().empty()) {
+                continue;
+            }
+
+            auto input_name = input.get_any_name();
+            if (ov::npuw::util::isPastKeyValuesKey(input_name) || ov::npuw::util::isPastKeyValuesValue(input_name)) {
+                auto tensor = proto_comp_model_desc.pyramid_infer_requests[last_model_id]->get_tensor(input);
+                if (!is_zero_remote_tensor(tensor)) {
+                    std::cout << "infer request: last model tensor is not zero memory!!" << std::endl;
+                } else {
+                    std::cout << "Model " << last_model_id << " input " << input_name
+                              << " is zero remote tensor, ptr: " << tensor->data() << std::endl;
+                }
+            }
+        }
+    }
+
+    if (!is_recreate && compiled_models.size() > 0) {
+        LOG_INFO("Successfully created " << (compiled_models.size() - 1)
+                                         << " new pyramid infer requests and reused 1 original request");
+    }
 }
 
 void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, bool& failover) {
