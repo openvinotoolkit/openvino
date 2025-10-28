@@ -283,8 +283,14 @@ const std::vector<MoePatternParams> moe_params_smoke = {
     },
 };
 
-const ov::AnyMap additional_config_basic = {{ov::hint::inference_precision.name(), ov::element::f32}};
-const ov::AnyMap additional_config_bf16 = {{ov::hint::inference_precision.name(), ov::element::bf16}};
+std::vector<ov::AnyMap> generate_additional_config() {
+    std::vector<ov::AnyMap> additional_config = {{{ov::hint::inference_precision.name(), ov::element::f32}}};
+    if (ov::with_cpu_x86_bfloat16()) {
+        additional_config.push_back(
+            {{ov::hint::inference_precision.name(), ov::element::bf16}});
+    }
+    return additional_config;
+}
 
 }  // namespace
 
@@ -292,28 +298,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_basic,
                          MoESubgraphTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::ValuesIn(moe_types),
-                                            ::testing::Values(additional_config_basic)),
-                         MoESubgraphTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_bf16,
-                         MoESubgraphTest,
-                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
-                                            ::testing::ValuesIn(moe_types),
-                                            ::testing::Values(additional_config_bf16)),
+                                            ::testing::ValuesIn(generate_additional_config())),
                          MoESubgraphTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_MoESubgraph_basic,
                          MoESubgraphTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_nightly),
                                             ::testing::ValuesIn(moe_types),
-                                            ::testing::Values(additional_config_basic)),
-                         MoESubgraphTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_MoESubgraph_bf16,
-                         MoESubgraphTest,
-                         ::testing::Combine(::testing::ValuesIn(moe_params_nightly),
-                                            ::testing::ValuesIn(moe_types),
-                                            ::testing::Values(additional_config_bf16)),
+                                            ::testing::ValuesIn(generate_additional_config())),
                          MoESubgraphTest::getTestCaseName);
 
 
@@ -331,7 +323,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights,
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(false),  // reshape on decompression
                                             ::testing::Values(16),     // decompression group size
-                                            ::testing::Values(additional_config_basic, additional_config_bf16),
+                                            ::testing::ValuesIn(generate_additional_config()),
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
                          MoECompressedWeightsSubgraphTest::getTestCaseName);
 
@@ -346,7 +338,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_MoeCompressedWeights,
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(false),  // reshape on decompression
                                             ::testing::Values(16),     // decompression group size
-                                            ::testing::Values(additional_config_basic, additional_config_bf16),
+                                            ::testing::ValuesIn(generate_additional_config()),
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
                          MoECompressedWeightsSubgraphTest::getTestCaseName);
 
