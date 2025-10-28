@@ -99,9 +99,15 @@ protected:
         }
     }
 
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        int *p = new int[100];
+    __attribute__((noinline))
+    void makeLeak() {
+        // volatile = избежать оптимизации
+        volatile int* p = new int[100];
         (void)p;
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        makeLeak();
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
