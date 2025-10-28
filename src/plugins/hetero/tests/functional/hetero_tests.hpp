@@ -20,6 +20,7 @@ public:
     ov::Core core;
 
     void SetUp() override;
+    void TearDown() override;
 
     std::shared_ptr<ov::Model> create_model_with_subtract(bool dynamic = false);
     std::shared_ptr<ov::Model> create_model_with_subtract_reshape(bool dynamic = false);
@@ -47,6 +48,8 @@ private:
     void reg_plugin_type(const std::string& device_name);
 
     void reg_plugin(std::shared_ptr<ov::IPlugin>& plugin);
+
+    void clearMockPlugin();
 };
 
 }  // namespace tests
