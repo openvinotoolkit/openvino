@@ -5,23 +5,13 @@
 
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
-#include "openvino/op/softmax.hpp"
 #include "openvino/op/util/op_types.hpp"  // is_parameter
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/matcher_pass.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "openvino/pass/validate.hpp"
 #include "pyramid_attention.hpp"
 #include "util.hpp"
 
-namespace opp = ov::pass::pattern;
-
 namespace {
 enum class SDPA_Inputs : std::size_t { Q = 0, K, V, M, NUM_REQUIRED };
-
-}  // namespace
+}
 
 std::optional<ov::npuw::function::Attention> ov::npuw::function::Attention::from(
     const std::shared_ptr<ov::Model>& model) {
@@ -124,10 +114,10 @@ ov::npuw::runtime::attention::PositionIDs::PositionIDs(std::size_t param_idx,
                                                        const ov::npuw::compiled::Attention& d,
                                                        const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
-      m_query_size(d.query_size),
+      m_d(d),
       m_rq(rq) {
     // FIXME: speculative decode is indistinguishable at this point!
-    m_case = m_query_size == 1 ? Case::GENERATE : Case::PREFILL;
+    m_case = m_d.query_size == 1 ? Case::GENERATE : Case::PREFILL;
 }
 
 ov::npuw::runtime::attention::Selector::Ptr ov::npuw::runtime::attention::PositionIDs::find(
@@ -148,6 +138,7 @@ ov::npuw::runtime::attention::Selector::Ptr ov::npuw::runtime::attention::Positi
     }
     return Selector::Ptr{};
 }
+
 void ov::npuw::runtime::attention::PositionIDs::prepare(int64_t past_len) {
     const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
     const auto in_tensor = m_rq.get_tensor(iport);
@@ -175,7 +166,7 @@ void ov::npuw::runtime::attention::PositionIDs::prepare(int64_t past_len) {
             case Case::PREFILL:
                 // chunked prefill case. calculate the past_length in full chunks
                 // FIXME: We know too much about chunking here
-                m_past_length = ((past_len + m_query_size - 1) / m_query_size) * m_query_size;
+                m_past_length = ((past_len + m_d.query_size - 1) / m_d.query_size) * m_d.query_size;
                 break;
             default:
                 NPUW_ASSERT(false && "Reached the unreachable code");
