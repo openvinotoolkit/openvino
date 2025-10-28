@@ -17,7 +17,9 @@ namespace snippets {
 using namespace ov::snippets::pass;
 
 TokenizationConfig get_default_tokenization_config() {
-    static const TokenizationConfig conf(std::numeric_limits<size_t>::max());
+    MatMulConfig mm_cfg{};
+    mm_cfg.is_supported_transpose = true;
+    static const TokenizationConfig conf(std::numeric_limits<size_t>::max(), mm_cfg);
     return conf;
 }
 
@@ -27,7 +29,9 @@ CommonOptimizations::Config get_default_common_optimizations_config() {
 }
 
 TokenizeMHASnippets::Config get_default_mha_config() {
-    static const TokenizeMHASnippets::Config conf(TokenizationConfig(std::numeric_limits<size_t>::max()),
+    MatMulConfig mm_cfg{};
+    mm_cfg.is_supported_transpose = true;
+    static const TokenizeMHASnippets::Config conf(TokenizationConfig(std::numeric_limits<size_t>::max(), mm_cfg),
                                                   true,
                                                   true,
                                                   {3, 4});

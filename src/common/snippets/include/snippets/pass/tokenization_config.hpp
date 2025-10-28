@@ -5,18 +5,34 @@
 #pragma once
 
 #include <cstddef>
+#include <utility>
 
 #include "openvino/core/except.hpp"
 
 namespace ov::snippets::pass {
 
 /**
+ * @struct MatMulConfig
+ * @brief Configuration for MatMul operation tokenization
+ * @ingroup snippets
+ */
+struct MatMulConfig {
+    bool is_supported_transpose = true;
+};
+
+/**
  * @interface TokenizationConfig
  * @brief Base configuration for tokenization passes containing common GPR management logic
  * @ingroup snippets
  */
+
 struct TokenizationConfig {
     explicit TokenizationConfig(size_t available_gprs_count) : m_available_gprs_count(available_gprs_count) {
+        OPENVINO_ASSERT(available_gprs_count > 0, "available_gprs_count should be greater than 0");
+    }
+
+    explicit TokenizationConfig(size_t available_gprs_count, MatMulConfig matmul_cfg)
+        : m_available_gprs_count(available_gprs_count), m_matmul_config(std::move(matmul_cfg)) {
         OPENVINO_ASSERT(available_gprs_count > 0, "available_gprs_count should be greater than 0");
     }
 
@@ -42,10 +58,14 @@ struct TokenizationConfig {
         return (io_count + expected_buffer_reg_groups + expected_maximal_loop_depth) <= available_gprs_count;
     }
 
+    [[nodiscard]] const MatMulConfig& get_matmul_config() const { return m_matmul_config; }
+    void set_matmul_config(const MatMulConfig& cfg) { m_matmul_config = cfg; }
+
 protected:
     // The total number of GPRs that can be used inside snippets kernel
     // (data pointers for Parameters/Results/Buffers, as well as loop work amounts)
     size_t m_available_gprs_count = 0;
+    MatMulConfig m_matmul_config{};
 };
 
 }  // namespace ov::snippets::pass

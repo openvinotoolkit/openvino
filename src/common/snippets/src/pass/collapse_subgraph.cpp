@@ -278,8 +278,11 @@ bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node>&
 TokenizeSnippets::TokenizeSnippets(const TokenizationConfig& config) {
     MATCHER_SCOPE(TokenizeSnippets);
 
-    auto label = ov::pass::pattern::any_input([](const ov::Output<ov::Node>& out) {
+    auto label = ov::pass::pattern::any_input([config](const ov::Output<ov::Node>& out) {
         const auto n = out.get_node_shared_ptr();
+        if (ov::is_type<ov::op::v1::Transpose>(n) && !config.get_matmul_config().is_supported_transpose) {
+            return false;
+        }
         // todo: MatMul and Transpose ops are always skipped by the SnippetsMarkSkipped pass.
         //  This is a temporary solution. Either modify SnippetsMarkSkipped
         //  or align this with the custom MHA tokenization pass.
