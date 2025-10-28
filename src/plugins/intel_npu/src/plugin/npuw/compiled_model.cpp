@@ -794,8 +794,12 @@ void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
 
     // Identify either full flow or weightless
     bool is_weightless = true;
-    if (auto it = m_non_npuw_props.find(ov::cache_mode.name());
-        it != m_non_npuw_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+    if (auto it = m_non_npuw_props.find(ov::enable_weightless.name()); it != m_non_npuw_props.end()) {
+        if (!it->second.as<bool>()) {
+            is_weightless = false;
+        }
+    } else if (auto it = m_non_npuw_props.find(ov::cache_mode.name());
+               it != m_non_npuw_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
         LOG_INFO("Serialization will be done via flow with weights.");
         is_weightless = false;
     }
@@ -999,8 +1003,12 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
 
         // Write flow identifier
         bool is_weightless = true;
-        if (m_non_npuw_props.count(ov::cache_mode.name()) &&
-            m_non_npuw_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+        if (auto it = m_non_npuw_props.find(ov::enable_weightless.name()); it != m_non_npuw_props.end()) {
+            if (!it->second.as<bool>()) {
+                is_weightless = false;
+            }
+        } else if (m_non_npuw_props.count(ov::cache_mode.name()) &&
+                   m_non_npuw_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
             is_weightless = false;
         }
         write(model_stream, is_weightless);
