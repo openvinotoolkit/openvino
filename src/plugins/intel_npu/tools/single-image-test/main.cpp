@@ -143,6 +143,7 @@ DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
 DEFINE_double(cosim_threshold, 0.90, "Threshold for 'cosim' mode");
 DEFINE_double(rrmse_loss_threshold, std::numeric_limits<double>::max(), "Threshold for 'rrmse' mode");
 DEFINE_double(nrmse_loss_threshold, 1.0, "Threshold for 'nrmse' mode");
+DEFINE_double(map_threshold, 0.90, "Threshold for 'map' mode");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
 DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
 DEFINE_bool(apply_soft_max, false, "Apply SoftMax for 'nrmse' mode");
@@ -280,6 +281,8 @@ void parseCommandLine(int argc, char* argv[]) {
             std::cout << "    Normalized_image: " << FLAGS_normalized_image << std::endl;
         } else if (strEq(FLAGS_mode, "rrmse")) {
             std::cout << "    Threshold:        " << FLAGS_rrmse_loss_threshold << std::endl;
+        } else if (strEq(FLAGS_mode, "map")) {
+            std::cout << "    Threshold:        " << FLAGS_map_threshold << std::endl;
         } else if (strEq(FLAGS_mode, "nrmse")) {
             std::cout << "    Threshold:        " << FLAGS_nrmse_loss_threshold << std::endl;
         }
@@ -1699,6 +1702,80 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
+
+//
+// Mean Average Precision mode
+// (using 'map_threshold' flag, with expected value in range [0.0 -> infinity))
+// e.g. '--mode map --map_threshold 0.01'
+//
+
+bool computeMAP(const ov::Tensor& output, const ov::Tensor& reference) {
+    if (output.get_shape() != reference.get_shape()) {
+        std::cout << "Output and reference tensors have different shapes" << std::endl;
+        return false;
+    }
+
+    const ov::Tensor outputFP32 = npu::utils::toFP32(output);
+    const ov::Tensor referenceFP32 = npu::utils::toFP32(reference);
+
+    const auto outputBuffer = outputFP32.data<const float>();
+    const auto referenceBuffer = referenceFP32.data<const float>();
+
+    const auto size = referenceFP32.get_size();
+
+    double error = 0, sum = 0, diff;
+    for (size_t i = 0; i < size; ++i) {
+        diff = (outputBuffer[i] - referenceBuffer[i]);
+        sum += (outputBuffer[i] * outputBuffer[i]);
+        error += (diff * diff);
+    }
+
+    if (sum == 0) {
+        if (error <= std::numeric_limits<double>::epsilon()) {
+            std::cout << "The results perfectly match (error = 0). MAP loss could not be computed" << std::endl;
+            return true;
+        }
+
+        std::cout << "Div by ZERO (Output is the Zero Tensor). Cannot compute MAP loss" << std::endl;
+        return false;
+    }
+
+    double mapLoss = sqrt(error / sum);
+
+    std::cout << "MAP loss : " << std::fixed << std::setprecision(4) << mapLoss
+              << "   MAP threshold : " << FLAGS_map_threshold << std::endl;
+    return mapLoss <= FLAGS_map_threshold;
+}
+
+bool testMAP(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
+    if (outputs.size() != references.size()) {
+        std::cout << "Actual and reference has different number of output blobs" << std::endl;
+        return false;
+    }
+
+    std::vector<std::string> skipped_layers;
+    skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
+
+    for (const auto& [tensorName, output] : outputs) {
+        if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
+            std::cout << "Skip MAP test for layers: " << tensorName << std::endl;
+            continue;
+        }
+
+        auto referencesIterator = references.find(tensorName);
+        OPENVINO_ASSERT(referencesIterator != references.end());
+
+        if (!test_blobs_in_batch(tensorName,
+                                 splitBatchedTensor(output, tensorName, outputLayouts),
+                                 splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                                 computeMAP)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 std::vector<float> softmax(std::vector<float>& tensor) {
     std::vector<double> probabilities(tensor.size());
     std::vector<float> results(tensor.size());
@@ -2659,6 +2736,7 @@ static int runSingleImageTest() {
                      {"nrmse", &testNRMSE},
                      {"raw", &testRAW},
                      {"rrmse", &testRRMSE},
+                     {"map", &testMAP},
                      {"ssd",
                       [inputDescriptors](const TensorMap& oTensors,
                                          const TensorMap& rTensors,
