@@ -8,6 +8,7 @@ using namespace CPUTestUtils;
 
 namespace ov::test::identity {
 
+const CPUSpecificParams cpuParamsRef{{}, {}, {"ref_any"}, "ref_any"};
 static const std::vector<ov::Shape> shapes = {
         {500},
         {4, 3, 210}
@@ -27,7 +28,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Param, IdentityLayerTestCPU,
                 ::testing::ValuesIn(shapes),
                 ::testing::ValuesIn(prc),
                 ::testing::Values(false),
-                ::testing::Values(emptyCPUSpec),
+                ::testing::Values(cpuParamsRef),
                 ::testing::Values(empty_plugin_config)),
         IdentityLayerTestCPU::getTestCaseName);
 
@@ -36,7 +37,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ParamConst, IdentityLayerTestCPU,
                 ::testing::ValuesIn(shapes),
                 ::testing::ValuesIn(prc),
                 ::testing::Values(true),
-                ::testing::Values(emptyCPUSpec),
+                ::testing::Values(cpuParamsRef),
                 ::testing::Values(empty_plugin_config)),
         IdentityLayerTestCPU::getTestCaseName);
 

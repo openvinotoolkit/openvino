@@ -4,6 +4,7 @@
 
 #include "identity.hpp"
 #include "openvino/op/identity.hpp"
+#include "utils/general_utils.h"
 #include "common_test_utils/node_builders/constant.hpp"
 
 using namespace CPUTestUtils;
@@ -39,7 +40,11 @@ void IdentityLayerTestCPU::SetUp() {
     std::tie(inFmts, outFmts, priority, selectedType) = cpu_params;
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-    updateSelectedType("ref_any", output_precision, configuration);
+    if (ov::intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
+        selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
+    } else {
+        selectedType = makeSelectedTypeStr(selectedType, output_precision);
+    }
 
     std::vector<InputShape> in_shapes;
 
