@@ -887,7 +887,7 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
 WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType t, size_t g,
                                                     bool should_split, bool deformable, bool grouped_weights_shape) const {
     bool is_grouped_1d_conv = !deformable && grouped_weights_shape &&
-                              (g > 1) && (OFM().v == g);
+                              (ChannelsCount(layout) == 4) && (g > 1) && (OFM().v == g);
     const uint32_t src_channels = ChannelsCount(layout) - ((DoesGroupDimExist(layout) || is_grouped_1d_conv)? 1 : 0);
     const uint32_t dst_channels = ChannelsCount(l) - (DoesGroupDimExist(l) ? 1 : 0);
 
