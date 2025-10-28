@@ -545,11 +545,6 @@ def copy_file(src, dst, verbose=False, dry_run=False):
     if dry_run:
         log.info(f"DRY RUN: Would copy '{src}' to '{dst}'")
     else:
-        # Avoid copying a symlinked file to itself
-        if os.path.realpath(src) == os.path.realpath(dst):
-            if verbose:
-                log.info(f"Skipping copy: '{src}' and '{dst}' are the same file")
-            return
         shutil.copyfile(src, dst)
         if verbose:
             log.info(f"Copied '{src}' to '{dst}'")
