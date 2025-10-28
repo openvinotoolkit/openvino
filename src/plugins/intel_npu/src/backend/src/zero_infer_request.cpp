@@ -424,8 +424,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             _pipeline->update_graph_arguments(foundPort.is_input()
                                                   ? _graph->get_input_descriptors().at(foundPort.idx).idx
                                                   : _graph->get_output_descriptors().at(foundPort.idx).idx,
-                                              levelZeroTensor->data(),
-                                              levelZeroTensor->get_byte_size());
+                                              levelZeroTensor);
         }
     }
     // If command list updates are not supported, fallback to copying tensors every time.
@@ -501,9 +500,9 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                 OPENVINO_ASSERT(get_level_zero_input(foundPort.idx, i)->data(), "Empty buffer");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "updateCommandList");
 
-                _pipeline->update_graph_arguments_batching(_graph->get_input_descriptors().at(foundPort.idx).idx,
-                                                           get_level_zero_input(foundPort.idx, i)->data(),
-                                                           i);
+                _pipeline->update_graph_arguments(_graph->get_input_descriptors().at(foundPort.idx).idx,
+                                                  get_level_zero_input(foundPort.idx, i),
+                                                  i);
             }
         }
     }
@@ -625,8 +624,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
             OPENVINO_ASSERT(levelZeroTensor.at(SINGLE_TENSOR)->data(), "Empty buffer");
 
             _pipeline->update_graph_arguments(_graph->get_input_descriptors().at(ioIndex).idx,
-                                              levelZeroTensor.at(SINGLE_TENSOR)->data(),
-                                              levelZeroTensor.at(SINGLE_TENSOR)->get_byte_size());
+                                              levelZeroTensor.at(SINGLE_TENSOR));
 
             if (!inputDescriptor.isStateInput) {
                 levelZeroTensor.at(SINGLE_TENSOR)->reset_memory_flag();
@@ -656,9 +654,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
             _logger.debug("Update output graph descriptor with the new tensor");
             OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
 
-            _pipeline->update_graph_arguments(_graph->get_output_descriptors().at(ioIndex).idx,
-                                              levelZeroTensor->data(),
-                                              levelZeroTensor->get_byte_size());
+            _pipeline->update_graph_arguments(_graph->get_output_descriptors().at(ioIndex).idx, levelZeroTensor);
 
             levelZeroTensor->reset_memory_flag();
         }
@@ -688,13 +684,10 @@ void ZeroInferRequest::update_states_if_memory_changed() {
                 zeroState->clear_zero_state_update_pending();
 
                 _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
-                                                  get_level_zero_input(zeroState->get_tensor_index())->data(),
-                                                  get_level_zero_input(zeroState->get_tensor_index())->get_byte_size());
+                                                  get_level_zero_input(zeroState->get_tensor_index()));
 
-                _pipeline->update_graph_arguments(
-                    _graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
-                    _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->data(),
-                    _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->get_byte_size());
+                _pipeline->update_graph_arguments(_graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
+                                                  _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()));
             }
         }
     }

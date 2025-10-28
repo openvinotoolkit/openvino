@@ -110,6 +110,7 @@ static constexpr ov::Property<bool> turbo{"NPU_TURBO"};
  * @brief [Only for NPU Compiler]
  * Type: integer, default is -1
  * Sets the number of npu tiles to compile the model for.
+ * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
 
@@ -118,6 +119,7 @@ static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
  * Type: integer, default is -1
  * Maximum number of tiles supported by the device we compile for. Can be set for offline compilation. If not set, it
  * will be populated by driver.
+ * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
 
@@ -133,6 +135,7 @@ static constexpr ov::Property<bool> bypass_umd_caching{"NPU_BYPASS_UMD_CACHING"}
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false
  * This option allows to delay loading the weights until inference is created
+ * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"};
 
@@ -144,6 +147,15 @@ static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"}
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
+
+/**
+ * @brief [Only for NPU plugin]
+ * Type: std::bool, default is false
+ * Enable ROI Tensor feature. The compiler shall be aware that ROI tensors will be used; they must be enabled at
+ * compilation time if needed later at runtime.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> enable_roi_tensor{"NPU_ENABLE_ROI_TENSOR"};
 
 }  // namespace intel_npu
 }  // namespace ov
