@@ -1,5 +1,8 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
-// paged_attention_kernel.hpp — reference PagedAttention using PagedCacheManager
 
 #include <algorithm>
 #include <cmath>
@@ -12,8 +15,6 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/paged_attention.hpp"
-
-// use the renamed manager
 #include "openvino/core/paged_cache_manager.hpp"
 
 #ifndef PA_DEBUG
