@@ -1,4 +1,7 @@
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include "transformations/attach_cache_manager_to_paged_attention.hpp"
 
 #include <algorithm>
@@ -41,14 +44,14 @@ bool AttachCacheManagerToPagedAttention::run_on_model(const std::shared_ptr<ov::
             shared_cache_manager = std::make_shared<ov::internal::PagedCacheManager>(pa->get_input_element_type(0));
         }
 
-        // Compatibility check: ensure every PAs dtype matches the dtype of cache.
+        // Compatibility check: ensure every PAs dtype matches the dtype of cache
         if (pa->get_input_element_type(0) != shared_cache_manager->get_element_type()) {
             throw std::runtime_error(
                 "AttachCacheManagerToPagedAttention: multiple PagedAttention nodes with incompatible cache "
                 "data types were found, which is not supported");
         }
 
-        // Attach the shared CacheManager to this PagedAttention.
+        // Attach the shared CacheManager to this PagedAttention
         pa->set_cache_manager(shared_cache_manager);
 
         graph_modified = true;
