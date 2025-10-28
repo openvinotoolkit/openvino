@@ -12,10 +12,10 @@
 #include <string>
 #include <vector>
 
+#include "openvino/core/paged_cache_manager.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/paged_attention.hpp"
-#include "openvino/core/paged_cache_manager.hpp"
 
 #ifndef PA_DEBUG
 #    define PA_DEBUG 0
