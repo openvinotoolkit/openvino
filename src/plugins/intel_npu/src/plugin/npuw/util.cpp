@@ -951,7 +951,8 @@ bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
 
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
-    std::fill_n(tensor_data, tensor->get_byte_size(), fill_val);
+    const size_t byte_size = tensor->get_byte_size();
+    std::memset(tensor_data, fill_val, byte_size);
 }
 
 bool ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
