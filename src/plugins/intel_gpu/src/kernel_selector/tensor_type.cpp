@@ -884,8 +884,8 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
     return ret;
 }
 
-WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType t, size_t g, bool should_split) const {
-    bool is_grouped_1d_conv = (g > 1) && (OFM().v == g);
+WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType t, size_t g, bool should_split, bool deformable) const {
+    bool is_grouped_1d_conv = !deformable && (g > 1) && (OFM().v == g);
     const uint32_t src_channels = ChannelsCount(layout) - ((DoesGroupDimExist(layout) || is_grouped_1d_conv)? 1 : 0);
     const uint32_t dst_channels = ChannelsCount(l) - (DoesGroupDimExist(l) ? 1 : 0);
 
@@ -911,7 +911,7 @@ WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType
             vec[Channelndex(l, WeightsChannelName::X)] = 8;
             vec[Channelndex(l, WeightsChannelName::Y)] = 3;
         }
-    } else if (src_channels == 3 && dst_channels == 4) {
+    } else if (is_grouped_1d_conv && src_channels == 3 && dst_channels == 4) {
         // weights dimension conversion for 1d group conv
         vec[Channelndex(l, WeightsChannelName::X)] = 1;
         vec[Channelndex(l, WeightsChannelName::Y)] = X().v;
