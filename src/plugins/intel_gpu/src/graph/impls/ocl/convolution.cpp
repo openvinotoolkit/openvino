@@ -81,6 +81,7 @@ public:
         conv_params.deformable_groups = deformable_groups;
 
         conv_params.groups = groups;
+        conv_params.grouped_weights_shape = primitive->grouped_weights_shape;
 
         auto deform_conv_dep_offset = primitive->deformable_mode ? 1 : 0;
         if (primitive->input.size() == 3)
