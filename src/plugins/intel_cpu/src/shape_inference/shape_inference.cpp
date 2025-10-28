@@ -67,6 +67,7 @@
 #include "gru_cell_shape_inference.hpp"
 #include "gru_sequence_shape_inference.hpp"
 #include "i420_shape_inference.hpp"
+#include "identity_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
 #include "inverse_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"
@@ -133,6 +134,7 @@
 #include "openvino/op/hard_sigmoid.hpp"
 #include "openvino/op/i420_to_bgr.hpp"
 #include "openvino/op/i420_to_rgb.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/idft.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/inverse.hpp"
@@ -581,6 +583,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::ISTFT, ShapeInferTA, util::bit::mask(2, 3, 4)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::SegmentMax, ShapeInferTA, util::bit::mask(1, 2)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::SparseFillEmptyRows, ShapeInferTA, util::bit::mask(1, 2)),
+    OV_OP_SHAPE_INFER_MASK_REG(op::v16::Identity, ShapeInferTA, util::bit::mask()),
     // opset15
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::Squeeze, ShapeInferTA, util::bit::mask(1)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::SearchSorted, ShapeInferTA, util::bit::mask()),

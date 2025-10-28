@@ -43,6 +43,7 @@
 #include "nodes/gather_tree.h"
 #include "nodes/generate_proposals.h"
 #include "nodes/grn.h"
+#include "nodes/identity.hpp"
 #include "nodes/if.h"
 #include "nodes/input.h"
 #include "nodes/interpolate.h"
@@ -215,6 +216,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Ngram, Type::Ngram);
     INTEL_CPU_NODE(RoPE, Type::RoPE);
     INTEL_CPU_NODE(CausalMaskPreprocess, Type::CausalMaskPreprocess);
+    INTEL_CPU_NODE(Identity, Type::Identity);
     INTEL_CPU_NODE(Interpolate, Type::Interpolate);
     INTEL_CPU_NODE(Inverse, Type::Inverse);
     INTEL_CPU_NODE(RandomUniform, Type::RandomUniform);

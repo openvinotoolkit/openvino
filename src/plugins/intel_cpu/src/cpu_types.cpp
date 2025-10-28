@@ -235,6 +235,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ExperimentalDetectronGenerateProposalsSingleImage", Type::ExperimentalDetectronGenerateProposalsSingleImage},
         {"ExtractImagePatches", Type::ExtractImagePatches},
         {"GenerateProposals", Type::GenerateProposals},
+        {"Identity", Type::Identity},
         {"Inverse", Type::Inverse},
         {"NonMaxSuppression", Type::NonMaxSuppression},
         {"NonMaxSuppressionIEInternal", Type::NonMaxSuppression},
@@ -374,6 +375,7 @@ std::string NameFromType(const Type type) {
         CASE(ExperimentalDetectronPriorGridGenerator);
         CASE(ExperimentalDetectronGenerateProposalsSingleImage);
         CASE(GenerateProposals);
+        CASE(Identity);
         CASE(Inverse);
         CASE(ExtractImagePatches);
         CASE(NonMaxSuppression);
