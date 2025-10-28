@@ -74,7 +74,7 @@ protected:
 
         std::tie(targetDevice, configuration, graphExtVersion) = this->GetParam();
 
-        const std::string BLOB_NAME = "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
+        const std::string BLOB_NAME = "blob_compat_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
         blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
 
         model = ov::test::utils::make_multi_single_conv();
