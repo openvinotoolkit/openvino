@@ -13,3 +13,7 @@ optimum-intel-internal-testing/tiny-random-minicpmv-2_6,https://huggingface.co/o
 optimum-intel-internal-testing/tiny-random-qwen2.5-vl,https://huggingface.co/optimum-intel-internal-testing/tiny-random-qwen2.5-vl
 optimum-intel-internal-testing/tiny-random-qwen2vl,https://huggingface.co/optimum-intel-internal-testing/tiny-random-qwen2vl
 optimum-intel-internal-testing/tiny-random-smolvlm2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-smolvlm2
+# Models from master branch
+katuni4ka/tiny-random-llava,https://huggingface.co/katuni4ka/tiny-random-llava
+katuni4ka/tiny-random-minicpmv-2_6,https://huggingface.co/katuni4ka/tiny-random-minicpmv-2_6
+katuni4ka/tiny-random-nanollava,https://huggingface.co/katuni4ka/tiny-random-nanollava
