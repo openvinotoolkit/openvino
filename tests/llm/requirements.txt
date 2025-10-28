@@ -5,3 +5,11 @@ nncf
 whowhatbench @ git+https://github.com/openvinotoolkit/openvino.genai.git#subdirectory=tools/who_what_benchmark
 pytest
 jinja2>=3.1.0
+
+# Additional dependencies for PA transformation tests and specific model architectures
+einops>=0.6.0           # For phi-3.5-moe, internlm2, minicpm
+sentencepiece>=0.1.99   # For baichuan2, qwen, snowflake tokenizers
+tiktoken>=0.5.0         # For qwen, deepseek tokenizers
+soundfile>=0.12.0       # For MiniCPM-o audio models
+peft>=0.7.0            # For nanollava and LoRA adapters
+accelerate>=0.20.0     # For model loading optimizations
