@@ -50,22 +50,30 @@ leak:thirdparty/gtest
 leak:thirdparty/tbb
 leak:libtbb.so
 
-# ???
-leak:pybind11::detail::
-leak:_PyObject_Malloc
-# leak:malloc
-# leak:__interceptor_malloc
-leak:PyDict_Copy
-leak:python3.11
-leak:_PyObject_*
+#         # ???
+# leak:pybind11::detail::
+# # leak:_PyObject_Malloc
+# # leak:malloc
+# # leak:__interceptor_malloc
+# leak:PyDict_Copy
+# # leak:python3.11
+# # leak:_PyObject_*
 
-# подавить внутренние аллокации CPython
-leak:PyMem_RawMalloc
-leak:PyMem_Malloc
-leak:PyObject_Malloc
-leak:PyMem_RawFree
-leak:PyMem_Free
-leak:PyObject_Free
+# # подавить внутренние аллокации CPython
+# leak:PyMem_RawMalloc
+# leak:PyMem_Malloc
+# # leak:PyObject_Malloc
+# leak:PyMem_RawFree
+# leak:PyMem_Free
+# # leak:PyObject_Free
 
-# опционально — pybind11 glue code
+# # опционально — pybind11 glue code
+# leak:pybind11::detail::
+
+# подавить мусорные аллокации CPython init
+leak:Py_Initialize
+leak:Py_Finalize
+leak:PyEval_EvalFrameDefault
+
+# подавить pybind11 glue
 leak:pybind11::detail::
