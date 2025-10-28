@@ -9,6 +9,7 @@
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/utils.hpp"
 
 namespace intel_npu {
@@ -384,6 +385,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::weightless_blob, WEIGHTLESS_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::use_base_model_serializer, USE_BASE_MODEL_SERIALIZER);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::op_extension_libs, OP_EXTENSION_LIBS);
 
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::stepping, STEPPING, [&](const Config& config) {
         if (!config.has<STEPPING>()) {

@@ -435,5 +435,16 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
  */
 static constexpr ov::Property<bool> disable_version_check{"NPU_DISABLE_VERSION_CHECK"};
 
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: String. Default is "".
+ * This option offers the ability to inject OpenVino Op Extension libs to the NPU Plugin.
+ * It is needed such that the extension libs successfully get propagated to the VCL internal ov::Core object.
+ * Format (similar to %PATH%): "<path_to_extension_lib_0>;<path_to_extension_lib_1>;...>
+ *
+ * To be deprecated once VCL gains the ability to directly query extensions from user ov::Core
+ */
+static constexpr ov::Property<std::string> op_extension_libs{"NPU_OP_EXTENSION_LIBS"};
+
 }  // namespace intel_npu
 }  // namespace ov
