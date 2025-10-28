@@ -146,9 +146,8 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.gpu_frequency = device_properties.coreClockRate;
 
-    // Set SIMD values as reasonable default for most of the supported platforms
-    // Could not find how to retrieve all supported SIMD sizes from L0
-    info.supported_simd_sizes = {8, 16, 32};
+    info.supported_simd_sizes.resize(device_compute_properties.numSubGroupSizes);
+    std::copy_n(device_compute_properties.subGroupSizes, device_compute_properties.numSubGroupSizes, info.supported_simd_sizes.begin());
     info.has_separate_cache = true;
 
     info.max_work_group_size = device_compute_properties.maxTotalGroupSize;
