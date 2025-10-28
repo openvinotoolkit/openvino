@@ -114,6 +114,7 @@ enum class Type : uint8_t {
     ExperimentalDetectronGenerateProposalsSingleImage,
     ExtractImagePatches,
     GenerateProposals,
+    Identity,
     Inverse,
     NonMaxSuppression,
     MatrixNms,
