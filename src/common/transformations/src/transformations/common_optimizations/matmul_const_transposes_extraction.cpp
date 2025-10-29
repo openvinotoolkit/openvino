@@ -12,6 +12,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 ov::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction() {
     auto data_pattern = pattern::any_input();
@@ -38,8 +39,13 @@ ov::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction() {
             weights,
             ov::op::v0::Constant::create(element::i32, {transpose_order.size()}, transpose_order));
         if (ov::is_type<ov::op::v0::Constant>(weights.get_node_shared_ptr())) {
+            // postponed_constant attribute is needed to perform constant folding on serialization step
             transpose->get_rt_info()["postponed_constant"] = true;
+            // disable constant folding here to postpone it to serialization step
             ov::pass::disable_constant_folding(transpose);
+            // disable fp16 compression. Otherwise an additional conversion will be added after the constant, which
+            // breaks postponed_constant serialization
+            ov::disable_fp16_compression(weights.get_node_shared_ptr());
         }
         auto new_matmul = std::make_shared<ov::op::v0::MatMul>(pattern_value_map.at(data_pattern),
                                                                transpose,
