@@ -265,7 +265,9 @@ void ov::npuw::s11n::read(std::istream& stream, std::shared_ptr<ov::op::v0::Para
     read(stream, names);
     // NOTE: the code below is taken from NPU plugin's create_dummy_model()
     var = std::make_shared<op::v0::Parameter>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str));
-    var->set_friendly_name(*names.begin());  // FIXME: any_name ?
+    if (!names.empty()) {
+        var->set_friendly_name(*names.begin());  // FIXME: any_name ?
+    }
     var->output(0).get_tensor().set_names(names);
 }
 
@@ -286,7 +288,9 @@ void ov::npuw::s11n::read(std::istream& stream, std::shared_ptr<ov::Node>& var) 
                                                  names);
     var = std::make_shared<ov::op::v0::Result>(res);
     var->output(0).set_tensor_ptr(tensor_dummy);
-    var->set_friendly_name(*names.begin());  // any_name ?
+    if (!names.empty()) {
+        var->set_friendly_name(*names.begin());  // any_name ?
+    }
 }
 
 void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
