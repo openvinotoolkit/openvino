@@ -425,4 +425,18 @@ TEST_P(ZeroGraphTest, SetAlignedBlob) {
     ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
+TEST_P(ZeroGraphTest, CheckNoThrowOnUnsupportedFeature) {
+#ifdef _WIN32
+    if (zeroInitStruct->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 11)) {
+        // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
+        if (zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(zeroInitStruct->getDevice(),
+                                                                            ZE_NPU_DRIVER_OPTIONS,
+                                                                            "NO_THROW_ON_UNSUPPORTED_FEATURE",
+                                                                            nullptr) != ZE_RESULT_SUCCESS) {
+            ADD_FAILURE() << "NO_THROW_ON_UNSUPPORTED_FEATURE shall be supported.";
+        }
+    }
+#endif
+}
+
 }  // namespace ov::test::behavior
