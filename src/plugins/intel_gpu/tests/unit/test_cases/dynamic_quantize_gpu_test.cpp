@@ -254,6 +254,20 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_g
                                     PrecomputeSum::Enabled);
 }
 
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_gs128_cache) {
+    this->test_dynamic_quantization(true, {-1, 1, 512},
+                                    {32, 1, 512},
+                                    QuantizationType::Symmetric,
+                                    128,
+                                    data_types::i8,
+                                    data_types::i8,
+                                    OutputStorageType::Planar,
+                                    "",
+                                    SetInnerMostDimValuesZero::No,
+                                    PrecomputeSum::Enabled);
+}
+
+
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_gs128_small_values) {
     this->test_dynamic_quantization(false, {1, 1, 512},
                                     {32, 1, 512},

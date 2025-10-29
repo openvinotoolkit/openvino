@@ -52,6 +52,8 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
         seed = hash_combine(seed, attrs.scale_dt.hash());
         seed = hash_combine(seed, attrs.zp_dt.hash());
         seed = hash_combine(seed, attrs.output_storage_type);
+        seed = hash_combine(seed, attrs.precomputed_reduction);
+        seed = hash_combine(seed, attrs.precomputed_reduction_dt.hash());
         seed = hash_combine(seed, input_size);
 
         return seed;
@@ -70,6 +72,8 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
                attrs.scale_dt == rhs_casted.attrs.scale_dt &&
                attrs.zp_dt == rhs_casted.attrs.zp_dt &&
                attrs.quantization_type == rhs_casted.attrs.quantization_type &&
+               attrs.precomputed_reduction == rhs_casted.attrs.precomputed_reduction &&
+               attrs.precomputed_reduction_dt == rhs_casted.attrs.precomputed_reduction_dt &&
                input_size == rhs_casted.input_size;
     }
 
@@ -81,8 +85,10 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
         ob << make_data(&attrs.scale_dt, sizeof(attrs.scale_dt));
         ob << make_data(&attrs.zp_dt, sizeof(attrs.zp_dt));
         ob << make_data(&attrs.output_storage_type, sizeof(attrs.output_storage_type));
+        ob << make_data(&attrs.precomputed_reduction_dt, sizeof(attrs.precomputed_reduction_dt));
         ob << attrs.scales_zp_output_order;
         ob << attrs.group_sizes;
+        ob << attrs.precomputed_reduction;
         ob << input_size;
     }
 
@@ -94,8 +100,10 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
         ib >> make_data(&attrs.scale_dt, sizeof(attrs.scale_dt));
         ib >> make_data(&attrs.zp_dt, sizeof(attrs.zp_dt));
         ib >> make_data(&attrs.output_storage_type, sizeof(attrs.output_storage_type));
+        ib >> make_data(&attrs.precomputed_reduction_dt, sizeof(attrs.precomputed_reduction_dt));
         ib >> attrs.scales_zp_output_order;
         ib >> attrs.group_sizes;
+        ib >> attrs.precomputed_reduction;
         ib >> input_size;
     }
 };
