@@ -167,16 +167,24 @@ struct PyramidAttentionInfo {
 // Compile-time pyramid attention information
 struct PyramidAttention {
     std::vector<PyramidAttentionInfo> _attention_infos;
-    std::vector<std::shared_ptr<ov::Model>> _models;
     std::vector<ov::SoPtr<ov::ICompiledModel>> _compiled_models;
     std::vector<std::size_t> _context_lengths;
 
     std::size_t query_size = 0u;
     std::size_t full_context_size = 0u;
 
+    // Store models temporarily for compilation - cleared after compilation completes in set_compiled_models()
+    std::vector<std::shared_ptr<ov::Model>> _models_to_compile;
+
     PyramidAttention() = delete;
 
+    // Constructor that extracts metadata and stores models for compilation
+    // Compiled models are set later via set_compiled_models()
     explicit PyramidAttention(const function::PyramidAttention& func_pyramid);
+
+    // Set compiled models after parallel compilation completes
+    // Also clears _models_to_compile to free memory
+    void set_compiled_models(std::vector<ov::SoPtr<ov::ICompiledModel>>&& compiled_models);
 
     // Return number of pyramid models
     size_t num_models() const {
