@@ -138,8 +138,8 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
     const std::map<std::string, size_t>& past_key_sequence_dims,
     const std::map<std::string, size_t>& past_value_sequence_dims) {
     // Find SDPA pattern nodes in the model
-    auto pattern_nodes = findSDPAPatternNodes(model);
-    if (!pattern_nodes.isValid()) {
+    auto pattern_nodes = find_sdpa_pattern_nodes(model);
+    if (!pattern_nodes.is_valid()) {
         LOG_WARN("Could not find SDPA pattern in model");
         return std::nullopt;
     }
@@ -294,8 +294,9 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 // Helper function to validate model and extract necessary information for pyramid attention
 std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(const std::shared_ptr<ov::Model>& model) {
     // Find SDPA pattern nodes using the extracted function
-    auto pattern_nodes = findSDPAPatternNodes(model);
-    if (!pattern_nodes.isValid()) {
+    auto pattern_nodes = find_sdpa_pattern_nodes(model);
+    if (!pattern_nodes.is_valid()) {
+        LOG_WARN("Could not find valid SDPA pattern in model");
         return std::nullopt;
     }
 
@@ -373,7 +374,7 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
     return PyramidValidationResult{query_length, full_context_length, past_key_sequence_dims, past_value_sequence_dims};
 }
 
-SDPAPatternNodes findSDPAPatternNodes(const std::shared_ptr<ov::Model>& model) {
+SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model) {
     // Find decomposed SDPA pattern components
     SDPAPatternNodes pattern_nodes;
 
@@ -408,7 +409,8 @@ SDPAPatternNodes findSDPAPatternNodes(const std::shared_ptr<ov::Model>& model) {
                     break;
             }
 
-            if (pattern_nodes.isValid()) {
+            if (pattern_nodes.is_valid()) {
+                pattern_nodes.log_pattern();
                 break;  // Found complete pattern
             }
         }
@@ -487,6 +489,70 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
 }
 
 }  // namespace function
+
+namespace compiled {
+
+// Constructor implementation
+PyramidAttention::PyramidAttention(const function::PyramidAttention& func_pyramid)
+    : query_size(func_pyramid._query_length),
+      full_context_size(func_pyramid._full_context_length) {
+    NPUW_ASSERT(func_pyramid._models.size() == func_pyramid._attentions.size());
+
+    const size_t num_models = func_pyramid._models.size();
+    _attention_infos.reserve(num_models);
+    _context_lengths.reserve(num_models);
+    _models.reserve(num_models);
+
+    // Memory tracking setup
+    const bool enable_memory_tracking = true;  // Could be a config option
+    size_t initial_memory_kb = 0;
+
+    if (enable_memory_tracking) {
+        initial_memory_kb = get_process_memory_kb();
+        LOG_INFO("=== PyramidAttention Memory Tracking Start: " << initial_memory_kb << " KB RSS ===");
+    }
+
+    // Process each model
+    for (size_t i = 0; i < num_models; ++i) {
+        size_t before_kb = enable_memory_tracking ? get_process_memory_kb() : 0;
+
+        const auto& func_attn = func_pyramid._attentions[i];
+        const auto& model = func_pyramid._models[i];
+
+        // Build attention info
+        PyramidAttentionInfo attention_info;
+        attention_info.params.reserve(func_attn._inputs.size());
+
+        for (const auto& input : func_attn._inputs) {
+            std::size_t p_idx = model->get_parameter_index(input.param);
+            attention_info.params.push_back({p_idx, input.dim});
+        }
+
+        attention_info.mask_idx = model->get_parameter_index(func_attn._mask);
+        attention_info.query_size = func_attn.query_len();
+        attention_info.context_length = func_attn.context_len();
+
+        _attention_infos.push_back(std::move(attention_info));
+        _context_lengths.push_back(attention_info.context_length);
+        _models.push_back(model);
+
+        if (enable_memory_tracking) {
+            size_t after_kb = get_process_memory_kb();
+            size_t increase_kb = (after_kb > before_kb) ? (after_kb - before_kb) : 0;
+            LOG_DEBUG("Model[" << i << "]: RSS increased by " << increase_kb << " KB (" << (increase_kb / 1024)
+                               << " MB), total: " << after_kb << " KB");
+        }
+    }
+
+    if (enable_memory_tracking) {
+        size_t final_memory_kb = get_process_memory_kb();
+        size_t total_increase_kb = (final_memory_kb > initial_memory_kb) ? (final_memory_kb - initial_memory_kb) : 0;
+        LOG_INFO("=== PyramidAttention Memory Tracking End: Total increase = "
+                 << total_increase_kb << " KB (" << (total_increase_kb / 1024) << " MB) ===");
+    }
+}
+
+}  // namespace compiled
 
 namespace runtime {
 namespace pyramid_attention {
