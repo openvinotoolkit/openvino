@@ -25,85 +25,6 @@ namespace ov {
 namespace npuw {
 namespace function {
 
-// Implementation of RemoveEmptyKVTensors from llm_compiled_model.cpp
-class RemoveEmptyKVTensors : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::RemoveEmptyKVTensors");
-
-    struct Context {
-        std::vector<std::shared_ptr<ov::opset13::Parameter>> old_params;
-        using Ref = std::reference_wrapper<Context>;
-    };
-
-    RemoveEmptyKVTensors(Context::Ref ctx) {
-        auto param = opp::wrap_type<ov::op::v0::Parameter>();
-        // Handle both direct parameter and parameter with convert
-        auto param_or_convert =
-            std::make_shared<opp::op::Or>(ov::OutputVector{param, opp::wrap_type<ov::op::v0::Convert>({param})});
-        auto concat = opp::wrap_type<ov::op::v0::Concat>({param_or_convert, opp::any_input()});
-
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
-            auto& node_to_output = m.get_pattern_value_map();
-            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
-
-            // Find the parameter - it could be direct or through a convert
-            std::shared_ptr<ov::op::v0::Parameter> matched_param = nullptr;
-            auto first_input = matched_node_concat->input(0).get_source_output().get_node_shared_ptr();
-
-            if (ov::is_type<ov::op::v0::Parameter>(first_input)) {
-                // Direct parameter case
-                matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(first_input);
-            } else if (ov::is_type<ov::op::v0::Convert>(first_input)) {
-                // Parameter through convert case
-                auto convert_input = first_input->input(0).get_source_output().get_node_shared_ptr();
-                if (ov::is_type<ov::op::v0::Parameter>(convert_input)) {
-                    matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(convert_input);
-                }
-            }
-
-            if (!matched_param) {
-                return false;  // Pattern didn't match properly
-            }
-
-            ctx.get().old_params.push_back(matched_param);
-
-            auto users = matched_param->get_users();
-            if (users.size() == 2u) {
-                auto shapeof_node = ov::is_type<ov::op::v3::ShapeOf>(users[0]) ? users[0] : users[1];
-                NPUW_ASSERT(ov::is_type<ov::op::v3::ShapeOf>(shapeof_node));
-                auto cst_node =
-                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, matched_param->get_shape());
-                ov::replace_node(shapeof_node, cst_node);
-            } else {
-                NPUW_ASSERT(users.size() == 1u);
-            }
-
-            // Redirect second concat input to every node which reads from concat
-            auto curr_kv_tensor = matched_node_concat->input(1).get_source_output();
-            for (auto target_input : matched_node_concat->output(0u).get_target_inputs()) {
-                target_input.replace_source_output(curr_kv_tensor);
-            }
-
-            return true;
-        };
-        register_matcher(std::make_shared<opp::Matcher>(concat, "RemoveEmptyKVTensors"), std::move(callback));
-    }
-};
-
-// Implementation of remove_empty_kv_inputs from llm_compiled_model.cpp
-bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
-    ov::pass::GraphRewrite rewr;
-    RemoveEmptyKVTensors::Context ctx;
-    rewr.add_matcher<RemoveEmptyKVTensors>(std::ref(ctx));
-    rewr.run_on_model(model);
-    for (auto old_param : ctx.old_params) {
-        model->remove_parameter(old_param);
-    }
-    ov::pass::Validate().run_on_model(model);
-    // NB: if old_params is not empty - pass has been applied
-    return !ctx.old_params.empty();
-}
-
 // Helper function to find mask parameter by traversing from Add node
 std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr<ov::Node>& add_node) {
     if (!add_node || add_node->get_input_size() < 2) {
@@ -350,14 +271,6 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     cloned_model->validate_nodes_and_infer_types();
 
     LOG_DEBUG("Model " << model_idx << " reshaped successfully");
-
-#if 0
-    // For model 0, past length is 0, so we can optimize by removing empty KV inputs
-    if (model_idx == 0 && current_past_length == 0) {
-        bool kv_optimization_applied = remove_empty_kv_inputs(cloned_model);
-        LOG_DEBUG("KV optimization applied for model 0: " << (kv_optimization_applied ? "yes" : "no"));
-    }
-#endif
 
     // Create final Attention instance after reshape
     auto final_attention = create_attention_from_model(cloned_model, past_key_sequence_dims, past_value_sequence_dims);

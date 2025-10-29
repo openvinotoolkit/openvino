@@ -105,9 +105,6 @@ struct SDPAPatternNodes {
 // Function to find SDPA pattern nodes in the model
 SDPAPatternNodes findSDPAPatternNodes(const std::shared_ptr<ov::Model>& model);
 
-// Function to remove empty KV inputs from model (optimization for model 0)
-bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model);
-
 // Function to find mask parameter by traversing from Add node
 std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr<ov::Node>& add_node);
 
