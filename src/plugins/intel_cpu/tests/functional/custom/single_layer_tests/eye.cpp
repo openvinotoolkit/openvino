@@ -109,19 +109,21 @@ protected:
     __attribute__((noinline))
     void makeLeak() {
         // volatile = no opt
-        __lsan_do_leak_check();
         volatile int* p = new int[100];
         (void)p;
+        __lsan_do_leak_check();
     }
 
     __attribute__((noinline))
     void makeAnotherLeak() {
         void* p = malloc(100);
         leaked_ptr = p;
+        __lsan_do_leak_check();
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         makeLeak();
+        makeAnotherLeak()
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
