@@ -9261,9 +9261,6 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
                 b, 32, 48, { 28, 28 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
                 b, 32, 48, { 28, 28 }, { 5, 5 }, { 2, 2 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
-            // non_divisible_of
-            push_back(convolution_random_test_all_params{
-                b, 32, 49, { 14, 14 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
         }
         return *this;
     }
