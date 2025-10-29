@@ -153,7 +153,7 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
     npu_mlir_runtime_handle_t hRuntime,                          ///< [in] handle of mlir runtime object
     uint32_t argIndex,                                           ///< [in] index of the argument
     ze_graph_argument_properties_3_t* pGraphArgumentProperties,  ///< [out] query result for graph argument properties
-    _ze_graph_argument_metadata_t* pGraphArgumentMetadata        ///< [out] query result for graph argument metadata
+    ze_graph_argument_metadata_t* pGraphArgumentMetadata         ///< [out] query result for graph argument metadata
 );
 
 ///////////////////////////////////////////////////////////////////////////////
