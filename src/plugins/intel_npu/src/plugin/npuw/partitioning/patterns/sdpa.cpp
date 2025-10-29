@@ -148,43 +148,31 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
 
         LOG_INFO("Decomposed SDPA pattern matched!");
 
-        auto matched_convert1 = node_to_output.at(convert1).get_node_shared_ptr();
-        auto matched_concat1 = node_to_output.at(concat1).get_node_shared_ptr();
-        auto matched_unsqueeze1 = node_to_output.at(unsqueeze1).get_node_shared_ptr();
-        auto matched_broadcast1 = node_to_output.at(broadcast1).get_node_shared_ptr();
-        auto matched_reshape1 = node_to_output.at(reshape1).get_node_shared_ptr();
+        // Helper lambda to extract and isolate matched nodes
+        auto isolate_matched = [&](const auto& pattern) {
+            auto matched_node = node_to_output.at(pattern).get_node_shared_ptr();
+            node_to_gptr->at(matched_node)->isolate(isol_tag);
+        };
 
-        auto matched_convert2 = node_to_output.at(convert2).get_node_shared_ptr();
-        auto matched_concat2 = node_to_output.at(concat2).get_node_shared_ptr();
-        auto matched_unsqueeze2 = node_to_output.at(unsqueeze2).get_node_shared_ptr();
-        auto matched_broadcast2 = node_to_output.at(broadcast2).get_node_shared_ptr();
-        auto matched_reshape2 = node_to_output.at(reshape2).get_node_shared_ptr();
+        // Isolate all matched nodes in the pattern
+        isolate_matched(convert1);
+        isolate_matched(concat1);
+        isolate_matched(unsqueeze1);
+        isolate_matched(broadcast1);
+        isolate_matched(reshape1);
 
-        auto matched_matmul1 = node_to_output.at(matmul1).get_node_shared_ptr();
-        auto matched_add = node_to_output.at(add).get_node_shared_ptr();
-        auto matched_matmul2 = node_to_output.at(matmul2).get_node_shared_ptr();
-        auto matched_transpose = node_to_output.at(transpose).get_node_shared_ptr();
-        auto matched_reshape3 = node_to_output.at(reshape3).get_node_shared_ptr();
+        isolate_matched(convert2);
+        isolate_matched(concat2);
+        isolate_matched(unsqueeze2);
+        isolate_matched(broadcast2);
+        isolate_matched(reshape2);
 
-        // Isolate all matched nodes with the given tag
-        node_to_gptr->at(matched_convert1)->isolate(isol_tag);
-        node_to_gptr->at(matched_concat1)->isolate(isol_tag);
-        node_to_gptr->at(matched_unsqueeze1)->isolate(isol_tag);
-        node_to_gptr->at(matched_broadcast1)->isolate(isol_tag);
-        node_to_gptr->at(matched_reshape1)->isolate(isol_tag);
-
-        node_to_gptr->at(matched_convert2)->isolate(isol_tag);
-        node_to_gptr->at(matched_concat2)->isolate(isol_tag);
-        node_to_gptr->at(matched_unsqueeze2)->isolate(isol_tag);
-        node_to_gptr->at(matched_broadcast2)->isolate(isol_tag);
-        node_to_gptr->at(matched_reshape2)->isolate(isol_tag);
-
-        node_to_gptr->at(matched_matmul1)->isolate(isol_tag);
-        node_to_gptr->at(matched_add)->isolate(isol_tag);
-        node_to_gptr->at(matched_softmax)->isolate(isol_tag);
-        node_to_gptr->at(matched_matmul2)->isolate(isol_tag);
-        node_to_gptr->at(matched_transpose)->isolate(isol_tag);
-        node_to_gptr->at(matched_reshape3)->isolate(isol_tag);
+        isolate_matched(matmul1);
+        isolate_matched(add);
+        isolate_matched(softmax);
+        isolate_matched(matmul2);
+        isolate_matched(transpose);
+        isolate_matched(reshape3);
 
         return false;  // root hasn't changed
     };

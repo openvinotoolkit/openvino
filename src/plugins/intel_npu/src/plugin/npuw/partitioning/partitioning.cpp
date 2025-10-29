@@ -1896,15 +1896,19 @@ void Partitioner::attention(const std::string& func_name) {
     LOG_BLOCK();
 
     f._attention = ov::npuw::function::Attention::from(f._model);
-    if (!f._attention) {
-        LOG_WARN("Do dynamic ranges found in the ATTN block");
-        f._pyramid_attention = ov::npuw::function::PyramidAttention::from(f._model);
-        if (!f._pyramid_attention) {
-            LOG_WARN("No pyramid attention found in the ATTN block");
-            return;
-        }
+    if (f._attention) {
+        LOG_VERB("Done");
+        return;
     }
-    LOG_VERB("Done");
+
+    LOG_WARN("No dynamic ranges found in the ATTN block");
+    f._pyramid_attention = ov::npuw::function::PyramidAttention::from(f._model);
+    if (f._pyramid_attention) {
+        LOG_VERB("Done");
+        return;
+    }
+
+    LOG_WARN("No pyramid attention found in the ATTN block");
 }
 
 void Partitioner::optimize(const std::string& func_name) {
