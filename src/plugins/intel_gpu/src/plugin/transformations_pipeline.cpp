@@ -398,12 +398,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
             !device_info.supports_immad);
-
-        manager.register_pass<ov::pass::FuseVectorizedMOE2GEMM>();
         pass_config->set_callback<ov::pass::FuseVectorizedMOE2GEMM>([&](const_node_ptr& root) -> bool {
             auto& engine = m_context->get_engine();
             const auto& info = engine.get_device_info();
-            return (info.supports_immad == false);
+            return (info.supports_immad == false) && info.arch == cldnn::gpu_arch::xe2;
         });
         bool is_pa = false;
         for (const auto& op : func->get_ops())  {
