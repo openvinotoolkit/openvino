@@ -446,7 +446,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
-    SharedStreamBuffer buf{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    SharedStreamBuffer buf{model.data(), model.get_byte_size()};
     std::istream stream(&buf);
     return import_model(stream, context, config);
 }
