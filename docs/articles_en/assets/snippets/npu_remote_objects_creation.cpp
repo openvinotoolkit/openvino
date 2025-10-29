@@ -35,6 +35,13 @@ int main() {
     }
 
     {
+        //! [file_mapping]
+        ov::intel_npu::FileDescriptor file_descriptor{"file_name"};
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, file_descriptor);
+        //! [file_mapping]
+    }
+
+    {
         //! [wrap_nt_handle]
         void* shared_buffer = nullptr;
         auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, shared_buffer);
