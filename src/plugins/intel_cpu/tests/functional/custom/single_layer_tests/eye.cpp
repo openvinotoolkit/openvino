@@ -52,7 +52,11 @@ public:
         result << "batchShape=" << ov::test::utils::vec2str(outBatchShape) << "_";
         result << netPr << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams) << "_";
-        result << std::to_string(obj.index);
+        result << std::to_string(obj.index) << "_";
+        const char* asan = std::getenv("ASAN_OPTIONS");
+        const char* lsan = std::getenv("LSAN_OPTIONS");
+        result << "ASAN_OPTIONS=" << (asan ? asan : "<not set>") << "_";
+        result << "LSAN_OPTIONS=" << (lsan ? lsan : "<not set>");
         return result.str();
     }
 
@@ -102,7 +106,7 @@ protected:
     __attribute__((noinline))
     void makeLeak() {
         // volatile = избежать оптимизации
-        OPENVINO_THROW("Leak is here");
+        OPENVINO_THROW("Failed");
         volatile int* p = new int[100];
         (void)p;
     }
