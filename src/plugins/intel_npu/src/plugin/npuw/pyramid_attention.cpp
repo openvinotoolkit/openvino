@@ -5,6 +5,11 @@
 
 #include <algorithm>
 #include <iostream>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -102,7 +107,8 @@ void patch_reshape_constants_pre_reshape(const std::shared_ptr<ov::Model>& model
             continue;
         }
 
-        LOG_INFO("Found Reshape -> MatMul pattern where MatMul input 0 is from Softmax, patching Reshape constant");
+        LOG_INFO("Found Reshape -> MatMul pattern where MatMul input 0 is from Softmax, "
+                 "patching Reshape constant");
 
         // Inspect the reshape constant (shape input)
         auto shape_source = op->input(1).get_source_output().get_node_shared_ptr();
@@ -214,17 +220,16 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
         auto original_shape = param->get_shape();
         ov::PartialShape new_shape = original_shape;
 
-        // Handle attention mask parameter - use the mask parameter found in cloned model
         if (param == cloned_mask_param) {
+            // Handle attention mask parameter - use the mask parameter found in cloned model
             // Update the last dimension to current context length
             if (new_shape.size() >= 1) {
                 new_shape[new_shape.size() - 1] = current_context_length;
                 new_shapes[param->output(0)] = new_shape;
                 LOG_DEBUG("  Mask param '" << param_name << "' shape: " << original_shape << " -> " << new_shape);
             }
-        }
-        // Handle past key parameters
-        else if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
+        } else if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
+            // Handle past key parameters
             // Use pre-analyzed sequence dimension information
             auto dim_iter = past_key_sequence_dims.find(param_name);
             if (dim_iter != past_key_sequence_dims.end()) {
@@ -238,9 +243,8 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 LOG_WARN("No pre-analyzed sequence dimension for past key param: " << param_name);
                 return std::nullopt;
             }
-        }
-        // Handle past value parameters
-        else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
+        } else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
+            // Handle past value parameters
             // Use pre-analyzed sequence dimension information
             auto dim_iter = past_value_sequence_dims.find(param_name);
             if (dim_iter != past_value_sequence_dims.end()) {
