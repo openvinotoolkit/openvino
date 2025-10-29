@@ -507,6 +507,37 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_s
     test_case.run();
 }
 
+// Test ConvTranspose with auto_pad='SAME_UPPER' WITHOUT explicit output_shape
+// This tests ONNX spec compliance: output = input * stride
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_auto_pad_same_upper_no_output_shape) {
+    // Input: [1,1,32,32], kernel=3x3, stride=1
+    // Expected output: [1,1,32,32] (per ONNX spec: output = input * stride = 32 * 1)
+    // Without the fix, OpenVINO produces [1,1,34,34] and this test fails
+    auto model = convert_model("convtranspose_auto_pad_same_upper_no_output_shape.onnx");
+
+    // Verify the output shape is correct
+    ASSERT_EQ(model->get_output_shape(0), (ov::Shape{1, 1, 32, 32}));
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_auto_pad_same_upper_stride2) {
+    // Input: [1,1,16,16], kernel=3x3, stride=2
+    // Expected output: [1,1,32,32] (per ONNX spec: output = input * stride = 16 * 2)
+    auto model = convert_model("convtranspose_auto_pad_same_upper_stride2_no_output_shape.onnx");
+
+    // Verify the output shape is correct
+    ASSERT_EQ(model->get_output_shape(0), (ov::Shape{1, 1, 32, 32}));
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_auto_pad_same_lower_no_output_shape) {
+    // Test SAME_LOWER variant
+    // Input: [1,1,32,32], kernel=3x3, stride=1
+    // Expected output: [1,1,32,32]
+    auto model = convert_model("convtranspose_auto_pad_same_lower_no_output_shape.onnx");
+
+    // Verify the output shape is correct
+    ASSERT_EQ(model->get_output_shape(0), (ov::Shape{1, 1, 32, 32}));
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_groups_w_pads) {
     auto model = convert_model("convtranspose_groups_w_pads.onnx");
 
