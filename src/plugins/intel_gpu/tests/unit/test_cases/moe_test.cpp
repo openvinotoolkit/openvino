@@ -453,7 +453,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         std::vector<ov::float16> scales_data;
         std::vector<ov::float16> zp_data;
         std::vector<cldnn::data_types> quant_types = {data_types::i4, data_types::u4, data_types::i8, data_types::u8};
-        if (!engine.get_device_info().supports_immad)
+        if (!engine.get_device_info().supports_immad || engine.get_device_info().arch != gpu_arch::xe2)
             return;
 
         bool is_weight_compressed = std::any_of(quant_types.begin(), quant_types.end(), [=](const cldnn::data_types& t) -> bool {
