@@ -99,8 +99,11 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
     ACCUMULATOR_TYPE_VEC acc_assym_weights = 0;
 #endif
 
+#if INPUT0_DIMS == 5
+    const uint input_offset = INPUT0_GET_INDEX(b,0,0,0,0);
+#else //INPUT0_DIMS == 5
     const uint input_offset = INPUT0_GET_INDEX(b,0,0,0);
-
+#endif //INPUT0_DIMS == 5
     uint filter_idx = fg * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * ISV_SIZE * OSV_SIZE * IFM_BLOCKS;
 
     const int input_x_pitch = ISV_SIZE;
