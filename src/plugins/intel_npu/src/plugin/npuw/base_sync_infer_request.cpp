@@ -554,13 +554,8 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             // function pipelining
             NPUW_ASSERT(false && "Global parameter can't be spatial");
             m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
-        } else if (is_attn_param(sub_in_idx)) {
+        } else if (is_attn_param(sub_in_idx) || is_pyramid_attn_param(sub_in_idx)) {
             // Register for future use
-            m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
-        } else if (is_pyramid_attn_param(sub_in_idx)) {
-            // Register for future use
-            // std::cout << "Subgraph " << idx << " Registering pyramid attention input: " << g_port.get_any_name()
-            //           << std::endl;
             m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
             // Input parameter is non-spatial, do normal handling
@@ -766,24 +761,24 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
     LOG_DEBUG("Binding Pyramid Attention inputs...");
     LOG_BLOCK();
 
-    auto pyramid_id = m_pyramid_selector->pyramid_id();
-    const auto& dynamic = comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
-    auto& r = request;
+    const auto pyramid_id = m_pyramid_selector->pyramid_id();
+    const auto& pyramid_attention = comp_model_desc.pyramid_attention.value();
+    const auto& attention_info = pyramid_attention._attention_infos[pyramid_id];
+    const auto& pyramid_model = pyramid_attention._compiled_models[pyramid_id];
+    auto& sub_request = request;
 
     const auto past_len = m_pyramid_selector->past_length();
-    const auto do_copy = needs_copy(idx) && !m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
 
     // Set the past k/v values first
-    for (auto&& param : dynamic.params) {
-        // const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-        const auto& iport = comp_model_desc.pyramid_attention.value()._compiled_models[pyramid_id]->inputs()[param.idx];
+    for (auto&& param : attention_info.params) {
+        const auto& iport = pyramid_model->inputs()[param.idx];
         const auto& input = m_attention_io[idx].inputs.at(param.idx);
 
-        auto input_shape = input->get_shape();
+        const auto& input_shape = input->get_shape();
         if (input_shape[param.dim] == past_len) {
-            // Optimization: Direct tensor reuse when pyramid model's expected context length
-            // matches the current past length, avoiding unnecessary tensor copying or reshaping
-            r->set_tensor(iport, input);
+            // Optimization: Direct tensor reuse when pyramid model's expected past length
+            // matches the current past length, avoiding unnecessary tensor copying
+            sub_request->set_tensor(iport, input);
             continue;
         }
 
@@ -792,22 +787,22 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
 
         LOG_DEBUG(iport);
         LOG_BLOCK();
-        if (do_copy && ov::shape_size(shape) > 0) {
-            // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
-            const auto& dst = r->get_tensor(iport);
-            LOG_DEBUG("Do copy: " << shape << "...");
-            ov::npuw::util::copy_tensor_by_dim(view,
-                                               dst,
-                                               static_cast<uint32_t>(param.dim),
-                                               static_cast<uint32_t>(param.dim));
-        } else if (do_copy && ov::shape_size(shape) == 0) {
+        if (ov::shape_size(shape) == 0) {
             // Special case for 0ths chunk.
-            // Zero the tensor shape
-            auto new_tensor = ov::get_tensor_impl(ov::Tensor(view->get_element_type(), shape, view->data()));
-            r->set_tensor(iport, new_tensor);
-        } else {
-            r->set_tensor(iport, view);
+            // Set the shape of the existing tensor to zero, which is more efficient
+            // than creating a new tensor object.
+            sub_request->get_tensor(iport)->set_shape(shape);
+            continue;
         }
+
+        // Copy past kv for other chunks
+        // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
+        const auto& dst = sub_request->get_tensor(iport);
+        LOG_DEBUG("Do copy: " << shape << "...");
+        ov::npuw::util::copy_tensor_by_dim(view,
+                                           dst,
+                                           static_cast<uint32_t>(param.dim),
+                                           static_cast<uint32_t>(param.dim));
     }  // for(params)
 
     LOG_DEBUG("Done");
