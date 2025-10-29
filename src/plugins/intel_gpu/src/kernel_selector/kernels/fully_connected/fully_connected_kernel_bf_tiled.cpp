@@ -373,20 +373,11 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     size_t output_f = bf_size.second;
 
     auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
-    std::cout << "=batch_size:" << batch_size << " tparams.tile_b:" << tparams.tile_b <<
-        " tparams.dispatch_bsv:" << tparams.dispatch_bsv << " simd:" << simd << std::endl;
-    if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0) {
-        return false;
-    }
     // If batch size is prime number, still can apply tile execution to avoid poor performance.
     if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0) {
         if ((tparams.dispatch_bsv != 1) || batch_size == 1)
             return false;
 
-        std::cout << "===batch_size:" << batch_size << " tparams.tile_b:" << tparams.tile_b <<
-            " tparams.dispatch_bsv:" << tparams.dispatch_bsv << " simd:" << simd
-            << "===ofm:" << tparams.tile_ofm << " ifm:" << tparams.tile_ifm << " k:" << tparams.tile_k
-            << "outer_ofm:" << tparams.outer_ofm << "fsv:" << tparams.dispatch_fsv << std::endl;
         size_t tile = simd;
         while (batch_size % tile != 0)
             tile--;
@@ -449,10 +440,6 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     if (total_register_bytes > max_register_bytes)
         return false;
 
-    std::cout << "=====batch_size:" << batch_size << " tparams.tile_b:" << tparams.tile_b <<
-          " tparams.dispatch_bsv:" << tparams.dispatch_bsv << " simd:" << simd
-          << "===ofm:" << tparams.tile_ofm << " ifm:" << tparams.tile_ifm << " k:" << tparams.tile_k
-          << "outer_ofm:" << tparams.outer_ofm << "fsv:" << tparams.dispatch_fsv << std::endl;
     return true;
 }
 
@@ -640,21 +627,6 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     dispatchData.tile_ms = tparams.dispatch_bsv;
     dispatchData.tile_ns = tparams.dispatch_fsv;
     dispatchData.use_slm = can_use_slm;
-    std::cout << "batch_threads:" << batch_threads
-        << " feature_threads:" << feature_threads
-        << " gws[0]:" << dispatchData.gws[0]
-        << " gws[1]:" << dispatchData.gws[1]
-        << " gws[2]:" << dispatchData.gws[2]
-        << " lws[0]:" << dispatchData.lws[0]
-        << " lws[1]:" << dispatchData.lws[1]
-        << " lws[2]:" << dispatchData.lws[2]
-        << " can_use_slm:" << can_use_slm << std::endl;
-
-    std::cout << "=====tparams.tile_b:" << tparams.tile_b <<
-          " tparams.dispatch_bsv:" << tparams.dispatch_bsv << " simd:" << simd
-          << "===ofm:" << tparams.tile_ofm << " ifm:" << tparams.tile_ifm << " k:" << tparams.tile_k
-          << "outer_ofm:" << tparams.outer_ofm << "fsv:" << tparams.dispatch_fsv << std::endl;
-
 
     return dispatchData;
 }
@@ -841,6 +813,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     auto batch_size = get_input_bf_size(params).first;
     if (batch_size % (dispatchData.tile_m * dispatchData.tile_ms) != 0) {
         jit.AddConstant(MakeJitConstant("LEFT_BATCH", 1));
+    } else {
+        jit.AddConstant(MakeJitConstant("LEFT_BATCH", 0));
     }
 
     if (!params.fused_ops.empty() && !is_swiglu_fused(params)) {
