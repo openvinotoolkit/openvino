@@ -251,6 +251,8 @@ public:
     void prepare(int64_t past_len) override {
         // Always use the largest pyramid model (last one)
         m_pyramid_id = m_pyramid_count > 0 ? m_pyramid_count - 1 : 0;
+        // Only prefill for now
+        m_case = Case::PREFILL;
     }
     int64_t length() const override {
         return -1;
