@@ -205,7 +205,6 @@ endif()
 
 if(ENABLE_KLEIDIAI_FOR_CPU)
     ov_build_kleidiai_static()
-    ov_install_static_lib(kleidiai ${OV_CPACK_COMP_CORE})
 endif()
 
 if(RISCV64)
