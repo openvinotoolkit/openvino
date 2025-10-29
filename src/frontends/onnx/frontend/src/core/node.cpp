@@ -406,8 +406,7 @@ const std::string& Node::get_name() const {
     if (m_pimpl != nullptr) {
         return m_pimpl->name();
     } else if (m_decoder != nullptr) {
-        return m_decoder->get_op_name();
-        // Add logic for m_decoder if applicable
+        return m_decoder->get_name();
     }
     FRONT_END_NOT_IMPLEMENTED(get_name);
 }

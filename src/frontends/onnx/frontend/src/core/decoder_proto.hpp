@@ -169,6 +169,10 @@ public:
         return (m_node->has_domain() ? m_node->domain() : DEFAULT_DOMAIN);
     }
 
+    const std::string& get_name() const override {
+        return (m_node->has_name() ? m_node->name() : EMPTY_NAME);
+    }
+
     bool has_attribute(const std::string& name) const override;
 
     void experimental_get_internal_structures(const void** node_def) const override {

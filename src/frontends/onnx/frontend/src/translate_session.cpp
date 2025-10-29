@@ -51,6 +51,7 @@ ov::Output<ov::Node> TranslateSession::lookup_tensor(const std::string& name) {
         auto new_param = std::make_shared<ov::op::v0::Parameter>(node_from_parent.get_element_type(),
                                                                  node_from_parent.get_partial_shape());
         new_param->set_friendly_name(node_from_parent.get_node()->get_friendly_name());
+        new_param->output(0).set_names({name});
         m_parameters.push_back(new_param);
         m_tensor_values[name] = new_param;
         return new_param;
@@ -134,13 +135,14 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             } else {
                 ov_outputs = (*translator)(node_context);
             }
+            auto name = node_context.get_name();
             for (size_t idx = 0; idx < ov_outputs.size() && idx < out_size; ++idx) {
-                const std::string& out_name = decoder->get_output_tensor_name(idx);
+                const std::string& out_name = node_context.output(static_cast<int>(idx));
                 if (is_optimized_out(ov_outputs[idx])) {
                     ov_outputs[idx].add_names({out_name});
                 } else {
                     ov_outputs[idx].set_names({out_name});
-                    ov_outputs[idx].get_node()->set_friendly_name(out_name);
+                    ov_outputs[idx].get_node()->set_friendly_name(!name.empty() ? name : out_name);
                 }
             }
         } catch (const ::ov::frontend::onnx::error::OnnxNodeValidationFailure& e) {
@@ -208,6 +210,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         tensor->translate(input);
         result->set_friendly_name(name + "/sink_port_0");
         results.push_back(result);
+        const auto& previous_operation = result->get_input_node_shared_ptr(0);
+        if (!ov::as_type_ptr<ov::op::v0::Parameter>(previous_operation)) {
+            previous_operation->set_friendly_name(name);
+        }
     }
 
     auto model_name = "onnx_Frontend_IR";

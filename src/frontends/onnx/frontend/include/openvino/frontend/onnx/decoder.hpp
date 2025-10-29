@@ -88,6 +88,8 @@ public:
 
     virtual void experimental_get_internal_structures(const void** node_def) const = 0;
 
+    virtual const std::string& get_name() const = 0;
+
     ~DecoderBaseOperation() override;
 };
 
