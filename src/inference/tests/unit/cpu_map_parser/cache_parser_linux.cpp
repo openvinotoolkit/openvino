@@ -1705,6 +1705,32 @@ LinuxCpuMapTestCase cache_mock_1 = {
     {},
 };
 
+LinuxCpuMapTestCase cache_mock_2 = {
+    5,
+    1,
+    1,
+    5,
+    {{5, 5, 0, 0, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {2, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {3, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
+        {4, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {7, 0, 0, 4, MAIN_CORE_PROC, 4, -1},
+    },
+    {
+        {"0", "0", "0-7"},
+        {"", "", ""},
+        {"2", "2", "0-7"},
+        {"3", "3", "0-7"},
+        {"4", "4", "0-7"},
+        {"", "", ""},
+        {"", "", ""},
+        {"7", "7", "0-7"},
+    },
+    {{"0,2-3,7"}},
+};
+
 TEST_P(LinuxCpuMapCacheParserTests, LinuxCache) {}
 
 INSTANTIATE_TEST_SUITE_P(CPUMap,
@@ -1737,7 +1763,8 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          cache_1sockets_4cores_2,
                                          cache_VM_cache_0,
                                          cache_mock_0,
-                                         cache_mock_1));
+                                         cache_mock_1,
+                                         cache_mock_2));
 
 TEST_P(LinuxGetCpuMapFromCoresTests, LinuxCore) {}
 
