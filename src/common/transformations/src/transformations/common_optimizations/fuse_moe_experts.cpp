@@ -395,7 +395,8 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                     inputs.emplace_back(ov::op::util::make_try_fold<ov::op::v0::Unsqueeze>(original_weight, const_0));
                 }
 
-                auto fused = ov::op::util::make_try_fold<ov::op::v0::Concat>(inputs, 0);
+                auto fused = std::make_shared<ov::op::v0::Concat>(inputs, 0);
+                fused->get_rt_info()["postponed_constant"] = true;
                 if (needs_decompress) {
                     auto convert = std::make_shared<ov::op::v0::Convert>(fused, target_type);
                     ov::mark_as_decompression(convert);
@@ -418,6 +419,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             // Extract input and residual nodes from the pattern match
             auto view_reshape_node = last_add_match.at(view_Reshape).get_node_shared_ptr();
             auto residual_input_node = last_add_match.at(residual_input).get_node_shared_ptr();
+            auto original_shape_node = last_add_match.at(original_shape).get_node_shared_ptr();
 
             // Build the fused MoE computation
             const size_t num_experts = experts.size();
@@ -489,8 +491,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             auto final_output = std::make_shared<ov::op::v1::ReduceSum>(weighted_outputs, const_0, false);
 
             // Reshape back to original shape and add residual connection
-            auto target_shape = std::make_shared<ov::op::v3::ShapeOf>(view_reshape_node, element::i64);
-            auto final_reshape = std::make_shared<ov::op::v1::Reshape>(final_output, target_shape, false);
+            auto final_reshape = std::make_shared<ov::op::v1::Reshape>(final_output, original_shape_node, false);
             auto final_add = std::make_shared<ov::op::v1::Add>(residual_input_node, final_reshape);
 
             if (last_reshape_node && !last_reshape_node->get_friendly_name().empty()) {
