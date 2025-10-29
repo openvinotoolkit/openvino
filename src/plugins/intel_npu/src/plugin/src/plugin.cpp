@@ -397,7 +397,6 @@ void Plugin::init_options() {
 
     // Special cases
     _globalConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
-    _globalConfig.enable(ov::device::id.name(), true);  // ov queries this for caching
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
