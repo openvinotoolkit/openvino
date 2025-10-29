@@ -11793,6 +11793,7 @@ struct conv_dyn_3d_test_params {
 };
 
 class conv_dyn_3d_test : public testing::TestWithParam<conv_dyn_3d_test_params> {};
+class conv_3d_test_mmad : public testing::TestWithParam<conv_dyn_3d_test_params> {};
 
 TEST_P(conv_dyn_3d_test, convolution_gpu_b_fs_zyx_fsv16_imad_quantized) {
     auto& engine = get_test_engine();
@@ -11918,6 +11919,10 @@ INSTANTIATE_TEST_SUITE_P(smoke, conv_dyn_3d_test,
     { ov::Shape{1, 16, 5, 5, 5}, ov::Shape{16, 1, 1, 3, 3, 3}, ov::Strides{1, 1, 1}, ov::Strides{1, 1, 1}, ov::CoordinateDiff{0, 0, 0}, ov::CoordinateDiff{0, 0, 0}, 16, false }
 }));
 
+INSTANTIATE_TEST_SUITE_P(smoke, conv_3d_test_mmad,
+    testing::ValuesIn(std::vector<conv_dyn_3d_test_params>{
+    { ov::Shape{32, 32, 5, 5, 5}, ov::Shape{32, 32, 3, 3, 3}, ov::Strides{1, 1, 1}, ov::Strides{1, 1, 1}, ov::CoordinateDiff{0, 0, 0}, ov::CoordinateDiff{0, 0, 0}, 1, false},
+}));
 TEST(group_convolution_f16_fw_gpu, basic_1d_group_convolution) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
@@ -12114,5 +12119,88 @@ TEST(convolution_f16_fw_gpu, basic_bfzyx_b_fs_zyx_fsv16) {
 
     for (std::size_t i = 0; i < reference_output.size(); i++) {
         ASSERT_NEAR(reference_output[i], output_mem_lock[i], 1.0);
+    }
+}
+
+TEST_P(conv_3d_test_mmad, convolution_gpu_b_fs_zyx_mmad) {
+    auto& engine = get_test_engine();
+    auto p = GetParam();
+
+    auto calculate_ref = [&](memory::ptr input, memory::ptr weights,
+                             memory::ptr a_zp, memory::ptr compensation, ExecutionConfig config) {
+        auto in_layout = input->get_layout();
+
+        topology topology_ref(
+            input_layout("input", in_layout),
+            data("weights", weights),
+            data("a_zp", a_zp),
+            data("compensation", compensation),
+            convolution("conv", input_info("input"), "weights", no_bias, "", "a_zp", "compensation",
+                        p.groups, p.stride, p.dilation, p.pad_begin, p.pad_end, false, data_types::f32));
+
+        network network_ref(engine, topology_ref, config);
+        network_ref.set_input_data("input", input);
+
+        auto outputs_ref = network_ref.execute();
+
+        return outputs_ref.at("conv").get_memory();
+    };
+
+
+
+    auto in_layout = layout{p.in_shape, data_types::u8, format::b_fs_zyx_fsv32};
+    auto input = engine.allocate_memory({ p.in_shape, data_types::u8, format::b_fs_zyx_fsv32 });
+    auto weights = engine.allocate_memory({p.wei_shape, data_types::i8, format::bfzyx});
+
+    auto a_zp_shape = ov::Shape(p.in_shape.size(), 1);
+    a_zp_shape[1] = p.in_shape[1];
+    auto a_zp = engine.allocate_memory({ a_zp_shape, data_types::u8, format::bfyx });
+
+    auto compensation = engine.allocate_memory({ a_zp_shape, data_types::f32, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    VF<uint8_t> input_rnd = rg.generate_random_1d<uint8_t>(ov::shape_size(p.in_shape), 0, 10);
+    VF<int8_t> weights_rnd = rg.generate_random_1d<int8_t>(ov::shape_size(p.wei_shape), -5, 5);
+    VF<uint8_t> a_zp_rnd = rg.generate_random_1d<uint8_t>(ov::shape_size(a_zp_shape), 1, 5);
+    VF<float> compensation_rnd = rg.generate_random_1d<float>(ov::shape_size(a_zp_shape), -5, 5);
+
+    set_values(input, input_rnd);
+    set_values(weights, weights_rnd);
+    set_values(a_zp, a_zp_rnd);
+    set_values(compensation, compensation_rnd);
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weights),
+        data("a_zp", a_zp),
+        data("compensation", compensation),
+        convolution("conv", input_info("input"), "weights", no_bias, "", "a_zp", "compensation",
+                    p.groups, p.stride, p.dilation, p.pad_begin, p.pad_end, false, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_zyx_fsv32, "convolution_gpu_mmad_b_fs_yx_fsv32", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::enable_profiling(true));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), p.is_caching_test);
+    network->set_input_data("input", input);
+
+    auto inst = network->get_primitive("conv");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+
+    auto outputs = network->execute();
+
+    auto output_memory = outputs.at("conv").get_memory();
+
+    auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
+
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+
+    ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
+    for (size_t i = 0; i < output_ptr.size(); i++) {
+        ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
     }
 }
