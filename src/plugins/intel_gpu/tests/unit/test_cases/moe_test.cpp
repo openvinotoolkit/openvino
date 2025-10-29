@@ -1,4 +1,3 @@
-#if 0
 // Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 #include <iostream>
@@ -12,6 +11,7 @@
 #include <intel_gpu/primitives/moe_gemm.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/moe_gather.hpp>
+#include "intel_gpu/op/moe_compressed.hpp"
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -120,6 +120,7 @@ struct moe_gemm_test_params {
     cldnn::data_types scale_dt = cldnn::data_types::f16;
     int32_t scale_group_size;
     bool weight_symmetric_quant;
+    bool is_pa;
 };
 
 template <typename T>
@@ -209,7 +210,7 @@ void get_reference(const std::vector<ov::float16>& input,
                                     q0 -= 16;
                                 if (q1 > 7)
                                     q1 -= 16;
-                                float scale = float(weight_scale[expert_id * N + n * num_scale_groups + scale_group]);
+                                float scale = float(weight_scale[expert_id * N * num_scale_groups + n * num_scale_groups + scale_group]);
                                 ov::float16 fa0 = ov::float16((float)q0 * (float)scale);
                                 ov::float16 fa1 = ov::float16((float)q1 * (float)scale);
                                 acc += (float)fa0 * input_r[2 * ki];
@@ -217,8 +218,8 @@ void get_reference(const std::vector<ov::float16>& input,
                             } else if (weight_dt == cldnn::data_types::u4 && !is_weight_symmetric_quant) {
                                 uint8_t q0 = (static_cast<uint8_t>(weight_r[ki]) & 0x0F);
                                 uint8_t q1 = (static_cast<uint8_t>(weight_r[ki]) >> 4) & 0x0F;
-                                float scale = float(weight_scale[expert_id * N + n * num_scale_groups + scale_group]);
-                                float zp = float(weight_zp[expert_id * N + n * num_scale_groups + scale_group]);
+                                float scale = float(weight_scale[expert_id * N * num_scale_groups + n * num_scale_groups + scale_group]);
+                                float zp = float(weight_zp[expert_id * N * num_scale_groups + n * num_scale_groups + scale_group]);
                                 float fa0 = (float(q0) - zp) * scale;
                                 float fa1 = (float(q1) - zp) * scale;
                                 acc += fa0 * input_r[2 * ki];
@@ -267,13 +268,13 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         const int num_scale_groups = K / group_size;
 
         for (int b = 0; b < B; b++) {
-            for (int m = 0; m < N; m++) {
+            for (int n = 0; n < N; n++) {
                 int group_iter = 0;
                 while (group_iter * group_size < K) {
                     ov::float16 amax = std::numeric_limits<ov::float16>::lowest();
                     ov::float16 amin = std::numeric_limits<ov::float16>::max();
                     for (int ki = 0; ki < group_size; ki++) {
-                        ov::float16 v = weight_fp[b * N * K + m * K + group_iter * group_size + ki];
+                        ov::float16 v = weight_fp[b * N * K + n * K + group_iter * group_size + ki];
                         amax = std::max(amax, v);
                         amin = std::min(amin, v);
                     }
@@ -289,17 +290,17 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                         ov::float16 zp = zp_tmp;
                         // quantize asym u4
                         for (int ki = 0; ki < group_size / num_elements_per_byte; ki++)  {
-                            ov::float16 v0 = weight_fp[(b * N * K) + (m * K) + (group_iter * group_size) + num_elements_per_byte * ki];
-                            ov::float16 v1 = weight_fp[(b * N * K) + (m * K) + (group_iter * group_size) + num_elements_per_byte * ki + 1];
+                            ov::float16 v0 = weight_fp[(b * N * K) + (n * K) + (group_iter * group_size) + num_elements_per_byte * ki];
+                            ov::float16 v1 = weight_fp[(b * N * K) + (n * K) + (group_iter * group_size) + num_elements_per_byte * ki + 1];
                             uint8_t q0 = std::min(std::max((uint8_t)(float(v0) * inv_scale + (float)zp), (uint8_t)0), q_max); // u4
                             uint8_t q1 = std::min(std::max((uint8_t)(float(v1) * inv_scale + (float)zp), (uint8_t)0), q_max); // u4
             
                             uint8_t q0q1 = (q1 << 4) | (q0 & 0x0F);
-                            weight_quantized[(b * N * K_q) + (m * K_q) + (group_iter * group_size / num_elements_per_byte) + ki] = uint8_t(q0q1);
+                            weight_quantized[(b * N * K_q) + (n * K_q) + (group_iter * group_size / num_elements_per_byte) + ki] = uint8_t(q0q1);
                         }
                         ov::float16 scale = 1 / inv_scale;
-                        weight_scale[b * N + m * num_scale_groups + group_iter ] = scale;
-                        weight_zp[b * N + m * num_scale_groups + group_iter] = zp;
+                        weight_scale[b * N + n * num_scale_groups + group_iter ] = scale;
+                        weight_zp[b * N + n * num_scale_groups + group_iter] = zp;
                     } else if (q_dt == cldnn::data_types::i4) {
                         OPENVINO_ASSERT(is_symmetric);
                         const int8_t q_max = 7;
@@ -308,15 +309,15 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                         float inv_scale = (float)q_max / abs_max;
                         // quantize sym i4
                         for (int ki = 0; ki < group_size / num_elements_per_byte; ki++) {
-                            ov::float16 v0 = weight_fp[(b * N * K) + (m * K) + (group_iter * group_size) + num_elements_per_byte * ki];
-                            ov::float16 v1 = weight_fp[(b * N * K) + (m * K) + (group_iter * group_size) + num_elements_per_byte * ki + 1];
+                            ov::float16 v0 = weight_fp[(b * N * K) + (n * K) + (group_iter * group_size) + num_elements_per_byte * ki];
+                            ov::float16 v1 = weight_fp[(b * N * K) + (n * K) + (group_iter * group_size) + num_elements_per_byte * ki + 1];
                             int8_t q0 = std::min(std::max((int8_t)(std::round(float(v0) * inv_scale)), q_min), q_max);  // u4
                             int8_t q1 = std::min(std::max((int8_t)(std::round(float(v1) * inv_scale)), q_min), q_max);  // u4
                             uint8_t q0q1 = ((uint8_t)q1 << 4) | ((uint8_t)q0 & 0x0F);
-                            weight_quantized[b * N * K_q + (m * K_q) + (group_iter * group_size / num_elements_per_byte) + ki] = q0q1;
+                            weight_quantized[b * N * K_q + (n * K_q) + (group_iter * group_size / num_elements_per_byte) + ki] = q0q1;
                         }
                         ov::float16 scale = 1 / inv_scale;
-                        weight_scale[b * N + m * num_scale_groups + group_iter] = scale;
+                        weight_scale[b * N * num_scale_groups + n * num_scale_groups + group_iter] = scale;
                     }
                     group_iter++;
                 }
@@ -326,10 +327,19 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
 
     void create_weight_data_and_topology(T& p, topology& topo, std::vector<ov::float16>& experts_data_f16, std::vector<uint8_t>& experts_data_quant,
                          std::vector<ov::float16>& scales_data, std::vector<ov::float16>& zp_data, bool is_weight_compressed) {
+        ov::intel_gpu::op::MOECompressed::Config moe_config;
+        moe_config.top_k = p.num_experts_per_token;
+        moe_config.num_expert = p.num_total_experts;
+        moe_config.has_batch_dim = !p.is_pa;
+        moe_config.hidden_size = p.hidden_size;
+        moe_config.inter_size = p.out_N;
+        auto num_scale_groups = p.hidden_size / p.scale_group_size;
         auto input_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(p.hidden_size)};
         auto input_act_layout = layout{input_shape, p.input_dt, format::bfyx};
 
-        auto experts_shape = ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(p.hidden_size)};
+        auto experts_shape = num_scale_groups > 1
+                                 ? ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(num_scale_groups), ov::Dimension(p.scale_group_size)}
+                                 : ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(p.hidden_size)};
         auto experts_f16_layout = layout{experts_shape, data_types::f16, format::bfyx};
 
         auto experts_ids_shape = ov::PartialShape{ov::Dimension::dynamic()};
@@ -373,14 +383,14 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
 
         if (is_weight_compressed) {
             experts_data_quant.resize(p.num_total_experts * p.hidden_size * p.out_N / 2);
-            auto num_scale_groups = p.hidden_size / p.scale_group_size;
             scales_data.resize(p.num_total_experts * p.out_N * num_scale_groups);
             if (!p.weight_symmetric_quant) {
                 zp_data.resize(p.num_total_experts * p.out_N * num_scale_groups);
             }
             quantize_4bit(experts_data_f16, experts_data_quant, p.weight_dt, p.num_total_experts, p.out_N, p.hidden_size, p.scale_group_size, p.weight_symmetric_quant, scales_data, zp_data);
             set_values(experts_mem, experts_data_quant);
-            auto scale_shape = ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(num_scale_groups)};
+            auto scale_shape = num_scale_groups > 1 ? ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(num_scale_groups), ov::Dimension(1)} : 
+                                                    ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(1)};
             auto scale_layout = layout{scale_shape, data_types::f16, format::bfyx};
             auto scale_mem = engine.allocate_memory(scale_layout);
             set_values(scale_mem, scales_data);
@@ -390,7 +400,8 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
             topo.add(moe_experts_prim);
             topo.add(moe_experts_scale_prim);
             if (!p.weight_symmetric_quant) {
-                auto zp_shape = ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(num_scale_groups)};
+                auto zp_shape = num_scale_groups > 1 ? ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(num_scale_groups), ov::Dimension(1)} : 
+                                                       ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(1)};
                 auto zp_layout = layout{zp_shape, data_types::f16, format::bfyx};
                 auto zp_mem = engine.allocate_memory(zp_layout);
                 set_values(zp_mem, zp_data);
@@ -405,7 +416,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                     input_info("moe_experts_scale"),
                     input_info("moe_experts_zp"),
                 };
-                auto moe_gemm_prim = moe_gemm("moe_gemm", inputs, p.num_experts_per_token);
+                auto moe_gemm_prim = moe_gemm("moe_gemm", inputs, moe_config);
                 moe_gemm_prim.has_bias = false;
                 topo.add(moe_gemm_prim);
             } else {
@@ -418,7 +429,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                     input_info("moe_experts_scale"),
                 };
 
-                auto moe_gemm_prim = moe_gemm("moe_gemm", inputs, p.num_experts_per_token);
+                auto moe_gemm_prim = moe_gemm("moe_gemm", inputs, moe_config);
                 topo.add(moe_gemm_prim);
             }
         } else {
@@ -430,7 +441,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                                               input_info("experts_ids"),
                                               input_info("input_offset_per_expert"),
                                               input_info("input_tokens_lens")};
-            auto moe_gemm_prim = moe_gemm("moe_gemm", inputs, p.num_experts_per_token);
+            auto moe_gemm_prim = moe_gemm("moe_gemm", inputs, moe_config);
             topo.add(moe_gemm_prim);
         }
     }
@@ -442,7 +453,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         std::vector<ov::float16> scales_data;
         std::vector<ov::float16> zp_data;
         std::vector<cldnn::data_types> quant_types = {data_types::i4, data_types::u4, data_types::i8, data_types::u8};
-        if (engine.get_device_info().supports_immad)
+        if (!engine.get_device_info().supports_immad)
             return;
 
         bool is_weight_compressed = std::any_of(quant_types.begin(), quant_types.end(), [=](const cldnn::data_types& t) -> bool {
@@ -465,7 +476,8 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
 
         const auto M = p.phase == PHASE::UP ? p.num_tokens : p.num_tokens * p.num_experts_per_token;
         auto input_data = get_input_data(M, p.hidden_size, rg);
-        auto input_data_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(M), ov::Dimension(p.hidden_size)};
+        auto input_data_shape = p.is_pa ? ov::PartialShape{ov::Dimension(M), ov::Dimension(1), ov::Dimension(p.hidden_size)}
+                                        : ov::PartialShape{ov::Dimension(1), ov::Dimension(M), ov::Dimension(p.hidden_size)};
         auto input_data_layout = layout{input_data_shape, data_types::f16, format::bfyx};
         auto input_mem = engine.allocate_memory(input_data_layout);
         set_values(input_mem, input_data);
@@ -505,7 +517,6 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         auto outputs = network.execute();
         auto output = outputs.at("moe_gemm").get_memory();
         cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
-        std::cout << "out[0]" << output_ptr[0] << std::endl;
         std::vector<ov::float16> output_ref(M * p.out_N, 0.0f);
         if (is_weight_compressed) {
             get_reference<uint8_t>(input_data,
@@ -575,7 +586,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                // f16 / up
                                                                                moe_gemm_test_params{
                                                                                    PHASE::UP /*phase*/,
-                                                                                   1,                     /*num_tokens*/
+                                                                                   1,                      /*num_tokens*/
                                                                                    32,                     /*num_total_experts*/
                                                                                    4,                      /*num_experts_per_token*/
                                                                                    4,                      /*num_actually_used_experts*/
@@ -593,7 +604,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                // f16 / down
                                                                                moe_gemm_test_params{
                                                                                    PHASE::UP /*phase*/,
-                                                                                   1,                     /*num_tokens*/
+                                                                                   1,                      /*num_tokens*/
                                                                                    32,                     /*num_total_experts*/
                                                                                    4,                      /*num_experts_per_token*/
                                                                                    4,                      /*num_actually_used_experts*/
@@ -608,7 +619,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    /*scale_group_size*/  // not used
                                                                                    false                 /*weight_symmetric_quant*/
                                                                                },
- 
                                                                                // i4 / symmetric/ group size 32 / prefill
                                                                                moe_gemm_test_params{
                                                                                    PHASE::PREFILL /*phase*/,
@@ -623,7 +633,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::i4,  /*weight_dt*/
                                                                                    cldnn::data_types::f16, /*scale_dt*/
                                                                                    32,                     /*scale_group_size*/
-                                                                                   true                    /*weight_symmetric_quant*/
+                                                                                   true,                   /*weight_symmetric_quant*/
+                                                                                   true,                   /*is_pa*/
                                                                                },
                                                                                // i4 / symmetric/ group size 32 / up
                                                                                moe_gemm_test_params{
@@ -722,8 +733,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    false                   /*weight_symmetric_quant*/
                                                                                }}));
 
-
-
 // moe_gather
 template <typename T>
 void test_moe_gather(bool is_caching_test, int k) {
@@ -741,6 +750,12 @@ void test_moe_gather(bool is_caching_test, int k) {
     size_t hidden_size = k;
     int32_t num_experts_per_token = 2;
 
+    ov::intel_gpu::op::MOECompressed::Config moe_config;
+    moe_config.top_k = 2;
+    moe_config.hidden_size = k;
+    moe_config.num_expert = num_total_experts;
+    moe_config.has_batch_dim = false;
+
     auto input_activation_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension(hidden_size)};
     auto input_activation_layout = layout{input_activation_shape, data_types::f16, format::bfyx};
 
@@ -750,7 +765,7 @@ void test_moe_gather(bool is_caching_test, int k) {
     topology topology(
         input_layout("input", input_activation_layout),
         input_layout("tokens_per_expert", tokens_per_expert_layout),
-        moe_gather("moe_gather", input_info("input"), input_info("tokens_per_expert"), num_experts_per_token)
+        moe_gather("moe_gather", input_info("input"), input_info("tokens_per_expert"), moe_config)
     );
     auto input_data_shape = ov::PartialShape{ov::Dimension(num_tokens), ov::Dimension(hidden_size)};
     auto input_data_layout = layout{input_data_shape, data_types::f16, format::bfyx};
@@ -842,4 +857,3 @@ TEST(moe_unit, moe_gather_test_multi_batch_unaligned) {
 TEST(moe_unit, moe_gather_test_cached) {
     test_moe_gather<float>(true, 64);
 }
-#endif
