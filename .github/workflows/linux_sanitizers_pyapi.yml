@@ -135,16 +135,16 @@ jobs:
     steps:
       - name: Check matrix for build
         id: check_matrix_build
-        # add input parsing and matching with matrix
-        if: ${{ matrix.SANITIZER != 'AddressAndLeak' }}
+        if: ${{ matrix.SANITIZER == 'AddressAndLeak' }}
         run: |
-          exit 0
+          echo Sanitizer mode: "${SANITIZER_MODE}"
         env:
           SANITIZER_MODE: ${{ inputs.sanitizerMode }}
 
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
@@ -152,6 +152,7 @@ jobs:
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
@@ -160,8 +161,10 @@ jobs:
 
       - name: System info
         uses: ./openvino/.github/actions/system_info
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
                  
       - name: Install python dependencies
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         run: |
           # todo - remove ?
           # For Python API: build and wheel packaging
@@ -181,6 +184,7 @@ jobs:
 
       - name: Restore tests execution time # ?
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -190,9 +194,11 @@ jobs:
       # Build
       #
       - name: Clean sccache stats
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         run: ${SCCACHE_PATH} --zero-stats
              
       - name: CMake configure - OpenVINO
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         run: |
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
@@ -218,18 +224,22 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: Cmake build - OpenVINO
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         run: |
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
           
       - name: Show sccache stats
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         run: ${SCCACHE_PATH} --show-stats
         
       - name: Cmake install - OpenVINO
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake --config ${{ env.CMAKE_BUILD_TYPE }}
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake --config ${{ env.CMAKE_BUILD_TYPE }}
           
       - name: Remove unused files to free space
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         run: rm -rf ${BUILD_DIR}/*
 
       #
@@ -237,6 +247,7 @@ jobs:
       #
 
       - name: Pack Artifacts
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         run: |
           pushd ${INSTALL_DIR}
             tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
@@ -250,7 +261,8 @@ jobs:
       # Upload build artifacts
       #
       - name: Upload sccache log
-        if: ${{ always() }}
+        # if: ${{ always() }}
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: sccache_log_${{ matrix.SANITIZER }}
@@ -258,7 +270,8 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO package
-        if: ${{ always() }}
+        # if: ${{ always() }}
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package_${{ matrix.SANITIZER }}
@@ -266,7 +279,8 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO tests package
-        if: ${{ always() }}
+        # if: ${{ always() }}
+        if: ${{ steps.check_matrix_build.conclusion != 'skipped' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tests_${{ matrix.SANITIZER }}
