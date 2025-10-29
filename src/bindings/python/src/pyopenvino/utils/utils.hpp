@@ -96,49 +96,6 @@ private:
     py::object m_py_stream;
 };
 
-class MemoryBuffer : public std::streambuf {
-public:
-    MemoryBuffer(char* data, std::size_t size) {
-        setg(data, data, data + size);
-    }
-
-protected:
-    pos_type seekoff(off_type off,
-                     std::ios_base::seekdir dir,
-                     std::ios_base::openmode which = std::ios_base::in) override {
-        if (!(which & std::ios_base::in)) {
-            return pos_type(off_type(-1));
-        }
-
-        const auto size = static_cast<off_type>(egptr() - eback());
-        off_type new_pos = 0;
-
-        switch (dir) {
-        case std::ios_base::beg:
-            new_pos = off;
-            break;
-        case std::ios_base::cur:
-            new_pos = static_cast<off_type>(gptr() - eback()) + off;
-            break;
-        case std::ios_base::end:
-            new_pos = size + off;
-            break;
-        default:
-            return pos_type(off_type(-1));
-        }
-        if (new_pos < 0 || new_pos > size) {
-            return pos_type(off_type(-1));
-        }
-        char* const base = eback();
-        setg(base, base + new_pos, base + size);
-        return pos_type(new_pos);
-    }
-
-    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
-        return seekoff(static_cast<off_type>(pos), std::ios_base::beg, which);
-    }
-};
-
     enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE, MODEL_DISTRIBUTION_POLICY };
 
     struct EmptyList {};
