@@ -73,18 +73,18 @@ std::shared_ptr<ov::Node> build_matmul_weights(
                         "reshape_on_decompression must be set when use_weight_decompression is true");
         OPENVINO_ASSERT(decompression_group_size.has_value(),
                         "decompression_group_size must be set when use_weight_decompression is true");
-        return initMatMulDecompressionSubgraph(weights_shape,
-                                               decompression_group_size.value(),
-                                               data_precision,
-                                               weights_precision,
-                                               decompression_precision.value(),
-                                               scale_precision.value(),
-                                               true,
-                                               decompression_multiply_type.value(),
-                                               decompression_subtract_type.value(),
-                                               reshape_on_decompression.value(),
-                                               false,
-                                               seed);
+        return initMatMulDecompressionSubgraphQuantization(weights_shape,
+                                                           decompression_group_size.value(),
+                                                           data_precision,
+                                                           weights_precision,
+                                                           decompression_precision.value(),
+                                                           scale_precision.value(),
+                                                           true,
+                                                           decompression_multiply_type.value(),
+                                                           decompression_subtract_type.value(),
+                                                           reshape_on_decompression.value(),
+                                                           false,
+                                                           seed);
     }
 }
 
@@ -173,8 +173,7 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_para
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}));
     auto clamp = std::make_shared<ov::op::v0::Clamp>(slice1, -expert_beta, expert_beta);
-    auto add1 =
-        std::make_shared<ov::op::v1::Add>(clamp, ov::test::utils::make_constant(data_precision, ov::Shape{1}));
+    auto add1 = std::make_shared<ov::op::v1::Add>(clamp, ov::test::utils::make_constant(data_precision, ov::Shape{1}));
 
     auto slice2 = std::make_shared<ov::op::v8::Slice>(
         gate_up_add,
