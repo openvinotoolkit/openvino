@@ -16,7 +16,6 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/serialize.hpp"
 #include "openvino/pass/validate.hpp"
 #include "util.hpp"
 
@@ -359,18 +358,6 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
         LOG_DEBUG("KV optimization applied for model 0: " << (kv_optimization_applied ? "yes" : "no"));
     }
 #endif
-
-    // Dump the reshaped model for debugging using OpenVINO serialize pass
-    std::string model_path = "pyramid_model_" + std::to_string(model_idx) + "_after_reshape.xml";
-    std::string weights_path = "pyramid_model_" + std::to_string(model_idx) + "_after_reshape.bin";
-    std::cout << "Dumping reshaped pyramid model " << model_idx << " to: " << model_path << std::endl;
-    try {
-        ov::pass::Serialize serialize_pass(model_path, weights_path);
-        serialize_pass.run_on_model(cloned_model);
-        std::cout << "Successfully dumped reshaped model " << model_idx << std::endl;
-    } catch (const std::exception& e) {
-        std::cout << "Failed to dump reshaped model " << model_idx << ": " << e.what() << std::endl;
-    }
 
     // Create final Attention instance after reshape
     auto final_attention = create_attention_from_model(cloned_model, past_key_sequence_dims, past_value_sequence_dims);
