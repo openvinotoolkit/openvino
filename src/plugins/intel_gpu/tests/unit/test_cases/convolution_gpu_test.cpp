@@ -12072,7 +12072,7 @@ TEST(conv_dyn_test, changed_batch_convolution_test_reorder_cache_mismatch) {
 
     auto in_shape = ov::Shape{25,3,32,32};
     auto new_shape = ov::Shape{10,3,32,32};
-    auto weight_shape = ov::Shape{256,3,14,14};
+    auto weight_shape = ov::Shape{576,3,14,14};
 
     auto calculate_ref = [&](memory::ptr input, memory::ptr weights, ExecutionConfig config) {
         auto in_layout = input->get_layout();
