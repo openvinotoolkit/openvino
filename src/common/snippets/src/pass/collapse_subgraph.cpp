@@ -90,7 +90,7 @@
 namespace ov::snippets::pass {
 
 namespace {
-auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
+auto is_supported_op(const std::shared_ptr<const Node>& n, const TokenizationConfig* config = nullptr) -> bool {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
     auto is_supported_matmul = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& matmul = ov::as_type_ptr<const opset1::MatMul>(n);
@@ -105,13 +105,32 @@ auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
         const bool is_bf16 = utils::all_of(element::bf16, intype_0, intype_1);
         return is_f32 || is_bf16 || is_int8;
     };
-    auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {
+    auto is_supported_transpose = [config](const std::shared_ptr<const Node>& n) -> bool {
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
         if (transpose) {
             const auto parent = transpose->get_input_node_shared_ptr(0);
             const auto child = transpose->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             auto is_brgemm_case = ov::is_type_any_of<opset1::MatMul, opset1::MatMul>(child);
             auto decomposition_case = true;
+            // Config-aware gating: optionally reject specific Transpose cases around MatMul
+            if (config) {
+                const auto& mm_cfg = config->get_matmul_config();
+                // Case 1: Transpose -> MatMul (before MatMul)
+                for (const auto& ti : n->output(0).get_target_inputs()) {
+                    const auto consumer = ti.get_node()->shared_from_this();
+                    if (const auto mm = ov::as_type_ptr<ov::opset1::MatMul>(consumer)) {
+                        const auto port = ti.get_index();
+                        if ((port == 0 && !mm_cfg.is_supported_transpose_a) ||
+                            (port == 1 && !mm_cfg.is_supported_transpose_b)) {
+                            return false;
+                        }
+                    }
+                }
+                // Case 2: MatMul -> Transpose (after MatMul)
+                if (ov::is_type<ov::opset1::MatMul>(parent) && !mm_cfg.is_supported_transpose_c) {
+                    return false;
+                }
+            }
             // Check for Transpose parent is MatMul inside Subgraph
             if (const auto subgraph = ov::as_type_ptr<const op::Subgraph>(parent)) {
                 if (GetSnippetsSubgraphType(subgraph) != SnippetsSubgraphType::Completed) {
@@ -270,42 +289,23 @@ const std::set<ov::element::Type>& ov::snippets::pass::TokenizeSnippets::get_sup
     return supported_element_types;
 }
 
-bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node>& node) {
-    return is_supported_op(node) && has_supported_in_out(node) && node->get_control_dependencies().empty() &&
+bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node>& node,
+                                              const TokenizationConfig* config) {
+    return is_supported_op(node, config) && has_supported_in_out(node) && node->get_control_dependencies().empty() &&
            snippets::op::Subgraph::check_broadcast(node);
 }
 
 TokenizeSnippets::TokenizeSnippets(const TokenizationConfig& config) {
     MATCHER_SCOPE(TokenizeSnippets);
 
-    auto label = ov::pass::pattern::any_input([config](const ov::Output<ov::Node>& out) {
+    auto label = ov::pass::pattern::any_input([&config](const ov::Output<ov::Node>& out) {
         const auto n = out.get_node_shared_ptr();
-        // Config-aware gating: optionally reject specific Transpose cases around MatMul
-        if (ov::is_type<ov::op::v1::Transpose>(n)) {
-            const auto& mm_cfg = config.get_matmul_config();
-            // Case 1: Transpose -> MatMul (before MatMul)
-            for (const auto& ti : n->output(0).get_target_inputs()) {
-                const auto consumer = ti.get_node()->shared_from_this();
-                if (const auto mm = ov::as_type_ptr<ov::opset1::MatMul>(consumer)) {
-                    const auto port = ti.get_index();
-                    if ((port == 0 && !mm_cfg.is_supported_transpose_a) ||
-                        (port == 1 && !mm_cfg.is_supported_transpose_b)) {
-                        return false;
-                    }
-                }
-            }
-            // Case 2: MatMul -> Transpose (after MatMul)
-            const auto parent = n->get_input_node_shared_ptr(0);
-            if (ov::is_type<ov::opset1::MatMul>(parent) && !mm_cfg.is_supported_transpose_c) {
-                return false;
-            }
-        }
         // todo: MatMul and Transpose ops are always skipped by the SnippetsMarkSkipped pass.
         //  This is a temporary solution. Either modify SnippetsMarkSkipped
         //  or align this with the custom MHA tokenization pass.
         return (GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin ||
                 ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v1::Transpose>(n)) &&
-               AppropriateForSubgraph(n);
+               AppropriateForSubgraph(n, &config);
     });
     ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")
