@@ -8,6 +8,8 @@
 #include "openvino/op/eye.hpp"
 #include <sanitizer/lsan_interface.h>
 
+static volatile void* leaked_ptr = nullptr;
+
 using namespace CPUTestUtils;
 namespace ov {
 namespace test {
@@ -106,10 +108,16 @@ protected:
 
     __attribute__((noinline))
     void makeLeak() {
-        // volatile = избежать оптимизации
+        // volatile = no opt
         __lsan_do_leak_check();
         volatile int* p = new int[100];
         (void)p;
+    }
+
+    __attribute__((noinline))
+    void makeAnotherLeak() {
+        void* p = malloc(100);
+        leaked_ptr = p;
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
