@@ -50,9 +50,9 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
     auto scale_idx = cfg.weight_scale_idx;
     auto zp_idx = cfg.weight_zp_idx;
     const auto& weight_shape = params.input_layouts[weight_idx].get_shape();
-    const auto& scale_shape = params.input_layouts[scale_idx].get_shape();
-    const auto& bias_shape = params.input_layouts[bias_idx].get_shape();
     if (cfg.is_weight_quantized) {
+        const auto& scale_shape = params.input_layouts[scale_idx].get_shape();
+        const auto& bias_shape = params.input_layouts[bias_idx].get_shape();
         if (has_bias) {
             jit.make("BIAS_DT", to_ocl_type(data_types::f16));
             jit.make("BIAS_STRIDE", bias_shape[2]);

@@ -65,10 +65,16 @@ protected:
         return std::tuple{local_threads_needed, batches_per_thread, unaligned_elements};
     }
 
+    static size_t get_hidden_size(const RuntimeParams& params) {
+        const auto& input_layout = params.get_input_layout(0);
+        size_t input_rank = input_layout.get_partial_shape().size();
+        return input_layout.get_partial_shape()[input_rank - 1].get_length();
+    }
+
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto in_l = params.input_layouts[0];
-        auto hidden_size = extract_channel(ChannelName::Y, in_l);
+        auto hidden_size = get_hidden_size(params);
         auto block_size = GetBlockSize(params);
         auto [local_threads_count, batches_per_thread, unaligned_elements]  = calc_thread_count(
             const_cast<RuntimeParams&>(params), block_size, hidden_size);
@@ -98,12 +104,13 @@ protected:
         return args;
     }
 
+
+
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             auto& wgs = kd.params.workGroups;
-
             if (!params.is_dynamic()) {
-                auto hidden_size = extract_channel(ChannelName::Y, params.input_layouts[0]);
+                auto hidden_size = get_hidden_size(params);
                 auto block_size = GetBlockSize(params);
                 auto [local_threads_count, batches_per_thread, unaligned_elements]  = calc_thread_count(
                     const_cast<RuntimeParams&>(params), block_size, hidden_size);
