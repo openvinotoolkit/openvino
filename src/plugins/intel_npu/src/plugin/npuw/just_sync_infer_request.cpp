@@ -12,11 +12,13 @@
 #include <utility>
 
 #include "compiled_model.hpp"
+#include "infer_request_utils.hpp"  // to utilize copy_tensor_by_dim
 #include "logging.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "plugin.hpp"
+#include "pyramid_attention.hpp"
 #include "util.hpp"
 #include "weights_bank.hpp"
 
@@ -183,10 +185,23 @@ ov::npuw::TensorPtr ov::npuw::FuncMemMgr::get_tensor(const LinkFrom& from) {
 ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
     : IBaseInferRequest(compiled_model),
       m_func_mem_mgr(compiled_model) {
+    // Memory tracking: Record initial RSS
+    size_t initial_memory_kb = ov::npuw::get_process_memory_kb();
+    std::cout << "\n=== JustInferRequest Constructor Memory Tracking Start: " << initial_memory_kb
+              << " KB RSS ===" << std::endl;
+
     using namespace std::placeholders;
+
+    // Step 1: Function memory manager setup
+    size_t before_func_mgr_kb = ov::npuw::get_process_memory_kb();
     m_func_mem_mgr.set_alloc(std::bind(&JustInferRequest::allocMem, this, _1, _2, _3));
     m_func_mem_mgr.assign_memory();
+    size_t after_func_mgr_kb = ov::npuw::get_process_memory_kb();
+    std::cout << "[Step 1] Function memory manager setup: +" << (after_func_mgr_kb - before_func_mgr_kb) << " KB"
+              << std::endl;
 
+    // Step 2: Configuration setup
+    size_t before_config_kb = ov::npuw::get_process_memory_kb();
     m_closure_update_required = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FOLD>();
     m_use_function_pipelining = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
     if (m_use_function_pipelining) {
@@ -197,13 +212,23 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     m_spatial_io.resize(m_num_submodels);
     m_attention_io.resize(m_num_submodels);
+    size_t after_config_kb = ov::npuw::get_process_memory_kb();
+    std::cout << "[Step 2] Configuration and resize: +" << (after_config_kb - before_config_kb) << " KB" << std::endl;
 
+    // Step 3: Create infer requests loop
+    size_t before_infer_requests_kb = ov::npuw::get_process_memory_kb();
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
     bool failover_happened = false;
     bool has_spatial = false;
     bool has_dynamic = false;
+    bool has_pyramid = false;
     std::size_t dynamic_sub_idx = -1;
+    std::size_t pyramid_sub_idx = -1;
+
+    size_t total_create_infer_request_kb = 0;
+    size_t total_pyramid_setup_kb = 0;
+
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -261,6 +286,16 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
             }  // if(dynamic)
 
+            if (proto_comp_model_desc.pyramid_attention) {
+                // Sanity check first
+                if (has_pyramid && pyramid_sub_idx != real_idx) {
+                    OPENVINO_THROW("Only single pyramid attention type is permitted for model");
+                }
+                has_pyramid = true;
+                pyramid_sub_idx = real_idx;
+                m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
+            }  // if(pyramid)
+
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
                 m_funcall_result[from] = m_func_mem_mgr.get_tensor(from);
@@ -276,7 +311,15 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         // Special cases are handled -- so nothing to do here
         const bool is_piped = is_pipelined(i);
         bool recompiled = false;
+
+        // Measure create_infer_requests impact
+        size_t before_create_rq_kb = ov::npuw::get_process_memory_kb();
         auto rqs = create_infer_requests(i, is_piped ? 2 : 1, &recompiled);
+        size_t after_create_rq_kb = ov::npuw::get_process_memory_kb();
+        size_t create_rq_increase_kb =
+            (after_create_rq_kb > before_create_rq_kb) ? (after_create_rq_kb - before_create_rq_kb) : 0;
+        total_create_infer_request_kb += create_rq_increase_kb;
+
         failover_happened |= recompiled;
         m_subrequests[i] = rqs.at(0);
         m_subrequest_devices[i] = *comp_model_desc.device_it;
@@ -284,8 +327,31 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             m_funcall_pipeline[i].subrequest = rqs.at(1);
         }
 
+        // Create infer requests for pyramid attention models if present (only for function calls)
+        if (comp_model_desc.replaced_by) {
+            const auto real_idx = comp_model_desc.replaced_by.value();
+
+            // Measure pyramid setup impact
+            size_t before_pyramid_kb = ov::npuw::get_process_memory_kb();
+            setup_pyramid_infer_requests(real_idx, is_piped, false);
+            size_t after_pyramid_kb = ov::npuw::get_process_memory_kb();
+            size_t pyramid_increase_kb =
+                (after_pyramid_kb > before_pyramid_kb) ? (after_pyramid_kb - before_pyramid_kb) : 0;
+            total_pyramid_setup_kb += pyramid_increase_kb;
+
+            if (pyramid_increase_kb > 0) {
+                std::cout << "  [Subgraph " << i << "] Pyramid setup: +" << pyramid_increase_kb << " KB" << std::endl;
+            }
+        }
+
         LOG_INFO("DONE");
     }  // for(submodels)
+
+    size_t after_infer_requests_kb = ov::npuw::get_process_memory_kb();
+    std::cout << "[Step 3] Create infer requests loop TOTAL: +" << (after_infer_requests_kb - before_infer_requests_kb)
+              << " KB" << std::endl;
+    std::cout << "  - create_infer_requests cumulative: +" << total_create_infer_request_kb << " KB" << std::endl;
+    std::cout << "  - pyramid setup cumulative: +" << total_pyramid_setup_kb << " KB" << std::endl;
 
     if (failover_happened) {
         LOG_INFO("Refined device distribution:");
@@ -324,10 +390,17 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
     }  // if(function_pipelining)
 
+    // Step 4: alloc_io, connect_subrequests, init_gio
+    size_t before_connections_kb = ov::npuw::get_process_memory_kb();
     alloc_io();
     connect_subrequests();
     init_gio();
+    size_t after_connections_kb = ov::npuw::get_process_memory_kb();
+    std::cout << "[Step 4] alloc_io + connect_subrequests + init_gio: +"
+              << (after_connections_kb - before_connections_kb) << " KB" << std::endl;
 
+    // Step 5: Preemptive tensor setting
+    size_t before_tensors_kb = ov::npuw::get_process_memory_kb();
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -347,8 +420,12 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
         LOG_VERB("Done");
     }
+    size_t after_tensors_kb = ov::npuw::get_process_memory_kb();
+    std::cout << "[Step 5] Preemptive tensor setting: +" << (after_tensors_kb - before_tensors_kb) << " KB"
+              << std::endl;
 
     // Handle spatial dynamic submission
+    size_t before_spatial_kb = ov::npuw::get_process_memory_kb();
     if (has_spatial) {
         if (m_npuw_model->m_cfg.get<::intel_npu::NPUW_SPATIAL_DYN>()) {
             LOG_VERB("Finding spatial features...");
@@ -365,8 +442,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
         LOG_VERB("Done");
     }
+    size_t after_spatial_kb = ov::npuw::get_process_memory_kb();
+    std::cout << "[Step 6] Spatial selector setup: +" << (after_spatial_kb - before_spatial_kb) << " KB" << std::endl;
 
     // Handle dynamic submission
+    size_t before_dynamic_kb = ov::npuw::get_process_memory_kb();
     if (has_dynamic) {
         if (!m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_DYN>()) {
             // Even if the attention is detected and ready to go dynamic,
@@ -383,6 +463,33 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
         LOG_VERB("Done");
     }
+    size_t after_dynamic_kb = ov::npuw::get_process_memory_kb();
+    std::cout << "[Step 7] Dynamic attention selector setup: +" << (after_dynamic_kb - before_dynamic_kb) << " KB"
+              << std::endl;
+
+    // Handle pyramid attention
+    size_t before_pyramid_selector_kb = ov::npuw::get_process_memory_kb();
+    if (has_pyramid) {
+        const auto& pyramid_dyn = m_npuw_model->m_compiled_submodels.at(pyramid_sub_idx).pyramid_attention.value();
+        m_pyramid_selector = runtime::pyramid_attention::PositionIDs::find(pyramid_dyn, *this);
+        if (!m_pyramid_selector) {
+            LOG_WARN("Pyramid dynamic capability is enabled, but no run-time features were found.");
+            // Create All selector with the number of pyramid models
+            const auto pyramid_count = pyramid_dyn._compiled_models.size();
+            m_pyramid_selector.reset(new runtime::pyramid_attention::All(pyramid_count));
+        }
+    }
+    size_t after_pyramid_selector_kb = ov::npuw::get_process_memory_kb();
+    std::cout << "[Step 8] Pyramid selector setup: +" << (after_pyramid_selector_kb - before_pyramid_selector_kb)
+              << " KB" << std::endl;
+
+    // Final summary
+    size_t final_memory_kb = ov::npuw::get_process_memory_kb();
+    size_t total_increase_kb = (final_memory_kb > initial_memory_kb) ? (final_memory_kb - initial_memory_kb) : 0;
+    std::cout << "=== JustInferRequest Constructor Memory Tracking End ===" << std::endl;
+    std::cout << "Total RSS increase: " << total_increase_kb << " KB (" << (total_increase_kb / 1024) << " MB)"
+              << std::endl;
+    std::cout << "Final RSS: " << final_memory_kb << " KB (" << (final_memory_kb / 1024) << " MB)\n" << std::endl;
 }
 
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
@@ -492,6 +599,25 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Preparing to infer...");
     LOG_BLOCK();
 
+    if (m_pyramid_selector) {
+        m_pyramid_selector->prepare(get_history_size());
+
+        // Get the pyramid model ID based on current sequence length (updated in prepare())
+        auto pyramid_id = m_pyramid_selector->pyramid_id();
+        std::cout << "Switch to pyramid id: " << pyramid_id << " past length: " << m_pyramid_selector->past_length()
+                  << std::endl;
+
+        for (auto&& id : m_funcall_heads) {
+            auto& comp_model_desc = m_npuw_model->m_compiled_submodels[id];
+            if (comp_model_desc.pyramid_attention.has_value()) {
+                m_subrequests[id] = comp_model_desc.pyramid_infer_requests[pyramid_id];
+                if (is_pipelined(id)) {
+                    m_funcall_pipeline[id].subrequest = comp_model_desc.pyramid_pipeline_requests[pyramid_id];
+                }
+            }
+        }
+    }
+
     // Submit global parameters (if needed) for the first subgraph
     bind_global_parameters(next(0));
 
@@ -578,8 +704,17 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
 
     const bool is_spatial = func_desc.spatial.has_value();
     const bool is_dynamic = func_desc.attention.has_value();
+    const bool is_pyramid = func_desc.pyramid_attention.has_value();
 
     const auto non_dynamic_act_in = [](const ov::npuw::compiled::Attention& d, std::size_t in_idx) {
+        const bool not_param = std::none_of(d.params.begin(), d.params.end(), [&](auto&& p) {
+            return p.idx == in_idx;
+        });
+        const bool not_mask = in_idx != d.mask_idx;
+        return not_param && not_mask;
+    };
+
+    const auto non_pyramid_act_in = [](const ov::npuw::compiled::PyramidAttentionInfo& d, std::size_t in_idx) {
         const bool not_param = std::none_of(d.params.begin(), d.params.end(), [&](auto&& p) {
             return p.idx == in_idx;
         });
@@ -624,6 +759,13 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 } else {
                     m_attention_io[idx].inputs.at(i) = i_tensor;
                 }
+            } else if (is_pyramid) {
+                auto pyramid_id = m_pyramid_selector->pyramid_id();
+                if (non_pyramid_act_in(func_desc.pyramid_attention.value()._attention_infos[pyramid_id], i)) {
+                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                } else {
+                    m_attention_io[idx].inputs.at(i) = i_tensor;
+                }
             } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -636,6 +778,10 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         m_profile["attn(act)"] += ov::npuw::perf::ms_to_run([&]() {
             function_prologue_attn(real_idx, idx);
         });
+    }
+
+    if (is_pyramid) {
+        function_prologue_pyramid_attn(real_idx, idx);
     }
 
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
@@ -746,6 +892,67 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
     }
 }
 
+void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real_idx, std::size_t idx) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    NPUW_ASSERT(comp_model_desc.pyramid_attention.has_value());
+
+    auto& r = m_subrequests[real_idx];
+
+    auto pyramid_id = m_pyramid_selector->pyramid_id();
+
+    const auto& dynamic = comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+    auto mask_iport =
+        comp_model_desc.pyramid_attention.value()._compiled_models[pyramid_id]->inputs()[dynamic.mask_idx];
+
+    const auto& graph_mask = m_attention_io[idx].inputs.at(dynamic.mask_idx);
+    const auto this_case = m_pyramid_selector->this_case();
+
+    const auto past_len = m_pyramid_selector->past_length();
+    const auto present_len = dynamic.query_size;
+    // FIXME: get the right dim
+    const uint32_t kv_dim = 3;
+
+    // Now set the mask. Here comes very strong chunking & SDPA knowledge again
+    using namespace ov::npuw::runtime;
+    if (this_case == pyramid_attention::Selector::Case::GENERATE) {
+        NPUW_ASSERT(false && "Not implemented for GENERATE");
+    } else if (this_case == pyramid_attention::Selector::Case::PREFILL) {
+        // Use our in-graph synthesized mask
+        if (m_cached_attention_mask) {
+            // All sub models are sharing the same attention mask, we can use the cached attention
+            // mask directly to avoid redundant tensor copy
+            m_subrequests[real_idx]->set_tensor(mask_iport, m_cached_attention_mask);
+            return;
+        }
+
+        // Handle attention mask concatenation for SDPA:
+        // The attention mask is composed with 2 parts:
+        // The 1st part is for the "present", which is at the tail: starting from past_len to context_len
+        // The 2nd part is for the "past", which is at the beginning: starting from 0 to past_len
+        auto full_mask_shape = graph_mask->get_shape();
+        auto actual_mask_shape = full_mask_shape;
+        actual_mask_shape[kv_dim] = present_len + past_len;
+
+        const auto& dst = r->get_tensor(mask_iport);
+
+        // Copy "present" attention mask
+        const auto& present_dst_view = ov::npuw::util::view(dst, kv_dim, past_len, present_len);
+        const auto& present_src_view =
+            ov::npuw::util::view(graph_mask, kv_dim, full_mask_shape[kv_dim] - present_len, present_len);
+        ov::npuw::util::copy_tensor_by_dim(present_src_view, present_dst_view, kv_dim, kv_dim);
+
+        // Copy "past" attention mask
+        if (past_len > 0) {
+            const auto& past_dst_view = ov::npuw::util::view(dst, kv_dim, 0, past_len);
+            const auto& past_src_view = ov::npuw::util::view(graph_mask, kv_dim, 0, past_len);
+            ov::npuw::util::copy_tensor_by_dim(past_src_view, past_dst_view, kv_dim, kv_dim);
+        }
+        m_cached_attention_mask = dst;
+    } else {
+        NPUW_ASSERT(false && "Reached the unreachable code");
+    }
+}
+
 void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     auto real_idx = comp_model_desc.replaced_by.value_or(idx);
@@ -762,6 +969,12 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     if (is_piped) {
         m_funcall_pipeline[real_idx].subrequest = new_rqs.at(1);
     }
+
+    // Recreate pyramid infer requests if present (only for function calls)
+    if (comp_model_desc.replaced_by) {
+        setup_pyramid_infer_requests(real_idx, is_piped, true);
+    }
+
     // After an infer request is recreated, the internal cross-request
     // connections should be re-established (in/out tensors reset properly)
     // Note: these two proceduers do the full I/O reset procedure what's
@@ -769,6 +982,101 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // but it is a more complex thing and can be implemented separately
     connect_subrequests();
     m_subrequest_devices[idx] = *comp_model_desc.device_it;
+}
+
+void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
+    auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+    if (!proto_comp_model_desc.pyramid_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO((is_recreate ? "Recreating" : "Creating") << " pyramid infer requests...");
+    LOG_BLOCK();
+
+    const auto& pyramid_attention = proto_comp_model_desc.pyramid_attention.value();
+    const auto& compiled_models = pyramid_attention._compiled_models;
+
+    // Clear existing requests if recreating
+    if (is_recreate) {
+        proto_comp_model_desc.pyramid_infer_requests.clear();
+        proto_comp_model_desc.pyramid_pipeline_requests.clear();
+    }
+
+    // Initialize pyramid infer requests storage
+    proto_comp_model_desc.pyramid_infer_requests.resize(compiled_models.size());
+    if (is_piped) {
+        proto_comp_model_desc.pyramid_pipeline_requests.resize(compiled_models.size());
+    }
+
+    // Create infer requests for all pyramid models except the last one
+    // The last pyramid model uses the original model's infer requests
+    for (size_t model_id = 0; model_id < compiled_models.size() - 1; ++model_id) {
+        try {
+            // Create primary infer request
+            auto pyramid_request = compiled_models[model_id]->create_infer_request();
+            proto_comp_model_desc.pyramid_infer_requests[model_id] = pyramid_request;
+
+            // Create pipeline infer request if needed
+            if (is_piped) {
+                auto pyramid_pipeline_request = compiled_models[model_id]->create_infer_request();
+                proto_comp_model_desc.pyramid_pipeline_requests[model_id] = pyramid_pipeline_request;
+            }
+
+        } catch (const std::exception& ex) {
+            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
+                                   << model_id << "]: " << ex.what());
+            NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed");
+        } catch (...) {
+            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
+                                   << model_id << "]: Unknown error");
+            NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed with unknown error");
+        }
+
+        // Setup tensor sharing for past_key_values inputs
+        for (auto input : compiled_models[model_id]->inputs()) {
+            if (input.get_names().empty()) {
+                continue;
+            }
+
+            auto input_name = input.get_any_name();
+            if (!ov::npuw::util::isPastKeyValuesKey(input_name) && !ov::npuw::util::isPastKeyValuesValue(input_name)) {
+                continue;
+            }
+
+            // Setup primary infer request tensor
+            auto tensor = proto_comp_model_desc.pyramid_infer_requests[model_id]->get_tensor(input);
+            auto primary_ptr = m_subrequests[real_idx]->get_tensor(input)->data();
+            auto new_tensor =
+                ov::get_tensor_impl(ov::Tensor(tensor->get_element_type(), tensor->get_shape(), primary_ptr));
+            proto_comp_model_desc.pyramid_infer_requests[model_id]->set_tensor(input, new_tensor);
+
+            // Setup pipeline infer request tensor if needed
+            if (is_piped) {
+                auto pipeline_tensor = proto_comp_model_desc.pyramid_pipeline_requests[model_id]->get_tensor(input);
+                auto pipeline_tensor_ptr = m_funcall_pipeline[real_idx].subrequest->get_tensor(input)->data();
+                auto pipeline_new_tensor = ov::get_tensor_impl(
+                    ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), pipeline_tensor_ptr));
+                proto_comp_model_desc.pyramid_pipeline_requests[model_id]->set_tensor(input, pipeline_new_tensor);
+            }
+        }
+    }
+
+    // For the last pyramid model, reuse the original model's infer requests
+    if (compiled_models.size() > 0) {
+        const size_t last_model_id = compiled_models.size() - 1;
+        LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "original infer requests for last pyramid model["
+                            << last_model_id << "]");
+        proto_comp_model_desc.pyramid_infer_requests[last_model_id] = m_subrequests[real_idx];
+        if (is_piped) {
+            proto_comp_model_desc.pyramid_pipeline_requests[last_model_id] = m_funcall_pipeline[real_idx].subrequest;
+        }
+    }
+
+    if (!is_recreate && compiled_models.size() > 0) {
+        LOG_INFO("Successfully created " << (compiled_models.size() - 1)
+                                         << " new pyramid infer requests and reused 1 original request");
+    }
 }
 
 void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, bool& failover) {

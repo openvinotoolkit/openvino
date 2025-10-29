@@ -376,6 +376,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     m_compiled_submodels[id].attention =
                         compiled::Attention(fcn_template._attention.value(), fcn_template._model);
                 }
+
+                if (fcn_template._pyramid_attention) {
+                    std::cout << "Creating compiled PyramidAttention for function " << subgraph._funcall << std::endl;
+                    m_compiled_submodels[id].pyramid_attention =
+                        compiled::PyramidAttention(fcn_template._pyramid_attention.value());
+                }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
@@ -1339,6 +1345,10 @@ void ov::npuw::CompiledModel::detach_memory() {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
             proto_comp_model_desc.model.reset();
         }
+
+        if (proto_comp_model_desc.pyramid_attention.has_value()) {
+            proto_comp_model_desc.pyramid_attention.value()._models.clear();
+        }
     }
     LOG_INFO("Done");
 }
@@ -1507,6 +1517,38 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
         m_profile["compile/" + device_to_try].record([&]() {
             m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
         });
+
+        if (m_compiled_submodels[id].pyramid_attention.has_value()) {
+            std::cout << "Compile pyramid attention submodels" << std::endl;
+            size_t model_id = 0;
+            size_t total_models = m_compiled_submodels[id].pyramid_attention.value()._models.size();
+
+            for (auto model : m_compiled_submodels[id].pyramid_attention.value()._models) {
+                // Optimization: The last model is the same as the original model, reuse its compiled version
+                if (model_id == total_models - 1) {
+                    std::cout << "Reusing already compiled original model for pyramid attention submodel[" << model_id
+                              << "] (optimization)" << std::endl;
+                    NPUW_ASSERT(m_compiled_submodels[id].compiled_model && "Original compiled model should exist");
+                    m_compiled_submodels[id].pyramid_attention->_compiled_models.push_back(
+                        m_compiled_submodels[id].compiled_model);
+                } else {
+                    // Compile pyramid models 0 to total_models-2
+                    try {
+                        auto compiled = compile_submodel(model, device_to_try);
+                        NPUW_ASSERT(compiled && "Failed to compile pyramid attention submodel");
+                        m_compiled_submodels[id].pyramid_attention->_compiled_models.push_back(compiled);
+                        std::cout << "Compiled pyramid attention submodel[" << model_id << "]" << std::endl;
+                    } catch (const std::exception& ex) {
+                        LOG_ERROR("Pyramid attention submodel[" << model_id << "] Failed to compile: " << ex.what());
+                        NPUW_ASSERT(false && "Pyramid attention submodel compilation failed");
+                    } catch (...) {
+                        LOG_ERROR("Pyramid attention submodel[" << model_id << "] Failed to compile: Unknown error");
+                        NPUW_ASSERT(false && "Pyramid attention submodel compilation failed with unknown error");
+                    }
+                }
+                model_id++;
+            }
+        }
     } catch (const std::exception& ex) {
         LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
         dump_on_fail(id, device_to_try, ex.what());
