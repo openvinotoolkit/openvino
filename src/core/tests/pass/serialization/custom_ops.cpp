@@ -12,10 +12,10 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
-#include "openvino/pass/constant_folding.hpp"
 
 class CustomOpsSerializationTest : public ::testing::Test {
 protected:
@@ -332,8 +332,7 @@ TEST(PostponedConstantTest, ModelIsUnchangedAfterSerialization) {
         auto model_copy = model->clone();
         ov::pass::Serialize(serialized_xml, serialized_bin).run_on_model(model);
 
-        const auto& [success, message] =
-            compare_functions(model_copy, model, true, true, true, true, true);
+        const auto& [success, message] = compare_functions(model_copy, model, true, true, true, true, true);
         ASSERT_TRUE(success) << message;
     }
 

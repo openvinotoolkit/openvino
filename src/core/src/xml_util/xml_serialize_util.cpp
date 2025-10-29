@@ -55,7 +55,7 @@ public:
             ov::OutputVector outputs(1);
             std::shared_ptr<ov::Node> node_clone;
             if (ov::pass::constant_folding_is_disabled(node)) {
-                //clone to keep original node unchanged
+                // clone to keep original node unchanged
                 node_clone = node->clone_with_new_inputs(node->input_values());
                 node_clone->get_rt_info().erase(ov::pass::DisableConstantFolding::get_type_info_static());
                 node = node_clone.get();
