@@ -33,14 +33,6 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Build Pythons
-# Python 3.9
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz && \
-    tar xvf Python-3.9.21.tar.xz
-RUN cd /usr/src/Python-3.9.21 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
-
 # Python 3.10
 RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz && \
@@ -85,15 +77,14 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 ENV PATH="$SCCACHE_HOME:$PATH"
 
-# Use Python 3.9 as default
-RUN python3.9 -m venv venv
+# Use Python 3.10 as default
+RUN python3.10 -m venv venv
 ENV PATH="/venv/bin:$PATH"
-RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10
+RUN alternatives --install /usr/bin/python python /usr/bin/python3.10 10
 
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \

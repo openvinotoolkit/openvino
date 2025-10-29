@@ -1,5 +1,5 @@
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/library/fedora:33
+FROM ${REGISTRY}/library/fedora:35
 
 USER root
 
@@ -11,6 +11,7 @@ RUN dnf update -y && dnf install -y \
     git \
     curl \
     python3 \
+    python3-pip \
     findutils \
     ocl-icd \
     ocl-icd-devel \

@@ -52,7 +52,7 @@ on:
         required: false
         default: false
       build-additional-python-packages:
-        description: 'Whether to build additional, i.e., non-system Python packages. Should have Python 3.9-3.13 installed'
+        description: 'Whether to build additional, i.e., non-system Python packages. Should have Python 3.10-3.13 installed'
         type: boolean
         required: false
         default: false
@@ -215,7 +215,7 @@ jobs:
       - name: Build Python API and wheels
         if: ${{ inputs.build-additional-python-packages }}
         run: |
-          for py_version in "3.9" "3.10" "3.11" "3.12" "3.13"
+          for py_version in "3.10" "3.11" "3.12" "3.13"
           do
             export PY_BUILD_DIR=${{ github.workspace }}/py$py_version
             mkdir -p $PY_BUILD_DIR
