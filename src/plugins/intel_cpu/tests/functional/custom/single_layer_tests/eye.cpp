@@ -118,12 +118,12 @@ protected:
     void makeAnotherLeak() {
         void* p = malloc(100);
         leaked_ptr = p;
-        __lsan_do_leak_check();
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         makeLeak();
-        makeAnotherLeak()
+        makeAnotherLeak();
+        __lsan_do_leak_check();
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
