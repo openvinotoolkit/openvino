@@ -144,8 +144,6 @@ public:
         args = make_args(inp_memory, out_memory, wei_memory, bias_memory, scale_memory, zp_memory);
     }
 
-    void exec(const dnnl::stream& astream, const std::unordered_map<int, dnnl::memory>& args) const {}
-
     void exec(const dnnl::stream& astream,
               void* src,
               void* dst,
@@ -468,7 +466,7 @@ void GatherMatmul::createPrimitive() {
         const auto& weightsDims = desc->getShape().getStaticDims();
         const auto& weightsBlockDims = desc->getBlockDims();
         const auto& weightsOrder = desc->getOrder();
-        // at this point we assumer that the tensors are dense and have no padded dims
+        // at this point we assume that the tensors are dense and have no padded dims
         VectorDims newDims = {batchDim};
         newDims.insert(newDims.end(), weightsDims.begin(), weightsDims.end());
         VectorDims newBlockDims = {batchDim};

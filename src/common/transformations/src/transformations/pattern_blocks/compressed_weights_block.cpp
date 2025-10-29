@@ -25,8 +25,9 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass::pattern;
-ov::pass::pattern::op::CompressedWeightsBlock::CompressedWeightsBlock(const std::vector<ov::element::Type>& supported_weights_types,
-                                                   const std::set<size_t>& supported_weights_ranks)
+ov::pass::pattern::op::CompressedWeightsBlock::CompressedWeightsBlock(
+    const std::vector<ov::element::Type>& supported_weights_types,
+    const std::set<size_t>& supported_weights_ranks)
     : Block({}, {}, "CompressedWeightsBlock") {
     auto weights = wrap_type<ov::op::v0::Constant>(type_matches_any(supported_weights_types));
     auto convert = wrap_type<ov::op::v0::Convert>({weights});
