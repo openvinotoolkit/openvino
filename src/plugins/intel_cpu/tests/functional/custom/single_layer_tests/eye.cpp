@@ -9,6 +9,7 @@
 #include <sanitizer/lsan_interface.h>
 
 static volatile void* leaked_ptr = nullptr;
+static void* __attribute__((used)) leak_holder = nullptr;
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -111,7 +112,6 @@ protected:
         // volatile = no opt
         volatile int* p = new int[100];
         (void)p;
-        __lsan_do_leak_check();
     }
 
     __attribute__((noinline))
@@ -120,8 +120,22 @@ protected:
         leaked_ptr = p;
     }
 
+    __attribute__((noinline))
+    void makeLeak2() {
+        int* p = new int[100];
+        asm volatile("" : : "r"(p) : "memory"); // заставляет компилятор думать, что p используется
+        // не делаем delete
+    }
+
+    __attribute__((noinline))
+    void makeLeak3() {
+        leak_holder = malloc(1000);
+    }
+
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         makeLeak();
+        makeLeak2();
+        makeLeak3();
         makeAnotherLeak();
         __lsan_do_leak_check();
         inputs.clear();
