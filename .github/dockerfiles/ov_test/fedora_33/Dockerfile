@@ -39,9 +39,6 @@ RUN cd /usr/src && \
     cd /usr/src && \
     rm -rf Python-3.10.16*
 
-# Set Python 3.10 as the default python3
-RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
-
 # Install Node
 ENV NODE_VERSION=21.7.3
 ENV NVM_DIR=/.nvm
@@ -54,3 +51,5 @@ ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
+
+RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1

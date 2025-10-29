@@ -145,10 +145,10 @@ jobs:
 
           # install previous release version
           mv /tmp/openvino-2023.repo /etc/yum.repos.d
-          dnf install -y openvino
+          python3.9 /usr/bin/dnf install -y openvino
 
           # install current version
-          dnf install --allowerasing -y *.rpm
+          python3.9 /usr/bin/dnf install --allowerasing -y *.rpm
         working-directory: ${{ env.RPM_PACKAGES_DIR }}
 
       - name: Test RPM packages
