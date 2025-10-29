@@ -578,17 +578,25 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
 }
 
 bool ZeGraphExtWrappers::isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const {
+    auto checkCompilerVersion = [](const ze_graph_compiler_version_info_t& compilerVersion) {
+        if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 21)) {
+            return false;
+        }
+
+        return true;
+    };
+
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
+        return checkCompilerVersion(compilerVersion);
+    }
+
 #ifdef _WIN32
     // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
     if (_zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
                                                                          ZE_NPU_DRIVER_OPTIONS,
                                                                          "NO_THROW_ON_UNSUPPORTED_FEATURE",
                                                                          nullptr) != ZE_RESULT_SUCCESS) {
-        if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 21)) {
-            return false;
-        }
-
-        return true;
+        return checkCompilerVersion(compilerVersion);
     }
 #endif
 
