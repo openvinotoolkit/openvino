@@ -11,6 +11,7 @@ RUN dnf update -y && dnf install -y \
     git \
     curl \
     python3.10 \
+    python3.10-pip \
     findutils \
     ocl-icd \
     ocl-icd-devel \
@@ -30,4 +31,4 @@ RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
 ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 
 ENV PIP_VERSION="24.0"
-RUN python3 -m pip install --upgrade pip==${PIP_VERSION}
+RUN python3.10 -m pip install --upgrade pip==${PIP_VERSION}
