@@ -6,6 +6,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "openvino/op/eye.hpp"
+#include <sanitizer/lsan_interface.h>
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -106,7 +107,7 @@ protected:
     __attribute__((noinline))
     void makeLeak() {
         // volatile = избежать оптимизации
-        OPENVINO_THROW("Failed");
+        __lsan_do_leak_check();
         volatile int* p = new int[100];
         (void)p;
     }
