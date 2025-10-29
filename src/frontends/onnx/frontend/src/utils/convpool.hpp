@@ -116,13 +116,13 @@ ov::op::PadType get_auto_pad(const ov::frontend::onnx::Node& node);
 /// \param[in,out]  padding_above    The paddings above axis.
 ///
 void calculate_transpose_auto_pads(const ov::Shape& data_shape,
-                                    const ov::Shape& filter_shape,
-                                    const ov::Strides& strides,
-                                    const ov::Strides& dilations,
-                                    const ov::op::PadType& pad_type,
-                                    const ov::CoordinateDiff& output_padding,
-                                    ov::CoordinateDiff& padding_below,
-                                    ov::CoordinateDiff& padding_above);
+                                   const ov::Shape& filter_shape,
+                                   const ov::Strides& strides,
+                                   const ov::Strides& dilations,
+                                   const ov::op::PadType& pad_type,
+                                   const ov::CoordinateDiff& output_padding,
+                                   ov::CoordinateDiff& padding_below,
+                                   ov::CoordinateDiff& padding_above);
 
 /// \brief      Reshape group convolution filters to match desired shape:
 ///             from [C_INPUT x C_OUTPUT/groups x k1 x k2 x ... x kn]

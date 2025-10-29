@@ -184,14 +184,15 @@ ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
             const ov::Shape filters_static_shape = filters_pshape.to_shape();
 
             // Calculate padding to satisfy ONNX spec: output = input * stride
-            convpool::calculate_transpose_auto_pads(data_static_shape,
-                                                     filters_static_shape,
-                                                     strides,
-                                                     dilations,
-                                                     auto_pad_type,
-                                                     ov::CoordinateDiff(std::begin(output_padding), std::end(output_padding)),
-                                                     pads_begin,
-                                                     pads_end);
+            convpool::calculate_transpose_auto_pads(
+                data_static_shape,
+                filters_static_shape,
+                strides,
+                dilations,
+                auto_pad_type,
+                ov::CoordinateDiff(std::begin(output_padding), std::end(output_padding)),
+                pads_begin,
+                pads_end);
 
             // Override auto_pad_type to EXPLICIT since we've calculated explicit pads
             auto_pad_type = ov::op::PadType::EXPLICIT;

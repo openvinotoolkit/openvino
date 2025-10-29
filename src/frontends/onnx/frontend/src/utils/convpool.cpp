@@ -164,13 +164,13 @@ void calculate_auto_pads(const ov::Shape& data_shape,
 }
 
 void calculate_transpose_auto_pads(const ov::Shape& data_shape,
-                                    const ov::Shape& filter_shape,
-                                    const ov::Strides& strides,
-                                    const ov::Strides& dilations,
-                                    const ov::op::PadType& pad_type,
-                                    const ov::CoordinateDiff& output_padding,
-                                    ov::CoordinateDiff& padding_below,
-                                    ov::CoordinateDiff& padding_above) {
+                                   const ov::Shape& filter_shape,
+                                   const ov::Strides& strides,
+                                   const ov::Strides& dilations,
+                                   const ov::op::PadType& pad_type,
+                                   const ov::CoordinateDiff& output_padding,
+                                   ov::CoordinateDiff& padding_below,
+                                   ov::CoordinateDiff& padding_above) {
     if (pad_type == ov::op::PadType::SAME_UPPER || pad_type == ov::op::PadType::SAME_LOWER) {
         const auto num_spatial = strides.size();
         padding_below.resize(num_spatial);
