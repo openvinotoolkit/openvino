@@ -18,10 +18,13 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 
 namespace ov::intel_gpu {
     using namespace ov::pass::pattern;
@@ -148,7 +151,12 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
     auto topk_gemm2_m = wrap_type<ov::op::v11::TopK>({topk_input, any_input()});
     auto topk_indices_gemm2_m = wrap_type<ov::op::v0::Convert>({topk_gemm2_m});
 
-    auto topk_weight_m = wrap_type<ov::op::v0::Unsqueeze>({any_input(), any_input()});
+    auto topk_weight_softmax_m = wrap_type<ov::op::v8::Softmax>({topk_gemm2_m});
+    auto topk_weight_slice_m = wrap_type<ov::op::v8::Slice>({topk_weight_softmax_m, any_input(), any_input(), any_input(), any_input()});
+    auto topk_weight_scatter_elements_update_m = wrap_type<ov::op::v12::ScatterElementsUpdate>({any_input(), any_input(), topk_weight_slice_m, any_input()});
+    auto topk_weight_transpose_m = wrap_type<ov::op::v1::Transpose>({topk_weight_scatter_elements_update_m, any_input()});
+    auto topk_weight_reshape_m = wrap_type<ov::op::v1::Reshape>({topk_weight_transpose_m, any_input()});
+    auto topk_weight_m = wrap_type<ov::op::v0::Unsqueeze>({topk_weight_reshape_m, any_input()});
 
     auto moe_root_gemm2 =
         wrap_type<ov::op::internal::MOE>({input_gemm2_m,
@@ -231,6 +239,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             auto weight_down_node = pattern_map.at(compressed_weights_input_m_down);
             auto topk_node = pattern_map.at(topk_gemm2_m).get_node_shared_ptr();
             auto topk_weight_output = topk_node->output(0);
+            auto topk_weight_softmax = pattern_map.at(topk_weight_softmax_m).get_node_shared_ptr();
 
             auto topk_shape = pattern_map.at(topk_gemm2_m).get_node_shared_ptr()->get_output_partial_shape(1);
             auto weight_shape = pattern_map.at(compressed_weights_input_m_up).get_shape();
@@ -251,7 +260,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             config.has_batch_dim = is_pa ? 0 : 1;
 
             args.push_back(pattern_map.at(input_gemm2_m));
-            args.push_back(topk_weight_output);
+            args.push_back(topk_weight_softmax);
             args.push_back(pattern_map.at(topk_indices_gemm2_m));
             // params for up
             args.push_back(pattern_map.at(compressed_weights_m_up));
