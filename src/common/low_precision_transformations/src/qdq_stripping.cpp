@@ -24,6 +24,13 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 
+#define LOG_INFO(...)                           \
+    do {                                        \
+        if (std::getenv("QDQ_STRIPPING_LOG")) { \
+            std::cout << __VA_ARGS__;           \
+        }                                       \
+    } while (0)
+
 FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& levels_to_strip, bool replace_with_clamp) {
     MATCHER_SCOPE(FQStrippingTransformation);
     auto is_scalar = [](const Output<Node>& output) -> bool {
@@ -39,12 +46,15 @@ FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& lev
     ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_map.at(fq_m).get_node_shared_ptr());
+        LOG_INFO("[ INFO ] FQStrippingTransformation matched\n");
         if (!node) {
             return false;
         }
+        LOG_INFO("[ INFO ] fq = " << node << std::endl);
 
         const size_t levels = node->get_levels();
         if (!levels_to_strip.count(levels)) {
+            LOG_INFO("\t check failed: levels are not matched\n");
             return false;
         }
 
@@ -55,6 +65,7 @@ FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& lev
         auto output_high = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(output_high_m).get_node_shared_ptr());
 
         if (!input_low || !input_high || !output_low || !output_high) {
+            LOG_INFO("\t check failed: il_ih/ol_oh are not constant\n");
             return false;
         }
         auto constants_are_equal = [](const std::shared_ptr<ov::op::v0::Constant>& lhs,
@@ -65,18 +76,40 @@ FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& lev
                             "constants_are_equal expects scalar constant as a comparison result");
             return equal->get_vector<bool>()[0] == true;
         };
+#define LOG_CONSTANT_VALUE(name, value)                                                                             \
+    do {                                                                                                            \
+        if (auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(value)) {                                       \
+            if (ov::shape_size(const_node->get_shape()) == 1) {                                                     \
+                LOG_INFO("\t " << name << " = " << value                                                            \
+                               << " (constant value: " << const_node->cast_vector<float>()[0] << ")" << std::endl); \
+            } else {                                                                                                \
+                LOG_INFO("\t " << name << " = " << value << std::endl);                                             \
+            }                                                                                                       \
+        } else {                                                                                                    \
+            LOG_INFO("\t " << name << " = " << value << std::endl);                                                 \
+        }                                                                                                           \
+    } while (0);
+        LOG_CONSTANT_VALUE("\t input_low", input_low);
+        LOG_CONSTANT_VALUE("\t output_low", output_low);
+        LOG_CONSTANT_VALUE("\t input_high", input_high);
+        LOG_CONSTANT_VALUE("\t output_high", output_high);
         if (!constants_are_equal(input_low, output_low) || !constants_are_equal(input_high, output_high)) {
+            LOG_INFO("\t check failed: constants_are_not equal\n");
             return false;
         }
 
+        bool res = false;
         if (replace_with_clamp) {
             auto clamp = std::make_shared<ov::op::v0::Clamp>(input->output(0),
                                                              output_low->cast_vector<double>()[0],
                                                              output_high->cast_vector<double>()[0]);
-            return replace_node_update_name(node, clamp);
+            res = replace_node_update_name(node, clamp);
         } else {
-            return replace_output_update_name(node->output(0), node->input_value(0));
+            res = replace_output_update_name(node->output(0), node->input_value(0));
         }
+        OPENVINO_ASSERT(res, "FQ stripping failed");
+        LOG_INFO("\t transformation finished\n");
+        return res;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(fq_m, matcher_name);
