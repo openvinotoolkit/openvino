@@ -104,7 +104,7 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_para
     const size_t topk = moe_params.topk;
     const size_t number_of_experts = moe_params.number_of_experts;
 
-    const auto expert_alpha = 1.702f;
+    const auto expert_alpha = 1.625f;
     const auto expert_beta = 7.0f;
 
     constexpr int64_t fusion_factor = 2;  // property of GPT-OSS

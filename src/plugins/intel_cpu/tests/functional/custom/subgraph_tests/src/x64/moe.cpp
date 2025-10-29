@@ -220,6 +220,22 @@ protected:
         }
     }
 
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& itTargetShape = targetInputStaticShapes.front();
+        const auto& params = function->get_parameters();
+        ASSERT_EQ(params.size(), 1);
+        auto param = params.front();
+        auto type = param->get_element_type();
+
+        auto input_tensor =
+            ov::test::utils::create_and_fill_tensor(type,
+                                                    itTargetShape,
+                                                    ov::test::utils::InputGenerateData(0.125, 2, 8, 1234));
+
+        inputs.insert({param, input_tensor});
+    }
+
     void check_results() {
         const auto& test_param = GetParam();
         const auto& moe_type = std::get<1>(GetParam());
@@ -286,8 +302,7 @@ const std::vector<MoePatternParams> moe_params_smoke = {
 std::vector<ov::AnyMap> generate_additional_config() {
     std::vector<ov::AnyMap> additional_config = {{{ov::hint::inference_precision.name(), ov::element::f32}}};
     if (ov::with_cpu_x86_bfloat16()) {
-        additional_config.push_back(
-            {{ov::hint::inference_precision.name(), ov::element::bf16}});
+        additional_config.push_back({{ov::hint::inference_precision.name(), ov::element::bf16}});
     }
     return additional_config;
 }
@@ -307,7 +322,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_MoESubgraph_basic,
                                             ::testing::ValuesIn(moe_types),
                                             ::testing::ValuesIn(generate_additional_config())),
                          MoESubgraphTest::getTestCaseName);
-
 
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
