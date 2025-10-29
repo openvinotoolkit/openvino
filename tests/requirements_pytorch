@@ -58,3 +58,6 @@ rjieba==0.1.11
 # - katuni4ka/tiny-random-internlm2
 transformers_stream_generator==0.0.5
 einops==0.8.0
+
+# - katuni4ka/tiny-random-baichuan2-13b
+accelerate==1.2.1
