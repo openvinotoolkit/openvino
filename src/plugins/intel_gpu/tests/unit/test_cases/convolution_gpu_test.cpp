@@ -11923,6 +11923,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, conv_3d_test_mmad,
     testing::ValuesIn(std::vector<conv_dyn_3d_test_params>{
     { ov::Shape{32, 32, 5, 5, 5}, ov::Shape{32, 32, 3, 3, 3}, ov::Strides{1, 1, 1}, ov::Strides{1, 1, 1}, ov::CoordinateDiff{0, 0, 0}, ov::CoordinateDiff{0, 0, 0}, 1, false},
 }));
+
 TEST(group_convolution_f16_fw_gpu, basic_1d_group_convolution) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
