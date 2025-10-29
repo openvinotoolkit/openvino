@@ -688,7 +688,8 @@ void FullyConnected::needUpdateTensorParalelConfig() {
             tp_cfg.enable_tensor_parallel = false;
             return;
         }
-        if (shape.getRank() == 3 && shape.getDims().back() > 1) {
+        const bool is3DwithMultipleInputChannels = shape.getRank() == 3 && shape.getDims().back() > 1;
+        if (is3DwithMultipleInputChannels) {
             tp_cfg.enable_tensor_parallel = false;
             return;
         }
