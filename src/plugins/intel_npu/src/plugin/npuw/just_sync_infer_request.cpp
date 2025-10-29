@@ -471,12 +471,18 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     size_t before_pyramid_selector_kb = ov::npuw::get_process_memory_kb();
     if (has_pyramid) {
         const auto& pyramid_dyn = m_npuw_model->m_compiled_submodels.at(pyramid_sub_idx).pyramid_attention.value();
-        m_pyramid_selector = runtime::pyramid_attention::PositionIDs::find(pyramid_dyn, *this);
-        if (!m_pyramid_selector) {
-            LOG_WARN("Pyramid dynamic capability is enabled, but no run-time features were found.");
-            // Create All selector with the number of pyramid models
-            const auto pyramid_count = pyramid_dyn._compiled_models.size();
+        const auto pyramid_count = pyramid_dyn._compiled_models.size();
+        if (!m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_DYN>()) {
+            // Even if the attention is detected and ready to go pyramid,
+            // force it on the full range
             m_pyramid_selector.reset(new runtime::pyramid_attention::All(pyramid_count));
+        } else {
+            m_pyramid_selector = runtime::pyramid_attention::PositionIDs::find(pyramid_dyn, *this);
+            if (!m_pyramid_selector) {
+                LOG_WARN("Pyramid dynamic capability is enabled, but no run-time features were found.");
+                // Create All selector with the number of pyramid models
+                m_pyramid_selector.reset(new runtime::pyramid_attention::All(pyramid_count));
+            }
         }
     }
     size_t after_pyramid_selector_kb = ov::npuw::get_process_memory_kb();
@@ -604,8 +610,7 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
 
         // Get the pyramid model ID based on current sequence length (updated in prepare())
         auto pyramid_id = m_pyramid_selector->pyramid_id();
-        std::cout << "Switch to pyramid id: " << pyramid_id << " past length: " << m_pyramid_selector->past_length()
-                  << std::endl;
+        std::cout << "Switch to pyramid id: " << pyramid_id << std::endl;
 
         for (auto&& id : m_funcall_heads) {
             auto& comp_model_desc = m_npuw_model->m_compiled_submodels[id];
@@ -907,7 +912,7 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
     const auto& graph_mask = m_attention_io[idx].inputs.at(dynamic.mask_idx);
     const auto this_case = m_pyramid_selector->this_case();
 
-    const auto past_len = m_pyramid_selector->past_length();
+    const auto past_len = pyramid_id * dynamic.query_size;
     const auto present_len = dynamic.query_size;
     // FIXME: get the right dim
     const uint32_t kv_dim = 3;
