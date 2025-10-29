@@ -377,10 +377,11 @@ void GraphIteratorProto::reset() {
     for (const auto& value : m_graph->input()) {
         auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, 0, -1);
         m_decoders.push_back(tensor);
-        if (m_tensors.count(*tensor->get_tensor_info().m_tensor_name) > 0) {
-            throw std::runtime_error("Tensor already exists \"" + *tensor->get_tensor_info().m_tensor_name + "\"");
+        const auto& t_name = *tensor->get_tensor_info().m_tensor_name;
+        if (m_tensors.count(t_name) > 0) {
+            throw std::runtime_error("Tensor already exists \"" + t_name + "\"");
         }
-        m_tensors[*tensor->get_tensor_info().m_tensor_name] = tensor;
+        m_tensors.emplace(t_name, tensor);
     }
     for (const auto& value : m_graph->output()) {
         auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, -1, 0);
@@ -388,7 +389,7 @@ void GraphIteratorProto::reset() {
         const auto& t_name = *tensor->get_tensor_info().m_tensor_name;
         if (m_tensors.count(t_name) == 0) {
             // model may have several outputs of the same tensor
-            m_tensors[t_name] = tensor;
+            m_tensors.emplace(t_name, tensor);
         }
     }
     for (const auto& initializer : m_graph->initializer()) {

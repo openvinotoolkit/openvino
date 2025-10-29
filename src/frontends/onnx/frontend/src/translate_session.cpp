@@ -137,16 +137,12 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             }
             auto name = node_context.get_name();
             for (size_t idx = 0; idx < ov_outputs.size() && idx < out_size; ++idx) {
-                const std::string& out_name = node_context.output(idx);
+                const std::string& out_name = node_context.output(static_cast<int>(idx));
                 if (is_optimized_out(ov_outputs[idx])) {
                     ov_outputs[idx].add_names({out_name});
                 } else {
                     ov_outputs[idx].set_names({out_name});
-                    if (!name.empty()) {
-                        ov_outputs[idx].get_node()->set_friendly_name(name);
-                    } else {
-                        ov_outputs[idx].get_node()->set_friendly_name(out_name);
-                    }
+                    ov_outputs[idx].get_node()->set_friendly_name(!name.empty() ? name : out_name);
                 }
             }
         } catch (const ::ov::frontend::onnx::error::OnnxNodeValidationFailure& e) {
