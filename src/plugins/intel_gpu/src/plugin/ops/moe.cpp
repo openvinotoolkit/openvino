@@ -6,13 +6,11 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/moe_fused_compressed.hpp"
-#include "intel_gpu/primitives/moe_fused_compressed.hpp"
-
 
 namespace ov {
 namespace op {
 namespace internal {
-using MOEFusedCompressed  = ov::intel_gpu::op::MOEFusedCompressed ;
+using MOEFusedCompressed = ov::intel_gpu::op::MOEFusedCompressed;
 }  // namespace internal
 }  // namespace op
 }  // namespace ov

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define unroll_for __attribute__((opencl_unroll_hint)) for
+
 #if GATE_UP_ENABLE
 inline void gemv_n2x(const __global uchar* weight,
                     __global half* scales,
@@ -16,38 +18,16 @@ inline void gemv_n2x(const __global uchar* weight,
     int id_sg = get_sub_group_id();
     int id_local = get_sub_group_local_id();
 
-    //# interleaving x into x2
-    half * px = x + id_sg*GROUP_SIZE;
-    half * px2 = x2 + id_sg*GROUP_SIZE;
-    for(int i = id_sg; i < HIDDEN_SIZE/GROUP_SIZE; i += num_sg, px += num_sg*GROUP_SIZE, px2 += num_sg*GROUP_SIZE) {
-        //# quantization group
-        float x_group_sum = 0;
-        for(int j = id_local; j < GROUP_SIZE/2; j += SUBGROUP_SIZE) {
-            half even = px[2*j + 0];
-            half odd = px[2*j + 1];
-            px2[j] = even;
-            px2[j + GROUP_SIZE/2] = odd;
-            x_group_sum += even + odd;
-        }
-        x_group_sum = sub_group_reduce_add(x_group_sum);
-        if (id_local == 0) {
-            xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
-        }
-    }
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-
     int n_start = get_global_id(2) * N_BLOCK;
     int n_end = n_start + N_BLOCK;
-
-    for (int n = n_start; n < n_end; n+=2) {
+    unroll_for (int n = n_start; n < n_end; n+=2) {
         const __global uchar* B = weight + n * K / 2;
         float sum_all0 = 0;
         float sum_all1 = 0;
 #if SZ_LAYOUT == 0
         __global half* S = scales + n;
         __global uchar* Z = zps + n / 2;
-        for (int gk = 0; gk < K / GROUP_SIZE; gk++, S += N, Z += N / 2) {
+        unroll_for (int gk = 0; gk < K / GROUP_SIZE; gk++, S += N, Z += N / 2) {
             half s0 = S[0];
             half s1 = S[1];
             ushort z = Z[0];
@@ -61,8 +41,7 @@ inline void gemv_n2x(const __global uchar* weight,
         uchar zp_values = intel_sub_group_block_read_uc((const __global uchar*)Z);
         half zp_even = convert_half(zp_values & 0xF);
         half zp_odd = convert_half(zp_values >> 4);
-
-        for (int gk = 0; gk < K / GROUP_SIZE; gk++) {
+        unroll_for (int gk = 0; gk < K / GROUP_SIZE; gk++) {
             half s0 = sub_group_broadcast(scale_values, 2*gk + 0);
             half s1 = sub_group_broadcast(scale_values, 2*gk + 1);
             half z_hf0 = sub_group_broadcast(zp_even, gk);
@@ -166,6 +145,29 @@ KERNEL (mlp_gate_up)(
 
     __local half x2[HIDDEN_SIZE];
     __local float xg_sum[HIDDEN_SIZE/32];
+    //# interleaving x into x2
+    int id_sg = get_sub_group_id();
+    int num_sg = get_num_sub_groups();
+    int id_local = get_sub_group_local_id();
+    half * px = x + id_sg*GROUP_SIZE;
+    half * px2 = x2 + id_sg*GROUP_SIZE;
+    unroll_for(int i = id_sg; i < HIDDEN_SIZE/GROUP_SIZE; i += num_sg, px += num_sg*GROUP_SIZE, px2 += num_sg*GROUP_SIZE) {
+        //# quantization group
+        float x_group_sum = 0;
+        unroll_for(int j = id_local; j < GROUP_SIZE/2; j += SUBGROUP_SIZE) {
+            half even = px[2*j + 0];
+            half odd = px[2*j + 1];
+            px2[j] = even;
+            px2[j + GROUP_SIZE/2] = odd;
+            x_group_sum += even + odd;
+        }
+        x_group_sum = sub_group_reduce_add(x_group_sum);
+        if (id_local == 0) {
+            xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
     gemv_n2x(up_weight, up_scale, up_zp, x, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
     gemv_n2x(gate_weight, gate_scale, gate_zp, x, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
 }
@@ -207,10 +209,10 @@ KERNEL (mlp_down)(
     //# interleaving x into x2
     __global half * px = x + id_sg*GROUP_SIZE;
     __local half * px2 = x2 + id_sg*GROUP_SIZE;
-    for(int i = id_sg; i < INTERMEDIATE_SIZE/GROUP_SIZE; i += num_sg, px += num_sg*GROUP_SIZE, px2 += num_sg*GROUP_SIZE) {
+    unroll_for(int i = id_sg; i < INTERMEDIATE_SIZE/GROUP_SIZE; i += num_sg, px += num_sg*GROUP_SIZE, px2 += num_sg*GROUP_SIZE) {
         //# quantization group
         float x_group_sum = 0;
-        for(int j = id_local; j < GROUP_SIZE/2; j += SUBGROUP_SIZE) {
+        unroll_for(int j = id_local; j < GROUP_SIZE/2; j += SUBGROUP_SIZE) {
             half even = px[2*j + 0];
             half odd = px[2*j + 1];
             px2[j] = even;
@@ -227,13 +229,13 @@ KERNEL (mlp_down)(
     int n_start = get_global_id(2) * N_BLOCK;
     int n_end = n_start + N_BLOCK;
 
-    for (int n = n_start; n < n_end; n+=2) {
+    unroll_for (int n = n_start; n < n_end; n+=2) {
         const __global uchar* B = weight + n * K / 2;
         __global half* S = scales + n;
         __global uchar* Z = zps + n / 2;
         float sum_all0 = 0;
         float sum_all1 = 0;
-        for (int gk = 0; gk < K / GROUP_SIZE; gk++, S += N, Z += N / 2) {
+        unroll_for (int gk = 0; gk < K / GROUP_SIZE; gk++, S += N, Z += N / 2) {
             half s0 = S[0];
             half s1 = S[1];
             ushort z = Z[0];
