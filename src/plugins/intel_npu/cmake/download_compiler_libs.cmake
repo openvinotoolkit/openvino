@@ -4,10 +4,8 @@
 
 # Function to download and extract files
 function(download_and_extract url zip_file extracted_dir modify_proxy)
-    message(" ----[DEBUG]--- extracted_dir is -- ${extracted_dir}")
     # Check if the prebuilt VCL compiler libraries not exist
     if(NOT EXISTS "${extracted_dir}")
-        message(" ----[DEBUG]-- the extracted_dir is ${extracted_dir}, which is not exist, start download")
         if(modify_proxy STREQUAL "MODIFY")
             # Update proxy to enable download for windows url
 	    set(original_NO_PROXY $ENV{NO_PROXY})
@@ -116,7 +114,7 @@ if(ENABLE_VCL_FOR_COMPILER)
             set(VCL_COMPILER_LIB "${VCL_COMPILER_LIB_PATH}/npu_vcl_compiler.dll")
             file(COPY "${VCL_COMPILER_LIB}"
                 DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}")
-            message(STATUS "Copying prebuilt VCL compiler libraries npu_vcl_compiler.dll to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for windows")
+            message(STATUS "Not Copying prebuilt VCL compiler libraries npu_vcl_compiler.dll to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for windows")
         else()
             # Check if the operating system is Linux and not macOS
             if(UNIX AND NOT APPLE)
@@ -125,16 +123,16 @@ if(ENABLE_VCL_FOR_COMPILER)
                 execute_process(COMMAND lsb_release -rs OUTPUT_VARIABLE OS_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
 
                 if(OS_NAME STREQUAL "Ubuntu")
-                    if(OS_VERSION STREQUAL "22.04" OR OS_VERSION STREQUAL "24.04")
+                    if(OS_VERSION STREQUAL "22.04")
                         # Ubuntu 22.04-specific settings or actions
-                        set(VCL_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/vcl_compiler_libs/ubuntu")
-                        set(VCL_COMPILER_LIBS_URL "https://github.com/openvinotoolkit/npu_compiler/releases/download/npu_ud_2025_38_rc4/l_vpux_compiler_l0_linux-7_4_3-Release_dyntbb_postcommit_cid_a826bd92b5e02af092e4d706a762252b1845f777_251010_2217.tar.gz")
-                        set(VCL_COMPILER_LIBS_DEB "${VCL_COMPILER_LIBS_DIR}/l_vpux_compiler_l0_linux-7_4_3-Release_dyntbb_postcommit_cid_a826bd92b5e02af092e4d706a762252b1845f777_251010_2217.tar.gz")
-                        set(VCL_COMPILER_LIBS_DIR_EXTRACTED "${VCL_COMPILER_LIBS_DIR}/cid_a826bd92b5e02af092e4d706a762252b1845f777_251010_2217")
+                        set(VCL_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/vcl_compiler_libs/ubuntu22.04")
+                        set(VCL_COMPILER_LIBS_URL "https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu22.04_amd64.deb")
+                        set(VCL_COMPILER_LIBS_DEB "${VCL_COMPILER_LIBS_DIR}/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu22.04_amd64.deb")
+                        set(VCL_COMPILER_LIBS_DIR_EXTRACTED "${VCL_COMPILER_LIBS_DIR}/prebuilt_VCL_libs_from_1.19.0.20250707-16111289554_ubuntu22.04")
 
                         download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DEB}" "${VCL_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
 
-                        set(VCL_COMPILER_LIB_PATH "${VCL_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
+                        set(VCL_COMPILER_LIB_PATH "${VCL_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu")
                         configure_file(
                             ${VCL_COMPILER_LIB_PATH}/libnpu_driver_compiler.so
                             ${VCL_COMPILER_LIB_PATH}/libnpu_vcl_compiler.so
@@ -143,7 +141,27 @@ if(ENABLE_VCL_FOR_COMPILER)
                         set(VCL_COMPILER_LIB "${VCL_COMPILER_LIB_PATH}/libnpu_vcl_compiler.so")
                         file(COPY "${VCL_COMPILER_LIB}"
                             DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-                        message(STATUS "Copying prebuilt VCL compiler libraries libnpu_vcl_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for Ubuntu 22.04 and 24.04")
+                        message(STATUS "Not Copying prebuilt VCL compiler libraries libnpu_vcl_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for Ubuntu 22.04")
+                    elseif(OS_VERSION STREQUAL "24.04")
+                        message(STATUS "This is Ubuntu 24.04")
+                        # Ubuntu 24.04-specific settings or actions
+                        set(VCL_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/vcl_compiler_libs/ubuntu24.04")
+                        set(VCL_COMPILER_LIBS_URL "https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu24.04_amd64.deb")
+                        set(VCL_COMPILER_LIBS_DEB "${VCL_COMPILER_LIBS_DIR}/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu24.04_amd64.deb")
+                        set(VCL_COMPILER_LIBS_DIR_EXTRACTED "${VCL_COMPILER_LIBS_DIR}/prebuilt_VCL_libs_from_1.19.0.20250707-16111289554_ubuntu24.04")
+
+                        download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DEB}" "${VCL_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
+
+                        set(VCL_COMPILER_LIB_PATH "${VCL_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu")
+                        configure_file(
+                            ${VCL_COMPILER_LIB_PATH}/libnpu_driver_compiler.so
+                            ${VCL_COMPILER_LIB_PATH}/libnpu_vcl_compiler.so
+                            COPYONLY
+                        )
+                        set(VCL_COMPILER_LIB "${VCL_COMPILER_LIB_PATH}/libnpu_vcl_compiler.so")
+                        # file(COPY "${VCL_COMPILER_LIB}"
+                        #     DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+                        message(STATUS "Copying prebuilt VCL compiler libraries libnpu_vcl_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for Ubuntu 24.04")
                     else()
                         message(STATUS "This is another version of Ubuntu: ${OS_VERSION}")
                         # Other Ubuntu-specific settings or actions

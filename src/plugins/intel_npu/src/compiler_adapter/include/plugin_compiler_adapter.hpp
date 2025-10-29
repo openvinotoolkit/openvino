@@ -38,6 +38,10 @@ public:
 
     uint32_t get_version() const override;
 
+#ifndef VCL_FOR_COMPILER
+    void update_CompilerPlatform(const std::string platform);
+#endif
+
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 

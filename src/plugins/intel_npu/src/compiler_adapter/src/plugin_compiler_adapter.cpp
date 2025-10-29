@@ -94,6 +94,13 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
                  ZE_MINOR_VERSION(graphExtVersion));
 }
 
+#ifndef VCL_FOR_COMPILER
+    void update_CompilerPlatform(const std::string platform) {
+        std::cout << "---3---update_CompilerPlatform in adapter.cpp " << std::endl;
+        _compiler->updateVCLCompilerCreate(platform);
+    }
+#endif
+
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
                                                        const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
