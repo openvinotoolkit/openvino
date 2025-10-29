@@ -145,7 +145,11 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
         LOG_INFO("\t fq = " << fq << std::endl);
 #define LOG_CONSTANT_VALUE(name, value)                                                                             \
     do {                                                                                                            \
-        if (auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(value.get_node_shared_ptr())) {                 \
+        auto node = value.get_node_shared_ptr();                                                                    \
+        if (ov::is_type<ov::op::v0::Convert>(node)) {                                                               \
+            node = node->get_input_node_shared_ptr(0);                                                              \
+        }                                                                                                           \
+        if (auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node)) {                                        \
             if (ov::shape_size(const_node->get_shape()) == 1) {                                                     \
                 LOG_INFO("\t " << name << " = " << value                                                            \
                                << " (constant value: " << const_node->cast_vector<float>()[0] << ")" << std::endl); \
