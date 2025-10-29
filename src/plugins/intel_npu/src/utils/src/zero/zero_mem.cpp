@@ -18,11 +18,12 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                  const bool is_input)
     : _init_structs(init_structs),
       _logger("ZeHostMem", Logger::global().level()),
-      _size((bytes + alignment - 1) & ~(alignment - 1)) {
+      _size(bytes == 0 ? alignment : (bytes + alignment - 1) & ~(alignment - 1)) {
     uint32_t zero_memory_flag = 0;
     if (is_input) {
         zero_memory_flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
     }
+
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, zero_memory_flag};
     THROW_ON_FAIL_FOR_LEVELZERO("zeMemAllocHost",
                                 zeMemAllocHost(_init_structs->getContext(), &desc, _size, alignment, &_ptr));
@@ -70,12 +71,8 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         auto result = zeMemAllocHost(_init_structs->getContext(), &desc, _size, utils::STANDARD_PAGE_SIZE, &_ptr);
 
         if (result != ZE_RESULT_SUCCESS) {
-            _logger.info("Importing memory through zeMemAllocHost failed, result: %s, code %#X - %s",
-                         ze_result_to_string(result).c_str(),
-                         uint64_t(result),
-                         ze_result_to_description(result).c_str());
-
-            throw ZeroMemException("Importing memory failed");
+            throw ZeroMemException("Importing memory failed with result " + ze_result_to_string(result) + " - " +
+                                   ze_result_to_description(result).c_str());
         }
     } else {
         OPENVINO_ASSERT(_init_structs->isExternalMemoryFdWin32Supported(),

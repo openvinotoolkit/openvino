@@ -45,9 +45,9 @@ LoRASubgraphHorizontalFusion::LoRASubgraphHorizontalFusion() {
 
         ov::OutputVector states;
         for (const auto& lora : lora_nodes) {
-            states.emplace_back(lora->get_input_node_shared_ptr(2));
-            states.emplace_back(lora->get_input_node_shared_ptr(3));
-            states.emplace_back(lora->get_input_node_shared_ptr(4));
+            states.emplace_back(lora->input_value(2));
+            states.emplace_back(lora->input_value(3));
+            states.emplace_back(lora->input_value(4));
         }
 
         bool transposed_states = true;
