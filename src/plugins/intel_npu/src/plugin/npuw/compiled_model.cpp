@@ -427,9 +427,21 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                           (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + ".xml";
             ov::save_model(model_to_dump, model_dump_path);
             LOG_INFO("Wrote " << model_dump_path);
-            // Note: keep here naming as it would be the subgraph
+
+            if (m_compiled_submodels[id].pyramid_attention) {
+                LOG_INFO("NOTE: Subgraph[" << id << "] has a pyramid attention mechanism.");
+                const auto& pa_models = m_compiled_submodels[id].pyramid_attention.value()._models;
+                for (std::size_t pa_idx = 0; pa_idx < pa_models.size(); ++pa_idx) {
+                    std::string pa_model_dump_path =
+                        m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                        (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + "_pyramid_" +
+                        ov::npuw::util::fmt(pa_idx, pa_models.size()) + ".xml";
+                    ov::save_model(pa_models[pa_idx], pa_model_dump_path);
+                    LOG_INFO("Wrote " << pa_model_dump_path);
+                }
+            }
         }  // if(dump)
-    }  // for(orderedSubgraphs)
+    }  // for(orderedSubGraphs)
 
     std::map<std::size_t, std::string> forced_sub_devices{};
     std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
