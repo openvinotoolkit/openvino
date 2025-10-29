@@ -492,30 +492,21 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
 
 namespace compiled {
 
-// Constructor implementation
+// Constructor implementation - extracts metadata and stores models for compilation
 PyramidAttention::PyramidAttention(const function::PyramidAttention& func_pyramid)
     : query_size(func_pyramid._query_length),
-      full_context_size(func_pyramid._full_context_length) {
+      full_context_size(func_pyramid._full_context_length),
+      _models_to_compile(func_pyramid._models) {  // Store models for later compilation
     NPUW_ASSERT(func_pyramid._models.size() == func_pyramid._attentions.size());
 
     const size_t num_models = func_pyramid._models.size();
     _attention_infos.reserve(num_models);
     _context_lengths.reserve(num_models);
-    _models.reserve(num_models);
 
-    // Memory tracking setup
-    const bool enable_memory_tracking = true;  // Could be a config option
-    size_t initial_memory_kb = 0;
+    LOG_INFO("Constructing compiled::PyramidAttention with " << num_models << " models");
 
-    if (enable_memory_tracking) {
-        initial_memory_kb = get_process_memory_kb();
-        LOG_INFO("=== PyramidAttention Memory Tracking Start: " << initial_memory_kb << " KB RSS ===");
-    }
-
-    // Process each model
+    // Extract metadata from each model
     for (size_t i = 0; i < num_models; ++i) {
-        size_t before_kb = enable_memory_tracking ? get_process_memory_kb() : 0;
-
         const auto& func_attn = func_pyramid._attentions[i];
         const auto& model = func_pyramid._models[i];
 
@@ -534,22 +525,21 @@ PyramidAttention::PyramidAttention(const function::PyramidAttention& func_pyrami
 
         _attention_infos.push_back(std::move(attention_info));
         _context_lengths.push_back(attention_info.context_length);
-        _models.push_back(model);
-
-        if (enable_memory_tracking) {
-            size_t after_kb = get_process_memory_kb();
-            size_t increase_kb = (after_kb > before_kb) ? (after_kb - before_kb) : 0;
-            LOG_DEBUG("Model[" << i << "]: RSS increased by " << increase_kb << " KB (" << (increase_kb / 1024)
-                               << " MB), total: " << after_kb << " KB");
-        }
     }
 
-    if (enable_memory_tracking) {
-        size_t final_memory_kb = get_process_memory_kb();
-        size_t total_increase_kb = (final_memory_kb > initial_memory_kb) ? (final_memory_kb - initial_memory_kb) : 0;
-        LOG_INFO("=== PyramidAttention Memory Tracking End: Total increase = "
-                 << total_increase_kb << " KB (" << (total_increase_kb / 1024) << " MB) ===");
-    }
+    LOG_INFO("compiled::PyramidAttention metadata extracted, models stored for compilation");
+}
+
+// Set compiled models after parallel compilation and clear temporary storage
+void PyramidAttention::set_compiled_models(std::vector<ov::SoPtr<ov::ICompiledModel>>&& compiled_models) {
+    NPUW_ASSERT(compiled_models.size() == _attention_infos.size() && "Compiled models count must match metadata count");
+    _compiled_models = std::move(compiled_models);
+
+    // Clear temporary models storage
+    _models_to_compile.clear();
+    _models_to_compile.shrink_to_fit();
+
+    LOG_INFO("compiled::PyramidAttention compiled models set successfully (" << _compiled_models.size() << " models)");
 }
 
 }  // namespace compiled
