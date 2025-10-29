@@ -990,96 +990,86 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
 }
 
 void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
-    auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-
-    if (!proto_comp_model_desc.pyramid_attention.has_value()) {
+    auto& submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    if (!submodel_desc.pyramid_attention.has_value()) {
         return;
     }
 
     LOG_INFO((is_recreate ? "Recreating" : "Creating") << " pyramid infer requests...");
     LOG_BLOCK();
 
-    const auto& pyramid_attention = proto_comp_model_desc.pyramid_attention.value();
-    const auto& compiled_models = pyramid_attention._compiled_models;
+    const auto& pyramid_models = submodel_desc.pyramid_attention.value()._compiled_models;
+    const size_t num_pyramid_models = pyramid_models.size();
 
     // Clear existing requests if recreating
     if (is_recreate) {
-        proto_comp_model_desc.pyramid_infer_requests.clear();
-        proto_comp_model_desc.pyramid_pipeline_requests.clear();
+        submodel_desc.pyramid_infer_requests.clear();
+        submodel_desc.pyramid_pipeline_requests.clear();
     }
 
-    // Initialize pyramid infer requests storage
-    proto_comp_model_desc.pyramid_infer_requests.resize(compiled_models.size());
+    // Allocate storage for infer requests
+    submodel_desc.pyramid_infer_requests.resize(num_pyramid_models);
     if (is_piped) {
-        proto_comp_model_desc.pyramid_pipeline_requests.resize(compiled_models.size());
+        submodel_desc.pyramid_pipeline_requests.resize(num_pyramid_models);
     }
 
-    // Create infer requests for all pyramid models except the last one
-    // The last pyramid model uses the original model's infer requests
-    for (size_t model_id = 0; model_id < compiled_models.size() - 1; ++model_id) {
+    // Create infer requests for all but the last pyramid model
+    for (size_t model_idx = 0; model_idx + 1 < num_pyramid_models; ++model_idx) {
         try {
-            // Create primary infer request
-            auto pyramid_request = compiled_models[model_id]->create_infer_request();
-            proto_comp_model_desc.pyramid_infer_requests[model_id] = pyramid_request;
-
-            // Create pipeline infer request if needed
+            // Create main infer request
+            submodel_desc.pyramid_infer_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
+            // Create pipeline infer request if pipelined
             if (is_piped) {
-                auto pyramid_pipeline_request = compiled_models[model_id]->create_infer_request();
-                proto_comp_model_desc.pyramid_pipeline_requests[model_id] = pyramid_pipeline_request;
+                submodel_desc.pyramid_pipeline_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
             }
-
         } catch (const std::exception& ex) {
             LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
-                                   << model_id << "]: " << ex.what());
+                                   << model_idx << "]: " << ex.what());
             NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed");
         } catch (...) {
             LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
-                                   << model_id << "]: Unknown error");
+                                   << model_idx << "]: Unknown error");
             NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed with unknown error");
         }
 
-        // Setup tensor sharing for past_key_values inputs
-        for (auto input : compiled_models[model_id]->inputs()) {
-            if (input.get_names().empty()) {
-                continue;
-            }
+        // Share input tensors between pyramid and main infer requests
+        const size_t num_inputs = pyramid_models[model_idx]->inputs().size();
+        NPUW_ASSERT(num_inputs == submodel_desc.compiled_model->inputs().size());
+        for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
+            auto pyramid_input = pyramid_models[model_idx]->inputs()[input_idx];
+            auto main_input = submodel_desc.compiled_model->inputs()[input_idx];
 
-            auto input_name = input.get_any_name();
-            if (!ov::npuw::util::isPastKeyValuesKey(input_name) && !ov::npuw::util::isPastKeyValuesValue(input_name)) {
-                continue;
-            }
+            // Get tensor from main infer request and share its memory with the pyramid infer request
+            auto main_tensor_ptr = m_subrequests[real_idx]->get_tensor(main_input)->data();
+            auto pyramid_tensor = submodel_desc.pyramid_infer_requests[model_idx]->get_tensor(pyramid_input);
+            auto shared_tensor = ov::get_tensor_impl(
+                ov::Tensor(pyramid_tensor->get_element_type(), pyramid_tensor->get_shape(), main_tensor_ptr));
+            submodel_desc.pyramid_infer_requests[model_idx]->set_tensor(pyramid_input, shared_tensor);
 
-            // Setup primary infer request tensor
-            auto tensor = proto_comp_model_desc.pyramid_infer_requests[model_id]->get_tensor(input);
-            auto primary_ptr = m_subrequests[real_idx]->get_tensor(input)->data();
-            auto new_tensor =
-                ov::get_tensor_impl(ov::Tensor(tensor->get_element_type(), tensor->get_shape(), primary_ptr));
-            proto_comp_model_desc.pyramid_infer_requests[model_id]->set_tensor(input, new_tensor);
-
-            // Setup pipeline infer request tensor if needed
+            // Repeat for pipeline infer request if pipelined
             if (is_piped) {
-                auto pipeline_tensor = proto_comp_model_desc.pyramid_pipeline_requests[model_id]->get_tensor(input);
-                auto pipeline_tensor_ptr = m_funcall_pipeline[real_idx].subrequest->get_tensor(input)->data();
-                auto pipeline_new_tensor = ov::get_tensor_impl(
+                auto pipeline_tensor = submodel_desc.pyramid_pipeline_requests[model_idx]->get_tensor(pyramid_input);
+                auto pipeline_tensor_ptr = m_funcall_pipeline[real_idx].subrequest->get_tensor(main_input)->data();
+                auto shared_pipeline_tensor = ov::get_tensor_impl(
                     ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), pipeline_tensor_ptr));
-                proto_comp_model_desc.pyramid_pipeline_requests[model_id]->set_tensor(input, pipeline_new_tensor);
+                submodel_desc.pyramid_pipeline_requests[model_idx]->set_tensor(pyramid_input, shared_pipeline_tensor);
             }
         }
     }
 
     // For the last pyramid model, reuse the original model's infer requests
-    if (compiled_models.size() > 0) {
-        const size_t last_model_id = compiled_models.size() - 1;
+    if (num_pyramid_models > 0) {
+        const size_t last_model_idx = num_pyramid_models - 1;
         LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "original infer requests for last pyramid model["
-                            << last_model_id << "]");
-        proto_comp_model_desc.pyramid_infer_requests[last_model_id] = m_subrequests[real_idx];
+                            << last_model_idx << "]");
+        submodel_desc.pyramid_infer_requests[last_model_idx] = m_subrequests[real_idx];
         if (is_piped) {
-            proto_comp_model_desc.pyramid_pipeline_requests[last_model_id] = m_funcall_pipeline[real_idx].subrequest;
+            submodel_desc.pyramid_pipeline_requests[last_model_idx] = m_funcall_pipeline[real_idx].subrequest;
         }
     }
 
-    if (!is_recreate && compiled_models.size() > 0) {
-        LOG_INFO("Successfully created " << (compiled_models.size() - 1)
+    if (!is_recreate && num_pyramid_models > 0) {
+        LOG_INFO("Successfully created " << (num_pyramid_models - 1)
                                          << " new pyramid infer requests and reused 1 original request");
     }
 }
