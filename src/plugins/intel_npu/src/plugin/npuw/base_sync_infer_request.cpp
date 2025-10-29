@@ -767,7 +767,7 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
     const auto& pyramid_model = pyramid_attention._compiled_models[pyramid_id];
     auto& sub_request = request;
 
-    const auto past_len = m_pyramid_selector->past_length();
+    const auto past_len = pyramid_id * attention_info.query_size;
 
     // Set the past k/v values first
     for (auto&& param : attention_info.params) {
