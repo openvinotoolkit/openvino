@@ -60,16 +60,26 @@ namespace function {
 
 // Helper struct to hold validation and setup results
 struct PyramidValidationResult {
-    size_t query_length;
-    size_t full_context_length;
+    size_t query_length = 0;
+    size_t full_context_length = 0;
     std::map<std::string, size_t> past_key_sequence_dims;
     std::map<std::string, size_t> past_value_sequence_dims;
+
+    // Validation helper
+    bool is_valid() const {
+        return query_length > 0 && full_context_length > 0 && full_context_length >= query_length &&
+               !past_key_sequence_dims.empty() && !past_value_sequence_dims.empty();
+    }
 };
 
 // Helper struct to hold model processing result
 struct PyramidModelResult {
     std::shared_ptr<ov::Model> model;
     ov::npuw::function::Attention attention;
+
+    bool is_valid() const {
+        return model != nullptr;
+    }
 };
 
 // Helper function to patch broadcast constants (set to 1 for dynamic handling)
@@ -97,24 +107,44 @@ struct SDPAPatternNodes {
     std::shared_ptr<ov::Node> softmax_node = nullptr;
     std::shared_ptr<ov::Node> add_node = nullptr;
 
-    bool isValid() const {
+    bool is_valid() const {
         return matmul1_node && matmul2_node && softmax_node && add_node;
+    }
+
+    // Log pattern information for debugging
+    void log_pattern() const {
+        LOG_DEBUG("SDPA Pattern nodes:");
+        LOG_DEBUG("  MatMul1: " << (matmul1_node ? matmul1_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Add: " << (add_node ? add_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Softmax: " << (softmax_node ? softmax_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  MatMul2: " << (matmul2_node ? matmul2_node->get_friendly_name() : "null"));
     }
 };
 
 // Function to find SDPA pattern nodes in the model
-SDPAPatternNodes findSDPAPatternNodes(const std::shared_ptr<ov::Model>& model);
+SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
 
 // Function to find mask parameter by traversing from Add node
 std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr<ov::Node>& add_node);
 
 // PyramidAttention structure definition
 struct PyramidAttention {
-    std::vector<struct Attention> _attentions;
+    std::vector<Attention> _attentions;
     std::vector<std::shared_ptr<ov::Model>> _models;
     size_t _query_length = 0;
     size_t _full_context_length = 0;
 
+    // Validation helpers
+    bool is_valid() const {
+        return !_models.empty() && _models.size() == _attentions.size() && _query_length > 0 &&
+               _full_context_length > 0;
+    }
+
+    size_t num_models() const {
+        return _models.size();
+    }
+
+    // Factory method
     static std::optional<PyramidAttention> from(const std::shared_ptr<ov::Model>& model);
 };
 
@@ -139,72 +169,23 @@ struct PyramidAttention {
     std::vector<PyramidAttentionInfo> _attention_infos;
     std::vector<std::shared_ptr<ov::Model>> _models;
     std::vector<ov::SoPtr<ov::ICompiledModel>> _compiled_models;
-    std::vector<std::size_t> _context_lengths;  // Context length for each pyramid model
+    std::vector<std::size_t> _context_lengths;
 
     std::size_t query_size = 0u;
     std::size_t full_context_size = 0u;
 
     PyramidAttention() = delete;
-    PyramidAttention(const function::PyramidAttention& d)
-        : query_size(d._query_length),
-          full_context_size(d._full_context_length) {
-        NPUW_ASSERT(d._models.size() == d._attentions.size());
 
-        // Memory measurement: record initial memory usage
-        size_t initial_memory_kb = get_process_memory_kb();
-        std::cout << "=== PyramidAttention Memory Tracking Start: " << initial_memory_kb << " KB RSS ===" << std::endl;
-
-        // Reserve space for context lengths
-        _context_lengths.reserve(d._attentions.size());
-
-        for (size_t i = 0; i < d._attentions.size(); ++i) {
-            size_t before_attention_kb = get_process_memory_kb();
-
-            const auto& func_attn = d._attentions[i];
-            const auto& model = d._models[i];
-
-            PyramidAttentionInfo attention_info;
-            // Extract parameters
-            attention_info.params.reserve(func_attn._inputs.size());
-            for (const auto& input : func_attn._inputs) {
-                std::size_t p_idx = model->get_parameter_index(input.param);
-                attention_info.params.push_back({p_idx, input.dim});
-            }
-            // Extract mask index, query size, and context length
-            attention_info.mask_idx = model->get_parameter_index(func_attn._mask);
-            attention_info.query_size = func_attn.query_len();
-            attention_info.context_length = func_attn.context_len();
-
-            size_t after_attention_kb = get_process_memory_kb();
-            size_t attention_increase_kb =
-                (after_attention_kb > before_attention_kb) ? (after_attention_kb - before_attention_kb) : 0;
-
-            _attention_infos.push_back(attention_info);
-            _context_lengths.push_back(attention_info.context_length);
-
-            size_t before_model_kb = get_process_memory_kb();
-
-            // This was suspected 2GB RSS increase
-            _models.push_back(d._models[i]);
-
-            size_t after_model_kb = get_process_memory_kb();
-            size_t model_increase_kb = (after_model_kb > before_model_kb) ? (after_model_kb - before_model_kb) : 0;
-
-            std::cout << "Model[" << i << "]: Attention info extraction increased RSS by " << attention_increase_kb
-                      << " KB (" << (attention_increase_kb / 1024) << " MB)" << std::endl;
-            std::cout << "Model[" << i << "]: push_back increased RSS by " << model_increase_kb << " KB ("
-                      << (model_increase_kb / 1024) << " MB), total: " << after_model_kb << " KB" << std::endl;
-        }
-
-        size_t final_memory_kb = get_process_memory_kb();
-        size_t total_increase_kb = (final_memory_kb > initial_memory_kb) ? (final_memory_kb - initial_memory_kb) : 0;
-        std::cout << "=== PyramidAttention Memory Tracking End: Total increase = " << total_increase_kb << " KB ("
-                  << (total_increase_kb / 1024) << " MB) ===" << std::endl;
-    }
+    explicit PyramidAttention(const function::PyramidAttention& func_pyramid);
 
     // Return number of pyramid models
     size_t num_models() const {
         return _attention_infos.size();
+    }
+
+    // Get context length for a specific model
+    std::size_t get_context_length(size_t model_idx) const {
+        return model_idx < _context_lengths.size() ? _context_lengths[model_idx] : 0;
     }
 };
 
