@@ -21,6 +21,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 ov::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
     MATCHER_SCOPE(HSwishFusionWithReluDiv);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) / 6 with a HSwish op.

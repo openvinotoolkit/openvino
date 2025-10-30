@@ -20,6 +20,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
     MATCHER_SCOPE(DropoutWithRandomUniformReplacer);
     const auto shape_pattern = pass::pattern::any_input();

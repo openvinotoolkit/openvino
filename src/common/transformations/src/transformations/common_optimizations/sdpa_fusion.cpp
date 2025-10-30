@@ -33,6 +33,8 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 using namespace ov::op;
 
 namespace {

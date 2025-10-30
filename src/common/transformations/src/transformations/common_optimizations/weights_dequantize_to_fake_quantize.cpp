@@ -16,6 +16,8 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     MATCHER_SCOPE(WeightsDequantizeToFakeQuantize);
 

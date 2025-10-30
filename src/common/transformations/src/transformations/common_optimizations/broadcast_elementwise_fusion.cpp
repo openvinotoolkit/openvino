@@ -11,6 +11,8 @@
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using namespace ov;
+
 namespace {
 
 bool can_eliminate_broadcast(const ov::Output<ov::Node>& eltwise,

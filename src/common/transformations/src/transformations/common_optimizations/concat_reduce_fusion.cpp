@@ -24,6 +24,8 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 namespace {
 enum class ReduceType { NONE, MAX, MIN };
 

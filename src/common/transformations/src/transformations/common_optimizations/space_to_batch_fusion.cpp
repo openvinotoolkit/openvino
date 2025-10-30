@@ -20,6 +20,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
     MATCHER_SCOPE(SpaceToBatchFusion);
     auto data_pattern = pattern::any_input();

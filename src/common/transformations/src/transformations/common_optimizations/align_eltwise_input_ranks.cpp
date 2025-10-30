@@ -14,6 +14,8 @@
 #include "openvino/op/util/binary_elementwise_logical.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using namespace ov;
+
 ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     auto eltwise_pattern = pattern::wrap_type<ov::op::v0::SquaredDifference,
                                               op::util::BinaryElementwiseComparison,
