@@ -314,7 +314,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& orig_config) const {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Plugin::compile_model");
+    OV_ITT_SCOPED_TASK(itt::domains::ov_intel_cpu, "Plugin::compile_model");
     CREATE_DEBUG_TIMER(debugLoadTimer);
 
     // verification of supported input
@@ -731,7 +731,7 @@ static bool get_cache_decrypt_fn(const ov::AnyMap& config, CacheDecrypt& decrypt
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
@@ -744,7 +744,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model_tensor,
                                                          const ov::AnyMap& config) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);

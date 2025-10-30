@@ -154,7 +154,7 @@ In the `SELECTIVE_BUILD=COLLECT` stage, or if it was not called, in the `SELECTI
 ```
     cmake \
             -DCMAKE_BUILD_TYPE=Release \
-            -DENABLE_PROFILING_ITT=ON \
+            -DENABLE_PROFILING_ITT=FULL \
             -DSELECTIVE_BUILD=COLLECT \
             -B build \
             -S .
