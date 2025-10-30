@@ -130,7 +130,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
             return false;
         }
 
-        op::internal::RoPE::Config config;
+        internal::RoPE::Config config;
         config.head_cnt = static_cast<size_t>(num_heads.i());
         config.head_size = static_cast<size_t>(head_size.i());
         config.rotary_ndims = config.head_size;
@@ -143,7 +143,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
         new_args.push_back(pattern_map.at(t_sin));
 
         auto old_node = root;
-        auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
+        auto new_node = std::make_shared<internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({pattern_map.at(x1).get_node_shared_ptr(),
                                pattern_map.at(split).get_node_shared_ptr(),
@@ -222,7 +222,7 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
             return false;
         }
 
-        op::internal::RoPE::Config config;
+        internal::RoPE::Config config;
         OutputVector new_args;
         if (rank == 3) {
             config.support_3d_rope = true;
@@ -298,12 +298,12 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto sin_tab = prepare_cos_sin_gptneox(sin_const) | prepare_cos_sin_llama(sin_const);
 
     auto x = pattern::any_input(pattern::rank_equals(4));
-    auto rope = pattern::wrap_type<op::internal::RoPE>({x, cos_tab, sin_tab});
+    auto rope = pattern::wrap_type<internal::RoPE>({x, cos_tab, sin_tab});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-        auto rope_node = as_type_ptr<op::internal::RoPE>(pattern_map.at(rope).get_node_shared_ptr());
+        auto rope_node = as_type_ptr<internal::RoPE>(pattern_map.at(rope).get_node_shared_ptr());
         if (!rope_node)
             return false;
 
@@ -345,8 +345,8 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
     auto x = NewGenSlice(data, 0, "ndims", 1, 3);
     auto y = NewGenSlice(data, "ndims", int32_max, 1, 3);
     auto x_emb =
-        pattern::wrap_type<op::internal::RoPE>({x | varsplit->output(0), pattern::any_input(), pattern::any_input()}) |
-        pattern::wrap_type<op::internal::RoPE>(
+        pattern::wrap_type<internal::RoPE>({x | varsplit->output(0), pattern::any_input(), pattern::any_input()}) |
+        pattern::wrap_type<internal::RoPE>(
             {x | varsplit->output(0), pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto result = pattern::wrap_type<op::v0::Concat>({x_emb, y | varsplit->output(1)}, {{"axis", -1}});
 
@@ -354,7 +354,7 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
-        auto rope_node = as_type_ptr<op::internal::RoPE>(root->input_value(0).get_node_shared_ptr());
+        auto rope_node = as_type_ptr<internal::RoPE>(root->input_value(0).get_node_shared_ptr());
         if (!rope_node)
             return false;
 
@@ -399,13 +399,13 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
 
     // RoPE node: supports both 3 and 4 inputs
     auto result =
-        pattern::wrap_type<op::internal::RoPE>({x, pattern::any_input(), pattern::any_input()}) |
-        pattern::wrap_type<op::internal::RoPE>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+        pattern::wrap_type<internal::RoPE>({x, pattern::any_input(), pattern::any_input()}) |
+        pattern::wrap_type<internal::RoPE>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-        auto rope_node = as_type_ptr<op::internal::RoPE>(root);
+        auto rope_node = as_type_ptr<internal::RoPE>(root);
         if (!rope_node)
             return false;
 
@@ -521,7 +521,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
             return false;
         }
 
-        op::internal::RoPE::Config config;
+        internal::RoPE::Config config;
         OutputVector new_args;
         NodeVector rt_from = {pattern_map.at(varsplit).get_node_shared_ptr(),
                               pattern_map.at(repeat_interleave_sin).get_node_shared_ptr(),
@@ -555,7 +555,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         new_args.push_back(pattern_map.at(gather_sin_cos));
         new_args.push_back(pattern_map.at(gather_sin_cos));
         auto old_node = root;
-        auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
+        auto new_node = std::make_shared<internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info(rt_from, new_node);
         ov::replace_node(old_node, new_node);
@@ -727,7 +727,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
             return false;
         }
 
-        op::internal::RoPE::Config config;
+        internal::RoPE::Config config;
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(ndims.i());
         config.is_chatglm = true;
@@ -761,7 +761,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
 
         auto old_node = root;
 
-        auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
+        auto new_node = std::make_shared<internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({root->get_input_node_shared_ptr(0), root}, new_node);
         ov::replace_node(old_node, new_node);
@@ -824,7 +824,7 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
             return false;
         }
 
-        op::internal::RoPE::Config config;
+        internal::RoPE::Config config;
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(ndims.i());
         config.is_chatglm = true;
@@ -956,7 +956,7 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
             head_cnt.i() * head_size.i() != head_cnt_by_head_size.i()) {
             return false;
         }
-        op::internal::RoPE::Config config;
+        internal::RoPE::Config config;
         OutputVector new_args;
         config.is_qwen = true;
         config.head_cnt = static_cast<size_t>(head_cnt.i());
