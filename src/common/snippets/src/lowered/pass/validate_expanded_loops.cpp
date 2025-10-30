@@ -13,6 +13,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
