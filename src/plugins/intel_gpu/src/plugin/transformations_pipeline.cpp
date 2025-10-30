@@ -414,8 +414,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<AddTransformation>();
             SERIALIZE_GRAPHS("add_transformation");
             // 2. Fuse FQ->Convert->DQ to a single FQ
-            manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16, i32},
-                                                                       TypeVector{f16, f32});
+            manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16, i32}, TypeVector{f16, f32}, true);
             SERIALIZE_GRAPHS("convert_qdq");
             // 3. Strip FQ layers with unsupported levels
             bool replace_with_clamp = true;
