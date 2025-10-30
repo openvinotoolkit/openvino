@@ -9,8 +9,25 @@
 
 namespace intel_npu {
 
+class ZeroMemPool;
+
 class ZeroMem final {
 public:
+    ZeroMem() = delete;
+
+    /**
+     * @brief Return allocated memory
+     */
+    void* data();
+
+    /**
+     * @brief Return size of the allocated memory
+     */
+    size_t size();
+
+private:
+    friend class intel_npu::ZeroMemPool;
+
     /**
      * @brief Allocates a new memory region in the level zero context provided through init_structs.
      * @param init_structs Holder for the level zero structures.
@@ -41,23 +58,12 @@ public:
             const bool standard_allocation);
 
     /**
-     * @brief Return allocated memory
-     */
-    void* data();
-
-    /**
-     * @brief Return size of the allocated memory
-     */
-    size_t size();
-
-    /**
      * @brief Return memory id of the allocated memory
      */
     uint64_t id();
 
     ~ZeroMem();
 
-private:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     Logger _logger;
 

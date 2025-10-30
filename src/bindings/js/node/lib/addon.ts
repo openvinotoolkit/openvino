@@ -334,7 +334,7 @@ interface Node {
   /**
    * It constructs a default Node object.
    */
-  new(): Node;
+  new (): Node;
   /**
    * It gets the unique name of the node.
    * @returns A string with the name of the node.

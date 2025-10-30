@@ -314,9 +314,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.model_distribution_policy,
             "MODEL_DISTRIBUTION_POLICY",
-            (
-                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),
-            ),
+            (({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),),
         ),
         (
             hints.enable_hyper_threading,
@@ -483,6 +481,7 @@ def test_properties_ro(ov_property_ro, expected_value):
             "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
             ((True, True),),
         ),
+        (props.enable_weightless, "ENABLE_WEIGHTLESS", ((True, True), (False, False))),
     ],
 )
 def test_properties_rw(ov_property_rw, expected_value, test_values):
