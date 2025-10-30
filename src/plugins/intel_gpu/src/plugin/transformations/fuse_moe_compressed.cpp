@@ -20,16 +20,15 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/topk.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
@@ -99,20 +98,7 @@ FuseMOECompressed::FuseMOECompressed() {
         args[9] = pattern_map.at(down_scale_m);
         args[10] = pattern_map.at(down_zp_m);
 
-        ov::intel_gpu::op::MOEFusedCompressed::Config config;
-        auto moe_compressed_config = moe_compressed->get_config();
-        config.hidden_size = moe_compressed_config.hidden_size;
-        config.inter_size = moe_compressed_config.inter_size;
-        config.num_expert = moe_compressed_config.num_expert;
-        config.top_k = moe_compressed_config.top_k;
-        config.group_size = moe_compressed_config.group_size;
-        config.out_type = moe_compressed_config.out_type;
-
-        auto moe_fused_compressed = std::make_shared<ov::intel_gpu::op::MOEFusedCompressed>(args, config);
-        ov::enable_keep_const_precision(moe_fused_compressed->input_value(4).get_node_shared_ptr());
-        ov::enable_keep_const_precision(moe_fused_compressed->input_value(7).get_node_shared_ptr());
-        ov::enable_keep_const_precision(moe_fused_compressed->input_value(10).get_node_shared_ptr());
-
+        auto moe_fused_compressed = std::make_shared<ov::intel_gpu::op::MOEFusedCompressed>(args, moe_compressed->get_config());
         moe_fused_compressed->set_friendly_name(moe_compressed->get_friendly_name());
         ov::copy_runtime_info(moe_compressed, moe_fused_compressed);
         ov::replace_node(moe_compressed, moe_fused_compressed);

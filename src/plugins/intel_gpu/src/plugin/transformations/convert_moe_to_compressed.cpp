@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "intel_gpu/op/moe_compressed.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
@@ -18,74 +19,62 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 
+#define MOE_COMPRESSED_WEIGHT_GEMM3_PATTERN(SUFFIX)\
+    auto compressed_weights_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));\
+    auto zp_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));\
+    \
+    auto weight_convert_m_##SUFFIX = wrap_type<ov::op::v0::Convert>({compressed_weights_m_##SUFFIX}, type_matches(ov::element::f16));\
+    auto zp_convert_m_##SUFFIX = wrap_type<ov::op::v0::Convert>({zp_m_##SUFFIX}, type_matches(ov::element::f16));\
+    auto sub_m_##SUFFIX = wrap_type<ov::op::v1::Subtract>({weight_convert_m_##SUFFIX, zp_convert_m_##SUFFIX});\
+    \
+    auto scale_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::f16));\
+    auto mul_m_##SUFFIX = wrap_type<ov::op::v1::Multiply>({sub_m_##SUFFIX, scale_m_##SUFFIX});\
+    \
+    auto reshape_ungroup_##SUFFIX = [](const ov::Output<ov::Node>& output) {\
+        auto in_ps = output.get_node()->get_input_partial_shape(0);\
+        auto out_ps = output.get_node()->get_output_partial_shape(0);\
+        return in_ps.rank().is_static() && out_ps.rank().is_static() && (in_ps.size() == 4 && out_ps.size() == 3);\
+    };\
+    \
+    auto reshape_const_m_##SUFFIX = wrap_type<ov::op::v0::Constant>();\
+    auto reshape_m_##SUFFIX = wrap_type<ov::op::v1::Reshape>({mul_m_##SUFFIX, reshape_const_m_##SUFFIX}, reshape_ungroup_##SUFFIX);\
+    \
+    auto convert_m_##SUFFIX = wrap_type<ov::op::v0::Convert>({reshape_m_##SUFFIX}, type_matches(ov::element::f32));
+
+#define MOE_COMPRESSED_WEIGHT_GEMM3(SUFFIX)\
+    auto scale_##SUFFIX = pattern_map.at(scale_m_##SUFFIX).get_node_shared_ptr();\
+    auto zp_##SUFFIX = pattern_map.at(zp_m_##SUFFIX).get_node_shared_ptr();\
+    auto scale_shape_##SUFFIX = scale_##SUFFIX->get_shape();\
+    scale_shape_##SUFFIX.pop_back();\
+    auto reshape_const_##SUFFIX = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ scale_shape_##SUFFIX.size() }, scale_shape_##SUFFIX);\
+    auto scale_reshape_##SUFFIX = std::make_shared<ov::op::v1::Reshape>(scale_##SUFFIX, reshape_const_##SUFFIX, false);\
+    auto zp_reshape_##SUFFIX = std::make_shared<ov::op::v1::Reshape>(zp_##SUFFIX, reshape_const_##SUFFIX, false);\
+    \
+    std::vector<size_t> transpose_order_##SUFFIX(scale_reshape_##SUFFIX->get_shape().size());\
+    std::iota(transpose_order_##SUFFIX.begin(), transpose_order_##SUFFIX.end(), 0);\
+    std::swap(*(transpose_order_##SUFFIX.end() - 1), *(transpose_order_##SUFFIX.end() - 2));\
+    auto transpose_const_##SUFFIX = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order_##SUFFIX.size() }, transpose_order_##SUFFIX);\
+    auto transpose_scale_##SUFFIX = std::make_shared<ov::op::v1::Transpose>(scale_reshape_##SUFFIX, transpose_const_##SUFFIX);\
+    auto transpose_zp_##SUFFIX = std::make_shared<ov::op::v1::Transpose>(zp_reshape_##SUFFIX, transpose_const_##SUFFIX);
+
 ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
-    auto reshape_ungroup = [](const ov::Output<ov::Node>& output) {
-        auto in_ps = output.get_node()->get_input_partial_shape(0);
-        auto out_ps = output.get_node()->get_output_partial_shape(0);
-        return in_ps.rank().is_static() && out_ps.rank().is_static() && (in_ps.size() == 4 && out_ps.size() == 3);
-    };
-    // first proj
-    auto compressed_weights_m_0 = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto zp_m_0 = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-
-    auto weight_convert_const_m_0 = wrap_type<ov::op::v0::Convert>({compressed_weights_m_0}, type_matches(ov::element::f16));
-    auto zp_convert_const_m_0 = wrap_type<ov::op::v0::Convert>({zp_m_0}, type_matches(ov::element::f16));
-    auto sub_m_0 = wrap_type<ov::op::v1::Subtract>({weight_convert_const_m_0, zp_convert_const_m_0});
-
-    auto scale_m_0 = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::f16));
-    auto mul_m_0 = wrap_type<ov::op::v1::Multiply>({sub_m_0, scale_m_0});
-
-    auto reshape_const_m_0 = wrap_type<ov::op::v0::Constant>();
-    auto reshape_m_0 = wrap_type<ov::op::v1::Reshape>({mul_m_0, reshape_const_m_0}, reshape_ungroup);
-
-    auto convert_m_0 = wrap_type<ov::op::v0::Convert>({reshape_m_0}, type_matches(ov::element::f32));
-
-    // second proj
-    auto compressed_weights_m_1 = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto zp_m_1 = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-
-    auto weight_convert_const_m_1 = wrap_type<ov::op::v0::Convert>({compressed_weights_m_1}, type_matches(ov::element::f16));
-    auto zp_convert_const_m_1 = wrap_type<ov::op::v0::Convert>({zp_m_1}, type_matches(ov::element::f16));
-    auto sub_m_1 = wrap_type<ov::op::v1::Subtract>({weight_convert_const_m_1, zp_convert_const_m_1});
-
-    auto scale_m_1 = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::f16));
-    auto mul_m_1 = wrap_type<ov::op::v1::Multiply>({sub_m_1, scale_m_1});
-
-    auto reshape_const_m_1 = wrap_type<ov::op::v0::Constant>();
-    auto reshape_m_1 = wrap_type<ov::op::v1::Reshape>({mul_m_1, reshape_const_m_1}, reshape_ungroup);
-
-    auto convert_m_1 = wrap_type<ov::op::v0::Convert>({reshape_m_1}, type_matches(ov::element::f32));
-
-    // third proj
-    auto compressed_weights_m_2 = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto zp_m_2 = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-
-    auto weight_convert_const_m_2 = wrap_type<ov::op::v0::Convert>({compressed_weights_m_2}, type_matches(ov::element::f16));
-    auto zp_convert_const_m_2 = wrap_type<ov::op::v0::Convert>({zp_m_2}, type_matches(ov::element::f16));
-    auto sub_m_2 = wrap_type<ov::op::v1::Subtract>({weight_convert_const_m_2, zp_convert_const_m_2});
-
-    auto scale_m_2 = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::f16));
-    auto mul_m_2 = wrap_type<ov::op::v1::Multiply>({sub_m_2, scale_m_2});
-
-    auto reshape_const_m_2 = wrap_type<ov::op::v0::Constant>();
-    auto reshape_m_2 = wrap_type<ov::op::v1::Reshape>({mul_m_2, reshape_const_m_2}, reshape_ungroup);
-
-    auto convert_m_2 = wrap_type<ov::op::v0::Convert>({reshape_m_2}, type_matches(ov::element::f32));
+    MOE_COMPRESSED_WEIGHT_GEMM3_PATTERN(gate);
+    MOE_COMPRESSED_WEIGHT_GEMM3_PATTERN(up);
+    MOE_COMPRESSED_WEIGHT_GEMM3_PATTERN(down);
 
     auto hidden_states_m = any_input();
     auto routing_weights_m = any_input();
     auto topk_m = any_input();
 
-    auto moe_root = wrap_type<ov::op::internal::MOE>({hidden_states_m, routing_weights_m, topk_m, convert_m_0, convert_m_1, convert_m_2},
+    auto moe_root = wrap_type<ov::op::internal::MOE>({hidden_states_m, routing_weights_m, topk_m, convert_m_gate, convert_m_up, convert_m_down},
         [](const ov::Output<ov::Node>& output) {
             auto moe = ov::as_type_ptr<ov::op::internal::MOE>(output.get_node_shared_ptr());
-            return moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+            return moe && moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
         });
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -96,128 +85,44 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
             return false;
         }
 
-        auto input0 = moe->input_value(0);
-        auto input1 = moe->input_value(1);
-        auto input2 = moe->input_value(2);
-        auto input3 = moe->input_value(3);
-        auto input4 = moe->input_value(4);
-        auto input5 = moe->input_value(5);
-
-        // first proj
-        auto scale_0 = pattern_map.at(scale_m_0).get_node_shared_ptr();
-        auto zp_0 = pattern_map.at(zp_m_0).get_node_shared_ptr();
-        auto scale_0_shape = scale_0->get_shape();
-        scale_0_shape.pop_back();
-        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ scale_0_shape.size() }, scale_0_shape);
-        auto scale_0_reshape = std::make_shared<ov::op::v1::Reshape>(scale_0, reshape_const, false);
-        auto zp_0_reshape = std::make_shared<ov::op::v1::Reshape>(zp_0, reshape_const, false);
-        ov::enable_keep_const_precision(scale_0_reshape);
-        ov::enable_keep_const_precision(zp_0_reshape);
-
-        std::vector<size_t> transpose_order_0(scale_0_reshape->get_shape().size());
-        std::iota(transpose_order_0.begin(), transpose_order_0.end(), 0);
-        std::swap(*(transpose_order_0.end() - 1), *(transpose_order_0.end() - 2));
-        auto transpose_0_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order_0.size() }, transpose_order_0);
-        auto transpose_0_scale = std::make_shared<ov::op::v1::Transpose>(scale_0_reshape, transpose_0_const);
-        auto transpose_0_zp = std::make_shared<ov::op::v1::Transpose>(zp_0_reshape, transpose_0_const);
-        ov::enable_keep_const_precision(transpose_0_scale);
-        ov::enable_keep_const_precision(transpose_0_zp);
-
-        // second proj
-        auto scale_1 = pattern_map.at(scale_m_1).get_node_shared_ptr();
-        auto zp_1 = pattern_map.at(zp_m_1).get_node_shared_ptr();
-        auto scale_1_shape = scale_1->get_shape();
-        scale_1_shape.pop_back();
-        auto reshape_const_1 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ scale_1_shape.size() }, scale_1_shape);
-        auto scale_1_reshape = std::make_shared<ov::op::v1::Reshape>(scale_1, reshape_const_1, false);
-        auto zp_1_reshape = std::make_shared<ov::op::v1::Reshape>(zp_1, reshape_const_1, false);
-        ov::enable_keep_const_precision(scale_1_reshape);
-        ov::enable_keep_const_precision(zp_1_reshape);
-
-        std::vector<size_t> transpose_order_1(scale_1_reshape->get_shape().size());
-        std::iota(transpose_order_1.begin(), transpose_order_1.end(), 0);
-        std::swap(*(transpose_order_1.end() - 1), *(transpose_order_1.end() - 2));
-        auto transpose_1_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order_1.size() }, transpose_order_1);
-        auto transpose_1_scale = std::make_shared<ov::op::v1::Transpose>(scale_1_reshape, transpose_1_const);
-        auto transpose_1_zp = std::make_shared<ov::op::v1::Transpose>(zp_1_reshape, transpose_1_const);
-        ov::enable_keep_const_precision(transpose_1_scale);
-        ov::enable_keep_const_precision(transpose_1_zp);
-
-        // third proj
-        auto scale_2 = pattern_map.at(scale_m_2).get_node_shared_ptr();
-        auto zp_2 = pattern_map.at(zp_m_2).get_node_shared_ptr();
-        auto scale_2_shape = scale_2->get_shape();
-        scale_2_shape.pop_back();
-        auto reshape_const_2 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ scale_2_shape.size() }, scale_2_shape);
-        auto scale_2_reshape = std::make_shared<ov::op::v1::Reshape>(scale_2, reshape_const_2, false);
-        auto zp_2_reshape = std::make_shared<ov::op::v1::Reshape>(zp_2, reshape_const_2, false);
-        ov::enable_keep_const_precision(scale_2_reshape);
-        ov::enable_keep_const_precision(zp_2_reshape);
-
-        std::vector<size_t> transpose_order_2(scale_2_reshape->get_shape().size());
-        std::iota(transpose_order_2.begin(), transpose_order_2.end(), 0);
-        std::swap(*(transpose_order_2.end() - 1), *(transpose_order_2.end() - 2));
-        auto transpose_2_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order_2.size() }, transpose_order_2);
-        auto transpose_2_scale = std::make_shared<ov::op::v1::Transpose>(scale_2_reshape, transpose_2_const);
-        auto transpose_2_zp = std::make_shared<ov::op::v1::Transpose>(zp_2_reshape, transpose_2_const);
-        ov::enable_keep_const_precision(transpose_2_scale);
-        ov::enable_keep_const_precision(transpose_2_zp);
+        MOE_COMPRESSED_WEIGHT_GEMM3(gate);
+        MOE_COMPRESSED_WEIGHT_GEMM3(up);
+        MOE_COMPRESSED_WEIGHT_GEMM3(down);
 
         OutputVector args(12);
         args[0] = pattern_map.at(hidden_states_m);
         args[1] = pattern_map.at(routing_weights_m);
         args[2] = pattern_map.at(topk_m);
-        args[3] = pattern_map.at(compressed_weights_m_0);
-        args[4] = transpose_0_scale;
-        args[5] = transpose_0_zp;
-        args[6] = pattern_map.at(compressed_weights_m_1);
-        args[7] = transpose_1_scale;
-        args[8] = transpose_1_zp;
-        args[9] = pattern_map.at(compressed_weights_m_2);
-        args[10] = transpose_2_scale;
-        args[11] = transpose_2_zp;
-        ov::intel_gpu::op::MOECompressed::Config config;
-        auto weight_shape = pattern_map.at(compressed_weights_m_0).get_shape();
+        args[3] = pattern_map.at(compressed_weights_m_gate);
+        args[4] = transpose_scale_gate;
+        args[5] = transpose_zp_gate;
+        args[6] = pattern_map.at(compressed_weights_m_up);
+        args[7] = transpose_scale_up;
+        args[8] = transpose_zp_up;
+        args[9] = pattern_map.at(compressed_weights_m_down);
+        args[10] = transpose_scale_down;
+        args[11] = transpose_zp_down;
+        ov::intel_gpu::op::MOECompressed::Config config(moe->get_config());
+        auto wei_partial_shape = pattern_map.at(compressed_weights_m_up).get_partial_shape();
+        OPENVINO_ASSERT(wei_partial_shape.is_static(), "moe weight shape should be static.");
+        auto weight_shape = wei_partial_shape.to_shape();
         if (weight_shape.size() != 4) {
             return false;
         }
-        auto topk_shape = pattern_map.at(topk_m).get_partial_shape();
         config.hidden_size = weight_shape[2] * weight_shape[3];
         config.inter_size = weight_shape[1];
         config.num_expert = weight_shape[0];
         config.group_size = weight_shape[3];
+        auto topk_shape = pattern_map.at(topk_m).get_partial_shape();
+        OPENVINO_ASSERT(topk_shape[1].is_static(), "k dimenion in moe topk input should be static.");
         config.top_k = topk_shape[1].get_length();
         config.out_type = ov::element::f16;
         auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
-
-        auto w0 = pattern_map.at(compressed_weights_m_0).get_node_shared_ptr();
-        auto s0 = pattern_map.at(scale_m_0).get_node_shared_ptr();
-        auto z0 = pattern_map.at(zp_m_0).get_node_shared_ptr();
-        auto w1 = pattern_map.at(compressed_weights_m_1).get_node_shared_ptr();
-        auto s1 = pattern_map.at(scale_m_1).get_node_shared_ptr();
-        auto z1 = pattern_map.at(zp_m_1).get_node_shared_ptr();
-        auto w2 = pattern_map.at(compressed_weights_m_2).get_node_shared_ptr();
-        auto s2 = pattern_map.at(scale_m_2).get_node_shared_ptr();
-        auto z2 = pattern_map.at(zp_m_2).get_node_shared_ptr();
-        ov::enable_keep_const_precision(w0);
-        ov::enable_keep_const_precision(s0);
-        ov::enable_keep_const_precision(z0);
-        ov::enable_keep_const_precision(w1);
-        ov::enable_keep_const_precision(s1);
-        ov::enable_keep_const_precision(z1);
-        ov::enable_keep_const_precision(w2);
-        ov::enable_keep_const_precision(s2);
-        ov::enable_keep_const_precision(z2);
-
-        ov::enable_keep_const_precision(moe_compressed->input_value(5).get_node_shared_ptr());
-        ov::enable_keep_const_precision(moe_compressed->input_value(8).get_node_shared_ptr());
-        ov::enable_keep_const_precision(moe_compressed->input_value(11).get_node_shared_ptr());
 
         moe_compressed->set_friendly_name(moe->get_friendly_name());
         ov::copy_runtime_info(moe, moe_compressed);
         ov::replace_node(moe, moe_compressed);
 
-        std::cout << "ConvertMOEToMOECompressed is hit : config.top_k = " << config.top_k << std::endl;
         return true;
     };
 
