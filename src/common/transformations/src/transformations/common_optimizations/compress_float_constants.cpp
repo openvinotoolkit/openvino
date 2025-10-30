@@ -195,8 +195,29 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
         if (!new_const) {
             return false;
         }
-        auto constant_target_inputs = const_node->get_output_target_inputs(0);
-        auto convert = std::make_shared<ov::op::v0::Convert>(new_const, const_node->get_element_type());
+        auto target_inputs_to_replace = const_node->get_output_target_inputs(0);
+
+        std::shared_ptr<ov::Node> postponed_constant_node;
+        std::set<ov::Input<ov::Node>> postponed_constant_node_target_inputs;
+        bool is_postponed_constant_next = [&]() {
+            if (target_inputs_to_replace.size() == 1 &&
+                target_inputs_to_replace.begin()->get_node()->get_rt_info().count("postponed_constant")) {
+                postponed_constant_node = target_inputs_to_replace.begin()->get_node()->shared_from_this();
+                target_inputs_to_replace = postponed_constant_node->get_output_target_inputs(0);
+                return true;
+            }
+            return false;
+        }();
+        // is_postponed_constant_next flag means that the next node is to be constant_folded later during serialization.
+        // If f16 conversion is also postponed, we need to insert Convert node after the postponed_constant node
+
+        std::shared_ptr<ov::Node> convert;
+        if (is_postponed_constant_next && postponed) {
+            convert = std::make_shared<ov::op::v0::Convert>(postponed_constant_node, const_node->get_element_type());
+            postponed_constant_node->set_friendly_name(const_node->get_friendly_name() + "_compressed");
+        } else {
+            convert = std::make_shared<ov::op::v0::Convert>(new_const, const_node->get_element_type());
+        }
 
         convert->set_friendly_name(const_node->get_friendly_name());
         new_const->set_friendly_name(const_node->get_friendly_name() + "_compressed");
@@ -206,7 +227,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
             postpone_fp16_compression(new_const->get_rt_info());
             postpone_fp16_compression(new_const->get_output_tensor(0).get_rt_info());
 
-            for (const auto& target_input : constant_target_inputs) {
+            for (const auto& target_input : target_inputs_to_replace) {
                 target_input.replace_source_output(convert);
             }
         } else {
