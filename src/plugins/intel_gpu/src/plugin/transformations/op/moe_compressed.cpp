@@ -6,7 +6,7 @@
 
 namespace ov::intel_gpu::op {
 
-MOECompressed::MOECompressed(const OutputVector& args, const Config& config) : Op(args), m_config(config) {
+MOECompressed::MOECompressed(const OutputVector& args, const Config& config) : MOE(args), m_config(config) {
     constructor_validate_and_infer_types();
 }
 
@@ -31,6 +31,7 @@ void MOECompressed::validate_and_infer_types() {
 }
 
 bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
+    MOE::visit_attributes(visitor);
     visitor.on_attribute("hidden_size", m_config.hidden_size);
     visitor.on_attribute("inter_size", m_config.inter_size);
     visitor.on_attribute("num_expert", m_config.num_expert);

@@ -84,6 +84,7 @@
 #include "plugin/transformations/fuse_moe_compressed.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
+#include "plugin/transformations/keep_moe_const_precision.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
@@ -197,9 +198,6 @@
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/log.hpp"
-#include "openvino/op/moe.hpp"
-#include "intel_gpu/op/moe_compressed.hpp"
-#include "intel_gpu/op/moe_fused_compressed.hpp"
 
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 namespace {
@@ -216,7 +214,6 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
 
 static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node, bool supports_immad) {
     std::vector<ov::DiscreteTypeInfo> target_consumers = { ov::opset1::MatMul::get_type_info_static(),
-                                                           ov::intel_gpu::op::MOEFusedCompressed::get_type_info_static(),
                                                            ov::op::v8::Gather::get_type_info_static(),
                                                            ov::op::v1::Convolution::get_type_info_static(),
                                                            ov::opset1::Convolution::get_type_info_static(),
@@ -475,8 +472,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (is_type<ov::op::v0::Convert>(next_node)) {
                     next_node = next_node->get_output_target_inputs(0).begin()->get_node();
                 }
-                // return !is_type<ov::op::v0::MatMul>(next_node);
-                return !is_type<ov::op::v0::MatMul>(next_node) && !is_type<ov::intel_gpu::op::MOEFusedCompressed>(next_node);
+                return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
@@ -515,6 +511,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
+        // In case "zp/scale -> reshape -> transpose -> MOE", "zp/scale -> reshape -> transpose" is constant-folded.
+        // We need mark KeepMOEConstPrecision to disable convert new constant(transpose output).
+        manager.register_pass<ov::intel_gpu::KeepMOEConstPrecision>();
         // In the case of "input -> reshape -> convert -> multiply",
         // the "input -> reshape" subgraph is constant-folded in the above "CommonOptimizations"
         // To handle this case, "KeepConstPrecision" is executed again.
