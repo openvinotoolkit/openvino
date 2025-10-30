@@ -444,9 +444,7 @@ private:
                 return res;
             }));
 
-        EXPECT_CALL(plugin, set_property(_)).Times(AnyNumber()).WillRepeatedly(Invoke([](const ov::AnyMap&) {
-            OPENVINO_NOT_IMPLEMENTED;
-        }));
+        EXPECT_CALL(plugin, set_property(_)).Times(AnyNumber());
     }
 };
 
@@ -1684,8 +1682,15 @@ TEST_P(CachingTest, TestCacheFileCorrupted) {
     {
         auto blobs = ov::test::utils::listFilesWithExt(m_cacheDir, "blob");
         for (const auto& fileName : blobs) {
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::add);
             std::ofstream stream(fileName, std::ios_base::binary);
             stream << "SomeCorruptedText";
+            stream.close();
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::remove);
         }
     }
     m_post_mock_net_callbacks.pop_back();
@@ -1764,8 +1769,16 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
             } else {
                 return;  // skip test
             }
+
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::add);
             std::ofstream out(fileName, std::ios_base::binary);
             out.write(content.c_str(), static_cast<std::streamsize>(content.size()));
+            out.close();
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::remove);
         }
     }
     m_post_mock_net_callbacks.pop_back();
@@ -1863,8 +1876,15 @@ TEST_P(CachingTest, TestCacheFileWithCompiledModelRuntimeProperties) {
             } else {
                 return;  // skip test
             }
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::add);
             std::ofstream out(fileName, std::ios_base::binary);
             out.write(content.c_str(), static_cast<std::streamsize>(content.size()));
+            out.close();
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::remove);
         }
     }
     m_post_mock_net_callbacks.pop_back();
@@ -2940,6 +2960,7 @@ INSTANTIATE_TEST_SUITE_P(CachingTest,
                          getTestCaseName);
 #endif  // defined(ENABLE_OV_IR_FRONTEND)
 
+#ifdef PROXY_PLUGIN_ENABLED
 class CacheTestWithProxyEnabled : public CachingTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<TestParam, std::string>>& obj) {
@@ -2963,7 +2984,6 @@ protected:
     }
 };
 
-#ifdef PROXY_PLUGIN_ENABLED
 TEST_P(CacheTestWithProxyEnabled, TestLoad) {
     ON_CALL(*mockPlugin, get_property(ov::available_devices.name(), _))
         .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {

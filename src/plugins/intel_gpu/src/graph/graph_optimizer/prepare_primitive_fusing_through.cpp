@@ -105,7 +105,8 @@ void prepare_primitive_fusing_through::run(program& p) {
             bool has_constant_input = false;
             for (size_t i = 0; i < node->get_dependencies().size(); i++) {
                 auto& dep = node->get_dependency(i);
-                if (dep.is_constant() && dep.get_output_layout().get_tensor() == cldnn::tensor(1)) {
+                auto dep_layout = dep.get_output_layout();
+                if (dep.is_constant() && dep_layout.is_static() && dep_layout.get_tensor() == cldnn::tensor(1)) {
                     second_input_idx = i ^ 1;
                     has_constant_input = true;
                     break;
