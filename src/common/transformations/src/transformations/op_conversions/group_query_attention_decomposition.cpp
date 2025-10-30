@@ -160,18 +160,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     std::shared_ptr<ov::Node> mask;
     if (node->get_input_size() > 9) {
         mask = node->input_value(9).get_node_shared_ptr();
-        // Extract last two dimensions from 4D mask [1, 1, curr_seqlen, concat_kv_len]
+        // Extract last two dimensions from 4D mask [1, 1, curr_seqlen, max_kv_len]
         // Squeeze out the first two singleton dimensions
         auto axes_to_squeeze = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1}));
         mask = register_new_node<v0::Squeeze>(mask, axes_to_squeeze);
-        // Slice the mask to get [curr_seqlen, past_seqlen + curr_seqlen]
-        const auto past_k_node_len = get_dimensions(past_key.get_node_shared_ptr(), {2});
-        auto start = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 0}));
-        auto end_shape = register_new_node<v0::Concat>(ov::NodeVector{current_seqlen, past_k_node_len}, 0);
-        auto step = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1}));
-        auto axes = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1}));
-        mask = register_new_node<v8::Slice>(mask, start, end_shape, step, axes);
-        
+        // Slice the mask to get [curr_seqlen, concat_kv_len]
+        mask = register_new_node<v8::Slice>(mask, zero, concat_kv_len, one, one);
     } else {
         std::shared_ptr<ov::Node> hori_range =
             register_new_node<v4::Range>(zero_without_shape, concat_kv_len_scalar, one_without_shape, ov::element::i64);
