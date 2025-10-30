@@ -94,7 +94,7 @@ const std::vector<DeviceOps> device_ops_table = {
     { { {12, 74,  0}, {12, 74, MAX_REVISION} }, {     0.5,   16,     32,    128,    256,     0 }, {} },    // ARL-H
     { { {20,  1,  0}, {20,  2, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} },    // BMG
     { { {20,  4,  0}, {20,  4, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} },    // LNL
-    { { {30,  0,  0}, {30,  1, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} }     // PTL
+    { { {30,  0,  0}, {30,  1, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} }     // next-gen
 };
 
 float device::get_gops(data_types dt) const {
