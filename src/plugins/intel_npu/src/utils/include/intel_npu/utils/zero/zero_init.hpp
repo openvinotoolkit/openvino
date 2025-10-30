@@ -10,6 +10,7 @@
 #include <ze_intel_npu_uuid.h>
 
 #include <memory>
+#include <mutex>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -53,11 +54,12 @@ public:
     }
     inline uint32_t getCompilerVersion() const {
         if (!compiler_properties) {
-            OPENVINO_THROW("Compiler properties were not initialized!");
+            (void)getCompilerProperties();
         }
         return ZE_MAKE_VERSION(compiler_properties->compilerVersion.major, compiler_properties->compilerVersion.minor);
     }
     inline ze_device_graph_properties_t getCompilerProperties() const {
+        std::lock_guard<std::mutex> lock(_mutex);
         if (!compiler_properties) {
             // Obtain compiler-in-driver properties
             compiler_properties = std::make_unique<ze_device_graph_properties_t>();
@@ -120,6 +122,8 @@ private:
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
+
+    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu
