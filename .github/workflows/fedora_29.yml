@@ -101,14 +101,14 @@ jobs:
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
         -G 'Ninja'
-        -DENABLE_CPPLINT=OFF
-        -DENABLE_NCC_STYLE=OFF
-        -DENABLE_INTEL_NPU=OFF
-        -DENABLE_TESTS=ON
-        -DENABLE_STRICT_DEPENDENCIES=OFF
-        -DENABLE_SYSTEM_OPENCL=ON
-        -DCPACK_GENERATOR=TGZ
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        -DENABLE_CPPLINT=OFF 
+        -DENABLE_NCC_STYLE=OFF 
+        -DENABLE_INTEL_NPU=OFF 
+        -DENABLE_TESTS=ON 
+        -DENABLE_STRICT_DEPENDENCIES=OFF 
+        -DENABLE_SYSTEM_OPENCL=ON 
+        -DCPACK_GENERATOR=TGZ 
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON 
         -DCMAKE_BUILD_TYPE=Release
 
   RPM_Packages:
@@ -118,7 +118,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores-16gb-bf16-st
+    runs-on: aks-linux-4-cores-16gb-st
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.fedora_33 }}
     env:
@@ -173,11 +173,11 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
-      runner: 'aks-linux-4-cores-16gb-bf16-st'
+      runner: 'aks-linux-4-cores-16gb-st'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'fedora_29'
-
+  
   Overall_Status:
     name: ci/gha_overall_status_fedora
     needs: [Smart_CI, Build, CXX_Unit_Tests, RPM_Packages]
