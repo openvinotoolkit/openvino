@@ -171,7 +171,7 @@ public:
                 found_custom_op_num++;
             }
         }
-        ASSERT_TRUE(found_custom_op_num == 2);
+        ASSERT_EQ(found_custom_op_num, 2);
 
         auto ireq = compiled_model.create_infer_request();
         for (size_t i = 0; i < input_datas.size(); i++) {
