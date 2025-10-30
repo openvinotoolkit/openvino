@@ -845,32 +845,4 @@ Example:
         </filters>
     </skip_config>
 
-    <skip_config>
-        <message>Cannot test different compiler type yet</message>
-        <filters>
-            <filter>.*OVSetRunTimePropertiesTestsNPU.SetRunTimePropertiesNoCompilerLoad.*NPU_COMPILER_TYPE.*MLIR.*</filter>
-            <filter>.*OVSetCartesianProductPropertiesTestsNPU.SetCartesianProductPropertiesCompilerLoad.*NPU_COMPILER_TYPE.*MLIR.*</filter>
-            <filter>.*OVPostponeCompilerLoadTestsNPU.CompileModelDoesCompilerLoad.*NPU_COMPILER_TYPE.*MLIR.*</filter>
-            <filter>.*OVPostponeCompilerLoadTestsNPU.CompileModelWithCacheDoesNotCompilerLoad.*NPU_COMPILER_TYPE.*MLIR.*</filter>
-            <filter>.*OVPostponeCompilerLoadTestsNPU.ImportModelDoesNotCompilerLoad.*NPU_COMPILER_TYPE.*MLIR.*</filter>
-            <filter>.*OVPostponeCompilerLoadTestsNPU.QueryModelDoesCompilerLoad.*NPU_COMPILER_TYPE.*MLIR.*</filter>
-        </filters>
-    </skip>
-
-    <!-- C#174256 + C173117 -->
-    <skip_config>
-        <message>Compiler library will be loaded prematurely and cannot be unloaded</message>
-        <filters>
-            <filter>.*OVCompileTimePropertiesArgumentsTestsNPU.GetCompileTimePropertiesCompilerLoad.*</filter>
-            <filter>.*OVSetCompileTimePropertiesTestsNPU.SetCompileTimePropertiesCompilerLoad.*</filter>
-            <filter>.*OVBothPropertiesArgumentsTestsNPU.GetBothPropertiesCompilerLoad.*</filter>
-            <filter>.*OVSetBothPropertiesTestsNPU.SetBothPropertiesCompilerLoad.*</filter>
-            <filter>.*OVSetCartesianProductPropertiesTestsNPU.SetCartesianProductPropertiesCompilerLoad.*</filter>
-            <filter>.*OVPostponeCompilerLoadTestsNPU.CompileModelDoesCompilerLoad.*</filter>
-            <filter>.*OVPostponeCompilerLoadTestsNPU.CompileModelWithCacheDoesNotCompilerLoad.*</filter>
-            <filter>.*OVPostponeCompilerLoadTestsNPU.ImportModelDoesNotCompilerLoad.*</filter>
-            <filter>.*OVPostponeCompilerLoadTestsNPU.QueryModelDoesCompilerLoad.*</filter>
-        </filters>
-    </skip_config>
-
 </skip_configs>

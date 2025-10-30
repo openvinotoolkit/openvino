@@ -504,34 +504,42 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
                                          OptionMode mode) const {
     update_log_level(rawConfig);
     // create a copy of the global config
-    FilteredConfig localConfig = _globalConfig;
+    std::unique_ptr<FilteredConfig>
+        localConfigPtr;  // no default constructor from FilteredConfig, needed to switch to ptr
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        localConfigPtr = std::make_unique<FilteredConfig>(_globalConfig);
+    }
     bool compiler_changed = false;
 
     // Check if compiler was changed
     // 1. Check for compiler change
     auto it = rawConfig.find(std::string(COMPILER_TYPE::key()));
     if (it != rawConfig.end()) {
-        if (localConfig.getString<COMPILER_TYPE>() != it->second) {
+        if (localConfigPtr->getString<COMPILER_TYPE>() != it->second) {
             // Compiler type has changed!
             // Set new compiler type
-            localConfig.update({{std::string(COMPILER_TYPE::key()), it->second}});
+            localConfigPtr->update({{std::string(COMPILER_TYPE::key()), it->second}});
             // enable/disable config keys based on what the new compiler supports
-            filter_config_by_compiler_support(localConfig);
+            filter_config_by_compiler_support(*localConfigPtr);
             compiler_changed = true;
         }
     }
 
     // If localConfig was not filtered not even by compiler type change, then _globalConfig needs also initialization
-    if (!localConfig.wasFiltered()) {
+    if (!localConfigPtr->wasFiltered()) {
         filter_global_config_safe();
-        localConfig = _globalConfig;
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            localConfigPtr = std::make_unique<FilteredConfig>(_globalConfig);
+        }
     }
 
     // 2. Revalidate unknown internal configs
     // look for unsupported internals
     // first in what we inherited from globalconfig by forking it - ONLY if compiler has changed
     if (compiler_changed) {
-        localConfig.walkInternals([&](const std::string& key) {
+        localConfigPtr->walkInternals([&](const std::string& key) {
             if (!compiler->is_option_supported(key)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
             }
@@ -540,12 +548,12 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
     // secondly, in the new config provided by user
     std::map<std::string, std::string> cfgs_to_set;
     for (const auto& [key, value] : rawConfig) {
-        if (!localConfig.hasOpt(key)) {
+        if (!localConfigPtr->hasOpt(key)) {
             // not a known config key
             if (!compiler->is_option_supported(key)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
             } else {
-                localConfig.addOrUpdateInternal(key, value);
+                localConfigPtr->addOrUpdateInternal(key, value);
             }
         } else {
             cfgs_to_set.emplace(key, value);
@@ -553,8 +561,8 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
     }
 
     // 3. If all good so far, update values
-    localConfig.update(cfgs_to_set, mode);
-    return localConfig;
+    localConfigPtr->update(cfgs_to_set, mode);
+    return *localConfigPtr;
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
