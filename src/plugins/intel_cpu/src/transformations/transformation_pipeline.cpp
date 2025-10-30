@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -652,6 +652,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                              convert_input_output_precision);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateIdentityConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
@@ -1044,7 +1045,7 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Lpt);
 
     CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "LowPrecisionTransformations");
 
     runLptPasses(defaultPrecisions);
 }

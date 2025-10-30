@@ -605,14 +605,7 @@ std::string serializeConfig(const Config& config,
     // and make use of it too If we have turbo in the config string, we check if compiler supports it. If it doesn't
     // support it, we remove it
     if (std::regex_search(content, std::regex("NPU_TURBO"))) {
-        bool is_supported = false;
-        try {
-            is_supported = turboSupported;
-        } catch (...) {
-            // mute it, not critical
-            is_supported = false;
-        }
-        if (!is_supported) {
+        if (!turboSupported) {
             std::ostringstream turbostr;
             turbostr << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                      << VALUE_DELIMITER;
