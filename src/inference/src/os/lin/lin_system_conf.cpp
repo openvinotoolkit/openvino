@@ -351,7 +351,6 @@ void parse_node_info_linux(const std::vector<std::string> node_info_table,
                 sub_str = one_info.substr(pos);
                 core_1 = std::stoi(sub_str);
                 nodes_table.push_back({core_1, core_1, node_index});
-                pos = endpos_1 + 1;
             } else if (endpos_2 != std::string::npos) {
                 sub_str = one_info.substr(pos, endpos_2 - pos);
                 core_1 = std::stoi(sub_str);
