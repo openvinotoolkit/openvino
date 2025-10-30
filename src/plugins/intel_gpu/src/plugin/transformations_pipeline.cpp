@@ -280,9 +280,21 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
         return true;
     };
 
-    if (all_has_types(consumers, { ov::opset1::Reshape::get_type_info_static() })) {
+    if (all_has_types(consumers, {ov::opset1::Reshape::get_type_info_static()}) || all_has_types(consumers, {ov::op::v1::Transpose::get_type_info_static()})) {
         for (const auto& consumer : consumers) {
-            const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
+            auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
+
+            // Reshape + Transpose chain
+            if (all_has_types(child_consumers, { ov::op::v1::Transpose::get_type_info_static() })) {
+                std::set<ov::Input<ov::Node>> next_child_consumers;
+                for (const auto& child_consumer : child_consumers) {
+                    const auto grand_child_consumers = child_consumer.get_node()->get_output_target_inputs(0);
+                    next_child_consumers.insert(grand_child_consumers.begin(), grand_child_consumers.end());
+                }
+                child_consumers = next_child_consumers;
+            }
+
+            // const auto consumers = node->get_output_target_inputs(0);
             for (const auto& child_consumer : child_consumers) {
                 const auto& type_info = child_consumer.get_node()->get_type_info();
                 if (cldnn::one_of(type_info, target_consumers)) {
