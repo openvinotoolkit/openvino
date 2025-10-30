@@ -77,7 +77,7 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
 
     auto eltwise_data_input_p = pattern::any_input();
     auto eltwise_const_input_p = pattern::wrap_type<ov::op::v0::Constant>();
-    auto eltwise_p = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>(
+    auto eltwise_p = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
         {eltwise_data_input_p, eltwise_const_input_p},
         [](const Output<Node>& output) {
             return ov::is_preprocesing_node(output.get_node_shared_ptr());
@@ -156,8 +156,8 @@ ov::pass::TransposeReduction::TransposeReduction() {
         pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
                                                   pattern::consumers_count(1));
     auto reduce_or_squeeze_label =
-        pattern::wrap_type<op::util::ArithmeticReductionKeepDims,
-                           op::util::LogicalReductionKeepDims,
+        pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims,
+                           ov::op::util::LogicalReductionKeepDims,
                            ov::op::v0::Squeeze>({transpose_label, pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -165,8 +165,8 @@ ov::pass::TransposeReduction::TransposeReduction() {
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto reduction = pattern_to_output.at(reduce_or_squeeze_label).get_node_shared_ptr();
-        auto arithmetic_reduce = ov::as_type_ptr<op::util::ArithmeticReductionKeepDims>(reduction);
-        auto logical_reduce = ov::as_type_ptr<op::util::LogicalReductionKeepDims>(reduction);
+        auto arithmetic_reduce = ov::as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(reduction);
+        auto logical_reduce = ov::as_type_ptr<ov::op::util::LogicalReductionKeepDims>(reduction);
         auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(reduction);
         if (!transpose || !(arithmetic_reduce || logical_reduce || squeeze))
             return false;
@@ -231,8 +231,8 @@ ov::pass::TransposeFQReduction::TransposeFQReduction() {
                                                                   pattern::any_input(pattern::has_static_rank()),
                                                                   pattern::any_input(pattern::has_static_rank())});
     auto reduce_or_squeeze_label =
-        pattern::wrap_type<op::util::ArithmeticReductionKeepDims,
-                           op::util::LogicalReductionKeepDims,
+        pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims,
+                           ov::op::util::LogicalReductionKeepDims,
                            ov::op::v0::Squeeze>({fq_label, pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -263,12 +263,12 @@ ov::pass::TransposeFQReduction::TransposeFQReduction() {
                 std::iota(axes.begin(), axes.end(), 0);
                 const auto& axes_const = ov::op::v0::Constant::create(element::i64, Shape{axes.size()}, axes);
                 new_ops.push_back(axes_const);
-                const auto& unsqueezed_input = op::util::make_try_fold<ov::op::v0::Unsqueeze>(input, axes_const);
+                const auto& unsqueezed_input = ov::op::util::make_try_fold<ov::op::v0::Unsqueeze>(input, axes_const);
                 new_ops.push_back(unsqueezed_input);
                 input = unsqueezed_input->output(0);
             }
             const auto& transposed_input =
-                op::util::make_try_fold<ov::op::v1::Transpose>(input, reverse_order_constant);
+                ov::op::util::make_try_fold<ov::op::v1::Transpose>(input, reverse_order_constant);
             new_ops.push_back(transposed_input);
             fq_inputs.push_back(transposed_input);
         }

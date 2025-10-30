@@ -34,7 +34,7 @@ ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
     auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pad_value = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pad_pattern = pattern::wrap_type<op::util::PadBase>(
+    auto pad_pattern = pattern::wrap_type<ov::op::util::PadBase>(
         {reshape_or_transpose_before_pattern, pads_begin_pattern, pads_end_pattern, pad_value});
     auto space_to_depth_pattern =
         pattern::wrap_type<ov::op::v0::SpaceToDepth>({pad_pattern}, pattern::has_static_shape());
@@ -94,8 +94,8 @@ ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
         if (!check_input_output_shape(reshape_or_trans_after))
             return false;
 
-        auto pad = ov::as_type_ptr<op::util::PadBase>(pattern_map.at(pad_pattern).get_node_shared_ptr());
-        if (!pad || pad->get_pad_mode() != op::PadMode::CONSTANT)
+        auto pad = ov::as_type_ptr<ov::op::util::PadBase>(pattern_map.at(pad_pattern).get_node_shared_ptr());
+        if (!pad || pad->get_pad_mode() != ov::op::PadMode::CONSTANT)
             return false;
         auto pad_value_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(pad_value).get_node_shared_ptr());
         if (!pad_value_const)

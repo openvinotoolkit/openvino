@@ -109,7 +109,7 @@ ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
                                                                        new_pads_begin,
                                                                        new_pads_end,
                                                                        dilations,
-                                                                       op::PadType::EXPLICIT);
+                                                                       ov::op::PadType::EXPLICIT);
         } else {
             new_conv = register_new_node<ov::op::v1::Convolution>(pattern_map.at(data_pattern),
                                                                   conv_node->input_value(1),
@@ -117,7 +117,7 @@ ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
                                                                   new_pads_begin,
                                                                   new_pads_end,
                                                                   dilations,
-                                                                  op::PadType::EXPLICIT);
+                                                                  ov::op::PadType::EXPLICIT);
         }
 
         auto batch_to_space = pattern_map.at(batch_to_space_pattern).get_node_shared_ptr();

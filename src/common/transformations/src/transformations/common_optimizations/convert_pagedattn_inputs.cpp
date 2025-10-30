@@ -46,7 +46,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
     auto xattention_stride = pattern::any_input(pattern::has_static_rank());
     auto sinks = pattern::any_input(pattern::has_static_rank());
 
-    auto result = pattern::wrap_type<op::PagedAttentionExtension>({Q,
+    auto result = pattern::wrap_type<ov::op::PagedAttentionExtension>({Q,
                                                                    K,
                                                                    V,
                                                                    key_cache_0,
