@@ -60,6 +60,7 @@ optimum-intel-internal-testing/tiny-random-Phi3ForCausalLM,https://huggingface.c
 optimum-intel-internal-testing/tiny-random-PhiForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-PhiForCausalLM
 optimum-intel-internal-testing/tiny-random-StableLmForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-StableLmForCausalLM
 optimum-intel-internal-testing/tiny-random-Starcoder2ForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-Starcoder2ForCausalLM
+optimum-intel-internal-testing/tiny-random-aquila2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-aquila2
 optimum-intel-internal-testing/tiny-random-aquilachat,https://huggingface.co/optimum-intel-internal-testing/tiny-random-aquilachat
 optimum-intel-internal-testing/tiny-random-baichuan2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-baichuan2
 optimum-intel-internal-testing/tiny-random-chatglm,https://huggingface.co/optimum-intel-internal-testing/tiny-random-chatglm
