@@ -555,7 +555,7 @@ void regclass_Core(py::module m) {
                 info = py::buffer(model_stream).request();
             }
 
-            ov::SharedStreamBuffer mb{reinterpret_cast<char*>(info.ptr), static_cast<size_t>(info.size)};
+            ov::SharedStreamBuffer mb{info.ptr, static_cast<size_t>(info.size)};
             std::istream stream{&mb};
 
             ConditionalGILScopedRelease release;

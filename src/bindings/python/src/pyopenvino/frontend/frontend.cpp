@@ -51,7 +51,7 @@ void regclass_frontend_FrontEnd(py::module m) {
             } else if (py::isinstance(py_obj, pybind11::module::import("io").attr("BytesIO"))) {
                 // support of BytesIO
                 py::buffer_info info = py::buffer(py_obj.attr("getbuffer")()).request();
-                ov::SharedStreamBuffer mb{reinterpret_cast<char*>(info.ptr), static_cast<size_t>(info.size)};
+                ov::SharedStreamBuffer mb{info.ptr, static_cast<size_t>(info.size)};
                 std::istream _istream{&mb};
                 return self.load(&_istream, enable_mmap);
             } else {
