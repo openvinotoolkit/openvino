@@ -140,12 +140,6 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
         if (softmax_shape.size() < 2) {
             return false;
         }
-        auto second_to_last_dim = softmax_shape[softmax_shape.size() - 2];
-        if (second_to_last_dim == 1) {
-            LOG_DEBUG("Decomposed SDPA pattern skipped: softmax second-to-last dimension is 1");
-            return false;
-        }
-
         LOG_INFO("Decomposed SDPA pattern matched!");
 
         // Helper lambda to extract and isolate matched nodes
