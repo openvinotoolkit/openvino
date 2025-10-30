@@ -8,7 +8,7 @@
 
 namespace ov::intel_gpu {
 
-// Fuse subgraph between router and MOECompressed into MOECompressed operation, get a MOEFusedCompressed operation.
+// Fuse subgraph between router and MOECompressed into MOEFusedCompressed operation.
 class FuseMOECompressed: public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("FuseMOECompressed");

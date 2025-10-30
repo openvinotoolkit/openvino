@@ -4,25 +4,16 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "intel_gpu/op/moe_compressed.hpp"
 
 namespace ov::intel_gpu::op {
 
 /// \brief MOEFusedCompressed that support compressed and fused MOE for GEMM3_SWIGLU.
-class MOEFusedCompressed : public ov::op::Op {
+class MOEFusedCompressed : public MOECompressed {
 public:
-    OPENVINO_OP("MOEFusedCompressed", "gpu_opset");
+    OPENVINO_OP("MOEFusedCompressed", "gpu_opset", MOECompressed);
 
     MOEFusedCompressed() = default;
-
-    struct Config {
-        size_t hidden_size = 0;
-        size_t inter_size = 0;
-        size_t num_expert = 0;
-        size_t top_k = 0;
-        size_t group_size = 0;
-        ov::element::Type out_type = ov::element::dynamic;  // fp16
-    };
 
     /// \brief Constructs a MOEFusedCompressed operation with config only
     /// \param args The input tensors, in the following order:
@@ -47,17 +38,9 @@ public:
     ///   10: w2_zp - expert zp for final projection for compressed experts,
     ///   shape [num_experts, hidden_size, group_num, 1]
     /// \param config Configuration for the MOE operation
-    MOEFusedCompressed(const OutputVector& args, const Config& config);
+    MOEFusedCompressed(const OutputVector& args, const MOECompressed::Config config);
 
-    const Config& get_config() const;
-    void set_config(const Config& config);
-
-    bool visit_attributes(AttributeVisitor& visitor) override;
-    void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-private:
-    Config m_config;
 };
 
 }  // namespace ov::intel_gpu::op
