@@ -113,6 +113,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto xattention_threshold = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
         auto xattention_block_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
         auto xattention_stride = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
+        auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                              K,
@@ -133,7 +134,8 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                              rotation_trig_lut,
                                                                              xattention_threshold,
                                                                              xattention_block_size,
-                                                                             xattention_stride});
+                                                                             xattention_stride,
+                                                                             sinks});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -228,6 +230,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto xattention_threshold = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
         auto xattention_block_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
         auto xattention_stride = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
+        auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                              K,
@@ -248,7 +251,8 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                              rotation_trig_lut,
                                                                              xattention_threshold,
                                                                              xattention_block_size,
-                                                                             xattention_stride});
+                                                                             xattention_stride,
+                                                                             sinks});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
