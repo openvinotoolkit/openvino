@@ -25,6 +25,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
 bool ov::pass::UselessSliceEraser::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(UselessSliceEraser);
     bool rewritten = false;

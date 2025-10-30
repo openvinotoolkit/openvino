@@ -20,6 +20,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
 ov::pass::TransposeToReshape::TransposeToReshape() {
     MATCHER_SCOPE(TransposeToReshape);
 

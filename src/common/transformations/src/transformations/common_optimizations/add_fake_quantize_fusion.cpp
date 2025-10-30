@@ -24,6 +24,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
 ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
     MATCHER_SCOPE(AddFakeQuantizeFusion);
     auto input_pattern = pass::pattern::any_input();

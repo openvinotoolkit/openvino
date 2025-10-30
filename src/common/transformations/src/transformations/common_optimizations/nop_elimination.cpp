@@ -54,6 +54,7 @@
 
 using namespace std;
 using namespace ov;
+
 //`simplify_gather`, optimizes gather if Gather is gathering the
 // whole input tensor
 static bool simplify_gather(shared_ptr<Node> node) {

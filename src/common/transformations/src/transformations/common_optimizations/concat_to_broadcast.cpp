@@ -14,6 +14,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
 static bool use_broadcast(const std::shared_ptr<ov::op::v0::Concat>& concat) {
     const auto& output = concat->output(0);
     const auto& input = concat->input(0);

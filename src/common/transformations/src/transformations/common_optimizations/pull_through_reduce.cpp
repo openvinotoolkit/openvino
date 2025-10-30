@@ -23,6 +23,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
 namespace {
 // Adjust axes of Unsqueeze/Reduce ops after Unsqueeze pulling
 // For example if we have:

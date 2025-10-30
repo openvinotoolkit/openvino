@@ -18,6 +18,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov;
+
 static float quantize(float f, float input_low, float input_high, float output_low, float output_high) {
     if (f <= input_low)
         return output_low;

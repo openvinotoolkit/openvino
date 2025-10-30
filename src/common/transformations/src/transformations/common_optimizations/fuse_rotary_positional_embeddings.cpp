@@ -46,6 +46,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
 using namespace ov::pass;
 using namespace ov::pass::pattern;
 using namespace ov::op;

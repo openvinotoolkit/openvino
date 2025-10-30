@@ -27,6 +27,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
 template <class T>
 std::function<bool(ov::Output<ov::Node>)> value_is_equal_to(const std::vector<T>& ref_values) {
     return [ref_values](ov::Output<ov::Node> output) -> bool {

@@ -17,6 +17,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
 namespace {
 const auto is_eltwise_supported_type = [](const Output<Node>& output) -> bool {
     const auto is_single_output = pass::pattern::consumers_count(1);

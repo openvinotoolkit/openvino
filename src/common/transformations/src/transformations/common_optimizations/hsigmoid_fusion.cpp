@@ -22,6 +22,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
 ov::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
     MATCHER_SCOPE(HSigmoidFusionWithReluDiv);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) / 6 with a HSigmoid op.

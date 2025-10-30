@@ -25,6 +25,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
 namespace {
 enum class ReduceType { NONE, MAX, MIN };
 

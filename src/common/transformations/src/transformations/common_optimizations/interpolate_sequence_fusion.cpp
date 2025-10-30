@@ -27,6 +27,7 @@
 
 namespace {
 using namespace ov;
+
 bool compatible_axes(const std::vector<int64_t>& fst_axes_vector, const std::vector<int64_t>& snd_axes_vector) {
     std::set<int64_t> fst_axes_set(fst_axes_vector.begin(), fst_axes_vector.end());
     for (const auto& a : snd_axes_vector) {

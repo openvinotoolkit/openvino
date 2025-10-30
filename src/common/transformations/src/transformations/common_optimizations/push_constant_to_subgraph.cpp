@@ -10,6 +10,7 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
 using namespace ov;
+
 using MultiSubGraphOp = ov::op::util::MultiSubGraphOp;
 
 static std::shared_ptr<ov::op::v0::Constant> try_constantfold_input(
