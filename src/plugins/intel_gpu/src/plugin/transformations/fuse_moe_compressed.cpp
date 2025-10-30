@@ -123,13 +123,6 @@ FuseMOECompressed::FuseMOECompressed() {
         ov::copy_runtime_info(moe_compressed, moe_fused_compressed);
         ov::replace_node(moe_compressed, moe_fused_compressed);
 
-        static bool first_time = true;
-        if (first_time) {
-            first_time = false;
-            std::cout << "[ FuseMOECompressed ]: num_expert = " << config.num_expert << ", top_k = " << config.top_k << ", hidden_size = " << config.hidden_size
-                      << ", inter_size = " << config.inter_size << ", group_size = " << config.group_size << std::endl;
-        }
-
         return true;
     };
 
