@@ -1014,6 +1014,21 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_nonmaxsuppression_default_sco
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, reduce_log_sum_none_input) {
+    auto model = convert_model("reduce_log_sum_none_input.onnx");
+
+    // No runtime inputs needed - using model initializers
+    Inputs inputs{};
+
+    // output data shape: scalar
+    auto expected_output = ov::test::NDArray<float, 4>({{{{0.7971231937408447}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum) {
     auto model = convert_model("reduce_log_sum.onnx");
 
