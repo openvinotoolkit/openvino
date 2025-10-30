@@ -14,6 +14,7 @@
 #include <random>
 
 #include "common.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "pyopenvino/core/remote_context.hpp"
 #include "pyopenvino/graph/op_extension.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -554,8 +555,8 @@ void regclass_Core(py::module m) {
                 info = py::buffer(model_stream).request();
             }
 
-            Common::utils::MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
-            std::istream stream(&mb);
+            ov::SharedStreamBuffer mb{info.ptr, static_cast<size_t>(info.size)};
+            std::istream stream{&mb};
 
             ConditionalGILScopedRelease release;
             return self.import_model(stream, device_name, _properties);
