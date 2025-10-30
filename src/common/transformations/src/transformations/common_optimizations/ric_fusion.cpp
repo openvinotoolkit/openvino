@@ -31,6 +31,8 @@
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 namespace ov {
 namespace pass {
 namespace ric_attr {
@@ -699,7 +701,7 @@ public:
             pattern::has_static_rank());
 
         auto pattern_root =
-            std::make_shared<pattern::op::Or>(OutputVector{fake_quantize_pattern, binary_elementwise_pattern});
+            std::make_shared<pattern::ov::op::Or>(OutputVector{fake_quantize_pattern, binary_elementwise_pattern});
 
         auto callback = [=](pattern::Matcher& m) {
             const auto& root = m.get_match_root();

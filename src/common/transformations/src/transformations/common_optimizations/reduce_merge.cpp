@@ -115,7 +115,7 @@ pass::ReduceMerge::ReduceMerge() {
     auto reduce_prod_pattern = create_pattern<ov::op::v1::ReduceProd>();
     auto reduce_sum_pattern = create_pattern<ov::op::v1::ReduceSum>();
 
-    auto pattern = std::make_shared<pattern::op::Or>(OutputVector{reducel1_pattern,
+    auto pattern = std::make_shared<pattern::ov::op::Or>(OutputVector{reducel1_pattern,
                                                                   reducel2_pattern,
                                                                   reduce_log_and_pattern,
                                                                   reduce_log_or_pattern,

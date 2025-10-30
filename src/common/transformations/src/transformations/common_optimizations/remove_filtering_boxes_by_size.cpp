@@ -36,18 +36,18 @@ ov::pass::FuseFilteringBoxesBySize::FuseFilteringBoxesBySize() {
 ov::pass::RemoveFilteringBoxesBySize::RemoveFilteringBoxesBySize() {
     MATCHER_SCOPE(RemoveFilteringBoxesBySize);
     // variadic split
-    auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1000, 4});
+    auto data = std::make_shared<pattern::ov::op::Label>(element::f32, Shape{1000, 4});
     auto sizes = ov::op::v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>({1, 1, 1, 1}));
     auto axis = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>({1}));
     auto split = std::make_shared<ov::op::v1::VariadicSplit>(data, axis, sizes);
 
     // sub -> add
     auto sub_2_0 = std::make_shared<ov::op::v1::Subtract>(split->output(2), split->output(0));
-    auto term_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
+    auto term_1 = std::make_shared<pattern::ov::op::Label>(element::f32, Shape{1});
     auto add_1 = std::make_shared<ov::op::v1::Add>(sub_2_0, term_1);
 
     auto sub_3_1 = std::make_shared<ov::op::v1::Subtract>(split->output(3), split->output(1));
-    auto term_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
+    auto term_2 = std::make_shared<pattern::ov::op::Label>(element::f32, Shape{1});
     auto add_2 = std::make_shared<ov::op::v1::Add>(sub_3_1, term_2);
 
     // concat

@@ -27,7 +27,7 @@ ov::pass::SubtractFusion::SubtractFusion() {
 
     auto p_neg = pattern::wrap_type<ov::op::v0::Negative>({p_input});
 
-    auto p_mul_or_neg = std::make_shared<pattern::op::Or>(OutputVector({p_mul, p_neg}));
+    auto p_mul_or_neg = std::make_shared<pattern::ov::op::Or>(OutputVector({p_mul, p_neg}));
 
     auto p_add_input = pattern::any_input();
     auto p_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({p_add_input, p_mul_or_neg});

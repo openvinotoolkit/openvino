@@ -16,6 +16,8 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     MATCHER_SCOPE(WeightsDequantizeToFakeQuantize);
 
@@ -26,8 +28,8 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     const auto sub_integer = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert, convert_sub_c_integer});
     const auto sub_c = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto sub = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert, sub_c});
-    const auto sub_or_sub_integer = std::make_shared<pattern::op::Or>(OutputVector{sub_integer, sub});
-    const auto sub_or_convert = std::make_shared<pattern::op::Or>(OutputVector{convert, sub_or_sub_integer});
+    const auto sub_or_sub_integer = std::make_shared<pattern::ov::op::Or>(OutputVector{sub_integer, sub});
+    const auto sub_or_convert = std::make_shared<pattern::ov::op::Or>(OutputVector{convert, sub_or_sub_integer});
 
     const auto mul_c = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub_or_convert, mul_c});

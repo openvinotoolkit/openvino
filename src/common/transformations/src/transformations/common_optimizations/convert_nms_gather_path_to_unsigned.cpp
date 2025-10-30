@@ -25,6 +25,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/nms_selected_indices.hpp"
 
+using namespace ov;
 using namespace std;
 
 namespace ov {

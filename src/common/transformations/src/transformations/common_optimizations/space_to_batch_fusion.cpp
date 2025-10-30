@@ -20,6 +20,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
     MATCHER_SCOPE(SpaceToBatchFusion);
     auto data_pattern = pattern::any_input();
@@ -30,7 +32,7 @@ ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
         pattern::wrap_type<ov::op::v1::Transpose>({data_pattern, pattern::wrap_type<ov::op::v0::Constant>()},
                                                   pattern::rank_equals(4));
     auto reshape_or_transpose_before_pattern =
-        std::make_shared<pattern::op::Or>(OutputVector{reshape_before_pattern, trans_before_pattern});
+        std::make_shared<pattern::ov::op::Or>(OutputVector{reshape_before_pattern, trans_before_pattern});
     auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pad_value = pattern::wrap_type<ov::op::v0::Constant>();
@@ -45,7 +47,7 @@ ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
         pattern::wrap_type<ov::op::v1::Transpose>({space_to_depth_pattern, pattern::wrap_type<ov::op::v0::Constant>()},
                                                   pattern::rank_equals(4));
     auto reshape_or_transpose_after_pattern =
-        std::make_shared<pattern::op::Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
+        std::make_shared<pattern::ov::op::Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

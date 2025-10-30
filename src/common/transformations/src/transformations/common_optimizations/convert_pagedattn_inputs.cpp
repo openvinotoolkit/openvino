@@ -16,6 +16,7 @@
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
 using namespace ov::pass;
 using namespace ov::op;
 

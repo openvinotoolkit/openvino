@@ -26,6 +26,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 template <class T>
 std::function<bool(ov::Output<ov::Node>)> value_is_equal_to(const std::vector<T>& ref_values) {
     return [ref_values](ov::Output<ov::Node> output) -> bool {
@@ -61,7 +63,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     //                 `-sub2------------------'
     auto sub2 = pattern::wrap_type<ov::op::v1::Subtract>({x, mean2});
 
-    const auto reuseSub1OrNot = std::make_shared<pattern::op::Or>(OutputVector{sub1, sub2});
+    const auto reuseSub1OrNot = std::make_shared<pattern::ov::op::Or>(OutputVector{sub1, sub2});
     const auto optionalConvert = pattern::optional<ov::op::v0::Convert>(reuseSub1OrNot);
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
@@ -82,7 +84,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     // `--Power--------------------------------------'
     auto power_sqrt_os = pattern::wrap_type<ov::op::v1::Power>({mean3, const_0_5});
     auto sqrt_os = pattern::wrap_type<ov::op::v0::Sqrt>({mean3});
-    const auto powerOrSqrt_os = std::make_shared<pattern::op::Or>(OutputVector{power_sqrt_os, sqrt_os});
+    const auto powerOrSqrt_os = std::make_shared<pattern::ov::op::Or>(OutputVector{power_sqrt_os, sqrt_os});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps
     // `----------------------------------------------Add---'
@@ -98,9 +100,9 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     // `--Power--------------------------------------'
     auto power_sqrt_is = pattern::wrap_type<ov::op::v1::Power>({add_eps_is, const_0_5});
     auto sqrt_is = pattern::wrap_type<ov::op::v0::Sqrt>({add_eps_is});
-    const auto powerOrSqrt_is = std::make_shared<pattern::op::Or>(OutputVector{power_sqrt_is, sqrt_is});
+    const auto powerOrSqrt_is = std::make_shared<pattern::ov::op::Or>(OutputVector{power_sqrt_is, sqrt_is});
 
-    auto outsideOrInside = std::make_shared<pattern::op::Or>(OutputVector{add_eps_os, powerOrSqrt_is});
+    auto outsideOrInside = std::make_shared<pattern::ov::op::Or>(OutputVector{add_eps_os, powerOrSqrt_is});
 
     // Final Divide
     auto const_neg_1 = pattern::wrap_type<ov::op::v0::Constant>(value_is_equal_to<float>({-1}));
@@ -108,7 +110,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     auto div = pattern::wrap_type<ov::op::v1::Multiply>({sub1, power_div});
 
     auto div_alt = pattern::wrap_type<ov::op::v1::Divide>({sub1, outsideOrInside});
-    const auto powerMulOrDiv = std::make_shared<pattern::op::Or>(OutputVector{div, div_alt});
+    const auto powerMulOrDiv = std::make_shared<pattern::ov::op::Or>(OutputVector{div, div_alt});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();

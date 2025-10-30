@@ -33,6 +33,7 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
 using namespace ov::op;
 
 namespace {
@@ -67,8 +68,8 @@ std::vector<size_t> get_order(const ov::pass::pattern::PatternSymbolValue& any_l
     return order;
 }
 
-ov::pass::pattern::op::Predicate check_layout(const std::string& layout) {
-    return ov::pass::pattern::op::Predicate(
+ov::pass::pattern::ov::op::Predicate check_layout(const std::string& layout) {
+    return ov::pass::pattern::ov::op::Predicate(
         [=](ov::pass::pattern::PatternSymbolMap& sm, const ov::Output<ov::Node>& output) -> bool {
             if (!sm.count("D") || !sm.count("S_kv") || !sm.count("Batches") || !sm.count("AnyLayout")) {
                 return false;

@@ -22,7 +22,7 @@ namespace pass {
 
 GLUFusion::GLUFusion() {
     using namespace ov::pass::pattern;
-    using ov::pass::pattern::op::Or;
+    using ov::pass::pattern::ov::op::Or;
 
     auto last_dim_static = [](const ov::Output<ov::Node>& output) {
         auto out_ps = output.get_node()->get_output_partial_shape(0);

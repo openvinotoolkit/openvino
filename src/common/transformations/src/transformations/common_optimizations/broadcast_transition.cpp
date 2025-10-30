@@ -19,6 +19,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 ov::pass::BroadcastTransition::BroadcastTransition() {
     MATCHER_SCOPE(BroadcastTransition);
     auto bcast_m =

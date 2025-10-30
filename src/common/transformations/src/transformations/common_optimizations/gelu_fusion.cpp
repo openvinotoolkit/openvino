@@ -210,7 +210,7 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     auto mul_2_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_2_constant});
     auto mul_3_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, mul_2_2});
 
-    auto mul_3 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_3_1, mul_3_2});
+    auto mul_3 = std::make_shared<ov::pass::pattern::ov::op::Or>(OutputVector{mul_3_1, mul_3_2});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         return gelu_replacer(m, input, ov::op::GeluApproximationMode::TANH);
@@ -293,7 +293,7 @@ ov::pass::GeluFusionWithTanhNoPower2::GeluFusionWithTanhNoPower2() {
     auto mul_4_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, input});
     auto mul_5_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul_4_3, mul_4_constant});
 
-    auto mul_5 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_5_1, mul_5_2, mul_5_3});
+    auto mul_5 = std::make_shared<ov::pass::pattern::ov::op::Or>(OutputVector{mul_5_1, mul_5_2, mul_5_3});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         return gelu_replacer(m, input, ov::op::GeluApproximationMode::TANH);
