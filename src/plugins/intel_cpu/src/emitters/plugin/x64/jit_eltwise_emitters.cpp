@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 #include <memory>
 #include <set>
 #include <vector>
@@ -23,6 +24,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/clamp.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "utils/general_utils.h"
 
@@ -2927,6 +2929,104 @@ std::set<std::vector<element::Type>> jit_abs_emitter::get_supported_precisions(
 
 void jit_abs_emitter::register_table_entries() {
     push_arg_entry_of("positive_mask", 0x7fffffff, true);
+}
+
+/// CLAMP ///
+jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
+                                     x64::cpu_isa_t host_isa,
+                                     const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+    const auto& clamp = ov::as_type_ptr<ov::op::v0::Clamp>(node);
+    double alpha = clamp->get_min();
+    double beta = clamp->get_max();
+    prepare_min_max(alpha, beta);
+    prepare_table();
+}
+
+jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
+                                     x64::cpu_isa_t host_isa,
+                                     ov::element::Type exec_prc,
+                                     double alpha,
+                                     double beta)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_min_max(alpha, beta);
+    prepare_table();
+}
+
+void jit_clamp_emitter::prepare_min_max(double alpha, double beta) {
+    switch (exec_prc_) {
+    case element::i32:
+        minimum =
+            static_cast<int32_t>(std::max<int64_t>(static_cast<int64_t>(alpha), std::numeric_limits<int32_t>::min()));
+        maximum =
+            static_cast<int32_t>(std::min<int64_t>(static_cast<int64_t>(beta), std::numeric_limits<int32_t>::max()));
+        break;
+    case element::f32:
+        minimum = x64::float2int(static_cast<float>(alpha));
+        maximum = x64::float2int(static_cast<float>(beta));
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+    }
+}
+
+size_t jit_clamp_emitter::get_inputs_num() const {
+    return 1;
+}
+
+void jit_clamp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                  const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == x64::sse41) {
+        emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx2) {
+        emit_isa<x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx512_core) {
+        emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
+    }
+}
+
+template <x64::cpu_isa_t isa>
+void jit_clamp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                 const std::vector<size_t>& out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
+    auto vmm_src0 = Vmm(in_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
+
+    auto uni_vclamp = [this](Vmm vmm_dst, Vmm vmm_src0) {
+        switch (exec_prc_) {
+        case ov::element::f32:
+            h->uni_vmaxps(vmm_dst, vmm_src0, table_val("min"));
+            h->uni_vminps(vmm_dst, vmm_dst, table_val("max"));
+            break;
+        case ov::element::i32:
+            h->uni_vpmaxsd(vmm_dst, vmm_src0, table_val("min"));
+            h->uni_vpminsd(vmm_dst, vmm_dst, table_val("max"));
+            break;
+        default:
+            OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+        }
+    };
+
+    if (isa == x64::sse41) {
+        if (vmm_src0.getIdx() != vmm_dst.getIdx()) {
+            h->uni_vmovups(vmm_dst, vmm_src0);
+        }
+        uni_vclamp(vmm_dst, vmm_dst);
+    } else {
+        uni_vclamp(vmm_dst, vmm_src0);
+    }
+}
+
+std::set<std::vector<element::Type>> jit_clamp_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}, {element::i32}};
+}
+
+void jit_clamp_emitter::register_table_entries() {
+    push_arg_entry_of("min", minimum, true);
+    push_arg_entry_of("max", maximum, true);
 }
 
 }  // namespace ov::intel_cpu
