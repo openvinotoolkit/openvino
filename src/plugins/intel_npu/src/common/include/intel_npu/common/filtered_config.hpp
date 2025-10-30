@@ -126,7 +126,7 @@ public:
     void setFiltered();
 
     /**
-     * @brief Checks wether config was filtered
+     * @brief Checks whether config was filtered
      */
     bool wasFiltered() const;
 
@@ -135,7 +135,7 @@ private:
 
     ConfigMap _internal_compiler_configs;  ///< Map to store internal (hidden) configurations used for compiler.
 
-    bool _filtered = false;  ///< Boolean to check wether config was filtered with compiler supported properties
+    bool _filtered = false;  ///< Boolean to check whether config was filtered with compiler supported properties
 };
 
 }  // namespace intel_npu
