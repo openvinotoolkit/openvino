@@ -1020,7 +1020,7 @@ OPENVINO_TEST(${BACKEND_NAME}, reduce_log_sum_none_input) {
     // No runtime inputs needed - using model initializers
     Inputs inputs{};
 
-    // output data shape (1)
+    // output data shape: scalar
     auto expected_output = ov::test::NDArray<float, 4>({{{{0.7971231937408447}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(model, s_device);
