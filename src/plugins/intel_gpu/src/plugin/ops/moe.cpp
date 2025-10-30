@@ -111,7 +111,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
                                              2,  // axis
                                              config.hidden_size,
                                              ov::op::internal::GLU::GluType::Swish,
-                                             1,                    // gate : second half
+                                             0,                    // gate idx
                                              std::numeric_limits<float>::min(),   // clamp_min
                                              config.expert_alpha,  // clamp_max
                                              config.expert_beta,   // swish beta
