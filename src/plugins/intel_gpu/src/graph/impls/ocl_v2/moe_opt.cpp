@@ -4,7 +4,6 @@
 
 #include "moe_opt.hpp"
 
-// #define ENABLE_ONEDNN_FOR_GPU
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
@@ -302,11 +301,9 @@ struct onednn_linear {
         if (scale) {
             // https://uxlfoundation.github.io/oneDNN/page_weights_decompression_matmul_cpp.html
             // Quantization Group size for scales. Must be divisible by 32.
-            auto wei_scale_md = dnnl::memory::desc(dnnl::memory::dims({mm->m_K_groups, mm->m_N}), dnnl::memory::data_type::f16, dnnl::memory::format_tag::ab);
-            linear.scale = scale;  // dnnl::ocl_interop::make_memory(wei_scale_md, linear.m_engine, dnnl::ocl_interop::memory_kind::usm, scale);
+            linear.scale = scale;
             if (zp) {
-                auto wei_zp_md = dnnl::memory::desc(dnnl::memory::dims({mm->m_K_groups, mm->m_N}), mm->m_w_type, dnnl::memory::format_tag::ab);
-                linear.zp = zp;  // dnnl::ocl_interop::make_memory(wei_zp_md, linear.m_engine, dnnl::ocl_interop::memory_kind::usm, zp);
+                linear.zp = zp;
             }
         }
         return linear;
@@ -315,17 +312,7 @@ struct onednn_linear {
     void forward(dnnl::stream& stream, int m, dnnl::memory src_mem, dnnl::memory dst_mem, dnnl::memory bin_mem) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::forward()"));
         dnnl::memory::dim M = m;
-
         OPENVINO_ASSERT(m_batch == 0 || m_batch == M, "m_batch=", m_batch, " M=", M);
-
-        dnnl::memory::desc rt_src_md = dnnl::memory::desc(dnnl::memory::dims({M, m_K}), m_a_type, dnnl::memory::format_tag::ab);
-        dnnl::memory::desc rt_dst_md = dnnl::memory::desc(dnnl::memory::dims({M, m_N}), m_a_type, dnnl::memory::format_tag::ab);
-        dnnl::memory::desc rt_bin_md;
-        if (mm->bin_per_row) {
-            rt_bin_md = dnnl::memory::desc(dnnl::memory::dims({M, 1}), m_a_type, dnnl::memory::format_tag::ab);
-        } else {
-            rt_bin_md = dnnl::memory::desc(dnnl::memory::dims({M, m_N}), m_a_type, dnnl::memory::format_tag::ab);
-        }
 
         std::unordered_map<int, dnnl::memory> args;
         args.insert({DNNL_ARG_SRC, src_mem});
@@ -340,7 +327,6 @@ struct onednn_linear {
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp});
         }
         if (bin_mem) {
-            // auto bin_mem = dnnl::ocl_interop::make_memory(rt_bin_md, m_engine, dnnl::ocl_interop::memory_kind::usm, (void *)(bin_input));
             args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(bin_post_id) | DNNL_ARG_SRC_1, bin_mem});
         }
         m_prim.execute(stream, args);
@@ -425,6 +411,7 @@ protected:
     }
 };
 
+// Performance tuning parameters
 #    define N_BLOCK      4
 #    define SUBGROUP_NUM 8
 
@@ -692,22 +679,21 @@ public:
         internal_buffers.emplace_back(routing_layout, true);     // 5: routing_weights
         internal_buffers.emplace_back(layout_gateup_out, true);  // 6: gate, scratch.gate has same layout with up
         // expert masks for gpu
-        layout index_layout(ov::PartialShape{batch}, ov::element::i32, cldnn::format::bfyx);
-        for (int i = 0; i < expert_num; i++) {
-            internal_buffers.emplace_back(index_layout, true);  // 7: batch
-            internal_buffers.emplace_back(index_layout, true);  // 8: topk
-        }
+        layout index_layout(ov::PartialShape{expert_num, batch}, ov::element::i32, cldnn::format::bfyx);
+        internal_buffers.emplace_back(index_layout, true);  // 7: batch
+        internal_buffers.emplace_back(index_layout, true);  // 8: topk
 
         return internal_buffers;
     }
 
-    void prepare_internal_buffers(typed_primitive_inst<moe_fused_compressed>& instance, scratch_buffers& scratch, bool is_single_batch) {
+    void prepare_internal_buffers(typed_primitive_inst<moe_fused_compressed>& instance, scratch_buffers& scratch, size_t batch) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
+        auto& engine = instance.get_network().get_engine();
         scratch.topk_id = intermediates_memories[0];
         scratch.topk_weights = intermediates_memories[1];
         scratch.up = intermediates_memories[2];
         scratch.y = intermediates_memories[3];
-        if (!is_single_batch) {
+        if (batch > 1) {
             scratch.x = intermediates_memories[4];
             scratch.routing_weights = intermediates_memories[5];
             scratch.gate = intermediates_memories[6];
@@ -715,8 +701,9 @@ public:
             int expert_num = static_cast<int>(config.num_expert);
             scratch.expert_masks.resize(expert_num);
             for (int i = 0; i < expert_num; i++) {
-                scratch.expert_masks[i].batch = intermediates_memories[7 + 2 * i + 0];
-                scratch.expert_masks[i].topk = intermediates_memories[7 + 2 * i + 1];
+                auto mask_layout = cldnn::layout({static_cast<int>(batch)}, cldnn::data_types::i32, cldnn::format::get_default_format(1));
+                scratch.expert_masks[i].batch = engine.create_subbuffer(*intermediates_memories[7], mask_layout, i * batch * sizeof(int32_t));
+                scratch.expert_masks[i].topk = engine.create_subbuffer(*intermediates_memories[8], mask_layout, i * batch * sizeof(int32_t));
             }
         }
 
@@ -1001,7 +988,7 @@ public:
         auto batch = static_cast<int>(hidden_states_layout.get_shape()[0]);
 
         scratch_buffers scratch;
-        prepare_internal_buffers(instance, scratch, batch == 1);
+        prepare_internal_buffers(instance, scratch, batch);
 
         // softmax+topk
         auto lws_size = cur_moe->_config.num_expert;
@@ -1050,7 +1037,6 @@ public:
             OPENVINO_ASSERT(false, "hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
         };
         lws_size = get_best_lws(_hidden_size);
-        // std::cout << "routing_mem_ptr layout: " << routing_mem_ptr->get_layout().to_short_string() << std::endl;
 
         OPENVINO_ASSERT(batch != 1, "batch size shouldn't be 1 for this path!");
         for (size_t expert_no = 0; expert_no < config.num_expert; expert_no++) {

@@ -217,13 +217,6 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed() {
         ov::copy_runtime_info(moe, moe_compressed);
         ov::replace_node(moe, moe_compressed);
 
-        static bool first_time = true;
-        if (first_time) {
-            first_time = false;
-            std::cout << "[ ConvertMOEToMOECompressed ]: num_expert = " << config.num_expert << ", top_k = " << config.top_k
-                      << ", hidden_size = " << config.hidden_size << ", inter_size = " << config.inter_size << ", group_size = " << config.group_size
-                      << std::endl;
-        }
         return true;
     };
 

@@ -15,7 +15,6 @@
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
 
-// TODO: need confirm, gate is 1st matmul or up is 1st matmul?
 //  mlp_gate: 0
 //  mlp_up: 1
 //  mlp_down: 2
@@ -57,7 +56,7 @@ struct MOEOpt : public ImplementationManager {
             return false;
         }
 
-        // Only support u4 weights for now
+        // Only support weight: u4
         static constexpr std::array supported_wei_type = {
             ov::element::u4,
         };
@@ -65,11 +64,26 @@ struct MOEOpt : public ImplementationManager {
         if (!one_of(wei_layout.data_type, supported_wei_type)) {
             return false;
         }
-        static bool first_time = true;
-        if (first_time) {
-            first_time = false;
-            std::cout << "[ ocl::moe::opt ] validation passed!" << std::endl;
+
+        // Only support scale: f16
+        static constexpr std::array supported_scale_type = {
+            ov::element::f16,
+        };
+        const auto& scale_layout = node.get_input_layout(static_cast<size_t>(MOEInputIndex::SCALE_0));
+        if (!one_of(scale_layout.data_type, supported_scale_type)) {
+            return false;
         }
+
+        // Only support zp: u4
+        static constexpr std::array supported_zp_type = {
+            ov::element::u4,
+        };
+        const auto& zp_layout = node.get_input_layout(static_cast<size_t>(MOEInputIndex::ZP_0));
+        if (!one_of(zp_layout.data_type, supported_zp_type)) {
+            std::cout << "MOEOpt validate_impl: unsupported zp type " << zp_layout.to_string() << std::endl;
+            return false;
+        }
+
         return true;
     }
 };
