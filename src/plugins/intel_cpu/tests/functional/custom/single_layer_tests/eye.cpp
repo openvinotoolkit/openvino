@@ -107,6 +107,8 @@ protected:
     void makeLeak() {
         // volatile = no opt
         volatile int* p = new int[100];
+        p[77] = 55;
+        p[100] = p[99];
         (void)p;
     }
 
@@ -119,8 +121,7 @@ protected:
     __attribute__((noinline))
     void makeLeak2() {
         int* p = new int[100];
-        asm volatile("" : : "r"(p) : "memory"); // заставляет компилятор думать, что p используется
-        // не делаем delete
+        asm volatile("" : : "r"(p) : "memory");
     }
 
     __attribute__((noinline))
@@ -129,7 +130,6 @@ protected:
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        __lsan_enable();
         makeLeak();
         makeLeak2();
         makeLeak3();
