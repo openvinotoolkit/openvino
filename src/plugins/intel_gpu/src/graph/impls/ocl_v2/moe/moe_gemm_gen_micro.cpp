@@ -55,7 +55,7 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
         const auto& bias_shape = params.input_layouts[bias_idx].get_shape();
         if (has_bias) {
             jit.make("BIAS_DT", to_ocl_type(data_types::f16));
-            jit.make("BIAS_STRIDE", bias_shape[2]);
+            jit.make("BIAS_STRIDE", bias_shape[1] * bias_shape[2]);
         }
         input_ids.push_back((moe_gemm::MoEGemmInputIdx)(static_cast<int32_t>(scale_idx)));
         if (!cfg.is_weight_symmetric_quantized)
@@ -282,15 +282,16 @@ Arguments MoEGemmMicroGenerator::get_arguments_desc(const kernel_impl_params& pa
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // m
     args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // k
 
+    if (cfg.has_bias) {
+        args.push_back({ArgumentDescriptor::Types::INPUT, moe_gemm::MoEGemmInputIdx::BIAS});
+    }
 
     if (cfg.is_weight_quantized) {
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(cfg.weight_scale_idx)});
         if (!cfg.is_weight_symmetric_quantized)
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(cfg.weight_zp_idx)});
     }
-    if (cfg.has_bias) {
-        args.push_back({ArgumentDescriptor::Types::INPUT, moe_gemm::MoEGemmInputIdx::BIAS});
-    }
+
     return args;
 }
 
