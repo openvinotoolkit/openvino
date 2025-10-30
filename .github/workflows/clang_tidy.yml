@@ -298,6 +298,7 @@ jobs:
             -DCMAKE_RULE_MESSAGES=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DTHREADING=SEQ \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
