@@ -465,7 +465,7 @@ void primitive_inst::update_shape() {
 
     // WA: Skip dynamic quantization for the case where OneDNN has accuracy issue with post-op fusion
     // This is a temporal workaround that should be removed in next release
-    if (get_node().is_type<dynamic_quantize>()) {
+    if (get_node().is_type<dynamic_quantize>() && get_output_layout(1).data_type != data_types::f8e8m0) {
         // if user instance is fully_connected, print user's input layouts
         auto user = get_node().get_users().front();
         if (user->is_type<fully_connected>()) {
