@@ -189,7 +189,8 @@ void calculate_transpose_auto_pads(const ov::Shape& data_shape,
         auto dilation = dilations.begin();
         auto output_pad = output_padding.begin();
 
-        for (; data_dim != data_shape.cend(); ++data_dim, ++pad_b, ++pad_e, ++filter_dim, ++stride, ++dilation, ++output_pad) {
+        for (; data_dim != data_shape.cend();
+             ++data_dim, ++pad_b, ++pad_e, ++filter_dim, ++stride, ++dilation, ++output_pad) {
             // For ConvTranspose with SAME_UPPER/SAME_LOWER padding:
             // Per ONNX spec: desired_output = input * stride
             int64_t desired_output = static_cast<int64_t>(*data_dim) * (*stride);
