@@ -79,10 +79,11 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         }
 
         if (mxfp_compressed_case) {
-            if (fc_prim->decompression_scale.is_valid()) {
+            if (fc_prim->decompression_scale.is_valid() && fc_prim->activation_scale.is_valid()) {
                 auto decompression_scale_idx = fc_prim->bias.is_valid() ? 3 : 2;
-                auto scale_dt = fc_node.get_input_layout(decompression_scale_idx).data_type;
-                if (scale_dt != ov::element::f8e8m0) {
+                auto weight_scale_dt = fc_node.get_input_layout(decompression_scale_idx).data_type;
+                auto activation_scale_dt = fc_node.get_input_layout(decompression_scale_idx + 1).data_type;
+                if (weight_scale_dt != ov::element::f8e8m0 || activation_scale_dt != ov::element::f8e8m0) {
                     LOG_AND_RETURN_FALSE(node);
                 }
             } else {
