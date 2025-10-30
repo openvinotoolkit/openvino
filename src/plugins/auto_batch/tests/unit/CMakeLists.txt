@@ -24,7 +24,6 @@ ov_add_test_target(
             unit_test_utils
         DEPENDENCIES
             mock_engine
-        ADD_CPPLINT
         LABELS
             OV UNIT AUTO_BATCH
 )

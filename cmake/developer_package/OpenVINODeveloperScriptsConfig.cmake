@@ -310,7 +310,6 @@ include(python_requirements)
 
 # Code style utils
 
-include(cpplint/cpplint)
 include(clang_format/clang_format)
 include(clang_tidy/clang_tidy)
 include(ncc_naming_style/ncc_naming_style)

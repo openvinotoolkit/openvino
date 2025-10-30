@@ -19,7 +19,6 @@ ov_add_target(
             PRIVATE
                 openvino::runtime::dev
                 common_test_utils
-        ADD_CPPLINT
 )
 
 ov_build_target_faster(${TARGET_NAME}
