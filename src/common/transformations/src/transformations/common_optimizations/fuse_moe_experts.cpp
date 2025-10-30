@@ -85,7 +85,7 @@ bool is_slice_to_end(const std::shared_ptr<Node>& node) {
 }
 
 // Pattern matching for individual expert computation block with SwiGLU activation
-std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
+std::shared_ptr<pattern::ov::op::Block> mlp3_no_bias_swiglu_block(
     const Output<Node>& permute_Transpose,    // Transpose -> OneHot -> TopK -> Softmax -> MatMul -> Hidden States
     const Output<Node>& unsqueeze_Unsqueeze,  // Unsqueeze -> Reshape -> Hidden States
     const Output<Node>&
@@ -172,7 +172,7 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
                                                        index_add__Broadcast_17,
                                                        wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
                                                       {{"reduction", "sum"}, {"use_init_val", true}});
-    auto block = std::make_shared<pattern::op::Block>(
+    auto block = std::make_shared<pattern::ov::op::Block>(
         ov::OutputVector{permute_Transpose, unsqueeze_Unsqueeze, index_Split_out_1, index_Reshape},
         ov::OutputVector{index_add__ScatterElementsUpdate_5},
         "expert_block");

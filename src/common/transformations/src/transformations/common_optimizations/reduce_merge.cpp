@@ -115,7 +115,7 @@ pass::ReduceMerge::ReduceMerge() {
     auto reduce_prod_pattern = create_pattern<ov::op::v1::ReduceProd>();
     auto reduce_sum_pattern = create_pattern<ov::op::v1::ReduceSum>();
 
-    auto pattern = std::make_shared<pattern::op::Or>(OutputVector{reducel1_pattern,
+    auto pattern = std::make_shared<pattern::ov::op::Or>(OutputVector{reducel1_pattern,
                                                                   reducel2_pattern,
                                                                   reduce_log_and_pattern,
                                                                   reduce_log_or_pattern,
@@ -127,10 +127,10 @@ pass::ReduceMerge::ReduceMerge() {
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto node = m.get_match_root();
-        if (ov::is_type<op::util::ArithmeticReductionKeepDims>(node)) {
-            return fuse_reduce_operations<op::util::ArithmeticReductionKeepDims>(node);
-        } else if (ov::is_type<op::util::LogicalReductionKeepDims>(node)) {
-            return fuse_reduce_operations<op::util::LogicalReductionKeepDims>(node);
+        if (ov::is_type<ov::op::util::ArithmeticReductionKeepDims>(node)) {
+            return fuse_reduce_operations<ov::op::util::ArithmeticReductionKeepDims>(node);
+        } else if (ov::is_type<ov::op::util::LogicalReductionKeepDims>(node)) {
+            return fuse_reduce_operations<ov::op::util::LogicalReductionKeepDims>(node);
         } else {
             return false;
         }

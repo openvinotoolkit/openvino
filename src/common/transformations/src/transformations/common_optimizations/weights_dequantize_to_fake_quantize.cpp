@@ -28,8 +28,8 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     const auto sub_integer = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert, convert_sub_c_integer});
     const auto sub_c = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto sub = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert, sub_c});
-    const auto sub_or_sub_integer = std::make_shared<pattern::op::Or>(OutputVector{sub_integer, sub});
-    const auto sub_or_convert = std::make_shared<pattern::op::Or>(OutputVector{convert, sub_or_sub_integer});
+    const auto sub_or_sub_integer = std::make_shared<pattern::ov::op::Or>(OutputVector{sub_integer, sub});
+    const auto sub_or_convert = std::make_shared<pattern::ov::op::Or>(OutputVector{convert, sub_or_sub_integer});
 
     const auto mul_c = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub_or_convert, mul_c});
@@ -65,10 +65,10 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
             zero_point = ov::op::v0::Constant::create(convert_node->get_element_type(), {}, {0});
         }
 
-        const auto& output_low_const = op::util::make_try_fold<ov::op::v1::Subtract>(input_low, zero_point);
-        const auto& output_low = op::util::make_try_fold<ov::op::v1::Multiply>(output_low_const, scale_node);
-        const auto& output_high_const = op::util::make_try_fold<ov::op::v1::Subtract>(input_high, zero_point);
-        const auto& output_high = op::util::make_try_fold<ov::op::v1::Multiply>(output_high_const, scale_node);
+        const auto& output_low_const = ov::op::util::make_try_fold<ov::op::v1::Subtract>(input_low, zero_point);
+        const auto& output_low = ov::op::util::make_try_fold<ov::op::v1::Multiply>(output_low_const, scale_node);
+        const auto& output_high_const = ov::op::util::make_try_fold<ov::op::v1::Subtract>(input_high, zero_point);
+        const auto& output_high = ov::op::util::make_try_fold<ov::op::v1::Multiply>(output_high_const, scale_node);
 
         auto fq = std::make_shared<ov::op::v0::FakeQuantize>(convert_node,
                                                              input_low,

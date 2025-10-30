@@ -47,7 +47,7 @@ const auto is_non_const_node = [](const ov::Output<ov::Node>& output) -> bool {
 
 using namespace ov::pass::activations_scaling;
 using namespace ov::pass::pattern;
-using ov::pass::pattern::op::Or;
+using ov::pass::pattern::ov::op::Or;
 
 ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor,
                                                                           ov::element::Type scaled_prec) {
