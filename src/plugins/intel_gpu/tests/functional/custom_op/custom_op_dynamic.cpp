@@ -92,27 +92,25 @@ public:
     }
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
-        float *inpData = reinterpret_cast<float *>(const_cast<void*>(inputs[0].data()));
+        float* inpData = reinterpret_cast<float*>(const_cast<void*>(inputs[0].data()));
         if (inputs[1].get_element_type() != ov::element::f32)
             OPENVINO_THROW("Unexpected bias type: " + inputs[1].get_element_type().to_string());
-        float *pBias0 = reinterpret_cast<float *>(const_cast<void*>(inputs[1].data()));
-        float *pBias1 = reinterpret_cast<float *>(const_cast<void*>(inputs[2].data()));
+        float* pBias0 = reinterpret_cast<float*>(const_cast<void*>(inputs[1].data()));
+        float* pBias1 = reinterpret_cast<float*>(const_cast<void*>(inputs[2].data()));
 
-        const auto &in = inputs[0];
-        auto &out0 = outputs[0];
-        auto &out1 = outputs[1];
+        const auto& in = inputs[0];
+        auto& out0 = outputs[0];
+        auto& out1 = outputs[1];
 
         out0.set_shape(in.get_shape());
         out1.set_shape(in.get_shape());
 
         auto total = in.get_size();
-        if (in.get_element_type() == ov::element::f32)
-        {
-            auto *ptr_in = reinterpret_cast<float *>(in.data());
-            auto *ptr_out1 = reinterpret_cast<float *>(out0.data());
-            auto *ptr_out2 = reinterpret_cast<float *>(out1.data());
-            for (size_t i = 0; i < total; i++)
-            {
+        if (in.get_element_type() == ov::element::f32) {
+            auto* ptr_in = reinterpret_cast<float*>(in.data());
+            auto* ptr_out1 = reinterpret_cast<float*>(out0.data());
+            auto* ptr_out2 = reinterpret_cast<float*>(out1.data());
+            for (size_t i = 0; i < total; i++) {
                 ptr_out1[i] = ptr_in[i] + pBias0[0];
                 ptr_out2[i] = ptr_in[i] + pBias1[0];
             }
