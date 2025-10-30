@@ -27,6 +27,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "remote_context.hpp"
+#include "transformations.hpp"
 
 using namespace intel_npu;
 
@@ -53,23 +54,35 @@ constexpr std::string_view ONNX_EXTENSION = ".onnx";
  * @returns The dummy "ov::Model" composed of "parameter" and "result" nodes built using the given descriptors.
  */
 std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
-                                              const std::vector<IODescriptor>& outputDescriptors) {
+                                              const std::vector<IODescriptor>& outputDescriptors,
+                                              const std::optional<int64_t> batchSize,
+                                              const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                              const std::optional<std::vector<ov::Layout>>& outputLayouts) {
     ov::ParameterVector parameters;
     ov::ResultVector results;
 
-    for (const IODescriptor& inputDescriptor : inputDescriptors) {
+    for (size_t inputIndex = 0; inputIndex < inputDescriptors.size(); ++inputIndex) {
+        const IODescriptor& inputDescriptor = inputDescriptors.at(inputIndex);
         if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
             inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
             continue;
         }
 
-        std::shared_ptr<ov::op::v0::Parameter> parameter = std::make_shared<ov::op::v0::Parameter>(
-            inputDescriptor.precision,
-            inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
-                                                         : inputDescriptor.shapeFromCompiler);
+        auto shape = inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
+                                                                  : inputDescriptor.shapeFromCompiler;
+
+        if (batchSize.has_value()) {
+            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(batchSize.value());
+        }
+
+        std::shared_ptr<ov::op::v0::Parameter> parameter =
+            std::make_shared<ov::op::v0::Parameter>(inputDescriptor.precision, shape);
 
         parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
         parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
+        if (inputLayouts.has_value()) {
+            parameter->set_layout(inputLayouts->at(inputIndex));
+        }
         parameters.push_back(std::move(parameter));
     }
 
@@ -77,7 +90,8 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     // the "Constant" node was required since the specific constructor does not accept "ov::PartialShape" values (a
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
-    for (const IODescriptor& outputDescriptor : outputDescriptors) {
+    for (size_t outputIndex = 0; outputIndex < outputDescriptors.size(); ++outputIndex) {
+        const IODescriptor& outputDescriptor = outputDescriptors.at(outputIndex);
         if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor ||
             outputDescriptor.isInitOutputWeights) {
             continue;
@@ -86,14 +100,23 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         std::shared_ptr<ov::Node> constantDummy =
             std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
 
-        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = std::make_shared<ov::descriptor::Tensor>(
-            outputDescriptor.precision,
-            outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
-                                                          : outputDescriptor.shapeFromCompiler,
-            outputDescriptor.outputTensorNames);
+        auto shape = outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
+                                                                   : outputDescriptor.shapeFromCompiler;
+
+        if (batchSize.has_value()) {
+            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(batchSize.value());
+        }
+
+        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
+            std::make_shared<ov::descriptor::Tensor>(outputDescriptor.precision,
+                                                     shape,
+                                                     outputDescriptor.outputTensorNames);
 
         auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
         result->output(0).set_tensor_ptr(tensorDummy);
+        if (outputLayouts.has_value()) {
+            result->set_layout(outputLayouts->at(outputIndex));
+        }
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
     }
 
@@ -356,6 +379,9 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_PREFILL_CHUNK_SIZE);
     REGISTER_OPTION(NPUW_LLM_SHARED_HEAD);
     REGISTER_OPTION(NPUW_LLM_MAX_LORA_RANK);
+    REGISTER_OPTION(NPUW_LLM_ENABLE_PREFIX_CACHING);
+    REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE);
+    REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS);
     REGISTER_OPTION(NPUW_WHISPER);
     REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
     REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
@@ -591,21 +617,44 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) &&
-        !localConfig.has(ov::intel_npu::batch_mode.name())) {
+    auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
         std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::AUTO;
+        strStream << mode;
+        _logger.info("Setting batching mode to %s.", strStream.str().c_str());
         localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
-    }
+    };
 
-    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) && !model->get_variables().empty()) {
-        if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
-            OPENVINO_THROW("This model contains states, thus it is not supported when handling batching on the plugin");
+    // Handle batch mode configuration
+    std::optional<ov::Dimension> originalBatch = std::nullopt;
+    std::shared_ptr<ov::Model> batchedModel;
+
+    bool shouldHandleBatching = false;
+    bool successfullyDebatched = false;
+
+    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name())) {
+        // Set default batch mode if not configured
+        if (!localConfig.has(ov::intel_npu::batch_mode.name())) {
+            updateBatchMode(ov::intel_npu::BatchMode::AUTO);
         }
 
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::COMPILER;
-        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+        // Handle models with variables (states)
+        if (!model->get_variables().empty()) {
+            if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
+                OPENVINO_THROW(
+                    "This model contains states, thus it is not supported when handling batching on the plugin");
+            }
+            updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+        }
+        shouldHandleBatching = true;
+    } else {
+        // If the model contains states, it is not supported when handling batching on the plugin
+        shouldHandleBatching = model->get_variables().empty();
+    }
+
+    if (shouldHandleBatching) {
+        // Process batching
+        std::tie(batchedModel, successfullyDebatched) =
+            intel_npu::batch_helpers::handlePluginBatching(model, localConfig, updateBatchMode, originalBatch, _logger);
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
@@ -656,10 +705,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _logger.debug("performing compile");
 
         if (!localConfig.get<WEIGHTLESS_BLOB>()) {
-            graph = compiler->compile(model->clone(), localConfig);
+            graph = compiler->compile(successfullyDebatched ? batchedModel : model->clone(), localConfig);
         } else {
             check_weightless_cache_attribute_occurrence(model);
-            graph = compiler->compileWS(model->clone(), localConfig);
+            graph = compiler->compileWS(successfullyDebatched ? batchedModel : model->clone(), localConfig);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -668,9 +717,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         OPENVINO_THROW("NPU plugin: got an unexpected exception from compiler");
     }
 
+    std::optional<int64_t> batch = std::nullopt;
+    if (originalBatch.has_value() && successfullyDebatched) {
+        batch = originalBatch.value().is_static() ? originalBatch.value().get_length() : -1;
+        if (batch > 0) {
+            // Initial batch setup for static cases
+            graph->set_batch_size(batch.value());
+        }
+    }
+
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig);
+        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, batch);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -766,7 +824,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
     // Need to create intermediate istream for NPUW
-    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
+    ov::SharedStreamBuffer buffer{compiled_blob.data(), compiled_blob.get_byte_size()};
     std::istream stream{&buffer};
 
     auto npu_plugin_properties = properties;
@@ -875,6 +933,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     uint64_t mainSize = tensorBig.get_byte_size();
     std::optional<std::vector<uint64_t>> initSizes;
+    std::optional<int64_t> batchSize = std::nullopt;
 
     if (metadata) {
         size_t accumulator = 0;
@@ -882,6 +941,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         mainSize = initSizes.has_value()
                        ? metadata->get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
                        : metadata->get_blob_size();
+        batchSize = metadata->get_batch_size();
     } else {
         _logger.info("Blob compatibility check skipped.");
     }
@@ -938,13 +998,25 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                  localConfig,
                                  weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt,
                                  weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
+
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =
-        create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
+        create_dummy_model(graph->get_metadata().inputs,
+                           graph->get_metadata().outputs,
+                           batchSize,
+                           metadata ? metadata->get_input_layouts() : std::nullopt,
+                           metadata ? metadata->get_output_layouts() : std::nullopt);
+
+    if (batchSize.has_value()) {
+        if (batchSize.value() > 0) {
+            // Initial batch setup for static cases
+            graph->set_batch_size(batchSize.value());
+        }
+    }
 
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
-    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
+    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, batchSize);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};

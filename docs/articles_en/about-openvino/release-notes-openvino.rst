@@ -1106,7 +1106,6 @@ Discontinued in 2025
 
 Deprecated and to be removed in the future
 --------------------------------------------
-* Python 3.9 is now deprecated and will be unavailable after OpenVINO version 2025.4.
 * ``openvino.Type.undefined`` is now deprecated and will be removed with version 2026.0.
   ``openvino.Type.dynamic`` should be used instead.
 * APT & YUM Repositories Restructure:

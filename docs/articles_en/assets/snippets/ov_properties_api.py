@@ -42,7 +42,7 @@ def main():
     core.set_property("CPU", {hints.performance_mode: hints.PerformanceMode.LATENCY})
     # compiled with latency configuration hint
     compiled_model_latency = core.compile_model(model, "CPU")
-    # compiled with overriden performance hint value
+    # compiled with overridden performance hint value
     config = {hints.performance_mode: hints.PerformanceMode.THROUGHPUT}
     compiled_model_thrp = core.compile_model(model, "CPU", config)
     # [core_set_property_then_compile]
