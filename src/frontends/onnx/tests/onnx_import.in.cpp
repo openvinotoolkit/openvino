@@ -1017,7 +1017,7 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_nonmaxsuppression_default_sco
 OPENVINO_TEST(${BACKEND_NAME}, reduce_log_sum_none_input) {
     auto model = convert_model("reduce_log_sum_none_input.onnx");
 
-    // Empty inputs
+    // No runtime inputs needed - using model initializers
     Inputs inputs{};
 
     // output data shape (1)
