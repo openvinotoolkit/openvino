@@ -54,6 +54,26 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         if (out_layout.data_padding)
             return false;
 
+        auto is_feature_aligned = [](const layout& l) {
+            if (!format::is_blocked(l.format))
+                return true;
+
+            const auto& order = format::internal_order(l.format);
+            int f_bs = 1;
+            for (const auto& [dim, bs] : format::block_sizes(l.format)) {
+                if (dim < order.size() && order[dim] == 'f') {
+                    f_bs = bs;
+                }
+            }
+
+            return l.feature() % f_bs == 0;
+        };
+
+        // onednn concatenation doesn't support non-zero padding which can occur for unaligned feature.
+        if (node.is_dynamic() || (!node.is_dynamic() && !is_feature_aligned(out_layout))) {
+            return false;
+        }
+
         const auto& concat_node = node.as<concatenation>();
         auto concat_axis = concat_node.get_primitive()->axis;
 
