@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,6 +73,22 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(std::string
     return return_value;
 }
 
+bool hasOtherDynamicDims(const ov::PartialShape& shape, const ov::Layout& layout) {
+    auto batch_idx = ov::layout::batch_idx(layout);
+
+    for (size_t dim_idx = 0; dim_idx < shape.size(); dim_idx++) {
+        // Skip the batch dimension
+        if (dim_idx == static_cast<size_t>(batch_idx)) {
+            continue;
+        }
+
+        if (shape[dim_idx].is_dynamic()) {
+            return true;  // Found dynamic dimension other than batch
+        }
+    }
+    return false;
+}
+
 /**
  * @brief Checks the model for dynamism and ensures it is compatible with NPU.
  *
@@ -106,14 +122,15 @@ void boundDynamicShape(std::shared_ptr<ov::Model>& model, bool shapeOrBatchGiven
             item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
             layout = item->get_layout();
         }
-        if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
+        auto otherDimsDynamic = hasOtherDynamicDims(shape, layout);
+        if (shape[ov::layout::batch_idx(layout)].is_dynamic() && otherDimsDynamic) {
             if (shapeOrBatchGiven) {
                 throw std::logic_error("ERROR: Shape \"" + shape.to_string() + "\"" +
                                        " has dynamic batch size which is not supported by NPU\n");
             } else {
                 std::cout << "WARNING: Shape \"" + shape.to_string() + "\"" +
-                                 " has dynamic batch size which is not supported by NPU\n"
-                                 "         Setting batch to 1 forcibly"
+                                 " has dynamic batch size which is not the only dynamic dimension. This scenario\n"
+                                 " is not yet supported by NPU. Setting batch to 1 forcibly"
                           << std::endl;
                 ov::set_batch(model, 1);
                 // Get the shape again

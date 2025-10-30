@@ -551,7 +551,7 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
 
 void ov::frontend::onnx::TensorONNXPlace::translate(ov::Output<ov::Node>& output) {
     if (get_names().size() > 0) {
-        output.set_names({*get_names().begin()});
+        output.add_names({*get_names().begin()});
     }
 }
 

@@ -11,6 +11,7 @@
 #include <limits>
 #include <type_traits>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -192,6 +193,10 @@ inline void scale_add2_reduce_max(float* a,
                                   size_t size,
                                   float alibi_slope,
                                   float& max) {
+    OPENVINO_ASSERT(ov::intel_cpu::implication(has_alibi, alibi_lookup), "CPU: alibi_lookup should not be nullptr.");
+    OPENVINO_ASSERT(ov::intel_cpu::implication(has_attn_mask, attn_mask), "CPU: attn_mask should not be nullptr.");
+    OPENVINO_ASSERT(ov::intel_cpu::implication(has_causal_mask, causal_mask),
+                    "CPU: causal_mask should not be nullptr.");
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto v_max0 = _mm512_set1_ps(std::numeric_limits<float>::lowest());

@@ -116,7 +116,17 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();
 
-        std::memcpy(&buf[0], &data[0], bufSize);
+        // If a constant has element type f64 but contains no elements (empty tensor),
+        // convert it to f32 because the GPU plugin only supports the f32 data type internally.
+        if (ov::shape_size(const_shape) == 1 &&
+            out_dtype == cldnn::data_types::f32 &&
+            op->get_output_element_type(0) == ov::element::f64) {
+            const auto* f64data = op->get_data_ptr<double>();
+            auto f32buf = reinterpret_cast<float*>(buf);
+            f32buf[0] = static_cast<float>(f64data[0]);
+        } else {
+            std::memcpy(&buf[0], &data[0], bufSize);
+        }
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;

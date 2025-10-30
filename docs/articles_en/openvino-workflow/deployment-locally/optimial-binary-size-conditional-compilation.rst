@@ -13,7 +13,7 @@ Lean more in the `conditional_compilation_guide <https://github.com/openvinotool
 
 There are two steps to reduce binary size of the OpenVINO runtime library with conditional compilation:
 
-- Apply ``SELECTIVE_BUILD=COLLECT`` and ``DENABLE_PROFILING_ITT=ON`` build options to enable analysis mode of conditional compilation to collect statistics data using ``itt``.
+- Apply ``SELECTIVE_BUILD=COLLECT`` and ``DENABLE_PROFILING_ITT=FULL`` build options to enable analysis mode of conditional compilation to collect statistics data using ``itt``.
 
 - Apply ``SELECTIVE_BUILD=ON`` and ``SELECTIVE_BUILD_STAT=<statistics_data.csv>`` build options to exclude inactive code region with the help of previous statistics data and get the final OpenVINO package.
 
@@ -35,7 +35,7 @@ Stage 1: collecting statistics information about code usage
     git submodule init
     git submodule update
     mkdir build && cd build
-    cmake -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT ..
+    cmake -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT ..
     cmake --build .
 
 - Build ITT collector for code usage analysis
@@ -239,7 +239,7 @@ Build OpenVINO with conditional compilation enabled:
     cd %OPENVINO_HOME%
     md build_cc
     cd build_cc
-    cmake -G Ninja -Wno-dev -DCMAKE_BUILD_TYPE=Debug -DENABLE_CPPLINT=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF -DENABLE_FASTER_BUILD=ON -DENABLE_SANITIZER=OFF -DTHREADING=TBB -DBUILD_SHARED_LIBS=OFF -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_INTEL_GPU=OFF -DENABLE_MULTI=OFF -DENABLE_AUTO=OFF -DENABLE_AUTO_BATCH=OFF -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_OV_ONNX_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_PYTORCH_FRONTEND=OFF -DENABLE_OV_JAX_FRONTEND=OFF -DENABLE_OV_TF_FRONTEND=OFF -DCMAKE_INSTALL_PREFIX=install ..
+    cmake -G Ninja -Wno-dev -DCMAKE_BUILD_TYPE=Debug -DENABLE_CPPLINT=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF -DENABLE_FASTER_BUILD=ON -DENABLE_SANITIZER=OFF -DTHREADING=TBB -DBUILD_SHARED_LIBS=OFF -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DENABLE_INTEL_GPU=OFF -DENABLE_MULTI=OFF -DENABLE_AUTO=OFF -DENABLE_AUTO_BATCH=OFF -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_OV_ONNX_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_PYTORCH_FRONTEND=OFF -DENABLE_OV_JAX_FRONTEND=OFF -DENABLE_OV_TF_FRONTEND=OFF -DCMAKE_INSTALL_PREFIX=install ..
 
     cmake --build . --config Debug
 

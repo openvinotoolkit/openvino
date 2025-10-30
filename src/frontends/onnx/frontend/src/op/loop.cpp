@@ -10,7 +10,9 @@
 #include "exceptions.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "translate_session.hpp"
@@ -37,6 +39,9 @@ namespace {
 ///
 /// \return true if termination condition is not modified during loop iterations, false otherwise.
 bool is_termination_condition_always_true(const ov::Node* cond_in, const ov::Node* cond_out) {
+    if (auto identity = ov::as_type<const op::v16::Identity>(cond_out)) {
+        cond_out = identity->input_value(0).get_node();
+    }
     return cond_in == cond_out;
 }
 }  // namespace
@@ -101,9 +106,18 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
 
     const auto& cond_in = body_inputs[1];
     const auto& cond_out = body_outputs[0];
+    bool needs_condition_param = true;
+    ov::ParameterVector body_params;
     // optimization allow to improve nG Loop shape inference
     if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
         body_outputs[0] = v0::Constant::create(ov::element::boolean, {1}, {true});
+        // Construct body_params without the condition parameter (body_inputs[1])
+        body_params = ov::ParameterVector{body_inputs[0]};
+        body_params.insert(body_params.end(), body_inputs.begin() + 2, body_inputs.end());
+        needs_condition_param = false;
+    } else {
+        // Construct body_params with all body_inputs
+        body_params = ov::ParameterVector(body_inputs.begin(), body_inputs.end());
     }
 
     CHECK_VALID_NODE(node,
@@ -123,15 +137,15 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
                      ") is not greater than number of outputs. Required at least: ",
                      loop_carried_dependencies.size() + 1);
 
-    ov::ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
-    body_params.emplace(body_params.begin(),
-                        body_inputs[0]);  // current iteration body input
     const auto body = std::make_shared<ov::Model>(body_outputs, body_params);
     auto loop = std::make_shared<v5::Loop>(trip_count, termination_cond);
     v5::Loop::SpecialBodyPorts spec_ports{0, 0};
     loop->set_special_body_ports(spec_ports);
     loop->set_function(body);
-
+    // Add condition
+    if (needs_condition_param) {
+        loop->set_merged_input(*std::next(body_inputs.begin(), 1), ng_inputs.at(1), *body_outputs.begin());
+    }
     // Setting up other Loop body inputs.
     // body_inputs[0] is iteration number, body_inputs[1] is termination condition
     auto body_inputs_it = std::next(body_inputs.begin(), 2);
@@ -290,7 +304,14 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     auto translate_session = node.get_translate_session();
 
     for (; body_inputs_it != body_inputs.end(); ++body_inputs_it) {
-        auto known_input = translate_session->lookup_tensor(body_inputs_it->get()->get_friendly_name());
+        const auto& names = body_inputs_it->get()->output(0).get_names();
+        ov::Output<ov::Node> known_input;
+        for (const auto& name : names) {
+            known_input = translate_session->lookup_tensor(name);
+            if (known_input.get_node() != nullptr) {
+                break;
+            }
+        }
         if (known_input.get_node() != nullptr) {
             loop->set_invariant_input(*body_inputs_it, known_input);
         } else {

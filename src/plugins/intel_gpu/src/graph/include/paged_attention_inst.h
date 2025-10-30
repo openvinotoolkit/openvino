@@ -22,6 +22,7 @@ public:
     std::set<size_t> get_lockable_input_ids() const override {
         std::set<size_t> input_ports = { PagedAttentionInputIdx::PAST_LENS,
                                          PagedAttentionInputIdx::SUBSEQUENCE_BEGINS,
+                                         PagedAttentionInputIdx::XATTENTION_THRESHOLD,
                                          PagedAttentionInputIdx::MAX_CONTEXT_LEN };
 
         if (typed_desc()->has_score_aggregation)

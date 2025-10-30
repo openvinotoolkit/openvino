@@ -65,6 +65,17 @@ struct format_traits {
 
     /// @brief Checks if order has @p c dimension.
     bool has_dimension(char c) const { return order.find_first_of(c) != std::string::npos; }
+
+    friend bool operator==(const format_traits& lft, const format_traits& rft) {
+        return lft._order == rft._order &&
+            lft.block_sizes == rft.block_sizes &&
+            lft.logic_block_sizes == rft.logic_block_sizes &&
+            lft.desc_size == rft.desc_size &&
+            lft.batch_num == rft.batch_num &&
+            lft.feature_num == rft.feature_num &&
+            lft.spatial_num == rft.spatial_num &&
+            lft.group_num == rft.group_num;
+    }
 };
 
 /// @brief Represents memory formats (orders).

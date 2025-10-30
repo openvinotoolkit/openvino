@@ -54,7 +54,7 @@ ov::element::Type dstType(const Config& config) {
 }
 
 template <typename Config, int idx>
-ov::element::Type dims(const Config& config) {
+const VectorDims& dims(const Config& config) {
     return config.descs.at(idx)->getShape().getDims();
 }
 

@@ -35,7 +35,7 @@ public:
 
     GraphDescriptor getGraphDescriptor(SerializedIR serializedIR,
                                        const std::string& buildFlags,
-                                       const uint32_t& flags) const;
+                                       const bool bypassUmdCache = false) const;
 
     GraphDescriptor getGraphDescriptor(void* data, size_t size) const;
 
