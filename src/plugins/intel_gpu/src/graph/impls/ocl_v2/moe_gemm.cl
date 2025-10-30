@@ -36,14 +36,14 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
         const global INPUT3_TYPE * input_offset_per_expert,
         const global INPUT4_TYPE *n_array,
         int m, int k
+#ifdef BIAS_DT
+        , const global BIAS_DT *bias_ptr
+#endif
 #ifdef WEIGHT_COMPRESSED_INT4
         , const global WEIGHT_SCALE_DT *weight_scales
         #ifdef WEIGHT_ZP_DT
         , const global WEIGHT_ZP_DT *weight_zps
         #endif
-#endif
-#ifdef BIAS_DT
-        , const global BIAS_DT *bias_ptr
 #endif
 #ifdef USE_SLM
         , local int* slm
@@ -79,6 +79,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     uint wg_j0 = get_group_id(1) * ugemm_moe_wg_tile_n;
     uint sg_i0 = wg_i0 + sg_i * ugemm_moe_sg_tile_m;
     uint sg_j0 = wg_j0 + sg_j * ugemm_moe_sg_tile_n;
+    uint num_groups = NUM_GROUPS;
     if (wg_j0 >= cur_n_tokens)
         return;     /* early exit if outside batch */
 #ifdef USE_SLM
@@ -91,54 +92,22 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef WEIGHT_ZP_DT
                                         , weight_zps
 #endif
-                                        , NUM_GROUPS
+                                        , num_groups
 #endif
 );
     ugemm_moe_c_type_half c_tile_half;
     tile_copy_reblock(c_tile, &c_tile_half);
 
 #ifdef BIAS_DT
-    //typedef struct{
-    //    half2 x[1 * 1];
-    //} bias_tile_type;
-    //
-    //void tile_load_full(bias_tile_type *t, const global half *ptr, int ld,int offset_r,int offset_c){
-    //    ptr += ld * offset_c + offset_r;
-    //    for (int j = 0; j < 1 ; j++, ptr += ld) {
-    //        for (int i0 = 0; i0 < 32; i0 += 16){
-    //            int i = i0 + get_sub_group_local_id();
-    //            (*t).x[i0 / 32 + j][(i0%32) / 16 + j * 2] = ptr[i];
-    //        }
-    //    }
-    //}
-
     bias_ptr += (experts_ids[batch] * BIAS_STRIDE);
     int sglid = get_sub_group_local_id();
-    bias_tile_type bias_tile;
-    tile_load_full(&bias_tile, bias_ptr, 1, sg_i0, 0);
-    const int num_cols = (ugemm_moe_c_type_block0 * ugemm_moe_c_type_block1) / SUBGROUP_SIZE; // 8
-    const int num_rows = ugemm_moe_c_type_nblock0 * ugemm_moe_c_type_nblock1; // 12
-    const int num_blocks_per_m_tile = ugemm_moe_sg_tile_m / num_cols; // 4
-    const int block_offset =  (sglid % num_blocks_per_m_tile) * num_cols;
-    for (int br = 0; br < num_rows; br++) {
-        for (int bc = 0; bc < num_cols; bc++) {
-            const int col_idx = block_offset + bc;
-            c_tile_half.x[br][bc] += sub_group_shuffle(bias_tile.x[0][col_idx / SUBGROUP_SIZE], col_idx % SUBGROUP_SIZE);
+    const int num_cols_per_block = (ugemm_moe_c_type_block0 * ugemm_moe_c_type_block1) / SUBGROUP_SIZE; // 8
+    const int num_rows_per_block = ugemm_moe_c_type_nblock0 * ugemm_moe_c_type_nblock1; // 12
+    for (int br = 0; br < num_rows_per_block; br++) {
+        for (int bc = 0; bc < num_cols_per_block; bc++) {
+            c_tile_half.x[br][bc] += bias_ptr[sg_i0 + br * SUBGROUP_SIZE + sglid];
         }
     }
-   //    bias_ptr += (experts_ids[batch] * BIAS_STRIDE);
-   //    int sglid = get_sub_group_local_id();
-   //    const int num_cols_per_block = (ugemm_moe_c_type_block0 * ugemm_moe_c_type_block1) / SUBGROUP_SIZE; // 8
-   //    const int num_rows_per_block = ugemm_moe_c_type_nblock0 * ugemm_moe_c_type_nblock1; // 12
-   //    const int num_blocks_per_m_tile = ugemm_moe_sg_tile_m / num_cols_per_block; // 4
-   //    const int block_offset = sg_i0 + (sglid % num_blocks_per_m_tile) * num_cols_per_block;
-   //    for (int br = 0; br < num_rows_per_block; br++) {
-   //        for (int bc = 0; bc < num_cols_per_block; bc++) {
-   //            const int col_idx = block_offset + bc;
-   //            c_tile_half.x[br][bc] += (bias_ptr + col_idx)[0];
-   //        }
-   //    }
-
 #endif
     tile_store(c_tile_half, out_ptr, m, cur_n_tokens, sg_i0, sg_j0);
 }
