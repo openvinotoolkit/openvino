@@ -339,7 +339,7 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
     MATCHER_SCOPE(RoPEFusionIOSlicing);
     auto int32_max = std::numeric_limits<std::int32_t>::max();
     auto data = pattern::any_input(pattern::rank_equals(4));
-    auto varsplit = pattern::wrap_type<op::v1::VariadicSplit>({data, 3, {"ndims", "?"}});
+    auto varsplit = pattern::wrap_type<v1::VariadicSplit>({data, 3, {"ndims", "?"}});
     varsplit->set_output_size(2);
 
     auto x = NewGenSlice(data, 0, "ndims", 1, 3);
@@ -348,7 +348,7 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
         pattern::wrap_type<internal::RoPE>({x | varsplit->output(0), pattern::any_input(), pattern::any_input()}) |
         pattern::wrap_type<internal::RoPE>(
             {x | varsplit->output(0), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto result = pattern::wrap_type<op::v0::Concat>({x_emb, y | varsplit->output(1)}, {{"axis", -1}});
+    auto result = pattern::wrap_type<v0::Concat>({x_emb, y | varsplit->output(1)}, {{"axis", -1}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -395,7 +395,7 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
     auto input_slice = NewGenSlice(input_to_slice, {"slice_start"}, {"slice_stop"}, 1, 3);
 
     // Transpose input if needed: [B, L, H, S] -> [B, H, L, S]
-    auto x = pattern::wrap_type<op::v1::Transpose>({input_slice | input_to_trans, {0, 2, 1, 3}});
+    auto x = pattern::wrap_type<v1::Transpose>({input_slice | input_to_trans, {0, 2, 1, 3}});
 
     // RoPE node: supports both 3 and 4 inputs
     auto result =
@@ -538,9 +538,9 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         auto root_target_inputs = root->output(0).get_target_inputs();
         if (root_target_inputs.size() == 1) {
             auto target_node = root_target_inputs.begin()->get_node()->shared_from_this();
-            if (auto transpose = ov::as_type_ptr<op::v1::Transpose>(target_node)) {
+            if (auto transpose = ov::as_type_ptr<v1::Transpose>(target_node)) {
                 auto axes = transpose->input_value(1).get_node_shared_ptr();
-                auto axes_const = ov::as_type_ptr<op::v0::Constant>(axes);
+                auto axes_const = ov::as_type_ptr<v0::Constant>(axes);
                 if (axes_const && axes_const->cast_vector<int64_t>() == std::vector<int64_t>{0, 2, 1, 3}) {
                     config.output_trans0213 = true;
                     rt_from.push_back(target_node);
@@ -685,7 +685,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
 
     auto concat2 = pattern::wrap_type<v0::Concat>({y_even, y_odd}, {{"axis", -1}});
 
-    auto shape_of0 = pattern::wrap_type<ov::op::util::ShapeOfBase>({concat2});
+    auto shape_of0 = pattern::wrap_type<ShapeOfBase>({concat2});
     auto slice4 = NewGenSlice(shape_of0, 0, 3, 1, 0);
     auto concat3 = pattern::wrap_type<v0::Concat>({slice4, {-1}}, {{"axis", 0}});
 
@@ -867,11 +867,11 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
                                                             {{"special_zero", true}});
     auto slice_Slice_543 = NewGenSlice(view_Reshape_424, 0, "head_size", 1, 3);
 
-    auto ShapeOf_485735 = pattern::wrap_type<ov::op::util::ShapeOfBase>({pattern::any_input()}, {});
+    auto ShapeOf_485735 = pattern::wrap_type<ShapeOfBase>({pattern::any_input()}, {});
     auto Multiply_567524 = pattern::wrap_type<v1::Multiply>({ShapeOf_485735, -1}, {{"auto_broadcast", "numpy"}});
     auto Gather_377635 = pattern::wrap_type<v8::Gather>({Multiply_567524, 1, 0}, {{"batch_dims", 0}});
 
-    auto ShapeOf_409241 = pattern::wrap_type<ov::op::util::ShapeOfBase>({pattern::any_input()}, {});
+    auto ShapeOf_409241 = pattern::wrap_type<ShapeOfBase>({pattern::any_input()}, {});
     auto Gather_311651 = pattern::wrap_type<v8::Gather>({ShapeOf_409241, 1, 0}, {{"batch_dims", 0}});
     auto neg_Multiply = pattern::wrap_type<v1::Multiply>({Gather_311651, -1}, {{"auto_broadcast", "numpy"}});
 
@@ -1019,30 +1019,30 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
 
     // Broadcast pattern
     auto const_broadcast_axes =
-        pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::u8) && pattern::value_matches("{0}"));
+        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::u8) && pattern::value_matches("{0}"));
     auto broadcast =
-        pattern::wrap_type<op::v1::Broadcast>({"{1.000000f}", inputs[0], const_broadcast_axes}, {{"mode", "numpy"}});
+        pattern::wrap_type<v1::Broadcast>({"{1.000000f}", inputs[0], const_broadcast_axes}, {{"mode", "numpy"}});
 
     // Multiply pattern (expand broadcast)
-    auto const_inv_freq = pattern::wrap_type<op::v0::Constant>();  // Pattern for the constant inverse frequency
-    auto multiply = pattern::wrap_type<op::v1::Multiply>({const_inv_freq, broadcast}, {{"auto_broadcast", "numpy"}});
+    auto const_inv_freq = pattern::wrap_type<v0::Constant>();  // Pattern for the constant inverse frequency
+    auto multiply = pattern::wrap_type<v1::Multiply>({const_inv_freq, broadcast}, {{"auto_broadcast", "numpy"}});
 
     // MatMul pattern
     auto matmul =
-        pattern::wrap_type<op::v0::MatMul>({multiply, inputs[1]}, {{"transpose_a", false}, {"transpose_b", false}});
+        pattern::wrap_type<v0::MatMul>({multiply, inputs[1]}, {{"transpose_a", false}, {"transpose_b", false}});
 
     // Transpose pattern
-    auto transpose = pattern::wrap_type<op::v1::Transpose>({matmul, {0, 2, 1}});
+    auto transpose = pattern::wrap_type<v1::Transpose>({matmul, {0, 2, 1}});
 
     // Concat pattern
-    auto concat = pattern::wrap_type<op::v0::Concat>({transpose, transpose}, {{"axis", -1}});
+    auto concat = pattern::wrap_type<v0::Concat>({transpose, transpose}, {{"axis", -1}});
 
     // Cosine and Sine patterns
-    auto cos = pattern::wrap_type<op::v0::Cos>({concat});
-    auto sin = pattern::wrap_type<op::v0::Sin>({concat});
+    auto cos = pattern::wrap_type<v0::Cos>({concat});
+    auto sin = pattern::wrap_type<v0::Sin>({concat});
 
     // Unsqueeze result pattern (cos or sin)
-    auto result = pattern::wrap_type<op::v0::Unsqueeze>({cos | sin, {1}});
+    auto result = pattern::wrap_type<v0::Unsqueeze>({cos | sin, {1}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -1053,7 +1053,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
         if (it == pattern_map.end()) {
             return false;
         }
-        auto cur_inv_freq = as_type_ptr<op::v0::Constant>(it->second.get_node_shared_ptr());
+        auto cur_inv_freq = as_type_ptr<v0::Constant>(it->second.get_node_shared_ptr());
         if (!cur_inv_freq) {
             return false;
         }
@@ -1074,7 +1074,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
             return false;
         if (cur_inv_freq->get_shape() != m_inv_freq->get_shape())
             return false;
-        auto global_inv_freq = ov::as_type_ptr<op::v0::Constant>(m_inv_freq);
+        auto global_inv_freq = ov::as_type_ptr<v0::Constant>(m_inv_freq);
 
         auto cmp_error =
             memcmp(cur_inv_freq->get_data_ptr(), global_inv_freq->get_data_ptr(), global_inv_freq->get_byte_size());
