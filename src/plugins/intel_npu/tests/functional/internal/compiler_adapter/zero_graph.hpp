@@ -14,6 +14,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
+#include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -157,9 +158,11 @@ TEST_P(ZeroGraphCompilationTests, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
 
     size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
-    std::unique_ptr<ZeroMem> buffer;
-    OV_ASSERT_NO_THROW(buffer =
-                           std::make_unique<ZeroMem>(zeroInitStruct, totalSize, ::utils::STANDARD_PAGE_SIZE, false));
+    std::shared_ptr<ZeroMem> buffer;
+    OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
+                                                                                 totalSize,
+                                                                                 ::utils::STANDARD_PAGE_SIZE,
+                                                                                 false));
 
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer->data()));
 }
@@ -262,9 +265,11 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
         OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
 
-        std::unique_ptr<ZeroMem> buffer;
-        OV_ASSERT_NO_THROW(buffer =
-                               std::make_unique<ZeroMem>(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE, false));
+        std::shared_ptr<ZeroMem> buffer;
+        OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
+                                                                                     size,
+                                                                                     ::utils::STANDARD_PAGE_SIZE,
+                                                                                     false));
 
         OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer->data()));
 
@@ -294,9 +299,11 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
         OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
 
-        std::unique_ptr<ZeroMem> buffer;
-        OV_ASSERT_NO_THROW(buffer =
-                               std::make_unique<ZeroMem>(zeroInitStruct, size, ::utils::STANDARD_PAGE_SIZE, false));
+        std::shared_ptr<ZeroMem> buffer;
+        OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
+                                                                                     size,
+                                                                                     ::utils::STANDARD_PAGE_SIZE,
+                                                                                     false));
 
         OV_ASSERT_NO_THROW(
             zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(buffer->data()) + 1));
@@ -417,5 +424,19 @@ TEST_P(ZeroGraphTest, SetAlignedBlob) {
 
     ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
+
+#ifdef _WIN32
+TEST_P(ZeroGraphTest, CheckNoThrowOnUnsupportedFeature) {
+    if (zeroInitStruct->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 11)) {
+        // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
+        if (zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(zeroInitStruct->getDevice(),
+                                                                            ZE_NPU_DRIVER_OPTIONS,
+                                                                            "NO_THROW_ON_UNSUPPORTED_FEATURE",
+                                                                            nullptr) != ZE_RESULT_SUCCESS) {
+            ADD_FAILURE() << "NO_THROW_ON_UNSUPPORTED_FEATURE shall be supported.";
+        }
+    }
+}
+#endif
 
 }  // namespace ov::test::behavior
