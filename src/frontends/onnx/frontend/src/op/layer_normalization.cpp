@@ -76,9 +76,9 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
 
     if (needs_type_casting)
         normalized = std::make_shared<ConvertLike>(normalized, inputs.at(0));
-    
+
     ov::Output<ov::Node> normalized_shape = std::make_shared<v0::ShapeOf>(normalized);
-    
+
     auto scale = inputs.at(1);
     if (scale.get_partial_shape() != normalized.get_partial_shape())
         scale = std::make_shared<v1::Reshape>(scale, normalized_shape, false);
