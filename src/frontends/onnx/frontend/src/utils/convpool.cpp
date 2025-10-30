@@ -182,17 +182,21 @@ void calculate_transpose_auto_pads(const ov::Shape& data_shape,
         // For SAME_UPPER: padding_above gets the extra value when padding is odd
         // For SAME_LOWER: padding_below gets the extra value when padding is odd
         const auto padding_swap = pad_type == ov::op::PadType::SAME_UPPER;
-        auto&& pad_b = padding_swap ? padding_below.begin() : padding_above.begin();
-        auto&& pad_e = padding_swap ? padding_above.begin() : padding_below.begin();
+        auto pad_b = padding_swap ? padding_below.begin() : padding_above.begin();
+        auto pad_e = padding_swap ? padding_above.begin() : padding_below.begin();
 
-        for (size_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++filter_dim) {
+        auto stride = strides.begin();
+        auto dilation = dilations.begin();
+        auto output_pad = output_padding.begin();
+
+        for (; data_dim != data_shape.cend(); ++data_dim, ++pad_b, ++pad_e, ++filter_dim, ++stride, ++dilation, ++output_pad) {
             // For ConvTranspose with SAME_UPPER/SAME_LOWER padding:
             // Per ONNX spec: desired_output = input * stride
-            int64_t desired_output = static_cast<int64_t>(*data_dim) * strides[i];
+            int64_t desired_output = static_cast<int64_t>(*data_dim) * (*stride);
 
             // Calculate dilated kernel size
             // dilated_kernel = (kernel - 1) * dilation + 1
-            int64_t dilated_kernel = (static_cast<int64_t>(*filter_dim) - 1) * dilations[i] + 1;
+            int64_t dilated_kernel = (static_cast<int64_t>(*filter_dim) - 1) * (*dilation) + 1;
 
             // ConvTranspose formula:
             // output = (input - 1) * stride + dilated_kernel - 2*padding + output_padding
@@ -203,7 +207,7 @@ void calculate_transpose_auto_pads(const ov::Shape& data_shape,
             // total_padding = [(input - 1) * stride + dilated_kernel - desired_output + output_padding]
             //
             // Note: total_padding = padding_begin + padding_end (not 2*padding!)
-            int64_t total_padding = (*data_dim - 1) * strides[i] + dilated_kernel - desired_output + output_padding[i];
+            int64_t total_padding = (*data_dim - 1) * (*stride) + dilated_kernel - desired_output + (*output_pad);
             total_padding = std::max<int64_t>(0, total_padding);
 
             // Distribute padding between begin and end
