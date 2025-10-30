@@ -26,7 +26,6 @@
 #include "ov_ops/augru_cell.hpp"
 
 using namespace ov;
-
 using namespace std;
 using namespace ov::element;
 using namespace ov::pass::pattern;
