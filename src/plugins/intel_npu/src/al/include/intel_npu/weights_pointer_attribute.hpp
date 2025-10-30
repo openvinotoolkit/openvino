@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <string_view>
+
 #include "openvino/core/runtime_attribute.hpp"
 
 namespace intel_npu {
@@ -25,12 +27,14 @@ public:
 
     /**
      * @note The names of the attributes have been kept short in order to save some memory (there may be a lot of
-     * "ov::Constant" nodes in a model). Also, two characters should be sufficient to avoid collisions. "mp" stands for
-     * "memory pointer", "ms" for "memory size".
+     * "ov::Constant" nodes in a model). Also, three characters should be sufficient to avoid collisions.
      */
+    static constexpr const std::string_view POINTER_KEY = "mpZ";
+    static constexpr const std::string_view BYTE_SIZE_KEY = "msZ";
+
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
-        visitor.on_attribute("mp", memory_pointer);
-        visitor.on_attribute("ms", byte_size);
+        visitor.on_attribute(POINTER_KEY.data(), memory_pointer);
+        visitor.on_attribute(POINTER_KEY.data(), byte_size);
         return true;
     }
 
