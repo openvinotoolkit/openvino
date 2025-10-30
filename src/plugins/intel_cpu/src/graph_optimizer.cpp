@@ -89,7 +89,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     // computing-intensive nodes. So Locate the FuseConvolutionAndZeroPoints() as the first optimization.
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE,
                        taskChain,
-                       itt::domains::intel_cpu_LT,
+                       itt::domains::ov_intel_cpu_LT,
                        "ApplyCommonGraphOptimizations",
                        "FuseConvolutionAndZeroPoints");
     FuseConvolutionAndZeroPoints(graph);
@@ -228,7 +228,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
 }
 
 void GraphOptimizer::ApplyImplSpecificGraphOptimizations(Graph& graph) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "GraphOptimizer::ApplyImplSpecificGraphOptimizations");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "GraphOptimizer::ApplyImplSpecificGraphOptimizations");
 
     TailNodesPrecisionOptimize(graph);
     graph.RemoveDroppedNodes();
