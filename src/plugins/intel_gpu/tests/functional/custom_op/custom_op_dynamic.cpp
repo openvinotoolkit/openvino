@@ -169,7 +169,6 @@ public:
         for (auto op : ops) {
             if (op->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>() == "CustomGPUPrimitive") {
                 found_custom_op_num++;
-                break;
             }
         }
         ASSERT_TRUE(found_custom_op_num == 2);
