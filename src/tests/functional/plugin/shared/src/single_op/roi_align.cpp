@@ -172,14 +172,6 @@ void ROIAlignV9LayerTest::SetUp() {
 
     init_input_shapes(input_shapes);
 
-    if (targetDevice == ov::test::utils::DEVICE_GPU) {
-        // ROIAlign involves calculations such as interpolation, pooling, and clamping,
-        // so for small number, it can introduce more error than other ops.
-        // Therefore, it needs to relax threshold for GPU device to avoid false-positive results.
-        // Please see how to set abs_threshold in other frameworks , e.g, TensorFlow (1e-5), PyTorch (1e-5).
-        abs_threshold = 1e-5;
-    }
-
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0]);
     std::vector<float> proposal_vector;
     std::vector<int> roi_idx_vector;
