@@ -9,7 +9,6 @@
 #include "openvino/util/log.hpp"
 
 using namespace ov;
-
 #define LARGE_TENSOR_BYTE_SIZE 64
 
 namespace ov::pass {

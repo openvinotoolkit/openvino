@@ -20,7 +20,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-
 ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
     MATCHER_SCOPE(ReduceReshapeFusion);
 

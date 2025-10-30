@@ -26,7 +26,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-
 namespace {
 
 std::shared_ptr<ov::op::v0::Constant> get_reduced_order_constant(

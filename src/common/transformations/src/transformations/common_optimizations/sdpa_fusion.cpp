@@ -34,7 +34,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-
 using namespace ov::op;
 
 namespace {

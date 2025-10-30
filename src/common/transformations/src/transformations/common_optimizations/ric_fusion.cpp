@@ -32,7 +32,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-
 namespace ov {
 namespace pass {
 namespace ric_attr {

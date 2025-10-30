@@ -16,7 +16,6 @@
 
 using namespace std;
 using namespace ov;
-
 namespace {
 bool is_node_casts_to_float_or_shapeof(const Node* node) {
     if (ov::as_type<const ov::op::v3::ShapeOf>(node)) {

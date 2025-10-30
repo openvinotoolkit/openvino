@@ -17,7 +17,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-
 ov::pass::LeakyReluFusion::LeakyReluFusion() {
     MATCHER_SCOPE(LeakyReluFusion);
     auto data_pattern = pass::pattern::any_input();

@@ -16,7 +16,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-
 static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& matmul,
                                                    const Output<Node>& weights,
                                                    std::shared_ptr<ov::op::v0::Constant> mul_const) {

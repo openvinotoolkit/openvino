@@ -24,7 +24,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-
 namespace {
 
 void set_source_output_type_shape(const ov::Node& node,

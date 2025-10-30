@@ -20,7 +20,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-
 template <typename T>
 static bool can_be_fused(const std::shared_ptr<op::util::PadBase>& pad,
                          const std::shared_ptr<T>& node,

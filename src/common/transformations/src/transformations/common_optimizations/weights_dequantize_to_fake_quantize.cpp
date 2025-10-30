@@ -17,7 +17,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-
 ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     MATCHER_SCOPE(WeightsDequantizeToFakeQuantize);
 

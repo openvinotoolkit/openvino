@@ -30,7 +30,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-
 namespace {
 // This function creates a partition of its argument into groups consisting of adjacent identical elements.
 // Argument: std::vector<uint64_t> v

@@ -169,7 +169,6 @@ ov::pass::PReluFusionAbsSubMulMulAdd::PReluFusionAbsSubMulMulAdd() {
 
     using namespace std;
     using namespace ov;
-
     const auto equals_half = [](const Output<Node>& node) {
         float v;
         const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node.get_node_shared_ptr());
@@ -213,7 +212,6 @@ ov::pass::PReluFusionNegReluMulAdd::PReluFusionNegReluMulAdd() {
 
     using namespace std;
     using namespace ov;
-
     const auto input = pass::pattern::any_input();
     const auto relu_pos = pattern::wrap_type<ov::op::v0::Relu>({input});
     const auto neg1 = pattern::wrap_type<ov::op::v0::Negative>({input});

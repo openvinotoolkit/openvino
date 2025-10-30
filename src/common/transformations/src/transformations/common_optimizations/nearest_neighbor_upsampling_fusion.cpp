@@ -28,7 +28,6 @@
 
 namespace {
 using namespace ov;
-
 // In the transformation, a constant for Multiply must have the following shape:
 //      [1, 1, S_1, 1, S_2, ..., 1, S_i, ..., 1, S_{r - 2}, 1], (1)
 // where (r - 2) is number of spatial axes, and each S_i is a scale for the axis i.

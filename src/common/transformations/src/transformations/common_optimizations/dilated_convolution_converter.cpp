@@ -20,7 +20,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-
 // Replace the following graph SpaceToBatch -> Convolution(GroupConvolution) -> BatchToSpace with single
 // Convolution(GroupConvolution) node
 ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
