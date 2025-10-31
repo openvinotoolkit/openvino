@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 
 :: Copyright (C) 2018-2025 Intel Corporation
 :: SPDX-License-Identifier: Apache-2.0
@@ -95,10 +96,8 @@ for /F "tokens=1,2 delims=. " %%a in ("%python_version%") do (
 )
 
 :: Strip non-numeric suffix from minor version (e.g., 14t -> 14)
-for /f "delims=0123456789" %%i in ("%pyversion_minor%") do set "suffix=%%i"
-if defined suffix (
-   set pyversion_minor=%pyversion_minor:!suffix!=% 
-)
+:: Extract only leading digits, stopping at 't' suffix
+for /f "delims=t" %%i in ("!pyversion_minor!") do set "pyversion_minor=%%i"
 
 if %pyversion_major% equ %PYTHON_VERSION_MAJOR% (
    if %pyversion_minor% geq %MIN_REQUIRED_PYTHON_VERSION_MINOR% (

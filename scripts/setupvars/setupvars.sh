@@ -114,7 +114,7 @@ check_python_version () {
     fi
 
     # Strip non-numeric suffix from minor version (e.g., 14t -> 14)
-    python_version_minor_numeric=$(echo "$python_version_minor" | sed 's/[^0-9].*$//')
+    python_version_minor_numeric="${python_version_minor%%[!0-9]*}"
 
     if  [ "$PYTHON_VERSION_MAJOR" != "$python_version_major" ] ||
         [ "$python_version_minor_numeric" -lt "$MIN_REQUIRED_PYTHON_VERSION_MINOR" ] ||
