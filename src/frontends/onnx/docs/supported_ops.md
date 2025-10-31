@@ -20,7 +20,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Asinh                                                   |9                       |22, 9                           |                                |
 |                        |Atan                                                    |7                       |22, 7                           |                                |
 |                        |Atanh                                                   |9                       |22, 9                           |                                |
-|                        |AveragePool                                             |1                       |22, 19, 11, 10, 7, 1            |                                |
+|                        |AveragePool                                             |11, 1                   |22, 19, 11, 10, 7, 1            |                                |
 |                        |BatchNormalization                                      |14, 7, 1                |15, 14, 9, 7, 6, 1              |                                |
 |                        |Bernoulli                                               |                        |22, 15                          |                                |
 |                        |BitShift                                                |11                      |11                              |                                |
