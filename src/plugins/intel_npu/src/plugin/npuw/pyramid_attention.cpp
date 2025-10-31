@@ -83,8 +83,8 @@ void patch_broadcast_constants(const std::shared_ptr<ov::Model>& model, size_t t
 }
 
 // Helper function to patch reshape constants for pre-reshape (-1 substitution)
-void patch_reshape_constants_pre_reshape(const std::shared_ptr<ov::Model>& model,
-                                         const std::map<std::string, size_t>& past_value_sequence_dims) {
+void patch_reshape_constants(const std::shared_ptr<ov::Model>& model,
+                             const std::map<std::string, size_t>& past_value_sequence_dims) {
     for (auto&& op : model->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v1::Reshape>(op)) {
             continue;
@@ -269,7 +269,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 
     // Apply pre-reshape patching using helper functions
     patch_broadcast_constants(cloned_model, full_context_length);
-    patch_reshape_constants_pre_reshape(cloned_model, past_value_sequence_dims);
+    patch_reshape_constants(cloned_model, past_value_sequence_dims);
 
     cloned_model->reshape(new_shapes);
     cloned_model->validate_nodes_and_infer_types();

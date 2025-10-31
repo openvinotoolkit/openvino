@@ -1606,13 +1606,13 @@ void ov::npuw::CompiledModel::compile_pyramid_attention_models(std::size_t id, c
     if (models_to_compile > 0) {
         LOG_INFO("Compiling " << models_to_compile << " pyramid models in parallel...");
 
-        ov::parallel_for(models_to_compile, [&](size_t model_id) {
+        auto compile_one_model = [&](size_t model_id) {
             try {
                 const auto& model = pyramid_attn_models[model_id];
                 LOG_DEBUG("Compiling pyramid attention submodel[" << model_id << "]: " << model->get_friendly_name());
 
                 auto compiled = compile_submodel(model, device);
-                NPUW_ASSERT(compiled && "Failed to compile pyramid attention submodel");
+                OPENVINO_ASSERT(compiled, "Failed to compile pyramid attention submodel");
 
                 compiled_models[model_id] = compiled;
 
@@ -1622,14 +1622,23 @@ void ov::npuw::CompiledModel::compile_pyramid_attention_models(std::size_t id, c
             } catch (...) {
                 OPENVINO_THROW("Pyramid attention submodel[", model_id, "] compilation failed with unknown error");
             }
-        });
+        };
+
+        const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
+        if (par_opt) {
+            ov::parallel_for(models_to_compile, compile_one_model);
+        } else {
+            for (std::size_t model_id = 0u; model_id < models_to_compile; model_id++) {
+                compile_one_model(model_id);
+            }
+        }
     }
 
     // Handle the last model: reuse the already compiled original model
     if (total_models > 0) {
         LOG_INFO("Reusing already compiled original model for pyramid attention submodel[" << (total_models - 1)
                                                                                            << "] (optimization)");
-        NPUW_ASSERT(m_compiled_submodels[id].compiled_model && "Original compiled model should exist");
+        OPENVINO_ASSERT(m_compiled_submodels[id].compiled_model, "Original compiled model should exist");
         compiled_models[total_models - 1] = m_compiled_submodels[id].compiled_model;
     }
 

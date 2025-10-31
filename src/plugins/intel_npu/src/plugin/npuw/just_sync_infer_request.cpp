@@ -705,7 +705,9 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     }
 
     if (is_pyramid) {
-        function_prologue_pyramid_attn(real_idx, idx);
+        m_profile["pyramid_attn(act)"] += ov::npuw::perf::ms_to_run([&]() {
+            function_prologue_pyramid_attn(real_idx, idx);
+        });
     }
 
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
