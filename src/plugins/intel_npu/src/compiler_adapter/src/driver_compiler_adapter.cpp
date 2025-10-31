@@ -97,7 +97,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("build flags");
     buildFlags += irSerializer.serializeIOInfo(model, useIndices);
     buildFlags += " ";
-    buildFlags += irSerializer.serializeConfig(config, compilerVersion, is_option_supported("NPU_TURBO"));
+    buildFlags +=
+        irSerializer.serializeConfig(config, compilerVersion, _zeGraphExt->isTurboOptionSupported(compilerVersion));
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
