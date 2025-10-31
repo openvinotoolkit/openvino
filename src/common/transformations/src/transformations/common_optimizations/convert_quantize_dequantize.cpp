@@ -63,13 +63,6 @@
 //                                        v
 //
 
-#define LOG_INFO(...)                           \
-    do {                                        \
-        if (std::getenv("QDQ_STRIPPING_LOG")) { \
-            std::cout << __VA_ARGS__;           \
-        }                                       \
-    } while (0)
-
 ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
     const ov::element::TypeVector& supported_low_precisions,
     const ov::element::TypeVector& supported_original_precisions,
@@ -103,7 +96,6 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
-        LOG_INFO("[ INFO ] ConvertQuantizeDequantize matched\n");
 
         if (transformation_callback(m.get_match_root())) {
             return false;
@@ -146,47 +138,15 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
             {ov::element::i16, {-32768.f, 32767.f}},
             {ov::element::u16, {0.f, 65535.f}}};
         const auto& type = convert1.get_element_type();
-        LOG_INFO("[ INFO ] Matched nodes info\n");
-        LOG_INFO("\t data = " << data << std::endl);
-        LOG_INFO("\t fq = " << fq << std::endl);
-#define LOG_CONSTANT_VALUE(name, value)                                                                             \
-    do {                                                                                                            \
-        auto node = value.get_node_shared_ptr();                                                                    \
-        if (ov::is_type<ov::op::v0::Convert>(node)) {                                                               \
-            node = node->get_input_node_shared_ptr(0);                                                              \
-        }                                                                                                           \
-        if (auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node)) {                                        \
-            if (ov::shape_size(const_node->get_shape()) == 1) {                                                     \
-                LOG_INFO("\t " << name << " = " << value                                                            \
-                               << " (constant value: " << const_node->cast_vector<float>()[0] << ")" << std::endl); \
-            } else {                                                                                                \
-                LOG_INFO("\t " << name << " = " << value << std::endl);                                             \
-            }                                                                                                       \
-        } else {                                                                                                    \
-            LOG_INFO("\t " << name << " = " << value << std::endl);                                                 \
-        }                                                                                                           \
-    } while (0);
 
-        LOG_CONSTANT_VALUE("input_low", input_low);
-        LOG_CONSTANT_VALUE("input_high", input_high);
-        LOG_CONSTANT_VALUE("output_low", pattern_map.at(output_low_pattern));
-        LOG_CONSTANT_VALUE("output_high", pattern_map.at(output_high_pattern));
-        LOG_INFO("\t convert1 = " << convert1 << std::endl);
-        LOG_INFO("\t convert2 = " << convert2 << std::endl);
         if (pattern_map.count(zero_point_pattern)) {
             const auto& shift = pattern_map.at(zero_point_pattern);
             const auto& subtract = pattern_map.at(sub_pattern);
-            LOG_CONSTANT_VALUE("shift", shift);
-            LOG_INFO("\t subtract = " << subtract << std::endl);
         } else {
-            LOG_INFO("\t zero_point not present\n");
         }
-        LOG_CONSTANT_VALUE("scale", scale);
-        LOG_INFO("\t mul = " << mul << std::endl);
 
         if (supported_intervals.count(type) == 0 ||
             supported_intervals.at(type) != std::make_pair(out_low_val, out_high_val)) {
-            LOG_INFO("[ INFO ] ConvertQuantizeDequantize: unsupported intervals\n");
             return false;
         }
 
@@ -224,7 +184,6 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
 
         copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);
         replace_node(mul, new_fq);
-        LOG_INFO("[ INFO ] ConvertQuantizeDequantize: transformation finished\n");
 
         return true;
     };
