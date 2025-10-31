@@ -1,7 +1,7 @@
 name: Linux CPU Plugin Snippets with LIBXSMM (Ubuntu 22.04)
 on:
   workflow_dispatch:
-  pull_request:
+
     paths:
       - '.github/workflows/dev_cpu_linux_snippets_libxsmm.yml'
       - 'src/common/snippets/**'

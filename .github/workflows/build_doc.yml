@@ -1,6 +1,5 @@
 name: Documentation
 on:
-  pull_request:
   merge_group:
 
 concurrency:

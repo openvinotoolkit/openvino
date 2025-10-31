@@ -19,7 +19,7 @@ on:
      - '**/conformance/**'
    branches:
      - 'releases/**'
-  # pull_request:
+  #
   #  paths-ignore:
   #    - '**/docs/**'
   #    - 'docs/**'
@@ -234,7 +234,7 @@ jobs:
           version: "3.13"
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
-          
+
       - name: Build Python API and wheels
         run: |
           for py_version in "3.10" "3.11" "3.12" "3.13"
@@ -247,7 +247,7 @@ jobs:
             cmake --install ${{ github.workspace }}/py$py_version --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pyopenvino_python$py_version
             cmake --install ${{ github.workspace }}/py$py_version --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
           done
-          
+
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
@@ -394,7 +394,7 @@ jobs:
         with:
           name: openvino_package
           path: ${{ env.ARTIFACTS_DIR }}
-      
+
       - name: Download OpenVINO artifacts (dev package)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
@@ -412,7 +412,7 @@ jobs:
         with:
           name: openvino_node_npm_package
           path: ${{ env.ARTIFACTS_DIR }}
-      
+
       - name: Download OpenVINO artifacts (openvino_package_manifest)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:

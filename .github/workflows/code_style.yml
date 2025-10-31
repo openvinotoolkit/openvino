@@ -1,5 +1,5 @@
 name: Code Style
-on: [pull_request, merge_group]
+on: [merge_group]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
