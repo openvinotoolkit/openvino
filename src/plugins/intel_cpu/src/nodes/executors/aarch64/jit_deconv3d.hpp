@@ -27,6 +27,9 @@ public:
             m_ip_kernel_f32->create_ker();
         } else {
             m_ip_kernel_f16 = std::make_unique<JitConv3DKernelF16>();
+            // Enforce unified FP16 path across machines: do not rely on FHM
+            m_ip_kernel_f16->set_use_fhm(false);
+            m_ip_kernel_f16->set_force_single_kh(true);
             m_ip_kernel_f16->create_ker();
         }
         prepare_weights_early(src);

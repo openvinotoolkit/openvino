@@ -13,6 +13,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
 namespace ov::intel_cpu {
 
@@ -1135,72 +1136,38 @@ void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src, const st
                                     (void)ky_base;
                                     const size_t s_base = idx_src(n, g * ICg, iz_idx, iy_idx, ix_idx);
 
-                                    // pair 0
-                                    {
-                                        jit_conv3d_f32_call_args args{};
-                                        args.src = src_p + s_base;
-                                        args.src_stride = src_c_stride_elems * sizeof(float);
-                                        args.src_blk_stride = args.src_stride * 4;
-                                        args.acc = &acc0;
-                                        args.acc2 = has_oc1 ? &acc1 : nullptr;
-                                        args.repeats = ICg / 4;
-                                        args.tail = ICg % 4;
-                                        args.kw_cnt = kw_count;
-                                        args.src_dx = static_cast<size_t>(-static_cast<ptrdiff_t>(sizeof(float)));
-                                        if (true) {
-                                            const size_t base0 =
-                                                (((oc0 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) *
-                                                     KW +
-                                                 static_cast<size_t>(kx_lo)) *
-                                                m_padded_IC_f32;
-                                            args.wei = m_wei_packed_f32.data() + base0;
-                                            if (has_oc1) {
-                                                const size_t base1 = (((oc1 * KD + static_cast<size_t>(kz)) * KH +
-                                                                       static_cast<size_t>(ky)) *
-                                                                          KW +
-                                                                      static_cast<size_t>(kx_lo)) *
-                                                                     m_padded_IC_f32;
-                                                args.wei2 = m_wei_packed_f32.data() + base1;
-                                            }
-                                            args.wei_stride = sizeof(float);
-                                            args.wei_blk_stride = args.wei_stride * 4;
-                                            args.wei_dx = m_padded_IC_f32 * sizeof(float);
-                                        } else { /* unreachable: raw weights path removed */ }
-                                        (*m_ip_kernel_f32)(&args);
+                                    // one quad-call (oc0..oc3 as available)
+                                    jit_conv3d_f32_call_args args{};
+                                    args.src = src_p + s_base;
+                                    args.src_stride = src_c_stride_elems * sizeof(float);
+                                    args.src_blk_stride = args.src_stride * 4;
+                                    args.acc = &acc0;
+                                    args.acc2 = has_oc1 ? &acc1 : nullptr;
+                                    args.acc3 = has_oc2 ? &acc2 : nullptr;
+                                    args.acc4 = has_oc3 ? &acc3 : nullptr;
+                                    args.repeats = ICg / 4;
+                                    args.tail = ICg % 4;
+                                    args.kw_cnt = kw_count;
+                                    args.src_dx = static_cast<size_t>(-static_cast<ptrdiff_t>(sizeof(float)));
+                                    // packed-weights path
+                                    const size_t base0 = (((oc0 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW + static_cast<size_t>(kx_lo)) * m_padded_IC_f32;
+                                    args.wei = m_wei_packed_f32.data() + base0;
+                                    if (has_oc1) {
+                                        const size_t base1 = (((oc1 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW + static_cast<size_t>(kx_lo)) * m_padded_IC_f32;
+                                        args.wei2 = m_wei_packed_f32.data() + base1;
                                     }
-                                    // pair 1
                                     if (has_oc2) {
-                                        jit_conv3d_f32_call_args args2{};
-                                        args2.src = src_p + s_base;
-                                        args2.src_stride = src_c_stride_elems * sizeof(float);
-                                        args2.src_blk_stride = args2.src_stride * 4;
-                                        args2.acc = &acc2;
-                                        args2.acc2 = has_oc3 ? &acc3 : nullptr;
-                                        args2.repeats = ICg / 4;
-                                        args2.tail = ICg % 4;
-                                        args2.kw_cnt = kw_count;
-                                        args2.src_dx = static_cast<size_t>(-static_cast<ptrdiff_t>(sizeof(float)));
-                                        if (true) {
-                                            const size_t base2 =
-                                                (((oc2 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) *
-                                                     KW +
-                                                 static_cast<size_t>(kx_lo)) *
-                                                m_padded_IC_f32;
-                                            args2.wei = m_wei_packed_f32.data() + base2;
-                                            if (has_oc3) {
-                                                const size_t base3 = (((oc3 * KD + static_cast<size_t>(kz)) * KH +
-                                                                       static_cast<size_t>(ky)) *
-                                                                          KW +
-                                                                      static_cast<size_t>(kx_lo)) *
-                                                                     m_padded_IC_f32;
-                                                args2.wei2 = m_wei_packed_f32.data() + base3;
-                                            }
-                                            args2.wei_stride = sizeof(float);
-                                            args2.wei_blk_stride = args2.wei_stride * 4;
-                                            args2.wei_dx = m_padded_IC_f32 * sizeof(float);
-                                        } else { /* unreachable: raw weights path removed */ }
-                                        (*m_ip_kernel_f32)(&args2);
+                                        const size_t base2 = (((oc2 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW + static_cast<size_t>(kx_lo)) * m_padded_IC_f32;
+                                        args.wei3 = m_wei_packed_f32.data() + base2;
                                     }
+                                    if (has_oc3) {
+                                        const size_t base3 = (((oc3 * KD + static_cast<size_t>(kz)) * KH + static_cast<size_t>(ky)) * KW + static_cast<size_t>(kx_lo)) * m_padded_IC_f32;
+                                        args.wei4 = m_wei_packed_f32.data() + base3;
+                                    }
+                                    args.wei_stride = sizeof(float);
+                                    args.wei_blk_stride = args.wei_stride * 4;
+                                    args.wei_dx = m_padded_IC_f32 * sizeof(float);
+                                    (*m_ip_kernel_f32)(&args);
                                 }
                             }
                         }
@@ -1654,6 +1621,8 @@ void JitDeconv3DExecutor::exec_fp32(const std::vector<MemoryCPtr>& src, const st
     });
 }
 
+#include "openvino/runtime/system_conf.hpp"
+
 bool AArch64JitDeconvExecutorBuilder::isSupported(const DeconvAttrs& attrs,
                                                   const std::vector<MemoryDescPtr>& srcDescs,
                                                   const std::vector<MemoryDescPtr>& dstDescs) const {
@@ -1673,6 +1642,9 @@ bool AArch64JitDeconvExecutorBuilder::isSupported(const DeconvAttrs& attrs,
         (src0_prec == ov::element::f16 && src1_prec == ov::element::f16 && dst0_prec == ov::element::f16);
     const bool fp32_ok =
         (src0_prec == ov::element::f32 && src1_prec == ov::element::f32 && dst0_prec == ov::element::f32);
+    // Allow FP16 if NEON FP16 is available (no hard requirement on FHM)
+    if (fp16_ok && !ov::with_cpu_neon_fp16())
+        return false;
     return fp16_ok || fp32_ok;
 }
 

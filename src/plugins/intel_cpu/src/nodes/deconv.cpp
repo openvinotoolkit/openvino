@@ -1315,13 +1315,7 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
     {
         const auto rank = getInputShapeAtPort(0).getRank();
         const bool is5D = (rank == 5);
-        const bool fp16_ok = getOriginalInputPrecisionAtPort(0) == ov::element::f16 &&
-                             getOriginalInputPrecisionAtPort(1) == ov::element::f16 &&
-                             getOriginalOutputPrecisionAtPort(0) == ov::element::f16;
-        const bool fp32_ok = getOriginalInputPrecisionAtPort(0) == ov::element::f32 &&
-                             getOriginalInputPrecisionAtPort(1) == ov::element::f32 &&
-                             getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
-        if (is5D && (fp16_ok || fp32_ok)) {
+        if (is5D) {
             auto [inDims, outDims] = makeDummyInOutShape();
             auto tmpInShape = Shape(inDims);
             auto tmpOutShape = Shape(outDims);
@@ -1333,8 +1327,9 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
             config.outConfs.resize(getOriginalOutputsNumber());
 
             auto setDesc = [&](size_t port, bool isInput) {
-                const auto prec =
-                    isInput ? getOriginalInputPrecisionAtPort(port) : getOriginalOutputPrecisionAtPort(port);
+                // Prefer input precision if available; executor handles f16/f32
+                const auto prec = isInput ? getOriginalInputPrecisionAtPort(port)
+                                          : getOriginalOutputPrecisionAtPort(port);
                 const auto& shp = isInput ? getInputShapeAtPort(port) : getOutputShapeAtPort(port);
                 auto d = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, shp);
                 if (isInput)
@@ -1363,7 +1358,7 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
                                                         dstMemoryDescs,
                                                         std::make_shared<ExecutorContext>(context, getImplPriority()));
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::jit_asimd, factory);
-            return;
+            // Do not return here: also add ACL variants below if enabled to let factory pick best
         }
     }
 #endif

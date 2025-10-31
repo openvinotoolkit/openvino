@@ -109,7 +109,6 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             [](const ConvConfig& config, [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 return JitConv3DExecutor::supports(config);
             },
-            // Request plain ncsp layouts
             CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
             AcceptsAnyShape<ConvAttrs>,
             CreateDefault<JitConv3DExecutor, ConvAttrs>{}

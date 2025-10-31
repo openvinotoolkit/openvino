@@ -56,6 +56,12 @@ struct jit_conv3d_f32_call_args {
     size_t kw_cnt;
     size_t src_dx;
     size_t wei_dx;
+    // Optional extra outputs for quad-OC scheduling. When acc3 is non-null,
+    // the kernel can update up to 4 output channels in a single pass.
+    const float* wei3{nullptr};
+    const float* wei4{nullptr};
+    float* acc3{nullptr};
+    float* acc4{nullptr};
 };
 
 class JitConv3DKernelF16 : public dnnl::impl::cpu::aarch64::jit_generator {
@@ -66,6 +72,7 @@ public:
     JitConv3DKernelF16();
 
     void create_ker();
+    void set_use_fhm(bool v) { m_use_fhm_ = v; }
     inline void operator()(const jit_conv3d_call_args* p) const {
         ker_(p);
     }
@@ -78,6 +85,7 @@ private:
 
     jit_fn ker_{nullptr};
     bool m_force_single_kh_{true};
+    bool m_use_fhm_{true};
 public:
     void set_force_single_kh(bool v) { m_force_single_kh_ = v; }
 };
@@ -125,6 +133,7 @@ public:
 
 private:
     void run_naive_fp16(const MemoryArgs& memory);
+    void run_naive_fp16_fallback(const MemoryArgs& memory);
     void ensure_weights_packed(const MemoryArgs& memory);
     void run_naive_fp32(const MemoryArgs& memory);
     void ensure_weights_packed_f32(const MemoryArgs& memory);
