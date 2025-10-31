@@ -508,7 +508,7 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
 
     // So do the dynamic range
     if (m_attention_selector) {
-        m_attention_selector->prepare();
+        m_attention_selector->prepare(get_history_size());
     }
 
     // FIXME: attention-specific, needs to be moved out after refactoring

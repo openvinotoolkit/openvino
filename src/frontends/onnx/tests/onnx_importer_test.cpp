@@ -104,7 +104,7 @@ TEST(ONNX_Importer_Tests, ImportModelWithNotSupportedOp) {
 TEST(ONNX_Importer_Tests, ImportModelWhenFileDoesNotExist) {
     try {
         auto model = convert_model("not_exist_file.onnx");
-        FAIL() << "Any expection was thrown despite the ONNX model file does not exist";
+        FAIL() << "No exception was thrown despite the ONNX model file does not exist";
     } catch (const Exception& error) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring, std::string("Could not open the file"), error.what());
     } catch (...) {

@@ -119,6 +119,9 @@ private:
         ov::intel_npu::npuw::llm::prefill_chunk_size.name(),
         ov::intel_npu::npuw::llm::shared_lm_head.name(),
         ov::intel_npu::npuw::llm::max_lora_rank.name(),
+        ov::intel_npu::npuw::llm::enable_prefix_caching.name(),
+        ov::intel_npu::npuw::llm::prefix_caching_block_size.name(),
+        ov::intel_npu::npuw::llm::prefix_caching_max_num_blocks.name(),
         ov::intel_npu::npuw::llm::prefill_hint.name(),
         ov::intel_npu::npuw::llm::prefill_config.name(),
         ov::intel_npu::npuw::llm::additional_prefill_config.name(),
@@ -131,7 +134,8 @@ private:
         ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
-                                                                        ov::internal::caching_with_mmap.name()};
+                                                                        ov::internal::caching_with_mmap.name(),
+                                                                        ov::internal::cache_header_alignment.name()};
 };
 
 }  // namespace intel_npu
