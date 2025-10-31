@@ -813,6 +813,7 @@ void Node::updateDynamicParams() {
                           getName(),
                           " ",
                           getOriginalLayers());
+                context->getCpuParallel()->activate();
                 prepareParams();
             }
         }
@@ -1119,7 +1120,10 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
         Memory memory{engine, newDesc, internalBlob->getData()};
 
         MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
-        node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
+        node::Reorder::reorderData(memory,
+                                   *_ptr,
+                                   context->getParamsCache(),
+                                   context->getCpuParallel()->get_thread_pool());
         return _ptr;
     };
 
@@ -1153,7 +1157,10 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     auto create = [&]() {
         Memory srcMemory{getEngine(), srcWeightDesc, edgeMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), dstWeightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
+        node::Reorder::reorderData(srcMemory,
+                                   *_ptr,
+                                   context->getParamsCache(),
+                                   context->getCpuParallel()->get_thread_pool());
 
         return _ptr;
     };
