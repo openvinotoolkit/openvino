@@ -377,6 +377,13 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     m_compiled_submodels[id].attention =
                         compiled::Attention(fcn_template._attention.value(), fcn_template._model);
                 }
+
+                if (fcn_template._pyramid_attention) {
+                    LOG_INFO("Creating compiled::PyramidAttention for Subgraph[" << id << "] (function "
+                                                                                 << subgraph._funcall << ")");
+                    m_compiled_submodels[id].pyramid_attention =
+                        compiled::PyramidAttention(fcn_template._pyramid_attention.value());
+                }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
@@ -405,8 +412,20 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // FIXME: a hotfix for a crash where we have too many names in submodel's output
         // Do it just once if that's a function
         if (real_id == id) {
-            remove_long_output_names(m_compiled_submodels[real_id].model);
-            fill_empty_tensor_names(m_compiled_submodels[real_id].model);
+            auto fix_tensor_names = [&](const std::shared_ptr<ov::Model>& model) {
+                remove_long_output_names(model);
+                fill_empty_tensor_names(model);
+            };
+
+            fix_tensor_names(m_compiled_submodels[real_id].model);
+
+            // Ensure all submodels (including pyramid attention) have consistent and valid tensor names
+            // to avoid issues in downstream inference and model serialization.
+            if (const auto& pyramid_attn = m_compiled_submodels[real_id].pyramid_attention) {
+                for (const auto& model : pyramid_attn.value()._models_to_compile) {
+                    fix_tensor_names(model);
+                }
+            }
         }
 
         if (ov::npuw::util::is_set(id, dump_sub_opt, real_id, end_sub_idx)) {
@@ -421,9 +440,23 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                           (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + ".xml";
             ov::save_model(model_to_dump, model_dump_path);
             LOG_INFO("Wrote " << model_dump_path);
-            // Note: keep here naming as it would be the subgraph
+
+            // Dump pyramid attention models if present
+            if (m_compiled_submodels[id].pyramid_attention) {
+                LOG_INFO("NOTE: Subgraph[" << id << "] has a pyramid attention mechanism.");
+                const auto& pyramid_attention_models =
+                    m_compiled_submodels[id].pyramid_attention.value()._models_to_compile;
+                for (std::size_t idx = 0; idx < pyramid_attention_models.size(); ++idx) {
+                    std::string pyramid_attention_model_dump_path =
+                        m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                        (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + "_pyramid_" +
+                        ov::npuw::util::fmt(idx, pyramid_attention_models.size()) + ".xml";
+                    ov::save_model(pyramid_attention_models[idx], pyramid_attention_model_dump_path);
+                    LOG_INFO("Wrote " << pyramid_attention_model_dump_path);
+                }
+            }
         }  // if(dump)
-    }  // for(orderedSubgraphs)
+    }  // for(orderedSubGraphs)
 
     std::map<std::size_t, std::string> forced_sub_devices{};
     std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
@@ -1371,6 +1404,10 @@ void ov::npuw::CompiledModel::detach_memory() {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
             proto_comp_model_desc.model.reset();
         }
+
+        // No need to clear pyramid attention data - it's self-contained!
+        // The _models_to_compile is already cleared in set_compiled_models()
+        // and compiled::PyramidAttention only stores _compiled_models (not original models)
     }
     LOG_INFO("Done");
 }
@@ -1539,6 +1576,9 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
         m_profile["compile/" + device_to_try].record([&]() {
             m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
         });
+
+        // Compile pyramid attention models if present
+        compile_pyramid_attention_models(id, device_to_try);
     } catch (const std::exception& ex) {
         LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
         dump_on_fail(id, device_to_try, ex.what());
@@ -1551,6 +1591,74 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     // Reached this point - all ok, stop the search
     LOG_INFO("Done (" << device_to_try << ")");
     return true;
+}
+
+void ov::npuw::CompiledModel::compile_pyramid_attention_models(std::size_t id, const std::string& device) {
+    // Check if we have pyramid attention to compile
+    if (!m_compiled_submodels[id].pyramid_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO("Compiling pyramid attention submodels for Subgraph[" << id << "]...");
+    LOG_BLOCK();
+
+    auto& pyramid_attn = m_compiled_submodels[id].pyramid_attention.value();
+    const auto& pyramid_attn_models = pyramid_attn._models_to_compile;
+    const size_t total_models = pyramid_attn_models.size();
+
+    LOG_INFO("Total pyramid models to compile: " << total_models);
+
+    // Pre-allocate the compiled models vector
+    std::vector<ov::SoPtr<ov::ICompiledModel>> compiled_models(total_models);
+
+    // Compile all pyramid models except the last one in parallel
+    // The last model will reuse the already compiled original model
+    const size_t models_to_compile = total_models > 0 ? total_models - 1 : 0;
+
+    if (models_to_compile > 0) {
+        LOG_INFO("Compiling " << models_to_compile << " pyramid models in parallel...");
+
+        auto compile_one_model = [&](size_t model_id) {
+            try {
+                const auto& model = pyramid_attn_models[model_id];
+                LOG_DEBUG("Compiling pyramid attention submodel[" << model_id << "]: " << model->get_friendly_name());
+
+                auto compiled = compile_submodel(model, device);
+                OPENVINO_ASSERT(compiled, "Failed to compile pyramid attention submodel");
+
+                compiled_models[model_id] = compiled;
+
+                LOG_INFO("Compiled pyramid attention submodel[" << model_id << "]");
+            } catch (const std::exception& ex) {
+                OPENVINO_THROW("Pyramid attention submodel[", model_id, "] compilation failed: ", ex.what());
+            } catch (...) {
+                OPENVINO_THROW("Pyramid attention submodel[", model_id, "] compilation failed with unknown error");
+            }
+        };
+
+        const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
+        if (par_opt) {
+            ov::parallel_for(models_to_compile, compile_one_model);
+        } else {
+            for (std::size_t model_id = 0u; model_id < models_to_compile; model_id++) {
+                compile_one_model(model_id);
+            }
+        }
+    }
+
+    // Handle the last model: reuse the already compiled original model
+    if (total_models > 0) {
+        LOG_INFO("Reusing already compiled original model for pyramid attention submodel[" << (total_models - 1)
+                                                                                           << "] (optimization)");
+        OPENVINO_ASSERT(m_compiled_submodels[id].compiled_model, "Original compiled model should exist");
+        compiled_models[total_models - 1] = m_compiled_submodels[id].compiled_model;
+    }
+
+    // Set compiled models - this also clears _models_to_compile internally
+    LOG_INFO("Setting compiled models into compiled::PyramidAttention...");
+    pyramid_attn.set_compiled_models(std::move(compiled_models));
+
+    LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& submodel,
