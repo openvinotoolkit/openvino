@@ -79,8 +79,8 @@ public:
     }
 
     void TearDown() override {
-        ov::test::utils::removeFilesWithExt(cache_path, "blob");
-        std::remove(cache_path.c_str());
+        ov::test::utils::removeFilesWithExt<ov::test::opt::FORCE>(cache_path, "blob");
+        ov::test::utils::removeDir(cache_path);
         APIBaseTest::TearDown();
     }
 

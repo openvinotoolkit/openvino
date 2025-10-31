@@ -43,7 +43,7 @@ TEST_P(OVCompileModelLoadFromFileTestBaseNPU, BlobWithOVHeaderAligmentCanBeImpor
         if (i != 0) {
             configuration.emplace(ov::log::level(ov::log::Level::DEBUG));
         }
-        core->compile_model(m_modelName, targetDevice, configuration);
+        std::ignore = core->compile_model(m_modelName, targetDevice, configuration);
         configuration.erase(ov::log::level.name());
     }
     ov::util::reset_log_callback();
