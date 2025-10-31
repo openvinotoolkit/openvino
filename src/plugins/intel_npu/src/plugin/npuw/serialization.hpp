@@ -17,6 +17,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "openvino/runtime/properties.hpp"
+
 namespace ov {
 namespace npuw {
 namespace s11n {
@@ -126,7 +128,8 @@ struct WeightsContext {
     WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
-                   const BF16Cache& _bf16_consts);
+                   const BF16Cache& _bf16_consts,
+                   const ov::FdGetterType& _fd_getter = nullptr);
 
     WeightsContext& operator=(const WeightsContext& other) = default;
 
@@ -141,6 +144,7 @@ struct WeightsContext {
     std::string weights_path;
     ConstsCache consts_cache;
     BF16Cache bf16_consts;
+    ov::FdGetterType fd_getter = nullptr;
 };
 
 BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);
