@@ -10,10 +10,12 @@
 #include <ze_intel_npu_uuid.h>
 
 #include <memory>
+#include <mutex>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace intel_npu {
 /**
@@ -51,10 +53,22 @@ public:
         return driver_properties.driverVersion;
     }
     inline uint32_t getCompilerVersion() const {
-        return ZE_MAKE_VERSION(compiler_properties.compilerVersion.major, compiler_properties.compilerVersion.minor);
+        if (!compiler_properties) {
+            (void)getCompilerProperties();
+        }
+        return ZE_MAKE_VERSION(compiler_properties->compilerVersion.major, compiler_properties->compilerVersion.minor);
     }
     inline ze_device_graph_properties_t getCompilerProperties() const {
-        return compiler_properties;
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (!compiler_properties) {
+            // Obtain compiler-in-driver properties
+            compiler_properties = std::make_unique<ze_device_graph_properties_t>();
+            compiler_properties->stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+            auto result =
+                graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, compiler_properties.get());
+            THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
+        }
+        return *compiler_properties;
     }
     inline uint32_t getMutableCommandListExtVersion() const {
         return mutable_command_list_ext_version;
@@ -104,10 +118,12 @@ private:
 
     ze_api_version_t ze_drv_api_version = {};
 
-    ze_device_graph_properties_t compiler_properties = {};
+    mutable std::unique_ptr<ze_device_graph_properties_t> compiler_properties = nullptr;
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
+
+    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu
