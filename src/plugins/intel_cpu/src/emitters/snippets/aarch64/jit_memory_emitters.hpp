@@ -34,9 +34,6 @@ public:
     std::vector<size_t> get_available_aux_gprs() const;
 
 protected:
-    static size_t get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr);
-    static size_t get_consumer_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr);
-
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
 
