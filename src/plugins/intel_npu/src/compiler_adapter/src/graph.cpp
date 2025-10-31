@@ -117,17 +117,6 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
         return std::make_pair(0, std::nullopt);
     }
 
-    if (_logger.level() >= ov::log::Level::INFO) {
-        std::uint32_t result = 1171117u;
-        for (const uint8_t* it = blobPtr; it != blobPtr + blobSize; ++it) {
-            result = ((result << 7) + result) + static_cast<uint32_t>(*it);
-        }
-
-        std::stringstream str;
-        str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
-        _logger.info(str.str().c_str());
-    }
-
     size_t size = utils::align_size_to_standard_page_size(blobSize);
     size_t paddingSize = size - blobSize;
     if (paddingSize > 0) {
@@ -137,8 +126,17 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
             _logger.error("Write padding to stream failed. Blob is broken!");
             return std::make_pair(0, std::nullopt);
         }
+    }
 
-        _logger.info("Blob size with padding: %ld", size);
+    if (_logger.level() >= ov::log::Level::INFO) {
+        std::uint32_t result = 1171117u;
+        for (const uint8_t* it = blobPtr; it != blobPtr + blobSize; ++it) {
+            result = ((result << 7) + result) + static_cast<uint32_t>(*it);
+        }
+
+        std::stringstream str;
+        str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
+        _logger.info(str.str().c_str());
     }
 
     _logger.info("Write blob to stream successfully.");
