@@ -289,8 +289,8 @@ sdpa_config_t xehpg_q_h64_s64_2nd = {8, 8, 8, 8, 8, 2, 8, 2};
 sdpa_config_t xehpg_q_h64_s128_2nd = {16, 8, 8, 8, 8, 4, 8, 4};
 sdpa_config_t xehpg_q_h64_2nd = {16, 16, 8, 8, 16, 2, 8, 4};
 
-sdpa_config_t xehpg_h128_pa = {16, 16, 16, 16, 8, 1, 8, 1};
-sdpa_config_t xehpg_h128 = {16, 16, 16, 16, 8, 1, 8, 1};
+sdpa_config_t xehpg_h128_pa = {16, 16, 16, 16, 8, 4, 8, 4};
+sdpa_config_t xehpg_h128 = {16, 16, 32, 8, 8, 4, 4, 8};
 sdpa_config_t xehpg_h128_s32 = {16, 16, 16, 8, 16, 2, 8, 4};
 sdpa_config_t xehpg_h128_2nd = {8, 16, 16, 8, 16, 1, 8, 2};
 
