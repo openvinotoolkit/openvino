@@ -412,8 +412,20 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // FIXME: a hotfix for a crash where we have too many names in submodel's output
         // Do it just once if that's a function
         if (real_id == id) {
-            remove_long_output_names(m_compiled_submodels[real_id].model);
-            fill_empty_tensor_names(m_compiled_submodels[real_id].model);
+            auto fix_tensor_names = [&](const std::shared_ptr<ov::Model>& model) {
+                remove_long_output_names(model);
+                fill_empty_tensor_names(model);
+            };
+
+            fix_tensor_names(m_compiled_submodels[real_id].model);
+
+            // Ensure all submodels (including pyramid attention) have consistent and valid tensor names
+            // to avoid issues in downstream inference and model serialization.
+            if (const auto& pyramid_attn = m_compiled_submodels[real_id].pyramid_attention) {
+                for (const auto& model : pyramid_attn.value()._models_to_compile) {
+                    fix_tensor_names(model);
+                }
+            }
         }
 
         if (ov::npuw::util::is_set(id, dump_sub_opt, real_id, end_sub_idx)) {
