@@ -112,8 +112,7 @@ void Eye::executeSpecified() {
     int n = 2;
     while (n != 0) {
         n--;       
-        std::transform(keepGoing.begin(), keepGoing.end(), keepGoing.begin(), ::tolower);
-        int *x = memoryLeak(10000000);
+        int *x = memoryLeak1(10000000);
         for (std::size_t i = 0; i < 10000000; i++) 
             x[i] = i;
         
