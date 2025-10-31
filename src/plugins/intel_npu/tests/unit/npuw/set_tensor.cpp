@@ -64,7 +64,7 @@ TEST(SetTensorNPUW, RemoteTensorOutputJust) {
     auto output_tensor = request.get_tensor(compiled.outputs()[0]);
 
     auto check_non_zero = [](const ov::Tensor& t, size_t size) {
-        int64_t* tdata = t.data<int64_t>();
+        const int64_t* tdata = t.data<const int64_t>();
         for (size_t i = 0; i < size; ++i) {
             if (tdata[i] == 0) {
                 return false;
@@ -72,7 +72,7 @@ TEST(SetTensorNPUW, RemoteTensorOutputJust) {
         }
         return true;
     };
-    
+
     EXPECT_EQ(output_tensor.data(), output.data());
     EXPECT_TRUE(check_non_zero(output_tensor, total_elements));
 }
