@@ -97,10 +97,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     if (do_rotary) {
         ov::Output<ov::Node> position_ids =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-        // if (node->get_input_size() > 8) {
-        //     position_ids = node->input_value(8);
-        // }
-        // else
+        if (node->get_input_size() > 8) {
+            position_ids = node->input_value(8).get_node_shared_ptr();;
+        }
+        else
         {
             position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
         }
