@@ -81,6 +81,10 @@ void OVCompileModelGetExecutionDeviceTests::SetUp() {
 TEST_P(OVClassCompiledModelPropertiesTests, CanUseCache) {
     std::string cache_dir = "./test_cache";
     core->set_property(ov::cache_dir(cache_dir));
+    auto deviceList = core->get_available_devices();
+    for (auto& device : deviceList) {
+        std::cout << "device " << device << std::endl;
+    }
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
     ov::test::utils::removeFilesWithExt<opt::FORCE>(cache_dir, "blob");
