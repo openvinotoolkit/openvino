@@ -1633,7 +1633,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (generate_attn_dyn) {
             rewr.run_on_model(kvcache_model);
         }
-        if (prefill_attn_dyn) {
+        if (prefill_attn_dyn || prefill_attn_pyramid) {
             rewr.run_on_model(prefill_model);
         }
 
