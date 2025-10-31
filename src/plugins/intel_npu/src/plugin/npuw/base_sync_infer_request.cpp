@@ -597,7 +597,10 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         bind_attention_inputs(idx, request);
     });
 
-    bind_pyramid_attention_inputs(idx, request);
+    // Handle pyramid attention inputs, if required
+    m_profile["pyramid_attn(io)"].record([&]() {
+        bind_pyramid_attention_inputs(idx, request);
+    });
 
     LOG_DEBUG("Done");
 }

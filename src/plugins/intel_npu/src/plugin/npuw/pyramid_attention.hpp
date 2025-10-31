@@ -86,8 +86,14 @@ struct PyramidModelResult {
 void patch_broadcast_constants(const std::shared_ptr<ov::Model>& model, size_t target_length);
 
 // Helper function to patch reshape constants for pre-reshape (-1 substitution)
-void patch_reshape_constants_pre_reshape(const std::shared_ptr<ov::Model>& model,
-                                         const ov::npuw::function::Attention& dyn);
+void patch_reshape_constants(const std::shared_ptr<ov::Model>& model,
+                             const std::map<std::string, size_t>& past_value_sequence_dims);
+
+// Helper function to create Attention instance from a model
+std::optional<ov::npuw::function::Attention> create_attention_from_model(
+    const std::shared_ptr<ov::Model>& model,
+    const std::map<std::string, size_t>& past_key_sequence_dims,
+    const std::map<std::string, size_t>& past_value_sequence_dims);
 
 // Helper function to process a single pyramid model (clone, reshape, patch, optimize)
 std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov::Model>& original_model,
