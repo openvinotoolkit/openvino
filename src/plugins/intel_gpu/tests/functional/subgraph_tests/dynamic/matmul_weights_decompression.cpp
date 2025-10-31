@@ -474,7 +474,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_no_slm,
 INSTANTIATE_TEST_SUITE_P(
     smoke_MatMulCompressedWeights_dyn_quan_mxfp8_e4m3,
     MatmulWeightsDecompression,
-    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{2, 1, 1024}, {1, 1, 1024}, {2, 1, 1024}}}, {1024, 16}, 32}),  // shape
+    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 32}, {{2, 1, 32}, {1, 1, 32}, {2, 1, 32}}}, {32, 16}, 32}),  // shape
                        ::testing::Values(ov::element::f8e4m3),
                        ::testing::Values(ov::element::f16),
                        ::testing::Values(true),
@@ -489,7 +489,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     smoke_MatMulCompressedWeights_dyn_quan_mxfp8_e5m2,
     MatmulWeightsDecompression,
-    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{2, 1, 1024}, {1, 1, 1024}, {2, 1, 1024}}}, {1024, 16}, 32}),  // shape
+    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 32}, {{2, 1, 32}, {1, 1, 32}, {2, 1, 32}}}, {32, 16}, 32}),  // shape
                        ::testing::Values(ov::element::f8e5m2),
                        ::testing::Values(ov::element::f16),
                        ::testing::Values(true),

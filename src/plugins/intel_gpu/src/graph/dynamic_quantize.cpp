@@ -16,6 +16,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(dynamic_quantize);
 // We should skip dynamic_quantization execution for 2nd token of LLM because it does not show performance gain.
 // can_be_optimized flag will be turned on from primitive_inst::update_shape function
 static bool should_skip_execution(dynamic_quantize_node const& node, const layout &act_layout) {
+    return false; // TODO: Remove this before merging to the main branch. This is a temporary change for the sake of accuracy testing.
     if (!node.is_runtime_skippable()
         || !act_layout.is_static())
         return false;
