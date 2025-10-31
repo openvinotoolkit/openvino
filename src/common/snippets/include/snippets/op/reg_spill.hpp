@@ -19,6 +19,7 @@
 #include "snippets/emitter.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 
@@ -27,7 +28,7 @@ namespace ov::snippets::op {
  * @brief Base class for RegSpillBegin and RegSpillEnd ops
  * @ingroup snippets
  */
-class RegSpillBase : public ov::op::Op {
+class SNIPPETS_API RegSpillBase : public ov::op::Op {
 public:
     OPENVINO_OP("RegSpillBaseBase", "SnippetsOpset");
     explicit RegSpillBase(const std::vector<Output<Node>>& args);
@@ -41,7 +42,7 @@ class RegSpillEnd;
  * @brief Marks the start of the register spill region.
  * @ingroup snippets
  */
-class RegSpillBegin : public RegSpillBase {
+class SNIPPETS_API RegSpillBegin : public RegSpillBase {
 public:
     OPENVINO_OP("RegSpillBegin", "SnippetsOpset", RegSpillBase);
     explicit RegSpillBegin(std::set<Reg> regs_to_spill);
@@ -53,7 +54,7 @@ public:
         return m_regs_to_spill;
     }
 
-    class ShapeInfer : public IShapeInferSnippets {
+    class SNIPPETS_API ShapeInfer : public IShapeInferSnippets {
         size_t num_out_shapes = 0;
 
     public:
@@ -70,7 +71,7 @@ protected:
  * @brief Marks the end of the register spill region.
  * @ingroup snippets
  */
-class RegSpillEnd : public RegSpillBase {
+class SNIPPETS_API RegSpillEnd : public RegSpillBase {
 public:
     OPENVINO_OP("RegSpillEnd", "SnippetsOpset", RegSpillBase);
     RegSpillEnd() = default;

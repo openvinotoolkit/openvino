@@ -10,6 +10,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/pass/matcher_pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -18,7 +19,7 @@ namespace ov::snippets::pass {
  * @brief Decompose Transpose to Load + Store wrapped in several loops.
  * @ingroup snippets
  */
-class TransposeDecomposition : public ov::pass::MatcherPass {
+class SNIPPETS_API TransposeDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TransposeDecomposition");
     TransposeDecomposition();

@@ -10,6 +10,7 @@
 #include "openvino/core/type.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -22,7 +23,7 @@ namespace ov::snippets::pass {
  *        registration to ov::Model
  * @ingroup snippets
  */
-class CommonOptimizations::SubgraphPass {
+class SNIPPETS_API CommonOptimizations::SubgraphPass {
 public:
     SubgraphPass() = delete;
     explicit SubgraphPass(std::string name) : m_name(std::move(name)) {}

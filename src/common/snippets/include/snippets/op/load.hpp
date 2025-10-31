@@ -16,6 +16,7 @@
 #include "snippets/op/memory_access.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 
@@ -27,7 +28,7 @@ namespace ov::snippets::op {
  * first element)
  * @ingroup snippets
  */
-class Load : public modifier::MemoryAccess, public ov::op::Op {
+class SNIPPETS_API Load : public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("Load", "SnippetsOpset");
 
@@ -63,7 +64,7 @@ protected:
  *        Load and Store. This is a temporary solution until tokenization of Reshape operation is supported.
  * @ingroup snippets
  */
-class LoadReorder : public Load {
+class SNIPPETS_API LoadReorder : public Load {
 public:
     OPENVINO_OP("LoadReorder", "SnippetsOpset", Load);
     explicit LoadReorder(const Output<Node>& x,
@@ -83,7 +84,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
 
-    class ShapeInfer : public IShapeInferSnippets {
+    class SNIPPETS_API ShapeInfer : public IShapeInferSnippets {
         std::vector<size_t> m_order;
 
     public:

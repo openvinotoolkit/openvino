@@ -11,6 +11,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/op/op.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 
@@ -27,7 +28,7 @@ namespace ov::snippets::op {
  *                 |
  *              Result0
  */
-class OnlineSoftmaxUpdateSum : public ov::op::Op {
+class SNIPPETS_API OnlineSoftmaxUpdateSum : public ov::op::Op {
 public:
     OPENVINO_OP("OnlineSoftmaxUpdateSum", "SnippetsOpset");
 

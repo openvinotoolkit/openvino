@@ -14,6 +14,7 @@
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 /**
@@ -21,7 +22,7 @@ namespace ov::snippets::op {
  * @brief Base class for LoopBegin and LoopEnd
  * @ingroup snippets
  */
-class LoopBase : public ov::op::Op {
+class SNIPPETS_API LoopBase : public ov::op::Op {
 public:
     OPENVINO_OP("LoopBase", "SnippetsOpset");
     explicit LoopBase(const OutputVector& args, bool is_parallel);
@@ -48,7 +49,7 @@ class LoopEnd;
  * @param args - vector of input values, they are passed directly to output.
  * @ingroup snippets
  */
-class LoopBegin : public LoopBase {
+class SNIPPETS_API LoopBegin : public LoopBase {
     friend LoopEnd;
 
 public:
@@ -79,7 +80,7 @@ protected:
  * @param id the identifier of Loop in Loop system in LoopManager
  * @ingroup snippets
  */
-class LoopEnd : public LoopBase {
+class SNIPPETS_API LoopEnd : public LoopBase {
 public:
     OPENVINO_OP("LoopEnd", "SnippetsOpset", LoopBase);
     LoopEnd() = default;

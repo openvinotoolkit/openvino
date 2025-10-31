@@ -13,6 +13,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "snippets/pass/tokenization_config.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -31,7 +32,7 @@ namespace ov::snippets::pass {
  *             ...
  * @ingroup snippets
  */
-class TokenizeMLPSeqSnippets : public ov::pass::MatcherPass {
+class SNIPPETS_API TokenizeMLPSeqSnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeMLPSeqSnippets");
 
@@ -40,7 +41,7 @@ public:
      * @brief Configuration for TokenizeMLPSeqSnippets pass
      * @ingroup snippets
      */
-    struct Config : public TokenizationConfig {
+    struct SNIPPETS_API Config : public TokenizationConfig {
         using CanBeFusedAsPostOpPred = std::function<bool(const std::shared_ptr<const ov::op::v0::MatMul>&,
                                                           const std::shared_ptr<const ov::Node>&)>;
 
@@ -72,7 +73,7 @@ private:
     static bool is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node);
     static bool is_tensor_supported(const ov::descriptor::Tensor& t);
 
-    static const size_t m_rank;
+    static constexpr size_t m_rank = 2;
 };
 
 }  // namespace ov::snippets::pass

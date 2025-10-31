@@ -12,6 +12,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 #include "snippets/target_machine.hpp"
 
 namespace ov::snippets::pass {
@@ -21,7 +22,7 @@ namespace ov::snippets::pass {
  * @ingroup snippets
  * @brief PropagatePrecision transformation propagate precision from parameters to results.
  */
-class PropagatePrecision : public ov::pass::ModelPass {
+class SNIPPETS_API PropagatePrecision : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::PropagatePrecision");
     explicit PropagatePrecision(const std::shared_ptr<const TargetMachine>& target_machine);
