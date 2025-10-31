@@ -1,5 +1,4 @@
 @echo off
-setlocal enabledelayedexpansion
 
 :: Copyright (C) 2018-2025 Intel Corporation
 :: SPDX-License-Identifier: Apache-2.0
@@ -96,8 +95,7 @@ for /F "tokens=1,2 delims=. " %%a in ("%python_version%") do (
 )
 
 :: Strip non-numeric suffix from minor version (e.g., 14t -> 14)
-:: Extract only leading digits, stopping at 't' suffix
-for /f "delims=t" %%i in ("!pyversion_minor!") do set "pyversion_minor=%%i"
+call :strip_suffix pyversion_minor
 
 if %pyversion_major% equ %PYTHON_VERSION_MAJOR% (
    if %pyversion_minor% geq %MIN_REQUIRED_PYTHON_VERSION_MINOR% (
@@ -129,6 +127,16 @@ if not "%bitness%"=="64" (
 )
 
 set PYTHONPATH=%INTEL_OPENVINO_DIR%\python;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
+exit /B 0
+
+:strip_suffix
+:: Remove non-numeric suffix from a version number variable
+:: Usage: call :strip_suffix variable_name
+:: Strip 't' suffix (e.g., 14t -> 14)
+setlocal enabledelayedexpansion
+set "var_value=!%~1!"
+for /f "delims=t" %%i in ("!var_value!") do set "var_value=%%i"
+endlocal & set "%~1=%var_value%"
 exit /B 0
 
 :GetFullPath
