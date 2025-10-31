@@ -672,6 +672,32 @@ match_multi_query_bcst(const std::shared_ptr<ov::Node>& kv) {
     return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
 }
 
+void disconnect_output_from_consumers(const Output<Node>& output_to_disconnect, const Output<Node>& consumer_output) {
+    // Remove connections from output_to_disconnect that appear in consumer_output's targets
+    // This handles cases where after replace() there are incorrect cyclic connections
+
+    auto consumer_targets = consumer_output.get_target_inputs();
+    auto node_to_disconnect = output_to_disconnect.get_node_shared_ptr();
+
+    std::vector<Input<Node>> to_remove;
+    for (auto& input : consumer_targets) {
+        if (input.get_node() == node_to_disconnect.get()) {
+            to_remove.push_back(input);
+        }
+    }
+
+    // In normal cases there should be at most one such connection
+    // This is internal programming error, so check only in debug mode
+    OPENVINO_DEBUG_ASSERT(to_remove.size() <= 1,
+                          "Internal error: found multiple cyclic connections (",
+                          to_remove.size(),
+                          ") when disconnecting outputs");
+
+    for (auto& input : to_remove) {
+        consumer_output.remove_target_input(input);
+    }
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov
