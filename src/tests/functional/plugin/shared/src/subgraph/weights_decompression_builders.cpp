@@ -386,6 +386,11 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
 
     // Create zero point (shift) constants if needed
     if (decompression_subtract_type != DecompressionType::empty) {
+        // since we use subtract operation, we need to invert zero points
+        std::transform(zero_points.begin(), zero_points.end(), zero_points.begin(), [](float zp) {
+            return -zp;
+        });
+
         auto subtract_shape =
             decompression_subtract_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});
 
