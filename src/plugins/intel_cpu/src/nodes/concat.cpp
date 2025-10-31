@@ -760,6 +760,7 @@ void Concat::execRef() {
 }
 
 void Concat::execWithFuseConvert() {
+    const auto& cpu_parallel = context->getCpuParallel();
     const size_t numSrc = getParentEdges().size();
     const auto& dstMemory = getChildEdgeAt(0)->getMemory();
     auto* dstPtr = dstMemory.getDataAs<float>();  // Output is FP32
@@ -823,7 +824,7 @@ void Concat::execWithFuseConvert() {
             physDims[i] = outputShape[i];
         }
 
-        parallel_for6d(
+        cpu_parallel->parallel_for6d(
             physDims[0],
             physDims[1],
             physDims[2],
