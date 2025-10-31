@@ -103,7 +103,7 @@ void Eye::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref);
 }
 
-int* memoryLeak(const int size) {
+int* memoryLeak1(const int size) {
     return new int[size];
 }
 
