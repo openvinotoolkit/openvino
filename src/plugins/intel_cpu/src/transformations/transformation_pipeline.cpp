@@ -3,6 +3,9 @@
 //
 
 #include "transformation_pipeline.h"
+#if defined(ANDROID) || defined(__ANDROID__)
+#    include "transformations/snippets/normalize_convert_pre_lower.hpp"
+#endif
 
 #include "defs.hpp"
 
@@ -1640,6 +1643,9 @@ void Transformations::PostSnippets() {
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::ConstantFolding);
+#if defined(ANDROID) || defined(__ANDROID__)
+    CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::intel_cpu::pass::NormalizeConvertPreLower);
+#endif
     postSnippetsManager.run_passes(model);
 }
 
