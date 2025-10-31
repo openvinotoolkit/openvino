@@ -30,7 +30,7 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
         ov::pass::pattern::wrap_type<ov::op::v1::ReduceMax>({data_pattern, reduce_max_axes_pattern});
     auto sub_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({data_pattern, reduce_max_pattern});
 
-    auto exp_input = std::make_shared<pattern::op::Or>(OutputVector{sub_pattern, data_pattern});
+    auto exp_input = std::make_shared<pattern::ov::op::Or>(OutputVector{sub_pattern, data_pattern});
     auto exp_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Exp>({exp_input});
 
     auto reduce_sum_axes_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();

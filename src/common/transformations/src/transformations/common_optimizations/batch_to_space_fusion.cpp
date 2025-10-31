@@ -30,7 +30,7 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         pattern::wrap_type<ov::op::v1::Transpose>({data_pattern, pattern::wrap_type<ov::op::v0::Constant>()},
                                                   pattern::rank_equals(4));
     auto reshape_or_transpose_before_pattern =
-        std::make_shared<pattern::op::Or>(OutputVector{reshape_before_pattern, trans_before_pattern});
+        std::make_shared<pattern::ov::op::Or>(OutputVector{reshape_before_pattern, trans_before_pattern});
     auto depth_to_space_pattern = pattern::wrap_type<ov::op::v0::DepthToSpace>({reshape_or_transpose_before_pattern});
     auto starts_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto ends_pattern = pattern::wrap_type<ov::op::v0::Constant>();
@@ -43,7 +43,7 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         pattern::wrap_type<ov::op::v1::Transpose>({slice_pattern, pattern::wrap_type<ov::op::v0::Constant>()},
                                                   pattern::rank_equals(4));
     auto reshape_or_transpose_after_pattern =
-        std::make_shared<pattern::op::Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
+        std::make_shared<pattern::ov::op::Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

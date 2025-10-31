@@ -25,6 +25,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/augru_cell.hpp"
 
+using namespace ov;
 using namespace std;
 using namespace ov::element;
 using namespace ov::pass::pattern;
@@ -140,7 +141,7 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
 
         auto squeeze_B = rg.make<ov::op::v0::Squeeze>(B, axis_0);
         auto cell =
-            rg.make<op::internal::AUGRUCell>(X, H, Wzrh, Rzrh, squeeze_B, A, H.get_partial_shape()[1].get_length());
+            rg.make<ov::op::internal::AUGRUCell>(X, H, Wzrh, Rzrh, squeeze_B, A, H.get_partial_shape()[1].get_length());
 
         cell->set_friendly_name(m.get_match_root()->get_friendly_name());
         copy_runtime_info(m.get_matched_nodes(), rg.get());

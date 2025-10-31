@@ -19,6 +19,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 // Replace the following graph SpaceToBatch -> Convolution(GroupConvolution) -> BatchToSpace with single
 // Convolution(GroupConvolution) node
 ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
@@ -31,7 +33,7 @@ ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
         {data_pattern, block_shape_pattern, pads_begin_pattern, pads_end_pattern});
     auto conv_p = pattern::wrap_type<ov::op::v1::Convolution>({space_to_batch_pattern, pattern::any_input()});
     auto gconv_p = pattern::wrap_type<ov::op::v1::GroupConvolution>({space_to_batch_pattern, pattern::any_input()});
-    auto conv_pattern = std::make_shared<pattern::op::Or>(OutputVector{conv_p, gconv_p});
+    auto conv_pattern = std::make_shared<pattern::ov::op::Or>(OutputVector{conv_p, gconv_p});
     auto crops_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto crops_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto batch_to_space_pattern = pattern::wrap_type<ov::op::v1::BatchToSpace>(
@@ -109,7 +111,7 @@ ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
                                                                        new_pads_begin,
                                                                        new_pads_end,
                                                                        dilations,
-                                                                       op::PadType::EXPLICIT);
+                                                                       ov::op::PadType::EXPLICIT);
         } else {
             new_conv = register_new_node<ov::op::v1::Convolution>(pattern_map.at(data_pattern),
                                                                   conv_node->input_value(1),
@@ -117,7 +119,7 @@ ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
                                                                   new_pads_begin,
                                                                   new_pads_end,
                                                                   dilations,
-                                                                  op::PadType::EXPLICIT);
+                                                                  ov::op::PadType::EXPLICIT);
         }
 
         auto batch_to_space = pattern_map.at(batch_to_space_pattern).get_node_shared_ptr();

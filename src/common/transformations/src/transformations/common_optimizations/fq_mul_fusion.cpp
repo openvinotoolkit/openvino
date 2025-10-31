@@ -20,6 +20,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 // This transformation multiplies the "output_low" and "output_high" inputs of the FQ operation
 // by the constant value that before transormation is used to multiply the output of FQ.
 // Both output_low and output_high are multiplied by the value represented as C (a constant) below.
@@ -71,7 +73,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
             float v;
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(mul_constant);
             if (constant) {
-                is_single_value = op::util::get_single_value(constant, v);
+                is_single_value = ov::op::util::get_single_value(constant, v);
                 if (is_single_value) {
                     mul_constant_shape = Shape{1};
                     mul_constant =
@@ -135,7 +137,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         if (!fq_casted) {
             return false;
         }
-        if (fq_casted->get_auto_broadcast() == op::AutoBroadcastType::NUMPY) {
+        if (fq_casted->get_auto_broadcast() == ov::op::AutoBroadcastType::NUMPY) {
             if (fq_casted->get_output_partial_shape(0).is_dynamic() ||
                 mul_node->get_output_partial_shape(0).is_dynamic()) {
                 return false;

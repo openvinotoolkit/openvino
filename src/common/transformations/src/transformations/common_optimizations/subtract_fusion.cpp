@@ -27,7 +27,7 @@ ov::pass::SubtractFusion::SubtractFusion() {
 
     auto p_neg = pattern::wrap_type<ov::op::v0::Negative>({p_input});
 
-    auto p_mul_or_neg = std::make_shared<pattern::op::Or>(OutputVector({p_mul, p_neg}));
+    auto p_mul_or_neg = std::make_shared<pattern::ov::op::Or>(OutputVector({p_mul, p_neg}));
 
     auto p_add_input = pattern::any_input();
     auto p_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({p_add_input, p_mul_or_neg});
@@ -44,7 +44,7 @@ ov::pass::SubtractFusion::SubtractFusion() {
         if (pattern_to_output.count(p_mul_const)) {
             auto minus_one_const =
                 ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(p_mul_const).get_node_shared_ptr());
-            if (!op::util::has_constant_value<float>(minus_one_const, -1.)) {
+            if (!ov::op::util::has_constant_value<float>(minus_one_const, -1.)) {
                 return false;
             }
             nodes_to_replace.emplace_back(pattern_to_output.at(p_mul).get_node_shared_ptr());

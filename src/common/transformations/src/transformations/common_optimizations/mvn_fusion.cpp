@@ -26,6 +26,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
+
 template <class T>
 std::function<bool(ov::Output<ov::Node>)> value_is_equal_to(const std::vector<T>& ref_values) {
     return [ref_values](ov::Output<ov::Node> output) -> bool {
@@ -61,7 +63,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     //                 `-sub2------------------'
     auto sub2 = pattern::wrap_type<ov::op::v1::Subtract>({x, mean2});
 
-    const auto reuseSub1OrNot = std::make_shared<pattern::op::Or>(OutputVector{sub1, sub2});
+    const auto reuseSub1OrNot = std::make_shared<pattern::ov::op::Or>(OutputVector{sub1, sub2});
     const auto optionalConvert = pattern::optional<ov::op::v0::Convert>(reuseSub1OrNot);
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
@@ -82,7 +84,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     // `--Power--------------------------------------'
     auto power_sqrt_os = pattern::wrap_type<ov::op::v1::Power>({mean3, const_0_5});
     auto sqrt_os = pattern::wrap_type<ov::op::v0::Sqrt>({mean3});
-    const auto powerOrSqrt_os = std::make_shared<pattern::op::Or>(OutputVector{power_sqrt_os, sqrt_os});
+    const auto powerOrSqrt_os = std::make_shared<pattern::ov::op::Or>(OutputVector{power_sqrt_os, sqrt_os});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps
     // `----------------------------------------------Add---'
@@ -98,9 +100,9 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     // `--Power--------------------------------------'
     auto power_sqrt_is = pattern::wrap_type<ov::op::v1::Power>({add_eps_is, const_0_5});
     auto sqrt_is = pattern::wrap_type<ov::op::v0::Sqrt>({add_eps_is});
-    const auto powerOrSqrt_is = std::make_shared<pattern::op::Or>(OutputVector{power_sqrt_is, sqrt_is});
+    const auto powerOrSqrt_is = std::make_shared<pattern::ov::op::Or>(OutputVector{power_sqrt_is, sqrt_is});
 
-    auto outsideOrInside = std::make_shared<pattern::op::Or>(OutputVector{add_eps_os, powerOrSqrt_is});
+    auto outsideOrInside = std::make_shared<pattern::ov::op::Or>(OutputVector{add_eps_os, powerOrSqrt_is});
 
     // Final Divide
     auto const_neg_1 = pattern::wrap_type<ov::op::v0::Constant>(value_is_equal_to<float>({-1}));
@@ -108,7 +110,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     auto div = pattern::wrap_type<ov::op::v1::Multiply>({sub1, power_div});
 
     auto div_alt = pattern::wrap_type<ov::op::v1::Divide>({sub1, outsideOrInside});
-    const auto powerMulOrDiv = std::make_shared<pattern::op::Or>(OutputVector{div, div_alt});
+    const auto powerMulOrDiv = std::make_shared<pattern::ov::op::Or>(OutputVector{div, div_alt});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -116,7 +118,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
 
         auto const_eps_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
         float eps_value;
-        if (!op::util::get_single_value(const_eps_node, eps_value)) {
+        if (!ov::op::util::get_single_value(const_eps_node, eps_value)) {
             return false;
         }
 
@@ -152,9 +154,9 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
                                            pattern_to_output.at(power).get_node_shared_ptr(),
                                            pattern_to_output.at(mean3).get_node_shared_ptr()});
 
-        op::MVNEpsMode mode;
+        ov::op::MVNEpsMode mode;
         if (pattern_to_output.count(add_eps_os)) {
-            mode = op::MVNEpsMode::OUTSIDE_SQRT;
+            mode = ov::op::MVNEpsMode::OUTSIDE_SQRT;
             nodes_to_copy_info.push_back(pattern_to_output.at(add_eps_os).get_node_shared_ptr());
             if (pattern_to_output.count(power_sqrt_os)) {
                 nodes_to_copy_info.push_back(pattern_to_output.at(power_sqrt_os).get_node_shared_ptr());
@@ -162,7 +164,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
                 nodes_to_copy_info.push_back(pattern_to_output.at(sqrt_os).get_node_shared_ptr());
             }
         } else if (pattern_to_output.count(powerOrSqrt_is)) {
-            mode = op::MVNEpsMode::INSIDE_SQRT;
+            mode = ov::op::MVNEpsMode::INSIDE_SQRT;
             nodes_to_copy_info.push_back(pattern_to_output.at(add_eps_is).get_node_shared_ptr());
             if (pattern_to_output.count(power_sqrt_is)) {
                 nodes_to_copy_info.push_back(pattern_to_output.at(power_sqrt_is).get_node_shared_ptr());
@@ -270,8 +272,8 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
         }
 
         float eps_value;
-        bool valid_constant_values = op::util::has_constant_value<float>(const_0_5_node, -0.5) &&
-                                     op::util::get_single_value(const_eps_node, eps_value);
+        bool valid_constant_values = ov::op::util::has_constant_value<float>(const_0_5_node, -0.5) &&
+                                     ov::op::util::get_single_value(const_eps_node, eps_value);
         if (!valid_constant_values) {
             return false;
         }
@@ -291,7 +293,7 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
         }
 
         auto mvn =
-            std::make_shared<ov::op::v6::MVN>(x_output, axes_1_node, true, eps_value, op::MVNEpsMode::INSIDE_SQRT);
+            std::make_shared<ov::op::v6::MVN>(x_output, axes_1_node, true, eps_value, ov::op::MVNEpsMode::INSIDE_SQRT);
         auto mul_gamma = std::make_shared<ov::op::v1::Multiply>(mvn, const_gamma_node);
         auto add_beta = std::make_shared<ov::op::v1::Add>(mul_gamma, const_beta_node);
 

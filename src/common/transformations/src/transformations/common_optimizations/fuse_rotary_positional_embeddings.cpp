@@ -45,6 +45,7 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
 using namespace ov::pass;
 using namespace ov::pass::pattern;
 using namespace ov::op;
@@ -58,8 +59,7 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(4);
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(3);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
     // optional heads & tails are fused in separate matcher pass,
     // after RoPENode has been created.
@@ -130,7 +130,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
             return false;
         }
 
-        op::internal::RoPE::Config config;
+        ov::op::internal::RoPE::Config config;
         config.head_cnt = static_cast<size_t>(num_heads.i());
         config.head_size = static_cast<size_t>(head_size.i());
         config.rotary_ndims = config.head_size;
@@ -143,7 +143,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
         new_args.push_back(pattern_map.at(t_sin));
 
         auto old_node = root;
-        auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
+        auto new_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({pattern_map.at(x1).get_node_shared_ptr(),
                                pattern_map.at(split).get_node_shared_ptr(),
@@ -165,7 +165,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     this->register_matcher(m, callback);
 }
 
-ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
+ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionGPTNEOX);
 
@@ -178,19 +178,19 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
     // branch.
     // so here we use a WA, only match the path of rotate_hal(x)*sin and check the x*cos path
     // in the callback
-    auto x = pattern::any_input(pattern::rank_equals(rank));
-    auto x_or_cos1 = pattern::any_input(pattern::rank_equals(rank));
-    auto x_or_cos2 = pattern::any_input(pattern::rank_equals(rank));
-    auto t_sin = pattern::any_input(pattern::rank_equals(rank));
+    auto x = pattern::any_input(pattern::rank_equals(4));
+    auto x_or_cos1 = pattern::any_input(pattern::rank_equals(4));
+    auto x_or_cos2 = pattern::any_input(pattern::rank_equals(4));
+    auto t_sin = pattern::any_input(pattern::rank_equals(4));
 
-    auto varsplit = pattern::wrap_type<v1::VariadicSplit>({x, rank - 1, {"half_ndims", "?"}});
+    auto varsplit = pattern::wrap_type<v1::VariadicSplit>({x, 3, {"half_ndims", "?"}});
     varsplit->set_output_size(2);
 
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
-    auto x2 = NewGenSlice(x, "half_ndims", int32_max, 1, rank - 1);
+    auto x2 = NewGenSlice(x, "half_ndims", int32_max, 1, 3);
     auto x2neg = pattern::wrap_type<v1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
-    auto x1 = NewGenSlice(x, 0, "half_ndims", 1, rank - 1);
+    auto x1 = NewGenSlice(x, 0, "half_ndims", 1, 3);
     auto x_rotate_half = pattern::wrap_type<v0::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
 
     auto mul_cos = pattern::wrap_type<v1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
@@ -204,32 +204,26 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
 
         // check mul(x, cos) exists
         Output<Node> v_cos;
-        const auto& x_or_cos1_val = pattern_map.at(x_or_cos1);
-        const auto& x_or_cos2_val = pattern_map.at(x_or_cos2);
-        const auto& x_val = pattern_map.at(x);
-        if (x_or_cos1_val == x_val) {
-            v_cos = x_or_cos2_val;
-        } else if (x_or_cos2_val == x_val) {
-            v_cos = x_or_cos1_val;
+        if (pattern_map.at(x_or_cos1) == pattern_map.at(x)) {
+            v_cos = pattern_map.at(x_or_cos2);
+        } else if (pattern_map.at(x_or_cos2) == pattern_map.at(x)) {
+            v_cos = pattern_map.at(x_or_cos1);
         } else {
             // not a RoPE
             return false;
         }
 
         auto symbols = m.get_symbols();
-        const auto& half_ndims = symbols["half_ndims"];
+        auto half_ndims = symbols["half_ndims"];
         if (!half_ndims.is_integer()) {
             return false;
         }
 
-        op::internal::RoPE::Config config;
+        ov::op::internal::RoPE::Config config;
         OutputVector new_args;
-        if (rank == 3) {
-            config.support_3d_rope = true;
-        }
         config.rotary_ndims = 2ul * static_cast<size_t>(half_ndims.i());
 
-        new_args.push_back(x_val);
+        new_args.push_back(pattern_map.at(x));
         new_args.push_back(v_cos);
         new_args.push_back(pattern_map.at(t_sin));
         auto old_node = root;
@@ -298,12 +292,12 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto sin_tab = prepare_cos_sin_gptneox(sin_const) | prepare_cos_sin_llama(sin_const);
 
     auto x = pattern::any_input(pattern::rank_equals(4));
-    auto rope = pattern::wrap_type<op::internal::RoPE>({x, cos_tab, sin_tab});
+    auto rope = pattern::wrap_type<ov::op::internal::RoPE>({x, cos_tab, sin_tab});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-        auto rope_node = as_type_ptr<op::internal::RoPE>(pattern_map.at(rope).get_node_shared_ptr());
+        auto rope_node = as_type_ptr<ov::op::internal::RoPE>(pattern_map.at(rope).get_node_shared_ptr());
         if (!rope_node)
             return false;
 
@@ -339,22 +333,22 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
     MATCHER_SCOPE(RoPEFusionIOSlicing);
     auto int32_max = std::numeric_limits<std::int32_t>::max();
     auto data = pattern::any_input(pattern::rank_equals(4));
-    auto varsplit = pattern::wrap_type<op::v1::VariadicSplit>({data, 3, {"ndims", "?"}});
+    auto varsplit = pattern::wrap_type<ov::op::v1::VariadicSplit>({data, 3, {"ndims", "?"}});
     varsplit->set_output_size(2);
 
     auto x = NewGenSlice(data, 0, "ndims", 1, 3);
     auto y = NewGenSlice(data, "ndims", int32_max, 1, 3);
     auto x_emb =
-        pattern::wrap_type<op::internal::RoPE>({x | varsplit->output(0), pattern::any_input(), pattern::any_input()}) |
-        pattern::wrap_type<op::internal::RoPE>(
+        pattern::wrap_type<ov::op::internal::RoPE>({x | varsplit->output(0), pattern::any_input(), pattern::any_input()}) |
+        pattern::wrap_type<ov::op::internal::RoPE>(
             {x | varsplit->output(0), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto result = pattern::wrap_type<op::v0::Concat>({x_emb, y | varsplit->output(1)}, {{"axis", -1}});
+    auto result = pattern::wrap_type<ov::op::v0::Concat>({x_emb, y | varsplit->output(1)}, {{"axis", -1}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
-        auto rope_node = as_type_ptr<op::internal::RoPE>(root->input_value(0).get_node_shared_ptr());
+        auto rope_node = as_type_ptr<ov::op::internal::RoPE>(root->input_value(0).get_node_shared_ptr());
         if (!rope_node)
             return false;
 
@@ -395,17 +389,17 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
     auto input_slice = NewGenSlice(input_to_slice, {"slice_start"}, {"slice_stop"}, 1, 3);
 
     // Transpose input if needed: [B, L, H, S] -> [B, H, L, S]
-    auto x = pattern::wrap_type<op::v1::Transpose>({input_slice | input_to_trans, {0, 2, 1, 3}});
+    auto x = pattern::wrap_type<ov::op::v1::Transpose>({input_slice | input_to_trans, {0, 2, 1, 3}});
 
     // RoPE node: supports both 3 and 4 inputs
     auto result =
-        pattern::wrap_type<op::internal::RoPE>({x, pattern::any_input(), pattern::any_input()}) |
-        pattern::wrap_type<op::internal::RoPE>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+        pattern::wrap_type<ov::op::internal::RoPE>({x, pattern::any_input(), pattern::any_input()}) |
+        pattern::wrap_type<ov::op::internal::RoPE>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-        auto rope_node = as_type_ptr<op::internal::RoPE>(root);
+        auto rope_node = as_type_ptr<ov::op::internal::RoPE>(root);
         if (!rope_node)
             return false;
 
@@ -521,7 +515,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
             return false;
         }
 
-        op::internal::RoPE::Config config;
+        ov::op::internal::RoPE::Config config;
         OutputVector new_args;
         NodeVector rt_from = {pattern_map.at(varsplit).get_node_shared_ptr(),
                               pattern_map.at(repeat_interleave_sin).get_node_shared_ptr(),
@@ -538,9 +532,9 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         auto root_target_inputs = root->output(0).get_target_inputs();
         if (root_target_inputs.size() == 1) {
             auto target_node = root_target_inputs.begin()->get_node()->shared_from_this();
-            if (auto transpose = ov::as_type_ptr<op::v1::Transpose>(target_node)) {
+            if (auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(target_node)) {
                 auto axes = transpose->input_value(1).get_node_shared_ptr();
-                auto axes_const = ov::as_type_ptr<op::v0::Constant>(axes);
+                auto axes_const = ov::as_type_ptr<ov::op::v0::Constant>(axes);
                 if (axes_const && axes_const->cast_vector<int64_t>() == std::vector<int64_t>{0, 2, 1, 3}) {
                     config.output_trans0213 = true;
                     rt_from.push_back(target_node);
@@ -555,7 +549,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         new_args.push_back(pattern_map.at(gather_sin_cos));
         new_args.push_back(pattern_map.at(gather_sin_cos));
         auto old_node = root;
-        auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
+        auto new_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info(rt_from, new_node);
         ov::replace_node(old_node, new_node);
@@ -727,7 +721,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
             return false;
         }
 
-        op::internal::RoPE::Config config;
+        ov::op::internal::RoPE::Config config;
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(ndims.i());
         config.is_chatglm = true;
@@ -761,7 +755,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
 
         auto old_node = root;
 
-        auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
+        auto new_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({root->get_input_node_shared_ptr(0), root}, new_node);
         ov::replace_node(old_node, new_node);
@@ -824,7 +818,7 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
             return false;
         }
 
-        op::internal::RoPE::Config config;
+        ov::op::internal::RoPE::Config config;
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(ndims.i());
         config.is_chatglm = true;
@@ -956,7 +950,7 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
             head_cnt.i() * head_size.i() != head_cnt_by_head_size.i()) {
             return false;
         }
-        op::internal::RoPE::Config config;
+        ov::op::internal::RoPE::Config config;
         OutputVector new_args;
         config.is_qwen = true;
         config.head_cnt = static_cast<size_t>(head_cnt.i());
@@ -1019,30 +1013,30 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
 
     // Broadcast pattern
     auto const_broadcast_axes =
-        pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::u8) && pattern::value_matches("{0}"));
+        pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches(element::u8) && pattern::value_matches("{0}"));
     auto broadcast =
-        pattern::wrap_type<op::v1::Broadcast>({"{1.000000f}", inputs[0], const_broadcast_axes}, {{"mode", "numpy"}});
+        pattern::wrap_type<ov::op::v1::Broadcast>({"{1.000000f}", inputs[0], const_broadcast_axes}, {{"mode", "numpy"}});
 
     // Multiply pattern (expand broadcast)
-    auto const_inv_freq = pattern::wrap_type<op::v0::Constant>();  // Pattern for the constant inverse frequency
-    auto multiply = pattern::wrap_type<op::v1::Multiply>({const_inv_freq, broadcast}, {{"auto_broadcast", "numpy"}});
+    auto const_inv_freq = pattern::wrap_type<ov::op::v0::Constant>();  // Pattern for the constant inverse frequency
+    auto multiply = pattern::wrap_type<ov::op::v1::Multiply>({const_inv_freq, broadcast}, {{"auto_broadcast", "numpy"}});
 
     // MatMul pattern
     auto matmul =
-        pattern::wrap_type<op::v0::MatMul>({multiply, inputs[1]}, {{"transpose_a", false}, {"transpose_b", false}});
+        pattern::wrap_type<ov::op::v0::MatMul>({multiply, inputs[1]}, {{"transpose_a", false}, {"transpose_b", false}});
 
     // Transpose pattern
-    auto transpose = pattern::wrap_type<op::v1::Transpose>({matmul, {0, 2, 1}});
+    auto transpose = pattern::wrap_type<ov::op::v1::Transpose>({matmul, {0, 2, 1}});
 
     // Concat pattern
-    auto concat = pattern::wrap_type<op::v0::Concat>({transpose, transpose}, {{"axis", -1}});
+    auto concat = pattern::wrap_type<ov::op::v0::Concat>({transpose, transpose}, {{"axis", -1}});
 
     // Cosine and Sine patterns
-    auto cos = pattern::wrap_type<op::v0::Cos>({concat});
-    auto sin = pattern::wrap_type<op::v0::Sin>({concat});
+    auto cos = pattern::wrap_type<ov::op::v0::Cos>({concat});
+    auto sin = pattern::wrap_type<ov::op::v0::Sin>({concat});
 
     // Unsqueeze result pattern (cos or sin)
-    auto result = pattern::wrap_type<op::v0::Unsqueeze>({cos | sin, {1}});
+    auto result = pattern::wrap_type<ov::op::v0::Unsqueeze>({cos | sin, {1}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -1053,7 +1047,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
         if (it == pattern_map.end()) {
             return false;
         }
-        auto cur_inv_freq = as_type_ptr<op::v0::Constant>(it->second.get_node_shared_ptr());
+        auto cur_inv_freq = as_type_ptr<ov::op::v0::Constant>(it->second.get_node_shared_ptr());
         if (!cur_inv_freq) {
             return false;
         }
@@ -1074,7 +1068,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
             return false;
         if (cur_inv_freq->get_shape() != m_inv_freq->get_shape())
             return false;
-        auto global_inv_freq = ov::as_type_ptr<op::v0::Constant>(m_inv_freq);
+        auto global_inv_freq = ov::as_type_ptr<ov::op::v0::Constant>(m_inv_freq);
 
         auto cmp_error =
             memcmp(cur_inv_freq->get_data_ptr(), global_inv_freq->get_data_ptr(), global_inv_freq->get_byte_size());

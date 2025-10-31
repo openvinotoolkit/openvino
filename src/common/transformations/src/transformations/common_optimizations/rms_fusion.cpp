@@ -69,19 +69,19 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
     auto const_div = wrap_type<ov::op::v0::Constant>(constant_value(1));
     auto const_div_convert = pattern::optional<ov::op::v0::Convert>(const_div);
     auto div = wrap_type<ov::op::v1::Divide>({const_div_convert, sqrt});
-    auto div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{div, pow});
+    auto div_or_pow = std::make_shared<pattern::ov::op::Or>(OutputVector{div, pow});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
     auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div_or_pow});
 
-    std::shared_ptr<pattern::op::Or> mul_or_div;
+    std::shared_ptr<pattern::ov::op::Or> mul_or_div;
     // TODO: Check div_x pattern failed in CPU CI Pytorch layer test.
     if (enable_div_x) {
         // x / Sqrt(ReduceMean(x^2,axes)+eps)
         auto div_x = wrap_type<ov::op::v1::Divide>({x, sqrt});
-        mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1, div_x});
+        mul_or_div = std::make_shared<pattern::ov::op::Or>(OutputVector{mul1, div_x});
     } else {
-        mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1});
+        mul_or_div = std::make_shared<pattern::ov::op::Or>(OutputVector{mul1});
     }
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
