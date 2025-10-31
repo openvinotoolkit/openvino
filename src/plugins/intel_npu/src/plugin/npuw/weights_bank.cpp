@@ -124,7 +124,7 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
         auto t = lt.eval();
         device_bank.storage.at(uid).tensor = ov::Tensor(t.get_element_type(), t.get_shape());
         // Get ownership of the weights, might be a mmaped object during import
-        t.copy_to(device_bank.storage.at(uid).tensor);
+        ov::npuw::util::copy(t, device_bank.storage.at(uid).tensor);
         const_cast<LazyTensor&>(lt).detach();
     });
 }
@@ -172,7 +172,7 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         auto& stored_tensor = device_bank.storage.at(allocated.uid);
 
         auto transformed = stored_tensor.lt.eval();
-        transformed.copy_to(allocated.allocated_tensor);
+        ov::npuw::util::copy(transformed, allocated.allocated_tensor);
         stored_tensor.tensor = std::move(allocated.allocated_tensor);
 
         // Detach the evaluated LazyTensor from its memory here - when it is 100%

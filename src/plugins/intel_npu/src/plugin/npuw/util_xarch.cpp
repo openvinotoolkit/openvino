@@ -1621,3 +1621,95 @@ void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t r
     OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
+
+void ov::npuw::util::XARCH::copy(const ov::Tensor& from, ov::Tensor& to) {
+#if defined(HAVE_AVX2)
+    const auto et = from.get_element_type();
+    size_t bytes_total = 0;
+    if (et == ov::element::u4 || et == ov::element::i4 || et == ov::element::f4e2m1 || et == ov::element::nf4) {
+        OPENVINO_ASSERT((from.get_size() & 1) == 0);
+        bytes_total = from.get_size() / 2;
+    } else {
+        bytes_total = from.get_size() * et.size();
+    }
+    if (bytes_total == 0)
+        return;
+
+    const uint8_t* src = static_cast<const uint8_t*>(from.data());
+    uint8_t* dst = static_cast<uint8_t*>(to.data());
+
+    if (bytes_total < 64 * 1024) {
+        std::memcpy(dst, src, bytes_total);
+        return;
+    }
+
+    bool aligned = (((reinterpret_cast<uintptr_t>(src) | reinterpret_cast<uintptr_t>(dst)) & 31) == 0);
+
+    size_t blocks256 = bytes_total / 256;
+    size_t rem256 = bytes_total % 256;
+
+    size_t offset = 0;
+    for (size_t b = 0; b < blocks256; ++b) {
+        const uint8_t* ps = src + offset;
+        uint8_t* pd = dst + offset;
+        if (aligned) {
+            __m256i v0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + 0));
+            __m256i v1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + 32));
+            __m256i v2 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + 64));
+            __m256i v3 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + 96));
+            __m256i v4 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + 128));
+            __m256i v5 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + 160));
+            __m256i v6 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + 192));
+            __m256i v7 = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps + 224));
+            _mm256_store_si256(reinterpret_cast<__m256i*>(pd + 0), v0);
+            _mm256_store_si256(reinterpret_cast<__m256i*>(pd + 32), v1);
+            _mm256_store_si256(reinterpret_cast<__m256i*>(pd + 64), v2);
+            _mm256_store_si256(reinterpret_cast<__m256i*>(pd + 96), v3);
+            _mm256_store_si256(reinterpret_cast<__m256i*>(pd + 128), v4);
+            _mm256_store_si256(reinterpret_cast<__m256i*>(pd + 160), v5);
+            _mm256_store_si256(reinterpret_cast<__m256i*>(pd + 192), v6);
+            _mm256_store_si256(reinterpret_cast<__m256i*>(pd + 224), v7);
+        } else {
+            __m256i v0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + 0));
+            __m256i v1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + 32));
+            __m256i v2 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + 64));
+            __m256i v3 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + 96));
+            __m256i v4 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + 128));
+            __m256i v5 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + 160));
+            __m256i v6 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + 192));
+            __m256i v7 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps + 224));
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + 0), v0);
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + 32), v1);
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + 64), v2);
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + 96), v3);
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + 128), v4);
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + 160), v5);
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + 192), v6);
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd + 224), v7);
+        }
+        offset += 256;
+    }
+
+    size_t blocks32 = rem256 / 32;
+    size_t tail = rem256 % 32;
+
+    for (size_t b = 0; b < blocks32; ++b) {
+        const uint8_t* ps = src + offset;
+        uint8_t* pd = dst + offset;
+        if (aligned) {
+            __m256i v = _mm256_load_si256(reinterpret_cast<const __m256i*>(ps));
+            _mm256_store_si256(reinterpret_cast<__m256i*>(pd), v);
+        } else {
+            __m256i v = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ps));
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(pd), v);
+        }
+        offset += 32;
+    }
+
+    if (tail) {
+        std::memcpy(dst + offset, src + offset, tail);
+    }
+#else
+    from.copy_to(to);
+#endif
+}
