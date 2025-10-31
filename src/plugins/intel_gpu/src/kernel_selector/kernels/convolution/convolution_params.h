@@ -30,6 +30,7 @@ struct convolution_params : public weight_bias_zero_point_params {
     bool bilinear_interpolation_pad {false};
     bool deformable_mask_enabled {false};
     bool has_explicit_paddings {false};
+    bool grouped_weights_shape {false};
     DataTensor intermediate_tensor;
 
     std::string to_string() const override;

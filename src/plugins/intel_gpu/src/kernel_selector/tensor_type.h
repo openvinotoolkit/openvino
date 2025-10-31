@@ -644,7 +644,8 @@ struct WeightsTensor : TensorBaseT<WeightsType, WeightsLayout> {
         : TensorBaseT<WeightsType, WeightsLayout>(GetSimpleDims(d, l), dt, l) {}
 
     WeightsTensor TransformIgnorePadding(WeightsLayout l) const { return TransformIgnorePadding(l, dtype); }
-    WeightsTensor TransformIgnorePadding(WeightsLayout l, WeightsType t, size_t g = 1, bool should_split = true) const;
+    WeightsTensor TransformIgnorePadding(WeightsLayout l, WeightsType t, size_t g = 1,
+                                         bool should_split = true, bool deformable = false, bool grouped_weights_shape = false) const;
 
     Dim X() const { return Extract(layout, WeightsChannelName::X, dims); }
     Dim Y() const { return Extract(layout, WeightsChannelName::Y, dims); }
