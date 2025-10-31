@@ -859,7 +859,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Sequences supported by the plugin shouldn't be converted to TensorIterator.
         // Real sequence_lengths is not supported in all onednn Sequences, so if is_seq_len_provided() == true, we
         // should always convert to TensorIterator.
-        // (WA) We can ignore real sequence_lengths input for batch_size == 1 case when max seq_length is dynamic.
+        // (WA) We can ignore real sequence_lengths input for batch_size == 1 case when seq_length in first input is dynamic.
+        // This WA applies to GRUSequence only.
         // RNN Sequence is not supported in GPU plugin and is always converted to TensorIterator
         // LSTM Sequence supported with clip == 0, and activations have default values (sigmoid, tanh, tanh)
         // GRU Sequence supported with clip == 0, and activations have default values (sigmoid, tanh)
