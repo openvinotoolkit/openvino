@@ -278,7 +278,7 @@ protected:
         const1->fill_data(ov::element::f32, CONST_BIAS[0]);
         auto const2 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<size_t>{1});
         const2->set_friendly_name("Const_2");
-        const2->fill_data(ov::element::f32, CONST_BIAS[0]);
+        const2->fill_data(ov::element::f32, CONST_BIAS[1]);
 
         auto op_custom_2 = std::make_shared<CustomAdd2OutputsOp>(ov::OutputVector{op_custom_1->output(0), const1->output(0), const2->output(0)});
 
