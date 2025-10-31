@@ -382,6 +382,17 @@ SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model
     // Find decomposed SDPA pattern components
     SDPAPatternNodes pattern_nodes;
 
+    // Find past key and value parameter nodes
+    for (auto input : model->inputs()) {
+        auto input_node = input.get_node();
+        auto input_name = input_node->get_friendly_name();
+        if (ov::npuw::util::isPastKeyValuesKey(input_name)) {
+            pattern_nodes.past_key_param_node = input_node->shared_from_this();
+        } else if (ov::npuw::util::isPastKeyValuesValue(input_name)) {
+            pattern_nodes.past_value_param_node = input_node->shared_from_this();
+        }
+    }
+
     // Search for the pattern: MatMul -> Add -> Softmax -> MatMul
     auto ops = model->get_ordered_ops();
     for (auto&& node : ops) {
