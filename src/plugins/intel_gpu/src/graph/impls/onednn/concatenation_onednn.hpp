@@ -59,15 +59,24 @@ struct ConcatenationImplementationManager : public ImplementationManager {
                 return true;
 
             const auto& order = format::internal_order(l.format);
-            const size_t f_dim = order.find('f');
-            if (f_dim == std::string::npos)
+            const size_t feature_dim_idx = order.find('f');
+            if (feature_dim_idx == std::string::npos)
                 return true;
 
-            if (l.get_partial_shape()[f_dim].is_dynamic())
+            auto feature_dim = l.get_partial_shape()[feature_dim_idx];
+            if (feature_dim.is_dynamic())
                 return false;
 
-            const int f_block_size = format::block_sizes(l.format)[f_dim].second;
-            return l.feature() % f_block_size == 0;
+            const auto& block_sizes = format::block_sizes(l.format);
+            auto block_it = std::find_if(block_sizes.begin(), block_sizes.end(), [&](const auto& block) {
+                return block.first == feature_dim_idx;
+            });
+
+            if (block_it == block_sizes.end())
+                return true;
+
+            const int feature_block_size = block_it->second;
+            return feature_dim.get_length() % feature_block_size == 0;
         };
 
         // onednn concatenation doesn't support non-zero padding which can occur for unaligned feature.
