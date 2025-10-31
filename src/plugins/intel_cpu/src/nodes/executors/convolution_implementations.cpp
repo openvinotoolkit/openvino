@@ -71,6 +71,7 @@ static const TypeMapping dnnlConvTypeMapping {
 
 static const TypeMapping aclLowpConvTypeMapping {
     // {src, wei, bia, dst}                            pt<src, wei, bias, dst>
+    {{_i8, _i8, _any, _any},                           {bypass(), bypass(), just<f32>(), just<f32>()}},
     {{_u8, _u8 | _i8, _any, _u8},                      {bypass(), bypass(), just<i32>(), bypass()}},
     {{_i8, _i8, _any, _i8},                            {bypass(), bypass(), just<i32>(), bypass()}},
 };

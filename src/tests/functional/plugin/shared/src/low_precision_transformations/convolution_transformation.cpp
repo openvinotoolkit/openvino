@@ -16,18 +16,19 @@
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionTransformationParams>& obj) {
-    auto [netPrecision, inputShape, device, param] = obj.param;
+    auto [netPrecision, inputShape, device, param, useMaxPool] = obj.param;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, inputShape, device, params) <<
            "_rank=" << inputShape.size() <<
         "D_fq_on_data={" << param.fakeQuantizeOnData <<
-        "}_fq_on_weights={" << param.fakeQuantizeOnWeights << "}";
+        "}_fq_on_weights={" << param.fakeQuantizeOnWeights << "}" <<
+        "_useMaxPool=" << useMaxPool;
     return result.str();
 }
 
 void ConvolutionTransformation::SetUp() {
-    auto [netPrecision, inputShape, device, param] = this->GetParam();
+    auto [netPrecision, inputShape, device, param, useMaxPool] = this->GetParam();
     targetDevice = device;
 
     init_input_shapes(inputShape);
@@ -36,7 +37,8 @@ void ConvolutionTransformation::SetUp() {
         netPrecision,
         inputShape,
         param.fakeQuantizeOnData,
-        param.fakeQuantizeOnWeights);
+        param.fakeQuantizeOnWeights,
+        useMaxPool);
 }
 
 void ConvolutionTransformation::run() {
