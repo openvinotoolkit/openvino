@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/single_op/conversion.hpp"
+
+#include "common_test_utils/data_utils.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 
@@ -57,5 +59,21 @@ void ConversionLayerTest::SetUp() {
     auto result = std::make_shared<ov::op::v0::Result>(conversion);
     function = std::make_shared<ov::Model>(result, params, "Conversion");
 }
+
+void ConversionSpecifyInputLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    const auto& [conversion_type, shapes, input_type, convert_type, _targetDevice] = GetParam();
+    if (input_type != ov::element::i32 || convert_type != ov::element::u8) {
+        SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+        return;
+    }
+
+    inputs.clear();
+    const auto& funcInputs = function->inputs();
+    const auto& funcInput = funcInputs[0];
+    ov::Tensor tensor(funcInput.get_element_type(), targetInputStaticShapes[0]);
+    ov::test::utils::fill_data_random(tensor.data<int32_t>(), tensor.get_size(), 1024, -512);
+    inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+}
+
 }  // namespace test
 }  // namespace ov
