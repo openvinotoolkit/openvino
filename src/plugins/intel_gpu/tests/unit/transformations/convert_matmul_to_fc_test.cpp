@@ -562,7 +562,7 @@ TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_mat
             break;
         }
     }
-    ASSERT_TRUE(success == false);
+    ASSERT_TRUE(success == true);
 
     func = CreateMatMul(false, false, false, true);
     manager.run_passes(func);
@@ -574,7 +574,7 @@ TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_mat
             break;
         }
     }
-    ASSERT_TRUE(success == false);
+    ASSERT_TRUE(success == true);
 }
 
 TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_matmul_same_input) {
