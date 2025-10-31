@@ -290,13 +290,13 @@ jobs:
         timeout-minutes: 15
 
       - name: Download CPU test binaries
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: ov_cpu_tests_android_x64
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Download OpenVINO runtime package (Android)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: ov_android_package_x64
           path: ${{ env.INSTALL_DIR }}
