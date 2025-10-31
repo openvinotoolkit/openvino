@@ -92,11 +92,8 @@ public:
     }
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
-        float* inpData = reinterpret_cast<float*>(const_cast<void*>(inputs[0].data()));
-        if (inputs[1].get_element_type() != ov::element::f32)
-            OPENVINO_THROW("Unexpected bias type: " + inputs[1].get_element_type().to_string());
-        float* pBias0 = reinterpret_cast<float*>(const_cast<void*>(inputs[1].data()));
-        float* pBias1 = reinterpret_cast<float*>(const_cast<void*>(inputs[2].data()));
+        float* pBias0 = inputs[1].data<float>();
+        float* pBias1 = inputs[2].data<float>();
 
         const auto& in = inputs[0];
         auto& out0 = outputs[0];
@@ -107,9 +104,9 @@ public:
 
         auto total = in.get_size();
         if (in.get_element_type() == ov::element::f32) {
-            auto* ptr_in = reinterpret_cast<float*>(in.data());
-            auto* ptr_out1 = reinterpret_cast<float*>(out0.data());
-            auto* ptr_out2 = reinterpret_cast<float*>(out1.data());
+            auto* ptr_in = in.data<float>();
+            auto* ptr_out1 = out0.data<float>();
+            auto* ptr_out2 = out1.data<float>();
             for (size_t i = 0; i < total; i++) {
                 ptr_out1[i] = ptr_in[i] + pBias0[0];
                 ptr_out2[i] = ptr_in[i] + pBias1[0];
@@ -283,7 +280,7 @@ protected:
         const2->set_friendly_name("Const_2");
         const2->fill_data(ov::element::f32, CONST_BIAS[0]);
 
-        auto op_custom_2 = std::make_shared<CustomAdd2OutputsOp>(op_custom_1, const1, const2);
+        auto op_custom_2 = std::make_shared<CustomAdd2OutputsOp>(ov::OutputVector{op_custom_1->output(0), const1->output(0), const2->output(0)});
 
         auto result_1 = std::make_shared<ov::op::v0::Result>(op_custom_2->output(0));
         auto result_2 = std::make_shared<ov::op::v0::Result>(op_custom_2->output(1));
