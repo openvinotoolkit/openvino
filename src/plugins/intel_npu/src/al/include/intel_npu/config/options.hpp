@@ -1426,4 +1426,22 @@ struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, b
     }
 };
 
+struct ENABLE_ROI_TENSOR final : OptionBase<ENABLE_ROI_TENSOR, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::enable_roi_tensor.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
 }  // namespace intel_npu
