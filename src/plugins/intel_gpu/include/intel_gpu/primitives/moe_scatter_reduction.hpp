@@ -1,0 +1,65 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+#include "primitive.hpp"
+
+namespace cldnn {
+
+/// @brief
+/// @details
+struct moe_scatter_reduction : public primitive_base<moe_scatter_reduction> {
+    CLDNN_DECLARE_PRIMITIVE(moe_scatter_reduction)
+
+    moe_scatter_reduction() : primitive_base("", {}) {}
+
+    /// @brief Constructs moe_scatter_reduction primitive.
+    ///
+    /// @param id                            This primitive id.
+    /// @param input                         Input data primitive id.
+    /// @param experts_per_token             sorted topk expert id per token
+    /// @param expert_weights_per_token      sorted topk expert id weight per token
+    /// @param tokens_per_expert             tokens per expert
+    /// @param experts_info_offsets          offset of each expert's info from the tokens_per_expert
+    /// @param tokens_len_per_expert         tokens len_per_expert
+    moe_scatter_reduction(const primitive_id& id,
+                          const input_info& data,
+                          const input_info& experts_per_token,
+                          const input_info& expert_weights_per_token,
+                          const input_info& tokens_per_expert,
+                          const input_info& experts_info_offsets,
+                          const input_info& tokens_len_per_expert,
+                          int32_t num_active_experts_per_token = 0)
+        : primitive_base(id, {data, experts_per_token, expert_weights_per_token, tokens_per_expert,
+            experts_info_offsets, tokens_len_per_expert}), num_active_experts_per_token(num_active_experts_per_token) {}
+
+    int32_t num_active_experts_per_token = 0;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, num_active_experts_per_token);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const moe_scatter_reduction>(rhs);
+
+        return num_active_experts_per_token == rhs_casted.num_active_experts_per_token;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<moe_scatter_reduction>::save(ob);
+        ob << num_active_experts_per_token;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<moe_scatter_reduction>::load(ib);
+        ib >> num_active_experts_per_token;
+    }
+};
+}
+
