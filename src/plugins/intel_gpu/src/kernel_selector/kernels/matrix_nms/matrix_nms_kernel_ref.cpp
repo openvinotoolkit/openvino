@@ -91,15 +91,8 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
     const size_t box_info_buffer_size = box_info_num * BOX_INFO_SIZE;
     const size_t sel_boxes_num_buffer_size = batches_num * classes_num * sizeof(int);
 
-    size_t datatype_size = 0;
-    switch (new_params.inputs[1].GetDType()) {
-    case Datatype::F16:
-        datatype_size = sizeof(float) / 2;
-        break;
-    case Datatype::F32:
-    default:
-        datatype_size = sizeof(float);
-    }
+    size_t datatype_size = BytesPerElement(new_params.inputs[1].GetDType());
+
     const size_t iou_matrix_buffer_size = batches_num * classes_num * max_boxes_per_class * datatype_size;
     const size_t iou_max_buffer_size = iou_matrix_buffer_size;
     const size_t min_decays_buffer_size = iou_matrix_buffer_size;
