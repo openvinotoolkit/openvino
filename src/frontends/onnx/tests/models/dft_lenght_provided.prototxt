@@ -6,7 +6,7 @@ graph {
     attribute {
       name: "value"
       t {
-        dims: 1
+        dims: 0
         data_type: 7
         int64_data: 1
         name: "const_tensor"

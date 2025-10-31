@@ -55,27 +55,35 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
         conversion_to_complex_applied = try_convert_real_to_complex(processed_signal);
     }
 
-    bool dft_length_provided = !ov::op::util::is_null(length);
+    const bool dft_length_provided = !ov::op::util::is_null(length);
+    const auto unsqueeze_axis = v0::Constant::create(ov::element::i64, {}, {-1});
+    const auto& signal_size = [&] {
+        if (dft_length_provided) {
+            if (const auto& rank = length.get_partial_shape().rank(); rank.get_max_length() == 0) {
+                return std::make_shared<v0::Unsqueeze>(length, unsqueeze_axis)->output(0);
+            }
+        }
+        return length;
+    }();
 
     ov::Output<ov::Node> result;
     if (is_inversed) {
         if (is_onesided) {
-            result = dft_length_provided ? std::make_shared<v9::IRDFT>(processed_signal, axis_const, length)
+            result = dft_length_provided ? std::make_shared<v9::IRDFT>(processed_signal, axis_const, signal_size)
                                          : std::make_shared<v9::IRDFT>(processed_signal, axis_const);
             if (conversion_to_complex_applied) {  // align the output shape with a real numbers representation
-                const auto unsqueeze_axis = v0::Constant::create(ov::element::i64, {}, {-1});
                 result = std::make_shared<v0::Unsqueeze>(result, unsqueeze_axis);
             }
         } else {
-            result = dft_length_provided ? std::make_shared<v7::IDFT>(processed_signal, axis_const, length)
+            result = dft_length_provided ? std::make_shared<v7::IDFT>(processed_signal, axis_const, signal_size)
                                          : std::make_shared<v7::IDFT>(processed_signal, axis_const);
         }
     } else {
         if (is_onesided) {
-            result = dft_length_provided ? std::make_shared<v9::RDFT>(processed_signal, axis_const, length)
+            result = dft_length_provided ? std::make_shared<v9::RDFT>(processed_signal, axis_const, signal_size)
                                          : std::make_shared<v9::RDFT>(processed_signal, axis_const);
         } else {
-            result = dft_length_provided ? std::make_shared<v7::DFT>(processed_signal, axis_const, length)
+            result = dft_length_provided ? std::make_shared<v7::DFT>(processed_signal, axis_const, signal_size)
                                          : std::make_shared<v7::DFT>(processed_signal, axis_const);
         }
     }
