@@ -1216,6 +1216,16 @@ void Transformations::MainSnippets() {
     size_t available_gprs_count = 0;
 #endif
     TokenizationConfig tokenization_config(available_gprs_count);
+#if defined(OPENVINO_ARCH_ARM64)
+    // Disable Transpose tokenization on ARM64 by default
+    if (!ignoreCallback) {
+        ov::snippets::pass::MatMulConfig mm_cfg;
+        mm_cfg.is_supported_transpose_a = false;
+        mm_cfg.is_supported_transpose_b = false;
+        mm_cfg.is_supported_transpose_c = false;
+        tokenization_config.set_matmul_config(mm_cfg);
+    }
+#endif
 
     size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
     if (concurrency == 0) {

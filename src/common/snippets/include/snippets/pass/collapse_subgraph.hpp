@@ -43,7 +43,8 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeSnippets");
     explicit TokenizeSnippets(const TokenizationConfig& config);
 
-    static bool AppropriateForSubgraph(const std::shared_ptr<const Node>& node);
+    static bool AppropriateForSubgraph(const std::shared_ptr<const Node>& node,
+                                       const TokenizationConfig* config = nullptr);
 
     static const std::set<ov::element::Type>& get_supported_element_types();
 };
