@@ -9,7 +9,7 @@
 #include <openvino/core/model.hpp>
 #include <openvino/pass/manager.hpp>
 #include <ov_ops/type_relaxed.hpp>
-#include <plugin/transformations/transpose_conv1x1_to_fc.hpp>
+#include <plugin/transformations/convert_weight_compressed_conv1x1_to_matmul.hpp>
 #include <string>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
@@ -30,7 +30,7 @@
 using namespace testing;
 using namespace ov::intel_gpu;
 
-TEST_F(TransformationTestsF, TransposeConv1x1TransposeFusionTest1) {
+TEST_F(TransformationTestsF, ConvertWeightCompressedConv1x1ToMatmulTest1) {
     ov::Strides strides{1, 1};
     ov::Strides dilations{1, 1};
     ov::CoordinateDiff pads_begin{0, 0};
@@ -48,7 +48,7 @@ TEST_F(TransformationTestsF, TransposeConv1x1TransposeFusionTest1) {
         auto transpose2 = std::make_shared<ov::opset1::Transpose>(conv1x1, transpose_constant2);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{transpose2}, ov::ParameterVector{input1});
-        manager.register_pass<TransposeConv1x1TransposeFusion>();
+        manager.register_pass<ConvertWeightCompressedConv1x1ToMatmul>();
     }
     {
         auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 2, 10});
@@ -63,18 +63,18 @@ TEST_F(TransformationTestsF, TransposeConv1x1TransposeFusionTest1) {
 }
 
 // Checked blocked cases
-TEST(TransformationTests, TransposeConv1x1TransposeFusionExceptionTest_conv3x3) {
+TEST(TransformationTests, ConvertWeightCompressedConv1x1ToMatmulExceptionTest_conv3x3) {
     auto CreateConv = [&]() {
         ov::Strides strides{1, 1};
         ov::Strides dilations{1, 1};
         ov::CoordinateDiff pads_begin{1, 1};
         ov::CoordinateDiff pads_end{1, 1};
-        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 2, 10});
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 2, 1});
         auto transpose_constant1 = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
         auto transpose_constant2 = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
-        auto input2 = ov::opset1::Constant::create(ov::element::i4, ov::Shape{15, 10, 3, 3}, {1});
+        auto input2 = ov::opset1::Constant::create(ov::element::i4, ov::Shape{1, 1, 3, 3}, {1});
         auto input2_convert = std::make_shared<ov::op::v0::Convert>(input2, ov::element::f16);
-        auto input2_scale = ov::opset1::Constant::create(ov::element::f16, ov::Shape{15, 10, 3, 3}, {1});
+        auto input2_scale = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1, 3, 3}, {1});
         auto mul = std::make_shared<ov::opset1::Multiply>(input2_convert, input2_scale);
         auto transpose1 = std::make_shared<ov::opset1::Transpose>(input1, transpose_constant1);
         auto conv3x3 = std::make_shared<ov::opset1::Convolution>(transpose1, mul, strides, pads_begin, pads_end, dilations, ov::op::PadType::EXPLICIT);
@@ -86,7 +86,7 @@ TEST(TransformationTests, TransposeConv1x1TransposeFusionExceptionTest_conv3x3) 
 
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    manager.register_pass<ov::intel_gpu::TransposeConv1x1TransposeFusion>();
+    manager.register_pass<ov::intel_gpu::ConvertWeightCompressedConv1x1ToMatmul>();
 
     auto func = CreateConv();
 

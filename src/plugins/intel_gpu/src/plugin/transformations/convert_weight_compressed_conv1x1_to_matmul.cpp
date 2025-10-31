@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transpose_conv1x1_to_fc.hpp"
+#include "convert_weight_compressed_conv1x1_to_matmul.hpp"
 
 #include <iostream>
 #include <ostream>
@@ -35,21 +35,14 @@ using ov::pass::pattern::op::Or;
 
 namespace ov::intel_gpu {
 
-TransposeConv1x1TransposeFusion::TransposeConv1x1TransposeFusion(bool supports_immad) {
-    add_matcher<TransposeConv1x1TransposeMatcher>(supports_immad);
+ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1ToMatmul(bool supports_immad) {
+    add_matcher<ConvertWeightCompressedConv1x1ToMatmulMatcher>(supports_immad);
 }
 
-TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports_immad) {
-    auto static_rank_gt_1 = [](const ov::Output<ov::Node>& output) {
-        const auto& r = output.get_partial_shape().rank();
-        return r.is_static() && r.get_length() > 1;
-    };
-    auto weights_path = [&static_rank_gt_1](const ov::Output<ov::Node>& output) {
+ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToMatmulMatcher(bool supports_immad) {
+    auto filter1x1_path = [](const ov::Output<ov::Node>& output) {
         const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_constant_or_param_path(output) && static_rank_gt_1(output) && pshape.is_static() &&
-               std::count_if(pshape.begin(), pshape.end(), [](const ov::Dimension& x) {
-                   return x == 1;
-               }) == 2;
+        return ov::op::util::is_on_constant_path(output, true) && pshape.is_static() && pshape[-1] == 1 && pshape[-2] == 1;
     };
 
     auto first_input_m = ov::pass::pattern::any_input();
@@ -58,8 +51,8 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
     auto reshape_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, a_order_m});
     auto a_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m});
 
-    auto weights_const_m = wrap_type<ov::op::v0::Constant>(weights_path);
-    auto weights_param_m = wrap_type<ov::op::v0::Parameter>(weights_path);
+    auto weights_const_m = wrap_type<ov::op::v0::Constant>(rank_more_than(2) && has_static_rank() && filter1x1_path);
+    auto weights_param_m = wrap_type<ov::op::v0::Parameter>(rank_more_than(2) && has_static_rank() && filter1x1_path);
     auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m});
     auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
     auto weights_scales_m = ov::pass::pattern::any_input();
@@ -205,7 +198,7 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(output_m, "TransposeConv1x1TransposeMatcher");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(output_m, "ConvertWeightCompressedConv1x1ToMatmulMatcher");
     this->register_matcher(m, callback);
 }
 
