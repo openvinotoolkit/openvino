@@ -67,7 +67,7 @@ set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 
 :: Check if Python is installed
 set PYTHON_VERSION_MAJOR=3
-set MIN_REQUIRED_PYTHON_VERSION_MINOR=9
+set MIN_REQUIRED_PYTHON_VERSION_MINOR=10
 set MAX_SUPPORTED_PYTHON_VERSION_MINOR=14
 
 python --version 2>NUL
@@ -92,6 +92,12 @@ if "%python_version%" == "" (
 for /F "tokens=1,2 delims=. " %%a in ("%python_version%") do (
    set pyversion_major=%%a
    set pyversion_minor=%%b
+)
+
+:: Strip non-numeric suffix from minor version (e.g., 14t -> 14)
+for /f "delims=0123456789" %%i in ("%pyversion_minor%") do set "suffix=%%i"
+if defined suffix (
+   set pyversion_minor=%pyversion_minor:!suffix!=% 
 )
 
 if %pyversion_major% equ %PYTHON_VERSION_MAJOR% (
