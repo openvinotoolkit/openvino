@@ -499,7 +499,7 @@ bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int6
     return false;
 }
 
-bool is_on_constant_path(const ov::Output<ov::Node>& output) {
+bool is_on_constant_path(const ov::Output<ov::Node>& output, bool params_allowed) {
     auto status = true;
 
     auto root_node = output.get_node();
@@ -521,7 +521,9 @@ bool is_on_constant_path(const ov::Output<ov::Node>& output) {
             return false;
         }
 
-        if (current_node->get_input_size() == 0 && !ov::is_type<ov::op::v0::Constant>(current_node)) {
+        if (current_node->get_input_size() == 0 &&
+            !(ov::is_type<ov::op::v0::Constant>(current_node) ||
+                (params_allowed && ov::is_type<ov::op::v0::Parameter>(current_node)))) {
             status = false;
         } else {
             // not a leaf - continue to search
