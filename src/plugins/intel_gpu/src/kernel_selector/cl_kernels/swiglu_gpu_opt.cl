@@ -40,7 +40,11 @@ float FUNC(fast_erf)(float x) {
         return y * sign; // A&S formula is only good for when x >= 0, however -erf(x) = erf(-x)
     }
 }
-
+#define CLAMP_MAX_VAL (7.0f)
+#define CLAMP_MIN_VAL (-7.0f)
+#define SWIGLU_BETA (1.7f)
+#define GLU_STRIDE 1
+#define UP_ADD_VAL (ACCUMULATOR_VAL_ONE)
 #if !IS_DYNAMIC
 __attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
 #endif
@@ -49,36 +53,33 @@ KERNEL(swiglu_gpu_opt)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output)
 {
-//    const unsigned int x = (uint)get_global_linear_id();
-//    const unsigned int y = x + ((x / SPLIT_LENGTH) * SPLIT_LENGTH);
-    const unsigned int x = (uint)get_global_linear_id() * 2;
-    const unsigned int y = x + 1;
+#if GLU_STRIDE == 1
+    const unsigned int x = (uint)get_global_linear_id();
+    const unsigned int y = 2 * x;
+#else
+    const unsigned int x = (uint)get_global_linear_id();
+    const unsigned int y = x + ((x / GLU_STRIDE) * GLU_STRIDE);
+#endif
 
-//#if SPLIT_TO_GLU_IDX == 0
-//    ACCUMULATOR_TYPE gate = input[y];
-//    ACCUMULATOR_TYPE value = input[y + SPLIT_LENGTH];
-//#else
-//    ACCUMULATOR_TYPE gate = input[y + SPLIT_LENGTH];
-//    ACCUMULATOR_TYPE value = input[y];
-//#endif
-    ACCUMULATOR_TYPE gate = input[x];
+#if GATE_IDX == 0
+    ACCUMULATOR_TYPE gate = input[y];
+    ACCUMULATOR_TYPE value = input[y + GLU_STRIDE];
+#else
+    ACCUMULATOR_TYPE gate = input[y + GLU_STRIDE];
     ACCUMULATOR_TYPE value = input[y];
-    ACCUMULATOR_TYPE limit = 7.0f;
-    ACCUMULATOR_TYPE swiglu_beta = 1.7f;
-    gate = ACCUMULATOR_MIN_FUNC(TO_OUTPUT_TYPE(limit), gate);
-    value = ACCUMULATOR_MIN_FUNC(ACCUMULATOR_MAX_FUNC(TO_OUTPUT_TYPE(-limit), value), TO_OUTPUT_TYPE(limit));
+#endif
 
-//    #if GLU_TYPE == 0   // Swish
-    ACCUMULATOR_TYPE glu = gate / (ACCUMULATOR_VAL_ONE + native_exp(-swiglu_beta * gate));
-//    #elif GLU_TYPE == 1 // Gelu
-//        gate = (GEGLU_HALF * gate * (ACCUMULATOR_VAL_ONE + (FUNC_CALL(fast_erf)(gate * GEGLU_MULT))));
-//    #elif GLU_TYPE == 2 // Gelu_Tanh
-//        gate = (GEGLU_HALF * gate * (ACCUMULATOR_VAL_ONE + (tanh(GEGLU_SQUARE_2_OVER_PI * gate * (ACCUMULATOR_VAL_ONE + GEGLU_MULT * gate * gate)))));
-//    #endif
-    value = (value + ACCUMULATOR_VAL_ONE) * glu;
+    gate = ACCUMULATOR_MIN_FUNC(TO_OUTPUT_TYPE(CLAMP_MAX_VAL), gate);
+    value = ACCUMULATOR_MIN_FUNC(ACCUMULATOR_MAX_FUNC(TO_OUTPUT_TYPE(CLAMP_MIN_VAL), value), TO_OUTPUT_TYPE(CLAMP_MAX_VAL));
 
-//    #if GLU_TYPE == 0 && defined(CLAMP_MIN) && defined(CLAMP_MAX) // For Swish only
-//        value = ACCUMULATOR_MAX_FUNC(TO_OUTPUT_TYPE(CLAMP_MIN), ACCUMULATOR_MIN_FUNC(value, TO_OUTPUT_TYPE(CLAMP_MAX)));
-//    #endif
-    output[x/2] = TO_OUTPUT_TYPE(value);
+    #if GLU_TYPE == 0   // Swish
+    gate /= (ACCUMULATOR_VAL_ONE + native_exp(-SWIGLU_BETA * gate));
+    #elif GLU_TYPE == 1 // Gelu
+        gate = (GEGLU_HALF * gate * (ACCUMULATOR_VAL_ONE + (FUNC_CALL(fast_erf)(gate * GEGLU_MULT))));
+    #elif GLU_TYPE == 2 // Gelu_Tanh
+        gate = (GEGLU_HALF * gate * (ACCUMULATOR_VAL_ONE + (tanh(GEGLU_SQUARE_2_OVER_PI * gate * (ACCUMULATOR_VAL_ONE + GEGLU_MULT * gate * gate)))));
+    #endif
+    value = (value + UP_ADD_VAL) * gate;
+
+    output[x] = TO_OUTPUT_TYPE(value);
 }
