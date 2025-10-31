@@ -135,6 +135,9 @@ void patch_reshape_constants(const std::shared_ptr<ov::Model>& model,
                                                                 shape_const->get_shape(),
                                                                 shape_values);
         op->input(1).replace_source_output(new_const);
+
+        LOG_INFO("Done");
+        return;
     }
 }
 
@@ -185,6 +188,7 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
 // Helper function to process a single pyramid model (clone, reshape, patch, optimize)
 std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov::Model>& original_model,
                                                         size_t model_idx,
+                                                        size_t pyramid_step,
                                                         size_t query_length,
                                                         size_t full_context_length,
                                                         const std::map<std::string, size_t>& past_key_sequence_dims,
@@ -193,9 +197,23 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     auto cloned_model = original_model->clone();
 
     // Calculate dimensions for this model
-    size_t current_context_length = (model_idx + 1) * query_length;
-    size_t current_past_length = model_idx * query_length;
+    size_t current_context_length = 0u;
+    size_t current_past_length = 0u;
 
+    // FIXME: SPECULATIVE CASE!!!
+    if (query_length == 1u) {
+        // GENERATE
+        current_context_length = (model_idx + 1) * pyramid_step;
+        current_past_length = current_context_length - 1;
+    } else {
+        // PREFILL
+        current_context_length = (model_idx + 1) * pyramid_step;
+        current_past_length = model_idx * pyramid_step;
+    }
+    // FIXME: Probably the generic formula for all cases is:
+    // current_context_length = (model_idx + 1) * pyramid_step;
+    // current_past = current_context_length - query_length
+    // - should work for the speculative case as well
     LOG_DEBUG("Model " << model_idx << ":");
     LOG_DEBUG("  Context length: " << current_context_length);
     LOG_DEBUG("  Past length: " << current_past_length);
@@ -447,7 +465,13 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     const auto& past_value_sequence_dims = validation_result->past_value_sequence_dims;
 
     std::vector<std::shared_ptr<ov::Model>> pyramid_models;
-    size_t num_models = full_context_length / query_length;
+
+    // Use step 1024 to generate attention pyramid if it is the GENERATE case.
+    // FIXME: Make it configurable
+    // FIXME: Handle the speculative case here (query_length > 1; << 1024)
+    size_t pyramid_step = query_length == 1 ? 1024u : query_length;
+    // FIXME: Check all the right alighmments
+    size_t num_models = full_context_length / pyramid_step;
     LOG_INFO("Creating " << num_models << " pyramid attention models");
 
     // Store Attention instances for each model
@@ -473,6 +497,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
             // Process pyramid models 0 to num_models-2 using the helper function
             auto result = process_pyramid_model(model,
                                                 model_idx,
+                                                pyramid_step,
                                                 query_length,
                                                 full_context_length,
                                                 past_key_sequence_dims,

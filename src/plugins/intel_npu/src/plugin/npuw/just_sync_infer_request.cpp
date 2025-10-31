@@ -833,6 +833,8 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
     const auto& graph_mask = m_attention_io[idx].inputs.at(dynamic.mask_idx);
     const auto this_case = m_pyramid_selector->this_case();
 
+    // FIXME: this must be controlled throguh selector, otherwise here's
+    // an abstraction leak again
     const auto past_len = pyramid_id * dynamic.query_size;
     const auto present_len = dynamic.query_size;
     // FIXME: get the right dim

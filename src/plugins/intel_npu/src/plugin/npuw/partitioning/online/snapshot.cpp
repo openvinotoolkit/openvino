@@ -532,7 +532,7 @@ void Snapshot::earlyRegroup() {
             HNDL_FAKE(FakeQuantize);
             HNDL_ATTN(SDPA);
             HNDL_ATTN(SDPADecomposed);
-#undef HNDL_SPDA
+#undef HNDL_ATTN
 #undef HNDL_FAKE
 #undef HNDL
         }
