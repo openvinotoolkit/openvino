@@ -314,6 +314,6 @@ KERNEL (mlp_reduce)(const __global MOE_TYPE* x,           // [MAX_TOPK, HIDDEN_S
     for (int i = 1; i < MAX_TOPK; i++) {
         sum[0] += sum[i];
     }
-    intel_sub_group_block_write_us((const __global ushort*)(y + n), as_ushort(sum[0]));
+    intel_sub_group_block_write_us((__global ushort*)(y + n), as_ushort(sum[0]));
 }
 #endif
