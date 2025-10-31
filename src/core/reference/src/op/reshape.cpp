@@ -19,14 +19,14 @@ static size_t get_threshold() {
     // TODO: find a better way, not hardcoded value
     size_t base_threshold = (1 << 9) * parallel_get_num_threads();
 
-    #ifdef __SANITIZE_THREAD__
-        // Under Thread Sanitizer, parallel execution is 5-15x slower due to
-        // instrumentation overhead. Increase threshold to prefer sequential
-        // execution for medium-sized tensors to avoid long test times.
-        return base_threshold * 100;
-    #else
-        return base_threshold;
-    #endif
+#ifdef __SANITIZE_THREAD__
+    // Under Thread Sanitizer, parallel execution is 5-15x slower due to
+    // instrumentation overhead. Increase threshold to prefer sequential
+    // execution for medium-sized tensors to avoid long test times.
+    return base_threshold * 100;
+#else
+    return base_threshold;
+#endif
 }
 
 static inline void copy_element(char* out, const char* in, size_t elem_size) {
