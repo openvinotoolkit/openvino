@@ -293,7 +293,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // todo: enable after plugin support for MoE
     // Remove pytestmark to enable e2e test:
     // tests/model_hub_tests/transformation_tests/test_moe_transformation.py
-    // REGISTER_PASS(manager, FuseMOE)
+    REGISTER_PASS(manager, FuseMOE)
 
     manager.run_passes(f);
 
