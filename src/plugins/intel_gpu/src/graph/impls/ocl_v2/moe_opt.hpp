@@ -80,7 +80,6 @@ struct MOEOpt : public ImplementationManager {
         };
         const auto& zp_layout = node.get_input_layout(static_cast<size_t>(MOEInputIndex::ZP_0));
         if (!one_of(zp_layout.data_type, supported_zp_type)) {
-            std::cout << "MOEOpt validate_impl: unsupported zp type " << zp_layout.to_string() << std::endl;
             return false;
         }
 

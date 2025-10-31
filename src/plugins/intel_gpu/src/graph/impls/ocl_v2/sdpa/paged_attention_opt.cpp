@@ -1267,7 +1267,10 @@ public:
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            if (rt_params->use_micro_sdpa) {
+            // WA: avoid "OCL OUT OF RESOURCE" issue when running qwen3_moe with input token size < 8
+            // TODO: remove this limitation once micro_sdpa kernel resolve this problem.
+            const auto query_len = params.get_input_layout(PagedAttentionInputIdx::QUERY).get_partial_shape()[0].get_length();
+            if (rt_params->use_micro_sdpa && query_len >= 8) {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
             } else {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
