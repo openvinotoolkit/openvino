@@ -89,7 +89,9 @@ bool NeedVerticalPass(const resample_params& params) {
 std::size_t GetKernelsNum(const resample_params& params) {
     auto horizontal_kernels_num = NeedHorizontalPass(params) ? 2 : 0;
     auto vertical_kernels_num = NeedVerticalPass(params) ? 2 : 0;
-    return horizontal_kernels_num + vertical_kernels_num;
+    // if h/v are all same then use horizontal kernel
+    auto same_kernels_num = !NeedHorizontalPass(params) && !NeedVerticalPass(params) ? 2 : 0;
+    return horizontal_kernels_num + vertical_kernels_num + same_kernels_num;
 }
 
 std::size_t GetFirstRow(const resample_params& params) {
@@ -376,7 +378,9 @@ KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params) const {
     kd.internalBufferDataType = Datatype::F32;
     int i = 0;
     for (ResampleKernelPilRef::KernelId id = eCalcHorizontalCoefficients; id < eEnd; ++id) {
-        if (!NeedHorizontalPass(resample_parameters) &&
+        const bool same_size = !NeedHorizontalPass(resample_parameters) && !NeedVerticalPass(resample_parameters);
+        // use horizontal kernel when input/output has same size
+        if ((!NeedHorizontalPass(resample_parameters) && !same_size) &&
             (id == eCalcHorizontalCoefficients || id == eResampleHorizontal))
             continue;
         if (!NeedVerticalPass(resample_parameters) &&
