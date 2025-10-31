@@ -7,6 +7,7 @@
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
+#include <bitset>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
@@ -50,9 +51,8 @@ namespace ov::intel_cpu::node {
 struct onednn_matmul_key {
     dnnl::memory::desc src_md;
     dnnl::memory::desc weights_md;
-    int k_groups;
-    bool has_scale;
-    bool has_zp;
+    VectorDims scale_shape;
+    VectorDims zp_shape;
     bool has_bias;
 
     [[nodiscard]] size_t hash() const {
@@ -60,18 +60,17 @@ struct onednn_matmul_key {
         using namespace dnnl::impl::primitive_hashing;
 
         size_t seed = 0;
-        hash_combine(seed, get_md_hash(*src_md.get()));
-        hash_combine(seed, get_md_hash(*weights_md.get()));
-        hash_combine(seed, k_groups);
-        hash_combine(seed, has_scale);
-        hash_combine(seed, has_zp);
-        hash_combine(seed, has_bias);
+        seed = hash_combine(seed, get_md_hash(*src_md.get()));
+        seed = hash_combine(seed, get_md_hash(*weights_md.get()));
+        seed = get_vector_hash(seed, scale_shape);
+        seed = get_vector_hash(seed, zp_shape);
+        seed = hash_combine(seed, has_bias);
         return seed;
     }
 
     bool operator==(const onednn_matmul_key& rhs) const {
-        return src_md == rhs.src_md && weights_md == rhs.weights_md && k_groups == rhs.k_groups &&
-               has_scale == rhs.has_scale && has_zp == rhs.has_zp && has_bias == rhs.has_bias;
+        return src_md == rhs.src_md && weights_md == rhs.weights_md && scale_shape == rhs.scale_shape &&
+               zp_shape == rhs.zp_shape && has_bias == rhs.has_bias;
     }
 };
 
@@ -86,19 +85,27 @@ public:
     onednn_matmul(const dnnl::engine& eng, const onednn_matmul_key& key) : m_has_bias(key.has_bias) {
         const auto& src_md = key.src_md;
         const auto& weights_md = key.weights_md;
-        const auto K_groups = key.k_groups;
-        const auto has_scale = key.has_scale;
-        const auto has_zp = key.has_zp;
+        auto scale_shape = key.scale_shape;
+        auto zp_shape = key.zp_shape;
 
         const auto K = weights_md.get_dims()[1];
         const auto N = weights_md.get_dims()[0];
         const auto M = src_md.get_dims()[0];
 
-        if (has_scale) {
+        if (!scale_shape.empty()) {
+            if (all_of(1U, scale_shape.size(), scale_shape[0])) {
+                scale_shape.push_back(1);
+            }
+            OPENVINO_ASSERT(scale_shape.size() == 2, "Unsupported scale shape ", vec2str(scale_shape));
+            const auto K_groups = scale_shape.back();
             OPENVINO_ASSERT((K % K_groups) == 0, "Incompatible number of groups ", K_groups, " for K ", K);
-            init_w_scales(N, K_groups);
-            if (has_zp) {
-                init_w_zp(N, K_groups);
+            init_w_scales(scale_shape);
+            if (!zp_shape.empty()) {
+                if (all_of(1U, zp_shape.size(), zp_shape[0])) {
+                    zp_shape.push_back(1);
+                }
+                OPENVINO_ASSERT(zp_shape.size() == 2, "Unsupported zero points shape ", vec2str(zp_shape));
+                init_w_zp(zp_shape);
             }
         }
 
@@ -134,11 +141,11 @@ public:
             bias_memory = dnnl::memory(bias_md, eng, DNNL_MEMORY_NONE);
         }
         dnnl::memory scale_memory;
-        if (has_scale) {
+        if (!scale_shape.empty()) {
             scale_memory = dnnl::memory(m_scale_md, eng, DNNL_MEMORY_NONE);
         }
         dnnl::memory zp_memory;
-        if (has_zp) {
+        if (!zp_shape.empty()) {
             zp_memory = dnnl::memory(m_zp_md, eng, DNNL_MEMORY_NONE);
         }
         args = make_args(inp_memory, out_memory, wei_memory, bias_memory, scale_memory, zp_memory);
@@ -183,15 +190,17 @@ public:
     }
 
 private:
-    void init_w_scales(dnnl::memory::dim N, dnnl::memory::dim K_groups) {
+    void init_w_scales(const VectorDims& scale_shape) {
         constexpr auto data_type = dnnl::memory::data_type::f32;
-        attr.set_scales_dims(DNNL_ARG_WEIGHTS, {N, K_groups}, data_type);
-        m_scale_md = dnnl::memory::desc({N, K_groups}, data_type, dnnl::memory::format_tag::ba);
+        const auto scale_dims = DnnlExtensionUtils::convertToDnnlDims(scale_shape);
+        attr.set_scales_dims(DNNL_ARG_WEIGHTS, scale_dims, data_type);
+        m_scale_md = dnnl::memory::desc(scale_dims, data_type, dnnl::memory::format_tag::ba);
     }
-    void init_w_zp(dnnl::memory::dim N, dnnl::memory::dim K_groups) {
+    void init_w_zp(const VectorDims& zp_shape) {
         constexpr auto data_type = dnnl::memory::data_type::u8;
-        attr.set_zero_points_dims(DNNL_ARG_WEIGHTS, {N, K_groups}, data_type);
-        m_zp_md = dnnl::memory::desc({N, K_groups}, data_type, dnnl::memory::format_tag::ba);
+        const auto zp_dims = DnnlExtensionUtils::convertToDnnlDims(zp_shape);
+        attr.set_zero_points_dims(DNNL_ARG_WEIGHTS, zp_dims, data_type);
+        m_zp_md = dnnl::memory::desc(zp_dims, data_type, dnnl::memory::format_tag::ba);
     }
     static std::unordered_map<int, dnnl::memory> make_args(dnnl::memory& src,
                                                            dnnl::memory& dst,
@@ -290,7 +299,7 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
                                                   [[maybe_unused]] size_t G,
                                                   [[maybe_unused]] const Config& config) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
-    // copy past from FullyConnected
+    // copy paste from FullyConnected
     try {
         std::string errorMessage;
         if (!isSupportedOperation(op, errorMessage)) {
@@ -417,23 +426,29 @@ void GatherMatmul::createPrimitive() {
 
     int N = weiDims[weiDims.size() - 2];
     int K = weiDims[weiDims.size() - 1];
-    int K_groups = 1;
 
-    bool has_scale = false;
-    bool has_zp = false;
+    VectorDims scale_shape{};
+    VectorDims zp_shape{};
     if (algorithm == Algorithm::GatherMatmulCompressed) {
         auto scaleDesc = getBaseMemDescAtInputPort(WEIGHT_SCALES);
         if (scaleDesc && !scaleDesc->empty()) {
-            has_scale = true;
-            const auto& scDims = scaleDesc->getShape().getStaticDims();
-            CPU_NODE_ASSERT(scDims.size() == 3, "Weight scales input for GatherMatmulCompressed op should be 3D");
-            K_groups = scDims[2];
+            const auto& fullScalesShape = scaleDesc->getShape().getStaticDims();
+            if (1 == fullScalesShape.size()) {
+                CPU_NODE_ASSERT(fullScalesShape[0] == 1, "Expect broadcastable scales shape.");
+                scale_shape.push_back(fullScalesShape[0]);
+            } else {
+                scale_shape.assign(fullScalesShape.begin() + 1, fullScalesShape.end());
+            }
         }
         auto zpDesc = getBaseMemDescAtInputPort(WEIGHT_ZERO_POINTS);
         if (zpDesc && !zpDesc->empty()) {
-            has_zp = true;
-            const auto& zpDims = zpDesc->getShape().getStaticDims();
-            CPU_NODE_ASSERT(zpDims.size() == 3, "Weight zero points input for GatherMatmulCompressed op should be 3D");
+            const auto& fullZeroPointsShape = zpDesc->getShape().getStaticDims();
+            if (1 == fullZeroPointsShape.size()) {
+                CPU_NODE_ASSERT(fullZeroPointsShape[0] == 1, "Expect broadcastable zero points shape.");
+                zp_shape.push_back(fullZeroPointsShape[0]);
+            } else {
+                zp_shape.assign(fullZeroPointsShape.begin() + 1, fullZeroPointsShape.end());
+            }
         }
     }
 
@@ -445,7 +460,7 @@ void GatherMatmul::createPrimitive() {
                                   DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
                                   dnnl::memory::format_tag::any);
 
-    onednn_matmul_key key{src_md, weights_md, K_groups, has_scale, has_zp, biasDesc && !biasDesc->empty()};
+    onednn_matmul_key key{src_md, weights_md, scale_shape, zp_shape, biasDesc && !biasDesc->empty()};
 
     auto cache = context->getParamsCache();
     const auto& eng = getEngine();
@@ -486,7 +501,7 @@ void GatherMatmul::createPrimitive() {
     m_weightsMemory =
         prepareWeightMemory(targetWeightsDesc, MemoryDescUtils::convertToDnnlMemoryDesc(weightsMemoryDesc));
 
-    if (has_scale) {
+    if (!scale_shape.empty()) {
         auto expectedScaleMemDesc =
             MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(gemv_impl->get_scale_md()));
         auto scales = getSrcMemoryAtPort(WEIGHT_SCALES);
@@ -502,7 +517,7 @@ void GatherMatmul::createPrimitive() {
         }
     }
 
-    if (has_zp) {
+    if (!zp_shape.empty()) {
         auto expectedZpMemDesc =
             MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(gemv_impl->get_zp_md()));
         auto zps = getSrcMemoryAtPort(WEIGHT_ZERO_POINTS);
@@ -576,23 +591,31 @@ void GatherMatmul::prepareParams() {
                               DnnlExtensionUtils::ElementTypeToDataType(srcPrc),
                               dnnl::memory::format_tag::ab);
     auto weights_md = gemv_impl->get_weights_md();
-    int K_groups = 1;
-    bool has_zp = false;
-    bool has_scale = false;
+
+    VectorDims scale_shape{};
+    VectorDims zp_shape{};
 
     if (m_scalesMemory) {
-        has_scale = true;
-        const auto& scaleDims = m_scalesMemory->getStaticDims();
-        K_groups = scaleDims[2];
+        const auto& fullScaleDims = m_scalesMemory->getStaticDims();
+        if (1 == fullScaleDims.size()) {
+            scale_shape.push_back(fullScaleDims[0]);
+        } else {
+            scale_shape.assign(fullScaleDims.begin() + 1, fullScaleDims.end());
+        }
     }
 
     if (m_zpMemory) {
-        has_zp = true;
+        const auto& fullZpDims = m_zpMemory->getStaticDims();
+        if (1 == fullZpDims.size()) {
+            zp_shape.push_back(fullZpDims[0]);
+        } else {
+            zp_shape.assign(fullZpDims.begin() + 1, fullZpDims.end());
+        }
     }
 
     auto biasMemory = getSrcMemoryAtPort(BIAS);
     const auto& biasDesc = biasMemory->getDesc();
-    onednn_matmul_key key{src_md, weights_md, K_groups, has_scale, has_zp, !biasDesc.empty()};
+    onednn_matmul_key key{src_md, weights_md, scale_shape, zp_shape, !biasDesc.empty()};
 
     auto cache = context->getParamsCache();
     const auto& eng = getEngine();
@@ -611,20 +634,30 @@ namespace {
 class OffsetHelper {
 public:
     static OffsetHelper createOffsetHelper(const MemoryPtr& mem) {
-        static VectorDims empty_dims;
+        static const VectorDims empty_dims;
+        std::bitset<2> broadcast_mask;
         if (nullptr == mem || mem->getDesc().empty()) {
-            return {nullptr, empty_dims, 0};
+            return {nullptr, empty_dims, broadcast_mask, 0};
         }
         auto* base_ptr = static_cast<uint8_t*>(mem->getData());
         auto desc = mem->getDescWithType<BlockedMemoryDesc>();
         const auto& strides = desc->getStrides();
         const auto prc = desc->getPrecision();
-        return {base_ptr, strides, prc.bitwidth()};
+        const auto& shape = desc->getShape().getStaticDims();
+        for (size_t i = 0; i < shape.size() && i < 2; i++) {
+            if (shape[i] == 1) {
+                broadcast_mask.set(i);
+            }
+        }
+        return {base_ptr, strides, broadcast_mask, prc.bitwidth()};
     }
 
     void* operator()(size_t i0) const {
         if (!m_base_ptr) {
             return nullptr;
+        }
+        if (m_broadcast_mask.test(0)) {
+            i0 = 0;
         }
         const size_t offset_bits = i0 * m_strides[0] * m_num_bits;
         const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
@@ -634,6 +667,12 @@ public:
     void* operator()(size_t i0, size_t i1) const {
         if (!m_base_ptr) {
             return nullptr;
+        }
+        if (m_broadcast_mask.test(0)) {
+            i0 = 0;
+        }
+        if (m_broadcast_mask.test(1)) {
+            i1 = 0;
         }
         const size_t offset_bits = i0 * m_strides[0] * m_num_bits + i1 * m_strides[1] * m_num_bits;
         const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
@@ -645,14 +684,16 @@ public:
     }
 
 private:
-    OffsetHelper(uint8_t* base_ptr, const VectorDims& strides, size_t num_bits)
+    OffsetHelper(uint8_t* base_ptr, const VectorDims& strides, std::bitset<2> broadcast_mask, size_t num_bits)
         : m_base_ptr(base_ptr),
           m_strides(strides),
-          m_num_bits(num_bits) {}
+          m_num_bits(num_bits),
+          m_broadcast_mask(broadcast_mask) {}
 
     uint8_t* m_base_ptr = nullptr;
     const VectorDims& m_strides;
     size_t m_num_bits;
+    std::bitset<2> m_broadcast_mask;
 };
 }  // namespace
 
@@ -666,9 +707,6 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
     const auto& indexShape = indexMem->getStaticDims();
     size_t n_tokens = indexShape[0];
     size_t active_experts_per_token = indexShape[1];
-
-    const auto& srcShape = srcMem->getStaticDims();
-    bool broadcast_src = 1 == srcShape[0];
 
     auto src_offset = OffsetHelper::createOffsetHelper(srcMem);
     auto dst_offset = OffsetHelper::createOffsetHelper(dstMem);
@@ -687,6 +725,11 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
             const auto* expert_ids = static_cast<const int32_t*>(index_offset(token));
             for (size_t expert = 0; expert < active_experts_per_token; expert++) {
                 int32_t expert_id = expert_ids[expert];
+                CPU_NODE_ASSERT(expert_id >= 0 && static_cast<size_t>(expert_id) < max_experts,
+                                "Invalid expert_id ",
+                                expert_id,
+                                " for token ",
+                                token);
                 auto& index = expert_token_counters[expert_id];
                 expert_tokens[expert_id * n_tokens + index] = {token, expert};
                 index++;
@@ -722,7 +765,7 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
                     if (m < num_valid_tokens) {
                         const auto token = expert_tokens[expert_id * n_tokens + m].first;
                         const auto expert = expert_tokens[expert_id * n_tokens + m].second;
-                        const auto* src_data = src_offset(broadcast_src ? 0 : expert, token);
+                        const auto* src_data = src_offset(expert, token);
                         std::memcpy(dst_row, src_data, K_size * element_size);
                     } else {
                         // Zero padding for rows beyond num_valid_tokens
@@ -761,7 +804,7 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
                 for (int32_t index = 0; index < expert_token_counters[expert_id]; ++index) {
                     const auto token = expert_tokens[expert_id * n_tokens + index].first;
                     const auto expert = expert_tokens[expert_id * n_tokens + index].second;
-                    auto* src = src_offset(broadcast_src ? 0 : expert, token);
+                    auto* src = src_offset(expert, token);
                     auto* dst = dst_offset(expert, token);
                     gemv_impl->exec(strm, src, dst, wei, bias, scale, zp);
                 }
@@ -774,7 +817,7 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
         auto* expert_ids = static_cast<int32_t*>(index_offset(token));
         for (size_t expert = 0; expert < active_experts_per_token; expert++) {
             int32_t expert_id = expert_ids[expert];
-            auto* src = src_offset(broadcast_src ? 0 : expert, token);
+            auto* src = src_offset(expert, token);
             auto* dst = dst_offset(expert, token);
             auto* wei = wei_offset(expert_id);
             auto* bias = bias_offset(expert_id);
