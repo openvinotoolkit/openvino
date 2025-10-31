@@ -35,7 +35,7 @@ public:
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
         visitor.on_attribute(POINTER_KEY.data(), memory_pointer);
-        visitor.on_attribute(POINTER_KEY.data(), byte_size);
+        visitor.on_attribute(BYTE_SIZE_KEY.data(), byte_size);
         return true;
     }
 
