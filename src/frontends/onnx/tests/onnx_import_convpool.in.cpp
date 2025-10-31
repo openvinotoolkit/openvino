@@ -518,7 +518,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_auto_pad_same_upper_no_o
     // Verify the output shape is correct
     ASSERT_EQ(model->get_output_shape(0), (ov::Shape{1, 1, 32, 32}));
 
-    // Also verify inference produces correct results
+    // Verify inference produces correct results against ONNXRuntime reference
     auto test_case = ov::test::TestCase(model, s_device);
 
     // Input data: [1,1,32,32] with constant value 1.0
@@ -527,10 +527,42 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_auto_pad_same_upper_no_o
     // Filters: [1,1,3,3] with constant value 1.0
     test_case.add_input<float>(std::vector<float>(9, 1.0f));
 
-    // Expected output: [1,1,32,32]
-    // With padding [1,1] on all sides, interior pixels have value 9.0, edges have lower values
-    // We don't specify exact expected values as the test primarily validates shape compliance
-    // The fact that inference runs without error validates correctness
+    // Expected output: [1,1,32,32] - reference values from ONNXRuntime
+    // Pattern: corners=4, edges=6, interior=9 (due to padding [1,1])
+    test_case.add_expected_output<float>(
+        ov::Shape{1, 1, 32, 32},
+        {4.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 4.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         4.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 4.f});
 
     test_case.run();
 }
@@ -552,6 +584,43 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_auto_pad_same_upper_stri
     // Filters: [1,1,3,3]
     test_case.add_input<float>(std::vector<float>(9, 1.0f));
 
+    // Expected output: [1,1,32,32] - reference values from ONNXRuntime
+    // Pattern with stride=2: corners/edges=1, even rows interior=2, odd rows interior=4
+    test_case.add_expected_output<float>(
+        ov::Shape{1, 1, 32, 32},
+        {1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f,
+         2.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f,
+         1.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f, 2.f, 1.f});
+
     test_case.run();
 }
 
@@ -572,6 +641,44 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_auto_pad_same_lower_no_o
 
     // Filters: [1,1,3,3]
     test_case.add_input<float>(std::vector<float>(9, 1.0f));
+
+    // Expected output: [1,1,32,32] - reference values from ONNXRuntime
+    // Note: SAME_LOWER produces identical output to SAME_UPPER for this configuration
+    // Pattern: corners=4, edges=6, interior=9 (due to padding [1,1])
+    test_case.add_expected_output<float>(
+        ov::Shape{1, 1, 32, 32},
+        {4.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 4.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         6.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 9.f, 6.f,
+         4.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 6.f, 4.f});
 
     test_case.run();
 }
