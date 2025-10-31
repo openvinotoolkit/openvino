@@ -1426,4 +1426,26 @@ struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, b
     }
 };
 
+struct OP_EXTENSION_LIBS final : OptionBase<OP_EXTENSION_LIBS, std::string> {
+    static std::string_view key() {
+        return ov::intel_npu::op_extension_libs.name();
+    }
+
+    static std::string defaultValue() {
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(7, 4);
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+};
+
 }  // namespace intel_npu
