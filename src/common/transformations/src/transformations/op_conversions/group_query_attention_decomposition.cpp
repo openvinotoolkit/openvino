@@ -128,6 +128,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         past_key = register_new_node<v8::Slice>(past_key, current_kv_len_const, past_kv_len_const, one, two);
         past_value = register_new_node<v8::Slice>(past_value, current_kv_len_const, past_kv_len_const, one, two);
     }
+
+    past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
+    past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
     K = construct_kv_cache(past_key, K);
     V = construct_kv_cache(past_value, V);
 
