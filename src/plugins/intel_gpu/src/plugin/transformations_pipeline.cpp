@@ -391,27 +391,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         using namespace ov::pass::low_precision;
         auto is_model_quantized = LowPrecision::isFunctionQuantized(func, std::set<levels>{levels::int8, levels::int8_narrow_range});
         enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
-#define SERIALIZE_GRAPHS(name)                                                                                                \
-    do {                                                                                                                      \
-        if (std::getenv("QDQ_STRIPPING_SERIALIZE")) {                                                                         \
-            manager.register_pass<ov::pass::Serialize>(std::string("qdq_stripping_dumps/") + name + std::string(".xml"), ""); \
-            manager.register_pass<ov::pass::VisualizeTree>(std::string("qdq_stripping_dumps/") + name + std::string(".svg")); \
-        }                                                                                                                     \
-    } while (0)
         {
             using namespace ov::element;
             // QDQ stripping pipeline
             // 1. Transform DQ part to canonicalized form: Multiply->Add => Subtract->Multiply
-            SERIALIZE_GRAPHS("before");
             manager.register_pass<AddTransformation>();
-            SERIALIZE_GRAPHS("add_transformation");
             // 2. Fuse FQ->Convert->DQ to a single FQ
             manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16, i32}, TypeVector{f16, f32}, true);
-            SERIALIZE_GRAPHS("convert_qdq");
             // 3. Strip FQ layers with unsupported levels
             bool replace_with_clamp = true;
             manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, replace_with_clamp);
-            SERIALIZE_GRAPHS("fq_stripping");
         }
 
         manager.register_pass<ov::pass::MarkDequantization>(
