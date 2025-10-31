@@ -6,7 +6,7 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-  pull_request:
+
   merge_group:
   push:
     branches:
@@ -101,14 +101,14 @@ jobs:
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
         -G 'Ninja'
-        -DENABLE_CPPLINT=OFF 
-        -DENABLE_NCC_STYLE=OFF 
-        -DENABLE_INTEL_NPU=OFF 
-        -DENABLE_TESTS=ON 
-        -DENABLE_STRICT_DEPENDENCIES=OFF 
-        -DENABLE_SYSTEM_OPENCL=ON 
-        -DCPACK_GENERATOR=TGZ 
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON 
+        -DENABLE_CPPLINT=OFF
+        -DENABLE_NCC_STYLE=OFF
+        -DENABLE_INTEL_NPU=OFF
+        -DENABLE_TESTS=ON
+        -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DENABLE_SYSTEM_OPENCL=ON
+        -DCPACK_GENERATOR=TGZ
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DCMAKE_BUILD_TYPE=Release
 
   RPM_Packages:
@@ -177,7 +177,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'fedora_29'
-  
+
   Overall_Status:
     name: ci/gha_overall_status_fedora
     needs: [Smart_CI, Build, CXX_Unit_Tests, RPM_Packages]

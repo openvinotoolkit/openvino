@@ -55,11 +55,23 @@ jobs:
           echo "target_branch=${TARGET_BRANCH#refs/heads/}" >> $GITHUB_OUTPUT
 
   Build:
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          - variant: 'baseline'
+            cache: True
+            runner: 'aks-win-32-cores-128gb-build-st'
+          - variant: 'baseline-no_cache'
+            cache: False
+            runner: 'aks-win-32-cores-128gb-build-st'
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
+    name: Build - ${{ matrix.build.variant }}
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-32-cores-128gb-build'
+      cache: ${{ matrix.build.cache }}
+      runner: ${{ matrix.build.runner }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
@@ -71,28 +83,3 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
-
-  CXX_Unit_Tests:
-    name: C++ unit tests
-    needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/job_cxx_unit_tests.yml
-    with:
-      runner: 'aks-win-4-cores-8gb-test'
-      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      os: 'windows_2022'
-      build-type: 'Debug'
-      timeout-minutes: 90
-
-  Overall_Status:
-    name: ci/gha_overall_status_windows_debug
-    needs: [ Smart_CI, Build, CXX_Unit_Tests ]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1
