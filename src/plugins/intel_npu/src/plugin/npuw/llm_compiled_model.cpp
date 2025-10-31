@@ -1446,6 +1446,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Creating LLMCompiledModel");
     LOG_BLOCK();
 
+    m_model_rt_info = model->get_rt_info();
+
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
     const auto npudesc = extract_npu_descriptor(plugin);

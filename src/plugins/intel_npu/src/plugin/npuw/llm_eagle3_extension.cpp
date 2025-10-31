@@ -21,7 +21,7 @@ bool matchEagle3InternalHiddenStatesString(const std::string& input) {
     return input == Eagle3LayerNames::internal_hidden_states;
 }
 
-void Eagle3Extension::validate_tensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& name) {
+void Eagle3Extension::validate_hidden_state_tensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& name) {
     OPENVINO_ASSERT(ov::element::f32 == tensor->get_element_type() || ov::element::f16 == tensor->get_element_type(),
                     name + " input must be float32 or float16");
     OPENVINO_ASSERT(tensor->get_shape().size() == 3,
@@ -77,8 +77,21 @@ void pad_hidden_state_input(const ov::SoPtr<ov::ITensor>& padded_hidden_state,
 namespace ov {
 namespace npuw {
 
-void Eagle3Extension::initialize(const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
+void Eagle3Extension::initialize(const ov::AnyMap& rt_info,
+                                 const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
                                  const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports) {
+    bool is_eagle3_model = false;
+    if (auto it = rt_info.find("eagle3_mode"); it != rt_info.end()) {
+        is_eagle3_model = it->second.as<bool>();
+    }
+
+    if (!is_eagle3_model) {
+        m_role = Eagle3ModelRole::None;
+        LOG_DEBUG("Not an Eagle3 model (eagle3_mode not found or false in rt_info)");
+        return;
+    }
+
+    // It's an Eagle3 model, now determine if it's Draft or Target based on inputs/outputs
     bool has_hidden_states_input = in_ports.find(Eagle3LayerNames::hidden_states) != in_ports.end();
     bool has_internal_hidden_states_input = in_ports.find(Eagle3LayerNames::internal_hidden_states) != in_ports.end();
     bool has_last_hidden_state_output = out_ports.find(Eagle3LayerNames::last_hidden_state) != out_ports.end();
@@ -86,13 +99,12 @@ void Eagle3Extension::initialize(const std::unordered_map<std::string, ov::Outpu
     if (has_hidden_states_input && has_internal_hidden_states_input && has_last_hidden_state_output) {
         m_role = Eagle3ModelRole::Draft;
         LOG_INFO("Eagle3 Draft Model detected");
-        LOG_DEBUG("Eagle3 draft model: inputs hidden_states, internal_hidden_states, and output last_hidden_state");
     } else if (!has_hidden_states_input && !has_internal_hidden_states_input && has_last_hidden_state_output) {
         m_role = Eagle3ModelRole::Target;
         LOG_INFO("Eagle3 Target Model detected");
-        LOG_DEBUG("Eagle3 target model: only output last_hidden_state");
     } else {
         m_role = Eagle3ModelRole::None;
+        LOG_WARN("Eagle3 model flag set in rt_info, but model structure doesn't match Draft or Target pattern");
     }
 }
 
@@ -141,7 +153,6 @@ void Eagle3Extension::prepare_inputs_for_chunk(
         return;
     }
 
-    // Helper lambda to process a single hidden state input with chunk slicing
     auto process_hidden_state_chunk = [&](const std::string& input_name,
                                           const ov::SoPtr<ov::ITensor>& original_tensor) {
         auto input_it = in_ports.find(input_name);
