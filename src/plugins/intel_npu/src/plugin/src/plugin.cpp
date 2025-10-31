@@ -152,7 +152,19 @@ static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& bas
         // if compiler_type is provided by local config = use that
         return COMPILER_TYPE::parse(it->second.as<std::string>());
     }
+
     // if there is no compiler_type provided = use base_config value
+    // update the compilerType by platform:
+    //  3720 -> DRIVER
+    //    4000 and later -> MLIR (default value)
+    auto it_platform = local_conf.find(std::string(PLATFORM::key()));
+    if (it_platform != local_conf.end()) {
+        // if platform is provided by local config = use that
+        if (it_platform->second.as<std::string>() == ov::intel_npu::Platform::NPU3720) {
+            return ov::intel_npu::CompilerType::DRIVER;
+        }
+    }
+
     return base_conf.get<COMPILER_TYPE>();
 }
 
@@ -602,6 +614,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
 
+#ifndef VCL_FOR_COMPILER
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
@@ -609,6 +622,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             OPENVINO_THROW("Option 'CACHE_DIR' is not supported with MLIR compiler type");
         }
     }
+#endif
 
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
@@ -699,8 +713,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localConfig.update({{ov::intel_npu::weightless_blob.name(), cacheModeOptimizeSize ? "YES" : "NO"}});
     }
 
-    std::shared_ptr<intel_npu::IGraph> graph;
+#ifndef VCL_FOR_COMPILER
+    compiler.update_CompilerPlatform(resolveCompilerType(_globalConfig, properties), platform);
+#endif
 
+    std::shared_ptr<intel_npu::IGraph> graph;
     try {
         _logger.debug("performing compile");
 

@@ -16,6 +16,8 @@ class CompilerAdapterFactory final {
 public:
     std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
                                                   const ov::intel_npu::CompilerType type) const {
+        std::cout << "CompilerAdapterFactory::getCompiler called with type: "
+                  << (type == ov::intel_npu::CompilerType::MLIR ? "MLIR" : "DRIVER") << std::endl;
         switch (type) {
         case ov::intel_npu::CompilerType::MLIR: {
             if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
@@ -27,7 +29,6 @@ public:
             if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
                 OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
             }
-
             return std::make_unique<DriverCompilerAdapter>(engineBackend->getInitStructs());
         }
         default:

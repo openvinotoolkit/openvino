@@ -36,6 +36,12 @@ public:
 
     uint32_t get_version() const override;
 
+#ifndef VCL_FOR_COMPILER
+    void update_CompilerPlatform(const std::string platform) {
+        std::cout << "---3.2---update_CompilerPlatform in driver adapter.cpp. just for test" << platform << std::endl;
+    }
+#endif
+
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
