@@ -28,14 +28,6 @@ auto create_layout(ShapeType shape) {
       return layout{shape, data_types::f16, format::bfyx};
 }
 
-template<class InputIt, class OutputIt, class T, class BinaryOp>
-OutputIt exclusive_scan(InputIt first, InputIt last, OutputIt result, T init, BinaryOp op) {
-    for (; first != last; ++first, ++result) {
-        *result = init;
-        init = op(init, *first);
-    }
-    return result;
-}
 
 template <typename T>
 void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
@@ -121,17 +113,7 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
     std::vector<int32_t> tokens_per_expert_data;
     std::vector<int32_t> tokens_len_per_expert_data;
     std::vector<int32_t> experts_ids_data;
-#if 0
-    std::vector<int32_t> experts_ids_data = {0, 5, 7, 10, 11, 20, 31};
-    for (size_t i = 0; i < tokens_per_expert_tmp.size(); ++i) {
-        tokens_len_per_expert_data.push_back(tokens_per_expert_tmp[i].size());
-        if (tokens_per_expert_tmp[i].empty())
-            continue;
-        for (size_t j = 0; j < tokens_per_expert_tmp[i].size(); ++j) {
-            tokens_per_expert_data.push_back(tokens_per_expert_tmp[i][j]);
-        }
-    }
-#endif
+
     for (size_t i = 0; i < tokens_per_expert_tmp.size(); ++i) {
         if (tokens_per_expert_tmp[i].empty())
             continue;
@@ -142,9 +124,10 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
         }
     }
 
-    std::vector<int32_t> expert_info_start_idx(tokens_len_per_expert_data.size());
-    exclusive_scan(tokens_len_per_expert_data.begin(), tokens_len_per_expert_data.end(),
-        expert_info_start_idx.begin(), 0);
+    std::vector<int32_t> expert_info_start_idx(tokens_len_per_expert_data.size(), 0);
+    for (size_t i = 1; i < tokens_len_per_expert_data.size(); ++i) {
+        expert_info_start_idx[i] = expert_info_start_idx[i - 1] + tokens_len_per_expert_data[i - 1];
+    }
 
     // tokens per expert
     // experts 0, 5, 7, 10, 11, 20, 31 are used
