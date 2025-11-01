@@ -5,9 +5,9 @@
 
 #include "../common_utils/dispatch_utils.hpp"
 #include "../common_utils/jitter.hpp"
-#include "intel_gpu/primitives/moe_scatter_reduction.hpp"
 #include "../primitive_ocl_base.hpp"
 #include "../utils/kernel_generator.hpp"
+#include "intel_gpu/primitives/moe_scatter_reduction.hpp"
 
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -107,13 +107,13 @@ protected:
             if (!params.is_dynamic()) {
                 size_t hidden_size = params.input_layouts[0].get_shape().back();
                 auto block_size = GetBlockSize(params);
-                auto [local_threads_count, batches_per_thread, unaligned_elements]  = calc_thread_count(
-                    const_cast<RuntimeParams&>(params), block_size, hidden_size);
+                auto [local_threads_count, batches_per_thread, unaligned_elements] =
+                    calc_thread_count(const_cast<RuntimeParams&>(params), block_size, hidden_size);
 
                 auto num_tokens = extract_channel(ChannelName::BATCH, params.input_layouts[1]);
 
                 wgs.global = {num_tokens * local_threads_count, 1, 1};
-                wgs.local = { local_threads_count, 1, 1};
+                wgs.local = {local_threads_count, 1, 1};
             }
         }};
     }

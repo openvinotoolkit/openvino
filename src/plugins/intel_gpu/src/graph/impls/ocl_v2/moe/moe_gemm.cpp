@@ -4,12 +4,12 @@
 // clang-format off
 #include "moe_gemm_gen_micro.hpp"
 // clang-format on
-#include "moe_gemm.hpp"
-#include "moe_gemm_base.hpp"
 
 #include "moe_gemm_inst.h"
 #include "common_utils/dispatch_utils.hpp"
 #include "common_utils/jitter.hpp"
+#include "moe_gemm_base.hpp"
+#include "moe_gemm.hpp"
 #include "ocl_v2/utils/fused_ops_jitter.hpp"
 #include "../primitive_ocl_base.hpp"
 #include "../utils/jitter.hpp"
@@ -18,15 +18,15 @@
 namespace ov::intel_gpu::ocl {
 namespace {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    inline bool is_prefill_stage(const RuntimeParams& params) {
-        const auto target_seq_len = params.input_layouts[0].get_partial_shape()[0];
-        const auto num_offsets = params.input_layouts[3].get_partial_shape()[0];
-        if (num_offsets.is_dynamic())
-            return false;
-        if (target_seq_len.is_dynamic())
-            return false;
-        return (target_seq_len.get_length() / num_offsets.get_length()) > 1;
-    }
+inline bool is_prefill_stage(const RuntimeParams& params) {
+    const auto target_seq_len = params.input_layouts[0].get_partial_shape()[0];
+    const auto num_offsets = params.input_layouts[3].get_partial_shape()[0];
+    if (num_offsets.is_dynamic())
+        return false;
+    if (target_seq_len.is_dynamic())
+        return false;
+    return (target_seq_len.get_length() / num_offsets.get_length()) > 1;
+}
 #endif
 class MoEGemmImpl : public PrimitiveImplOCL {
 public:

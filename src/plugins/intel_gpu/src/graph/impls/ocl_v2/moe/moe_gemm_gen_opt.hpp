@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ocl_v2/utils/jitter.hpp"
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -12,6 +11,7 @@
 
 #include "moe_gemm_inst.h"
 #include "moe_gemm_base.hpp"
+#include "ocl_v2/utils/jitter.hpp"
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
 
