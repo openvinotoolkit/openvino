@@ -28,6 +28,15 @@ auto create_layout(ShapeType shape) {
       return layout{shape, data_types::f16, format::bfyx};
 }
 
+template<class InputIt, class OutputIt, class T, class BinaryOp>
+OutputIt exclusive_scan(InputIt first, InputIt last, OutputIt result, T init, BinaryOp op) {
+    for (; first != last; ++first, ++result) {
+        *result = init;
+        init = op(init, *first);
+    }
+    return result;
+}
+
 template <typename T>
 void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
     auto& engine = get_test_engine();
@@ -134,7 +143,7 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
     }
 
     std::vector<int32_t> expert_info_start_idx(tokens_len_per_expert_data.size());
-    std::exclusive_scan(tokens_len_per_expert_data.begin(), tokens_len_per_expert_data.end(),
+    exclusive_scan(tokens_len_per_expert_data.begin(), tokens_len_per_expert_data.end(),
         expert_info_start_idx.begin(), 0);
 
     // tokens per expert
