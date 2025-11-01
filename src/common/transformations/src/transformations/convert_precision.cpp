@@ -1267,112 +1267,31 @@ void convert_lp_value(const SRC& src,
 std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<ov::op::v0::Constant>& constant,
                                                  ov::element::Type to) {
     // Supported integer precisions
-    static const precisions_set_t supported_integer_precisions = {ov::element::i4, ov::element::u4, ov::element::u1};
-    // Get source element type and source data
+    static const precisions_set_t supported_integer_precisions = {ov::element::i4,
+                                                                   ov::element::u4,
+                                                                   ov::element::u1,
+                                                                   ov::element::u2};
     auto src_type = constant->get_element_type();
-    const auto* src_data = reinterpret_cast<const uint8_t*>(constant->get_data_ptr());
 
-    // We support conversion only if several elements can be represented in one instance of some
-    // C++ common data type without any exception, destination data type should be bigger than
-    // source and destination data type should be real
-    if (!supported_integer_precisions.count(src_type) || (src_type.size() * 8) % src_type.bitwidth() ||
-        (to.size() * 8) % to.bitwidth() || to.is_real() || to.bitwidth() < src_type.bitwidth())
-        OPENVINO_THROW("Convert low precision for " + constant->get_element_type().get_type_name() + " to " +
-                       to.get_type_name() + " is not implemented!");
-
-    // Create a new constant operation and get destination data
-    auto new_constant = std::make_shared<ov::op::v0::Constant>(to, constant->get_shape());
-    auto* dst_data = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_constant->get_data_ptr()));
-    // Check pointers
-    if (src_data == nullptr || dst_data == nullptr)
-        OPENVINO_THROW("Can't get data pointer");
-
-    // Convert values
-    const auto size = shape_size(constant->get_shape());
-    size_t src_idx(0), dst_idx(0), dst_off(0), src_off(0);
-    if (src_type.bitwidth() < 8) {
-        src_off = element::is_lsb_packed(src_type) ? 0 : (8 - src_type.bitwidth());
+    // Validate conversion is supported
+    if (!supported_integer_precisions.count(src_type) || to.is_real() || to.bitwidth() < src_type.bitwidth()) {
+        OPENVINO_THROW("Convert low precision for ",
+                       src_type.get_type_name(),
+                       " to ",
+                       to.get_type_name(),
+                       " is not implemented!");
     }
 
-    if (to.bitwidth() < 8) {
-        dst_off = 8 - to.bitwidth();
-    }
+    // Use Convert operator's evaluate() to perform conversion
+    // This ensures consistent nibble packing order (LSB-first) with element::iterator
+    auto outputs = ov::TensorVector{{to, constant->get_shape()}};
+    OPENVINO_ASSERT(ov::op::v0::Convert(constant, to).evaluate(outputs, {constant->get_tensor_view()}),
+                    "Failed to convert constant from ",
+                    src_type.get_type_name(),
+                    " to ",
+                    to.get_type_name());
 
-    for (size_t i = 0; i < size; i++) {
-        // Source type at the current moment always less than 1 byte
-        // Select the right destination type
-        switch (to.size()) {
-        case 1:
-            convert_lp_value<uint8_t, uint8_t>(src_data[src_idx],
-                                               dst_data[dst_idx],
-                                               src_off,
-                                               src_type.bitwidth(),
-                                               dst_off,
-                                               to.bitwidth(),
-                                               src_type.is_signed());
-            break;
-        case 2:
-            convert_lp_value<uint8_t, uint16_t>(src_data[src_idx],
-                                                reinterpret_cast<uint16_t*>(dst_data)[dst_idx],
-                                                src_off,
-                                                src_type.bitwidth(),
-                                                dst_off,
-                                                to.bitwidth(),
-                                                src_type.is_signed());
-            break;
-        case 4:
-            convert_lp_value<uint8_t, uint32_t>(src_data[src_idx],
-                                                reinterpret_cast<uint32_t*>(dst_data)[dst_idx],
-                                                src_off,
-                                                src_type.bitwidth(),
-                                                dst_off,
-                                                to.bitwidth(),
-                                                src_type.is_signed());
-            break;
-        case 8:
-            convert_lp_value<uint8_t, uint64_t>(src_data[src_idx],
-                                                reinterpret_cast<uint64_t*>(dst_data)[dst_idx],
-                                                src_off,
-                                                src_type.bitwidth(),
-                                                dst_off,
-                                                to.bitwidth(),
-                                                src_type.is_signed());
-            break;
-        default:
-            OPENVINO_THROW("Unsupported element size!");
-        }
-        // Calculate offsets and indexes
-        if (src_type.bitwidth() < 8) {
-            if (element::is_lsb_packed(src_type)) {
-                // LSB-first: offset goes up 0 → 4 → next byte
-                src_off += src_type.bitwidth();
-                if (src_off >= 8) {
-                    src_off = 0;
-                    src_idx++;
-                }
-            } else {
-                // MSB-first: offset goes down 4 → 0 → next byte
-                if (src_off == 0) {
-                    src_off = 8;
-                    src_idx++;
-                }
-                src_off -= src_type.bitwidth();
-            }
-        } else {
-            src_idx++;
-        }
-        if (to.bitwidth() < 8) {
-            if (dst_off == 0) {
-                dst_off = 8;
-                dst_idx++;
-            }
-            dst_off -= to.bitwidth();
-        } else {
-            dst_idx++;
-        }
-    }
-
-    return new_constant;
+    return std::make_shared<ov::op::v0::Constant>(std::move(outputs[0]));
 }
 
 }  // namespace
