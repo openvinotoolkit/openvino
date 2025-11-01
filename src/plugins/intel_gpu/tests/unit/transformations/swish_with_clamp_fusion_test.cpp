@@ -27,7 +27,6 @@
 using namespace ov;
 using namespace testing;
 using namespace ov::intel_gpu;
-
 TEST_F(TransformationTestsF, SwishFusionWithClamp) {
     {
         auto reshape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{32, -1, 2880});
@@ -48,7 +47,7 @@ TEST_F(TransformationTestsF, SwishFusionWithClamp) {
 
         auto min_val = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1, 1, 1});
         auto min = std::make_shared<ov::op::v1::Minimum>(slice1, min_val);
-        auto beta = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+        auto beta = ov::op::v0::Constant::create(element::f32, Shape{}, {1.7f});
         auto swish = std::make_shared<ov::op::v4::Swish>(min, beta);
 
         auto clamp = std::make_shared<ov::op::v0::Clamp>(slice2, -7.0, 7.0);
@@ -63,7 +62,7 @@ TEST_F(TransformationTestsF, SwishFusionWithClamp) {
 
         auto result = std::make_shared<ov::op::v0::Result>(gemm_down);
 
-        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{reshape, convert1, convert2, beta});
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{reshape, convert1, convert2});
 
         manager.register_pass<SwiGluFusionWithClamp>();
     }
@@ -101,7 +100,7 @@ TEST_F(TransformationTestsF, SwishFusionWithClampStrided) {
 
         auto min_val = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1, 1, 1});
         auto min = std::make_shared<ov::op::v1::Minimum>(slice1, min_val);
-        auto beta = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+        auto beta = ov::op::v0::Constant::create(element::f32, Shape{}, {1.7f});
         auto swish = std::make_shared<ov::op::v4::Swish>(min, beta);
 
         auto clamp = std::make_shared<ov::op::v0::Clamp>(slice2, -7.0, 7.0);
@@ -116,7 +115,7 @@ TEST_F(TransformationTestsF, SwishFusionWithClampStrided) {
 
         auto result = std::make_shared<ov::op::v0::Result>(gemm_down);
 
-        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{reshape, convert1, convert2, beta});
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{reshape, convert1, convert2});
 
         manager.register_pass<SwiGluFusionWithClamp>();
     }
