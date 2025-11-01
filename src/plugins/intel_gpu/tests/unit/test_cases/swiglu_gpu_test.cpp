@@ -96,7 +96,7 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn) {
         EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
     }
 }
-#if 0
+
 TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn_clamp) {
     auto& engine = get_test_engine();
 
@@ -144,4 +144,3 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn_clamp) {
         EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
     }
 }
-#endif
