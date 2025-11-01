@@ -122,6 +122,34 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
+        // Check that the first input of Multiply is the gate (activation) branch and the second input is the up branch;
+        // otherwise, do not fuse. Input order is critical for correctness: mismatched input order can silently cause
+        // accuracy issues.
+        auto mlp_gated_up_node = pattern_map.at(mlp_gated_up).get_node_shared_ptr();
+        auto input0 = mlp_gated_up_node->input_value(0);
+        auto input1 = mlp_gated_up_node->input_value(1);
+
+        bool input0_is_gate = false;
+        bool input1_is_up = false;
+
+        if (pattern_map.count(mlp_silu_gate) && input0.get_node() == pattern_map.at(mlp_silu_gate).get_node()) {
+            input0_is_gate = true;
+        }
+        if (pattern_map.count(mlp_gelu_gate) && input0.get_node() == pattern_map.at(mlp_gelu_gate).get_node()) {
+            input0_is_gate = true;
+        }
+
+        if (pattern_map.count(mlp_up_proj) && input1.get_node() == pattern_map.at(mlp_up_proj).get_node()) {
+            input1_is_up = true;
+        }
+        if (pattern_map.count(gate_up_proj_split) &&
+            input1.get_node() == pattern_map.at(gate_up_proj_split).get_node() && input1.get_index() == 1) {
+            input1_is_up = true;
+        }
+
+        if (!input0_is_gate || !input1_is_up) {
+            return false;
+        }
         auto src = pattern_map.at(input);
         if (!src.get_element_type().is_real()) {
             // FakeQuantize, should skip fusion

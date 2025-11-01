@@ -36,8 +36,7 @@ void create_gemm_loop_infos(const LinearIRPtr& linear_ir,
                 std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>(gemm_expr->get_input_port(0)),
                                       LoopPort::create<PortType::Incremented>(gemm_expr->get_input_port(1), 0)},
                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(gemm_expr->get_output_port(0), 0)},
-                false,
-                BrgemmBlockingBase::get_default_blocking_loop_handlers(n, n_blk)));
+                false));
     }
     if (m_block) {
         std::vector<LoopPort> entries{LoopPort::create<PortType::Incremented>(gemm_expr->get_input_port(0), 1),
@@ -46,8 +45,7 @@ void create_gemm_loop_infos(const LinearIRPtr& linear_ir,
             std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk,
                 entries,
                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(gemm_expr->get_output_port(0), 1)},
-                false,
-                BrgemmBlockingBase::get_default_blocking_loop_handlers(m, m_blk)));
+                false));
     }
 }
 

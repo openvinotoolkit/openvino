@@ -122,6 +122,8 @@ Multiple inferences can be executed in parallel, either from the same applicatio
 Note: the current implementation of this property does not estimate or check the duration of the model execution. A fixed number of recommended inference requests is currently returned based on the existing performance data gathered from a reduced set of models with different topologies.
 <br>
 
+Developers and contributors can find more details on the internal design of an inference request [here](./docs/inference-request.md).
+
 ## Supported Properties
 
 Properties can be used to query and adjust the behavior of the NPU plugin itself or various parameters that control model compilation and execution.  

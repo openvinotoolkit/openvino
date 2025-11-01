@@ -13,13 +13,11 @@
 
 namespace ov::util {
 
-class OPENVINO_API OstreamHashWrapperBin final : public std::streambuf {
+class OstreamHashWrapperBin final : public std::streambuf {
     uint64_t m_res = 0lu;
 
 public:
-    uint64_t get_result() const {
-        return m_res;
-    }
+    uint64_t get_result() const;
     std::streamsize xsputn(const char* s, std::streamsize n) override;
 };
 

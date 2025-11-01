@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -253,8 +253,7 @@
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
-#    include "low_precision/convolution.hpp"
-#    include "low_precision/convolution_backprop_data.hpp"
+#    include "low_precision/fake_quantize.hpp"
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
@@ -266,11 +265,13 @@
 #    include "low_precision/reduce_mean.hpp"
 #    include "low_precision/reduce_min.hpp"
 #    include "low_precision/reduce_sum.hpp"
+#    include "openvino/opsets/opset1_decl.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #    include "transformations/cpu_opset/arm/pass/deconv_1d_decomposition.hpp"
+#    include "transformations/cpu_opset/arm/pass/grid_sample_decomposition.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #else
@@ -513,8 +514,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                               {ov::element::u32, ov::element::i32},
                               {ov::element::f64, ov::element::f32},
                               {ov::element::boolean, ov::element::u8},
-                              {ov::element::i4, ov::element::i8},
-                              {ov::element::u4, ov::element::u8}};
+                              {ov::element::u4, ov::element::u8},
+                              {ov::element::i4, ov::element::i8}};
 
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!hasHardwareSupport(ov::element::bf16)) {
@@ -556,7 +557,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             });
         },
         ov::pass::KeepConstAndDecompression);
-
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
@@ -601,8 +601,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     };
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
-    CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
-    CPU_SET_CALLBACK_X64(
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
+    CPU_SET_CALLBACK_COMMON(
         manager,
         [&](const_node_ptr& node) -> bool {
             return !is_decompression_multiply(node);
@@ -652,6 +652,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                              convert_input_output_precision);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateIdentityConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
@@ -661,6 +662,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_ARM(manager, ConvertConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConvolution);
+    // Register GridSample decomposition that handles all interpolation modes
+    CPU_REGISTER_PASS_ARM(manager, GridSampleDecomposition);
     CPU_REGISTER_PASS_ARM(manager, Deconv1DDecomposition);
     // The plugin computes Divide in floating point precision.
     // To preserve correct math for integer division we need to insert explicit Floor operation.
@@ -905,9 +908,12 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     ov::pass::Manager lptManager("CPU:LPT");
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>();
+    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>(
+        {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0})});
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
-        PrecisionsRestriction::create<ov::op::v0::MatMul>({{{0, 1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::Convolution>({{{0, 1}, {ov::element::u8, ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::op::v0::MatMul>(
+            {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
     });
 #else
     // Only enable conv/group conv signed input on AMX and avx2_vnni_2 platform.
@@ -960,8 +966,6 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
@@ -984,6 +988,18 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                    !any_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3);
         },
         MatMulTransformation);
+
+    // Disable FakeQuantizeTransformation to preserve Convolution dequantization scale as a separate op
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [&](const_node_ptr& node) -> bool {
+            auto eltwise = node->get_input_node_shared_ptr(0);
+            if (ov::is_type<ov::op::v1::Multiply>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
+                return ov::is_type<ov::op::v1::Convolution>(eltwise->get_input_node_shared_ptr(0));
+            }
+            return false;
+        },
+        FakeQuantizeTransformation);
 
     CPU_SET_CALLBACK_X64(
         lptManager,
@@ -1029,7 +1045,7 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Lpt);
 
     CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "LowPrecisionTransformations");
 
     runLptPasses(defaultPrecisions);
 }
@@ -1604,12 +1620,32 @@ void Transformations::PostSnippets() {
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
         },
         ov::pass::FakeQuantizeDecomposition);
+    // FQ node is not decomposed on ARM only if it is fused into Convolution node
+    // Otherwise FQ node is decomposed because there is no native support of FQ on ARM
+    CPU_SET_CALLBACK_ARM(
+        postSnippetsManager,
+        [](const_node_ptr& node) -> bool {
+            if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
+                ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
+                auto parent = node->get_input_node_shared_ptr(0);
+                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty() &&
+                    ov::is_type<const ov::op::v1::Convolution>(parent->get_input_node_shared_ptr(0))) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::ConstantFolding);
     postSnippetsManager.run_passes(model);
 }
 
 void Transformations::Snippets() {
+#if defined(ANDROID) || defined(__ANDROID__)
+    // On Android builds, disable CPU Snippets transformations entirely
+    return;
+#endif
     const bool useSnippets = config.snippetsMode != Config::SnippetsMode::Disable &&
                              CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
     if (!useSnippets) {

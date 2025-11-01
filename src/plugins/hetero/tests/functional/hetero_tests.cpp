@@ -918,3 +918,20 @@ void ov::hetero::tests::HeteroTests::SetUp() {
         reg_plugin_type<MockPluginGPU>("MOCKGPU");
     }
 }
+
+void ov::hetero::tests::HeteroTests::TearDown() {
+    for (const auto& plugin : m_mock_plugins) {
+        try {
+            core.unload_plugin(plugin->get_device_name());
+        } catch (...) {
+        }
+    }
+    m_mock_plugins = {};
+    clearMockPlugin();
+    m_so.reset();
+}
+
+void ov::hetero::tests::HeteroTests::clearMockPlugin() {
+    ASSERT_TRUE(m_so);
+    ov::test::utils::make_std_function<void()>(m_so, "ClearTargets")();
+}

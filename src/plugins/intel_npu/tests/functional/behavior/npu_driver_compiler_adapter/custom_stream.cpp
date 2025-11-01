@@ -5,7 +5,7 @@
 #include <random>
 
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "common/functions.h"
+#include "common/functions.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "intel_npu/config/options.hpp"
@@ -46,7 +46,7 @@ public:
         binFileName = fileName + ".bin";
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;

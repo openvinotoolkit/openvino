@@ -108,11 +108,11 @@ protected:
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
 
-            const auto& ol = params.output_layouts[0];
-            auto x = extract_channel(ChannelName::X, ol);
-            auto y = extract_channel(ChannelName::Y, ol);
-            auto f = extract_channel(ChannelName::FEATURE, ol);
-            auto b = extract_channel(ChannelName::BATCH, ol);
+            auto padded_dims = params.input_layouts[0].get_padded_dims();
+            auto x = padded_dims[3];
+            auto y = padded_dims[2];
+            auto f = padded_dims[1];
+            auto b = padded_dims[0];
 
             wgs.global[0] = x * y;
             wgs.global[1] = ceil_div(f, fsv) * b;

@@ -11,8 +11,7 @@
 
 #include "common_test_utils/float_util.hpp"
 
-using namespace std;
-using namespace ov;
+namespace ov::test {
 
 TEST(float16, conversions) {
     float16 f16;
@@ -85,8 +84,8 @@ TEST(float16, values) {
     EXPECT_EQ(static_cast<float16>(1.25 / (128.0 * 65536.0)).to_bits(), float16(0, 0, 2).to_bits());
     EXPECT_EQ(static_cast<float16>(std::numeric_limits<float>::infinity()).to_bits(), float16(0, 0x1F, 0).to_bits());
     EXPECT_EQ(static_cast<float16>(-std::numeric_limits<float>::infinity()).to_bits(), float16(1, 0x1F, 0).to_bits());
-    EXPECT_TRUE(isnan(static_cast<float16>(std::numeric_limits<float>::quiet_NaN())));
-    EXPECT_TRUE(isnan(static_cast<float16>(std::numeric_limits<float>::signaling_NaN())));
+    EXPECT_TRUE(std::isnan(static_cast<float16>(std::numeric_limits<float>::quiet_NaN())));
+    EXPECT_TRUE(std::isnan(static_cast<float16>(std::numeric_limits<float>::signaling_NaN())));
     EXPECT_EQ(static_cast<float16>(2.73786e-05).to_bits(), 459);
     EXPECT_EQ(static_cast<float16>(3.87722e-05).to_bits(), 650);
     EXPECT_EQ(static_cast<float16>(-0.0223043).to_bits(), 42422);
@@ -100,3 +99,14 @@ TEST(float16, values) {
     EXPECT_EQ(static_cast<float16>(65519.0).to_bits(), 0x7bff);
     EXPECT_EQ(static_cast<float16>(65520.0).to_bits(), 0x7c00);
 }
+
+TEST(float16, to_string) {
+    const float16 f16{1.5f};
+    EXPECT_EQ(std::to_string(f16), std::to_string(1.5f));
+}
+
+TEST(float16, size) {
+    const float16 f16{10.12f};
+    EXPECT_EQ(sizeof(f16), 2);
+}
+}  // namespace ov::test

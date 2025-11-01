@@ -15,8 +15,10 @@
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
-using namespace std;
+namespace ov::test {
+
+using std::make_shared;
+using std::vector;
 
 namespace {
 
@@ -2194,6 +2196,52 @@ TEST(constant_folding, const_gather_v7_subgraph_skip_if_not_single_input) {
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 1);
 }
 
+TEST(constant_folding, const_slice_numeric_data) {
+    const auto make_model = [](const element::Type& et) {
+        const auto data_i8 = op::v0::Constant::create(element::i8, Shape{5}, {1, 2, 3, 4, 5});
+        const auto data_et = std::make_shared<op::v0::Convert>(data_i8, et);
+
+        const auto starts = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{1});
+        const auto ends = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{3});
+        const auto step = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{1});
+        const auto slice = std::make_shared<op::v8::Slice>(data_et, starts, ends, step);
+
+        const auto input = std::make_shared<op::v0::Parameter>(et, Shape{1});
+        const auto add = std::make_shared<op::v1::Add>(input, slice);
+        return std::make_shared<Model>(OutputVector{add}, ParameterVector{input});
+    };
+    for (const auto& et : {element::i32, element::f32, element::u8}) {
+        auto model = make_model(et);
+        run_constant_folding(model);
+        EXPECT_EQ(count_ops_of_type<op::v8::Slice>(model), 0);
+        EXPECT_EQ(count_ops_of_type<op::v0::Constant>(model), 1);
+    }
+    for (const auto& et : {element::i4, element::f4e2m1, element::u4}) {
+        auto model = make_model(et);
+        run_constant_folding(model);
+        EXPECT_EQ(count_ops_of_type<op::v8::Slice>(model), 1);
+        EXPECT_EQ(count_ops_of_type<op::v0::Constant>(model), 5);
+    }
+}
+
+TEST(constant_folding, const_slice_string_data) {
+    const auto data =
+        op::v0::Constant::create(element::string, Shape{5}, std::vector<std::string>{"a", "b", "c", "d", "e"});
+
+    const auto starts = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{0});
+    const auto ends = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{4});
+    const auto step = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{2});
+    const auto slice = std::make_shared<op::v8::Slice>(data, starts, ends, step);
+
+    const auto input = std::make_shared<op::v0::Parameter>(element::string, Shape{1});
+    const auto cc = std::make_shared<op::v0::Concat>(OutputVector{input, slice}, 0);
+    auto model = std::make_shared<Model>(OutputVector{cc}, ParameterVector{input});
+
+    run_constant_folding(model);
+    EXPECT_EQ(count_ops_of_type<op::v8::Slice>(model), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(model), 5);
+}
+
 TEST(constant_folding, const_strided_slice) {
     Shape shape_in{16};
 
@@ -4076,3 +4124,4 @@ INSTANTIATE_TEST_SUITE_P(constant_folding,
                          UnsupportedTypesTest,
                          testing::ValuesIn(ov::util::unsupported_types()),
                          unsupported_types_test_case_name);
+}  // namespace ov::test

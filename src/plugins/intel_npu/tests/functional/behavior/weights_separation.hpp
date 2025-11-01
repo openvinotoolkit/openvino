@@ -23,7 +23,6 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
-#include "overload/overload_test_utils_npu.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -84,7 +83,7 @@ public:
             core->set_property({ov::cache_dir()});
             core.reset();
             ov::test::utils::PluginCache::get().reset();
-            ov::test::utils::removeFilesWithExt(m_cache_dir, "blob");
+            ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cache_dir, "blob");
             ov::test::utils::removeDir(m_cache_dir);
         }
 

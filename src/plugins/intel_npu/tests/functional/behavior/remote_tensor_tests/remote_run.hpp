@@ -13,14 +13,11 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "openvino/core/any.hpp"
-#include "openvino/core/type/element_iterator.hpp"
-#include "openvino/op/op.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "overload/overload_test_utils_npu.hpp"
 #include "remote_context.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "zero_backend.hpp"
@@ -38,12 +35,11 @@ protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> ov_model;
-    ov::CompiledModel compiled_model;
 
     std::string m_cache_dir;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
@@ -78,8 +74,7 @@ public:
         auto hash = std::to_string(std::hash<std::string>()(test_name));
         std::stringstream ss;
         auto ts = duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch());
-        ss << hash << "_"
-           << "_" << ts.count();
+        ss << hash << "_" << "_" << ts.count();
         return ss.str();
     }
 
@@ -88,7 +83,7 @@ public:
             core->set_property({ov::cache_dir()});
             core.reset();
             ov::test::utils::PluginCache::get().reset();
-            ov::test::utils::removeFilesWithExt(m_cache_dir, "blob");
+            ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cache_dir, "blob");
             ov::test::utils::removeDir(m_cache_dir);
         }
 
@@ -252,6 +247,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBuf) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::InferRequest inference_request;
+    ov::CompiledModel compiled_model;
 
     auto zero_context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, zero_context, configuration));
@@ -288,6 +284,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorImportFile0) {
     }
 
     ov::InferRequest inference_request;
+    ov::CompiledModel compiled_model;
 
     auto zero_context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, zero_context, configuration));
@@ -336,6 +333,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorImportFile1) {
     }
 
     ov::InferRequest inference_request;
+    ov::CompiledModel compiled_model;
 
     auto context = core->get_default_context(target_device);
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, context, configuration));
@@ -383,6 +381,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorImportFile2) {
     }
 
     ov::InferRequest inference_request;
+    ov::CompiledModel compiled_model;
 
     ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::MMAPED_FILE},
                          {ov::intel_npu::file_descriptor.name(), ov::intel_npu::FileDescriptor{filename}},
@@ -429,6 +428,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorImportFile3) {
         out.close();
     }
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::MMAPED_FILE},
@@ -469,6 +469,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {
                          {ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
 
     auto context = core->create_context(target_device, params);
+    ov::CompiledModel compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
     OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
 
@@ -487,6 +488,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {
 TEST_P(RemoteRunTests, CheckRemoteTensorSetOnlyTensorType) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     ov::AnyMap params = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
@@ -502,6 +504,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorSetOnlyTensorType) {
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChangedInTensor) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     ov::AnyMap paramsContext = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
@@ -527,6 +530,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChange
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChangedInTensorExpectToFail) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     ov::AnyMap paramsContext = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
@@ -545,6 +549,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChange
 TEST_P(RemoteRunTests, CheckImportModelPath) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     auto zero_context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
@@ -573,6 +578,7 @@ TEST_P(RemoteRunTests, CheckImportModelPath) {
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufChangingTensors) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
@@ -615,6 +621,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRuns) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     ov::Tensor first_output;
     ov::Tensor second_output;
@@ -658,6 +665,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromRemoteTensorFromDifferentContext) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     ov::Tensor first_output;
     ov::Tensor second_output;
@@ -712,6 +720,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors1) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     void* first_output = nullptr;
     ov::intel_npu::level_zero::ZeroBufferTensor remote_output_tensor;
@@ -763,6 +772,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors2) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     void* first_output = NULL;
     void* second_output;
@@ -811,6 +821,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors3) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     ov::Tensor first_output;
     void* second_output;
@@ -850,6 +861,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor1) 
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     ov::Tensor first_output;
 
@@ -878,6 +890,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor2) 
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
@@ -918,6 +931,7 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensors) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     testing::internal::Random random(1);
     ov::Tensor input_tensor;
 
@@ -1015,6 +1029,7 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensorsWithRemoteTensors) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     testing::internal::Random random(1);
     ov::Tensor input_tensor;
 
@@ -1113,6 +1128,7 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTens
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     testing::internal::Random random(1);
+    ov::CompiledModel compiled_model;
     ov::Tensor input_tensor;
 
     auto original_shape = Shape{1, 10, 10, 10};
@@ -1201,6 +1217,7 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTens
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     testing::internal::Random random(1);
+    ov::CompiledModel compiled_model;
     ov::Tensor input_tensor;
 
     auto original_shape = Shape{1, 10, 10, 10};
@@ -1325,6 +1342,7 @@ TEST_P(RemoteRunTests, SetMultipleDifferentTensors) {
     auto shape = Shape{1, 16, 16, 16};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
+    ov::CompiledModel compiled_model;
 
     auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
     compiled_model = core->compile_model(model, target_device, configuration);

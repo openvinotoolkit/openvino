@@ -22,6 +22,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
@@ -479,6 +480,30 @@ pass::EliminateConvert::EliminateConvert() {
     this->register_matcher(m, callback);
 }
 
+pass::EliminateIdentityConvert::EliminateIdentityConvert() {
+    MATCHER_SCOPE(EliminateIdentityConvert);
+    auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>();
+    auto convert_identity_pattern = pattern::wrap_type<ov::op::v16::Identity>(convert_pattern);
+    auto convert_identity_convert_pattern = pattern::wrap_type<ov::op::v0::Convert>(convert_identity_pattern);
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_map();
+        auto convert_begin = pattern_map.at(convert_pattern);
+        auto identity = pattern_map.at(convert_identity_pattern);
+        auto convert_end = pattern_map.at(convert_identity_convert_pattern);
+
+        if (convert_begin->get_input_element_type(0) == convert_end->get_element_type()) {
+            convert_begin->output(0).replace(convert_begin->input_value(0));
+            identity->validate_and_infer_types();
+            convert_end->output(0).replace(identity->output(0));
+            return true;
+        }
+        return false;
+    };
+    auto m = make_shared<pattern::Matcher>(convert_identity_convert_pattern, matcher_name);
+    this->register_matcher(m, callback);
+}
+
 pass::EliminateConvertNonZero::EliminateConvertNonZero() {
     MATCHER_SCOPE(EliminateConvertNonZero);
     auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>(pattern::consumers_count(1));
@@ -819,6 +844,22 @@ pass::EliminateSqueeze::EliminateSqueeze() {
     };
 
     auto m = make_shared<pattern::Matcher>(squeeze_pattern, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+pass::EliminateIdentity::EliminateIdentity() {
+    MATCHER_SCOPE(EliminateIdentity);
+    auto identity_pattern = pattern::wrap_type<ov::op::v16::Identity>();
+
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto identity = ov::as_type_ptr<ov::op::v16::Identity>(m.get_match_root());
+        if (!identity) {
+            return false;
+        }
+        return replace_output_update_name(identity->output(0), identity->input_value(0));
+    };
+
+    auto m = make_shared<pattern::Matcher>(identity_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -1360,6 +1401,7 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     ADD_MATCHER_FOR_THIS(EliminateStridedSlice)
     ADD_MATCHER_FOR_THIS(EliminateSlice)
     ADD_MATCHER_FOR_THIS(EliminateConcatStridedSlice)
+    ADD_MATCHER_FOR_THIS(EliminateIdentity)
 
     // shape-dependent transformations
     if (use_shape_for_elimination) {
