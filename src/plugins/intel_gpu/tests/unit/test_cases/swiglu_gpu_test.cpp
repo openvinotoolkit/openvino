@@ -100,25 +100,20 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn) {
 TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn_clamp) {
     auto& engine = get_test_engine();
 
-    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 6},
-                                       data_types::f32, format::bfyx};
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 6}, data_types::f32, format::bfyx};
     auto input_mem = engine.allocate_memory({ov::PartialShape{2, 1, 6}, data_types::f32, format::bfyx});
     auto output_ref = engine.allocate_memory({ov::PartialShape{2, 1, 3}, data_types::f32, format::bfyx});
 
     auto clamp_min = -0.7;
     auto clamp_max = 7.0;
 
-    set_values(input_mem, {
-        4.9011f, 2.60f, -1.76636f, 0.16098f, 2.79297f, 3.6377f,
-        -0.127686f, 6.6650f, -3.94043f, -1.35620f, 4.0985f, -1.1589f
-    });
+    set_values(input_mem, {4.9011f, 2.60f, -1.76636f, 0.16098f, 2.79297f, 3.6377f, -0.127686f, 6.6650f, -3.94043f, -1.35620f, 4.0985f, -1.1589f});
 
     swiglu_ref<float>(input_mem, output_ref, 3, clamp_min, clamp_max);
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
-    topology.add(swiglu("swiglu", input_info("input"), -1, 3, ov::op::internal::GLU::GluType::Swish, 0,
-         clamp_min, clamp_max, tensor()));
+    topology.add(swiglu("swiglu", input_info("input"), -1, 3, ov::op::internal::GLU::GluType::Swish, 0, clamp_min, clamp_max, 1.0f, 0.0f, tensor()));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
