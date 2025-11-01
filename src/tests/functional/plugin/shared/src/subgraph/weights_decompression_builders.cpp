@@ -327,7 +327,9 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
         }
 
         scales[g] = range / (qmax - qmin);
-        zero_points[g] = qmin - min_val / scales[g];
+        float zp = std::round(-min_val / scales[g] + qmin);
+        // Clamp zero point to valid quantization range
+        zero_points[g] = std::max(qmin, std::min(qmax, zp));
     }
 
     // Step 3: Quantize the weights
@@ -386,11 +388,6 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
 
     // Create zero point (shift) constants if needed
     if (decompression_subtract_type != DecompressionType::empty) {
-        // since we use subtract operation, we need to invert zero points
-        std::transform(zero_points.begin(), zero_points.end(), zero_points.begin(), [](float zp) {
-            return -zp;
-        });
-
         auto subtract_shape =
             decompression_subtract_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});
 
