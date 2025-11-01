@@ -610,9 +610,9 @@ bool primitive_inst::need_reset_output_memory() const {
             auto& output_layout = _impl_params->get_output_layout(0);
             auto in_channel_count = get_convolution_channel_count(conv_node, output_layout, true);
             // If the channel count is dynamic, we cannot verify feature alignment,
-            // so we conservatively skip the reset and return false for this condition.
+            // so we conservatively do the reset and return true for this condition.
             if (in_channel_count == -1)
-                return false;
+                return true;
 
             auto get_feature_block_size = [](format fmt) {
                         int feature_block_size = 1;
