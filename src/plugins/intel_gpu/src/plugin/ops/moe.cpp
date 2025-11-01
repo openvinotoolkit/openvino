@@ -37,7 +37,6 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         // Create GEMM3_SWIGLU specific primitives
     } else  {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives
-        std::cout << "create moe op!" << std::endl;
         // input0 : input {#tokens, hidden_size}
         // input1 : topk_weight {#tokens, num_experts_per_token}
         // input2 : topk_idx {#tokens, num_experts_per_token}
@@ -47,14 +46,12 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         // input6 : compressed_weights_input_down {#experts, ofm, num_groups, group_size}
         // input7 : scale_input_down {#experts, ofm, num_groups, 1}
         // input8 : bias_down {#experts, 1, ofm}
-        // mask
-        // gather
-        // gemm_up
-        // bias
-        // swiglu
-        // gemm_down
-        // bias
-        // scatter_reduce
+        // moe_mask_gen
+        // moe_gather
+        // moe_gemm_up + bias
+        // swiglu_with_clamp
+        // moe_gemm_down + bias
+        // moe_scatter_reduce
         std::string prim_name_base = layer_type_name_ID(op);
         auto  moe_mask_gen_name = prim_name_base + "_moe_mask_gen";
         auto  moe_mask_gen_reshape_name = prim_name_base + "_moe_mask_gen_reshape";
@@ -67,8 +64,8 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         auto  moe_scatter_reduce_name = prim_name_base + "_moe_scatter_reduce";
         auto moe_mask_gen_prim = cldnn::moe_mask_gen(moe_mask_gen_name,
                                                      input_infos[2],  // topk indices
-                                                     static_cast<uint32_t>(config.num_expert),
-                                                     static_cast<uint32_t>(config.top_k));
+                                                     static_cast<int32_t>(config.num_expert),
+                                                     static_cast<int32_t>(config.top_k));
         p.add_primitive(*op, moe_mask_gen_prim);
         auto moe_mask_gen_reshape_prim =
             cldnn::moe_mask_gen_reshape(moe_mask_gen_reshape_name,
@@ -104,17 +101,26 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         auto moe_gemm_up = cldnn::moe_gemm(moe_gemm_up_name, moe_gemm_up_inputs, config);
         moe_gemm_up.has_bias = true;
         p.add_primitive(*op, moe_gemm_up);
+
+        // gpt-oss swiglu pattern
         // config.expert_alpha : clamp_max
-        // config.expert_beta : swish_beta
+        // config.expert_beta : swish_beta which is slightly different from usual swiglu pattern
+        // - Applied clamp
+        // - Added one for up value
+        // - Gate stride is 1 (not splitting to half and half)
+        // - config.expert_alpha : clamp_max
+        // - config.expert_beta : swish_beta
+        // TODO : update for each new pattern
         auto moe_swiglu_prim = cldnn::swiglu(moe_swiglu_name,
                                              input_info(moe_gemm_up_name),
-                                             2,  // axis
-                                             config.hidden_size,
+                                             2, // axis
+                                             2, // glu_stride
                                              ov::op::internal::GLU::GluType::Swish,
                                              0,                    // gate idx
-                                             std::numeric_limits<float>::min(),   // clamp_min
+                                             -config.expert_alpha, // clamp_min
                                              config.expert_alpha,  // clamp_max
                                              config.expert_beta,   // swish beta
+                                             1.0f,                 // up_add_val
                                              cldnn::tensor());
         p.add_primitive(*op, moe_swiglu_prim);
         std::vector<cldnn::input_info> moe_gemm_down_inputs = {

@@ -71,7 +71,7 @@ struct moe_mask_gen_impl : public typed_primitive_impl<moe_mask_gen> {
         for (size_t token = 0; token < num_tokens; ++token) {
             for (int j = 0; j < num_experts_per_token; ++j) {
                 const auto expert_id = topk_idx_lock[token * num_experts_per_token + j];
-                tokens_per_expert[expert_id].push_back(token);
+                tokens_per_expert[expert_id].push_back(static_cast<int32_t>(token));
             }
         }
 

@@ -30,10 +30,10 @@ using namespace ov::intel_gpu;
 
 TEST_F(TransformationTestsF, SwishFusionWithClamp) {
     {
-        auto reshape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{32,-1,2880});
-        auto convert1 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{32,2880,5760});
+        auto reshape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{32, -1, 2880});
+        auto convert1 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 2880, 5760});
         auto gemm_up = std::make_shared<ov::op::v0::MatMul>(reshape, convert1);
-        auto add_const1 = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{32,1,5760});
+        auto add_const1 = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{32, 1, 5760});
         auto add_gemm = std::make_shared<ov::op::v1::Add>(gemm_up, add_const1);
 
         auto start1 = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
@@ -46,18 +46,18 @@ TEST_F(TransformationTestsF, SwishFusionWithClamp) {
         auto stop2 = ov::op::v0::Constant::create(element::i64, Shape{1}, {5760});
         auto slice2 = std::make_shared<ov::op::v8::Slice>(add_gemm, start2, stop2, step, axis);
 
-        auto min_val = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1,1,1});
+        auto min_val = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1, 1, 1});
         auto min = std::make_shared<ov::op::v1::Minimum>(slice1, min_val);
         auto beta = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
         auto swish = std::make_shared<ov::op::v4::Swish>(min, beta);
 
         auto clamp = std::make_shared<ov::op::v0::Clamp>(slice2, -7.0, 7.0);
-        auto add_const2 = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1,1,1});
+        auto add_const2 = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1, 1, 1});
         auto add_clamp = std::make_shared<ov::op::v1::Add>(clamp, add_const2);
 
         auto multiply = std::make_shared<ov::op::v1::Multiply>(swish, add_clamp);
 
-        auto convert2 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{32,2880,2880});
+        auto convert2 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 2880, 2880});
 
         auto gemm_down = std::make_shared<ov::op::v0::MatMul>(multiply, convert2);
 
@@ -68,11 +68,64 @@ TEST_F(TransformationTestsF, SwishFusionWithClamp) {
         manager.register_pass<SwiGluFusionWithClamp>();
     }
     {
-        auto reshape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{32,-1,2880});
-        auto convert1 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{32,2880,5760});
+        auto reshape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{32, -1, 2880});
+        auto convert1 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 2880, 5760});
         auto gemm_up = std::make_shared<ov::op::v0::MatMul>(reshape, convert1);
-        auto swiglu_with_clamp = std::make_shared<ov::intel_gpu::op::SwiGluWithClamp>(gemm_up, 2,
-            2880, ov::op::internal::GLU::GluType::Swish, 0, -7, 7,  1.0f, ov::element::Type_t::f32);
+        auto swiglu_with_clamp = std::make_shared<
+            ov::intel_gpu::op::SwiGluWithClamp>(gemm_up, 2, 2880, ov::op::internal::GLU::GluType::Swish, 0, -7, 7, 1.7f, 0.0f, ov::element::Type_t::f32);
+        auto result = std::make_shared<ov::op::v0::Result>(swiglu_with_clamp);
+
+        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{reshape, convert1});
+    }
+}
+
+TEST_F(TransformationTestsF, SwishFusionWithClampStrided) {
+    {
+        auto reshape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{32, -1, 2880});
+        auto convert1 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 2880, 5760});
+        auto gemm_up = std::make_shared<ov::op::v0::MatMul>(reshape, convert1);
+        auto add_const1 = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{32, 1, 5760});
+        auto add_gemm = std::make_shared<ov::op::v1::Add>(gemm_up, add_const1);
+
+        auto start1 = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto stop1 = ov::op::v0::Constant::create(element::i64, Shape{1}, {5760});
+        auto step1 = ov::op::v0::Constant::create(element::i64, Shape{1}, {2});
+        auto axis1 = ov::op::v0::Constant::create(element::i64, Shape{1}, {2});
+        auto slice1 = std::make_shared<ov::op::v8::Slice>(add_gemm, start1, stop1, step1, axis1);
+
+        auto start2 = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto stop2 = ov::op::v0::Constant::create(element::i64, Shape{1}, {5760});
+        auto step2 = ov::op::v0::Constant::create(element::i64, Shape{1}, {2});
+        auto axis2 = ov::op::v0::Constant::create(element::i64, Shape{1}, {2});
+        auto slice2 = std::make_shared<ov::op::v8::Slice>(add_gemm, start2, stop2, step2, axis2);
+
+        auto min_val = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1, 1, 1});
+        auto min = std::make_shared<ov::op::v1::Minimum>(slice1, min_val);
+        auto beta = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+        auto swish = std::make_shared<ov::op::v4::Swish>(min, beta);
+
+        auto clamp = std::make_shared<ov::op::v0::Clamp>(slice2, -7.0, 7.0);
+        auto add_const2 = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1, 1, 1});
+        auto add_clamp = std::make_shared<ov::op::v1::Add>(clamp, add_const2);
+
+        auto multiply = std::make_shared<ov::op::v1::Multiply>(swish, add_clamp);
+
+        auto convert2 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 2880, 2880});
+
+        auto gemm_down = std::make_shared<ov::op::v0::MatMul>(multiply, convert2);
+
+        auto result = std::make_shared<ov::op::v0::Result>(gemm_down);
+
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{reshape, convert1, convert2, beta});
+
+        manager.register_pass<SwiGluFusionWithClamp>();
+    }
+    {
+        auto reshape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{32, -1, 2880});
+        auto convert1 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 2880, 5760});
+        auto gemm_up = std::make_shared<ov::op::v0::MatMul>(reshape, convert1);
+        auto swiglu_with_clamp = std::make_shared<
+            ov::intel_gpu::op::SwiGluWithClamp>(gemm_up, 2, 2, ov::op::internal::GLU::GluType::Swish, 0, -7, 7, 1.7f, 0.0f, ov::element::Type_t::f32);
         auto result = std::make_shared<ov::op::v0::Result>(swiglu_with_clamp);
 
         model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{reshape, convert1});

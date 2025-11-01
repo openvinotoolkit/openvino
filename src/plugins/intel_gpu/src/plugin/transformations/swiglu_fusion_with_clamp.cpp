@@ -65,9 +65,9 @@ SwiGluFusionWithClamp::SwiGluFusionWithClamp() {
         auto clamp_min_value = clamp_node->get_min();
         auto clamp_max_value = clamp_node->get_max();
 
-        size_t split_to_glu_idx = 0;
+        size_t gate_idx = 0;
         if (ov::is_type<ov::op::v4::Swish>(mul_node->get_input_node_shared_ptr(1)))
-            split_to_glu_idx = 1;
+            gate_idx = 1;
 
         auto slice_node =
             ov::as_type_ptr<ov::op::v8::Slice>(pattern_map.at(slice1).get_node_shared_ptr());
@@ -104,10 +104,11 @@ SwiGluFusionWithClamp::SwiGluFusionWithClamp() {
                                                             axis_value,
                                                             split_lengths_value,
                                                             ov::op::internal::GLU::GluType::Swish,
-                                                            split_to_glu_idx,
+                                                            gate_idx,
                                                             clamp_min_value,
                                                             clamp_max_value,
                                                             1.0f,  // TODO : handle case when swish_beta input is given
+                                                            0.0f,  // TODO  handle case when up_add_val input is given
                                                             output_type);
         swiglu->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), swiglu);
