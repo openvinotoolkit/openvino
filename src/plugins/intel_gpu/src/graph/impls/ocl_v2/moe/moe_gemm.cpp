@@ -17,7 +17,7 @@
 
 namespace ov::intel_gpu::ocl {
 namespace {
-
+#ifdef ENABLE_ONEDNN_FOR_GPU
     inline bool is_prefill_stage(const RuntimeParams& params) {
         const auto target_seq_len = params.input_layouts[0].get_partial_shape()[0];
         const auto num_offsets = params.input_layouts[3].get_partial_shape()[0];
@@ -27,7 +27,7 @@ namespace {
             return false;
         return (target_seq_len.get_length() / num_offsets.get_length()) > 1;
     }
-
+#endif
 class MoEGemmImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoEGemmImpl)

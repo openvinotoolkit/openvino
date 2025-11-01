@@ -21,12 +21,13 @@ static void CreateGLUClampOp(ProgramBuilder& p, const std::shared_ptr<ov::op::in
         auto prim = cldnn::swiglu(primitive_name,
                                   inputs[0],
                                   (op->get_axis() < 0 ? op->get_input_partial_shape(0).size() + op->get_axis() : op->get_axis()),
-                                  op->get_split_lengths(),
+                                  op->get_glu_stride(),
                                   op->get_glu_type(),
-                                  op->get_split_to_glu_idx(),
+                                  op->get_gate_idx(),
                                   op->get_clamp_min(),
                                   op->get_clamp_max(),
                                   op->get_swiglu_beta(),
+                                  op->get_up_add_val(),
                                   cldnn::tensor());
         prim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, prim);
@@ -34,12 +35,13 @@ static void CreateGLUClampOp(ProgramBuilder& p, const std::shared_ptr<ov::op::in
         auto prim = cldnn::swiglu(primitive_name,
                                   inputs[0],
                                   (op->get_axis() < 0 ? op->get_input_partial_shape(0).size() + op->get_axis() : op->get_axis()),
-                                  op->get_split_lengths(),
+                                  op->get_glu_stride(),
                                   op->get_glu_type(),
-                                  op->get_split_to_glu_idx(),
+                                  op->get_gate_idx(),
                                   op->get_clamp_min(),
                                   op->get_clamp_max(),
                                   op->get_swiglu_beta(),
+                                  op->get_up_add_val(),
                                   tensor_from_dims(op->get_output_shape(0)));
         prim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, prim);
