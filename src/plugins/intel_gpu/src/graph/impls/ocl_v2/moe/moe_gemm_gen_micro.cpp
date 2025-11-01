@@ -68,8 +68,7 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
             jit.make("NUM_GROUPS", 1);
 
         if (is_u4_i4) {
-            size_t stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) / 2 :
-                                                          (weight_shape[1] * weight_shape[2]) / 2;
+            size_t stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) / 2 : (weight_shape[1] * weight_shape[2]) / 2;
             jit.make("EXPERT_STRIDE", stride);
             jit.make("WEIGHT_COMPRESSED_INT4", 1);
         } else {
@@ -90,7 +89,7 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
     jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
     jit.make("INPUT_STRIDE",
              params.input_layouts[1].get_shape().size() == 4 ? params.input_layouts[1].get_shape()[2] * params.input_layouts[1].get_shape()[3]
-                                                 : params.input_layouts[1].get_shape()[2]);
+                                                             : params.input_layouts[1].get_shape()[2]);
 
     jit.make("OUTPUT_STRIDE", params.input_layouts[1].get_shape()[1]);
     if (!m_is_prefill)
@@ -124,8 +123,7 @@ static micro::Type convert_type(ov::element::Type t) {
 }
 
 std::mutex MoEGemmMicroGenerator::mtx;
-void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
-                                           micro::Package& gemm_moe, bool is_prefill) noexcept {
+void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, micro::Package& gemm_moe, bool is_prefill) noexcept {
     // TODO: Remove once micro API is thread safe
     std::lock_guard<std::mutex> l(mtx);
     auto moe_cfg = get_moe_cfg(params);
@@ -143,12 +141,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     micro::GEMMProblem problem_moe;
     micro::GEMMProtocol::Options opts_moe;
     opts_moe.slmPtr = true;
-    enum class MICRO_DIMENSIONALITY {
-        NONE = -1,
-        SCALAR = 0,
-        VECTOR = 1,
-        MATRIX = 2
-    };
+    enum class MICRO_DIMENSIONALITY { NONE = -1, SCALAR = 0, VECTOR = 1, MATRIX = 2 };
 
     if (moe_cfg.is_weight_quantized) {
         problem_moe.Ta = micro::Type::f16;
@@ -234,8 +227,8 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         size_t k = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
         wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, 1};
         wgs.global = {align_to(ceil_div(m, sg_tile_m), sg_per_wg_m) * get_subgroup_size(device_info.arch),
-            align_to(ceil_div(n, sg_tile_n), sg_per_wg_n),
-            static_cast<size_t>(rtp->num_actually_used_experts)};
+                      align_to(ceil_div(n, sg_tile_n), sg_per_wg_n),
+                      static_cast<size_t>(rtp->num_actually_used_experts)};
         ScalarDescriptor s_m{ScalarDescriptor::Types::INT32};
         s_m.v.s32 = m;
         scalars.push_back(s_m);
@@ -320,7 +313,7 @@ KernelData MoEGemmMicroGenerator::get_kernel_data(const kernel_impl_params& para
 
     kd.code->jit += generateShim(moe_gemm, micro::HostLanguage::OpenCL_C, shim_options);
     if (moe_gemm.grfMin > 128) {
-       kd.code->options += " -cl-intel-256-GRF-per-thread";
+        kd.code->options += " -cl-intel-256-GRF-per-thread";
     }
 
     kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(moe_gemm));

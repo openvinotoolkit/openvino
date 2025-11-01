@@ -76,8 +76,7 @@ protected:
         auto in_l = params.input_layouts[0];
         auto hidden_size = get_hidden_size(params);
         auto block_size = GetBlockSize(params);
-        auto [local_threads_count, batches_per_thread, unaligned_elements]  = calc_thread_count(
-            const_cast<RuntimeParams&>(params), block_size, hidden_size);
+        auto [local_threads_count, batches_per_thread, unaligned_elements]  = calc_thread_count(const_cast<RuntimeParams&>(params), block_size, hidden_size);
 
         jit.make("HIDDEN_SIZE", hidden_size);
         jit.make("VEC_BLK_SIZE", block_size);
@@ -112,13 +111,12 @@ protected:
             if (!params.is_dynamic()) {
                 auto hidden_size = get_hidden_size(params);
                 auto block_size = GetBlockSize(params);
-                auto [local_threads_count, batches_per_thread, unaligned_elements]  = calc_thread_count(
-                    const_cast<RuntimeParams&>(params), block_size, hidden_size);
-
+                auto [local_threads_count, batches_per_thread, unaligned_elements]  = calc_thread_count(const_cast<RuntimeParams&>(params),
+                                                                                                        block_size, hidden_size);
                 auto token_per_expert = extract_channel(ChannelName::BATCH, params.input_layouts[1]);
 
                 wgs.global = {token_per_expert * local_threads_count, 1, 1};
-                wgs.local = { local_threads_count, 1, 1};
+                wgs.local = {local_threads_count, 1, 1};
             }
         }};
     }

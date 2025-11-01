@@ -8,6 +8,7 @@
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+
 #include "openvino/core/type.hpp"
 #include "moe_gemm_inst.h"
 
@@ -19,9 +20,9 @@ struct MoEGemmRuntimeParams : public ImplRuntimeParams {
 struct MoEGemmBase : public KernelGenerator {
     MoEGemmBase(std::string_view name, std::string_view suffix) : KernelGenerator(name, suffix) {}
 
-[[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override = 0;
-Arguments get_arguments_desc(const RuntimeParams& params) const override = 0;
-[[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override = 0;
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override = 0;
+    Arguments get_arguments_desc(const RuntimeParams& params) const override = 0;
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override = 0;
 };
-} // namespace ov::intel_gpu::ocl
+}  // namespace ov::intel_gpu::ocl
 
