@@ -79,7 +79,9 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     uint wg_j0 = get_group_id(1) * ugemm_moe_wg_tile_n;
     uint sg_i0 = wg_i0 + sg_i * ugemm_moe_sg_tile_m;
     uint sg_j0 = wg_j0 + sg_j * ugemm_moe_sg_tile_n;
+#ifdef WEIGHT_COMPRESSED_INT4
     uint num_groups = NUM_GROUPS;
+#endif
     if (wg_j0 >= cur_n_tokens)
         return;     /* early exit if outside batch */
 #ifdef USE_SLM
