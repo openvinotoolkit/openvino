@@ -42,7 +42,7 @@ struct moe_gemm : public primitive_base<moe_gemm> {
              const std::vector<input_info>& inputs,
              const ov::intel_gpu::op::MOECompressed::Config& moe_config)
           : primitive_base(id, inputs),
-            num_experts_per_token(moe_config.top_k),
+            num_experts_per_token(static_cast<int32_t>(moe_config.top_k)),
             has_batch_dim(moe_config.has_batch_dim) {}
 
     bool has_bias = false;

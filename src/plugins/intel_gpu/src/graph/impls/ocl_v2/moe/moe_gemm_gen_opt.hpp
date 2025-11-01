@@ -8,7 +8,6 @@
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/moe_gemm.hpp"
-
 #include "moe_gemm_inst.h"
 #include "moe_gemm_base.hpp"
 #include "ocl_v2/utils/jitter.hpp"

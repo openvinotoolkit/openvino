@@ -11,22 +11,18 @@
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "micro_utils.hpp"
-#include "ocl_v2/utils/jitter.hpp"
-
-#include "moe_gemm_inst.h"
-#include "moe_gemm_gen_opt.hpp"
 #include "moe_gemm_base.hpp"
+#include "moe_gemm_gen_opt.hpp"
+#include "moe_gemm_inst.h"
+#include "ocl_v2/utils/jitter.hpp"
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include "micro_utils.hpp"
+#    include "micro_utils.hpp"
 
 class MoEGemmMicroGenerator : public MoEGemmOptGeneratorBase {
 public:
-    explicit MoEGemmMicroGenerator(bool prefill)
-        : MoEGemmOptGeneratorBase("moe_gemm", prefill ? "_prefill" : "_generate"),
-          m_is_prefill(prefill) {
-    }
+    explicit MoEGemmMicroGenerator(bool prefill) : MoEGemmOptGeneratorBase("moe_gemm", prefill ? "_prefill" : "_generate"), m_is_prefill(prefill) {}
 
     [[nodiscard]] std::string get_build_options(const kernel_impl_params& params) const override;
 

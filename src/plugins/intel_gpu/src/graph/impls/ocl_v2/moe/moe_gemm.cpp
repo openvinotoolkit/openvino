@@ -5,15 +5,17 @@
 #include "moe_gemm_gen_micro.hpp"
 // clang-format on
 
-#include "moe_gemm_inst.h"
-#include "common_utils/dispatch_utils.hpp"
-#include "common_utils/jitter.hpp"
-#include "moe_gemm_base.hpp"
 #include "moe_gemm.hpp"
-#include "ocl_v2/utils/fused_ops_jitter.hpp"
+
 #include "../primitive_ocl_base.hpp"
 #include "../utils/jitter.hpp"
 #include "../utils/kernel_generator.hpp"
+
+#include "common_utils/dispatch_utils.hpp"
+#include "common_utils/jitter.hpp"
+#include "moe_gemm_base.hpp"
+#include "moe_gemm_inst.h"
+#include "ocl_v2/utils/fused_ops_jitter.hpp"
 
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -69,7 +71,6 @@ public:
         update_rt_params(inst);
     }
 
-
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
 #ifdef ENABLE_ONEDNN_FOR_GPU
         const auto& params = *instance.get_impl_params();
@@ -91,7 +92,7 @@ public:
         return nullptr;
     }
 };
-} // namespace
+}  // namespace
 
 std::unique_ptr<primitive_impl> MoEGemm::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<moe_gemm>());

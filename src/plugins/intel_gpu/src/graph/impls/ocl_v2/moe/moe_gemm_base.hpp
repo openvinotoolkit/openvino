@@ -25,4 +25,3 @@ struct MoEGemmBase : public KernelGenerator {
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override = 0;
 };
 }  // namespace ov::intel_gpu::ocl
-
