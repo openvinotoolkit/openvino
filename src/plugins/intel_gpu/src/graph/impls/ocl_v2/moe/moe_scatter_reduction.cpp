@@ -70,8 +70,7 @@ protected:
         auto in_l = params.input_layouts[0];
         auto hidden_size = extract_channel(ChannelName::Y, in_l);
         auto block_size = GetBlockSize(params);
-        auto [local_threads_count, batches_per_thread, unaligned_elements]  = calc_thread_count(
-            const_cast<RuntimeParams&>(params), block_size, hidden_size);
+        auto [local_threads_count, batches_per_thread, unaligned_elements] = calc_thread_count(const_cast<RuntimeParams&>(params), block_size, hidden_size);
 
         const auto& desc = params.typed_desc<moe_scatter_reduction>();
 
