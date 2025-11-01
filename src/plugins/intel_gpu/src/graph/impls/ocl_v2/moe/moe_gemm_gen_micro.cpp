@@ -91,10 +91,6 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
     jit.make("INPUT_STRIDE",
              params.input_layouts[1].get_shape().size() == 4 ? params.input_layouts[1].get_shape()[2] * params.input_layouts[1].get_shape()[3]
                                                  : params.input_layouts[1].get_shape()[2]);
-    GPU_DEBUG_COUT << "input_stride : "
-                   << (params.input_layouts[1].get_shape().size() == 4 ? params.input_layouts[1].get_shape()[2] * params.input_layouts[1].get_shape()[3]
-                                                                       : params.input_layouts[1].get_shape()[2])
-                   << "\n";
 
     jit.make("OUTPUT_STRIDE", params.input_layouts[1].get_shape()[1]);
     if (!m_is_prefill)
@@ -160,12 +156,11 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_moe.A.setAlignment(micro::alignment_for_ld(k * problem_moe.Ta_ext));
 
         problem_moe.Ta_scale = convert_type(params.get_input_layout(moe_cfg.weight_scale_idx).data_type);  // zp dt
-        problem_moe.A_scale.setAlignment(2);                                                                                                // scale : half
-        problem_moe.A_scale.layout = micro::MatrixLayout::T;                                                                                // scale layout
+        problem_moe.A_scale.setAlignment(2);
+        problem_moe.A_scale.layout = micro::MatrixLayout::T;
         problem_moe.asPtrDims = static_cast<int>(MICRO_DIMENSIONALITY::MATRIX);
 
         problem_moe.aqGroupM = 1;
-        GPU_DEBUG_COUT << "moe_cfg::weight_group_size = " << moe_cfg.weight_group_size << std::endl;
         problem_moe.aqGroupK = (moe_cfg.weight_group_size == -1) ? k : moe_cfg.weight_group_size;
 
         opts_moe.scaleA = true;
@@ -203,8 +198,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     sizes.batch = 1;
 
     GPU_DEBUG_TRACE_DETAIL << "problem_moe:" << problem_moe.toString() << "\n";
-    GPU_DEBUG_COUT << "problem_moe:" << problem_moe.toString() << "\n";
-    GPU_DEBUG_COUT << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
     try {
         /* Ask microkernel provider for microkernel */
         gemm_moe = micro::select_gemm_microkernel(opts_moe, hw_info, sizes, problem_moe);
@@ -242,15 +236,9 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         wgs.global = {align_to(ceil_div(m, sg_tile_m), sg_per_wg_m) * get_subgroup_size(device_info.arch),
             align_to(ceil_div(n, sg_tile_n), sg_per_wg_n),
             static_cast<size_t>(rtp->num_actually_used_experts)};
-        GPU_DEBUG_COUT << "wgs global : " << wgs.global[0] << " " << wgs.global[1] << " " << wgs.global[2] << std::endl;
-        GPU_DEBUG_COUT << "    local : " << wgs.local[0] << " " << wgs.local[1] << " " << wgs.local[2] << std::endl;
-        GPU_DEBUG_COUT << "        m : " << m << " n : " << n << " k : " << k << std::endl;
-        GPU_DEBUG_COUT << " sg_tile_m : " << sg_tile_m << " sg_tile_n : " << sg_tile_n << std::endl;
-        GPU_DEBUG_COUT << " sg_per_wg_m : " << sg_per_wg_m << " sg_per_wg_n : " << sg_per_wg_n << std::endl;
         ScalarDescriptor s_m{ScalarDescriptor::Types::INT32};
         s_m.v.s32 = m;
         scalars.push_back(s_m);
-
         ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
         s_k.v.s32 = k;
         scalars.push_back(s_k);
@@ -340,7 +328,6 @@ KernelData MoEGemmMicroGenerator::get_kernel_data(const kernel_impl_params& para
     // Micro kernel is using slm implicitly inside the kernel.
     // Therefore the slm should be allocated.
     uint32_t slm_size = kd.micro_kernels[0]->p.getSetting("slm_size");
-    GPU_DEBUG_COUT << "slm_size : " << slm_size << std::endl;
     kd.params.local_memory_args.clear();
     if (slm_size > 0) {
         kd.params.local_memory_args.push_back(slm_size);

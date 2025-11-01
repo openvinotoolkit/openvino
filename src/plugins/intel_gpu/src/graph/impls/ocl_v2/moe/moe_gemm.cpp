@@ -31,9 +31,9 @@ namespace {
 class MoEGemmImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoEGemmImpl)
+#ifdef ENABLE_ONEDNN_FOR_GPU
     static constexpr bool prefill = true;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr regular_micro_single_token = make_stage<MoEGemmMicroGenerator>(!prefill);
     Stage::Ptr regular_micro_multi_tokens = make_stage<MoEGemmMicroGenerator>(prefill);
 #endif
