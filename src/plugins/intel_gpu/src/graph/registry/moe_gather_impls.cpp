@@ -19,8 +19,6 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<moe_g
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_OCL(ocl::MoeGatherRef, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::MoeGatherRef, shape_types::dynamic_shape)
-        OV_GPU_GET_INSTANCE_CPU(moe_gather, shape_types::static_shape)
-        OV_GPU_GET_INSTANCE_CPU(moe_gather, shape_types::dynamic_shape)
     };
 
     return impls;
