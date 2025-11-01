@@ -1268,9 +1268,9 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<ov::op::v0::Con
                                                  ov::element::Type to) {
     // Supported integer precisions
     static const precisions_set_t supported_integer_precisions = {ov::element::i4,
-                                                                   ov::element::u4,
-                                                                   ov::element::u1,
-                                                                   ov::element::u2};
+                                                                  ov::element::u4,
+                                                                  ov::element::u1,
+                                                                  ov::element::u2};
     auto src_type = constant->get_element_type();
 
     // Validate conversion is supported
