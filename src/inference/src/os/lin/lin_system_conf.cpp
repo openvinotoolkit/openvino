@@ -163,7 +163,7 @@ CPU::CPU() {
 
         numa_node_list.assign(_sockets, std::vector<int>());
         for (int i = 0; i < _processors; i++) {
-            if (CPU_ISSET(i, mask)) {
+            if (CPU_ISSET(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID], mask)) {
                 valid_cpu_mapping_table.emplace_back(_cpu_mapping_table[i]);
                 if (_cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == MAIN_CORE_PROC) {
                     phy_core_list.emplace_back(_cpu_mapping_table[i][CPU_MAP_CORE_ID]);
@@ -340,33 +340,28 @@ void parse_node_info_linux(const std::vector<std::string> node_info_table,
         int core_1 = 0;
         int core_2 = 0;
         std::string::size_type pos = 0;
-        std::string::size_type endpos = 0;
+        std::string::size_type endpos_1 = 0;
+        std::string::size_type endpos_2 = 0;
         std::string sub_str = "";
 
-        if (((endpos = one_info.find('-', pos)) == std::string::npos) &&
-            ((endpos = one_info.find(',', pos)) != std::string::npos)) {
-            while (endpos != std::string::npos) {
+        while (pos != std::string::npos) {
+            endpos_1 = one_info.find(',', pos);
+            endpos_2 = one_info.find('-', pos);
+            if ((endpos_1 < endpos_2) || (endpos_1 == std::string::npos && endpos_2 == std::string::npos)) {
                 sub_str = one_info.substr(pos);
                 core_1 = std::stoi(sub_str);
                 nodes_table.push_back({core_1, core_1, node_index});
-                endpos = one_info.find(',', pos);
-                pos = endpos + 1;
+            } else if (endpos_2 != std::string::npos) {
+                sub_str = one_info.substr(pos, endpos_2 - pos);
+                core_1 = std::stoi(sub_str);
+                sub_str = one_info.substr(endpos_2 + 1);
+                core_2 = std::stoi(sub_str);
+                nodes_table.push_back({core_1, core_2, node_index});
             }
-        } else {
-            while (endpos != std::string::npos) {
-                if ((endpos = one_info.find('-', pos)) != std::string::npos) {
-                    sub_str = one_info.substr(pos, endpos - pos);
-                    core_1 = std::stoi(sub_str);
-                    sub_str = one_info.substr(endpos + 1);
-                    core_2 = std::stoi(sub_str);
-                    nodes_table.push_back({core_1, core_2, node_index});
-                    pos = one_info.find(',', endpos);
-                    if (pos == std::string::npos) {
-                        break;
-                    } else {
-                        pos = pos + 1;
-                    }
-                }
+            if (endpos_1 == std::string::npos) {
+                break;
+            } else {
+                pos = endpos_1 + 1;
             }
         }
         node_index++;
