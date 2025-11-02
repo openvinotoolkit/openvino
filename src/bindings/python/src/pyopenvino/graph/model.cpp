@@ -491,6 +491,104 @@ void regclass_graph_Model(py::module m) {
 
     model.def(
         "reshape",
+        [](ov::Model& self, const py::object& shapes) {
+            std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+            if (py::isinstance<py::dict>(shapes)) {
+                py::dict shapes_dict = shapes.cast<py::dict>();
+                for (auto& item : shapes_dict) {
+                    new_shapes.emplace(output_from_handle(self, item.first), partial_shape_from_handle(item.second));
+                }
+            } else if (py::isinstance<py::tuple>(shapes) || py::isinstance<py::list>(shapes)) {
+                py::list shapes_list =
+                    py::isinstance<py::tuple>(shapes) ? py::cast<py::list>(shapes) : shapes.cast<py::list>();
+                if (!shapes_list.empty() &&
+                    (py::isinstance<py::list>(shapes_list[0]) || py::isinstance<py::tuple>(shapes_list[0]) ||
+                     py::isinstance<py::str>(shapes_list[0]) || py::isinstance<ov::Shape>(shapes_list[0]) ||
+                     py::isinstance<ov::PartialShape>(shapes_list[0]))) {
+                    if (shapes_list.size() != self.inputs().size()) {
+                        throw py::value_error("Number of provided shapes does not match number of model inputs");
+                    }
+                    for (size_t i = 0; i < shapes_list.size(); ++i) {
+                        new_shapes[self.inputs()[i]] = partial_shape_from_handle(shapes_list[i]);
+                    }
+                } else {
+                    new_shapes[self.inputs()[0]] = Common::partial_shape_from_list(shapes_list);
+                }
+            } else if (py::isinstance<py::str>(shapes)) {
+                new_shapes[self.inputs()[0]] = ov::PartialShape(shapes.cast<std::string>());
+            } else if (py::isinstance<ov::Shape>(shapes) || py::isinstance<ov::PartialShape>(shapes)) {
+                new_shapes[self.inputs()[0]] = shapes.cast<ov::PartialShape>();
+            } else {
+                throw py::type_error("shapes must be a list, tuple, dict, string, Shape, or PartialShape");
+            }
+            ConditionalGILScopedRelease release;
+            self.reshape(new_shapes);
+        },
+        py::arg("shapes"),
+        R"(
+            Reshape model inputs from various input types.
+
+            This overload accepts multiple input types describing the new input shapes.
+
+            Supported input types:
+            - list: List of shapes for multi-input or single-input reshaping
+            - tuple: Tuple of shapes (converted to list internally)
+            - dict: Dictionary mapping input identifiers to shapes
+            - str: String representation of shape (single input only)
+            - Shape: OpenVINO Shape object (single input only)
+            - PartialShape: OpenVINO PartialShape object (single input only)
+
+            List/Tuple behavior:
+            - Multi-input models: pass a list/tuple whose length equals the number of model inputs; each element
+              must be a list or tuple describing the corresponding input's dimensions.
+            - Single-input reshape (including multi-input models): pass a flat list or tuple of dimensions
+              to reshape only the first input; other inputs remain unchanged.
+
+            Dict behavior:
+            - Keys can be: int (input index), str (tensor name), or openvino.Output
+            - Values can be: openvino.PartialShape, list, tuple, or str
+            - Only specified inputs are reshaped; others remain unchanged
+
+            String behavior:
+            - Single input reshape using string syntax like "1..10,?,3"
+            - Supports dynamic dimension syntax: ?, 1..10, ..10, 1..
+
+            Shape/PartialShape behavior:
+            - Single input reshape using OpenVINO shape objects
+            - Direct conversion to PartialShape
+
+            Allowed dimension encodings inside per-input shapes (lists or tuples):
+            (1) non-negative int — static dimension
+            (2) -1 — fully dynamic dimension
+            (3) (min, max) — dynamic dimension with inclusive integer bounds; use -1 for unknown bound
+
+            Errors:
+            - TypeError: if input is not a supported type
+            - TypeError: if for multi-input usage any element is not a list or tuple
+            - ValueError: if the number of shapes does not match the number of model inputs (multi-input usage)
+            - TypeError: if a dimension value is not an int or a (min, max) tuple of ints
+
+            Examples:
+            - Multi-input reshape (all inputs):
+              model.reshape([[2, 2], [1, 3, 224, 244]])
+            - Single-input reshape on a multi-input model (first input only):
+              model.reshape([2, 2])
+            - Tuple input:
+              model.reshape((2, 2))
+            - Single-input with dynamic dimensions:
+              model.reshape([-1, 3, (28, 56)])
+            - String input:
+              model.reshape("1..10,?,3")
+            - Shape object:
+              model.reshape(Shape([2, 2]))
+            - Dict reshape by name:
+              model.reshape({"input1": [2, 2], "input2": [1, 3, 224, 224]})
+            - Dict reshape by index:
+              model.reshape({0: [2, 2], 1: [1, 3, 224, 224]})
+        )");
+
+    model.def(
+        "reshape",
         [](ov::Model& self, const ov::PartialShape& partial_shape, const py::dict& variables_shapes) {
             const auto new_variable_shapes = get_variables_shapes(variables_shapes);
             ConditionalGILScopedRelease release;
