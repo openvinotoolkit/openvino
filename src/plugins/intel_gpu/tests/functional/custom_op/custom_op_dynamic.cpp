@@ -128,6 +128,7 @@ class CustomOpDynamic : public ov::test::TestsCommon, public testing::WithParamI
 
     void TearDown() override {
         ov::test::utils::removeFile(config_cl);
+        ov::test::utils::removeFile(config_cl_2);
         ov::test::utils::removeFile(config_xml);
     }
 
@@ -159,6 +160,18 @@ public:
         ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}};
         auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
 
+        check_custom_op_num(compiled_model);
+
+        auto ireq = compiled_model.create_infer_request();
+        for (size_t i = 0; i < input_datas.size(); i++) {
+            auto input = ov::Tensor({ov::element::f32}, input_shapes[i], input_datas[i].data());
+            ireq.set_input_tensor(0, input);
+            ireq.infer();
+            check_output(ireq, input, alpha, beta);
+        }
+    }
+
+    void check_custom_op_num(ov::CompiledModel& compiled_model) {
         auto runtime_graph = compiled_model.get_runtime_model();
         auto ops = runtime_graph->get_ordered_ops();
 
@@ -169,14 +182,6 @@ public:
             }
         }
         ASSERT_EQ(found_custom_op_num, 2);
-
-        auto ireq = compiled_model.create_infer_request();
-        for (size_t i = 0; i < input_datas.size(); i++) {
-            auto input = ov::Tensor({ov::element::f32}, input_shapes[i], input_datas[i].data());
-            ireq.set_input_tensor(0, input);
-            ireq.infer();
-            check_output(ireq, input, alpha, beta);
-        }
     }
 
     void check_output(ov::InferRequest ireq, ov::Tensor& input, float alpha, float beta) {
@@ -195,10 +200,12 @@ public:
 
 protected:
     std::string config_cl;
+    std::string config_cl_2;
     std::string config_xml;
 
     void generate_config_files() {
         config_cl = ov::test::utils::generateTestFilePrefix() + "_custom_op_dynamic.cl";
+        config_cl_2 = ov::test::utils::generateTestFilePrefix() + "_custom_op_dynamic_2.cl";
         config_xml = ov::test::utils::generateTestFilePrefix() + "_custom_op_dynamic.xml";
 
         std::string content_cl = R"(
@@ -251,7 +258,7 @@ protected:
         std::string content_xml_2 = R"(
             <CustomLayer name="CustomAdd2OutputsOp" type="SimpleGPU" version="1">
             <Kernel entry="custom_add_with_2_outputs_kernel">
-                <Source filename=")" + config_cl + R"("/>
+                <Source filename=")" + config_cl_2 + R"("/>
             </Kernel>
             <Buffers>
                 <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
@@ -265,7 +272,8 @@ protected:
             </CustomLayer>
         )";
 
-        ov::test::utils::createFile(config_cl, content_cl + content_cl_2);
+        ov::test::utils::createFile(config_cl, content_cl);
+        ov::test::utils::createFile(config_cl_2, content_cl_2);
         ov::test::utils::createFile(config_xml, content_xml + content_xml_2);
     }
 
@@ -304,17 +312,7 @@ public:
         ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}};
         auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
 
-        auto runtime_graph = compiled_model.get_runtime_model();
-        auto ops = runtime_graph->get_ordered_ops();
-
-        bool found_custom_op = false;
-        for (auto op : ops) {
-            if (op->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>() == "CustomGPUPrimitive") {
-                found_custom_op = true;
-                break;
-            }
-        }
-        ASSERT_TRUE(found_custom_op);
+        check_custom_op_num(compiled_model);
 
         auto ireq = compiled_model.create_infer_request();
         auto input = ov::Tensor({ov::element::f32}, input_shapes[0], input_datas[0].data());
