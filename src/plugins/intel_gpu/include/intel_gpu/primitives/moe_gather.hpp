@@ -26,7 +26,7 @@ struct moe_gather : public primitive_base<moe_gather> {
               const input_info& data,
               const input_info& tokens_per_expert,
               const ov::intel_gpu::op::MOECompressed::Config& moe_config)
-        : primitive_base(id, {data, tokens_per_expert}), num_experts_per_token(moe_config.top_k), has_batch_dim(moe_config.has_batch_dim) {}
+        : primitive_base(id, {data, tokens_per_expert}), num_experts_per_token(static_cast<int32_t>(moe_config.top_k)), has_batch_dim(moe_config.has_batch_dim) {}
 
     int32_t num_experts_per_token = 0;
     bool has_batch_dim = true;

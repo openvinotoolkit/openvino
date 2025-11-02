@@ -31,8 +31,13 @@ std::vector<layout> moe_gather_inst::calc_output_layouts(const moe_gather_node& 
                 in_layout.data_type, in_layout.format}};
     }
     const auto num_tokens = input_shape.size() == 2 ? input_shape[0] : desc->has_batch_dim ? input_shape[1] : input_shape[0];
-    const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens * num_experts_per_token), ov::Dimension(1), ov::Dimension(hidden_size)};
-    return {layout{out_shape, in_layout.data_type, in_layout.format}};
+    if (desc->has_batch_dim) {
+        const auto& out_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(num_tokens * num_experts_per_token), ov::Dimension(hidden_size)};
+        return {layout{out_shape, in_layout.data_type, in_layout.format}};
+    } else {
+        const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens * num_experts_per_token), ov::Dimension(1), ov::Dimension(hidden_size)};
+        return {layout{out_shape, in_layout.data_type, in_layout.format}};
+    }
 }
 
 template std::vector<layout> moe_gather_inst::calc_output_layouts<ov::PartialShape>(moe_gather_node const& node, const kernel_impl_params& impl_param);

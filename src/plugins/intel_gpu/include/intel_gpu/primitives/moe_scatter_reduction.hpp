@@ -34,8 +34,9 @@ struct moe_scatter_reduction : public primitive_base<moe_scatter_reduction> {
                           const input_info& tokens_len_per_expert,
                           const input_info& experts_ids,
                           const ov::intel_gpu::op::MOECompressed::Config& moe_config)
-        : primitive_base(id, {data, experts_per_token, expert_weights_per_token, tokens_per_expert,
-            experts_info_offsets, tokens_len_per_expert, experts_ids}), num_active_experts_per_token(moe_config.top_k), has_batch_dim(moe_config.has_batch_dim) {}
+        : primitive_base(id, {data, experts_per_token, expert_weights_per_token, tokens_per_expert, experts_info_offsets, tokens_len_per_expert, experts_ids}),
+          num_active_experts_per_token(static_cast<int32_t>(moe_config.top_k)),
+          has_batch_dim(moe_config.has_batch_dim) {}
 
     int32_t num_active_experts_per_token = 0;
     bool has_batch_dim = true;

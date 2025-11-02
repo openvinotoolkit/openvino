@@ -8,8 +8,8 @@
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
-#include "openvino/core/type.hpp"
 #include "moe_gemm_inst.h"
+#include "openvino/core/type.hpp"
 
 namespace ov::intel_gpu::ocl {
 struct MoEGemmRuntimeParams : public ImplRuntimeParams {

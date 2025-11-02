@@ -42,7 +42,7 @@ protected:
         return vec_size;
     }
 
-    static auto calc_thread_count(RuntimeParams& params, const int vector_size, const int hidden_size) {
+    static auto calc_thread_count(RuntimeParams& params, const size_t vector_size, const size_t hidden_size) {
         auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
         const uint64_t threads_needed = (hidden_size + vector_size - 1) / vector_size;
         size_t local_threads_needed = std::min(threads_needed, max_wgs);
@@ -59,7 +59,7 @@ protected:
 
             local_threads_needed = hidden_size / new_block_size;
             auto partialblock = (hidden_size % new_block_size != 0) ? 1 : 0;
-            local_threads_needed += partialblock;
+            local_threads_needed += static_cast<size_t>(partialblock);
         }
 
         return std::tuple{local_threads_needed, batches_per_thread, unaligned_elements};

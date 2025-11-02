@@ -16,8 +16,13 @@ using namespace ::tests;
 
 template <typename T, typename TN>
 std::vector<T> flatten (const std::vector<std::vector<TN>>& vec2d) {
-    return std::accumulate(vec2d.begin(), vec2d.end(), std::vector<T>{},
-        [](auto& a, auto& b) { a.insert(a.end(), b.begin(), b.end()); return a; });
+    std::vector<T> res;
+    for (auto row : vec2d) {
+        for (auto col : row) {
+            res.push_back(static_cast<T>(col));
+        }
+    }
+    return res;
 }
 
 template <typename T, typename ShapeType>

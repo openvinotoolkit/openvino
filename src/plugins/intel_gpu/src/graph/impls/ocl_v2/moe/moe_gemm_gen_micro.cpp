@@ -154,14 +154,15 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
         problem_moe.asPtrDims = static_cast<int>(MICRO_DIMENSIONALITY::MATRIX);
 
         problem_moe.aqGroupM = 1;
-        problem_moe.aqGroupK = (moe_cfg.weight_group_size == -1) ? k : moe_cfg.weight_group_size;
+        problem_moe.aqGroupK =
+            (static_cast<int32_t>(moe_cfg.weight_group_size) == -1) ? static_cast<int32_t>(k) : static_cast<int32_t>(moe_cfg.weight_group_size);
 
         opts_moe.scaleA = true;
         if (!moe_cfg.is_weight_symmetric_quantized) {
             const auto& zp_layout = params.get_input_layout(moe_cfg.weight_zp_idx);
             const auto zp_dt = convert_type(zp_layout.data_type);
             problem_moe.Tao = zp_dt;
-            problem_moe.AO.setAlignment(zp_dt == gemmstone::Type::u4 ? 1 : zp_dt.size());
+            problem_moe.AO.setAlignment(zp_dt == gemmstone::Type::u4 ? 1 : static_cast<int32_t>(zp_dt.size()));
             problem_moe.AO.layout = micro::MatrixLayout::T;
             problem_moe.aoPtrDims = static_cast<int>(MICRO_DIMENSIONALITY::MATRIX);
             // Calculate A/B row/column sums in kernel.
@@ -181,14 +182,14 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
     problem_moe.B.layout = micro::MatrixLayout::N;
     problem_moe.C.layout = micro::MatrixLayout::N;
     problem_moe.B.setAlignment(micro::alignment_for_ld(k * problem_moe.Tb));
-    problem_moe.C.setAlignment(problem_moe.Tc.size());
+    problem_moe.C.setAlignment(static_cast<int32_t>(problem_moe.Tc.size()));
 
     /* Set up problem_moe size information */
     micro::SizeParams sizes;
-    sizes.n = n;
-    sizes.m = m;
-    sizes.k = k;
-    sizes.batch = 1;
+    sizes.n = static_cast<int32_t>(n);
+    sizes.m = static_cast<int32_t>(m);
+    sizes.k = static_cast<int32_t>(k);
+    sizes.batch = static_cast<int32_t>(1);
 
     GPU_DEBUG_TRACE_DETAIL << "problem_moe:" << problem_moe.toString() << "\n";
     GPU_DEBUG_TRACE_DETAIL << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
@@ -230,10 +231,10 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
                       align_to(ceil_div(n, sg_tile_n), sg_per_wg_n),
                       static_cast<size_t>(rtp->num_actually_used_experts)};
         ScalarDescriptor s_m{ScalarDescriptor::Types::INT32};
-        s_m.v.s32 = m;
+        s_m.v.s32 = static_cast<int32_t>(m);
         scalars.push_back(s_m);
         ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
-        s_k.v.s32 = k;
+        s_k.v.s32 = static_cast<int32_t>(k);
         scalars.push_back(s_k);
     }};
 }
