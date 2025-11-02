@@ -50,5 +50,4 @@ struct MoEGemm : public ImplementationManager {
     }
 };
 
-
 }  // namespace ov::intel_gpu::ocl
