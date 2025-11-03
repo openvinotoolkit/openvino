@@ -52,7 +52,7 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
 
     ov::intel_gpu::op::MOECompressed::Config moe_config;
     moe_config.top_k = num_active_experts_per_token;
-    moe_config.has_batch_dim = true;
+    moe_config.has_batch_dim = false;
 
     auto input_activation_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)};
     auto input_activation_layout = create_layout<T>(input_activation_shape);
@@ -75,20 +75,23 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
     auto experts_ids_shape = ov::PartialShape{ov::Dimension::dynamic()};
     auto experts_ids_layout = layout{experts_ids_shape, data_types::i32, format::bfyx};
 
-
-    topology topology(
-        input_layout("input", input_activation_layout),
-        input_layout("experts_per_token", experts_per_token_layout),
-        input_layout("expert_weights_per_token", expert_weights_per_token_layout),
-        input_layout("tokens_per_expert", tokens_per_expert_layout),
-        input_layout("experts_info_offsets", experts_info_offsets_layout),
-        input_layout("tokens_len_per_expert", tokens_len_per_expert_layout),
-        input_layout("experts_ids", experts_ids_layout),
-        moe_scatter_reduction("moe_scatter_reduction", input_info("input"), input_info("experts_per_token"),
-            input_info("expert_weights_per_token"), input_info("tokens_per_expert"), input_info("experts_info_offsets"),
-            input_info("tokens_len_per_expert"), input_info("experts_ids"), moe_config)
-    );
-    auto input_data_shape = ov::PartialShape{ov::Dimension(num_tokens * num_active_experts_per_token), ov::Dimension(hidden_size)};
+    topology topology(input_layout("input", input_activation_layout),
+                      input_layout("experts_per_token", experts_per_token_layout),
+                      input_layout("expert_weights_per_token", expert_weights_per_token_layout),
+                      input_layout("tokens_per_expert", tokens_per_expert_layout),
+                      input_layout("experts_info_offsets", experts_info_offsets_layout),
+                      input_layout("tokens_len_per_expert", tokens_len_per_expert_layout),
+                      input_layout("experts_ids", experts_ids_layout),
+                      moe_scatter_reduction("moe_scatter_reduction",
+                                            input_info("input"),
+                                            input_info("experts_per_token"),
+                                            input_info("expert_weights_per_token"),
+                                            input_info("tokens_per_expert"),
+                                            input_info("experts_info_offsets"),
+                                            input_info("tokens_len_per_expert"),
+                                            input_info("experts_ids"),
+                                            moe_config));
+    auto input_data_shape = ov::PartialShape{ov::Dimension(num_tokens * num_active_experts_per_token), 1, ov::Dimension(hidden_size)};
     auto input_data_layout = create_layout<T>(input_data_shape);
 
     std::vector<T> input_data;
@@ -100,7 +103,7 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
     set_values(input_mem, input_data);
 
     // topk result
-    std::vector<std::vector<size_t>> experts_per_token = {{0, 5},  {5, 7},   {0, 10}, {11, 20}, {7, 10},  {0, 7},   {20, 31}, {11, 31}, {11, 20}, {7, 10},
+    std::vector<std::vector<int32_t>> experts_per_token = {{0, 5},  {5, 7},   {0, 10}, {11, 20}, {7, 10},  {0, 7},   {20, 31}, {11, 31}, {11, 20}, {7, 10},
                                           {0, 5},  {11, 31}, {0, 7},  {0, 20},  {10, 31}, {10, 20}, {7, 31},  {0, 31},  {5, 31},  {7, 31},
                                           {7, 20}, {0, 10},  {0, 5},  {5, 11},  {7, 11},  {5, 31},  {7, 31},  {0, 31},  {0, 10},  {11, 20}};
 
@@ -115,9 +118,9 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
             tokens_per_expert_tmp[experts_per_token[i][j]].push_back(i);
     }
 
-    std::vector<size_t> tokens_per_expert_data;
-    std::vector<size_t> tokens_len_per_expert_data;
-    std::vector<size_t> experts_ids_data;
+    std::vector<int32_t> tokens_per_expert_data;
+    std::vector<int32_t> tokens_len_per_expert_data;
+    std::vector<int32_t> experts_ids_data;
 
     for (size_t i = 0; i < tokens_per_expert_tmp.size(); ++i) {
         if (tokens_per_expert_tmp[i].empty())
@@ -125,13 +128,13 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
         experts_ids_data.push_back(i);
         tokens_len_per_expert_data.push_back(tokens_per_expert_tmp[i].size());
         for (size_t j = 0; j < tokens_per_expert_tmp[i].size(); ++j) {
-            tokens_per_expert_data.push_back(tokens_per_expert_tmp[i][j]);
+            tokens_per_expert_data.push_back(static_cast<int32_t>(tokens_per_expert_tmp[i][j]));
         }
     }
 
-    std::vector<size_t> expert_info_start_idx(tokens_len_per_expert_data.size(), 0);
+    std::vector<int32_t> expert_info_start_idx(tokens_len_per_expert_data.size(), 0);
     for (size_t i = 1; i < tokens_len_per_expert_data.size(); ++i) {
-        expert_info_start_idx[i] = expert_info_start_idx[i - 1] + tokens_len_per_expert_data[i - 1];
+        expert_info_start_idx[i] = static_cast<int32_t>(expert_info_start_idx[i - 1] + tokens_len_per_expert_data[i - 1]);
     }
 
     // tokens per expert
