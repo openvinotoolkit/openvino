@@ -345,12 +345,9 @@ describe("ov basic tests.", () => {
     });
 
     it("Test importModelSync(stream, device, config: unsupported property) \
-    throws", () => {
+    no exception core property not passed to device", () => {
       const tmpDir = "/tmp";
-      assert.throws(
-        () => core.importModelSync(userStream, "CPU", { CACHE_DIR: tmpDir }),
-        /Unsupported property CACHE_DIR by CPU plugin./,
-      );
+      core.importModelSync(userStream, "CPU", { CACHE_DIR: tmpDir });
     });
 
     it("importModel returns promise with CompiledModel", async () => {
