@@ -18,7 +18,7 @@ class swiglu_gpu_test : public ::testing::TestWithParam<cldnn::format> {};
 template <typename T>
 void swiglu_ref(const memory::ptr input,
                 memory::ptr output,
-                size_t swiglu_axis,
+                int32_t swiglu_axis,
                 int32_t gate_idx,
                 int32_t glu_stride,
                 float clamp_min,
@@ -172,7 +172,7 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn_clamp_swish_beta_up_add_val) {
     auto clamp_max = 7.0f;
 
     int32_t gate_idx = 0;
-    size_t glu_stride = 2;
+    int32_t glu_stride = 2;
     float swish_beta = 1.2f;
     float up_add_val = 1.0f;
 
