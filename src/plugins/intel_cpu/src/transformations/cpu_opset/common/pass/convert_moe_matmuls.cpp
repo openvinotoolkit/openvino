@@ -57,8 +57,8 @@ std::shared_ptr<ov::op::v0::Unsqueeze> introduce_n_experts_dim(const ov::Output<
 }
 }  // namespace
 
-ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
-    MATCHER_SCOPE(MoE2GeMM);
+ov::intel_cpu::MoE2GeMMFusion::MoE2GeMMFusion() {
+    MATCHER_SCOPE(MoE2GeMMFusion);
 
     auto data_input = pattern::any_input(pattern::rank_equals(3) && pattern::has_static_rank());
     auto experts_input = pattern::wrap_type<ov::op::v1::Reshape>({data_input, pattern::any_input()});
@@ -191,8 +191,8 @@ ov::intel_cpu::MoE2GeMM::MoE2GeMM() {
     this->register_matcher(m, callback);
 }
 
-ov::intel_cpu::MoE3GeMM::MoE3GeMM() {
-    MATCHER_SCOPE(MoE3GeMM);
+ov::intel_cpu::MoE3GeMMFusion::MoE3GeMMFusion() {
+    MATCHER_SCOPE(MoE3GeMMFusion);
 
     auto data_input = pattern::any_input(pattern::rank_equals(3) && pattern::has_static_rank());
     auto experts_input =

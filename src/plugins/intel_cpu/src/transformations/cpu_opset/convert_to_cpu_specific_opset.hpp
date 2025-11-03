@@ -42,7 +42,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     ov::pass::Manager manager("CPU:ConvertToCPUSpecificOpset");
     manager.set_per_pass_validation(false);
 
-    CPU_REGISTER_PASS_X64(manager, ConvertMoEMatMuls);
+    CPU_REGISTER_PASS_X64(manager, MoEMatMulsFusion);
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_X64(
         manager,

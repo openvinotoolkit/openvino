@@ -9,24 +9,24 @@
 
 namespace ov::intel_cpu {
 
-class MoE2GeMM : public ov::pass::MatcherPass {
+class MoE2GeMMFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MoE2GeMM");
-    MoE2GeMM();
+    OPENVINO_MATCHER_PASS_RTTI("MoE2GeMMFusion");
+    MoE2GeMMFusion();
 };
 
-class MoE3GeMM : public ov::pass::MatcherPass {
+class MoE3GeMMFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MoE3GeMM");
-    MoE3GeMM();
+    OPENVINO_MATCHER_PASS_RTTI("MoE3GeMMFusion");
+    MoE3GeMMFusion();
 };
 
-class ConvertMoEMatMuls : public ov::pass::GraphRewrite {
+class MoEMatMulsFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("ConvertMoEMatMuls");
-    ConvertMoEMatMuls() {
-        add_matcher<ov::intel_cpu::MoE2GeMM>();
-        add_matcher<ov::intel_cpu::MoE3GeMM>();
+    OPENVINO_GRAPH_REWRITE_RTTI("MoEMatMulsFusion");
+    MoEMatMulsFusion() {
+        add_matcher<ov::intel_cpu::MoE2GeMMFusion>();
+        add_matcher<ov::intel_cpu::MoE3GeMMFusion>();
     }
 };
 

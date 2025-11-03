@@ -45,11 +45,25 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_we
 
         OPENVINO_ASSERT(current_shape.size() == final_weights_rank + 1);
         ov::Shape new_shape(current_shape.begin(), current_shape.begin() + final_weights_rank);
-        *(new_shape.rbegin() + 1) = (has_transpose || !grouped)
-                                        ? *(current_shape.rbegin() + 2) * *(current_shape.rbegin() + 1)
-                                        : *(current_shape.rbegin() + 2);
-        *new_shape.rbegin() = (has_transpose || !grouped) ? *current_shape.rbegin()
-                                                          : *(current_shape.rbegin() + 1) * *current_shape.rbegin();
+        if (has_transpose || !grouped) {
+            // [n_groups, group_size, OC] -> [IC, OC]
+            const auto& n_groups = *(current_shape.rbegin() + 2);
+            const auto& group_size = *(current_shape.rbegin() + 1);
+            const auto& OC = *(current_shape.rbegin());
+            auto& new_IC = *(new_shape.rbegin() + 1);
+            auto& new_OC = *(new_shape.rbegin());
+            new_IC = n_groups * group_size;
+            new_OC = OC;
+        } else {
+            // [OC, n_groups, group_size] -> [OC, IC]
+            const auto& n_groups = *(current_shape.rbegin() + 1);
+            const auto& group_size = *(current_shape.rbegin());
+            const auto& OC = *(current_shape.rbegin() + 2);
+            auto& new_OC = *(new_shape.rbegin() + 1);
+            auto& new_IC = *new_shape.rbegin();
+            new_OC = OC;
+            new_IC = n_groups * group_size;
+        }
         return std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
     };
 
