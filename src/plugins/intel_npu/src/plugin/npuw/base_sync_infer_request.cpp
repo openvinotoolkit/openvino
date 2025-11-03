@@ -768,45 +768,109 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
     const auto& pyramid_attention = comp_model_desc.pyramid_attention.value();
     const auto& attention_info = pyramid_attention._attention_infos[pyramid_id];
     const auto& pyramid_model = pyramid_attention._compiled_models[pyramid_id];
-    auto& sub_request = request;
 
-    const auto past_len = pyramid_id * attention_info.query_size;
+    const auto pos_id = m_pyramid_selector->length();
+    if (pos_id == -1) {
+        // Pyramid dynamic range couldn't be identified - fallback to the default
+        // (worst case) behavior
+        for (auto&& param : attention_info.params) {
+            const auto& iport = pyramid_model->inputs()[param.idx];
+            const auto& input = m_attention_io[idx].inputs.at(param.idx);
 
-    // Set the past k/v values first
-    for (auto&& param : attention_info.params) {
-        const auto& iport = pyramid_model->inputs()[param.idx];
-        const auto& input = m_attention_io[idx].inputs.at(param.idx);
-
-        const auto& input_shape = input->get_shape();
-        if (input_shape[param.dim] == past_len) {
-            // Optimization: Direct tensor reuse when pyramid model's expected past length
-            // matches the current past length, avoiding unnecessary tensor copying
-            sub_request->set_tensor(iport, input);
-            continue;
+            const auto& dst = request->get_tensor(iport);
+            const auto past_len = dst->get_shape()[param.dim];
+            // Create view of past KV data
+            const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
+            ov::npuw::util::copy_tensor_by_dim(view,
+                                               dst,
+                                               static_cast<uint32_t>(param.dim),
+                                               static_cast<uint32_t>(param.dim));
         }
 
-        const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
-        const auto shape = view->get_shape();
+        return;
+    }
 
-        LOG_DEBUG(iport);
-        LOG_BLOCK();
-        if (ov::shape_size(shape) == 0) {
-            // Special case for 0ths chunk.
-            // Set the shape of the existing tensor to zero, which is more efficient
-            // than creating a new tensor object.
-            sub_request->get_tensor(iport)->set_shape(shape);
-            continue;
+    // Pyramid dynamic range identified
+    const auto past_len = m_pyramid_selector->past_length();
+    const auto infer_case = m_pyramid_selector->this_case();
+
+    using namespace ov::npuw::runtime;
+
+    // Process each KV parameter based on inference case
+    if (infer_case == pyramid_attention::Selector::Case::PREFILL) {
+        // PREFILL: Set or copy past KV to destination tensors
+        for (auto&& param : attention_info.params) {
+            const auto& iport = pyramid_model->inputs()[param.idx];
+            const auto& input = m_attention_io[idx].inputs.at(param.idx);
+            const auto& input_shape = input->get_shape();
+
+            LOG_DEBUG(iport);
+            LOG_BLOCK();
+
+            // Optimization for the last chunk: Direct tensor reuse when shapes match
+            if (static_cast<int64_t>(input_shape[param.dim]) == past_len) {
+                request->set_tensor(iport, input);
+                continue;
+            }
+
+            // Create view of past KV data
+            const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
+            const auto& shape = view->get_shape();
+
+            // Handle empty shape case (first chunk)
+            if (ov::shape_size(shape) == 0) {
+                request->get_tensor(iport)->set_shape(shape);
+                continue;
+            }
+
+            // Copy past KV to full destination tensor
+            LOG_DEBUG("Do copy: " << shape << "...");
+            const auto& dst = request->get_tensor(iport);
+            ov::npuw::util::copy_tensor_by_dim(view,
+                                               dst,
+                                               static_cast<uint32_t>(param.dim),
+                                               static_cast<uint32_t>(param.dim));
         }
+    } else if (infer_case == pyramid_attention::Selector::Case::GENERATE) {
+        // GENERATE: Set or copy past KV, preserving existing data
+        for (auto&& param : attention_info.params) {
+            const auto& iport = pyramid_model->inputs()[param.idx];
+            const auto& input = m_attention_io[idx].inputs.at(param.idx);
+            const auto& input_shape = input->get_shape();
 
-        // Copy past kv for other chunks
-        // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
-        const auto& dst = sub_request->get_tensor(iport);
-        LOG_DEBUG("Do copy: " << shape << "...");
-        ov::npuw::util::copy_tensor_by_dim(view,
-                                           dst,
-                                           static_cast<uint32_t>(param.dim),
-                                           static_cast<uint32_t>(param.dim));
-    }  // for(params)
+            LOG_DEBUG(iport);
+            LOG_BLOCK();
+
+            // Validation: ensure space for new tokens
+            if (static_cast<int64_t>(input_shape[param.dim]) == past_len) {
+                NPUW_ASSERT(false && "Past KV is full, no space for generation");
+            }
+
+            const auto& dst = request->get_tensor(iport);
+            const auto& dst_shape = dst->get_shape();
+
+            // Optimization: Direct tensor reuse when destination matches input
+            if (dst_shape == input_shape) {
+                request->set_tensor(iport, input);
+                continue;
+            }
+
+            // FIXME: No need to copy whole past KV, just the new part
+
+            // Create view of past KV data
+            const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
+
+            // Copy past KV to sliced destination (preserve space for new tokens)
+            LOG_DEBUG("Do copy: " << view->get_shape() << "...");
+            const auto& dst_slice = ov::npuw::util::view(dst, param.dim, 0, past_len);
+            ov::npuw::util::copy_tensor_by_dim(view,
+                                               dst_slice,
+                                               static_cast<uint32_t>(param.dim),
+                                               static_cast<uint32_t>(param.dim));
+        }
+    } else {
+        NPUW_ASSERT(false && "Unsupported pyramid attention case");
+    }
 
     LOG_DEBUG("Done");
 }

@@ -190,6 +190,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                                                         size_t model_idx,
                                                         size_t pyramid_step,
                                                         size_t query_length,
+                                                        size_t full_past_kv_length,
                                                         size_t full_context_length,
                                                         const std::map<std::string, size_t>& past_key_sequence_dims,
                                                         const std::map<std::string, size_t>& past_value_sequence_dims) {
@@ -203,12 +204,13 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     // FIXME: SPECULATIVE CASE!!!
     if (query_length == 1u) {
         // GENERATE
-        current_context_length = (model_idx + 1) * pyramid_step;
-        current_past_length = current_context_length - 1;
+        auto output_len = full_context_length - query_length - full_past_kv_length;
+        current_context_length = (model_idx + 1) * pyramid_step + output_len;
+        current_past_length = current_context_length - query_length;
     } else {
         // PREFILL
         current_context_length = (model_idx + 1) * pyramid_step;
-        current_past_length = model_idx * pyramid_step;
+        current_past_length = current_context_length - query_length;
     }
     // FIXME: Probably the generic formula for all cases is:
     // current_context_length = (model_idx + 1) * pyramid_step;
@@ -327,6 +329,7 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
     // Extract query_length and full_context_length from Softmax output shape
     auto softmax_output_shape = pattern_nodes.softmax_node->get_output_shape(0);
     size_t query_length = 0;
+    size_t past_kv_length = 0;
     size_t full_context_length = 0;
 
     if (softmax_output_shape.size() >= 2) {
@@ -377,6 +380,14 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
             if (sequence_dim_opt) {
                 past_key_sequence_dims[param_name] = *sequence_dim_opt;
                 LOG_DEBUG("Found past key sequence dimension for '" << param_name << "': " << *sequence_dim_opt);
+
+                auto curr_past_kv_length = param->get_shape()[*sequence_dim_opt];
+                if (past_kv_length && past_kv_length != curr_past_kv_length) {
+                    LOG_WARN("Inconsistent past KV lengths found among parameters");
+                    return std::nullopt;
+                } else {
+                    past_kv_length = curr_past_kv_length;
+                }
             } else {
                 LOG_WARN("Could not find sequence dimension for past key param: " << param_name);
                 return std::nullopt;
@@ -386,6 +397,14 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
             if (sequence_dim_opt) {
                 past_value_sequence_dims[param_name] = *sequence_dim_opt;
                 LOG_DEBUG("Found past value sequence dimension for '" << param_name << "': " << *sequence_dim_opt);
+
+                auto curr_past_kv_length = param->get_shape()[*sequence_dim_opt];
+                if (past_kv_length && past_kv_length != curr_past_kv_length) {
+                    LOG_WARN("Inconsistent past KV lengths found among parameters");
+                    return std::nullopt;
+                } else {
+                    past_kv_length = curr_past_kv_length;
+                }
             } else {
                 LOG_WARN("Could not find sequence dimension for past value param: " << param_name);
                 return std::nullopt;
@@ -393,7 +412,11 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         }
     }
 
-    return PyramidValidationResult{query_length, full_context_length, past_key_sequence_dims, past_value_sequence_dims};
+    return PyramidValidationResult{query_length,
+                                   past_kv_length,
+                                   full_context_length,
+                                   past_key_sequence_dims,
+                                   past_value_sequence_dims};
 }
 
 SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model) {
@@ -460,6 +483,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     }
 
     size_t query_length = validation_result->query_length;
+    size_t full_past_kv_length = validation_result->past_kv_length;
     size_t full_context_length = validation_result->full_context_length;
     const auto& past_key_sequence_dims = validation_result->past_key_sequence_dims;
     const auto& past_value_sequence_dims = validation_result->past_value_sequence_dims;
@@ -469,8 +493,9 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     // Use step 1024 to generate attention pyramid if it is the GENERATE case.
     // FIXME: Make it configurable
     // FIXME: Handle the speculative case here (query_length > 1; << 1024)
-    size_t pyramid_step = query_length == 1 ? 1024u : query_length;
-    // FIXME: Check all the right alighmments
+    bool is_generate = query_length == 1;
+    size_t pyramid_step = is_generate ? 1024u : query_length;
+    // FIXME: Check all the right alignments
     size_t num_models = full_context_length / pyramid_step;
     LOG_INFO("Creating " << num_models << " pyramid attention models");
 
@@ -499,6 +524,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
                                                 model_idx,
                                                 pyramid_step,
                                                 query_length,
+                                                full_past_kv_length,
                                                 full_context_length,
                                                 past_key_sequence_dims,
                                                 past_value_sequence_dims);

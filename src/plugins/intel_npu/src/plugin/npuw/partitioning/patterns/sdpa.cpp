@@ -130,17 +130,9 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-
-        auto matched_softmax = node_to_output.at(softmax).get_node_shared_ptr();
-
-        // Check softmax shape: skip if second-to-last dimension is 1 so that not isolate for kvcache model
-        // FIXME: check for a more proper condition
-        auto softmax_shape = matched_softmax->get_output_shape(0);
-        if (softmax_shape.size() < 2) {
-            return false;
-        }
         LOG_INFO("Decomposed SDPA pattern matched!");
+
+        auto& node_to_output = m.get_pattern_value_map();
 
         // Helper lambda to extract and isolate matched nodes
         auto isolate_matched = [&](const auto& pattern) {

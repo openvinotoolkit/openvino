@@ -823,7 +823,6 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
     NPUW_ASSERT(comp_model_desc.pyramid_attention.has_value());
 
     auto& r = m_subrequests[real_idx];
-
     auto pyramid_id = m_pyramid_selector->pyramid_id();
 
     const auto& dynamic = comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
@@ -832,52 +831,85 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
 
     const auto& graph_mask = m_attention_io[idx].inputs.at(dynamic.mask_idx);
     const auto this_case = m_pyramid_selector->this_case();
-
-    // FIXME: this must be controlled throguh selector, otherwise here's
-    // an abstraction leak again
-    const auto past_len = pyramid_id * dynamic.query_size;
     const auto present_len = dynamic.query_size;
+
     // FIXME: get the right dim
     const uint32_t kv_dim = 3;
 
+    // Get destination tensor once for all code paths
+    const auto& dst = r->get_tensor(mask_iport);
+
+    // Lambda: copy attention mask segment from source to destination
+    auto copy_mask_segment = [&](std::size_t dst_offset, std::size_t src_offset, std::size_t length) {
+        if (length == 0) {
+            return;
+        }
+        const auto& dst_view = ov::npuw::util::view(dst, kv_dim, dst_offset, length);
+        const auto& src_view = ov::npuw::util::view(graph_mask, kv_dim, src_offset, length);
+        ov::npuw::util::copy_tensor_by_dim(src_view, dst_view, kv_dim, kv_dim);
+    };
+
+    auto pos_id = m_pyramid_selector->length();
+    if (pos_id == -1) {
+        // Pyramid dynamic range couldn't be identified - fallback to default behavior
+        const auto full_mask_shape = graph_mask->get_shape();
+        const auto past_len = dst->get_shape()[kv_dim] - present_len;
+
+        // Copy present mask: tail of source -> [past_len, past_len + present_len)
+        copy_mask_segment(past_len, full_mask_shape[kv_dim] - present_len, present_len);
+
+        // Copy past mask: head of source -> [0, past_len)
+        copy_mask_segment(0, 0, past_len);
+        return;
+    }
+
+    // Pyramid dynamic range identified
+    const auto past_len = m_pyramid_selector->past_length();
+
+    // Early return: reuse cached attention mask if available
+    if (m_cached_attention_mask) {
+        // All sub models are sharing the same attention mask, we can use the cached attention
+        // mask directly to avoid redundant tensor copy
+        m_subrequests[real_idx]->set_tensor(mask_iport, m_cached_attention_mask);
+        return;
+    }
+
     // Now set the mask. Here comes very strong chunking & SDPA knowledge again
     using namespace ov::npuw::runtime;
+    const auto full_mask_shape = graph_mask->get_shape();
+
     if (this_case == pyramid_attention::Selector::Case::GENERATE) {
-        NPUW_ASSERT(false && "Not implemented for GENERATE");
-    } else if (this_case == pyramid_attention::Selector::Case::PREFILL) {
-        // Use our in-graph synthesized mask
-        if (m_cached_attention_mask) {
-            // All sub models are sharing the same attention mask, we can use the cached attention
-            // mask directly to avoid redundant tensor copy
-            m_subrequests[real_idx]->set_tensor(mask_iport, m_cached_attention_mask);
+        const auto dst_shape = dst->get_shape();
+
+        // Optimization: if shapes match, use the full mask directly
+        if (dst_shape == full_mask_shape) {
+            r->set_tensor(mask_iport, graph_mask);
+            m_cached_attention_mask = graph_mask;
             return;
         }
 
-        // Handle attention mask concatenation for SDPA:
-        // The attention mask is composed with 2 parts:
-        // The 1st part is for the "present", which is at the tail: starting from past_len to context_len
-        // The 2nd part is for the "past", which is at the beginning: starting from 0 to past_len
-        auto full_mask_shape = graph_mask->get_shape();
-        auto actual_mask_shape = full_mask_shape;
-        actual_mask_shape[kv_dim] = present_len + past_len;
+        // FIXME: No need to copy whole attention mask, just mark the new tokens to valid
 
-        const auto& dst = r->get_tensor(mask_iport);
+        // Fill invalid positions with -inf
+        ov::npuw::util::fill_tensor<ov::float16>(dst, -std::numeric_limits<ov::float16>::infinity(), past_len);
 
-        // Copy "present" attention mask
-        const auto& present_dst_view = ov::npuw::util::view(dst, kv_dim, past_len, present_len);
-        const auto& present_src_view =
-            ov::npuw::util::view(graph_mask, kv_dim, full_mask_shape[kv_dim] - present_len, present_len);
-        ov::npuw::util::copy_tensor_by_dim(present_src_view, present_dst_view, kv_dim, kv_dim);
+        // Copy present mask: tail of source -> tail of destination
+        copy_mask_segment(dst_shape[kv_dim] - present_len, full_mask_shape[kv_dim] - present_len, present_len);
 
-        // Copy "past" attention mask
-        if (past_len > 0) {
-            const auto& past_dst_view = ov::npuw::util::view(dst, kv_dim, 0, past_len);
-            const auto& past_src_view = ov::npuw::util::view(graph_mask, kv_dim, 0, past_len);
-            ov::npuw::util::copy_tensor_by_dim(past_src_view, past_dst_view, kv_dim, kv_dim);
-        }
+        // Copy past mask: head of source -> head of destination
+        copy_mask_segment(0, 0, past_len);
+
+        m_cached_attention_mask = dst;
+    } else if (this_case == pyramid_attention::Selector::Case::PREFILL) {
+        // Copy present mask: tail of source -> [past_len, past_len + present_len)
+        copy_mask_segment(past_len, full_mask_shape[kv_dim] - present_len, present_len);
+
+        // Copy past mask: head of source -> [0, past_len)
+        copy_mask_segment(0, 0, past_len);
+
         m_cached_attention_mask = dst;
     } else {
-        NPUW_ASSERT(false && "Reached the unreachable code");
+        NPUW_ASSERT(false && "Unsupported pyramid attention case");
     }
 }
 
