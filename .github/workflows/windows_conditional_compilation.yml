@@ -57,20 +57,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build:
-          - variant: 'baseline'
-            cache: True
-            runner: 'aks-win-32-cores-128gb-build-st'
-          - variant: 'baseline-no_cache'
-            cache: False
-            runner: 'aks-win-32-cores-128gb-build-st'
-    name: Build OpenVINO - ${{ matrix.build.variant }}
+        variant:
+          - name: baseline
+            runner: aks-win-32-cores-128gb-build-st
+          - name: nvme
+            runner: aks-win-32-cores-128gb-nvme-st
+          - name: tempdisk
+            runner: aks-win-32-cores-128gb-tdsk-st
+          - name: amd
+            runner: aks-win-32-cores-128gb-amd-st
+          - name: lessram
+            runner: aks-win-16-cores-64gb-ram-st
+        cache:
+          - True
+          - False
+    name: Build OpenVINO - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}
     needs: Smart_CI
     timeout-minutes: 300 # 5 hours without cache
     defaults:
       run:
         shell: pwsh
-    runs-on: ${{ matrix.build.runner }}
+    runs-on: ${{ matrix.variant.runner }}
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
@@ -163,7 +170,7 @@ jobs:
 
       - name: Setup ccache
         uses: ./openvino/.github/actions/cache
-        if: ${{ matrix.build.cache == true }}
+        if: ${{ matrix.cache == true }}
         with:
           save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
@@ -197,7 +204,7 @@ jobs:
             -B ${{ env.BUILD_DIR }}
 
       - name: Clean ccache stats
-        if: ${{ matrix.build.cache == true }}
+        if: ${{ matrix.cache == true }}
         run: '& ccache --zero-stats'
 
       # If the build fails due to running out of RAM, please decrease the number of parallel jobs (--parallel n)
@@ -207,7 +214,7 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }} --parallel 16 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
       - name: Show ccache stats
-        if: ${{ matrix.build.cache == true }}
+        if: ${{ matrix.cache == true }}
         run: '& ccache --show-stats'
 
       - name: Cmake install - OpenVINO

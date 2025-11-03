@@ -58,20 +58,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build:
-          - variant: 'baseline'
-            cache: True
-            runner: 'aks-win-32-cores-128gb-build-st'
-          - variant: 'baseline-no_cache'
-            cache: False
-            runner: 'aks-win-32-cores-128gb-build-st'
+        variant:
+          - name: 'baseline'
+            runner: 'aks-win-16-cores-32gb-build-st'
+          - name: 'nvme'
+            runner: 'aks-win-16-cores-32gb-nvme-st'
+          - name: 'managed-disk'
+            runner: 'aks-win-16-cores-32gb-mdsk-st'
+          - name: 'd-size'
+            runner: 'aks-win-16-cores-32gb-d-st'
+        cache:
+          - True
+          - False
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
-    name: Build - ${{ matrix.build.variant }}
+    name: Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      cache: ${{ matrix.build.cache }}
-      runner: ${{ matrix.build.runner }}
+      cache: ${{ matrix.cache }}
+      runner: ${{ matrix.variant.runner }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
