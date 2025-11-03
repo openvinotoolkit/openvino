@@ -56,7 +56,7 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
     }
 
     const bool dft_length_provided = !ov::op::util::is_null(length);
-    const auto unsqueeze_axis = v0::Constant::create(ov::element::i64, {}, {-1});
+    const auto unsqueeze_axis = v0::Constant::create(ov::element::i32, {}, {-1});
     const auto& signal_size = [&] {
         if (dft_length_provided) {
             if (const auto& rank = length.get_partial_shape().rank(); rank.get_max_length() == 0) {
