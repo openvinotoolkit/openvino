@@ -45,13 +45,13 @@ struct RTInfoCache {
 
     void store(const std::shared_ptr<ov::Model>& model) {
         traverse(model, [this](const std::shared_ptr<ov::Node>& op) {
-            m_rt_info_cache[op.get()] = op->get_rt_info();
+            m_rt_info_cache[op] = op->get_rt_info();
         });
     }
 
     void restore(const std::shared_ptr<ov::Model>& model) {
         traverse(model, [this](const std::shared_ptr<ov::Node>& op) {
-            auto it = m_rt_info_cache.find(op.get());
+            auto it = m_rt_info_cache.find(op);
             if (it != m_rt_info_cache.end()) {
                 op->get_rt_info() = it->second;
             } else {
@@ -62,7 +62,27 @@ struct RTInfoCache {
         });
     }
 
-    std::unordered_map<ov::Node*, ov::RTMap> m_rt_info_cache;
+private:
+    struct WeakNodeHash {
+        size_t operator()(const std::weak_ptr<ov::Node>& wn) const {
+            auto sn = wn.lock();
+            return sn ? std::hash<ov::Node*>()(sn.get()) : 0;
+        }
+    };
+
+    struct WeakNodeEqual {
+        bool operator()(const std::weak_ptr<ov::Node>& wl, const std::weak_ptr<ov::Node>& wr) const {
+            const auto l = wl.lock();
+            const auto r = wr.lock();
+            if (!l && !r)
+                return true;
+            if (!l || !r)
+                return false;
+            return l.get() == r.get();
+        }
+    };
+
+    std::unordered_map<std::weak_ptr<ov::Node>, ov::RTMap, WeakNodeHash, WeakNodeEqual> m_rt_info_cache;
 };
 
 void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
