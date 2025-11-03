@@ -28,7 +28,7 @@ ov::OutputVector skip_layer_normalization(const ov::frontend::onnx::Node& node) 
     if (num_nodes == 5) {
         input = std::make_shared<v1::Add>(input, nodes[4]);
     }
-    float eps = node.get_attribute_value<float>("epsilon");
+    const float eps = node.get_attribute_value<float>("epsilon", 1e-12f);
     // reduce over hidden_size
     int hidden_size_dim = 2;
     const auto reduction_axes = v0::Constant::create(ov::element::i32, ov::Shape{1}, {hidden_size_dim});
