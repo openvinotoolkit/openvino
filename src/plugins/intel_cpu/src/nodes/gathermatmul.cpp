@@ -17,8 +17,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <unordered_map>
-#include <utility>
+#include <tuple>
 #include <vector>
 
 #include "common/blocked_desc_creator.h"
@@ -315,17 +314,25 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
             // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
             // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
             // used since fallback one doesn't support weights decompression feature.
-            size_t simdWidth = 16;
-            size_t vnniFactor = 2;
-            size_t maxSize = 512;
-            auto amxRow = vnniFactor * simdWidth;
+            constexpr size_t simdWidth = 16;
+            constexpr size_t vnniFactor = 2;
+            constexpr size_t maxSize = 512;
+            constexpr size_t amxRow = vnniFactor * simdWidth;
 
             if ((IC <= amxRow && OC <= amxRow) || (IC <= maxSize && OC <= maxSize && IC % amxRow != 0)) {
                 return false;
             }
         }
 
-        if (IC % G != 0 || IC / G < 4 || OC == 1) {
+        if (IC % G != 0) {
+            return false;  // sanity check IC must be evenly divided by the group size
+        }
+
+        if (IC / G < 4) {
+            return false;  // minimal group size should be 4
+        }
+
+        if (OC == 1) {
             return false;
         }
     } catch (...) {
@@ -464,11 +471,9 @@ void GatherMatmul::createPrimitive() {
 
     auto cache = context->getParamsCache();
     const auto& eng = getEngine();
-    auto result = cache->getOrCreate(key, [&eng](const onednn_matmul_key& k) {
+    std::tie(gemv_impl, std::ignore) = cache->getOrCreate(key, [&eng](const onednn_matmul_key& k) {
         return std::make_shared<onednn_matmul>(eng, k);
     });
-
-    gemv_impl = result.first;
 
     // repack weights
     // we build gemv impl, but in fact there is B weights to gather, so we have to process 3D weights, scales and zp
@@ -542,20 +547,22 @@ bool GatherMatmul::needPrepareParams() const {
     if (bf16_amx_mode && Node::needPrepareParams()) {
         auto srcMem = getSrcMemoryAtPort(DATA);
         const auto& srcShape = srcMem->getStaticDims();
-        if (srcShape[1] != 1) {
+        const auto M = srcShape[1];
+        if (M != 1) {
             return true;
         }
     }
     return false;
 }
 
+// AMX tile has 16 rows, so to avoid partial tiles it's better to pad M dimension to 16 multiple
 static Dim normalizeM(Dim M) {
     if (M < 512) {
         M = rnd_up(M, 16);
     } else if (M < 1024) {
-        M = rnd_up(M, 32);
+        M = rnd_up(M, 32);  // 2 tile blocking - better tile register utilization
     } else {
-        M = rnd_up(M, 256);
+        M = rnd_up(M, 256);  // better L2 cache blocking
     }
     return M;
 }
@@ -619,11 +626,9 @@ void GatherMatmul::prepareParams() {
 
     auto cache = context->getParamsCache();
     const auto& eng = getEngine();
-    auto result = cache->getOrCreate(key, [&eng](const onednn_matmul_key& k) {
+    std::tie(gemm_impl, std::ignore) = cache->getOrCreate(key, [&eng](const onednn_matmul_key& k) {
         return std::make_shared<onednn_matmul>(eng, k);
     });
-
-    gemm_impl = result.first;
 }
 
 bool GatherMatmul::isExecutable() const {
@@ -705,8 +710,8 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
     const auto& dstMem = getChildEdgeAt(0)->getMemoryPtr();
 
     const auto& indexShape = indexMem->getStaticDims();
-    size_t n_tokens = indexShape[0];
-    size_t active_experts_per_token = indexShape[1];
+    size_t M = indexShape[0];
+    size_t indices_size = indexShape[1];  // number of elements to be gathered per each m index
 
     auto src_offset = OffsetHelper::createOffsetHelper(srcMem);
     auto dst_offset = OffsetHelper::createOffsetHelper(dstMem);
@@ -716,22 +721,30 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
     auto zp_offset = OffsetHelper::createOffsetHelper(m_zpMemory);
     auto index_offset = OffsetHelper::createOffsetHelper(indexMem);
 
-    if (n_tokens > 1) {
-        const size_t max_experts = m_weightsMemory->getStaticDims()[0];
+    // input 1 is a tensor A[B, M, K]
+    // input 2 is a tensor B[G, K, N] (transposed) - G is the gather axis
+    // input 3 is the gather indices I [M, B]
+    // for each b in B and m in M:
+    //    gathered_weights = B[I[m,b], :, :] (has shape [K, N]^T)
+    //    output[b,m,:] = MatMul(A[b,m,:], gathered_weights)
 
-        std::vector<std::pair<int32_t, int32_t>> expert_tokens(max_experts * n_tokens);
-        std::vector<int32_t> expert_token_counters(max_experts, 0);
-        for (size_t token = 0; token < n_tokens; token++) {
-            const auto* expert_ids = static_cast<const int32_t*>(index_offset(token));
-            for (size_t expert = 0; expert < active_experts_per_token; expert++) {
-                int32_t expert_id = expert_ids[expert];
-                CPU_NODE_ASSERT(expert_id >= 0 && static_cast<size_t>(expert_id) < max_experts,
-                                "Invalid expert_id ",
-                                expert_id,
-                                " for token ",
-                                token);
-                auto& index = expert_token_counters[expert_id];
-                expert_tokens[expert_id * n_tokens + index] = {token, expert};
+    if (M > 1) {
+        const size_t gather_axis_size = m_weightsMemory->getStaticDims()[0];
+
+        // all the gather idx for corresponding m index
+        std::vector<std::pair<int32_t, int32_t>> gather_idx_map(gather_axis_size * M);
+        std::vector<int32_t> elements_per_gather_indx(gather_axis_size, 0);
+        for (size_t m = 0; m < M; m++) {
+            const auto* gather_ids = static_cast<const int32_t*>(index_offset(m));
+            for (size_t i = 0; i < indices_size; i++) {
+                int32_t gather_axis_index = gather_ids[i];
+                CPU_NODE_ASSERT(gather_axis_index >= 0 && static_cast<size_t>(gather_axis_index) < gather_axis_size,
+                                "Invalid gather_id ",
+                                gather_axis_index,
+                                " for m ",
+                                m);
+                auto& index = elements_per_gather_indx[gather_axis_index];
+                gather_idx_map[gather_axis_index * M + index] = {m, i};
                 index++;
             }
         }
@@ -753,19 +766,19 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
             auto tmp_dst_offset = OffsetHelper::createOffsetHelper(m_tmpOutput);
 
             CPU_NODE_ASSERT(gemm_impl, "GEMM implementation is not created");
-            for (size_t expert_id = 0; expert_id < max_experts; expert_id++) {
-                const size_t num_valid_tokens = expert_token_counters[expert_id];
-                if (0 == num_valid_tokens) {
+            for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
+                const size_t num_valid_rows = elements_per_gather_indx[gather_axis_index];
+                if (0 == num_valid_rows) {
                     continue;
                 }
 
                 parallel_for(M_size, [&](size_t m) {
                     auto* dst_row = tmp_input_offset(m);
 
-                    if (m < num_valid_tokens) {
-                        const auto token = expert_tokens[expert_id * n_tokens + m].first;
-                        const auto expert = expert_tokens[expert_id * n_tokens + m].second;
-                        const auto* src_data = src_offset(expert, token);
+                    if (m < num_valid_rows) {
+                        const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
+                        const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
+                        const auto* src_data = src_offset(batch_index, row_id);
                         std::memcpy(dst_row, src_data, K_size * element_size);
                     } else {
                         // Zero padding for rows beyond num_valid_tokens
@@ -775,37 +788,37 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
 
                 auto* src = tmp_input_offset.get_base();
                 auto* dst = tmp_dst_offset.get_base();
-                auto* wei = wei_offset(expert_id);
-                auto* bias = bias_offset(expert_id);
-                auto* scale = scale_offset(expert_id);
-                auto* zp = zp_offset(expert_id);
+                auto* wei = wei_offset(gather_axis_index);
+                auto* bias = bias_offset(gather_axis_index);
+                auto* scale = scale_offset(gather_axis_index);
+                auto* zp = zp_offset(gather_axis_index);
                 gemm_impl->exec(strm, src, dst, wei, bias, scale, zp);
 
                 // Immediately scatter results while they're hot in cache
-                parallel_for(num_valid_tokens, [&](size_t m) {
+                parallel_for(num_valid_rows, [&](size_t m) {
                     const auto* src_row = tmp_dst_offset(m);
-                    const auto token = expert_tokens[expert_id * n_tokens + m].first;
-                    const auto expert = expert_tokens[expert_id * n_tokens + m].second;
-                    auto* dst_row = dst_offset(expert, token);
+                    const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
+                    const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
+                    auto* dst_row = dst_offset(batch_index, row_id);
                     std::memcpy(dst_row, src_row, N_size * element_size);
                 });
             }
         } else {
             // For the default SIMD it's better to simply call GEMV
             CPU_NODE_ASSERT(gemv_impl, "GEMM implementation is not created");
-            for (size_t expert_id = 0; expert_id < max_experts; expert_id++) {
-                if (0 == expert_token_counters[expert_id]) {
+            for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
+                if (0 == elements_per_gather_indx[gather_axis_index]) {
                     continue;
                 }
-                auto* wei = wei_offset(expert_id);
-                auto* bias = bias_offset(expert_id);
-                auto* scale = scale_offset(expert_id);
-                auto* zp = zp_offset(expert_id);
-                for (int32_t index = 0; index < expert_token_counters[expert_id]; ++index) {
-                    const auto token = expert_tokens[expert_id * n_tokens + index].first;
-                    const auto expert = expert_tokens[expert_id * n_tokens + index].second;
-                    auto* src = src_offset(expert, token);
-                    auto* dst = dst_offset(expert, token);
+                auto* wei = wei_offset(gather_axis_index);
+                auto* bias = bias_offset(gather_axis_index);
+                auto* scale = scale_offset(gather_axis_index);
+                auto* zp = zp_offset(gather_axis_index);
+                for (int32_t m = 0; m < elements_per_gather_indx[gather_axis_index]; ++m) {
+                    const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
+                    const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
+                    auto* src = src_offset(batch_index, row_id);
+                    auto* dst = dst_offset(batch_index, row_id);
                     gemv_impl->exec(strm, src, dst, wei, bias, scale, zp);
                 }
             }
@@ -813,16 +826,16 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
     } else {
         CPU_NODE_ASSERT(gemv_impl, "GEMM implementation is not created");
 
-        constexpr size_t token = 0;
-        auto* expert_ids = static_cast<int32_t*>(index_offset(token));
-        for (size_t expert = 0; expert < active_experts_per_token; expert++) {
-            int32_t expert_id = expert_ids[expert];
-            auto* src = src_offset(expert, token);
-            auto* dst = dst_offset(expert, token);
-            auto* wei = wei_offset(expert_id);
-            auto* bias = bias_offset(expert_id);
-            auto* scale = scale_offset(expert_id);
-            auto* zp = zp_offset(expert_id);
+        constexpr size_t m = 0;
+        auto* gather_ids = static_cast<int32_t*>(index_offset(m));
+        for (size_t i = 0; i < indices_size; i++) {
+            int32_t gather_axis_index = gather_ids[i];
+            auto* src = src_offset(i, m);
+            auto* dst = dst_offset(i, m);
+            auto* wei = wei_offset(gather_axis_index);
+            auto* bias = bias_offset(gather_axis_index);
+            auto* scale = scale_offset(gather_axis_index);
+            auto* zp = zp_offset(gather_axis_index);
             gemv_impl->exec(strm, src, dst, wei, bias, scale, zp);
         }
     }

@@ -105,12 +105,8 @@ Result GatherMatmulShapeInfer::infer(const std::vector<std::reference_wrapper<co
     // Output shape: [group_size, M, N]
     const size_t group_size = shapeIndices[1];
 
-    VectorDims outputShape(m_out_rank);
     OPENVINO_DEBUG_ASSERT(m_out_rank == 3, "GatherMatmul output must be 3D, got rank: ", m_out_rank);
-
-    outputShape[0] = group_size;
-    outputShape[1] = matmul_M;
-    outputShape[2] = matmul_N;
+    VectorDims outputShape = {group_size, matmul_M, matmul_N};
 
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }
