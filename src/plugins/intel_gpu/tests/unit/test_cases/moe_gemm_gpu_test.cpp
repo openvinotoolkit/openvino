@@ -528,9 +528,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f16,   /*input_dt*/
                                                                                    cldnn::data_types::f16,   /*weight_dt*/
                                                                                    cldnn::data_types::f16,   /*scale_dt*/
-                                                                                   -1,
-                                                                                   /*scale_group_size*/
-                                                                                   false                 /*weight_symmetric_quant*/
+                                                                                   -1,                       /*scale_group_size*/
+                                                                                   false                     /*weight_symmetric_quant*/
                                                                                },
                                                                                // i4 / symmetric/ group size 32 / prefill
                                                                                moe_gemm_test_params{

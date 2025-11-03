@@ -37,45 +37,21 @@ std::vector<ov::PartialShape> shape_infer(const ov::intel_gpu::op::SwiGluWithCla
       NODE_SHAPE_INFER_CHECK(op, input_shapes, inputs_count == 1);
 
       int64_t axis = op->get_axis();
-      if (op->get_glu_stride() == 2) {  // alternating
-          const auto& input_shape = input_shapes[0];
-          auto rank = input_shape.size();
-          std::vector<int64_t> begin_data(rank, 0);
-          std::vector<int64_t> end_data(rank, -1);
-          end_data[axis] = input_shape[axis].get_length();
-          std::vector<int64_t> stride_data(rank, 1);
-          stride_data[axis] = op->get_glu_stride();
-          std::vector<int64_t> begin_mask(rank, 1);
-          begin_mask[axis] = 0;
-          std::vector<int64_t> end_mask(rank, 1);
-          end_mask[axis] = 0;
-
-          ov::op::v1::StridedSlice op;
-          auto begin_shape = ov::Shape{rank};
-          auto end_shape = ov::Shape{rank};
-          auto stride_shape = ov::Shape{rank};
-          op.set_begin_mask(begin_mask);
-          op.set_end_mask(end_mask);
-
-          std::unordered_map<size_t, ov::Tensor> const_data;
-          const_data.emplace(1, ov::Tensor(ov::element::i64, begin_shape, begin_data.data()));
-          const_data.emplace(2, ov::Tensor(ov::element::i64, end_shape, end_data.data()));
-          const_data.emplace(3, ov::Tensor(ov::element::i64, stride_shape, stride_data.data()));
-
-          std::vector<ov::PartialShape> input_shapes = {std::move(input_shape), begin_shape, end_shape, stride_shape};
-          return {std::move(ov::op::v1::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data))[0])};
-      } else {
-          std::vector<int64_t> split_lengths = {op->get_glu_stride(), -1};
-          std::unordered_map<size_t, ov::Tensor> const_data;
-          const_data.emplace(1, ov::Tensor(ov::element::i64, ov::Shape{}, &axis));
-          const_data.emplace(2, ov::Tensor(ov::element::i64, ov::Shape{split_lengths.size()}, split_lengths.data()));
-
-          const ov::Shape split_len_size{split_lengths.size()};
-          const ov::Shape scalar{};
-          std::vector<ov::PartialShape> variadic_split_input_shapes{input_shapes[0], scalar, split_len_size};
-
-          return {std::move(ov::op::variadic_split::shape_infer(op, variadic_split_input_shapes, ov::make_tensor_accessor(const_data))[0])};
+      auto split_length = op->get_glu_stride();
+      if (op->get_glu_stride() == 2) {
+            // alternating
+            split_length = static_cast<int64_t>(input_shapes[0][axis].get_length() / 2);
       }
+      std::vector<int64_t> split_lengths = {split_length, -1};
+      std::unordered_map<size_t, ov::Tensor> const_data;
+      const_data.emplace(1, ov::Tensor(ov::element::i64, ov::Shape{}, &axis));
+      const_data.emplace(2, ov::Tensor(ov::element::i64, ov::Shape{split_lengths.size()}, split_lengths.data()));
+
+      const ov::Shape split_len_size{split_lengths.size()};
+      const ov::Shape scalar{};
+      std::vector<ov::PartialShape> variadic_split_input_shapes{input_shapes[0], scalar, split_len_size};
+
+      return {std::move(ov::op::variadic_split::shape_infer(op, variadic_split_input_shapes, ov::make_tensor_accessor(const_data))[0])};
 }
 
 void SwiGluWithClamp::validate_and_infer_types() {
