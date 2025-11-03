@@ -123,7 +123,7 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
         if (tokens_per_expert_tmp[i].empty())
             continue;
         experts_ids_data.push_back(static_cast<int32_t>(i));
-        tokens_len_per_expert_data.push_back(tokens_per_expert_tmp[i].size());
+        tokens_len_per_expert_data.push_back(static_cast<int32_t>(tokens_per_expert_tmp[i].size()));
         for (size_t j = 0; j < tokens_per_expert_tmp[i].size(); ++j) {
             tokens_per_expert_data.push_back(tokens_per_expert_tmp[i][j]);
         }

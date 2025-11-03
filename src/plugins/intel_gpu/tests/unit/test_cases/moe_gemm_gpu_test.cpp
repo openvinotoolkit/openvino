@@ -169,24 +169,24 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
     void quantize_4bit(std::vector<ov::float16>& weight_fp,
                        std::vector<uint8_t>& weight_quantized,
                        cldnn::data_types q_dt,
-                       int B,
-                       int N,
-                       int K,
-                       int group_size,
-                       int is_symmetric,
+                       size_t B,
+                       size_t N,
+                       size_t K,
+                       int32_t group_size,
+                       bool is_symmetric,
                        std::vector<ov::float16>& weight_scale,
                        std::vector<ov::float16>& weight_zp) {
-        const int K_q = K / 2;
-        const int num_elements_per_byte = 2;
-        const int num_scale_groups = K / group_size;
+        const size_t K_q = K / 2;
+        const size_t num_elements_per_byte = 2;
+        const size_t num_scale_groups = K / group_size;
 
-        for (int b = 0; b < B; b++) {
-            for (int n = 0; n < N; n++) {
-                int group_iter = 0;
+        for (size_t b = 0; b < B; b++) {
+            for (size_t n = 0; n < N; n++) {
+                size_t group_iter = 0;
                 while (group_iter * group_size < K) {
                     ov::float16 amax = std::numeric_limits<ov::float16>::lowest();
                     ov::float16 amin = std::numeric_limits<ov::float16>::max();
-                    for (int ki = 0; ki < group_size; ki++) {
+                    for (int32_t ki = 0; ki < group_size; ki++) {
                         ov::float16 v = weight_fp[b * N * K + n * K + group_iter * group_size + ki];
                         amax = std::max(amax, v);
                         amin = std::min(amin, v);
@@ -202,7 +202,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                         float zp_tmp = (float) (q_min - amin * inv_scale);
                         ov::float16 zp = zp_tmp;
                         // quantize asym u4
-                        for (int ki = 0; ki < group_size / num_elements_per_byte; ki++)  {
+                        for (size_t ki = 0; ki < group_size / num_elements_per_byte; ki++)  {
                             ov::float16 v0 = weight_fp[(b * N * K) + (n * K) + (group_iter * group_size) + num_elements_per_byte * ki];
                             ov::float16 v1 = weight_fp[(b * N * K) + (n * K) + (group_iter * group_size) + num_elements_per_byte * ki + 1];
                             uint8_t q0 = std::min(std::max((uint8_t)(float(v0) * inv_scale + (float)zp), (uint8_t)0), q_max); // u4
@@ -221,7 +221,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                         float abs_max = std::max(std::abs(float(amax)), std::abs(float(amin)));
                         float inv_scale = (float)q_max / abs_max;
                         // quantize sym i4
-                        for (int ki = 0; ki < group_size / num_elements_per_byte; ki++) {
+                        for (size_t ki = 0; ki < group_size / num_elements_per_byte; ki++) {
                             ov::float16 v0 = weight_fp[(b * N * K) + (n * K) + (group_iter * group_size) + num_elements_per_byte * ki];
                             ov::float16 v1 = weight_fp[(b * N * K) + (n * K) + (group_iter * group_size) + num_elements_per_byte * ki + 1];
                             int8_t q0 = std::min(std::max((int8_t)(std::round(float(v0) * inv_scale)), q_min), q_max);  // u4
@@ -486,168 +486,162 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                          ::testing::ValuesIn(std::vector<moe_gemm_test_params>{// f16 / prefill
                                                                                moe_gemm_test_params{
                                                                                    PHASE::PREFILL /*phase*/,
-                                                                                   30,                     /*num_tokens*/
-                                                                                   32,                     /*num_total_experts*/
-                                                                                   2,                      /*num_experts_per_token*/
-                                                                                   3,                      /*num_actually_used_experts*/
-                                                                                   128,                    /*hidden_size*/
-                                                                                   64,                     /*out_N*/
-                                                                                   false,                  /*has_bias*/
-                                                                                   cldnn::data_types::f16, /*input_dt*/
-                                                                                   cldnn::data_types::f16, /*weight_dt*/
-                                                                                   cldnn::data_types::f16,
-                                                                                   /*scale_dt*/  // not used
-                                                                                   -1,
-                                                                                   /*scale_group_size*/  // not used
-                                                                                   false                 /*weight_symmetric_quant*/
+                                                                                   static_cast<size_t>(30),  /*num_tokens*/
+                                                                                   static_cast<size_t>(32),  /*num_total_experts*/
+                                                                                   static_cast<size_t>(2),   /*num_experts_per_token*/
+                                                                                   static_cast<size_t>(3),   /*num_actually_used_experts*/
+                                                                                   static_cast<size_t>(128), /*hidden_size*/
+                                                                                   static_cast<size_t>(64),  /*out_N*/
+                                                                                   false,                    /*has_bias*/
+                                                                                   cldnn::data_types::f16,   /*input_dt*/
+                                                                                   cldnn::data_types::f16,   /*weight_dt*/
+                                                                                   cldnn::data_types::f16,   /*scale_dt*/
+                                                                                   -1,                       /*scale_group_size*/
+                                                                                   false                     /*weight_symmetric_quant*/
                                                                                },
                                                                                // f16 / up
                                                                                moe_gemm_test_params{
                                                                                    PHASE::UP /*phase*/,
-                                                                                   1,                      /*num_tokens*/
-                                                                                   32,                     /*num_total_experts*/
-                                                                                   4,                      /*num_experts_per_token*/
-                                                                                   4,                      /*num_actually_used_experts*/
-                                                                                   128,                    /*hidden_size*/
-                                                                                   64,                     /*out_N*/
-                                                                                   false,                  /*has_bias*/
-                                                                                   cldnn::data_types::f16, /*input_dt*/
-                                                                                   cldnn::data_types::f16, /*weight_dt*/
-                                                                                   cldnn::data_types::f16,
-                                                                                   /*scale_dt*/  // not used
-                                                                                   -1,
-                                                                                   /*scale_group_size*/  // not used
-                                                                                   false                 /*weight_symmetric_quant*/
+                                                                                   static_cast<size_t>(1),   /*num_tokens*/
+                                                                                   static_cast<size_t>(32),  /*num_total_experts*/
+                                                                                   static_cast<size_t>(4),   /*num_experts_per_token*/
+                                                                                   static_cast<size_t>(4),   /*num_actually_used_experts*/
+                                                                                   static_cast<size_t>(128), /*hidden_size*/
+                                                                                   static_cast<size_t>(64),  /*out_N*/
+                                                                                   false,                    /*has_bias*/
+                                                                                   cldnn::data_types::f16,   /*input_dt*/
+                                                                                   cldnn::data_types::f16,   /*weight_dt*/
+                                                                                   cldnn::data_types::f16,   /*scale_dt*/
+                                                                                   -1,                       /*scale_group_size*/
+                                                                                   false                     /*weight_symmetric_quant*/
                                                                                },
                                                                                // f16 / down
                                                                                moe_gemm_test_params{
-                                                                                   PHASE::UP /*phase*/,
-                                                                                   1,                      /*num_tokens*/
-                                                                                   32,                     /*num_total_experts*/
-                                                                                   4,                      /*num_experts_per_token*/
-                                                                                   4,                      /*num_actually_used_experts*/
-                                                                                   128,                    /*hidden_size*/
-                                                                                   64,                     /*out_N*/
-                                                                                   false,                  /*has_bias*/
-                                                                                   cldnn::data_types::f16, /*input_dt*/
-                                                                                   cldnn::data_types::f16, /*weight_dt*/
-                                                                                   cldnn::data_types::f16,
-                                                                                   /*scale_dt*/  // not used
+                                                                                   PHASE::UP,                /*phase*/
+                                                                                   static_cast<size_t>(1),   /*num_tokens*/
+                                                                                   static_cast<size_t>(32),  /*num_total_experts*/
+                                                                                   static_cast<size_t>(4),   /*num_experts_per_token*/
+                                                                                   static_cast<size_t>(4),   /*num_actually_used_experts*/
+                                                                                   static_cast<size_t>(128), /*hidden_size*/
+                                                                                   static_cast<size_t>(64),  /*out_N*/
+                                                                                   false,                    /*has_bias*/
+                                                                                   cldnn::data_types::f16,   /*input_dt*/
+                                                                                   cldnn::data_types::f16,   /*weight_dt*/
+                                                                                   cldnn::data_types::f16,   /*scale_dt*/
                                                                                    -1,
-                                                                                   /*scale_group_size*/  // not used
+                                                                                   /*scale_group_size*/
                                                                                    false                 /*weight_symmetric_quant*/
                                                                                },
                                                                                // i4 / symmetric/ group size 32 / prefill
                                                                                moe_gemm_test_params{
-                                                                                   PHASE::PREFILL /*phase*/,
-                                                                                   30,                     /*num_tokens*/
-                                                                                   32,                     /*num_total_experts*/
-                                                                                   2,                      /*num_experts_per_token*/
-                                                                                   3,                      /*num_actually_used_experts*/
-                                                                                   128,                    /*hidden_size*/
-                                                                                   64,                     /*out_N*/
-                                                                                   false,                  /*has_bias*/
-                                                                                   cldnn::data_types::f16, /*input_dt*/
-                                                                                   cldnn::data_types::i4,  /*weight_dt*/
-                                                                                   cldnn::data_types::f16, /*scale_dt*/
-                                                                                   32,                     /*scale_group_size*/
-                                                                                   true,                   /*weight_symmetric_quant*/
-                                                                                   true,                   /*is_pa*/
+                                                                                   PHASE::PREFILL,           /*phase*/
+                                                                                   static_cast<size_t>(30),  /*num_tokens*/
+                                                                                   static_cast<size_t>(32),  /*num_total_experts*/
+                                                                                   static_cast<size_t>(2),   /*num_experts_per_token*/
+                                                                                   static_cast<size_t>(3),   /*num_actually_used_experts*/
+                                                                                   static_cast<size_t>(128), /*hidden_size*/
+                                                                                   static_cast<size_t>(64),  /*out_N*/
+                                                                                   false,                    /*has_bias*/
+                                                                                   cldnn::data_types::f16,   /*input_dt*/
+                                                                                   cldnn::data_types::i4,    /*weight_dt*/
+                                                                                   cldnn::data_types::f16,   /*scale_dt*/
+                                                                                   32,                       /*scale_group_size*/
+                                                                                   true,                     /*weight_symmetric_quant*/
+                                                                                   true,                     /*is_pa*/
                                                                                },
                                                                                // i4 / symmetric/ group size 32 / up
                                                                                moe_gemm_test_params{
-                                                                                   PHASE::UP /*phase*/,
-                                                                                   1,                      /*num_tokens*/
-                                                                                   32,                     /*num_total_experts*/
-                                                                                   4,                      /*num_experts_per_token*/
-                                                                                   4,                      /*num_actually_used_experts*/
-                                                                                   128,                    /*hidden_size*/
-                                                                                   64,                     /*out_N*/
-                                                                                   false,                  /*has_bias*/
-                                                                                   cldnn::data_types::f16, /*input_dt*/
-                                                                                   cldnn::data_types::i4,  /*weight_dt*/
-                                                                                   cldnn::data_types::f16, /*scale_dt*/
-                                                                                   32,                     /*scale_group_size*/
-                                                                                   true                    /*weight_symmetric_quant*/
+                                                                                   PHASE::UP,                /*phase*/
+                                                                                   static_cast<size_t>(1),   /*num_tokens*/
+                                                                                   static_cast<size_t>(32),  /*num_total_experts*/
+                                                                                   static_cast<size_t>(4),   /*num_experts_per_token*/
+                                                                                   static_cast<size_t>(4),   /*num_actually_used_experts*/
+                                                                                   static_cast<size_t>(128), /*hidden_size*/
+                                                                                   static_cast<size_t>(64),  /*out_N*/
+                                                                                   false,                    /*has_bias*/
+                                                                                   cldnn::data_types::f16,   /*input_dt*/
+                                                                                   cldnn::data_types::i4,    /*weight_dt*/
+                                                                                   cldnn::data_types::f16,   /*scale_dt*/
+                                                                                   32,                       /*scale_group_size*/
+                                                                                   true                      /*weight_symmetric_quant*/
                                                                                },
                                                                                // i4 / symmetric/ group size 32 / down
                                                                                moe_gemm_test_params{
-                                                                                   PHASE::DOWN /*phase*/,
-                                                                                   1,                      /*num_tokens*/
-                                                                                   32,                     /*num_total_experts*/
-                                                                                   4,                      /*num_experts_per_token*/
-                                                                                   4,                      /*num_actually_used_experts*/
-                                                                                   128,                    /*hidden_size*/
-                                                                                   64,                     /*out_N*/
-                                                                                   false,                  /*has_bias*/
-                                                                                   cldnn::data_types::f16, /*input_dt*/
-                                                                                   cldnn::data_types::i4,  /*weight_dt*/
-                                                                                   cldnn::data_types::f16, /*scale_dt*/
-                                                                                   32,                     /*scale_group_size*/
-                                                                                   true                    /*weight_symmetric_quant*/
+                                                                                   PHASE::DOWN,               /*phase*/
+                                                                                   static_cast<size_t>(1),    /*num_tokens*/
+                                                                                   static_cast<size_t>(32),   /*num_total_experts*/
+                                                                                   static_cast<size_t>(4),    /*num_experts_per_token*/
+                                                                                   static_cast<size_t>(4),    /*num_actually_used_experts*/
+                                                                                   static_cast<size_t>(1280), /*hidden_size*/
+                                                                                   static_cast<size_t>(64),   /*out_N*/
+                                                                                   false,                     /*has_bias*/
+                                                                                   cldnn::data_types::f16,    /*input_dt*/
+                                                                                   cldnn::data_types::i4,     /*weight_dt*/
+                                                                                   cldnn::data_types::f16,    /*scale_dt*/
+                                                                                   32,                        /*scale_group_size*/
+                                                                                   true                       /*weight_symmetric_quant*/
                                                                                },
                                                                                // u4 / asymmetric/ per_token / prefill
                                                                                moe_gemm_test_params{
-                                                                                   PHASE::PREFILL /*phase*/,
-                                                                                   1,                      /*num_tokens*/
-                                                                                   32,                     /*num_total_experts*/
-                                                                                   4,                      /*num_experts_per_token*/
-                                                                                   4,                      /*num_actually_used_experts*/
-                                                                                   2880,                    /*hidden_size*/
-                                                                                   5760,                     /*out_N*/
-                                                                                   false,                  /*has_bias*/
-                                                                                   cldnn::data_types::f16, /*input_dt*/
-                                                                                   cldnn::data_types::u4,  /*weight_dt*/
-                                                                                   cldnn::data_types::f16, /*scale_dt*/
-                                                                                   2880,                    /*scale_group_size*/
-                                                                                   false                   /*weight_symmetric_quant*/
+                                                                                   PHASE::PREFILL,            /*phase*/
+                                                                                   static_cast<size_t>(1),    /*num_tokens*/
+                                                                                   static_cast<size_t>(32),   /*num_total_experts*/
+                                                                                   static_cast<size_t>(4),    /*num_experts_per_token*/
+                                                                                   static_cast<size_t>(4),    /*num_actually_used_experts*/
+                                                                                   static_cast<size_t>(2880), /*hidden_size*/
+                                                                                   static_cast<size_t>(5760), /*out_N*/
+                                                                                   false,                     /*has_bias*/
+                                                                                   cldnn::data_types::f16,    /*input_dt*/
+                                                                                   cldnn::data_types::u4,     /*weight_dt*/
+                                                                                   cldnn::data_types::f16,    /*scale_dt*/
+                                                                                   2880,                      /*scale_group_size*/
+                                                                                   false                      /*weight_symmetric_quant*/
                                                                                },
                                                                                // u4 / asymmetric/ group size 32 / prefill
                                                                                moe_gemm_test_params{
-                                                                                   PHASE::PREFILL /*phase*/,
-                                                                                   50,                     /*num_tokens*/
-                                                                                   32,                     /*num_total_experts*/
-                                                                                   2,                      /*num_experts_per_token*/
-                                                                                   15,                     /*num_actually_used_experts*/
-                                                                                   128,                    /*hidden_size*/
-                                                                                   64,                     /*out_N*/
-                                                                                   false,                  /*has_bias*/
-                                                                                   cldnn::data_types::f16, /*input_dt*/
-                                                                                   cldnn::data_types::u4,  /*weight_dt*/
-                                                                                   cldnn::data_types::f32, /*scale_dt*/
-                                                                                   32,                     /*scale_group_size*/
-                                                                                   false                   /*weight_symmetric_quant*/
+                                                                                   PHASE::PREFILL,           /*phase*/
+                                                                                   static_cast<size_t>(50),  /*num_tokens*/
+                                                                                   static_cast<size_t>(32),  /*num_total_experts*/
+                                                                                   static_cast<size_t>(2),   /*num_experts_per_token*/
+                                                                                   static_cast<size_t>(15),  /*num_actually_used_experts*/
+                                                                                   static_cast<size_t>(128), /*hidden_size*/
+                                                                                   static_cast<size_t>(64),  /*out_N*/
+                                                                                   false,                    /*has_bias*/
+                                                                                   cldnn::data_types::f16,   /*input_dt*/
+                                                                                   cldnn::data_types::u4,    /*weight_dt*/
+                                                                                   cldnn::data_types::f32,   /*scale_dt*/
+                                                                                   32,                       /*scale_group_size*/
+                                                                                   false                     /*weight_symmetric_quant*/
                                                                                },
                                                                                // u4 / asymmetric/ group size 32 / up
                                                                                moe_gemm_test_params{
-                                                                                   PHASE::UP /*phase*/,
-                                                                                   1,                      /*num_tokens*/
-                                                                                   32,                     /*num_total_experts*/
-                                                                                   4,                      /*num_experts_per_token*/
-                                                                                   4,                      /*num_actually_used_experts*/
-                                                                                   128,                    /*hidden_size*/
-                                                                                   64,                     /*out_N*/
-                                                                                   false,                  /*has_bias*/
-                                                                                   cldnn::data_types::f16, /*input_dt*/
-                                                                                   cldnn::data_types::u4,  /*weight_dt*/
-                                                                                   cldnn::data_types::f32, /*scale_dt*/
-                                                                                   32,                     /*scale_group_size*/
-                                                                                   false                   /*weight_symmetric_quant*/
+                                                                                   PHASE::UP,                /*phase*/
+                                                                                   static_cast<size_t>(1),   /*num_tokens*/
+                                                                                   static_cast<size_t>(32),  /*num_total_experts*/
+                                                                                   static_cast<size_t>(4),   /*num_experts_per_token*/
+                                                                                   static_cast<size_t>(4),   /*num_actually_used_experts*/
+                                                                                   static_cast<size_t>(128), /*hidden_size*/
+                                                                                   static_cast<size_t>(64),  /*out_N*/
+                                                                                   false,                    /*has_bias*/
+                                                                                   cldnn::data_types::f16,   /*input_dt*/
+                                                                                   cldnn::data_types::u4,    /*weight_dt*/
+                                                                                   cldnn::data_types::f32,   /*scale_dt*/
+                                                                                   32,                       /*scale_group_size*/
+                                                                                   false                     /*weight_symmetric_quant*/
                                                                                },
                                                                                // u4 / asymmetric/ group size 32 / down
                                                                                moe_gemm_test_params{
-                                                                                   PHASE::DOWN /*phase*/,
-                                                                                   1,                      /*num_tokens*/
-                                                                                   32,                     /*num_total_experts*/
-                                                                                   4,                      /*num_experts_per_token*/
-                                                                                   4,                      /*num_actually_used_experts*/
-                                                                                   128,                    /*hidden_size*/
-                                                                                   64,                     /*out_N*/
-                                                                                   false,                  /*has_bias*/
-                                                                                   cldnn::data_types::f16, /*input_dt*/
-                                                                                   cldnn::data_types::u4,  /*weight_dt*/
-                                                                                   cldnn::data_types::f32, /*scale_dt*/
-                                                                                   32,                     /*scale_group_size*/
-                                                                                   false                   /*weight_symmetric_quant*/
-                                                                               }
-                                                                            }));
+                                                                                   PHASE::DOWN,              /*phase*/
+                                                                                   static_cast<size_t>(1),   /*num_tokens*/
+                                                                                   static_cast<size_t>(32),  /*num_total_experts*/
+                                                                                   static_cast<size_t>(4),   /*num_experts_per_token*/
+                                                                                   static_cast<size_t>(4),   /*num_actually_used_experts*/
+                                                                                   static_cast<size_t>(128), /*hidden_size*/
+                                                                                   static_cast<size_t>(64),  /*out_N*/
+                                                                                   false,                    /*has_bias*/
+                                                                                   cldnn::data_types::f16,   /*input_dt*/
+                                                                                   cldnn::data_types::u4,    /*weight_dt*/
+                                                                                   cldnn::data_types::f32,   /*scale_dt*/
+                                                                                   32,                       /*scale_group_size*/
+                                                                                   false                     /*weight_symmetric_quant*/
+                                                                               }}));

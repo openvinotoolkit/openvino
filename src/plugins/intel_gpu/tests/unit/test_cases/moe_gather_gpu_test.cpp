@@ -70,7 +70,7 @@ void test_moe_gather(bool is_caching_test, int k) {
 
     for (size_t i = 0; i < experts_per_token.size(); ++i) {
         for (size_t j = 0; j < experts_per_token[i].size(); ++j)
-            tokens_per_expert_tmp[experts_per_token[i][j]].push_back(i);
+            tokens_per_expert_tmp[experts_per_token[i][j]].push_back(static_cast<int32_t>(i));
     }
 
     std::vector<int32_t> tokens_per_expert_data;
