@@ -153,7 +153,6 @@ INSTANTIATE_TEST_SUITE_P(
         GatherNDTestParams{StaticShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 5, 2}}, StaticShape{6, 4, 1, 5}, 3}),
     print_params);
 
-// ------------------------------ Broadcasting Tests (CVS-169059) ------------------------------
 // Tests for broadcasting batch dimensions for ONNXRuntime compatibility
 class StaticShapeInferenceGatherNDBroadcastTest : public TestWithParam<GatherNDTestParams> {};
 
