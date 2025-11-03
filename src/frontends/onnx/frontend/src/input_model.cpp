@@ -651,11 +651,7 @@ std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_tensor_place(
                                                               tensor_meta_info.m_partial_shape,
                                                               tensor_meta_info.m_element_type,
                                                               std::vector<std::string>{*tensor_meta_info.m_tensor_name},
-                                                              tensor_meta_info.m_tensor_data,
-                                                              tensor_meta_info.m_tensor_data_size,
-                                                              tensor_meta_info.m_tensor_data_any,
-                                                              tensor_meta_info.m_external_location,
-                                                              tensor_meta_info.m_is_raw);
+                                                              tensor_meta_info.m_buffer);
     return tensor_place;
 }
 
@@ -688,7 +684,7 @@ void InputModel::InputModelONNXImpl::load_model() {
             tensor_place->set_input_index(tensor_decoder->get_input_idx());
             tensor_place->set_output_index(tensor_decoder->get_output_idx());
             // Constant with data has been found
-            if (tensor_place->get_data() != nullptr)
+            if (tensor_place->get_buffer() != nullptr)
                 continue;
             auto name = tensor_place->get_names()[0];
             if (m_tensor_places.count(name) == 0) {

@@ -81,7 +81,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     auto create_const_or_param = [&](const std::string& name,
                                      const std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>& input_tensor) {
         std::shared_ptr<ov::Node> node;
-        if (input_tensor->get_data_location() != nullptr || input_tensor->get_data() != nullptr) {
+        if (input_tensor->get_buffer() != nullptr) {
             Tensor tensor = Tensor(input_tensor);
             node = tensor.get_ov_constant();
         } else if (input_tensor->get_partial_shape() == PartialShape{0}) {  // empty constant

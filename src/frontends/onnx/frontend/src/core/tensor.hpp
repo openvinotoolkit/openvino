@@ -52,19 +52,6 @@ inline std::vector<T> __get_data(const Container& container) {
 #endif
 }
 
-template <typename T, typename SRC>
-inline std::vector<T> __get_data(const void* data, const size_t data_size) {
-#if defined(_MSC_VER)
-#    pragma warning(push)
-#    pragma warning(disable : 4267)
-#    pragma warning(disable : 4244)
-#endif
-    return std::vector<T>(static_cast<const SRC*>(data), static_cast<const SRC*>(data) + data_size);
-#if defined(_MSC_VER)
-#    pragma warning(pop)
-#endif
-}
-
 template <typename T>
 inline std::vector<T> __get_raw_data(const std::string& raw_data, int onnx_data_type) {
     auto it = reinterpret_cast<const T*>(raw_data.data());
@@ -83,18 +70,10 @@ public:
                     const ov::PartialShape& pshape,
                     ov::element::Type type,
                     const std::vector<std::string>& names,
-                    const void* data,
-                    const size_t data_size,
-                    const ov::Any& data_any,
-                    std::shared_ptr<std::string> data_location,
-                    const bool is_raw)
+                    const std::shared_ptr<ov::AlignedBuffer>& buffer)
         : ov::frontend::onnx::TensorPlace(input_model, pshape, type, names),
           m_input_model(input_model),
-          m_data(data),
-          m_data_any(data_any),
-          m_data_size(data_size),
-          m_data_location(data_location),
-          m_is_raw(is_raw) {};
+          m_buffer(buffer) {};
 
     void translate(ov::Output<ov::Node>& output);
 
@@ -119,24 +98,8 @@ public:
         m_output_idx = idx;
     }
 
-    const void* get_data() const {
-        return m_data;
-    }
-
-    size_t get_data_size() const {
-        return m_data_size;
-    }
-
-    const ov::Any get_data_any() const {
-        return m_data_any;
-    }
-
-    std::shared_ptr<std::string> get_data_location() const {
-        return m_data_location;
-    }
-
-    bool is_raw() const {
-        return m_is_raw;
+    std::shared_ptr<ov::AlignedBuffer> get_buffer() const {
+        return m_buffer;
     }
 
     detail::MappedMemoryHandles get_mmap_cache();
@@ -145,11 +108,7 @@ public:
 protected:
     int64_t m_input_idx = -1, m_output_idx = -1;
     const ov::frontend::InputModel& m_input_model;
-    const void* m_data;
-    ov::Any m_data_any;
-    size_t m_data_size;
-    std::shared_ptr<std::string> m_data_location;
-    bool m_is_raw;
+    std::shared_ptr<ov::AlignedBuffer> m_buffer;
 };
 
 class Tensor {
@@ -298,7 +257,7 @@ public:
 private:
     bool has_external_data() const {
         if (m_tensor_place != nullptr) {
-            return m_tensor_place->get_data_location() != nullptr;
+            return false;
         }
         return m_tensor_proto->has_data_location() &&
                m_tensor_proto->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL;
@@ -306,11 +265,10 @@ private:
 
     template <typename T>
     std::vector<T> get_external_data() const {
-        const auto ext_data = m_tensor_place != nullptr
-                                  ? detail::TensorExternalData(*m_tensor_place->get_data_location(),
-                                                               reinterpret_cast<size_t>(m_tensor_place->get_data()),
-                                                               m_tensor_place->get_data_size())
-                                  : detail::TensorExternalData(*m_tensor_proto);
+        if (m_tensor_place != nullptr) {
+            FRONT_END_NOT_IMPLEMENTED(get_external_data);
+        }
+        const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
         std::shared_ptr<ov::AlignedBuffer> buffer = nullptr;
         if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
             buffer = ext_data.load_external_mem_data();
@@ -327,7 +285,7 @@ private:
             FRONT_END_THROW("Unexpected usage of method for externally stored data");
         }
         if (m_tensor_place != nullptr) {
-            return m_tensor_place->get_data();
+            FRONT_END_NOT_IMPLEMENTED(get_data_ptr);
         }
 
         if (m_tensor_proto->has_raw_data()) {
@@ -350,12 +308,7 @@ private:
 
     size_t get_data_size() const {
         if (m_tensor_place != nullptr) {
-            if (m_tensor_place->is_raw()) {
-                return m_tensor_place->get_data_size() /
-                       get_onnx_data_size(ov_to_onnx_data_type(m_tensor_place->get_element_type()));
-            } else {
-                return m_tensor_place->get_data_size();
-            }
+            FRONT_END_NOT_IMPLEMENTED(get_data_size);
         }
         if (has_external_data()) {
             const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
