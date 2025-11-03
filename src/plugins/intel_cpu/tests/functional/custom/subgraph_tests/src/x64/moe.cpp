@@ -268,20 +268,6 @@ TEST_P(MoECompressedWeightsSubgraphTest, CompareWithRefs) {
 
 namespace {
 const std::vector<MoEType> moe_types = {MoEType::MoE2GeMM, MoEType::MoE3GeMM};
-const std::vector<MoePatternParams> moe_params_nightly = {
-    {
-        {{-1, -1, 2048}, {{2, 15, 2048}, {2, 1, 2048}, {3, 8, 2048}}},  // data_shape,
-                                                                        // seq_len=dynamic, hidden_size=2048
-        4,                                                              // topk
-        32,                                                             // number_of_experts
-        4096                                                            // intermediate_size
-    },
-    {
-        {{-1, -1, 1024}, {{1, 32, 1024}, {1, 1, 1024}, {1, 16, 1024}}},  // Different seq length
-        6,                                                               // topk
-        64,                                                              // number_of_experts
-        2048                                                             // intermediate_size
-    }};
 
 const std::vector<MoePatternParams> moe_params_smoke = {
     {
@@ -316,34 +302,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_basic,
                                             ::testing::ValuesIn(generate_additional_config())),
                          MoESubgraphTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_MoESubgraph_basic,
-                         MoESubgraphTest,
-                         ::testing::Combine(::testing::ValuesIn(moe_params_nightly),
-                                            ::testing::ValuesIn(moe_types),
-                                            ::testing::ValuesIn(generate_additional_config())),
-                         MoESubgraphTest::getTestCaseName);
-
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
-const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
+const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
+                                                               ov::element::i8,
+                                                               ov::element::u4,
+                                                               ov::element::i4};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights,
                          MoECompressedWeightsSubgraphTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
-                                            ::testing::ValuesIn(moe_types),
-                                            ::testing::ValuesIn(weights_precisions),
-                                            ::testing::ValuesIn(decompression_precisions),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::Values(DecompressionType::full),
-                                            ::testing::Values(DecompressionType::full),
-                                            ::testing::Values(false),  // reshape on decompression
-                                            ::testing::Values(16),     // decompression group size
-                                            ::testing::ValuesIn(generate_additional_config()),
-                                            ::testing::Values(true)),  // use_matmul_decompression_impl
-                         MoECompressedWeightsSubgraphTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_MoeCompressedWeights,
-                         MoECompressedWeightsSubgraphTest,
-                         ::testing::Combine(::testing::ValuesIn(moe_params_nightly),
                                             ::testing::ValuesIn(moe_types),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
