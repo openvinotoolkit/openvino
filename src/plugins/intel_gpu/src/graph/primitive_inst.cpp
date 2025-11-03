@@ -606,7 +606,13 @@ bool primitive_inst::need_reset_output_memory() const {
         const bool is_user_onednn_impl = user_inst->get_node().get_preferred_impl_type() == impl_types::onednn;
         const bool is_user_conv = user_inst->get_node().is_type<convolution>();
         if (is_user_conv && is_user_onednn_impl) {
+            auto& conv_node = user_inst->get_node().as<convolution>();
             auto& output_layout = _impl_params->get_output_layout(0);
+            auto in_channel_count = get_convolution_channel_count(conv_node, output_layout, true);
+            // If the channel count is dynamic, we cannot verify feature alignment,
+            // so we conservatively do the reset and return true for this condition.
+            if (in_channel_count == -1)
+                return true;
 
             auto get_feature_block_size = [](format fmt) {
                         int feature_block_size = 1;
@@ -623,7 +629,7 @@ bool primitive_inst::need_reset_output_memory() const {
             auto feature_block_size = get_feature_block_size(fmt);
             // if layout is single blocked and feature size is not aligned with the blocking size, need to reset output so that we can guarantee zero-filling
             // NOTE: We may improve this logic to avoid reset if we are sure that it is not "corrupted" by other layers.
-            if (output_layout.feature() % feature_block_size != 0) {
+            if (in_channel_count % feature_block_size != 0) {
                 return true;
             }
         }

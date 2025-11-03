@@ -31,6 +31,7 @@ const std::string no_bias = "";
 
 struct mem_reset_params {
     ov::Dimension::value_type in_channel;
+    bool is_dynamic;
     bool need_reset;
 };
 
@@ -43,20 +44,32 @@ TEST_P(mem_reset_test, need_reset_output_memory_test) {
         return;
 
     tests::random_generator rg(GET_SUITE_NAME);
-    ov::PartialShape input_pshape = {1, p.in_channel, 64, 64};
+
+    ov::PartialShape target_pshape = {1, p.in_channel, 64, 64};
+    ov::PartialShape input_pshape;
+
+    if (p.is_dynamic) {
+        for (size_t i = 0; i < target_pshape.size(); ++i) {
+            input_pshape.emplace_back(ov::Dimension());
+        }
+        input_pshape[1] = target_pshape[1];
+    } else {
+        input_pshape = target_pshape;
+    }
+
     ov::PartialShape weights_pshape = {16, p.in_channel, 3, 3};
     layout in_layout{ input_pshape, data_types::f16, format::bfyx };
     layout weights_layout{ weights_pshape, data_types::f16, format::bfyx };
-    auto input_data = rg.generate_random_1d<ov::float16>(in_layout.count(), -1, 1);
-    auto input_mem = engine.allocate_memory(in_layout);
+    auto input_data = rg.generate_random_1d<ov::float16>(ov::shape_size(target_pshape.get_shape()), -1, 1);
+    auto input_mem = engine.allocate_memory({ target_pshape, data_types::f16, format::bfyx });
     set_values(input_mem, input_data);
 
     auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1);
     auto weights_mem = engine.allocate_memory(weights_layout);
     set_values(weights_mem, weights_data);
 
-    auto input1 = input_layout("input1", input_mem->get_layout());
-    auto input2 = input_layout("input2", input_mem->get_layout());
+    auto input1 = input_layout("input1", in_layout);
+    auto input2 = input_layout("input2", in_layout);
     auto weights = data("weights", weights_mem);
     auto eltw = eltwise("eltwise", {input_info("input1"), input_info("input2")}, eltwise_mode::sum);
     auto eltw_reorder = reorder("reorder1", input_info("eltwise"), format::b_fs_yx_fsv16, data_types::f16 );
@@ -87,13 +100,19 @@ TEST_P(mem_reset_test, need_reset_output_memory_test) {
 
     auto outputs_test_blocked = network_test_blocked.execute();
 
-    auto reorder_inst = network_test_blocked.get_primitive("reorder1");
+    // Additional reorder is added and fused when force_implemenetations enable in dynamic
+    auto target_primitive_id = p.is_dynamic ? "reorder1_0_reorder_2" : "reorder1";
+    auto reorder_inst = network_test_blocked.get_primitive(target_primitive_id);
     ASSERT_TRUE(PrimitiveInstTestHelper::need_reset_output_memory(reorder_inst) == p.need_reset);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke, mem_reset_test,
     testing::Values(
-        mem_reset_params{ 9, true },        // If tensor is not packed(not aligned to 16), need_reset_output_memory == true
-        mem_reset_params{ 16, false }
+        // static
+        mem_reset_params{ 9, false, true },        // If tensor is not packed(not aligned to 16), need_reset_output_memory == true
+        mem_reset_params{ 16, false, false },
+        // dynamic
+        mem_reset_params{ 9, true, true },
+        mem_reset_params{ 16, true, false }
     )
 );
