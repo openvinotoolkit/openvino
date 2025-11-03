@@ -381,6 +381,12 @@ private:
     void run(program& p) override;
 };
 
+class conv_groupnorm_stat : public base_pass {
+public:
+    conv_groupnorm_stat() : base_pass("conv_groupnorm_stat") {}
+    void run(program& p) override;
+};
+
 class add_onednn_optimization_attributes : public base_pass {
 public:
     add_onednn_optimization_attributes() : base_pass("add_onednn_optimization_attributes") {}

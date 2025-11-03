@@ -50,7 +50,7 @@ struct convolution : public primitive_base<convolution> {
                 bool grouped_weights_shape,
                 data_types output_data_type,
                 const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT)
-            : primitive_base(id, {input}, 1, {optional_data_type{output_data_type}}),
+            : primitive_base(id, {input}, 3, {optional_data_type{output_data_type}}),
               groups(groups),
               stride(stride),
               dilation(dilation),
@@ -91,8 +91,9 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_begin,
                 ov::CoordinateDiff padding_end,
                 bool grouped_weights_shape,
-                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT)
-        : primitive_base(id, {input}),
+                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
+                uint32_t gn_groups = 0u)
+        : primitive_base(id, {input}, 3),
           groups(groups),
           stride(stride),
           dilation(dilation),
@@ -104,7 +105,8 @@ struct convolution : public primitive_base<convolution> {
           bias(bias),
           weights_zero_points(""),
           activations_zero_points(""),
-          compensation("") {
+          compensation(""),
+          groupnorm_groups(gn_groups) {
     }
 
     /// @brief Constructs convolution primitive.
@@ -138,7 +140,7 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_begin,
                 ov::CoordinateDiff padding_end,
                 bool bilinear_interpolation_pad = false)
-    : primitive_base(id, inputs),
+    : primitive_base(id, inputs, 3),
       groups(groups),
       stride(stride),
       dilation(dilation),
@@ -196,6 +198,8 @@ struct convolution : public primitive_base<convolution> {
     input_info activations_zero_points;
     /// @brief Primitive id containing compensation.
     input_info compensation;
+    // Groupnorm groups for the groupnorm reduction. If set to 0 no groupnorm reduction
+    uint32_t groupnorm_groups {0};
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -215,6 +219,7 @@ struct convolution : public primitive_base<convolution> {
         seed = hash_combine(seed, !weights_zero_points.is_valid());
         seed = hash_combine(seed, !activations_zero_points.is_valid());
         seed = hash_combine(seed, !compensation.is_valid());
+        seed = hash_combine(seed, groupnorm_groups);
         return seed;
     }
 
@@ -240,7 +245,8 @@ struct convolution : public primitive_base<convolution> {
                cmp_fields(bias.is_valid()) &&
                cmp_fields(weights_zero_points.is_valid()) &&
                cmp_fields(activations_zero_points.is_valid()) &&
-               cmp_fields(compensation.is_valid());
+               cmp_fields(compensation.is_valid()) &&
+               cmp_fields(groupnorm_groups);
         #undef cmp_fields
     }
 
@@ -262,6 +268,7 @@ struct convolution : public primitive_base<convolution> {
         ob << weights_zero_points;
         ob << activations_zero_points;
         ob << compensation;
+        ob << groupnorm_groups;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -282,6 +289,7 @@ struct convolution : public primitive_base<convolution> {
         ib >> weights_zero_points;
         ib >> activations_zero_points;
         ib >> compensation;
+        ib >>  groupnorm_groups;
     }
 
 protected:
