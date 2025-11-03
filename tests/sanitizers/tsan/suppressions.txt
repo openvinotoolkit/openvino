@@ -15,3 +15,4 @@ race:dnnl::impl::primitive_cache_t
 # race conditions from std libs
 race:libstdc++
 race:libc
+race:_dl_deallocate_tls
