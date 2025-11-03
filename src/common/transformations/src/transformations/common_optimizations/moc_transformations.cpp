@@ -44,6 +44,8 @@
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
+#include "transformations/common_optimizations/matmul_experts_fusion.hpp"
+#include "transformations/common_optimizations/matmul_transpose_weights.hpp"
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
@@ -294,6 +296,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // Remove pytestmark to enable e2e test:
     // tests/model_hub_tests/transformation_tests/test_moe_transformation.py
     // REGISTER_PASS(manager, FuseMOE)
+    REGISTER_PASS(manager, FuseVectorizedMOE2GEMMTransposeWeights)
 
     manager.run_passes(f);
 
