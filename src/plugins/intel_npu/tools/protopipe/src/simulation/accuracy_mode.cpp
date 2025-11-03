@@ -3,6 +3,7 @@
 #include "accuracy_mode.hpp"
 
 #include <fstream>
+#include <future>
 
 #include "simulation/computation_builder.hpp"
 #include "simulation/executor.hpp"
@@ -12,6 +13,8 @@
 #include "utils/utils.hpp"
 
 #include <opencv2/gapi/gproto.hpp>  // cv::GCompileArgs
+
+class LayerValidator;
 
 namespace {
 
@@ -115,24 +118,37 @@ void OutputDataVisitor::operator()(const LayerVariantAttr<std::string>&) {
                 " in form of either directory or single file!");
 }
 
-// TODO: modify so it will dump the reference data of the reference device
+// TODO: modify so it will dump the reference data from reference and target device
 void OutputDataVisitor::operator()(const std::string& path_str) {
+    // std::filesystem::path path{path_str};
+    // // NB: It doesn't matter if path exist or not - regenerate and dump outputs anyway.
+    // std::vector<std::filesystem::path> dump_path_vec;
+    // if (isDirectory(path)) {
+    //     dump_path_vec = createDirectoryLayout(path, extractLayerNames(infer.output_layers));
+    // } else {
+    //     if (infer.output_layers.size() > 1) {
+    //         THROW_ERROR("Model: " << infer.tag
+    //                               << " must have exactly one output layer in order to dump output data to file: "
+    //                               << path);
+    //     }
+    //     dump_path_vec = {path};
+    // }
+    // for (uint32_t i = 0; i < infer.output_layers.size(); ++i) {
+    //     const auto& layer = infer.output_layers[i];
+    //     metas[i].set(Dump{dump_path_vec[i]});
+    // }
+    auto default_metric = opts.global_metric ? opts.global_metric : std::make_shared<Norm>(0.0);
+    auto per_layer_metrics =
+            unpackWithDefault(opts.metrics_map.at(infer.tag), extractLayerNames(infer.output_layers), default_metric);
     std::filesystem::path path{path_str};
-    // NB: It doesn't matter if path exist or not - regenerate and dump outputs anyway.
-    std::vector<std::filesystem::path> dump_path_vec;
-    if (isDirectory(path)) {
-        dump_path_vec = createDirectoryLayout(path, extractLayerNames(infer.output_layers));
-    } else {
-        if (infer.output_layers.size() > 1) {
-            THROW_ERROR("Model: " << infer.tag
-                                  << " must have exactly one output layer in order to dump output data to file: "
-                                  << path);
-        }
-        dump_path_vec = {path};
-    }
+    LOG_INFO() << "Reference output data path: " << path << " for model: " << infer.tag
+               << " exists - data will be uploaded" << std::endl;
+    // TODO: change the actual uploadData stuff with the ref/tgt vectors
+    auto layers_data = uploadData(path, infer.tag, infer.output_layers, LayersType::OUTPUT);
     for (uint32_t i = 0; i < infer.output_layers.size(); ++i) {
         const auto& layer = infer.output_layers[i];
-        metas[i].set(Dump{dump_path_vec[i]});
+        LayerValidator validator{infer.tag, layer.name, per_layer_metrics.at(layer.name)};
+        metas[i].set(Validate{std::move(validator), layers_data.at(layer.name)});
     }
 }
 
@@ -208,6 +224,11 @@ static void dumpIterOutput(const cv::Mat& mat, const Dump& dump, const size_t it
 
 namespace {
 
+enum class DeviceType {
+    Reference,
+    Target
+};
+
 class SyncSimulation : public SyncCompiled {
 public:
     SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt_compiled, 
@@ -219,23 +240,24 @@ public:
     Result run(ITermCriterion::Ptr criterion) override;
 
 private:
-    // void runDevice(cv::GCompiled& pipeline, std::vector<Meta>& out_meta, 
-    //                std::vector<std::vector<cv::Mat>>& output_storage, const std::string& device_name);
-    bool process(cv::GCompiled& pipeline);
+    bool process(cv::GCompiled& pipeline, DeviceType device_type);
 
-    SyncExecutor m_exec;
+    SyncExecutor m_ref_exec;
     SyncExecutor m_tgt_exec;
-    std::vector<DummySource::Ptr> m_sources;
-    std::vector<Meta> m_out_meta;
+    std::vector<DummySource::Ptr> m_ref_sources;
+    std::vector<DummySource::Ptr> m_tgt_sources;
+    std::vector<Meta> m_ref_out_meta;
     std::vector<Meta> m_tgt_out_meta;
     cv::optional<uint64_t> m_required_num_iterations;
     const AccuracySimulation::Options& m_opts;
 
-    std::vector<cv::Mat> m_out_mats;
+    std::vector<cv::Mat> m_ref_out_mats;
+    std::vector<cv::Mat> m_tgt_out_mats;
 
     std::vector<std::vector<cv::Mat>> m_ref_outputs;
     std::vector<std::vector<cv::Mat>> m_tgt_outputs;
-    size_t m_iter_idx;
+    size_t m_ref_iter_idx;
+    size_t m_tgt_iter_idx;
 };
 
 class PipelinedSimulation : public PipelinedCompiled {
@@ -256,127 +278,100 @@ private:
     cv::optional<uint64_t> m_required_num_iterations;
 };
 
-//////////////////////////////// SyncSimulation ///////////////////////////////
+//////////////////////////////// SyncSimulation ////////////////////////////////
 SyncSimulation::SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt_compiled, std::vector<DummySource::Ptr>&& sources, 
                                std::vector<Meta>&& ref_out_meta, std::vector<Meta>&& tgt_out_meta, 
                                cv::util::optional<uint64_t> required_num_iterations, const AccuracySimulation::Options& opts)
-        : m_exec(std::move(ref_compiled)),
+        : m_ref_exec(std::move(ref_compiled)),
           m_tgt_exec(std::move(tgt_compiled)),
-          m_sources(std::move(sources)),
-          m_out_meta(std::move(ref_out_meta)),
+          m_ref_sources(sources),
+          m_tgt_sources(std::move(sources)),
+          m_ref_out_meta(std::move(ref_out_meta)),
           m_tgt_out_meta(std::move(tgt_out_meta)),
-          m_out_mats(m_out_meta.size()),
+          m_ref_out_mats(m_ref_out_meta.size()),
+          m_tgt_out_mats(m_tgt_out_meta.size()),
           m_opts(opts),
-          m_iter_idx(0u),
+          m_ref_iter_idx(0u),
+          m_tgt_iter_idx(0u),
           m_required_num_iterations(required_num_iterations) {
 
-    m_ref_outputs.resize(m_out_meta.size());
+    m_ref_outputs.resize(m_ref_out_meta.size());
     m_tgt_outputs.resize(m_tgt_out_meta.size());
 }
 
-// Result SyncSimulation::run(ITermCriterion::Ptr criterion) {
-//     for (auto src : m_sources) {
-//         src->reset();
-//     }
-
-//     auto ref_future = std::async(std::launch::async, [this, &criterion]() {
-//         runDevice(m_ref_exec.getCompiled(), m_ref_out_meta, m_ref_outputs, "Reference");
-//     });
-    
-//     auto tgt_future = std::async(std::launch::async, [this, &criterion]() {
-//         runDevice(m_tgt_exec.getCompiled(), m_tgt_out_meta, m_tgt_outputs, "Target");
-//     });
-    
-//     ref_future.get();
-//     tgt_future.get();
-
-//     std::stringstream ss;
-//     ss << "Reference and target data has been compiled";
-//     return Success{ss.str()};
-
-//     // return compareOutputs();
-// }
-
 Result SyncSimulation::run(ITermCriterion::Ptr criterion) {
-    for (auto src : m_sources) {
+    auto ref_criterion = criterion;
+    auto tgt_criterion = criterion;
+
+    updateCriterion(&ref_criterion, m_required_num_iterations);
+    updateCriterion(&tgt_criterion, m_required_num_iterations);
+
+    for (auto src : m_ref_sources) {
         src->reset();
     }
-    using namespace std::placeholders;
-    auto cb = std::bind(&SyncSimulation::process, this, _1);
-    updateCriterion(&criterion, m_required_num_iterations);
-    m_exec.runLoop(cb, criterion);
+    for (auto src : m_tgt_sources) {
+        src->reset();
+    }
+
+    auto ref_process = [this](cv::GCompiled& pipeline) -> bool {
+        return this->process(pipeline, DeviceType::Reference);
+    };
+
+    auto tgt_process = [this](cv::GCompiled& pipeline) -> bool {
+        return this->process(pipeline, DeviceType::Target);
+    };
+
+    auto ref_future = std::async(std::launch::async, [this, ref_process, ref_criterion]() {
+        m_ref_exec.runLoop(ref_process, ref_criterion);
+    });
+
+    auto tgt_future = std::async(std::launch::async, [this, tgt_process, tgt_criterion]() {
+        m_tgt_exec.runLoop(tgt_process, tgt_criterion);
+    });
+
+    ref_future.get();
+    tgt_future.get();
+
     std::stringstream ss;
-    ss << "Reference data has been generated for " << m_iter_idx << " iteration(s)";
+    ss << "Reference and target data has been generated - Ref: " << m_ref_iter_idx
+       << " iterations, Tgt: " << m_tgt_iter_idx << " iterations";
     return Success{ss.str()};
-};
+}
 
-// void SyncSimulation::runDevice(cv::GCompiled& pipeline, std::vector<Meta>& out_meta, 
-//                               std::vector<std::vector<cv::Mat>>& output_storage, 
-//                               const std::string& device_name) {
-//     updateCriterion(&criterion, m_required_num_iterations);
-//     std::vector<cv::Mat> out_mats(out_meta.size());
-//     size_t iter_idx = 0;
-    
-//     auto process_func = [&](cv::GCompiled& pipe) -> bool {
-//         auto pipeline_outputs = cv::gout();
-//         for (auto& out_mat : out_mats) {
-//             pipeline_outputs += cv::gout(out_mat);
-//         }
-        
-//         cv::GRunArgs pipeline_inputs;
-//         pipeline_inputs.reserve(m_sources.size());
-//         for (auto src : m_sources) {
-//             cv::gapi::wip::Data data;
-//             src->pull(data);
-//             pipeline_inputs.push_back(std::move(data));
-//         }
-        
-//         pipe(std::move(pipeline_inputs), std::move(pipeline_outputs));
-        
-//         for (size_t i = 0; i < out_mats.size(); ++i) {
-//             output_storage[i].push_back(out_mats[i].clone());
-//         }
-        
-//         for (size_t i = 0; i < out_mats.size(); ++i) {
-//             if (out_meta[i].has<Dump>()) {
-//                 const auto& dump = out_meta[i].get<Dump>();
-//                 auto debug_path = dump.path;
-//                 debug_path += "_" + device_name;
-//                 dumpIterOutput(out_mats[i], Dump{debug_path}, iter_idx);
-//             }
-//         }
-        
-//         ++iter_idx;
-//         return true;
-//     };
+bool SyncSimulation::process(cv::GCompiled& pipeline, DeviceType device_type) {
+    auto& sources  = (device_type == DeviceType::Reference) ? m_ref_sources  : m_tgt_sources;
+    auto& out_mats = (device_type == DeviceType::Reference) ? m_ref_out_mats : m_tgt_out_mats;
+    auto& out_meta = (device_type == DeviceType::Reference) ? m_ref_out_meta : m_tgt_out_meta;
+    auto& outputs  = (device_type == DeviceType::Reference) ? m_ref_outputs  : m_tgt_outputs;
+    auto& iter_idx = (device_type == DeviceType::Reference) ? m_ref_iter_idx : m_tgt_iter_idx;
 
-//     SyncExecutor executor(std::move(pipeline));
-//     executor.runLoop(process_func, criterion);
-//     LOG_INFO() << device_name << " device completed " << iter_idx << " iterations";
-// }
-
-bool SyncSimulation::process(cv::GCompiled& pipeline) {
     auto pipeline_outputs = cv::gout();
-    // NB: Reference is mandatory there since copying empty
-    // Mat may lead to weird side effects.
-    for (auto& out_mat : m_out_mats) {
+    for (auto& out_mat : out_mats) {
         pipeline_outputs += cv::gout(out_mat);
     }
+
     cv::GRunArgs pipeline_inputs;
-    pipeline_inputs.reserve(m_sources.size());
-    for (auto src : m_sources) {
+    pipeline_inputs.reserve(sources.size());
+    for (auto src : sources) {
         cv::gapi::wip::Data data;
         src->pull(data);
         pipeline_inputs.push_back(std::move(data));
     }
+
     pipeline(std::move(pipeline_inputs), std::move(pipeline_outputs));
-    for (size_t i = 0; i < m_out_mats.size(); ++i) {
-        if (m_out_meta[i].has<Dump>()) {
-            const auto& dump = m_out_meta[i].get<Dump>();
-            dumpIterOutput(m_out_mats[i], dump, m_iter_idx);
+
+    for (size_t i = 0; i < out_mats.size(); ++i) {
+        outputs[i].push_back(out_mats[i].clone());
+    }
+
+    for (size_t i = 0; i < out_mats.size(); ++i) {
+        if (out_meta[i].has<Dump>()) {
+            const auto& dump = out_meta[i].get<Dump>();
+            dumpIterOutput(out_mats[i], dump, iter_idx);
         }
     }
-    ++m_iter_idx;
+
+    ++iter_idx;
     return true;
 }
 
@@ -416,7 +411,7 @@ bool PipelinedSimulation::process(cv::GStreamingCompiled& pipeline) {
         if (m_out_meta[i].has<Dump>()) {
             const auto& dump = m_out_meta[i].get<Dump>();
             ASSERT(m_opt_mats[i].has_value());
-            dumpIterOutput(m_opt_mats[i].value(), dump, m_iter_idx); // Aici va trebui sa salvez cumva m_out_mats
+            dumpIterOutput(m_opt_mats[i].value(), dump, m_iter_idx);
         }
     }
     ++m_iter_idx;
