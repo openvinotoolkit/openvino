@@ -53,7 +53,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     int input_offset = input_offset_per_expert[batch];
 
     #ifdef IS_GENERATE
-    if (INPUT0_BATCH_NUM > 1) {
+    if (INPUT_SEQ_LEN > 1) {
     #endif
     input_ptr += input_offset * INPUT_STRIDE;
     #ifdef IS_GENERATE

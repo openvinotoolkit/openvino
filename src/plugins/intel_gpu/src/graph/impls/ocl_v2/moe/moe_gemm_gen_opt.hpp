@@ -25,6 +25,7 @@ struct moe_config {
     int32_t weight_group_size = -1;
     int32_t weight_scale_idx = -1;
     int32_t weight_zp_idx = -1;
+    bool has_batch_dim = false;
 };
 
 class MoEGemmOptGeneratorBase : public MoEGemmBase {
@@ -59,6 +60,7 @@ public:
                 moe_cfg.is_weight_symmetric_quantized = true;
             }
         }
+        moe_cfg.has_batch_dim = desc->has_batch_dim;
         return moe_cfg;
     }
 };

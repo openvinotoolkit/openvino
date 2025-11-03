@@ -90,10 +90,14 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
     jit.make("INPUT_STRIDE",
              params.input_layouts[1].get_shape().size() == 4 ? params.input_layouts[1].get_shape()[2] * params.input_layouts[1].get_shape()[3]
                                                              : params.input_layouts[1].get_shape()[2]);
-
     jit.make("OUTPUT_STRIDE", params.input_layouts[1].get_shape()[1]);
     if (!m_is_prefill)
         jit.make("IS_GENERATE", 1);
+    if (cfg.has_batch_dim) {
+        jit.make("INPUT_SEQ_LEN", "INPUT0_FEATURE_NUM");
+    } else {
+        jit.make("INPUT_SEQ_LEN", "INPUT0_BATCH_NUM");
+    }
     auto slm_size = moe_gemm.getSetting("slm_size");
     if (slm_size > 0)
         jit.make("USE_SLM", 1);
@@ -222,7 +226,7 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         auto experts_weight_layout = params.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT);
         auto output_layout = params.get_output_layout();
 
-        size_t n = input_layout.get_shape()[0];
+        size_t n = desc->has_batch_dim ? input_layout.get_shape()[1] : input_layout.get_shape()[0];
         const auto& experts_weight_shape = experts_weight_layout.get_shape();
         size_t m = experts_weight_shape[1];
         size_t k = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
