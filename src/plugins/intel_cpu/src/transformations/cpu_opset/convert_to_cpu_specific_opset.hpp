@@ -8,7 +8,7 @@
 #include "common/pass/align_matmul_input_ranks.hpp"
 #include "common/pass/convert_batch_gather_matmul_to_compressed.hpp"
 #include "common/pass/convert_matmul_to_fc.hpp"
-#include "common/pass/convert_moe_matmuls.hpp"
+#include "common/pass/moe_matmuls_fusion.hpp"
 #include "common/pass/convert_tile_to_seq_tiles.hpp"
 #include "common/pass/convert_to_leaky_relu.hpp"
 #include "common/pass/convert_to_power_static.hpp"
