@@ -163,7 +163,7 @@ void remove_redundant_reorders::run(program& p) {
         auto redundant_format = usr->is_type<resample>() &&
                                 (dep.get_output_layout().format == usr->get_output_layout().format);
         auto same_data_type = (node.get_input_layout().data_type == node.get_output_layout().data_type);
-        if (!redundant_format && !same_data_type)
+        if (!redundant_format || !same_data_type)
             continue;
 
         LOG_NODE_REMOVAL(node.id());
