@@ -4,6 +4,7 @@
 
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -20,6 +21,7 @@
 using namespace ov::op;
 using namespace ov::op::v0;
 using namespace ov::op::v1;
+using namespace ov::util;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
@@ -90,7 +92,8 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     auto scale_rank = scale.get_partial_shape().rank();
     if ((scale_rank.is_dynamic() && normalized_rank.is_dynamic()) ||
         ((scale_rank.is_static() && normalized_rank.is_static()) &&
-          scale_rank.get_length() + 1 != normalized_rank.get_length())) {
+         scale_rank.get_length() + normalize_axis(axis, normalized_rank.get_length()) !=
+             static_cast<size_t>(normalized_rank.get_length()))) {
         scale = std::make_shared<v1::Reshape>(scale, sub_shape, false);
     }
     auto scaled = std::make_shared<Multiply>(normalized, scale);
@@ -99,7 +102,8 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     auto bias_rank = bias.get_partial_shape().rank();
     if ((bias_rank.is_dynamic() && normalized_rank.is_dynamic()) ||
         ((bias_rank.is_static() && normalized_rank.is_static()) &&
-          bias_rank.get_length() + 1 != normalized_rank.get_length())) {
+         bias_rank.get_length() + normalize_axis(axis, normalized_rank.get_length()) !=
+             static_cast<size_t>(normalized_rank.get_length()))) {
         bias = std::make_shared<v1::Reshape>(bias, sub_shape, false);
     }
     auto biased = (num_inputs == 3 ? std::make_shared<Add>(scaled, bias)->output(0) : scaled->output(0));
