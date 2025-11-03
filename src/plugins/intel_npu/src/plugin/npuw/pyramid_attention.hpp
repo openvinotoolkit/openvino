@@ -61,6 +61,7 @@ namespace function {
 // Helper struct to hold validation and setup results
 struct PyramidValidationResult {
     size_t query_length = 0;
+    size_t past_kv_length = 0;
     size_t full_context_length = 0;
     std::map<std::string, size_t> past_key_sequence_dims;
     std::map<std::string, size_t> past_value_sequence_dims;
@@ -98,7 +99,9 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
 // Helper function to process a single pyramid model (clone, reshape, patch, optimize)
 std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov::Model>& original_model,
                                                         size_t model_idx,
+                                                        size_t pyramid_step,
                                                         size_t query_length,
+                                                        size_t full_past_kv_length,
                                                         size_t full_context_length,
                                                         const std::map<std::string, size_t>& past_key_sequence_dims,
                                                         const std::map<std::string, size_t>& past_value_sequence_dims);
@@ -245,8 +248,6 @@ public:
     void prepare(int64_t past_len) override {
         // Always use the largest pyramid model (last one)
         m_pyramid_id = m_pyramid_count > 0 ? m_pyramid_count - 1 : 0;
-        // Only prefill for now
-        m_case = Case::PREFILL;
     }
     int64_t length() const override {
         return -1;
