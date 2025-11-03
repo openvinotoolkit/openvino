@@ -946,6 +946,10 @@ def test_patched_16bit_model_with_convert():
     assert mm_num == 2
 
 
+@pytest.mark.skipif(
+    platform.system() == "Darwin" and platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'],
+    reason="PyTorch sporadic mutex deadlock on macOS ARM64, ticket 172658"
+)
 def test_patched_8bit_model_converts():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
