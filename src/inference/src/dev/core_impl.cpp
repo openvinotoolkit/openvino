@@ -401,8 +401,7 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
 
     // remove core properties for HW devices
     if (!ov::is_virtual_device(parsed._deviceName)) {
-        // note: ov::cache_dir kept as plugin may require it
-        CoreConfig::remove_core_skip_cache_dir(parsed._config);
+        CoreConfig::remove_core(parsed._config);
     }
     return parsed;
 }
@@ -756,21 +755,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 }
             }
 #endif
-            // TODO: remove this block of code once GPU removes support of ov::cache_dir
-            // also, remove device_supports_cache_dir at all
-            {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                if (device_supports_cache_dir(plugin)) {
-                    auto cacheConfig = coreConfig.get_cache_config_for_device(plugin);
-                    if (cacheConfig._cacheManager) {
-                        desc.defaultConfig[ov::cache_dir.name()] = cacheConfig._cacheDir;
-                    }
-                } else if (desc.defaultConfig.count(ov::cache_dir.name()) > 0) {
-                    // Remove "CACHE_DIR" from config if it is not supported by plugin
-                    desc.defaultConfig.erase(ov::cache_dir.name());
-                }
-                OPENVINO_SUPPRESS_DEPRECATED_END
-            }
 
             allowNotImplemented([&]() {
                 // Add device specific value to support device_name.device_id cases
@@ -844,8 +828,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                             config_with_batch,
                                             is_proxy_device(patched_device_name));
     auto plugin = get_plugin(parsed._deviceName);
-    // will consume ov::cache_dir if plugin not support it
-    const auto cache_manager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    const auto cache_manager = parsed._core_config.get_cache_config_for_device(plugin, config)._cacheManager;
     auto res = import_compiled_model(plugin, {}, parsed._config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (res) {
@@ -890,8 +873,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
 
     auto parsed = parseDeviceNameIntoConfig(device_name, coreConfig, config_with_batch, is_proxy_device(device_name));
     auto plugin = get_plugin(parsed._deviceName);
-    // will consume ov::cache_dir if plugin not support it
-    const auto cache_manager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    const auto cache_manager = parsed._core_config.get_cache_config_for_device(plugin, config)._cacheManager;
     auto res = import_compiled_model(plugin, context, parsed._config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (res) {
@@ -919,15 +901,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     auto parsed = parse_device_config(device_name, coreConfig, config, false);
     // in case of compile_model(file_name), we need to clear-up core-level properties
     auto plugin = get_plugin(parsed._deviceName);
-    // will consume ov::cache_dir if plugin not support it
-    const auto cache_manager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    const auto cache_manager = parsed._core_config.get_cache_config_for_device(plugin, config)._cacheManager;
     auto compiled_model = import_compiled_model(plugin, {}, parsed._config, model_path);
 
     if (compiled_model) {
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         // Skip caching for proxy plugin. HW plugin will load network from the cache
-        CoreConfig::remove_core_skip_cache_dir(parsed._config);
+        CoreConfig::remove_core(parsed._config);
         CacheContent cache_content{cache_manager, parsed._core_config.get_enable_mmap(), model_path};
         cache_content.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
         const auto lock = cacheGuard.get_hash_lock(cache_content.blobId);
@@ -949,8 +930,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::compile_model::from_memory");
     auto parsed = parseDeviceNameIntoConfig(device_name, coreConfig, config);
     auto plugin = get_plugin(parsed._deviceName);
-    // will consume ov::cache_dir if plugin not support it
-    const auto cache_manager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    const auto cache_manager = parsed._core_config.get_cache_config_for_device(plugin, config)._cacheManager;
     auto compiled_model = import_compiled_model(plugin, {}, parsed._config);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (compiled_model) {
@@ -1366,34 +1346,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         std::lock_guard<std::mutex> lock(get_mutex());
         created_plugins.reserve(plugins.size());
 
-        // TODO: keep only:
-        //    coreConfig.set_and_update(config);
-        // once GPU remove support of ov::cache_dir
-        // CoreConfg::set_and_update will drop CACHE_DIR from config map
-        // and updates core config with new ov::cache_dir
-        if (deviceName.empty()) {
-            coreConfig.set_and_update(config);
-        } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto cache_it = config.find(ov::cache_dir.name());
-            if (cache_it != config.end()) {
-                coreConfig.set_cache_dir_for_device((cache_it->second).as<std::string>(), clearDeviceName);
-                config.erase(cache_it);
-            }
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            // apply and remove core properties
-            auto it = config.find(ov::force_tbb_terminate.name());
-            if (it != config.end()) {
-                auto flag = it->second.as<bool>();
-                ov::threading::executor_manager()->set_property({{it->first, flag}});
-                config.erase(it);
-            }
-
-            it = config.find(ov::enable_mmap.name());
-            if (it != config.end()) {
-                config.erase(it);
-            }
-        }
+        coreConfig.set_and_update(config, clearDeviceName);
 
         if (!config.empty()) {
             auto base_desc = pluginRegistry.find(clearDeviceName);
@@ -1430,17 +1383,6 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         allowNotImplemented([&]() {
             std::lock_guard<std::mutex> lock(get_mutex(plugin.first));
             auto configCopy = config;
-            // TODO: remove once GPU remove explicit support of ov::cache_dir
-            {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                if (device_supports_cache_dir(plugin.second)) {
-                    configCopy[ov::cache_dir.name()] = coreConfig.get_cache_config_for_device(plugin.second)._cacheDir;
-                } else if (configCopy.count(ov::cache_dir.name()) > 0) {
-                    // Remove "CACHE_DIR" from config if it is not supported by plugin
-                    configCopy.erase(ov::cache_dir.name());
-                }
-                OPENVINO_SUPPRESS_DEPRECATED_END
-            }
             // Add device specific value to support device_name.device_id cases
             {
                 if (!parser.get_device_id().empty()) {
@@ -1511,14 +1453,6 @@ bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin, const
     ov::AnyMap properties_to_virtual_dev = arguments.empty() ? ov::AnyMap{ov::device::priorities("")} : arguments;
     return ov::is_virtual_device(plugin.get_name()) ? plugin.supports_model_caching(properties_to_virtual_dev)
                                                     : plugin.supports_model_caching();
-}
-
-bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
-    try {
-        return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
-    } catch (const ov::NotImplemented&) {
-        return false;
-    }
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& plugin,
@@ -1723,10 +1657,11 @@ void ov::CoreConfig::set(const ov::AnyMap& config) {
     if (it != config.end()) {
         std::lock_guard<std::mutex> lock(_cacheConfigMutex);
         // fill global cache config
-        _cacheConfig = CoreConfig::CacheConfig::create(it->second.as<std::string>());
+        const auto& cache_dir = it->second.as<std::string>();
+        _cacheConfig = CoreConfig::CacheConfig::create(cache_dir);
         // sets cache config per-device if it's not set explicitly before
         for (auto& deviceCfg : _cacheConfigPerDevice) {
-            deviceCfg.second = CoreConfig::CacheConfig::create(it->second.as<std::string>());
+            deviceCfg.second = CoreConfig::CacheConfig::create(cache_dir);
         }
     }
 
@@ -1743,8 +1678,17 @@ void ov::CoreConfig::set(const ov::AnyMap& config) {
     }
 }
 
-void ov::CoreConfig::set_and_update(ov::AnyMap& config) {
-    set(config);
+void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_name) {
+    if (device_name.empty()) {
+        set(config);
+    } else if (const auto cache_dir_entry = config.find(ov::cache_dir.name()); cache_dir_entry != config.end()) {
+        std::lock_guard<std::mutex> lock(_cacheConfigMutex);
+        _cacheConfigPerDevice[device_name] = CoreConfig::CacheConfig::create(cache_dir_entry->second.as<std::string>());
+    }
+}
+
+void ov::CoreConfig::set_and_update(ov::AnyMap& config, const std::string& device_name) {
+    set(config, device_name);
     remove_core(config);
 }
 
@@ -1752,17 +1696,6 @@ void ov::CoreConfig::remove_core(ov::AnyMap& config) {
     for (const auto& name : core_properties_names) {
         config.erase(name);
     }
-}
-
-void ov::CoreConfig::remove_core_skip_cache_dir(ov::AnyMap& config) {
-    for (const auto& name : {ov::enable_mmap.name(), ov::force_tbb_terminate.name(), ov::cache_model_path.name()}) {
-        config.erase(name);
-    }
-}
-
-void ov::CoreConfig::set_cache_dir_for_device(const std::string& dir, const std::string& name) {
-    std::lock_guard<std::mutex> lock(_cacheConfigMutex);
-    _cacheConfigPerDevice[name] = CoreConfig::CacheConfig::create(dir);
 }
 
 std::string ov::CoreConfig::get_cache_dir() const {
@@ -1777,18 +1710,11 @@ bool ov::CoreConfig::get_enable_mmap() const {
 // Creating thread-safe copy of config including shared_ptr to ICacheManager
 // Passing empty or not-existing name will return global cache config
 ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov::Plugin& plugin,
-                                                                        ov::AnyMap& parsedConfig) const {
+                                                                        const ov::AnyMap& config) const {
     // cache_dir is enabled locally in compile_model only
-    if (parsedConfig.count(ov::cache_dir.name())) {
-        const auto& cache_dir_val = parsedConfig.at(ov::cache_dir.name()).as<std::string>();
-        const auto& tempConfig = CoreConfig::CacheConfig::create(cache_dir_val);
-        // if plugin does not explicitly support cache_dir, and if plugin is not virtual, we need to remove
-        // it from config
-        if (!util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir) &&
-            !ov::is_virtual_device(plugin.get_name())) {
-            parsedConfig.erase(ov::cache_dir.name());
-        }
-        return tempConfig;
+    if (config.count(ov::cache_dir.name())) {
+        const auto& cache_dir = config.at(ov::cache_dir.name()).as<std::string>();
+        return CoreConfig::CacheConfig::create(cache_dir);
     } else {  // cache_dir is set to Core globally or for the specific device
         return get_cache_config_for_device(plugin);
     }

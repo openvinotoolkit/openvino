@@ -36,28 +36,26 @@ public:
     };
 
     void set(const ov::AnyMap& config);
+    void set(const ov::AnyMap& config, const std::string& device_name);
 
     /**
      * @brief Removes core-level properties from config and triggers new state for core config
-     * @param config - config to be updated
+     * @param config      config to be updated
+     * @param device_name device name for which config is applied (empty is for core-level)
      */
-    void set_and_update(ov::AnyMap& config);
-
-    OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
-    void set_cache_dir_for_device(const std::string& dir, const std::string& name);
+    void set_and_update(ov::AnyMap& config, const std::string& device_name);
 
     std::string get_cache_dir() const;
 
     bool get_enable_mmap() const;
 
-    CacheConfig get_cache_config_for_device(const ov::Plugin& plugin, ov::AnyMap& parsedConfig) const;
+    CacheConfig get_cache_config_for_device(const ov::Plugin& plugin, const ov::AnyMap& config) const;
 
     // Creating thread-safe copy of global config including shared_ptr to ICacheManager
     CacheConfig get_cache_config_for_device(const ov::Plugin& plugin) const;
 
     // remove core properties
     static void remove_core(ov::AnyMap& config);
-    static void remove_core_skip_cache_dir(ov::AnyMap& config);
 
 private:
     mutable std::mutex _cacheConfigMutex;
@@ -221,9 +219,6 @@ private:
 
     bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
     bool device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
-
-    OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
-    bool device_supports_cache_dir(const ov::Plugin& plugin) const;
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const;
     ov::AnyMap create_compile_config(const std::string& device_name, const ov::AnyMap& origConfig) const override {
