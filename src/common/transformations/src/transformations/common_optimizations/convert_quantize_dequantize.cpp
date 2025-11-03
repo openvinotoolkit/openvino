@@ -139,6 +139,7 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
             {ov::element::i16, {-32768.f, 32767.f}},
             {ov::element::u16, {0.f, 65535.f}}};
         const auto& type = convert1.get_element_type();
+        // check if (out_low_val, out_high_val) pair is mapped on the expected precision ranges
         if (supported_intervals.count(type) == 0 ||
             supported_intervals.at(type) != std::make_pair(out_low_val, out_high_val)) {
             return false;
