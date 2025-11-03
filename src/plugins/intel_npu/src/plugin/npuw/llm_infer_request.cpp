@@ -469,25 +469,10 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - m_tokens_in_present_chunk;
             if (tokens_in_past_chunks > 0) {
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
-
-                ov::SoPtr<ov::ITensor> tmp_dense_kv_tensor;
-                ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
-                if (m_past_kv_bound) {
-                    tmp_dense_kv_tensor = ov::npuw::util::allocMem(prefill_past_kv->get_element_type(),
-                                                                   prefill_past_kv->get_shape(),
-                                                                   m_pre_alloc_device,
-                                                                   m_npuw_llm_compiled_model->get_plugin());
-                    prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
-                    prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
-                } else {
-                    prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
-                }
+                auto prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv,
+                                                            pre_kv_dim,
+                                                            0u,
+                                                            static_cast<uint32_t>(tokens_in_past_chunks));
 
                 auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
                                                                     gen_kv_dim,
