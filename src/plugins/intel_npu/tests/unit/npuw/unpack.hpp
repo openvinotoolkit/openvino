@@ -469,10 +469,9 @@ protected:
 
         details::unpack_i4f16(input.data(), ref_output.data(), static_cast<int>(nElements));
 
-        // lets apply per channel scale
-        uint16_t * pRef = reinterpret_cast<uint16_t*>(ref_output.data());
-        uint16_t * pScale_f16 = reinterpret_cast<uint16_t*>(scale->data());
-        float * pScale_f32 = reinterpret_cast<float*>(scale->data());
+        uint16_t * ref = reinterpret_cast<uint16_t*>(ref_output.data());
+        uint16_t * scale_f16 = reinterpret_cast<uint16_t*>(scale->data());
+        float * scale_f32 = reinterpret_cast<float*>(scale->data());
 
         auto C = input_shape[0];
         auto H = input_shape[1];
@@ -481,14 +480,14 @@ protected:
             for (size_t h = 0; h < H; h++) {
                 for (size_t w = 0; w < W; w++) {
                     size_t refIndex = c * H * W + h * W + w;
-                    float ref_scaled = details::half_to_float(pRef[refIndex]);
+                    float ref_scaled = details::half_to_float(ref[refIndex]);
                     size_t scaleIndex = c * W + w;
                     if (scaleType == ov::element::f32) {
-                        ref_scaled *= pScale_f32[scaleIndex];
+                        ref_scaled *= scale_f32[scaleIndex];
                     } else if (scaleType == ov::element::f16) {
-                        ref_scaled *= details::half_to_float(pScale_f16[scaleIndex]);
+                        ref_scaled *= details::half_to_float(scale_f16[scaleIndex]);
                     }
-                    *(pRef + refIndex) = details::float_to_half(ref_scaled);
+                    *(ref + refIndex) = details::float_to_half(ref_scaled);
                 }
             }
         }
