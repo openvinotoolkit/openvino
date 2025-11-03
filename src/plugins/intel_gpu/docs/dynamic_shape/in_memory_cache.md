@@ -11,7 +11,7 @@ When creating a primitive_impl in the Dynamic Shape model, if each primitive_imp
 * `ImplementationsCache` inherits LruCacheThreadSafe which is ThreadSafe version of LruCache which handles primitive_impl cache by increasing the cache hit rate for frequently used items. Therefore, `ImplementationsCache` optimizes the performance of dynamic execution through frequently used primitive_impl.
 * Since cldnn::program creates ImplementationsCache as unique_ptr at `cldnn::program `constructor, its lifecycle is set to `cldnn::program`.
 * `ImplementationsCache` supports multi-stream, so the cldnn::network of each stream manages primitive_impl in same cache.
-* `ImplementationsCache` Capacity is set to 10000 by default, but may change in the future optimization.
+* `ImplementationsCache` Capacity is set to 300 by default, but may change in the future optimization.
 
 
 ## Usages
