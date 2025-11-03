@@ -42,7 +42,7 @@ protected:
         return vec_size;
     }
 
-    static auto calc_thread_count(RuntimeParams& params, const int vector_size, const int hidden_size) {
+    static auto calc_thread_count(RuntimeParams& params, const size_t vector_size, const size_t hidden_size) {
         auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
         const uint64_t threads_needed = (hidden_size + vector_size - 1) / vector_size;
         size_t local_threads_needed = std::min(threads_needed, max_wgs);
