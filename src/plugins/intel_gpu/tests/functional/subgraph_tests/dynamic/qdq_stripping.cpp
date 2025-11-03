@@ -18,40 +18,67 @@ namespace {
 using namespace ov::test;
 using ov::test::InputShape;
 
-using QDQStrippingParams = std::tuple<ov::test::InputShape, ov::element::Type>;
+using QDQStrippingParams = std::tuple<ov::test::InputShape, ov::element::Type, ov::element::Type>;
 
-class QDQStrippingTest : public testing::WithParamInterface<QDQStrippingParams>, virtual public ov::test::SubgraphBaseTest {
+class QuantizationParams {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<QDQStrippingParams>& obj) {
-        const auto& [input_shape, input_precision] = obj.param;
-        std::ostringstream result;
-        result << "input_shape=" << input_shape << "_input_precision=" << input_precision;
-        return result.str();
-    }
-
-protected:
-    std::shared_ptr<ov::Model> init_subgraph(const ov::PartialShape& input_shape) {
-        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
-
-        const float i_l = 0.f, i_h = 10.f, o_l = 0.f, o_h = 65535.f;
+    ov::Output<ov::Node> build_fq(const ov::Output<ov::Node>& input) const {
         auto input_low = ov::op::v0::Constant::create(ov::element::f32, {}, {i_l});
         auto input_high = ov::op::v0::Constant::create(ov::element::f32, {}, {i_h});
         auto output_low = ov::op::v0::Constant::create(ov::element::f32, {}, {o_l});
         auto output_high = ov::op::v0::Constant::create(ov::element::f32, {}, {o_h});
+        return std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 65536);
+    }
 
-        auto input_fq = std::make_shared<ov::op::v0::FakeQuantize>(params[0], input_low, input_high, output_low, output_high, 65536);
+    ov::Output<ov::Node> build_dq(const ov::Output<ov::Node>& input, const ov::element::Type& quantization_precision) const {
+        auto act_zero_point = ov::op::v0::Constant::create(quantization_precision, {}, {zero_point});
+        auto act_zp_convert = std::make_shared<ov::op::v0::Convert>(act_zero_point, ov::element::f32);
 
-        auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, ov::element::u16);
+        auto act_subtract = std::make_shared<ov::op::v1::Subtract>(input, act_zp_convert);
+        auto act_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {(i_h - i_l) / (o_h - o_l)});
+
+        return std::make_shared<ov::op::v1::Multiply>(act_subtract, act_scale);
+    }
+
+    float i_l;
+    float i_h;
+    float o_l;
+    float o_h;
+    int zero_point;
+};
+
+class QDQStrippingTest : public testing::WithParamInterface<QDQStrippingParams>, virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<QDQStrippingParams>& obj) {
+        const auto& [input_shape, input_precision, quantization_precision] = obj.param;
+        std::ostringstream result;
+        result << "input_shape=" << input_shape << "_input_precision=" << input_precision << "_quantization_precision=" << quantization_precision;
+        return result.str();
+    }
+
+protected:
+    std::shared_ptr<ov::Model> init_subgraph(const ov::PartialShape& input_shape, const ov::element::Type& quantization_precision) {
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
+        // Note: these params are taken from the real cases
+        const static std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
+            {ov::element::Type_t::u16, {{0.f, 10.f, 0.f, 65535.f, 0}, {-6.244578838348389f, 6.347373962402344f, 0.f, 65535.f, 32500}}},
+            {ov::element::Type_t::i16,
+             {{-5.000076293945312f, 4.999923706054688f, -32768.f, 32767.f, 0}, {-6.296072483062744f, 6.295880317687988f, -32768.f, 32767.f, 0}}},
+        };
+
+        const auto& q_params = quantization_params.at(quantization_precision);
+        const auto& qp_1 = q_params.first;
+        auto input_fq = qp_1.build_fq(params[0]);
+
+        auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, quantization_precision);
         auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f32);
 
         size_t seed = 1;
         auto create_qdq_branch = [&](float weight_scale_value) {
-            auto input_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {(i_h - i_l) / (o_h - o_l)});
-            auto input_dequantized = std::make_shared<ov::op::v1::Multiply>(input_convert2, input_scale);
-
+            auto input_dequantized = qp_1.build_dq(input_convert2, quantization_precision);
             ov::test::utils::InputGenerateData gen_data;
             gen_data.seed = seed++;
-            auto weight_quantized = ov::test::utils::make_constant(ov::element::u8, ov::Shape{32, 3, 3, 3}, gen_data);
+            auto weight_quantized = ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, gen_data);
             auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
             auto weight_scale = ov::test::utils::make_constant(ov::element::f32, {}, gen_data);
             auto weight_dequantized = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
@@ -66,24 +93,11 @@ protected:
             auto bias_const = ov::test::utils::make_constant(ov::element::f32, ov::Shape{1, 32, 1, 1}, gen_data);
             auto conv_biased = std::make_shared<ov::op::v1::Add>(conv, bias_const);
 
-            const float conv_i_l = -6.244578838348389f, conv_i_h = 6.347373962402344f, conv_o_l = 0.f, conv_o_h = 65535.f;
-            auto conv_input_low = ov::op::v0::Constant::create(ov::element::f32, {}, {conv_i_l});
-            auto conv_input_high = ov::op::v0::Constant::create(ov::element::f32, {}, {conv_i_h});
-            auto conv_output_low = ov::op::v0::Constant::create(ov::element::f32, {}, {conv_o_l});
-            auto conv_output_high = ov::op::v0::Constant::create(ov::element::f32, {}, {conv_o_h});
-            auto fake_quantize =
-                std::make_shared<ov::op::v0::FakeQuantize>(conv_biased, conv_input_low, conv_input_high, conv_output_low, conv_output_high, 65536);
-
-            auto act_quantized = std::make_shared<ov::op::v0::Convert>(fake_quantize, ov::element::u16);
+            const auto& qp_2 = q_params.second;
+            auto fake_quantize = qp_2.build_fq(conv_biased);
+            auto act_quantized = std::make_shared<ov::op::v0::Convert>(fake_quantize, quantization_precision);
             auto act_convert = std::make_shared<ov::op::v0::Convert>(act_quantized, ov::element::f32);
-
-            auto act_zero_point = ov::op::v0::Constant::create(ov::element::u16, {}, {32500});
-            auto act_zp_convert = std::make_shared<ov::op::v0::Convert>(act_zero_point, ov::element::f32);
-
-            auto act_subtract = std::make_shared<ov::op::v1::Subtract>(act_convert, act_zp_convert);
-            auto act_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {(conv_i_h - conv_i_l) / (conv_o_h - conv_o_l)});
-
-            return std::make_shared<ov::op::v1::Multiply>(act_subtract, act_scale);
+            return qp_2.build_dq(act_convert, quantization_precision);
         };
 
         auto left_branch = create_qdq_branch(0.01f);
@@ -96,26 +110,28 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        const auto& [input_shape, input_precision] = GetParam();
+        const auto& [input_shape, input_precision, quantization_precision] = GetParam();
         init_input_shapes({input_shape});
         inType = outType = input_precision;
 
-        if (input_precision == ov::element::f16) {
-            abs_threshold = 1.0f;
-        } else {
-            abs_threshold = 1e-4f;
-        }
-        function = init_subgraph(input_shape.first);
+        // Since the FQ are not executed in a strictly 'fair' manner, and just replaced with clamp ops, a small deviation in accuracy is expected.
+        abs_threshold = 1.f;
+        function = init_subgraph(input_shape.first, quantization_precision);
     }
 
     void validate() override {
         ov::test::SubgraphBaseTest::validate();
         auto runtime_model = compiledModel.get_runtime_model();
         ASSERT_TRUE(runtime_model != nullptr) << "Runtime model should not be null";
+        size_t quantize_count = 0;
         for (const auto& op : runtime_model->get_ordered_ops()) {
             auto layer_type = op->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-            ASSERT_NE(layer_type, "Quantize") << "FakeQuantize node is not expected in the runtime model after QDQ stripping.";
+            if (layer_type == std::string("Quantize")) {
+                quantize_count++;
+            }
         }
+        const size_t expected_quantize_count = 0;
+        ASSERT_EQ(quantize_count, expected_quantize_count) << "Unexpected Quantize node count.";
     }
 };
 
@@ -125,8 +141,12 @@ TEST_P(QDQStrippingTest, Inference) {
 
 const std::vector<ov::test::InputShape> input_shapes = {{{-1, -1, -1, -1}, {{1, 3, 128, 128}}}};
 const std::vector<ov::element::Type> input_precisions = {ov::element::f32};
+const std::vector<ov::element::Type> quantization_precisions = {ov::element::u16, ov::element::i16};
+
 INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping,
                          QDQStrippingTest,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes), ::testing::ValuesIn(input_precisions)),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                            ::testing::ValuesIn(input_precisions),
+                                            ::testing::ValuesIn(quantization_precisions)),
                          QDQStrippingTest::getTestCaseName);
 }  // namespace
