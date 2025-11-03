@@ -5,6 +5,7 @@
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -83,11 +84,24 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
                                                                  Constant::create(element::i64, {1}, {axis}),
                                                                  Constant::create(element::i64, {1}, {INT_MAX}),
                                                                  Constant::create(element::i64, {1}, {1}));
+    auto normalized_rank = normalized.get_partial_shape().rank();
 
-    auto scale = std::make_shared<v1::Reshape>(inputs.at(1), sub_shape, false);
+    auto scale = inputs.at(1);
+    auto scale_rank = scale.get_partial_shape().rank();
+    if ((scale_rank.is_dynamic() && normalized_rank.is_dynamic()) ||
+        ((scale_rank.is_static() && normalized_rank.is_static()) &&
+          scale_rank.get_length() + 1 != normalized_rank.get_length())) {
+        scale = std::make_shared<v1::Reshape>(scale, sub_shape, false);
+    }
     auto scaled = std::make_shared<Multiply>(normalized, scale);
 
-    auto bias = std::make_shared<v1::Reshape>(inputs.at(2), sub_shape, false);
+    auto bias = inputs.at(2);
+    auto bias_rank = bias.get_partial_shape().rank();
+    if ((bias_rank.is_dynamic() && normalized_rank.is_dynamic()) ||
+        ((bias_rank.is_static() && normalized_rank.is_static()) &&
+          bias_rank.get_length() + 1 != normalized_rank.get_length())) {
+        bias = std::make_shared<v1::Reshape>(bias, sub_shape, false);
+    }
     auto biased = (num_inputs == 3 ? std::make_shared<Add>(scaled, bias)->output(0) : scaled->output(0));
     return ov::OutputVector{biased};
 }
