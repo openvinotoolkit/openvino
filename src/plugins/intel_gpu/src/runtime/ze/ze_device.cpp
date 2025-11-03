@@ -139,6 +139,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.vendor_id = device_properties.vendorId;
     info.dev_name = device_properties.name;
+    // L0 returns drivers version in different format than OCL
     info.driver_version = std::to_string(driver_properties.driverVersion);
     info.dev_type = (device_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) ? device_type::integrated_gpu : device_type::discrete_gpu;
 
@@ -152,6 +153,15 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.max_work_group_size = device_compute_properties.maxTotalGroupSize;
     info.max_local_mem_size = device_compute_properties.maxSharedLocalMemory;
+    uint32_t cache_properties_count = 0;
+    OV_ZE_EXPECT(zeDeviceGetCacheProperties(device, &cache_properties_count, nullptr));
+    info.max_global_cache_size = 0;
+    if (cache_properties_count > 0) {
+        std::vector<ze_device_cache_properties_t> cache_properties(cache_properties_count);
+        OV_ZE_EXPECT(zeDeviceGetCacheProperties(device, &cache_properties_count, cache_properties.data()));
+        // Assume first property is L3 cache
+        info.max_global_cache_size = cache_properties[0].cacheSize;
+    }
 
     if (mem_properties != device_memory_properties.end()) {
         info.max_global_mem_size = mem_properties->totalSize;
@@ -164,7 +174,6 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.max_alloc_mem_size = device_properties.maxMemAllocSize;
 
     info.supports_image = device_image_properties.maxSamplers > 0;
-    info.supports_intel_planar_yuv = false;
     info.max_image2d_width = device_image_properties.maxImageDims2D;
     info.max_image2d_height = device_image_properties.maxImageDims2D;
 
@@ -172,11 +181,6 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_fp64 = (device_module_properties.flags & ZE_DEVICE_MODULE_FLAG_FP64) != 0;
     info.supports_fp16_denorms = info.supports_fp16 && (device_module_properties.fp16flags & ZE_DEVICE_FP_FLAG_DENORM) != 0;
 
-    info.supports_khr_subgroups = true;
-    info.supports_intel_subgroups = true;
-    info.supports_intel_subgroups_short = true;
-    info.supports_intel_subgroups_char = true;
-    info.supports_intel_required_subgroup_size = true;
     info.supports_cp_offload = supports_cp_offload;
     info.supports_cb_events = supports_cb_events;
 
@@ -185,8 +189,17 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
 
-    // Could not find how to retrieve gfx_ver from L0
+    // FIXME: Could not find how to retrieve those from L0
     info.gfx_ver = {0, 0, 0};
+    info.supports_work_group_collective_functions = false;
+    info.supports_intel_planar_yuv = false;
+    info.supports_khr_subgroups = true;
+    info.supports_intel_subgroups = true;
+    info.supports_intel_subgroups_short = true;
+    info.supports_intel_subgroups_char = true;
+    info.supports_intel_required_subgroup_size = true;
+    info.supports_queue_families = true;
+
     info.ip_version = ip_version_properties.ipVersion;
     info.sub_device_idx = (std::numeric_limits<uint32_t>::max)();
 
@@ -197,7 +210,6 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.num_threads_per_eu = device_properties.numThreadsPerEU;
 
     info.num_ccs = compute_queue_props->numQueues;
-    info.supports_queue_families = true;
 
     info.kernel_timestamp_valid_bits  = device_properties.kernelTimestampValidBits;
     info.timer_resolution  = device_properties.timerResolution;
