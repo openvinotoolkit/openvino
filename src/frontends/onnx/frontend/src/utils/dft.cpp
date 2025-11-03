@@ -12,6 +12,7 @@
 #include "openvino/op/idft.hpp"
 #include "openvino/op/irdft.hpp"
 #include "openvino/op/rdft.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
@@ -56,15 +57,10 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
     }
 
     const bool dft_length_provided = !ov::op::util::is_null(length);
-    const auto unsqueeze_axis = v0::Constant::create(ov::element::i32, {}, {-1});
-    const auto& signal_size = [&] {
-        if (dft_length_provided) {
-            if (const auto& rank = length.get_partial_shape().rank(); rank.get_max_length() == 0) {
-                return std::make_shared<v0::Unsqueeze>(length, unsqueeze_axis)->output(0);
-            }
-        }
-        return length;
-    }();
+    const auto& signal_size =
+        dft_length_provided
+            ? std::make_shared<v1::Reshape>(length, v0::Constant::create(ov::element::i32, {1}, {1}), false)->output(0)
+            : length;
 
     ov::Output<ov::Node> result;
     if (is_inversed) {
@@ -72,6 +68,7 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
             result = dft_length_provided ? std::make_shared<v9::IRDFT>(processed_signal, axis_const, signal_size)
                                          : std::make_shared<v9::IRDFT>(processed_signal, axis_const);
             if (conversion_to_complex_applied) {  // align the output shape with a real numbers representation
+                const auto unsqueeze_axis = v0::Constant::create(ov::element::i32, {}, {-1});
                 result = std::make_shared<v0::Unsqueeze>(result, unsqueeze_axis);
             }
         } else {
