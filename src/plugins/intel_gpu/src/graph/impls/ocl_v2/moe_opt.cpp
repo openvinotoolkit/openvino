@@ -368,10 +368,13 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_fused_compressed>();
+        auto& engine = params.prog->get_engine();
+        const auto& info = engine.get_device_info();
         jit.make("GATHER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
         jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("MOE_TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+        jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
         return jit;
     }
 

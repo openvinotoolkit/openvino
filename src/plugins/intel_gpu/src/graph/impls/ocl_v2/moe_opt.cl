@@ -66,6 +66,7 @@ KERNEL(softmax_topk)(
 }
 
 #elif GATHER_ENABLE
+__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL (gather_2d_ref)(
     const __global MOE_TYPE* src_tok,       // input tokens [total_token, hidden_size] - hidden_states_mem_ptr
     const __global MOE_TYPE* src_rweight,   // topk_weights [total_token, topk_experts]
@@ -80,6 +81,11 @@ KERNEL (gather_2d_ref)(
 
     src_tok += tok_idx * HIDDEN_SIZE;
     dst_tok += k * HIDDEN_SIZE;
+
+    if (off >= HIDDEN_SIZE) {
+        printf("Warning off >= HIDDEN_SIZE: k = %d, off = %d, HIDDEN_SIZE = %d\n", k, off, HIDDEN_SIZE);
+        return;
+    }
 
     #if MOE_TYPE_SIZE == 2
         ushort value = intel_sub_group_block_read_us((const __global ushort *)(src_tok + off));
@@ -98,7 +104,6 @@ KERNEL (gather_2d_ref)(
 }
 
 #elif SCATTER_ENABLE
-
 KERNEL (index_add_)(const __global MOE_TYPE* src_tok,
     __global int * tok_index,
     __global MOE_TYPE* dst_tok) {
