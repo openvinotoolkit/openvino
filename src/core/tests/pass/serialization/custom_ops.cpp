@@ -12,6 +12,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
@@ -311,4 +312,49 @@ TEST(PostponedConstantTest, ParameterNotExcluded) {
     concat->get_rt_info()["postponed_constant"] = true;
 
     EXPECT_THROW(ov::pass::Serialize(serialized_xml, serialized_bin).run_on_model(model), ov::Exception);
+}
+
+TEST(PostponedConstantTest, ModelIsUnchangedAfterSerialization) {
+    std::stringstream serialized_xml, serialized_bin;
+    {
+        auto const1 =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, std::vector<float>{1, 2, 3, 4});
+        auto const2 =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, std::vector<float>{5, 6, 7, 8});
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{const1, const2}, 0);
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 2});
+        auto add = std::make_shared<ov::op::v1::Add>(concat, param);
+        auto model = std::make_shared<ov::Model>(add->outputs(), ov::ParameterVector{param}, "ConcatAddModel");
+
+        concat->get_rt_info()["postponed_constant"] = true;
+        ov::pass::disable_constant_folding(concat);
+
+        auto model_copy = model->clone();
+        ov::pass::Serialize(serialized_xml, serialized_bin).run_on_model(model);
+
+        const auto& [success, message] = compare_functions(model_copy, model, true, true, true, true, true);
+        ASSERT_TRUE(success) << message;
+    }
+
+    // check if the model was serialized with disable_constant_folding rt_info on postponed constant
+    ov::Core core;
+
+    auto weights = serialized_bin.str();
+    ov::Tensor weights_tensor(ov::element::u8, ov::Shape{weights.size()}, weights.data());
+
+    auto deserialized_model = core.read_model(serialized_xml.str(), weights_tensor);
+
+    {
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                               ov::Shape{4, 2},
+                                                               std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 2});
+        auto add = std::make_shared<ov::op::v1::Add>(constant, param);
+
+        auto expected = std::make_shared<ov::Model>(add->outputs(), ov::ParameterVector{param}, "ConcatAddModel");
+
+        const auto& [success, message] =
+            compare_functions(deserialized_model, expected, true, false, false, true, true);
+        ASSERT_TRUE(success) << message;
+    }
 }
