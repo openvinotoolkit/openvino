@@ -946,14 +946,11 @@ def test_patched_16bit_model_with_convert():
     assert mm_num == 2
 
 
-@pytest.mark.skipif(
-    platform.system() == "Darwin" and platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'],
-    reason="PyTorch sporadic mutex deadlock on macOS ARM64, ticket 172658"
-)
 def test_patched_8bit_model_converts():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
     from transformers.pytorch_utils import Conv1D
+    import gc
 
     class ModelWithLinear(torch.nn.Module):
         def __init__(self):
@@ -990,6 +987,12 @@ def test_patched_8bit_model_converts():
     res_f8_e4m3 = cm_f8_e4m3([x.numpy() for x in example])
     np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
+    
+    # Force cleanup before next test to avoid mutex deadlock on macOS ARM64
+    del model_f8_e4m3, model_ref, converted_model, cm_f8_e4m3, res_f8_e4m3, res_ref
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     model_ref = ModelWithLinear().to(torch.float8_e5m2).float()
     with torch.no_grad():
@@ -1004,6 +1007,12 @@ def test_patched_8bit_model_converts():
     res_f8_e5m2 = cm_f8_e5m2([x.numpy() for x in example])
     np.testing.assert_allclose(res_f8_e5m2[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
+    
+    # Force final cleanup to prevent deadlock during test teardown
+    del model_f8_e5m2, model_ref, converted_model, cm_f8_e5m2, res_f8_e5m2, res_ref
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
 
 @pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
