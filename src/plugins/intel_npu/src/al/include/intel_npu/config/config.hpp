@@ -200,6 +200,23 @@ struct OptionPrinter<std::map<K, V>> final {
     }
 };
 
+template <typename T>
+struct OptionPrinter<std::vector<T>> final {
+    static std::string toString(const std::vector<T>& val) {
+        std::stringstream ss;
+        std::size_t counter = 0;
+        std::size_t size = val.size();
+        for (auto& v : val) {
+            ss << v;
+            if (counter < size - 1) {
+                ss << ' ';
+            }
+            ++counter;
+        }
+        return ss.str();
+    }
+};
+
 // NB: boolean config option has values YES for true, NO for false
 template <>
 struct OptionPrinter<bool> final {

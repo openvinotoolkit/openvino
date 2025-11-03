@@ -148,14 +148,32 @@ static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"}
  */
 static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
 
-/**
- * @brief [Only for NPU plugin]
- * Type: std::bool, default is false
- * Enable ROI Tensor feature. The compiler shall be aware that ROI tensors will be used; they must be enabled at
- * compilation time if needed later at runtime.
- * @ingroup ov_runtime_npu_prop_cpp_api
- */
-static constexpr ov::Property<bool> enable_roi_tensor{"NPU_ENABLE_ROI_TENSOR"};
+// TODO: add comments, find proper name.
+// Initial commit just to match compiler expected properties
+inline std::ostream& operator<<(std::ostream& os, const std::vector<int>& args_with_dynamic_strides) {
+    std::size_t counter = 0;
+    std::size_t size = args_with_dynamic_strides.size();
+    for (auto& v : args_with_dynamic_strides) {
+        os << v;
+        if (counter < size - 1) {
+            os << ' ';
+        }
+        ++counter;
+    }
+    return os;
+}
+
+inline std::istream& operator>>(std::istream& is, std::vector<int>& args_with_dynamic_strides) {
+    std::string arg;
+    while (std::getline(is, arg, ' ')) {
+        args_with_dynamic_strides.push_back(std::stoi(arg));
+    }
+    return is;
+}
+
+static constexpr Property<std::vector<int>> inputs_with_dynamic_strides("INPUTS_WITH_DYNAMIC_STRIDES");
+
+static constexpr Property<std::vector<int>> outputs_with_dynamic_strides("OUTPUTS_WITH_DYNAMIC_STRIDES");
 
 }  // namespace intel_npu
 }  // namespace ov

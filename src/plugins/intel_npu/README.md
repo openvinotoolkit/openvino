@@ -207,7 +207,6 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::bypass_umd_caching`/</br>`NPU_BYPASS_UMD_CACHING` | RW | Bypass the caching of compiled models in UMD. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::defer_weights_load`/</br>`NPU_DEFER_WEIGHTS_LOAD` | RW | Delay loading the weights until inference is created. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::run_inferences_sequentially`/</br>`NPU_RUN_INFERENCES_SEQUENTIALLY` | RW | Run inferences in async mode sequentially in the order in which they are started to optimize host scheduling. | `YES`/ `NO`| `NO` |
-| `ov::intel_npu::enable_roi_tensor`/</br>`NPU_ENABLE_ROI_TENSOR` | RW | Enable ROI Tensor feature. The compiler shall be aware that ROI tensors will be used; they must be enabled at compilation time if needed later at runtime. | `YES`/ `NO`| `NO` |
 <br>
 
 ### Compiled_model properties VS Plugin properties

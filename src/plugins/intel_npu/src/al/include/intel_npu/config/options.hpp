@@ -1475,13 +1475,39 @@ struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov:
     }
 };
 
-struct ENABLE_ROI_TENSOR final : OptionBase<ENABLE_ROI_TENSOR, bool> {
+struct INPUTS_WITH_DYNAMIC_STRIDES final : OptionBase<INPUTS_WITH_DYNAMIC_STRIDES, std::vector<int>> {
     static std::string_view key() {
-        return ov::intel_npu::enable_roi_tensor.name();
+        return ov::intel_npu::inputs_with_dynamic_strides.name();
     }
 
-    static bool defaultValue() {
-        return false;
+    static constexpr std::string_view getTypeName() {
+        return "std::vector<int>";
+    }
+
+    static std::vector<int> defaultValue() {
+        return {};
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
+struct OUTPUTS_WITH_DYNAMIC_STRIDES final : OptionBase<OUTPUTS_WITH_DYNAMIC_STRIDES, std::vector<int>> {
+    static std::string_view key() {
+        return ov::intel_npu::outputs_with_dynamic_strides.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "std::vector<int>";
+    }
+
+    static std::vector<int> defaultValue() {
+        return {};
     }
 
     static bool isPublic() {
