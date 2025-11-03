@@ -71,7 +71,7 @@ jobs:
         cache:
           - True
           - False
-    name: Build OpenVINO - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}
+    name: "Build OpenVINO - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"
     needs: Smart_CI
     timeout-minutes: 300 # 5 hours without cache
     defaults:
