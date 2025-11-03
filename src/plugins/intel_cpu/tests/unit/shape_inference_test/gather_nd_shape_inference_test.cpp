@@ -165,8 +165,6 @@ INSTANTIATE_TEST_SUITE_P(
     shape_infer,
     StaticShapeInferenceGatherNDBroadcastTest,
     ::testing::Values(
-        // CVS-169059: Broadcasting with batch_dims=1, data batch=1, indices batch=2
-        // This is the exact case from the bug report
         GatherNDTestParams{StaticShapeVector{{1, 3, 4, 4}, {2, 2, 2}}, StaticShape{2, 2, 4}, 1},
         // Forward broadcasting: data[0]=1 broadcasts to indices[0]=N
         GatherNDTestParams{StaticShapeVector{{1, 11, 12}, {8, 1}}, StaticShape{8, 12}, 1},
