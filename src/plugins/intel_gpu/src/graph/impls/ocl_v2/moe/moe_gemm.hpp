@@ -53,17 +53,18 @@ struct MoEGemm : public ImplementationManager {
         };
 
         auto desc = *(node.get_kernel_impl_params()->typed_desc<moe_gemm>());
+        auto layer_id = desc.id;
 
         size_t input_idx = moe_gemm::MoEGemmInputIdx::INPUT;
         if (!one_of(node.get_input_layout(input_idx).format, supported_fmts) ||
             !one_of(node.get_input_layout(input_idx).data_type, supported_activation_types)) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(layer_id);
         }
 
         input_idx = moe_gemm::MoEGemmInputIdx::WEIGHT;
         if (!one_of(node.get_input_layout(input_idx).format, supported_fmts) ||
             !one_of(node.get_input_layout(input_idx).data_type, supported_weight_types)) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(layer_id);
         }
 
         std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u8, data_types::i8};
@@ -78,7 +79,7 @@ struct MoEGemm : public ImplementationManager {
         if (desc.has_bias) {
             if (!one_of(node.get_input_layout(input_idx).format, supported_fmts) ||
                 !one_of(node.get_input_layout(input_idx).data_type, supported_activation_types)) {
-                return false;
+                DO_NOT_USE_THIS_KERNEL(layer_id);
             }
         }
 
@@ -88,14 +89,14 @@ struct MoEGemm : public ImplementationManager {
             for (size_t i = quant_params_idx_start; i < node.get_input_layouts().size(); i++) {
                 if (!one_of(node.get_input_layout(i).format, supported_fmts) ||
                     !one_of(node.get_input_layout(i).data_type, supported_quant_param_types)) {
-                    return false;
+                    DO_NOT_USE_THIS_KERNEL(layer_id);
                 }
             }
         }
 
         const auto& output_layout = node.get_output_layout(0);
         if (!one_of(output_layout.format, supported_fmts) || !one_of(output_layout.data_type, supported_activation_types)) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(layer_id);
         }
 
         return true;
