@@ -14,7 +14,105 @@
 
 #include <opencv2/gapi/gproto.hpp>  // cv::GCompileArgs
 
-class LayerValidator;
+class LayerValidator {
+public:
+    LayerValidator(const std::string& tag, const std::string& layer_name, IAccuracyMetric::Ptr metric);
+    Result operator()(const cv::Mat& lhs, const cv::Mat& rhs);
+
+private:
+    std::string m_tag;
+    std::string m_layer_name;
+    IAccuracyMetric::Ptr m_metric;
+};
+
+struct FailedIter {
+    size_t iter_idx;
+    std::vector<std::string> reasons;
+};
+
+static std::vector<std::string> compareOutputs(
+    const std::vector<cv::Mat>& ref_mats,
+    const std::vector<cv::Mat>& tgt_mats,
+    const std::vector<Meta>& out_meta,
+    const InferDesc& infer,
+    const AccuracySimulation::Options& opts) {
+
+    std::cout << "Comparing outputs\n";
+
+    std::vector<std::string> failed_list;
+
+    // TODO: find out why it only works with the default_metric, check the infer object
+    auto default_metric = opts.global_metric ? opts.global_metric : std::make_shared<Norm>(0.0);
+    // auto per_layer_metrics = unpackWithDefault(
+    //     opts.metrics_map.at(infer.tag),
+    //     extractLayerNames(infer.output_layers),
+    //     default_metric
+    // );
+
+    std::cout << "After per_layer_metrics\n";
+
+    for (size_t i = 0; i < ref_mats.size(); ++i) {
+        const auto& layer = infer.output_layers[i];
+        LayerValidator validator{infer.tag, layer.name, default_metric};
+        auto result = validator(ref_mats[i], tgt_mats[i]);
+        if (!result) {
+            failed_list.push_back(std::move(result.str()));
+        }
+    }
+
+    std::cout << "After loop\n";
+    return failed_list;
+}
+
+static Result reportValidationResult(const std::vector<FailedIter>& failed_iters, const size_t total_iters) {
+    std::stringstream ss;
+    if (!failed_iters.empty()) {
+        const auto kItersToShow = 10u;
+        const auto kLimit = failed_iters.size() < kItersToShow ? failed_iters.size() : kItersToShow;
+        ss << "Accuraccy check failed on " << failed_iters.size() << " iteration(s)"
+           << " (first " << kLimit << "):";
+        ss << "\n";
+        for (uint32_t i = 0; i < kLimit; ++i) {
+            ss << "Iteration " << failed_iters[i].iter_idx << ":\n";
+            for (const auto& reason : failed_iters[i].reasons) {
+                ss << "  " << reason << "\n";
+            }
+        }
+        return Error{ss.str()};
+    }
+    ss << "Validation has passed for " << total_iters << " iteration(s)";
+    return Success{ss.str()};
+}
+
+static Result performValidation(
+    const std::vector<std::vector<cv::Mat>>& ref_outputs,
+    const std::vector<std::vector<cv::Mat>>& tgt_outputs,
+    const std::vector<Meta>& out_meta,
+    const InferDesc& infer,
+    const AccuracySimulation::Options& opts) {
+
+    std::cout << "Performing validation\n";
+
+    std::vector<FailedIter> failed_iters;
+    size_t num_iters = std::min(ref_outputs[0].size(), tgt_outputs[0].size());
+
+    for (size_t iter = 0; iter < num_iters; ++iter) {
+        std::vector<cv::Mat> ref_iter_mats;
+        std::vector<cv::Mat> tgt_iter_mats;
+
+        for (size_t layer = 0; layer < ref_outputs.size(); ++layer) {
+            ref_iter_mats.push_back(ref_outputs[layer][iter]);
+            tgt_iter_mats.push_back(tgt_outputs[layer][iter]);
+        }
+
+        auto failed_list = compareOutputs(ref_iter_mats, tgt_iter_mats, out_meta, infer, opts);
+        if (!failed_list.empty()) {
+            failed_iters.push_back(FailedIter{iter, std::move(failed_list)});
+        }
+    }
+
+    return reportValidationResult(failed_iters, num_iters);
+}
 
 namespace {
 
@@ -137,19 +235,19 @@ void OutputDataVisitor::operator()(const std::string& path_str) {
     //     const auto& layer = infer.output_layers[i];
     //     metas[i].set(Dump{dump_path_vec[i]});
     // }
-    auto default_metric = opts.global_metric ? opts.global_metric : std::make_shared<Norm>(0.0);
-    auto per_layer_metrics =
-            unpackWithDefault(opts.metrics_map.at(infer.tag), extractLayerNames(infer.output_layers), default_metric);
-    std::filesystem::path path{path_str};
-    LOG_INFO() << "Reference output data path: " << path << " for model: " << infer.tag
-               << " exists - data will be uploaded" << std::endl;
-    // TODO: change the actual uploadData stuff with the ref/tgt vectors
-    auto layers_data = uploadData(path, infer.tag, infer.output_layers, LayersType::OUTPUT);
-    for (uint32_t i = 0; i < infer.output_layers.size(); ++i) {
-        const auto& layer = infer.output_layers[i];
-        LayerValidator validator{infer.tag, layer.name, per_layer_metrics.at(layer.name)};
-        metas[i].set(Validate{std::move(validator), layers_data.at(layer.name)});
-    }
+    // auto default_metric = opts.global_metric ? opts.global_metric : std::make_shared<Norm>(0.0);
+    // auto per_layer_metrics =
+    //         unpackWithDefault(opts.metrics_map.at(infer.tag), extractLayerNames(infer.output_layers), default_metric);
+    // std::filesystem::path path{path_str};
+    // LOG_INFO() << "Reference output data path: " << path << " for model: " << infer.tag
+    //            << " exists - data will be uploaded" << std::endl;
+    // // TODO: change the actual uploadData stuff with the ref/tgt vectors
+    // auto layers_data = uploadData(path, infer.tag, infer.output_layers, LayersType::OUTPUT);
+    // for (uint32_t i = 0; i < infer.output_layers.size(); ++i) {
+    //     const auto& layer = infer.output_layers[i];
+    //     LayerValidator validator{infer.tag, layer.name, per_layer_metrics.at(layer.name)};
+    //     metas[i].set(Validate{std::move(validator), layers_data.at(layer.name)});
+    // }
 }
 
 }  // anonymous namespace
@@ -168,6 +266,7 @@ public:
     // so only one input / output iteration must be generated.
     cv::optional<uint64_t> required_num_iterations;
     const AccuracySimulation::Options& opts;
+    InferDesc current_infer;
 };
 
 AccuracyStrategy::AccuracyStrategy(const AccuracySimulation::Options& _opts): opts(_opts) {
@@ -175,6 +274,7 @@ AccuracyStrategy::AccuracyStrategy(const AccuracySimulation::Options& _opts): op
 
 // Pregateste infrastructura pentru reference mode (input/output directories) si returneaza providerii pentru input (random/constant), metadata pentru input/output data
 IBuildStrategy::InferBuildInfo AccuracyStrategy::build(const InferDesc& infer) {
+    current_infer = infer;
     const auto& input_data = opts.input_data_map.at(infer.tag);
     InputDataVisitor in_data_visitor{infer, opts};
     std::visit(in_data_visitor, input_data);
@@ -235,7 +335,8 @@ public:
                    std::vector<DummySource::Ptr>&& sources, 
                    std::vector<Meta>&& ref_out_meta, std::vector<Meta>&& tgt_out_meta, 
                    cv::util::optional<uint64_t> required_num_iterations,
-                   const AccuracySimulation::Options& opts);
+                   const AccuracySimulation::Options& opts,
+                   const InferDesc& infer);
 
     Result run(ITermCriterion::Ptr criterion) override;
 
@@ -250,6 +351,7 @@ private:
     std::vector<Meta> m_tgt_out_meta;
     cv::optional<uint64_t> m_required_num_iterations;
     const AccuracySimulation::Options& m_opts;
+    InferDesc m_infer;
 
     std::vector<cv::Mat> m_ref_out_mats;
     std::vector<cv::Mat> m_tgt_out_mats;
@@ -281,7 +383,8 @@ private:
 //////////////////////////////// SyncSimulation ////////////////////////////////
 SyncSimulation::SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt_compiled, std::vector<DummySource::Ptr>&& sources, 
                                std::vector<Meta>&& ref_out_meta, std::vector<Meta>&& tgt_out_meta, 
-                               cv::util::optional<uint64_t> required_num_iterations, const AccuracySimulation::Options& opts)
+                               cv::util::optional<uint64_t> required_num_iterations, const AccuracySimulation::Options& opts,
+                               const InferDesc& infer)
         : m_ref_exec(std::move(ref_compiled)),
           m_tgt_exec(std::move(tgt_compiled)),
           m_ref_sources(sources),
@@ -291,6 +394,7 @@ SyncSimulation::SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt
           m_ref_out_mats(m_ref_out_meta.size()),
           m_tgt_out_mats(m_tgt_out_meta.size()),
           m_opts(opts),
+          m_infer(infer),
           m_ref_iter_idx(0u),
           m_tgt_iter_idx(0u),
           m_required_num_iterations(required_num_iterations) {
@@ -332,8 +436,20 @@ Result SyncSimulation::run(ITermCriterion::Ptr criterion) {
     ref_future.get();
     tgt_future.get();
 
+    auto validation_result = performValidation(
+        m_ref_outputs,
+        m_tgt_outputs,
+        m_ref_out_meta,
+        m_infer,
+        m_opts
+    );
+
+    if (!validation_result) {
+        return validation_result;
+    }
+
     std::stringstream ss;
-    ss << "Reference and target data has been generated - Ref: " << m_ref_iter_idx
+    ss << "Accuracy validation passed - Ref: " << m_ref_iter_idx
        << " iterations, Tgt: " << m_tgt_iter_idx << " iterations";
     return Success{ss.str()};
 }
@@ -455,7 +571,7 @@ std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& sou
     auto tgt_out_meta = m_comp.getOutMeta();
 
     return std::make_shared<SyncSimulation>(std::move(ref_compiled), std::move(tgt_compiled), std::move(sources), 
-                                            std::move(ref_out_meta), std::move(tgt_out_meta), m_strategy->required_num_iterations, m_opts);
+                                            std::move(ref_out_meta), std::move(tgt_out_meta), m_strategy->required_num_iterations, m_opts, m_strategy->current_infer);
 }
 
 std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(const bool drop_frames) {
