@@ -87,8 +87,22 @@ public:
         if (primitive->input.size() == 3)
             deform_conv_dep_offset++;
 
-        const auto& weights_layout = impl_param.input_layouts[1 + 0 + deform_conv_dep_offset]
+        auto weights_layout = impl_param.input_layouts[1 + 0 + deform_conv_dep_offset]
                                                .convert_to_weights_layout(primitive->grouped_weights_shape);
+        if (groups > 1 && weights_layout.get_rank() == 4 && conv_params.grouped_weights_shape) {
+            std::vector<size_t> new_shape = {weights_layout.get_shape()[0],
+                                             weights_layout.get_shape()[1],
+                                             weights_layout.get_shape()[2],
+                                             weights_layout.get_shape()[3],
+                                             1};
+            ov::PartialShape new_pshape(new_shape);
+            cldnn::layout new_weights_layout(new_pshape,
+                                             weights_layout.data_type,
+                                             weights_layout.format == format::oiyx ? format::get_default_format(5, true, true)
+                                             : weights_layout.format);
+            weights_layout = new_weights_layout;
+            conv_params.weights = convert_weights_tensor(weights_layout, true);
+        }
 
         ov::CoordinateDiff pads_begin(primitive->padding_begin.begin(), primitive->padding_begin.end());
         ov::CoordinateDiff pads_end(primitive->padding_end.begin(), primitive->padding_end.end());
