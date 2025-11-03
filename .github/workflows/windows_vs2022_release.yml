@@ -357,6 +357,9 @@ jobs:
         #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test # Ticket: 127101
         shell: cmd
         run: |
+          # Set code page to UTF-8
+          chcp 65001
+
           set PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
 
@@ -364,6 +367,9 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         shell: cmd
         run: |
+          # Set code page to UTF-8
+          chcp 65001
+
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ -v -n logical --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -383,6 +389,9 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).OVC.test
         shell: cmd
         run: |
+          # Set code page to UTF-8
+          chcp 65001
+
           :: Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\python\openvino\test_utils;${{ env.INSTALL_TEST_DIR }}\python;%PYTHONPATH%
 
@@ -396,6 +405,9 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test ||
             fromJSON(needs.smart_ci.outputs.affected_components).PDPD_FE.test
         run: |
+          # Set code page to UTF-8
+          chcp 65001
+
           python3 -m pytest -v ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
 
       - name: OVC unit tests
