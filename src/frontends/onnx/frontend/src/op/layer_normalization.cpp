@@ -13,6 +13,7 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "utils/common.hpp"
 using namespace ov::op;
@@ -78,17 +79,15 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
         normalized = std::make_shared<ConvertLike>(normalized, inputs.at(0));
 
     ov::Output<ov::Node> normalized_shape = std::make_shared<v0::ShapeOf>(normalized);
+    ov::Output<ov::Node> sub_shape = std::make_shared<v8::Slice>(normalized_shape,
+                                                                 Constant::create(element::i64, {1}, {axis}),
+                                                                 Constant::create(element::i64, {1}, {INT_MAX}),
+                                                                 Constant::create(element::i64, {1}, {1}));
 
-    auto scale = inputs.at(1);
-    if (scale.get_partial_shape() != normalized.get_partial_shape())
-        scale = std::make_shared<v1::Reshape>(scale, normalized_shape, false);
-
+    auto scale = std::make_shared<v1::Reshape>(inputs.at(1), sub_shape, false);
     auto scaled = std::make_shared<Multiply>(normalized, scale);
 
-    auto bias = inputs.at(2);
-    if (bias.get_partial_shape() != normalized.get_partial_shape())
-        bias = std::make_shared<v1::Reshape>(bias, normalized_shape, false);
-
+    auto bias = std::make_shared<v1::Reshape>(inputs.at(2), sub_shape, false);
     auto biased = (num_inputs == 3 ? std::make_shared<Add>(scaled, bias)->output(0) : scaled->output(0));
     return ov::OutputVector{biased};
 }
