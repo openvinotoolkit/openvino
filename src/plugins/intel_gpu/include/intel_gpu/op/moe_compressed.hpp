@@ -22,11 +22,11 @@ public:
         size_t num_expert = 0;
         size_t top_k = 0;
         size_t group_size = 0;
-        // In CB, intermediate shapes are expaned to {SeqLen, 1, HiddenSize}
-        // In Non-CB, intermediate shapes are expaded to {Batch, SeqLen, HiddenSize}
+        // In CB, intermediate shapes are expanded to {SeqLen, 1, HiddenSize}
+        // In Non-CB, intermediate shapes are expanded to {Batch, SeqLen, HiddenSize}
         size_t has_batch_dim = 0;
         bool has_zp = false;
-        ov::element::Type out_type = ov::element::dynamic;  // fp16
+        ov::element::Type out_type = ov::element::dynamic;
         Config() = default;
         Config(const MOE::Config& moe_config) : MOE::Config(moe_config) {}
     };
