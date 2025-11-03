@@ -815,8 +815,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_auto_pad_same_upper_no_o
          -1.74118853f, 3.45414424f,  -1.37885427f, -1.78277636f, 3.34848475f,  -4.27803516f, 1.93966556f,
          -1.43013191f, -0.10290492f});
 
-    // Use higher tolerance (10 bits) for diverse test data due to accumulated rounding errors
-    test_case.run(10);
+    // Use higher tolerance for diverse test data due to accumulated rounding errors
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_auto_pad_same_upper_stride2) {
@@ -1028,8 +1028,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_auto_pad_same_upper_stri
          -0.01713869f, -1.89031374f, 0.51883978f,  2.54547048f,  -0.09554570f, 0.52141047f,  -0.26510000f,
          -1.76124203f, 0.18033278f});
 
-    // Use higher tolerance (10 bits) for diverse test data due to accumulated rounding errors
-    test_case.run(10);
+    // Use higher tolerance for diverse test data due to accumulated rounding errors
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_auto_pad_same_lower_no_output_shape) {
@@ -1339,8 +1339,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_auto_pad_same_lower_no_o
          -1.74118853f, 3.45414424f,  -1.37885427f, -1.78277636f, 3.34848475f,  -4.27803516f, 1.93966556f,
          -1.43013191f, -0.10290492f});
 
-    // Use higher tolerance (10 bits) for diverse test data due to accumulated rounding errors
-    test_case.run(10);
+    // Use higher tolerance for diverse test data due to accumulated rounding errors
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_groups_w_pads) {
