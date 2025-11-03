@@ -919,6 +919,10 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
 
 void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
+// zero points fusing is skipped on ARM platforms because oneDNN is not involved into int8 convolution inference 
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    return;
+#endif
 
     auto isSuitableConvNode = [](const NodePtr& node) {
         bool retVal = false;
