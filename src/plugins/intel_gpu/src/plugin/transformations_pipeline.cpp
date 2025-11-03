@@ -401,20 +401,21 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool disable_moe_opt = GPU_DEBUG_VALUE_OR(config.get_disable_moe_opt(), false);
         if (!disable_moe_opt) {
             manager.register_pass<ov::pass::FuseVectorizedMOE2GEMM>();
-        }
-        pass_config->set_callback<ov::pass::FuseVectorizedMOE2GEMM>([&](const_node_ptr& root) -> bool {
-            auto& engine = m_context->get_engine();
-            const auto& info = engine.get_device_info();
-            return (info.supports_immad == false) && info.arch == cldnn::gpu_arch::xe2;
-        });
-        bool is_pa = false;
-        for (const auto& op : func->get_ops())  {
-            if (auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
-                is_pa = true;
-                break;
+            pass_config->set_callback<ov::pass::FuseVectorizedMOE2GEMM>([&](const_node_ptr& root) -> bool {
+                // Currently moe op is only supported by >= xe2
+                auto& engine = m_context->get_engine();
+                const auto& info = engine.get_device_info();
+                return (info.arch != cldnn::gpu_arch::xe2) && (info.arch != cldnn::gpu_arch::xe2);
+            });
+            bool is_pa = false;
+            for (const auto& op : func->get_ops()) {
+                if (auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+                    is_pa = true;
+                    break;
+                }
             }
+            manager.register_pass<ov::intel_gpu::ConvertMOEToMOECompressed>(is_pa);
         }
-        manager.register_pass<ov::intel_gpu::ConvertMOEToMOECompressed>(is_pa);
 
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
