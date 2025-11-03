@@ -25,12 +25,12 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
     /// @brief Constructs moe_mask_gen primitive.
     ///
     /// @param id                   This primitive id.
-    /// @param router_idx           TopK output:1
-    /// @param output0 :            tokens_per_expert
-    /// @param output1 :            experts_info_start_idx
-    /// @param output2 :            experts_id
-    /// @param output3 :            tokens_lens_per_expert
-    /// @param output4 :            num actually used experts
+    /// @param router_idx           output of router (i.e., idx output of topk)
+    /// @param output0 :            used tokens per expert
+    /// @param output1 :            start offset for each expert' info
+    /// @param output2 :            experts' ids actually used
+    /// @param output3 :            tokens' length per expert
+    /// @param output4 :            number of actually used experts
 
     moe_mask_gen(const primitive_id& id,
               const input_info& router_idx,
@@ -84,16 +84,16 @@ struct moe_mask_gen_reshape : public primitive_base<moe_mask_gen_reshape> {
     /// @brief Constructs moe_mask_gen_reshape primitive.
     ///
     /// @param id                   This primitive id.
-    /// @param input0 :             num_actually_used_experts
-    /// @param input1 :             tokens_per_expert
-    /// @param input2 :             experts_info_start_idx
-    /// @param input3 :             experts_id
-    /// @param input4 :             tokens_lens_per_expert
+    /// @param input0 :             output0 of moe_mask_gen
+    /// @param input1 :             output1 of moe_mask_gen
+    /// @param input2 :             output2 of moe_mask_gen
+    /// @param input3 :             output3 of moe_mask_gen
+    /// @param input4 :             output4 of moe_mask_gen
     ///
-    /// @param output0 :            tokens_per_expert
-    /// @param output1 :            experts_info_start_idx
-    /// @param output2 :            experts_id
-    /// @param output3 :            tokens_lens_per_expert
+    /// @param output0 :            output0 of moe_mask_gen reshaped for num of actually used experts
+    /// @param output1 :            output1 of moe_mask_gen reshaped for num of actually used experts
+    /// @param output2 :            output2 of moe_mask_gen reshaped for num of actually used experts
+    /// @param output3 :            output3 of moe_mask_gen reshaped for num of actually used experts
 
     moe_mask_gen_reshape(const primitive_id& id,
                          const input_info& tokens_per_expert,

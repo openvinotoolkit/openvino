@@ -31,14 +31,13 @@ std::vector<layout> swiglu_inst::calc_output_layouts(swiglu_node const& /*node*/
     auto output_format = input_layout.format;
     std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>()};
 
-    if (desc->clamp_max != std::numeric_limits<float>::max() ||
-        desc->clamp_min != std::numeric_limits<float>::lowest()) {
-            std::vector<ov::PartialShape> input_shapes = {impl_param.get_input_layout(0).get_partial_shape()};
-            ov::intel_gpu::op::SwiGluWithClamp op;
-            op.set_glu_stride(desc->glu_stride);
-            op.set_axis(desc->axis);
-            std::vector<ov::PartialShape> output_shapes = shape_infer(&op, input_shapes);
-            return { layout(output_shapes[0], output_type, output_format) };
+    if (desc->clamp_max != std::numeric_limits<float>::max() || desc->clamp_min != std::numeric_limits<float>::lowest()) {
+        std::vector<ov::PartialShape> input_shapes = {impl_param.get_input_layout(0).get_partial_shape()};
+        ov::intel_gpu::op::SwiGluWithClamp op;
+        op.set_glu_stride(desc->glu_stride);
+        op.set_axis(desc->axis);
+        std::vector<ov::PartialShape> output_shapes = shape_infer(&op, input_shapes);
+        return {layout(output_shapes[0], output_type, output_format)};
     } else {
         ov::op::internal::GLU op;
         op.set_axis(desc->axis);

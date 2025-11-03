@@ -25,8 +25,21 @@ struct MoEGemm : public ImplementationManager {
             format::bfyx,
         };
 
-        static const std::vector<ov::element::Type_t> supported_types = {
-            ov::element::f32,
+        static const std::vector<ov::element::Type_t> supported_activation_types = {
+            ov::element::f16,
+            ov::element::i8,
+            ov::element::u8,
+        };
+
+        static const std::vector<ov::element::Type_t> supported_weight_types = {
+            ov::element::f16,
+            ov::element::u4,
+            ov::element::i4,
+            ov::element::i8,
+            ov::element::u8,
+        };
+
+        static const std::vector<ov::element::Type_t> supported_quant_param_types = {
             ov::element::f16,
             ov::element::u4,
             ov::element::i4,
@@ -35,14 +48,53 @@ struct MoEGemm : public ImplementationManager {
             ov::element::i32,
         };
 
-        for (const auto& input_layout : node.get_input_layouts()) {
-            if (!one_of(input_layout.format, supported_fmts) || !one_of(input_layout.data_type, supported_types)) {
+        static const std::vector<ov::element::Type_t> supported_mask_types = {
+            ov::element::i32,
+        };
+
+        auto desc = *(node.get_kernel_impl_params()->typed_desc<moe_gemm>());
+
+        size_t input_idx = moe_gemm::MoEGemmInputIdx::INPUT;
+        if (!one_of(node.get_input_layout(input_idx).format, supported_fmts) ||
+            !one_of(node.get_input_layout(input_idx).data_type, supported_activation_types)) {
+            return false;
+        }
+
+        input_idx = moe_gemm::MoEGemmInputIdx::WEIGHT;
+        if (!one_of(node.get_input_layout(input_idx).format, supported_fmts) ||
+            !one_of(node.get_input_layout(input_idx).data_type, supported_weight_types)) {
+            return false;
+        }
+
+        std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u8, data_types::i8};
+        bool has_quant_weight = false;
+        if (std::any_of(quantized_types.begin(), quantized_types.end(), [&](const cldnn::data_types& t) -> bool {
+                return t == node.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT).data_type;
+            })) {
+            has_quant_weight = true;
+        }
+
+        input_idx = moe_gemm::MoEGemmInputIdx::BIAS;
+        if (desc.has_bias) {
+            if (!one_of(node.get_input_layout(input_idx).format, supported_fmts) ||
+                !one_of(node.get_input_layout(input_idx).data_type, supported_activation_types)) {
                 return false;
             }
         }
 
+        if (has_quant_weight) {
+            size_t quant_params_idx_start = desc.has_bias ? static_cast<size_t>(moe_gemm::MoEGemmInputIdx::WEIGHT_SCALE)
+                                                           : static_cast<size_t>(moe_gemm::MoEGemmInputIdx::WEIGHT_SCALE - 1);
+            for (size_t i = quant_params_idx_start; i < node.get_input_layouts().size(); i++) {
+                if (!one_of(node.get_input_layout(i).format, supported_fmts) ||
+                    !one_of(node.get_input_layout(i).data_type, supported_quant_param_types)) {
+                    return false;
+                }
+            }
+        }
+
         const auto& output_layout = node.get_output_layout(0);
-        if (!one_of(output_layout.format, supported_fmts) || !one_of(output_layout.data_type, supported_types)) {
+        if (!one_of(output_layout.format, supported_fmts) || !one_of(output_layout.data_type, supported_activation_types)) {
             return false;
         }
 

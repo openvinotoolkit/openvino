@@ -81,6 +81,7 @@ struct swiglu : public primitive_base<swiglu> {
         seed = hash_combine(seed, clamp_min);
         seed = hash_combine(seed, clamp_max);
         seed = hash_combine(seed, swish_beta);
+        seed = hash_combine(seed, up_add_val);
         return seed;
     }
 

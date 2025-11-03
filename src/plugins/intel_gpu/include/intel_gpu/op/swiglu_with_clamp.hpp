@@ -23,8 +23,9 @@ public:
     ///
     /// \param data Input tensor with data
     /// \param axis The index of an axis in "data" along which to perform the split
-    /// \param split_lenghts A list containing the sizes of each output tensor along the split "axis"
-    /// \param split_to_glu_idx Output index of variadic split, which is connected to GLU
+    /// \param glu_stride Size of stride for gate index
+    /// \param glu_type Either of Swish / Gelu / Gelu_Tanh
+    /// \param gate_idx Output index to apply gating activation
     /// \param clamp_min Clamp output more than min value
     /// \param clamp_max Clamp output less than max min
     /// \param swiglu_beta Swiglu beta (default : 1.0f)

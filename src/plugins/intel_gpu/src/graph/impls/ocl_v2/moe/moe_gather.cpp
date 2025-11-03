@@ -92,8 +92,7 @@ protected:
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         }
 
-        uint32_t num_of_inputs = 2;
-
+        const uint32_t num_of_inputs = 2;
         for (uint32_t i = 0; i < num_of_inputs; i++) {
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
         }

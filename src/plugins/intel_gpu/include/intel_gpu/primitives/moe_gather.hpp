@@ -21,7 +21,6 @@ struct moe_gather : public primitive_base<moe_gather> {
     /// @param input                         Input data primitive id.
     /// @param experts_info_offsets          offset of each expert's info from the tokens_per_expert
     /// @param tokens_per_expert             tokens per expert
-    /// @param tokens_len_per_expert         tokens len_per_expert
     moe_gather(const primitive_id& id,
               const input_info& data,
               const input_info& tokens_per_expert,
@@ -30,7 +29,6 @@ struct moe_gather : public primitive_base<moe_gather> {
 
     int32_t num_experts_per_token = 0;
     bool has_batch_dim = true;
-    ov::intel_gpu::op::MOECompressed::Config moe_config;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

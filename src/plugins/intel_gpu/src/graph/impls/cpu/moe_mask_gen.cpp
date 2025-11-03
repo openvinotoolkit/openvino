@@ -60,11 +60,11 @@ struct moe_mask_gen_impl : public typed_primitive_impl<moe_mask_gen> {
         auto num_actual_used_experts_mem_ptr  = instance.output_memory_ptr(4);
 
         cldnn::mem_lock<int32_t, mem_lock_type::read> topk_idx_lock(topk_idx_mem_ptr, stream);
-        cldnn::mem_lock<int32_t, mem_lock_type::read_write> num_actual_used_experts_lock(num_actual_used_experts_mem_ptr, stream);
-        cldnn::mem_lock<int32_t, mem_lock_type::read_write> tokens_per_expert_lock(tokens_per_expert_mem_ptr, stream);
-        cldnn::mem_lock<int32_t, mem_lock_type::read_write> experts_info_start_idx_lock(experts_info_start_idx_mem_ptr, stream);
-        cldnn::mem_lock<int32_t, mem_lock_type::read_write> experts_id_lock(experts_id_mem_ptr, stream);
-        cldnn::mem_lock<int32_t, mem_lock_type::read_write> tokens_lens_per_expert_lock(tokens_lens_per_expert_mem_ptr, stream);
+        cldnn::mem_lock<int32_t, mem_lock_type::write> num_actual_used_experts_lock(num_actual_used_experts_mem_ptr, stream);
+        cldnn::mem_lock<int32_t, mem_lock_type::write> tokens_per_expert_lock(tokens_per_expert_mem_ptr, stream);
+        cldnn::mem_lock<int32_t, mem_lock_type::write> experts_info_start_idx_lock(experts_info_start_idx_mem_ptr, stream);
+        cldnn::mem_lock<int32_t, mem_lock_type::write> experts_id_lock(experts_id_mem_ptr, stream);
+        cldnn::mem_lock<int32_t, mem_lock_type::write> tokens_lens_per_expert_lock(tokens_lens_per_expert_mem_ptr, stream);
 
         // make mask for gather
         std::vector<std::vector<int32_t>> tokens_per_expert(num_total_experts, std::vector<int32_t>());

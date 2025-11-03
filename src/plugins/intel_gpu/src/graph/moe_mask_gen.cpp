@@ -24,25 +24,25 @@ std::vector<layout> moe_mask_gen_inst::calc_output_layouts(moe_mask_gen_node con
     const auto& num_experts_per_token = impl_param.typed_desc<moe_mask_gen>()->num_experts_per_token;
 
     if (impl_param.get_input_layout(0).is_dynamic()) {
-        // out1: tokens_per_expert
+        // out0: tokens_per_expert
         auto tokens_per_expert_shape = ov::PartialShape{ov::Dimension::dynamic()};
         output_layouts.emplace_back(tokens_per_expert_shape, data_types::i32, format::bfyx);
     } else {
         const auto num_tokens = impl_param.get_input_layout(0).get_shape()[0];
-        // out1: tokens_per_expert
+        // out0: tokens_per_expert
         auto tokens_per_expert_shape = ov::Shape{num_tokens * num_experts_per_token};
         output_layouts.emplace_back(tokens_per_expert_shape, data_types::i32, format::bfyx);
     }
-    // out2: experts_info_start_idx
+    // out1: experts_info_start_idx
     auto experts_info_start_idx_shape = ov::Shape{static_cast<size_t>(num_total_experts)};
      output_layouts.emplace_back(experts_info_start_idx_shape, data_types::i32, format::bfyx);
-    // out3: experts_id
+    // out2: experts_id
     auto experts_ids = ov::Shape{static_cast<size_t>(num_total_experts)};
     output_layouts.emplace_back(experts_ids, data_types::i32, format::bfyx);
-    // out4: tokens_lens_per_expert
+    // out3: tokens_lens_per_expert
     auto tokens_lens_per_expert = ov::Shape{static_cast<size_t>(num_total_experts)};
     output_layouts.emplace_back(tokens_lens_per_expert, data_types::i32, format::bfyx);
-    // out0: num_actual_expert
+    // out4: num_actual_expert
     auto num_actual_used_experts_shape = ov::Shape{static_cast<size_t>(1)};
     output_layouts.emplace_back(num_actual_used_experts_shape, data_types::i32, format::bfyx);
     return output_layouts;

@@ -29,6 +29,7 @@ inline bool is_prefill_stage(const RuntimeParams& params) {
     return (target_seq_len.get_length() / num_offsets.get_length()) > 1;
 }
 #endif
+
 class MoEGemmImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoEGemmImpl)
