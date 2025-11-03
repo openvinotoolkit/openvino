@@ -111,6 +111,8 @@ protected:
     void makeLeak() {
         // volatile = no opt
         volatile int* p = new int[100];
+        p[77] = 55;
+        p[100] = p[99];
         (void)p;
     }
 
