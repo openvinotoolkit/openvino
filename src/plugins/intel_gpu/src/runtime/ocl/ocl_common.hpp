@@ -48,10 +48,15 @@ inline void rethrow(std::string message, cl_int error, const device_info& info) 
            << "\tDue to a driver bug, any subsequent OpenCL API call may cause the application to hang, "
            << "so the GPU plugin may be unable to finish correctly.\n"
            << "\tThe CL_OUT_OF_RESOURCES error typically occurs in two cases:\n"
-           << "\t1. An actual lack of memory for the current inference.\n"
+           << "\t1. Insufficient memory for the current inference.\n"
            << "\t2. An out-of-bounds access to GPU memory from a kernel.\n"
-           << "\tFor case 1, you may try adjusting some model parameters (e.g., using a smaller batch size, lower inference precision, fewer streams, etc.)"
-           << " to reduce the required memory size. For case 2, please submit a bug report to the OpenVINO team.\n"
+           << "\tFor case 1 (Insufficient Memory)"
+           << "\t  - Try adjusting some model parameters (e.g., using a smaller batch size, lower inference precision, fewer streams, etc.) to reduce the re"
+           << "quired memory size.\n"
+           << "\t  - Alternatively, if using an integrated GPU and your shared memory limit is under 87% of total memory size, you can increase the shared m"
+           << "emory size via the Intel Graphics Software tool: 'Graphics > General > Shared GPU Memory Override'.\n"
+           << "\tFor case 2 (Out-of-Bounds Access):\n"
+           << "\t  - Please submit a bug report to the OpenVINO team.\n"
            << "\tAdditionally, please try updating the driver to the latest version.\n";
         OPENVINO_THROW(ss.str());
     } else {
