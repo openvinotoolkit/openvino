@@ -14,6 +14,11 @@ using namespace cldnn;
 using namespace ::tests;
 
 TEST(moe_compressed_gpu, moe_accuracy_test) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        std::cout << "not support immad, skip test" << std::endl;
+        return;
+    }
     const size_t batch_size = 1;
     const size_t seq_len = 1;
     const size_t hidden_size = 128;
@@ -23,8 +28,6 @@ TEST(moe_compressed_gpu, moe_accuracy_test) {
     const size_t group_size = 128;
     const size_t group_num = hidden_size / group_size;
     const size_t group_num2 = inter_size / group_size;
-
-    auto& engine = get_test_engine();
 
      auto create_u4_tensor = [&](const std::vector<uint8_t>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
         auto mem = engine.allocate_memory({ data_types::u4, format::bfyx, {b, f, y, x} });
