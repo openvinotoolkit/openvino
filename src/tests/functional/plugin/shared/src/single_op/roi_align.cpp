@@ -48,8 +48,8 @@ std::string ROIAlignLayerTest::getTestCaseName(const testing::TestParamInfo<roia
 }
 
 static int randInt(int low, int high) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    const int seed = 42;
+    std::mt19937 gen(seed);
     std::uniform_int_distribution<int> dis(low, high);
     return dis(gen);
 }
