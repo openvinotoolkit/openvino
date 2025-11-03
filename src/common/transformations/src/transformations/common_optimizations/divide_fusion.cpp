@@ -33,7 +33,7 @@ ov::pass::DivideFusion::DivideFusion() {
         const auto& minus_one = pattern_to_output.at(p_pow_const).get_node_shared_ptr();
 
         auto minus_one_const = ov::as_type_ptr<ov::op::v0::Constant>(minus_one);
-        if (!minus_one_const || !op::util::has_constant_value<float>(minus_one_const, -1.)) {
+        if (!minus_one_const || !ov::op::util::has_constant_value<float>(minus_one_const, -1.)) {
             return false;
         }
 
