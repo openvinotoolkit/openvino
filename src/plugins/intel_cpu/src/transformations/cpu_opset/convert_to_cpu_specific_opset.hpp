@@ -53,7 +53,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
 
     CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);
     CPU_REGISTER_PASS_COMMON(manager, MoveFCReshapeToWeights);
-    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
     CPU_REGISTER_PASS_COMMON(manager, ConvertTileToSeqTiles);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToPowerStatic);

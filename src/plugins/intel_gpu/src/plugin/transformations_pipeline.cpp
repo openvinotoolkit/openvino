@@ -444,7 +444,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         type_to_fuse_map empty_fuse_map = {};
-        manager.register_pass<ov::pass::Validate>();
 
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
@@ -762,7 +761,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             {ov::element::u4, ov::element::u8},
         };
 
-        manager.register_pass<ov::pass::Validate>();
         const bool keep_precision_sensitive_in_fp32_2 = true;
 
         // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
