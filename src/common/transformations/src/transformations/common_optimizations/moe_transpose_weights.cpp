@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/matmul_transpose_weights.hpp"
+#include "transformations/common_optimizations/moe_transpose_weights.hpp"
 
 #include <algorithm>
 #include <numeric>
@@ -31,8 +31,8 @@
 
 using namespace ov::pass;
 
-ov::pass::FuseVectorizedMOE2GEMMTransposeWeights::FuseVectorizedMOE2GEMMTransposeWeights() {
-    MATCHER_SCOPE(FuseVectorizedMOE2GEMMTransposeWeights);
+ov::pass::VectorizedMOE2GEMMTransposeWeights::VectorizedMOE2GEMMTransposeWeights() {
+    MATCHER_SCOPE(VectorizedMOE2GEMMTransposeWeights);
 
     auto experts_input = pattern::wrap_type<ov::op::v1::Reshape>({pattern::any_input(), pattern::any_input()});
     auto tile = pattern::wrap_type<ov::op::v0::Tile>({experts_input, pattern::any_input()});
@@ -119,16 +119,21 @@ ov::pass::FuseVectorizedMOE2GEMMTransposeWeights::FuseVectorizedMOE2GEMMTranspos
             ov::copy_runtime_info(rt_sources, transpose);
             register_new_node(transpose);
 
+            transpose->validate_and_infer_types();
+
+            Output<Node> matmul_weight_input = transpose;
+
             if (decompress_convert) {
                 decompress_convert->input(0).replace_source_output(transpose);
-            } else {
-                matmul->input(1).replace_source_output(transpose);
+                decompress_convert->validate_and_infer_types();
+                ov::mark_as_decompression(decompress_convert);
+                matmul_weight_input = decompress_convert;
             }
+
+            matmul->input(1).replace_source_output(matmul_weight_input);
             matmul->set_transpose_b(true);
             matmul->validate_and_infer_types();
-            if (decompress_convert) {
-                decompress_convert->validate_and_infer_types();
-            }
+
             return true;
         };
 

@@ -10,10 +10,10 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API FuseVectorizedMOE2GEMMTransposeWeights : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API VectorizedMOE2GEMMTransposeWeights : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FuseVectorizedMOE2GEMMTransposeWeights");
-    FuseVectorizedMOE2GEMMTransposeWeights();
+    OPENVINO_MATCHER_PASS_RTTI("VectorizedMOE2GEMMTransposeWeights");
+    VectorizedMOE2GEMMTransposeWeights();
 };
 
 }  // namespace pass
