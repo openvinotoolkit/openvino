@@ -344,10 +344,10 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
 
     auto x = NewGenSlice(data, 0, "ndims", 1, 3);
     auto y = NewGenSlice(data, "ndims", int32_max, 1, 3);
-    auto x_emb =
-        pattern::wrap_type<ov::op::internal::RoPE>({x | varsplit->output(0), pattern::any_input(), pattern::any_input()}) |
-        pattern::wrap_type<ov::op::internal::RoPE>(
-            {x | varsplit->output(0), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto x_emb = pattern::wrap_type<ov::op::internal::RoPE>(
+                     {x | varsplit->output(0), pattern::any_input(), pattern::any_input()}) |
+                 pattern::wrap_type<ov::op::internal::RoPE>(
+                     {x | varsplit->output(0), pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto result = pattern::wrap_type<ov::op::v0::Concat>({x_emb, y | varsplit->output(1)}, {{"axis", -1}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -398,9 +398,9 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
     auto x = pattern::wrap_type<ov::op::v1::Transpose>({input_slice | input_to_trans, {0, 2, 1, 3}});
 
     // RoPE node: supports both 3 and 4 inputs
-    auto result =
-        pattern::wrap_type<ov::op::internal::RoPE>({x, pattern::any_input(), pattern::any_input()}) |
-        pattern::wrap_type<ov::op::internal::RoPE>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto result = pattern::wrap_type<ov::op::internal::RoPE>({x, pattern::any_input(), pattern::any_input()}) |
+                  pattern::wrap_type<ov::op::internal::RoPE>(
+                      {x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -1020,12 +1020,13 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     // Broadcast pattern
     auto const_broadcast_axes =
         pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches(element::u8) && pattern::value_matches("{0}"));
-    auto broadcast =
-        pattern::wrap_type<ov::op::v1::Broadcast>({"{1.000000f}", inputs[0], const_broadcast_axes}, {{"mode", "numpy"}});
+    auto broadcast = pattern::wrap_type<ov::op::v1::Broadcast>({"{1.000000f}", inputs[0], const_broadcast_axes},
+                                                               {{"mode", "numpy"}});
 
     // Multiply pattern (expand broadcast)
     auto const_inv_freq = pattern::wrap_type<ov::op::v0::Constant>();  // Pattern for the constant inverse frequency
-    auto multiply = pattern::wrap_type<ov::op::v1::Multiply>({const_inv_freq, broadcast}, {{"auto_broadcast", "numpy"}});
+    auto multiply =
+        pattern::wrap_type<ov::op::v1::Multiply>({const_inv_freq, broadcast}, {{"auto_broadcast", "numpy"}});
 
     // MatMul pattern
     auto matmul =

@@ -79,14 +79,14 @@ ov::op::util::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice>
     const auto end_mask = convert_mask_to_axis_set(slice->get_end_mask());
 
     const auto plan = ov::op::util::make_slice_plan(slice->input(0).get_shape(),
-                                                begin_vec,
-                                                end_vec,
-                                                strides_vec,
-                                                begin_mask,
-                                                end_mask,
-                                                convert_mask_to_axis_set(slice->get_new_axis_mask()),
-                                                convert_mask_to_axis_set(slice->get_shrink_axis_mask()),
-                                                convert_mask_to_axis_set(slice->get_ellipsis_mask()));
+                                                    begin_vec,
+                                                    end_vec,
+                                                    strides_vec,
+                                                    begin_mask,
+                                                    end_mask,
+                                                    convert_mask_to_axis_set(slice->get_new_axis_mask()),
+                                                    convert_mask_to_axis_set(slice->get_shrink_axis_mask()),
+                                                    convert_mask_to_axis_set(slice->get_ellipsis_mask()));
     return plan;
 }
 

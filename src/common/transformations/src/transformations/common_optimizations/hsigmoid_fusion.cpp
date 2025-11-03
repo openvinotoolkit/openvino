@@ -234,8 +234,8 @@ ov::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
         auto div_const_value =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
-        bool valid_constant_values =
-            ov::op::util::has_constant_value(add_const_value, 3.0) && ov::op::util::has_constant_value(div_const_value, 6.0);
+        bool valid_constant_values = ov::op::util::has_constant_value(add_const_value, 3.0) &&
+                                     ov::op::util::has_constant_value(div_const_value, 6.0);
 
         if (!valid_constant_values) {
             return false;

@@ -98,9 +98,9 @@ pass::PadFusionAvgPool::PadFusionAvgPool() {
     auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pad_value_pattern = pattern::any_input();
-    auto pad_node_pattern =
-        pattern::wrap_type<ov::op::util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-                                              pattern::consumers_count(1));
+    auto pad_node_pattern = pattern::wrap_type<ov::op::util::PadBase>(
+        {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
+        pattern::consumers_count(1));
     auto avg_pool_pattern = pattern::wrap_type<ov::op::v1::AvgPool>({pad_node_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -197,9 +197,9 @@ pass::PadFusionConvolution::PadFusionConvolution() {
     auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pad_value_pattern = pattern::any_input();
-    auto pad_node_pattern =
-        pattern::wrap_type<ov::op::util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-                                              pattern::consumers_count(1));
+    auto pad_node_pattern = pattern::wrap_type<ov::op::util::PadBase>(
+        {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
+        pattern::consumers_count(1));
     auto conv_pattern = pattern::wrap_type<ov::op::v1::Convolution>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -242,9 +242,9 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
     auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pad_value_pattern = pattern::any_input();
-    auto pad_node_pattern =
-        pattern::wrap_type<ov::op::util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-                                              pattern::consumers_count(1));
+    auto pad_node_pattern = pattern::wrap_type<ov::op::util::PadBase>(
+        {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
+        pattern::consumers_count(1));
     auto conv_pattern = pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -298,9 +298,9 @@ pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
     auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pad_value_pattern = pattern::any_input();
-    auto pad_node_pattern =
-        pattern::wrap_type<ov::op::util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-                                              pattern::consumers_count(1));
+    auto pad_node_pattern = pattern::wrap_type<ov::op::util::PadBase>(
+        {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
+        pattern::consumers_count(1));
     auto conv_pattern = pattern::wrap_type<ov::op::v1::GroupConvolution>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -343,9 +343,9 @@ pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropDa
     auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto pad_value_pattern = pattern::any_input();
-    auto pad_node_pattern =
-        pattern::wrap_type<ov::op::util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-                                              pattern::consumers_count(1));
+    auto pad_node_pattern = pattern::wrap_type<ov::op::util::PadBase>(
+        {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
+        pattern::consumers_count(1));
     auto conv_pattern =
         pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({pad_node_pattern, filter_pattern});
 

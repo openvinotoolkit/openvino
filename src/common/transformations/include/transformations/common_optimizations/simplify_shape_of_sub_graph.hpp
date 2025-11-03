@@ -42,7 +42,7 @@ public:
 class ov::pass::SimplifyShapeOfSubGraph : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("SimplifyShapeOfSubGraph");
-    explicit SimplifyShapeOfSubGraph(bool use_shapes = true) : m_use_shapes(use_shapes) {};
+    explicit SimplifyShapeOfSubGraph(bool use_shapes = true) : m_use_shapes(use_shapes){};
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:

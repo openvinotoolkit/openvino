@@ -96,8 +96,8 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto concat = as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());
-        auto reduce =
-            as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
+        auto reduce = as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(
+            pattern_map.at(reduce_pattern).get_node_shared_ptr());
         if (!reduce || !concat)
             return false;
 

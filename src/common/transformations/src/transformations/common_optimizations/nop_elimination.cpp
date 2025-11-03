@@ -1134,11 +1134,12 @@ pass::EliminateScatterUpdate::EliminateScatterUpdate() {
 
 ov::pass::EliminateNopBroadcast::EliminateNopBroadcast() {
     MATCHER_SCOPE(EliminateNopBroadcast);
-    auto root = pattern::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast, ov::op::v0::Tile>([](std::shared_ptr<Node> node) {
-        auto input_rank = node->get_input_partial_shape(0).rank();
-        auto output_rank = node->get_output_partial_shape(0).rank();
-        return input_rank.is_static() && output_rank.is_static() && input_rank == output_rank;
-    });
+    auto root = pattern::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast, ov::op::v0::Tile>(
+        [](std::shared_ptr<Node> node) {
+            auto input_rank = node->get_input_partial_shape(0).rank();
+            auto output_rank = node->get_output_partial_shape(0).rank();
+            return input_rank.is_static() && output_rank.is_static() && input_rank == output_rank;
+        });
 
     ov::matcher_pass_callback matcher_pass_callback = [](pattern::Matcher& m) {
         const auto& op = m.get_match_root();
@@ -1331,7 +1332,8 @@ ov::pass::EliminateStridedSliceByShape::EliminateStridedSliceByShape() {
         }
 
         // check that that we will take all values
-        if (node->get_input_size() >= 4 && !ov::op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
+        if (node->get_input_size() >= 4 &&
+            !ov::op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
             return false;
         }
 
@@ -1349,15 +1351,17 @@ ov::pass::EliminateStridedSliceByShape::EliminateStridedSliceByShape() {
 
 ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
     MATCHER_SCOPE(PrepareShapeOpsForEliminationAroundBE);
-    auto first_label = pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze, ov::op::v1::StridedSlice, ov::op::util::GatherBase>(
-        pattern::rank_equals(0));
+    auto first_label = pattern::
+        wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze, ov::op::v1::StridedSlice, ov::op::util::GatherBase>(
+            pattern::rank_equals(0));
     auto other_input_label = pattern::any_input(pattern::rank_equals(0));
     auto binary_op_label = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic,
                                               ov::op::util::BinaryElementwiseComparison,
                                               ov::op::util::BinaryElementwiseLogical>({first_label, other_input_label},
-                                                                                  pattern::consumers_count(1));
-    auto second_label = pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({binary_op_label, pattern::any_input()},
-                                                                               pattern::rank_equals(1));
+                                                                                      pattern::consumers_count(1));
+    auto second_label =
+        pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({binary_op_label, pattern::any_input()},
+                                                                       pattern::rank_equals(1));
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
