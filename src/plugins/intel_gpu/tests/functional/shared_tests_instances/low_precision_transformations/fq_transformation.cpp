@@ -44,13 +44,14 @@ const std::vector<FakeQuantizeTransformationParam> fakeQuantizeOnDataValues = {
         { 256ul, {}, { -127.5f }, { 0.f }, { -127.5f }, { 0.f } },
         "Pooling", "u8"
     },
+    // Not expected FQ levels
     {
         { 16ul, {}, { 0.f }, { 1.5f }, { 0.f }, { 1.5f } },
-        "Pooling", "u8"
+        "Pooling", "f32"
     },
     {
         { 16ul, {}, { -8.f }, { 7.f }, { -0.8f }, { 0.7f } },
-        "Pooling", "i8"
+        "Pooling", "f32"
     },
     // nGraph: I8->FP32 Convert is not supported
     // { 256ul, {}, { -1.28f} , { 1.27f }, { -1.28f} , { 1.27f } },
