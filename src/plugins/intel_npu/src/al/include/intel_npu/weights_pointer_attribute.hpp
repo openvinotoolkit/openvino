@@ -28,10 +28,11 @@ public:
 
     /**
      * @note The names of the attributes have been kept short in order to save some memory (there may be a lot of
-     * "ov::Constant" nodes in a model). Also, three characters should be sufficient to avoid collisions.
+     * "ov::Constant" nodes in a model). While deserializing, the name of the attribute ("WeightsPointerAttribute") is
+     * also used as part of identification in order to avoid collision.
      */
-    static constexpr const std::string_view POINTER_KEY = "mpZ";
-    static constexpr const std::string_view BYTE_SIZE_KEY = "msZ";
+    static constexpr const std::string_view POINTER_KEY = "mp";
+    static constexpr const std::string_view BYTE_SIZE_KEY = "ms";
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
         visitor.on_attribute(POINTER_KEY.data(), memory_pointer);
