@@ -23,6 +23,7 @@
 #include "group_normalization_inst.h"
 #include "mvn_inst.h"
 #include "rms_inst.h"
+#include "resample_inst.h"
 
 #include <vector>
 #include <list>
@@ -148,35 +149,20 @@ void remove_redundant_reorders::run(program& p) {
     }
 
     // Remove redundant reorder in dyanmic shape
-    auto itr = p.get_processing_order().begin();
+    itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto& node_ptr = *itr++;
-        if (node_ptr->id() == "convolution:Conv.81_0_reorder_0") {
-            std::cout << ">>>>> " << node_ptr->id() << std::endl;
-            std::cout << "  -- " << node_ptr->is_type<reorder>() << " " << node_ptr->is_in_data_flow() << ", size : "
-                        << node_ptr->get_users().size() << " " << node_ptr->get_dependencies().size() << ", dyn :" << node_ptr->is_dynamic() << std::endl;
-        }
-
         if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 ||
             node_ptr->get_dependencies().size() != 1)
             continue;
 
         auto& node = node_ptr->as<reorder>();
-        auto prim_desc = node.get_primitive();
         auto& usr = node_ptr->get_users().front();
         auto& dep = node_ptr->get_dependency(0);
 
-        if (node.id() == "convolution:Conv.81_0_reorder_0") {
-            std::cout << "  -- " << node.id() << std::endl;
-        }
-
         auto redundant_format = usr->is_type<resample>() &&
                                 (dep.get_output_layout().format == usr->get_output_layout().format);
-        if (node.id() == "convolution:Conv.81_0_reorder_0") {
-            std::cout << "  -- " << node.id() << " : redundant_format " << redundant_format << std::endl;
-        }
-
-        auto same_data_type = node.get_input_layout().data_type == node.get_output_layout().data_type;
+        auto same_data_type = (node.get_input_layout().data_type == node.get_output_layout().data_type);
         if (!redundant_format && !same_data_type)
             continue;
 
