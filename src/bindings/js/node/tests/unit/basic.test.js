@@ -345,9 +345,11 @@ describe("ov basic tests.", () => {
     });
 
     it("Test importModelSync(stream, device, config: unsupported property) \
-    no exception core property not passed to device", () => {
-      const tmpDir = "/tmp";
-      core.importModelSync(userStream, "CPU", { CACHE_DIR: tmpDir });
+    throws", () => {
+      assert.throws(
+        () => core.importModelSync(userStream, "CPU", { NPU_DEVICE_TOTAL_MEM_SIZE: 1024}),
+        /Unsupported property NPU_DEVICE_TOTAL_MEM_SIZE by CPU plugin./,
+      );
     });
 
     it("importModel returns promise with CompiledModel", async () => {
