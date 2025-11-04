@@ -38,7 +38,7 @@ bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& 
         }
 
         auto weights = op->input_value(1);
-        if (!ov::op::util::is_on_constant_path(weights)) {
+        if (!ov::op::util::is_on_path<ov::op::v0::Constant>(weights)) {
             continue;
         }
 

@@ -112,15 +112,15 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
         }
 
         if (ov::is_type<const ov::op::internal::FullyConnected>(op)) {
-            if (!ov::op::util::is_on_constant_path(op->input_value(BIAS))) {
+            if (!ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(BIAS))) {
                 errorMessage = "Only Constant operation on 'bias' input is supported";
                 return false;
             }
         }
 
         if (ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
-            if (!ov::op::util::is_on_constant_path(op->input_value(WEIGHT_SCALES)) ||
-                !ov::op::util::is_on_constant_path(op->input_value(WEIGHT_ZERO_POINTS))) {
+            if (!ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(WEIGHT_SCALES)) ||
+                !ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(WEIGHT_ZERO_POINTS))) {
                 errorMessage =
                     "Only Constant operation on 'weight scales', and 'weight zero points' inputs is supported";
                 return false;
