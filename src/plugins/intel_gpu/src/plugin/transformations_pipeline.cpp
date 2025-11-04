@@ -389,7 +389,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         using namespace ov::pass::low_precision;
-        auto is_model_quantized = LowPrecision::isFunctionQuantized(func, std::set<levels>{levels::int8, levels::int8_narrow_range});
+        auto is_model_quantized = LowPrecision::isFunctionQuantized(func);
         enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
         {
             using namespace ov::element;
