@@ -87,29 +87,6 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Build Pythons
-# Python 3.9
-
-# To cross-compile Python 3.9 we need to first compile it for the host
-RUN wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz
-
-RUN tar -xf Python-3.9.21.tar.xz && \
-    cd Python-3.9.21 && \
-    ./configure --enable-optimizations && \
-    make -j $(nproc) && \
-    make altinstall
-
-# Compile Python 3.9 for ARM
-RUN cd Python-3.9.21 && make distclean && \
-    ./configure \
-        --host=arm-linux-gnueabihf \
-        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
-        --disable-ipv6 \
-        --enable-shared \
-        --prefix=/opt/python3.9_arm \
-        ac_cv_file__dev_ptmx=no \
-        ac_cv_file__dev_ptc=no && \
-    make -j $(nproc) && make altinstall
-
 # Python 3.10
 # To cross-compile Python 3.10 we need to first compile it for the host
 RUN wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz
@@ -215,7 +192,6 @@ RUN cd Python-3.13.2 && make distclean && \
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.9 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
