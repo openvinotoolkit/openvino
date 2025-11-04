@@ -280,9 +280,10 @@ ov::Strides Pipeline::get_strides(const std::shared_ptr<ZeroTensor>& tensor) {
         return ov::Strides{};
     }
 
-    if (!_graph->is_strided_tensor_supported()) {
-        OPENVINO_THROW("Strides are not supported by the current driver version.");
-    }
+    // TODO: not implemented yet, review it after a decision is taken.
+    //  if (!_graph->is_strided_tensor_supported()) {
+    //      OPENVINO_THROW("Strides are not supported by the current driver version.");
+    //  }
 
     return tensor->get_strides();
 };
