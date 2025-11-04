@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import io
 from typing import Union
 
 import os
@@ -116,6 +117,11 @@ def plugins_path(device, lib_path):
 def generate_image(shape: tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
     np.random.seed(42)
     return np.random.rand(*shape).astype(dtype)
+
+
+def tensor_from_bytes(stream: io.BytesIO) -> Tensor:
+    stream.seek(0)
+    return Tensor(np.frombuffer(stream.getbuffer(), dtype=np.uint8))
 
 
 def get_model_with_template_extension():
