@@ -701,14 +701,24 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
+    auto compilationConfig = localConfig;
+    if (successfullyDebatched && compilationConfig.isAvailable(ov::hint::performance_mode.name())) {
+        if (compilationConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
+            _logger.info("Override performance mode to THROUGHPUT for compilation");
+            std::stringstream strStream;
+            strStream << ov::hint::PerformanceMode::THROUGHPUT;
+            compilationConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+        }
+    }
+
     try {
         _logger.debug("performing compile");
 
         if (!localConfig.get<WEIGHTLESS_BLOB>()) {
-            graph = compiler->compile(successfullyDebatched ? batchedModel : model->clone(), localConfig);
+            graph = compiler->compile(successfullyDebatched ? batchedModel : model->clone(), compilationConfig);
         } else {
             check_weightless_cache_attribute_occurrence(model);
-            graph = compiler->compileWS(successfullyDebatched ? batchedModel : model->clone(), localConfig);
+            graph = compiler->compileWS(successfullyDebatched ? batchedModel : model->clone(), compilationConfig);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
