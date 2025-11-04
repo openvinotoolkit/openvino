@@ -501,8 +501,10 @@ void Subgraph::infer_inputs_from_parent() {
     for (auto& it : m_parameter_to_parent_node_map) {
         const auto& node = m_parent_graph->get_ov_node_from_cache(it.second);
         auto& parameter = it.first;
+
         parameter->set_element_type(node.get_element_type());
         parameter->set_partial_shape(node.get_partial_shape());
+        parameter->validate_and_infer_types();
     }
 }
 

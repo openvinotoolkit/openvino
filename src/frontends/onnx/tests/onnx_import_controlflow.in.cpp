@@ -738,6 +738,36 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_dynamic_inputs) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_with_reducemean) {
+    // Regression test: ensure ReduceMean in If branches receives correct type info
+    // Previously failed with "Unsupported input type dynamic" because operations
+    // in subgraphs didn't perform immediate type inference
+    /*
+       if (condition) {
+         ReduceMean(x, axes=[1], keepdims=1)
+       } else {
+         ReduceMean(x, axes=[1], keepdims=1)
+       }
+    */
+    const auto model = convert_model("controlflow/if_with_reducemean.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Test with condition = true (then branch)
+    std::vector<float> x = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+    std::vector<float> expected = {2.5f, 6.5f};  // mean of [1,2,3,4] and [5,6,7,8]
+
+    test_case.add_input<bool>(Shape{}, {true});
+    test_case.add_input<float>(Shape{2, 4}, x);
+    test_case.add_expected_output<float>(Shape{2, 1}, expected);
+    test_case.run();
+
+    // Test with condition = false (else branch)
+    test_case.add_input<bool>(Shape{}, {false});
+    test_case.add_input<float>(Shape{2, 4}, x);
+    test_case.add_expected_output<float>(Shape{2, 1}, expected);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_missing_branches) {
     try {
         const auto model = convert_model("controlflow/if_missing_then_branch.onnx");
