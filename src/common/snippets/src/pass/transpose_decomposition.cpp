@@ -6,9 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <memory>
-#include <ostream>
 #include <vector>
 
 #include "openvino/core/node.hpp"
@@ -96,7 +94,6 @@ TransposeDecomposition::TransposeDecomposition() {
             input.replace_source_output(store->output(0));
         }
 
-        std::cout << "TransposeDecomposition applied on node: " << transpose->get_friendly_name() << '\n';
         return true;
     };
 

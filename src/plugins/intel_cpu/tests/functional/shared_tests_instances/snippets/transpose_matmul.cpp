@@ -29,6 +29,7 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     return prc;
 }
 
+// Transpose is moved outside of Subgraph on ARM64
 #if defined(OPENVINO_ARCH_ARM64)
 static constexpr size_t expected_nodes_transpose_input = 2;
 #else
@@ -44,7 +45,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::Values(0), // Transpose on 0th Matmul input
                                  ::testing::ValuesIn(precisions(false)),
                                  ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(expected_nodes_transpose_input), // MatMul
+                                 ::testing::Values(expected_nodes_transpose_input),
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
@@ -61,7 +62,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMult, TransposeMatMul,
                                  ::testing::Values(0), // Transpose on 0th Matmul input
                                  ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(expected_nodes_transpose_input), // MatMul
+                                 ::testing::Values(expected_nodes_transpose_input),
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
@@ -93,7 +94,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::Values(1), // Transpose on 1st Matmul input
                                  ::testing::ValuesIn(precisions(false)),
                                  ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(expected_nodes_transpose_input), // MatMul
+                                 ::testing::Values(expected_nodes_transpose_input),
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
@@ -110,7 +111,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMult, TransposeMatMul,
                                  ::testing::Values(1), // Transpose on 1st Matmul input
                                  ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(expected_nodes_transpose_input), // MatMul
+                                 ::testing::Values(expected_nodes_transpose_input),
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
