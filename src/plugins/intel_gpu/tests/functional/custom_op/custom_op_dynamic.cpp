@@ -155,7 +155,7 @@ public:
 
         ov::Core core;
         float alpha = 1.0, beta = 0.1;
-        auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape{-1, dim1, -1});
+        auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape{-1, dim1, -1}, "dynamic");
 
         ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}};
         auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
@@ -277,7 +277,7 @@ protected:
         ov::test::utils::createFile(config_xml, content_xml + content_xml_2);
     }
 
-    std::shared_ptr<ov::Model> generate_model_with_custom_add_op(float alpha, float beta, ov::PartialShape inp_shape) {
+    std::shared_ptr<ov::Model> generate_model_with_custom_add_op(float alpha, float beta, ov::PartialShape inp_shape, const std::string& model_name_suffix ) {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inp_shape);
         auto op_custom_1 = std::make_shared<CustomAddOp>(input, alpha, beta);
 
@@ -292,7 +292,7 @@ protected:
 
         auto result_1 = std::make_shared<ov::op::v0::Result>(op_custom_2->output(0));
         auto result_2 = std::make_shared<ov::op::v0::Result>(op_custom_2->output(1));
-        return std::make_shared<ov::Model>(ov::ResultVector{result_1, result_2}, ov::ParameterVector{input}, "model_with_custom_op_dynamic");
+        return std::make_shared<ov::Model>(ov::ResultVector{result_1, result_2}, ov::ParameterVector{input}, "model_with_custom_op_" + model_name_suffix);
     }
 };
 
@@ -307,7 +307,7 @@ public:
 
         ov::Core core;
         float alpha = 1.0, beta = 0.1;
-        auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape(input_shapes[0]));
+        auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape(input_shapes[0]), "static");
 
         ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}};
         auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
