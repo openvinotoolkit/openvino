@@ -311,7 +311,10 @@ struct onednn_linear {
     void forward(dnnl::stream& stream, int m, dnnl::memory src_mem, dnnl::memory dst_mem, dnnl::memory bin_mem) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::forward()"));
         dnnl::memory::dim M = m;
-        OPENVINO_ASSERT(m_batch == 0 || m_batch == M, "m_batch=", m_batch, " M=", M);
+
+        if (!(m_batch == 0 || m_batch == M)) {
+            OPENVINO_THROW("onednn_linear::forward(): invalid batch size m_batch=", m_batch, " M=", M);
+        }
 
         std::unordered_map<int, dnnl::memory> args;
         args.insert({DNNL_ARG_SRC, src_mem});
@@ -738,7 +741,9 @@ public:
         expert_mask.batch.resize(max_expert_num, {});
         expert_mask.topk.resize(max_expert_num, {});
 
-        OPENVINO_ASSERT(!layout.data_padding, "get_expert_mask_from_memory not support padding");
+        if (layout.data_padding) {
+            OPENVINO_THROW("get_expert_mask_from_memory not support padding");
+        }
 
         std::vector<int32_t> buf(max_topk * max_tokens);
         mem->copy_to(stream, buf.data(), 0, 0, buf.size() * sizeof(int32_t), true);
@@ -747,7 +752,10 @@ public:
             auto* tok_p = &buf[b * max_topk];
             for (int t = 0; t < max_topk; t++) {
                 auto expert_no = tok_p[t];
-                OPENVINO_ASSERT(expert_no < max_expert_num);
+                if (expert_no >= max_expert_num) {
+                    OPENVINO_THROW("expert_no ", expert_no, " exceed max_expert_num ", max_expert_num);
+                }
+
                 expert_mask.batch[expert_no].push_back(b);
                 expert_mask.topk[expert_no].push_back(t + b * max_topk);
                 expert_mask.pred_flag[expert_no] = 1;
