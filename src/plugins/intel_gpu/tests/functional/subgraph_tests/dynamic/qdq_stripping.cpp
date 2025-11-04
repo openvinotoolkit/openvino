@@ -78,11 +78,11 @@ protected:
         size_t seed = 1;
         auto create_qdq_branch = [&](float weight_scale_value) {
             auto input_dequantized = qp_1.build_dq(input_convert2, quantization_precision);
-            ov::test::utils::InputGenerateData gen_data;
-            gen_data.seed = seed++;
-            auto weight_quantized = ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, gen_data);
+            ov::test::utils::InputGenerateData weights_gen_data;
+            weights_gen_data.seed = seed;
+            auto weight_quantized = ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, weights_gen_data);
             auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
-            auto weight_scale = ov::test::utils::make_constant(ov::element::f32, {}, gen_data);
+            auto weight_scale = ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{weight_scale_value});
             auto weight_dequantized = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
 
             auto conv = std::make_shared<ov::op::v1::Convolution>(input_dequantized,
@@ -92,7 +92,8 @@ protected:
                                                                   ov::CoordinateDiff{1, 1},
                                                                   ov::Strides{1, 1});
 
-            auto bias_const = ov::test::utils::make_constant(ov::element::f32, ov::Shape{1, 32, 1, 1}, gen_data);
+            ov::test::utils::InputGenerateData bias_gen_data(-2.0, 4, 100, seed++);
+            auto bias_const = ov::test::utils::make_constant(ov::element::f32, ov::Shape{1, 32, 1, 1}, bias_gen_data);
             auto conv_biased = std::make_shared<ov::op::v1::Add>(conv, bias_const);
 
             const auto& qp_2 = q_params.second;
@@ -102,8 +103,8 @@ protected:
             return qp_2.build_dq(act_convert, quantization_precision);
         };
 
-        auto left_branch = create_qdq_branch(0.01f);
-        auto right_branch = create_qdq_branch(0.001f);
+        auto left_branch = create_qdq_branch(1e-3f);
+        auto right_branch = create_qdq_branch(1e-4f);
         auto add_branches = std::make_shared<ov::op::v1::Add>(left_branch, right_branch);
 
         auto model = std::make_shared<ov::Model>(ov::OutputVector{add_branches}, params, "QDQStripping");
@@ -116,8 +117,8 @@ protected:
         init_input_shapes({input_shape});
         inType = outType = input_precision;
 
-        // Since the FQ are not executed in a strictly 'fair' manner, and just replaced with clamp ops, a small deviation in accuracy is expected.
-        abs_threshold = 1.f;
+        // Since the FQ are not executed in a strictly 'fair' manner, and just replaced with clamp ops, a small accuracy deviation is expected.
+        abs_threshold = 1e-3f;
         function = init_subgraph(input_shape.first, quantization_precision);
     }
 
