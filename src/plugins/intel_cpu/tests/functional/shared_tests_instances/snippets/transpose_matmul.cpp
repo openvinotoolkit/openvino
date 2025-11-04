@@ -28,15 +28,23 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
 #endif
     return prc;
 }
+
+#if defined(OPENVINO_ARCH_ARM64)
+static constexpr size_t expected_nodes_transpose_input = 2;
+#else
+static constexpr size_t expected_nodes_transpose_input = 1;
+#endif
+
 namespace transpose_zero_input {
 const auto& transpose_input_shapes = SNIPPETS_TESTS_STATIC_SHAPES({{1, 49, 2, 23}, {2, 2, 23, 39}});
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(transpose_input_shapes),
                                  ::testing::Values(0), // Transpose on 0th Matmul input
                                  ::testing::ValuesIn(precisions(false)),
                                  ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(1), // MatMul
+                                 ::testing::Values(expected_nodes_transpose_input), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
@@ -53,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMult, TransposeMatMul,
                                  ::testing::Values(0), // Transpose on 0th Matmul input
                                  ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(1), // MatMul
+                                 ::testing::Values(expected_nodes_transpose_input), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
@@ -71,7 +79,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, TransposeMatMul,
                                  ::testing::Values(0), // Transpose on 0th Matmul input
                                  ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(MatMulType::FullyConnected),
-                                 ::testing::Values(1), // Fused MatMul + Transpose
+                                 ::testing::Values(expected_nodes_transpose_input), // Fused MatMul + Transpose
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
@@ -85,7 +93,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::Values(1), // Transpose on 1st Matmul input
                                  ::testing::ValuesIn(precisions(false)),
                                  ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(1), // MatMul
+                                 ::testing::Values(expected_nodes_transpose_input), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
@@ -102,7 +110,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMult, TransposeMatMul,
                                  ::testing::Values(1), // Transpose on 1st Matmul input
                                  ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(1), // MatMul
+                                 ::testing::Values(expected_nodes_transpose_input), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);

@@ -84,14 +84,20 @@ std::vector<std::vector<InputShape>> transposedShape_2D(bool with_dynamic = true
     return shapes;
 }
 
+#if defined(OPENVINO_ARCH_ARM64)
+static constexpr size_t expected_nodes_mha_4d_f32 = 4;
+#else
+static constexpr size_t expected_nodes_mha_4d_f32 = 2;
+#endif
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D,
                          MHA,
                          ::testing::Combine(::testing::ValuesIn(transposedShape_4D()),
                                             ::testing::ValuesIn(precision_f32(4)),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(false),
-                                            ::testing::Values(MHA::default_thread_count),
-                                            ::testing::Values(2), // decomposed Transpose + MHA
+                                             ::testing::Values(MHA::default_thread_count),
+                                            ::testing::Values(expected_nodes_mha_4d_f32), // decomposed Transpose + MHA
                                             ::testing::Values(2), // decomposed Transpose + MHA
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
@@ -104,7 +110,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_WithScalarMul,
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(true),
                                             ::testing::Values(MHA::default_thread_count),
-                                            ::testing::Values(2), // decomposed Transpose + MHA
+                                            ::testing::Values(expected_nodes_mha_4d_f32), // decomposed Transpose + MHA
                                             ::testing::Values(2), // decomposed Transpose, Mul + MHA
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),

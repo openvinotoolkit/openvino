@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "openvino/pass/matcher_pass.hpp"
 #include <functional>
 #include <memory>
 #include <utility>
+
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov::snippets::pass {
 
@@ -33,6 +34,11 @@ public:
             : m_concurrency(concurrency),
               m_split_m_dimension(split_m_dimension) {
             OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
+        }
+
+        void set_concurrency(size_t concurrency) {
+            OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
+            m_concurrency = concurrency;
         }
 
         [[nodiscard]] size_t get_concurrency() const {
