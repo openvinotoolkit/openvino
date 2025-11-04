@@ -58,12 +58,12 @@ FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& lev
             return false;
         }
         auto constants_are_equal = [](const std::shared_ptr<ov::op::v0::Constant>& lhs,
-                                      const std::shared_ptr<ov::op::v0::Constant>& rhs) {
+                                      const std::shared_ptr<ov::op::v0::Constant>& rhs) -> bool {
             auto equal =
                 ov::as_type_ptr<ov::op::v0::Constant>(ov::op::util::make_try_fold<ov::op::v1::Equal>(lhs, rhs));
             OPENVINO_ASSERT(equal && ov::shape_size(equal->get_shape()) == 1,
                             "constants_are_equal expects scalar constant as a comparison result");
-            return equal->get_vector<bool>()[0] == true;
+            return equal->get_vector<bool>()[0];
         };
 
         if (!constants_are_equal(input_low, output_low) || !constants_are_equal(input_high, output_high)) {

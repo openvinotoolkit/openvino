@@ -133,15 +133,24 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
         if (!ov::op::util::get_single_value(output_high, out_high_val))
             return false;
 
+#define PRECISION_LIMITS_FOR(type)                                                                      \
+    {ov::element::type}, {                                                                              \
+        static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::min()),    \
+            static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::max()) \
+    }
+
         static const std::unordered_map<ov::element::Type_t, std::pair<float, float>> supported_intervals{
-            {ov::element::i8, {-128.f, 127.f}},
-            {ov::element::u8, {0.f, 255.f}},
-            {ov::element::i16, {-32768.f, 32767.f}},
-            {ov::element::u16, {0.f, 65535.f}}};
+            {PRECISION_LIMITS_FOR(i8)},
+            {PRECISION_LIMITS_FOR(u8)},
+            {PRECISION_LIMITS_FOR(i16)},
+            {PRECISION_LIMITS_FOR(u16)}};
+#undef TYPE_INTERVAL_PAIR
+
         const auto& type = convert1.get_element_type();
         // check if (out_low_val, out_high_val) pair is mapped on the expected precision ranges
-        if (supported_intervals.count(type) == 0 ||
-            supported_intervals.at(type) != std::make_pair(out_low_val, out_high_val)) {
+        auto interval_it = supported_intervals.find(type);
+        if (interval_it == supported_intervals.end() ||
+            interval_it->second != std::make_pair(out_low_val, out_high_val)) {
             return false;
         }
 
