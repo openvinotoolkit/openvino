@@ -32,7 +32,6 @@ public:
     }
 
 private:
-    size_t m_out_rank;
     bool m_transpose_a;
     bool m_transpose_b;
 };
