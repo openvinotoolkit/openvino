@@ -144,7 +144,7 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
             {PRECISION_LIMITS_FOR(u8)},
             {PRECISION_LIMITS_FOR(i16)},
             {PRECISION_LIMITS_FOR(u16)}};
-#undef TYPE_INTERVAL_PAIR
+#undef PRECISION_LIMITS_FOR
 
         const auto& type = convert1.get_element_type();
         // check if (out_low_val, out_high_val) pair is mapped on the expected precision ranges
