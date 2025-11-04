@@ -18,6 +18,8 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <tuple>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "common/blocked_desc_creator.h"
