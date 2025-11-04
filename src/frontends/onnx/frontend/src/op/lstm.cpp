@@ -43,8 +43,8 @@ enum class LSTMInput {
 
 // Helper function to reduce tensor rank to target_rank by squeezing or reshaping
 std::shared_ptr<ov::Node> reduce_tensor_rank(const ov::Output<ov::Node>& input,
-                                              int64_t target_rank,
-                                              const std::string& debug_name) {
+                                             int64_t target_rank,
+                                             const std::string& debug_name) {
     const auto& input_shape = input.get_partial_shape();
 
     if (!input_shape.rank().is_static()) {
@@ -67,9 +67,7 @@ std::shared_ptr<ov::Node> reduce_tensor_rank(const ov::Output<ov::Node>& input,
 
     if (axes_to_squeeze.size() == static_cast<size_t>(input_rank - target_rank)) {
         // All extra dimensions are 1, we can squeeze to get target rank
-        auto axes_const = v0::Constant::create(ov::element::i64,
-                                              Shape{axes_to_squeeze.size()},
-                                              axes_to_squeeze);
+        auto axes_const = v0::Constant::create(ov::element::i64, Shape{axes_to_squeeze.size()}, axes_to_squeeze);
         return std::make_shared<v0::Squeeze>(input, axes_const);
     } else {
         // Some dimensions are not 1 or dynamic, need to reshape
@@ -192,13 +190,11 @@ struct LSTMNgInputMap {
             if (init_h_shape.rank().is_static() && x_shape.rank().is_static() &&
                 init_h_shape.rank().get_length() == 3 && x_shape.rank().get_length() == 3 &&
                 init_h_shape[0].is_static() && init_h_shape[0].get_length() == 1) {
-
                 // Create repeats: [X_batch_size, 1, 1]
                 auto repeats = std::make_shared<v0::Concat>(
-                    ov::OutputVector{
-                        batch_size_node,  // X's batch_size
-                        v0::Constant::create(ov::element::i64, Shape{2}, std::vector<int64_t>{1, 1})
-                    }, 0);
+                    ov::OutputVector{batch_size_node,  // X's batch_size
+                                     v0::Constant::create(ov::element::i64, Shape{2}, std::vector<int64_t>{1, 1})},
+                    0);
 
                 init_h = std::make_shared<v0::Tile>(init_h, repeats);
             }
@@ -228,13 +224,11 @@ struct LSTMNgInputMap {
             if (init_c_shape.rank().is_static() && x_shape.rank().is_static() &&
                 init_c_shape.rank().get_length() == 3 && x_shape.rank().get_length() == 3 &&
                 init_c_shape[0].is_static() && init_c_shape[0].get_length() == 1) {
-
                 // Create repeats: [X_batch_size, 1, 1]
                 auto repeats = std::make_shared<v0::Concat>(
-                    ov::OutputVector{
-                        batch_size_node,  // X's batch_size
-                        v0::Constant::create(ov::element::i64, Shape{2}, std::vector<int64_t>{1, 1})
-                    }, 0);
+                    ov::OutputVector{batch_size_node,  // X's batch_size
+                                     v0::Constant::create(ov::element::i64, Shape{2}, std::vector<int64_t>{1, 1})},
+                    0);
 
                 init_c = std::make_shared<v0::Tile>(init_c, repeats);
             }

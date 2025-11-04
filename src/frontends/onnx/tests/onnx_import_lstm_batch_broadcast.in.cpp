@@ -117,8 +117,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_batch_broadcast_no_broadcast_need
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>({0.68172926f, 1.1405563f, -0.03931177f, -0.03759607f});
 
-    test_case.add_expected_output<float>(Shape{2, 1, 1, 2},
-                                         {-0.063373f, -0.20347191f, -0.07230289f, -0.13298286f});
+    test_case.add_expected_output<float>(Shape{2, 1, 1, 2}, {-0.063373f, -0.20347191f, -0.07230289f, -0.13298286f});
     test_case.add_expected_output<float>(Shape{1, 1, 2}, {-0.07230289f, -0.13298286f});
     test_case.add_expected_output<float>(Shape{1, 1, 2}, {-0.1557954f, -0.24502525f});
 

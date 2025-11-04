@@ -61,8 +61,7 @@ ov::OutputVector if_legacy(const ov::frontend::onnx::Node& node) {
                 auto node = then_outputs[i].get_node_shared_ptr();
                 for (int64_t j = 0; j < (else_rank - then_rank); ++j) {
                     // Always add at axis 0 (beginning)
-                    auto axes = std::make_shared<v0::Constant>(
-                        ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+                    auto axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
                     node = std::make_shared<v0::Unsqueeze>(node, axes);
                 }
                 aligned_then_outputs.push_back(node);
@@ -73,8 +72,7 @@ ov::OutputVector if_legacy(const ov::frontend::onnx::Node& node) {
                 auto node = else_outputs[i].get_node_shared_ptr();
                 for (int64_t j = 0; j < (then_rank - else_rank); ++j) {
                     // Always add at axis 0 (beginning)
-                    auto axes = std::make_shared<v0::Constant>(
-                        ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+                    auto axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
                     node = std::make_shared<v0::Unsqueeze>(node, axes);
                 }
                 aligned_then_outputs.push_back(then_outputs[i]);
@@ -148,10 +146,9 @@ ov::OutputVector if_legacy(const ov::frontend::onnx::Node& node) {
         size_t num_implicit = ng_inputs.size() - 1;  // Exclude condition
 
         FRONT_END_GENERAL_CHECK(num_implicit == actual_then_params.size(),
-                                "num_implicit (" + std::to_string(num_implicit) +
-                                    ") != then_params (" + std::to_string(actual_then_params.size()) + ")");
-        FRONT_END_GENERAL_CHECK(num_implicit == actual_else_params.size(),
-                                "num_implicit != else_params");
+                                "num_implicit (" + std::to_string(num_implicit) + ") != then_params (" +
+                                    std::to_string(actual_then_params.size()) + ")");
+        FRONT_END_GENERAL_CHECK(num_implicit == actual_else_params.size(), "num_implicit != else_params");
 
         for (size_t i = 0; i < num_implicit; ++i) {
             if_node->set_input(ng_inputs[i + 1], actual_then_params[i], actual_else_params[i]);
@@ -256,8 +253,7 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
                 auto node = then_outputs[i].get_node_shared_ptr();
                 for (int64_t j = 0; j < (else_rank - then_rank); ++j) {
                     // Always add at axis 0 (beginning)
-                    auto axes = std::make_shared<v0::Constant>(
-                        ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+                    auto axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
                     node = std::make_shared<v0::Unsqueeze>(node, axes);
                 }
                 aligned_then_outputs.push_back(node);
@@ -267,8 +263,7 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
                 auto node = else_outputs[i].get_node_shared_ptr();
                 for (int64_t j = 0; j < (then_rank - else_rank); ++j) {
                     // Always add at axis 0 (beginning)
-                    auto axes = std::make_shared<v0::Constant>(
-                        ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+                    auto axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
                     node = std::make_shared<v0::Unsqueeze>(node, axes);
                 }
                 aligned_then_outputs.push_back(then_outputs[i]);
