@@ -58,6 +58,8 @@ public:
 
 protected:
     std::shared_ptr<ov::Model> init_subgraph(const ov::PartialShape& input_shape, const ov::element::Type& quantization_precision) {
+        OPENVINO_ASSERT(quantization_precision == ov::element::i16 || quantization_precision == ov::element::u16,
+                        "Only i16 and u16 quantization precisions are supported in the test");
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
         // Note: these params are taken from the real cases
         static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
