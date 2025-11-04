@@ -701,20 +701,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
-    auto compileWithConfig = [&](const auto& config) {
+    auto compileWithConfig = [&](const auto& modelToCompile, const auto& config) {
         if (!localConfig.get<WEIGHTLESS_BLOB>()) {
-            return compiler->compile(successfullyDebatched ? batchedModel : model->clone(), config);
+            return compiler->compile(modelToCompile, config);
         } else {
             check_weightless_cache_attribute_occurrence(model);
-            return compiler->compileWS(successfullyDebatched ? batchedModel : model->clone(), config);
+            return compiler->compileWS(modelToCompile, config);
         }
     };
 
     try {
         _logger.debug("performing compile");
 
-        if (successfullyDebatched && localConfig.isAvailable(ov::hint::performance_mode.name()) &&
-            localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
+        // Determine which model to use
+        auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
+
+        if (successfullyDebatched && localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
             _logger.info("Override performance mode to THROUGHPUT for compilation");
 
             auto modifiedConfig = localConfig;  // Copy only when needed
@@ -722,9 +724,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             strStream << ov::hint::PerformanceMode::THROUGHPUT;
             modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
 
-            graph = compileWithConfig(modifiedConfig);
+            graph = compileWithConfig(modelToCompile, modifiedConfig);
         } else {
-            graph = compileWithConfig(localConfig);  // No copy
+            graph = compileWithConfig(modelToCompile, localConfig);  // No copy
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
