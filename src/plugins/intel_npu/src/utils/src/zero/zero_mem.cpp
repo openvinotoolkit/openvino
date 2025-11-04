@@ -133,6 +133,8 @@ ZeroMem::~ZeroMem() {
                       uint64_t(result),
                       ze_result_to_description(result).c_str());
     }
+
+    _init_structs->destroy();
 }
 
 }  // namespace intel_npu

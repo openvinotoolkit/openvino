@@ -204,4 +204,10 @@ bool ZeroTensor::can_be_reused() {
     return _can_be_reused;
 }
 
+ZeroTensor::~ZeroTensor() {
+    // make sure that the mem ref is destroyed before destroying the zero context
+    _mem_ref = {};
+    _init_structs->destroy();
+}
+
 }  // namespace intel_npu

@@ -10,6 +10,7 @@
 #include <ze_intel_npu_uuid.h>
 
 #include <memory>
+#include <mutex>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -79,10 +80,17 @@ public:
         return _external_memory_fd_win32_supported;
     }
 
-    static const std::shared_ptr<ZeroInitStructsHolder>& getInstance();
+    static const std::shared_ptr<ZeroInitStructsHolder> getInstance();
+
+    static void destroy();
 
 private:
     void initNpuDriver();
+    static std::weak_ptr<ZeroInitStructsHolder>& getInstanceStorage();
+    // Static mutex for synchronization
+    static std::mutex& getMutex();
+
+    void destroy_context();
 
     // keep zero_api alive until context is destroyed
     std::shared_ptr<ZeroApi> zero_api;
