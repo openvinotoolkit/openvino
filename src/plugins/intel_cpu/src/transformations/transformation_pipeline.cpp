@@ -57,6 +57,7 @@
 #include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/validate.hpp"
 #include "selective_build.h"
+#include "snippets/utils/tokenization_utils.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -233,6 +234,7 @@
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
 #    include "snippets/pass/split_dimension_m.hpp"
+#    include "snippets/utils/tokenization_utils.hpp"
 #    include "transformations/common_optimizations/rms_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
@@ -1226,34 +1228,12 @@ void Transformations::MainSnippets() {
     // Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
     CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
-    common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>& node) -> bool {
-        const auto transpose = ov::as_type_ptr<const ov::op::v1::Transpose>(node->shared_from_this());
-        if (!transpose) {
-            return false;
-        }
-        const auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
-        if (!order) {
-            return false;
-        }
-        const auto order_value = order->cast_vector<int>();
-        if (order_value.size() <= 2) {
-            return false;
-        }
-
-#    if defined(OPENVINO_ARCH_X86_64)
-        const auto& outputs = transpose->get_output_target_inputs(0);
-        bool is_brgemm_case = false;
-        if (!outputs.empty()) {
-            const auto child_node = outputs.begin()->get_node()->shared_from_this();
-            is_brgemm_case = ov::is_type<ov::op::v0::MatMul>(child_node);
-        }
-        return (is_brgemm_case && TokenizeMHASnippets::get_fusion_transpose_order(order_value.size()) == order_value) ||
-               (TokenizeMHASnippets::get_decomposed_transpose_order(order_value.size()) == order_value);
-#    elif defined(OPENVINO_ARCH_ARM64)
-        return TokenizeMHASnippets::get_decomposed_transpose_order(order_value.size()) == order_value;
-#    endif
-    });
+#if defined(OPENVINO_ARCH_X86_64)
+    common_optimizations_config.set_transpose_support_callback(
+        ov::snippets::utils::make_transpose_support_callback(true));
+#elif defined(OPENVINO_ARCH_ARM64)
+    common_optimizations_config.set_transpose_support_callback(
+        ov::snippets::utils::make_transpose_support_callback(false));
 #else
     common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>&) -> bool {
         return false;

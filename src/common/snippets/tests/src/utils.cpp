@@ -13,6 +13,7 @@
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 #include "snippets/pass/tokenization_config.hpp"
+#include "snippets/utils/tokenization_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -28,31 +29,7 @@ CommonOptimizations::Config get_default_common_optimizations_config() {
     static CommonOptimizations::Config conf(1, true);
     static bool initialized = false;
     if (!initialized) {
-        conf.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>& node) -> bool {
-            const auto transpose = ov::as_type_ptr<const ov::op::v1::Transpose>(node->shared_from_this());
-            if (!transpose) {
-                return false;
-            }
-            const auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
-            if (!order) {
-                return false;
-            }
-            const auto order_value = order->cast_vector<int>();
-            if (order_value.size() <= 2) {
-                return false;
-            }
-
-            const auto& outputs = transpose->get_output_target_inputs(0);
-            bool is_brgemm_case = false;
-            if (!outputs.empty()) {
-                const auto child_node = outputs.begin()->get_node()->shared_from_this();
-                is_brgemm_case = ov::is_type<ov::op::v0::MatMul>(child_node);
-            }
-            return (is_brgemm_case && ov::snippets::pass::TokenizeMHASnippets::get_fusion_transpose_order(
-                                          order_value.size()) == order_value) ||
-                   (ov::snippets::pass::TokenizeMHASnippets::get_decomposed_transpose_order(order_value.size()) ==
-                    order_value);
-        });
+        conf.set_transpose_support_callback(ov::snippets::utils::make_transpose_support_callback(true));
         initialized = true;
     }
     return conf;
