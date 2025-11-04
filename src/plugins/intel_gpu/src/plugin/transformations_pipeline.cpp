@@ -539,8 +539,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
-        // In case "zp/scale -> reshape -> transpose -> MOE", "zp/scale -> reshape -> transpose" is constant-folded.
-        // We need mark KeepMOEConstPrecision to disable convert new constant(transpose output).
+        // In the case of "zp/scale -> reshape -> transpose -> MOE",
+        // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".
+        // After constant-folding, the precision of new constant should not be converted.
         manager.register_pass<ov::intel_gpu::KeepMOEConstPrecision>();
         // In the case of "input -> reshape -> convert -> multiply",
         // the "input -> reshape" subgraph is constant-folded in the above "CommonOptimizations"
