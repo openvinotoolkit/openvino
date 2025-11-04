@@ -244,6 +244,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         if (kd.need_args_update) {
             auto args = get_arguments(instance);
             args.scalars = &params.scalars;
+            args.local_memory_args = &params.local_memory_args;
 
             GPU_DEBUG_TRACE_DETAIL << "\nExecute stage = " << stage.kernel->get_id() << '\n';
             GPU_DEBUG_TRACE_DETAIL << "Configured kernel arguments:" << params.arguments.size() << '\n';
