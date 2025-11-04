@@ -124,6 +124,11 @@ protected:
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;
+
+    bool m_past_kv_bound = false;
+    void bind_past_kv();
+    std::string m_pre_alloc_device = "CPU";
+    std::string init_pre_alloc_device();
 };
 
 }  // namespace npuw

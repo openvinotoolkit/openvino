@@ -157,6 +157,50 @@ void ov::npuw::LLMInferRequest::init_lora_states() {
     }
 }
 
+std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
+    bool pre_alloc_on_npu = false;
+    const auto& kvcache_compiled = m_npuw_llm_compiled_model->m_kvcache_compiled;
+    for (std::size_t idx = 0; idx < kvcache_compiled->m_compiled_submodels.size(); ++idx) {
+        if (kvcache_compiled->submodel_device(idx) == "NPU") {
+            pre_alloc_on_npu = true;
+            break;
+        }
+    }
+
+    return pre_alloc_on_npu ? "NPU" : "CPU";
+}
+
+void ov::npuw::LLMInferRequest::bind_past_kv() {
+    // Reuse KV cache related tensors (past_key_values) by sharing memory between prefill and kvcache requests
+    bool any_kv_bound = false;
+
+    for (const auto& [input_name, input_port] : m_prefill_in_ports) {
+        // Only process KV cache inputs (past_key_values)
+        if (input_name.find(layer_names::past_key_values) == std::string::npos) {
+            continue;
+        }
+
+        // Check if the kv cache request has matching input port
+        auto kvcache_port_it = m_kvcache_in_ports.find(input_name);
+        if (kvcache_port_it == m_kvcache_in_ports.end()) {
+            continue;
+        }
+
+        // Share memory buffer: prefill tensor uses same data pointer as kvcache tensor
+        auto kvcache_past_kv_in_tensor = m_kvcache_request->get_tensor(kvcache_port_it->second);
+        auto orig_tensor = m_prefill_request->get_tensor(input_port);
+
+        auto shared_tensor = ov::get_tensor_impl(
+            ov::Tensor(orig_tensor->get_element_type(), orig_tensor->get_shape(), kvcache_past_kv_in_tensor->data()));
+
+        m_prefill_request->set_tensor(input_port, shared_tensor);
+        any_kv_bound = true;
+    }
+
+    // Record that buffer sharing is enabled - requires explicit copy to prevent data corruption
+    m_past_kv_bound = any_kv_bound;
+}
+
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_npuw_llm_compiled_model(compiled_model) {
@@ -201,10 +245,13 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
     }
 
+    init_pre_alloc_device();
+
     init_lora_states();
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
+        bind_past_kv();
         clear_chunk_prefill_kv_cache();
     }
 
@@ -285,16 +332,6 @@ void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& po
 void ov::npuw::LLMInferRequest::apply_lora() {
     uint32_t max_low_rank_dim_size = m_npuw_llm_compiled_model->m_max_lora_rank;
 
-    bool pre_alloc_on_npu = true;
-    const auto& prefill_compiled = m_npuw_llm_compiled_model->m_prefill_compiled;
-    for (std::size_t idx = 0; idx < prefill_compiled->m_compiled_submodels.size(); ++idx) {
-        if (prefill_compiled->submodel_device(idx) != "NPU") {
-            pre_alloc_on_npu = false;
-            break;
-        }
-    }
-    std::string device = pre_alloc_on_npu ? "NPU" : "CPU";
-
     for (auto state : m_variableStates) {
         auto state_name = state->get_name();
         auto state_tensor = state->get_state();
@@ -341,7 +378,7 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
             auto new_infer_tensor = ov::npuw::util::allocMem(prefill_lora_in_tensor->get_element_type(),
                                                              prefill_lora_in_tensor->get_shape(),
-                                                             device,
+                                                             m_pre_alloc_device,
                                                              m_npuw_llm_compiled_model->get_plugin());
             bool has_padding = state_tensor_rank != target_lora_rank;
             if (has_padding) {
@@ -436,11 +473,30 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - m_tokens_in_present_chunk;
             if (tokens_in_past_chunks > 0) {
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
-                auto prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv,
-                                                                    pre_kv_dim,
-                                                                    0u,
-                                                                    static_cast<uint32_t>(tokens_in_past_chunks));
 
+                // Create source slice for copying
+                ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
+                if (m_past_kv_bound) {
+                    // Buffer sharing enabled: create backup copy to prevent data corruption
+                    // Allocate temporary buffer with same shape and copy data
+                    auto tmp_dense_kv_tensor = ov::npuw::util::allocMem(prefill_past_kv->get_element_type(),
+                                                                        prefill_past_kv->get_shape(),
+                                                                        m_pre_alloc_device,
+                                                                        m_npuw_llm_compiled_model->get_plugin());
+                    uu::copy_tensor_by_dim(prefill_past_kv, tmp_dense_kv_tensor, pre_kv_dim, pre_kv_dim);
+                    prefill_past_kv_chunks = uu::make_tensor_slice(tmp_dense_kv_tensor,
+                                                                   pre_kv_dim,
+                                                                   0u,
+                                                                   static_cast<uint32_t>(tokens_in_past_chunks));
+                } else {
+                    // Direct slicing: no buffer sharing, safe to use original tensor
+                    prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv,
+                                                                   pre_kv_dim,
+                                                                   0u,
+                                                                   static_cast<uint32_t>(tokens_in_past_chunks));
+                }
+
+                // Copy to kvcache input tensor
                 auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
                                                                     gen_kv_dim,
                                                                     0u,
