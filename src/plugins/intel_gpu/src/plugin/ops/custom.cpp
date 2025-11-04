@@ -251,8 +251,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
             } else {
                 // Handle output reorder
                 auto reorderPrimName = genericLayerName + ProgramBuilder::m_postCustomLayerTag + std::string("_output_") + std::to_string(i);
-                auto reorderPrim =
-                    cldnn::reorder(reorderPrimName, cldnn::input_info(genericLayerName, i), default_format, customPrim.output_layouts[i].data_type);
+                auto reorderPrim = cldnn::reorder(reorderPrimName, cldnn::input_info(genericLayerName, static_cast<int>(i)), default_format, customPrim.output_layouts[i].data_type);
                 p.add_primitive(*op, reorderPrim);
             }
         }
