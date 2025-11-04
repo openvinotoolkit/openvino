@@ -15,6 +15,15 @@
 #    include "tbb/concurrent_unordered_map.h"
 #endif
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#if defined(_WIN32)
+#    include <windows.h>
+#else
+#    include <unistd.h>
+#endif
+
 namespace {
 #if defined(HAVE_AVX2)
 inline int8_t hi4(int8_t x) {
@@ -32,6 +41,22 @@ inline uint8_t hi4(uint8_t x) {
 
 inline uint8_t lo4(uint8_t x) {
     return x & 0xF;
+}
+
+inline void pre_touch_pages(const uint8_t* src, size_t bytes) {
+#if defined(_WIN32)
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    const size_t page = si.dwPageSize ? si.dwPageSize : 4096;
+#else
+    const long pgsz = sysconf(_SC_PAGESIZE);
+    const size_t page = (pgsz > 0) ? static_cast<size_t>(pgsz) : 4096;
+#endif
+    volatile uint8_t sink = 0;
+    for (size_t o = 0; o < bytes; o += page) {
+        sink ^= src[o];
+    }
+    (void)sink;
 }
 
 #if defined(HAVE_AVX2)
@@ -1637,6 +1662,8 @@ void ov::npuw::util::XARCH::copy(const ov::Tensor& from, ov::Tensor& to) {
 
     const uint8_t* src = static_cast<const uint8_t*>(from.data());
     uint8_t* dst = static_cast<uint8_t*>(to.data());
+
+    pre_touch_pages(src, bytes_total);
 
     if (bytes_total < 64 * 1024) {
         std::memcpy(dst, src, bytes_total);
