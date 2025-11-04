@@ -37,30 +37,24 @@ static std::vector<std::string> compareOutputs(
     const InferDesc& infer,
     const AccuracySimulation::Options& opts) {
 
-    std::cout << "Comparing outputs\n";
-
     std::vector<std::string> failed_list;
 
-    // TODO: find out why it only works with the default_metric, check the infer object
     auto default_metric = opts.global_metric ? opts.global_metric : std::make_shared<Norm>(0.0);
-    // auto per_layer_metrics = unpackWithDefault(
-    //     opts.metrics_map.at(infer.tag),
-    //     extractLayerNames(infer.output_layers),
-    //     default_metric
-    // );
-
-    std::cout << "After per_layer_metrics\n";
+    auto per_layer_metrics = unpackWithDefault(
+        opts.metrics_map.at(infer.tag),
+        extractLayerNames(infer.output_layers),
+        default_metric
+    );
 
     for (size_t i = 0; i < ref_mats.size(); ++i) {
         const auto& layer = infer.output_layers[i];
-        LayerValidator validator{infer.tag, layer.name, default_metric};
+        LayerValidator validator{infer.tag, layer.name, per_layer_metrics.at(layer.name)};
         auto result = validator(ref_mats[i], tgt_mats[i]);
         if (!result) {
             failed_list.push_back(std::move(result.str()));
         }
     }
 
-    std::cout << "After loop\n";
     return failed_list;
 }
 
@@ -144,8 +138,6 @@ void InputDataVisitor::operator()(const LayerVariantAttr<std::string>&) {
                 " in form of either directory or single file!");
 };
 
-// Se initializeaza input directory si input random providers
-// Input dump metadata contine doar locatia in care sa salveze input-ul
 void InputDataVisitor::operator()(const std::string& path_str) {
     // NB: Single path provided - either single file or directory.
     const auto input_names = extractLayerNames(infer.input_layers);
@@ -350,7 +342,8 @@ private:
     std::vector<Meta> m_ref_out_meta;
     std::vector<Meta> m_tgt_out_meta;
     cv::optional<uint64_t> m_required_num_iterations;
-    const AccuracySimulation::Options& m_opts;
+    // TODO: Investigate why m_opts can't be const&
+    AccuracySimulation::Options m_opts;
     InferDesc m_infer;
 
     std::vector<cv::Mat> m_ref_out_mats;
@@ -393,7 +386,7 @@ SyncSimulation::SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt
           m_tgt_out_meta(std::move(tgt_out_meta)),
           m_ref_out_mats(m_ref_out_meta.size()),
           m_tgt_out_mats(m_tgt_out_meta.size()),
-          m_opts(opts),
+          m_opts(std::move(opts)),
           m_infer(infer),
           m_ref_iter_idx(0u),
           m_tgt_iter_idx(0u),
@@ -571,7 +564,7 @@ std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& sou
     auto tgt_out_meta = m_comp.getOutMeta();
 
     return std::make_shared<SyncSimulation>(std::move(ref_compiled), std::move(tgt_compiled), std::move(sources), 
-                                            std::move(ref_out_meta), std::move(tgt_out_meta), m_strategy->required_num_iterations, m_opts, m_strategy->current_infer);
+                                            std::move(ref_out_meta), std::move(tgt_out_meta), m_strategy->required_num_iterations, std::move(m_opts), m_strategy->current_infer);
 }
 
 std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(const bool drop_frames) {
