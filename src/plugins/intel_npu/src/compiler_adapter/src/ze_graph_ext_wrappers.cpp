@@ -217,9 +217,15 @@ void ZeGraphExtWrappers::setGraphArgumentValue(const GraphDescriptor& graphDescr
         auto result = _zeroInitStruct->getGraphDdiTable().pfnSetArgumentValue2(graphDescriptor._handle,
                                                                                id,
                                                                                static_cast<const void*>(&tensorValue));
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue2", result, _zeroInitStruct->getGraphDdiTable());
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue2 for data", result, _zeroInitStruct->getGraphDdiTable());
 
         if (!strides.empty()) {
+            if (strides.size() > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
+                OPENVINO_THROW("The driver does not support strides with more than",
+                               ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE,
+                               "dimensions.");
+            }
+
             ze_graph_argument_value_strides_t stridesValue = {};
             stridesValue.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_STRIDES;
             for (size_t i = 0; i < strides.size(); ++i) {
@@ -234,7 +240,9 @@ void ZeGraphExtWrappers::setGraphArgumentValue(const GraphDescriptor& graphDescr
                 _zeroInitStruct->getGraphDdiTable().pfnSetArgumentValue2(graphDescriptor._handle,
                                                                          id,
                                                                          static_cast<const void*>(&stridesValue));
-            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue2", result, _zeroInitStruct->getGraphDdiTable());
+            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue2 for strides",
+                                            result,
+                                            _zeroInitStruct->getGraphDdiTable());
         }
     }
 }

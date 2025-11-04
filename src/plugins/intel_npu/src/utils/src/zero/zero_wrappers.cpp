@@ -144,6 +144,12 @@ void CommandList::updateMutableCommandList(uint32_t index, const void* data, con
             OPENVINO_THROW("Strides are not supported by the current driver version.");
         }
 
+        if (strides.size() > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
+            OPENVINO_THROW("The driver does not support strides with more than",
+                           ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE,
+                           "dimensions.");
+        }
+
         ze_graph_argument_value_strides_t strides_value = {};
         strides_value.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_STRIDES;
         for (size_t i = 0; i < strides.size(); ++i) {
