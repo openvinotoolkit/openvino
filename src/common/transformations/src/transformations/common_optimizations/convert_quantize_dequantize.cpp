@@ -123,10 +123,10 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
 
         // check if (out_low_val, out_high_val) is (-128, 127) or (0, 255) or (-32768, 32767) or (0, 65535)
         float out_low_val;
-        if (!ov::op::util::get_single_value(output_low, out_low_val))
+        if (!op::util::get_single_value(output_low, out_low_val))
             return false;
         float out_high_val;
-        if (!ov::op::util::get_single_value(output_high, out_high_val))
+        if (!op::util::get_single_value(output_high, out_high_val))
             return false;
         const auto& type = convert1.get_element_type();
         switch (type) {
