@@ -13,7 +13,8 @@
 #    include <tuple>
 #    include <utility>
 
-#    include "cm/utils/kernel_generator.hpp"
+#    include "../primitive_ocl_base.hpp"
+#    include "../utils/kernel_generator.hpp"
 #    include "common_utils/jitter.hpp"
 #    include "debug_helper.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -25,8 +26,6 @@
 #    include "ocl_v2/utils/fused_ops_jitter.hpp"
 #    include "ocl_v2/utils/jitter.hpp"
 #    include "primitive_inst.h"
-#    include "primitive_ocl_base.hpp"
-#    include "utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
 

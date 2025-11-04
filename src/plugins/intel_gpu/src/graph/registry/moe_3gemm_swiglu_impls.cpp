@@ -7,7 +7,7 @@
 #include "registry.hpp"
 
 #if OV_GPU_WITH_OCL
-#    include "impls/ocl_v2/moe_3gemm_swiglu_opt.hpp"
+#    include "impls/ocl_v2/moe/moe_3gemm_swiglu_opt.hpp"
 #endif
 
 namespace ov::intel_gpu {
