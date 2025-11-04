@@ -295,7 +295,7 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
 
         auto origTensor = m_prefill_request->get_tensor(input_port);
         auto new_tensor =
-            ov::get_tensor_impl(ov::Tensor(origTensor->get_element_type(), origTensor->get_shape(), data));
+            ov::get_tensor_impl(ov::Tensor(origTensor->get_element_type(), origTensor->get_shape(), data, origTensor->get_strides()));
         m_prefill_request->set_tensor(input_port, new_tensor);
 
         // Record that we have already bind past_kv, will need data copy when update past kv in infer requests to
@@ -474,12 +474,16 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                                                             0u,
                                                             static_cast<uint32_t>(tokens_in_past_chunks));
 
+                // FIXME: if pre_kv_dim != gen_kv_dim, do copy?
+
                 auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
                                                                     gen_kv_dim,
                                                                     0u,
                                                                     static_cast<uint32_t>(tokens_in_past_chunks));
 
-                uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
+                if (!m_past_kv_bound) {
+                    uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
+                }
             }
 
             // Copy part 2 KV results
