@@ -32,9 +32,9 @@ enum class MOEInputIndex : uint8_t {
     ZP_2 = 10
 };
 
-struct MOEOpt : public ImplementationManager {
-    OV_GPU_PRIMITIVE_IMPL("ocl::moe::opt")
-    explicit MOEOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
+struct moe_3gemm_swiglu_opt : public ImplementationManager {
+    OV_GPU_PRIMITIVE_IMPL("ocl::moe::moe_3gemm_swiglu_opt")
+    explicit moe_3gemm_swiglu_opt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         static constexpr std::array supported_fmts = {

@@ -98,14 +98,17 @@ namespace ov::intel_gpu {
     auto gemm3_zp_##SUFFIX = pattern_map.at(gemm3_zp_m_##SUFFIX).get_node_shared_ptr();\
     auto gemm3_scale_shape_##SUFFIX = gemm3_scale_##SUFFIX->get_shape();\
     gemm3_scale_shape_##SUFFIX.pop_back();\
-    auto gemm3_reshape_const_##SUFFIX = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ gemm3_scale_shape_##SUFFIX.size() }, gemm3_scale_shape_##SUFFIX);\
+    auto gemm3_reshape_const_##SUFFIX = ov::op::v0::Constant::create(ov::element::i32, \
+        ov::Shape{ gemm3_scale_shape_##SUFFIX.size() }, \
+    gemm3_scale_shape_##SUFFIX);\
     auto gemm3_scale_reshape_##SUFFIX = std::make_shared<ov::op::v1::Reshape>(gemm3_scale_##SUFFIX, gemm3_reshape_const_##SUFFIX, false);\
     auto gemm3_zp_reshape_##SUFFIX = std::make_shared<ov::op::v1::Reshape>(gemm3_zp_##SUFFIX, gemm3_reshape_const_##SUFFIX, false);\
     \
     std::vector<size_t> gemm3_transpose_order_##SUFFIX(gemm3_scale_reshape_##SUFFIX->get_shape().size());\
     std::iota(gemm3_transpose_order_##SUFFIX.begin(), gemm3_transpose_order_##SUFFIX.end(), 0);\
     std::swap(*(gemm3_transpose_order_##SUFFIX.end() - 1), *(gemm3_transpose_order_##SUFFIX.end() - 2));\
-    auto gemm3_transpose_const_##SUFFIX = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ gemm3_transpose_order_##SUFFIX.size() }, gemm3_transpose_order_##SUFFIX);\
+    auto gemm3_transpose_const_##SUFFIX = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ gemm3_transpose_order_##SUFFIX.size() }, \
+    gemm3_transpose_order_##SUFFIX);\
     auto gemm3_transpose_scale_##SUFFIX = std::make_shared<ov::op::v1::Transpose>(gemm3_scale_reshape_##SUFFIX, gemm3_transpose_const_##SUFFIX);\
     auto gemm3_transpose_zp_##SUFFIX = std::make_shared<ov::op::v1::Transpose>(gemm3_zp_reshape_##SUFFIX, gemm3_transpose_const_##SUFFIX);
 
@@ -119,7 +122,8 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
     auto routing_weights_m = any_input();
     auto topk_m = any_input();
 
-    auto moe_root_gemm3  = wrap_type<ov::op::internal::MOE>({hidden_states_m, routing_weights_m, topk_m, gemm3_convert_m_gate, gemm3_convert_m_up, gemm3_convert_m_down},
+    auto moe_root_gemm3  = wrap_type<ov::op::internal::MOE>(
+        {hidden_states_m, routing_weights_m, topk_m, gemm3_convert_m_gate, gemm3_convert_m_up, gemm3_convert_m_down},
         [](const ov::Output<ov::Node>& output) {
             auto moe = ov::as_type_ptr<ov::op::internal::MOE>(output.get_node_shared_ptr());
             return moe && moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;

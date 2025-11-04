@@ -7,7 +7,7 @@
 #include "registry.hpp"
 
 #if OV_GPU_WITH_OCL
-#    include "impls/ocl_v2/moe_opt.hpp"
+#    include "impls/ocl_v2/moe_3gemm_swiglu_opt.hpp"
 #endif
 
 namespace ov::intel_gpu {
@@ -15,7 +15,7 @@ namespace ov::intel_gpu {
 using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<moe_fused_compressed>::get_implementations() {
-    static const std::vector<std::shared_ptr<ImplementationManager>> impls = {OV_GPU_CREATE_INSTANCE_OCL(ocl::MOEOpt, shape_types::any)};
+    static const std::vector<std::shared_ptr<ImplementationManager>> impls = {OV_GPU_CREATE_INSTANCE_OCL(ocl::moe_3gemm_swiglu_opt, shape_types::any)};
 
     return impls;
 }

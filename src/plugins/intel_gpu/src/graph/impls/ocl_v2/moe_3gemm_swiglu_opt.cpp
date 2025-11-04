@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "moe_opt.hpp"
+#include "moe_3gemm_swiglu_opt.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <initializer_list>
@@ -333,9 +333,9 @@ struct onednn_linear {
     }
 };
 
-class MOEOptSoftMaxTopK : public KernelGenerator {
+class MoE3GemmSwigluSoftMaxTopK : public KernelGenerator {
 public:
-    MOEOptSoftMaxTopK() : KernelGenerator("moe_opt", "softmax_topk") {}
+    MoE3GemmSwigluSoftMaxTopK() : KernelGenerator("moe_3gemm_swiglu_fuse", "softmax_topk") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -344,8 +344,8 @@ protected:
         jit.make("SOFTMAX_TOPK_ENABLE", 1);
         jit.make("TOP_K", desc->_config.top_k);
         jit.make("VALUE_NUM", desc->_config.num_expert);
-        jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
-        jit.make("MOE_TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+        jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+        jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
     }
 
@@ -360,9 +360,9 @@ protected:
     }
 };
 
-class MOEOptGather : public KernelGenerator {
+class MoE3GemmSwigluGather : public KernelGenerator {
 public:
-    MOEOptGather() : KernelGenerator("moe_opt", "gather") {}
+    MoE3GemmSwigluGather() : KernelGenerator("moe_3gemm_swiglu_fuse", "gather") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -372,8 +372,8 @@ protected:
         const auto& info = engine.get_device_info();
         jit.make("GATHER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
-        jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
-        jit.make("MOE_TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+        jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+        jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
         return jit;
     }
@@ -389,9 +389,9 @@ protected:
     }
 };
 
-class MOEOptScatter : public KernelGenerator {
+class MoE3GemmSwigluScatter : public KernelGenerator {
 public:
-    MOEOptScatter() : KernelGenerator("moe_opt", "index_add") {}
+    MoE3GemmSwigluScatter() : KernelGenerator("moe_3gemm_swiglu_fuse", "index_add") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -399,8 +399,8 @@ protected:
         auto desc = params.typed_desc<moe_fused_compressed>();
         jit.make("SCATTER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
-        jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
-        jit.make("MOE_TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+        jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+        jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
     }
 
@@ -430,13 +430,13 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
     jit.make("SUBGROUP_NUM", SUBGROUP_NUM);
     jit.make("GROUP_SIZE", desc->_config.group_size);
-    jit.make("MOE_TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
-    jit.make("MOE_TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+    jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+    jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
 }
 
-class MOEOptMLPGateUp : public KernelGenerator {
+class MoE3GemmSwigluMLPGateUp : public KernelGenerator {
 public:
-    MOEOptMLPGateUp() : KernelGenerator("moe_mlp", "gate_up") {}
+    MoE3GemmSwigluMLPGateUp() : KernelGenerator("moe_3gemm_swiglu_mlp", "gate_up") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -457,9 +457,9 @@ protected:
     }
 };
 
-class MOEOptMLPDown : public KernelGenerator {
+class MoE3GemmSwigluMLPDown : public KernelGenerator {
 public:
-    MOEOptMLPDown() : KernelGenerator("moe_mlp", "down") {}
+    MoE3GemmSwigluMLPDown() : KernelGenerator("moe_3gemm_swiglu_mlp", "down") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -480,9 +480,9 @@ protected:
     }
 };
 
-class MOEOptMLPReduce : public KernelGenerator {
+class MoE3GemmSwigluMLPReduce : public KernelGenerator {
 public:
-    MOEOptMLPReduce() : KernelGenerator("moe_mlp", "reduce") {}
+    MoE3GemmSwigluMLPReduce() : KernelGenerator("moe_3gemm_swiglu_mlp", "reduce") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -508,15 +508,15 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
     return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
 }
 
-class MOEOptImpl : public PrimitiveImplOCL {
+class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
-    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MOEOptImpl)
-    Stage::Ptr softmax_topk = make_stage<MOEOptSoftMaxTopK>();
-    Stage::Ptr gather = make_stage<MOEOptGather>();
-    Stage::Ptr scatter = make_stage<MOEOptScatter>();
-    Stage::Ptr mlp_gate_up = make_stage<MOEOptMLPGateUp>();
-    Stage::Ptr mlp_down = make_stage<MOEOptMLPDown>();
-    Stage::Ptr mlp_reduce = make_stage<MOEOptMLPReduce>();
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
+    Stage::Ptr softmax_topk = make_stage<MoE3GemmSwigluSoftMaxTopK>();
+    Stage::Ptr gather = make_stage<MoE3GemmSwigluGather>();
+    Stage::Ptr scatter = make_stage<MoE3GemmSwigluScatter>();
+    Stage::Ptr mlp_gate_up = make_stage<MoE3GemmSwigluMLPGateUp>();
+    Stage::Ptr mlp_down = make_stage<MoE3GemmSwigluMLPDown>();
+    Stage::Ptr mlp_reduce = make_stage<MoE3GemmSwigluMLPReduce>();
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -576,8 +576,8 @@ public:
     int _intermediate_size;
     int _group_size;
 
-    MOEOptImpl() : PrimitiveImplOCL(MOEOpt::get_type_info_static()) {}
-    MOEOptImpl(const program_node& node, const RuntimeParams& params) : MOEOptImpl() {
+    moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
+    moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
         init(node.as<moe_fused_compressed>().get_primitive());
 
         add_stage(softmax_topk, params);
@@ -644,7 +644,7 @@ public:
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
-        auto cur_moe = make_deep_copy<MOEOptImpl>(this);
+        auto cur_moe = make_deep_copy<moe_3gemm_swiglu_opt_impl>(this);
         cur_moe->_dnnl_weights = _dnnl_weights;
         cur_moe->_hidden_size = _hidden_size;
         cur_moe->_intermediate_size = _intermediate_size;
@@ -797,7 +797,7 @@ public:
                                     const std::vector<size_t>& global,
                                     const std::vector<size_t>& local,
                                     bool needs_completion_event = false) const {
-        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MOEOptImpl::execute_stage"));
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::execute_stage"));
         cldnn::stream& stream = instance.get_network().get_stream();
         cldnn::kernel_arguments_data args;
         cldnn::kernel_arguments_desc desc;
@@ -979,7 +979,7 @@ public:
     //     scatter(final_hidden, scratch.y, expert_mask.batch)
     //
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
-        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MOEOptImpl::execute"));
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::execute"));
         auto& instance = reinterpret_cast<typed_primitive_inst<moe_fused_compressed>&>(ins);
         auto cur_moe = instance.get_typed_desc<moe_fused_compressed>();
         const auto& config = cur_moe->_config;
@@ -1037,13 +1037,17 @@ public:
                     return candidate[i];
                 }
             }
-            OPENVINO_ASSERT(false, "hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
+            OPENVINO_THROW("hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
         };
         lws_size = get_best_lws(_hidden_size);
 
-        OPENVINO_ASSERT(batch != 1, "batch size shouldn't be 1 for this path!");
+        if (batch <= 1) {
+            OPENVINO_THROW("batch size should be > 1 for this path!");
+        }
         for (size_t expert_no = 0; expert_no < config.num_expert; expert_no++) {
-            OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
+            if (expert_no >= expert_mask.pred_flag.size()) {
+                OPENVINO_THROW("expert_no=", expert_no, " is out of bounds");
+            }
             auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
             if (can_skip_subgraph) {
                 continue;
@@ -1103,22 +1107,22 @@ public:
 
 }  // namespace
 
-std::unique_ptr<primitive_impl> MOEOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
+std::unique_ptr<primitive_impl> moe_3gemm_swiglu_opt::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<moe_fused_compressed>());
-    return std::make_unique<MOEOptImpl>(node, params);
+    return std::make_unique<moe_3gemm_swiglu_opt_impl>(node, params);
 }
 
 }  // namespace ov::intel_gpu::ocl
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_fused_compressed)
-BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::MOEOptImpl)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::moe_3gemm_swiglu_opt_impl)
 
 #else
 
 namespace ov::intel_gpu::ocl {
 
-std::unique_ptr<primitive_impl> MOEOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
-    OPENVINO_THROW("MOEOpt depends on onednn.");
+std::unique_ptr<primitive_impl> moe_3gemm_swiglu_opt::create_impl(const program_node& node, const RuntimeParams& params) const {
+    OPENVINO_THROW("moe_3gemm_swiglu_opt depends on onednn.");
 }
 
 }  // namespace ov::intel_gpu::ocl
