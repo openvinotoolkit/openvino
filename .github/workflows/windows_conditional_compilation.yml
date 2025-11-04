@@ -67,7 +67,7 @@ jobs:
           - name: amd
             runner: aks-win-32-cores-128gb-amd-st
           - name: lessram
-            runner: aks-win-16-cores-64gb-ram-st
+            runner: aks-win-32-cores-64gb-ram-st
         cache:
           - True
           - False
