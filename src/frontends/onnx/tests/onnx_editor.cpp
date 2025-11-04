@@ -459,9 +459,7 @@ OPENVINO_TEST(onnx_editor, subgraph__twice_input_edge_from_tensor_with_single_co
     auto x_consumers = x_place->get_consuming_operations();
     ASSERT_FALSE(x_consumers.empty()) << "get_consuming_operations() returned empty container for \"X\"";
 
-    input_model->extract_subgraph(
-        {x_consumers[0]->get_input_port(1)},
-        {});
+    input_model->extract_subgraph({x_consumers[0]->get_input_port(1)}, {});
 
     auto model = front_end->convert(input_model);
     auto model_ref =
@@ -700,10 +698,7 @@ OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_rel
     auto relu3_input_port = relu3_consumers[0]->get_input_port(0);
     ASSERT_TRUE(relu3_input_port != nullptr) << "get_input_port(0) returned nullptr for relu3's first consumer";
 
-    input_model->extract_subgraph(
-        {in2_place,
-         relu3_input_port},
-        {});
+    input_model->extract_subgraph({in2_place, relu3_input_port}, {});
 
     auto model = front_end->convert(input_model);
 
@@ -1047,12 +1042,14 @@ OPENVINO_TEST(onnx_editor, get_output_ports) {
     const auto split_out_port_0 = ports_2->get_output_port(0);
     ASSERT_TRUE(split_out_port_0 != nullptr) << "get_output_port(0) for split_name returned nullptr";
     const auto split_target_tensor_0 = split_out_port_0->get_target_tensor();
-    ASSERT_TRUE(split_target_tensor_0 != nullptr) << "get_target_tensor() for split_name output port 0 returned nullptr";
+    ASSERT_TRUE(split_target_tensor_0 != nullptr)
+        << "get_target_tensor() for split_name output port 0 returned nullptr";
     EXPECT_EQ(split_target_tensor_0->get_names()[0], "split1");
     const auto split_out_port_1 = ports_2->get_output_port(1);
     ASSERT_TRUE(split_out_port_1 != nullptr) << "get_output_port(1) for split_name returned nullptr";
     const auto split_target_tensor_1 = split_out_port_1->get_target_tensor();
-    ASSERT_TRUE(split_target_tensor_1 != nullptr) << "get_target_tensor() for split_name output port 1 returned nullptr";
+    ASSERT_TRUE(split_target_tensor_1 != nullptr)
+        << "get_target_tensor() for split_name output port 1 returned nullptr";
     EXPECT_EQ(split_target_tensor_1->get_names()[0], "split2");
     EXPECT_FALSE(ports_2->get_output_port(2));
 
