@@ -43,7 +43,8 @@ bool common_node_for_all_outputs(const ov::OutputVector& outputs) {
 
 OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     OperatorsBridge bridge;
-    return register_extensions(bridge, conversions);
+    bridge.register_extensions(conversions);
+    return bridge;
 }
 
 Model::ModelOpSet build_model_opset(const ModelProto& model_proto, const OperatorsBridge& ops_bridge) {

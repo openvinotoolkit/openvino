@@ -60,6 +60,7 @@ public:
     bool is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain) const;
 
     void overwrite_operator(const std::string& name, const std::string& domain, Operator fn);
+    void register_extensions(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions);
 
 private:
     void register_operator_in_custom_domain(std::string name,
@@ -87,11 +88,6 @@ private:
     // }
     std::unordered_map<std::string, DomainOpset> m_map;
 };
-
-namespace detail {
-OperatorsBridge register_extensions(OperatorsBridge& bridge,
-                                    const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions);
-}
 
 }  // namespace onnx
 }  // namespace frontend

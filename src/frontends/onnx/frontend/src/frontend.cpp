@@ -370,8 +370,8 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
 
     auto translators_map = std::make_shared<OperatorsBridge>();
-    detail::register_extensions(*translators_map, m_extensions.conversions);
-    
+    translators_map->register_extensions(m_extensions.conversions);
+
     TranslateSession translate_session(input_model, translators_map, "MainGraph");
     translate_session.set_fail_fast(fail_fast);
     try {
