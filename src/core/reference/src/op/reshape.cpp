@@ -23,10 +23,9 @@ static size_t get_threshold() {
     // Under Thread Sanitizer, parallel execution is 5-15x slower due to
     // instrumentation overhead. Increase threshold to prefer sequential
     // execution for medium-sized tensors to avoid long test times.
-    return base_threshold * 100;
+    base_threshold *= 100;
 #else
-    return base_threshold;
-#endif
+return base_threshold;
 }
 
 static inline void copy_element(char* out, const char* in, size_t elem_size) {
