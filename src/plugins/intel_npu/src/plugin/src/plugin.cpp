@@ -701,15 +701,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
-    auto compilationConfig = localConfig;
-    if (successfullyDebatched && compilationConfig.isAvailable(ov::hint::performance_mode.name())) {
-        if (compilationConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
+    const auto& compilationConfig = [&]() -> const auto& {
+        if (successfullyDebatched && localConfig.isAvailable(ov::hint::performance_mode.name()) &&
+            localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
             _logger.info("Override performance mode to THROUGHPUT for compilation");
+
+            auto modifiedConfig = localConfig;
+
             std::stringstream strStream;
             strStream << ov::hint::PerformanceMode::THROUGHPUT;
-            compilationConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+            modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+
+            return modifiedConfig;
         }
-    }
+
+        return localConfig;
+    }();
 
     try {
         _logger.debug("performing compile");
