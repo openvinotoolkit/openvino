@@ -10,51 +10,10 @@
 #include <string>
 #include <vector>
 
-#ifdef _WIN32
-#    define NOMINMAX  // Prevent windows.h from defining min/max macros
-// clang-format off
-#    include <windows.h>
-#    include <psapi.h>
-// clang-format on
-#    undef max  // Just in case
-#    undef min  // Just in case
-#else
-#    include <unistd.h>
-
-#    include <fstream>
-#endif
-
 #include "attention.hpp"
 
 namespace ov {
 namespace npuw {
-
-// Helper function to get current process memory usage in KB
-inline size_t get_process_memory_kb() {
-#ifdef _WIN32
-    PROCESS_MEMORY_COUNTERS pmc;
-    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
-        return pmc.WorkingSetSize / 1024;  // Convert bytes to KB
-    }
-
-    std::cout << "Failed to get process mem info" << std::endl;
-    return 0;
-#else
-    std::ifstream status_file("/proc/self/status");
-    std::string line;
-    while (std::getline(status_file, line)) {
-        if (line.find("VmRSS:") == 0) {
-            size_t pos = line.find_first_of("0123456789");
-            if (pos != std::string::npos) {
-                return std::stoul(line.substr(pos));  // Already in KB
-            }
-        }
-    }
-
-    std::cout << "Failed to get process mem info" << std::endl;
-    return 0;
-#endif
-}
 
 namespace function {
 
