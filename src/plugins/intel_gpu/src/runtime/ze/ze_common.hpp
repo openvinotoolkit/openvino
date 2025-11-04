@@ -3,9 +3,13 @@
 //
 #pragma once
 
+#include "intel_gpu/runtime/debug_configuration.hpp"
+
 #include <ze_api.h>
 
 #include <limits>
+#include <string>
+
 
 // Expect success of level zero command, throw runtime error otherwise
 #define OV_ZE_EXPECT(f) \
@@ -29,6 +33,7 @@ namespace cldnn {
 namespace ze {
 
 static constexpr uint64_t default_timeout = std::numeric_limits<uint64_t>::max();
+static constexpr ze_module_format_t ze_module_format_oclc = (ze_module_format_t) 3U;
 
 }  // namespace ze
 }  // namespace cldnn

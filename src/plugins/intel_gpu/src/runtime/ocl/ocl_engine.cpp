@@ -307,6 +307,10 @@ void* ocl_engine::get_user_context() const {
     return static_cast<void*>(cl_device.get_context().get());
 }
 
+std::vector<kernel::ptr> ocl_engine::build_kernels(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options) const {
+    cl::Program()
+}
+
 kernel::ptr ocl_engine::prepare_kernel(const kernel::ptr kernel) const {
     OPENVINO_ASSERT(downcast<const ocl::ocl_kernel>(kernel.get()) != nullptr);
     return kernel;

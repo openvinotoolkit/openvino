@@ -11,6 +11,12 @@ namespace cldnn {
 
 using kernel_id = std::string;
 
+enum class KernelFormat {
+    SOURCE,
+    IL,
+    NATIVE_BIN,
+};
+
 class kernel {
 public:
     using ptr = std::shared_ptr<kernel>;

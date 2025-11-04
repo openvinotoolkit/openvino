@@ -145,6 +145,9 @@ public:
 
     virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
 
+    // Build kernels for current engine and append them to output vector.
+    virtual void build_kernels(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> out) const = 0;
+
     void set_enable_large_allocations(bool enable_large_allocations);
 
     bool get_enable_large_allocations() const;
@@ -156,10 +159,6 @@ public:
     /// Returns onednn engine object which shares device and context with current engine
     virtual dnnl::engine& get_onednn_engine() const = 0;
 #endif
-
-    /// This method is intended to create kernel handle for current engine from handle from arbitrary engine
-    /// For instance, source kernel can be compiled using ocl engine, and then we can build L0 kernel object based on that
-    virtual kernel::ptr prepare_kernel(const kernel::ptr kernel) const = 0;
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
