@@ -89,7 +89,8 @@ public:
 
         auto weights_layout = impl_param.input_layouts[1 + 0 + deform_conv_dep_offset]
                                                .convert_to_weights_layout(primitive->grouped_weights_shape);
-        if (groups > 1 && weights_layout.get_rank() == 4 && conv_params.grouped_weights_shape) {
+        // Extend grouped 1d conv weights shape from 4d to 5d when conv input shape is canonicalized to 4d by allow_new_shape_infer=false
+        if (!impl_param.get_program().is_new_shape_infer() && groups > 1 && weights_layout.get_rank() == 4 && conv_params.grouped_weights_shape) {
             std::vector<size_t> new_shape = {weights_layout.get_shape()[0],
                                              weights_layout.get_shape()[1],
                                              weights_layout.get_shape()[2],

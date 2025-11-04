@@ -192,9 +192,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                                        kd.weightsReorderParams,
                                        GetSupportedKey(),
                                        newParams.groups,
-                                       newParams.transposed,
-                                       newParams.deformable_mode,
-                                       newParams.grouped_weights_shape);
+                                       newParams.transposed);
 
     bool bSupportedWeightsLayout = newParams.weights.GetLayout() == preferredWeightsLayout;
     const bool bWeightsOK = bSupportedWeightsLayout || newParams.allowStaticInputReordering;

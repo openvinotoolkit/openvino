@@ -884,11 +884,8 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
     return ret;
 }
 
-WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType t, size_t g,
-                                                    bool should_split, bool deformable, bool grouped_weights_shape) const {
-    bool is_grouped_1d_conv = !deformable && grouped_weights_shape &&
-                              (ChannelsCount(layout) == 4) && (g > 1) && (OFM().v == g);
-    const uint32_t src_channels = ChannelsCount(layout) - ((DoesGroupDimExist(layout) || is_grouped_1d_conv)? 1 : 0);
+WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType t, size_t g, bool should_split) const {
+    const uint32_t src_channels = ChannelsCount(layout) - ((DoesGroupDimExist(layout))? 1 : 0);
     const uint32_t dst_channels = ChannelsCount(l) - (DoesGroupDimExist(l) ? 1 : 0);
 
     const size_t src_x = X().v;
@@ -913,13 +910,6 @@ WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType
             vec[Channelndex(l, WeightsChannelName::X)] = 8;
             vec[Channelndex(l, WeightsChannelName::Y)] = 3;
         }
-    } else if (is_grouped_1d_conv && src_channels == 3 && dst_channels == 4) {
-        // weights dimension conversion for 1d group conv
-        vec[Channelndex(l, WeightsChannelName::X)] = 1;
-        vec[Channelndex(l, WeightsChannelName::Y)] = X().v;
-        vec[Channelndex(l, WeightsChannelName::IFM)] = Y().v;
-        vec[Channelndex(l, WeightsChannelName::OFM)] = IFM().v;
-        vec[Channelndex(l, WeightsChannelName::G)] = OFM().v;
     } else if (src_channels == 2 && dst_channels == 4) {
         const size_t dst_ifm = IFM().v / (src_x * src_y);
         const size_t dst_xy = IFM().v % (src_x * src_y);
@@ -970,9 +960,9 @@ WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType
         assert(0);
     }
 
-    if (DoesGroupDimExist(layout) && DoesGroupDimExist(l) && !is_grouped_1d_conv) {
+    if (DoesGroupDimExist(layout) && DoesGroupDimExist(l)) {
         vec[Channelndex(l, WeightsChannelName::G)] = G().v;
-    } else if (DoesGroupDimExist(l) && !is_grouped_1d_conv) {
+    } else if (DoesGroupDimExist(l)) {
         vec[Channelndex(l, WeightsChannelName::G)] = g;
         vec[Channelndex(l, WeightsChannelName::OFM)] /= g;
     }

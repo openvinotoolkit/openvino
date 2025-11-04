@@ -22,7 +22,7 @@ typedef std::tuple<
         ov::element::Type,     // Input precision
         ov::element::Type,     // Output precision
         ov::element::Type,     // Weights precision
-        std::vector<InputShape>,            // Input shape
+        InputShape,            // Input shape
         bool,                  // Weights scaling
         std::string            // Device name
 > groupConvLayerTestParamsSet;
@@ -31,15 +31,15 @@ class GroupConvolutionLayerGPUTest : public testing::WithParamInterface<groupCon
                                      virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<groupConvLayerTestParamsSet>& obj) {
-        const auto& [convParams, netType, inType, outType, weightsType, inputShapes, weightsScaling, targetDevice] = obj.param;
+        const auto& [convParams, netType, inType, outType, weightsType, inputShape, weightsScaling, targetDevice] = obj.param;
 
         const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, group, padType] = convParams;
 
         std::ostringstream result;
         result << "IS=";
-        result  << ov::test::utils::partialShape2str({inputShapes[0].first}) << "_";
+        result  << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=(";
-        for (const auto& shape : inputShapes[0].second) {
+        for (const auto& shape : inputShape.second) {
             result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")_";
@@ -63,12 +63,12 @@ public:
 
 protected:
     void SetUp() override {
-        const auto& [groupConvParams, netType, _inType, _outType, weightsType, inputShapes, weightsScaling, _targetDevice] = this->GetParam();
+        const auto& [groupConvParams, netType, _inType, _outType, weightsType, inputShape, weightsScaling, _targetDevice] = this->GetParam();
         inType = _inType;
         outType = _outType;
         targetDevice = _targetDevice;
 
-        init_input_shapes(inputShapes);
+        init_input_shapes({inputShape});
 
         const auto& [_kernel, stride, padBegin, padEnd, dilation, convOutChannels, group, padType] = groupConvParams;
         auto kernel = _kernel;
@@ -85,15 +85,15 @@ protected:
             ov::Shape scaling_shape = {group, convOutChannels, 1, 1};
             auto weights_tensor = ov::test::utils::create_and_fill_tensor(weightsType,
                  filter_weights_shape, ov::test::utils::InputGenerateData(-127, 256, 256, 1));
-            auto scaling_tensor = ov::test::utils::create_and_fill_tensor(netType, scaling_shape, ov::test::utils::InputGenerateData(0, 1, 1000, 1));
+            auto scaling_tensor = ov::test::utils::create_and_fill_tensor(netType, scaling_shape, ov::test::utils::InputGenerateData(0, 1, 8092, 1));
             auto filter_weights_node = std::make_shared<ov::op::v0::Constant>(weights_tensor);
             auto convert_node = std::make_shared<ov::op::v0::Convert>(filter_weights_node, netType);
             auto scaling_node = std::make_shared<ov::op::v0::Constant>(scaling_tensor);
             auto multiply_node = std::make_shared<ov::op::v1::Multiply>(convert_node, scaling_node);
-            groupConvolutionNode = ov::test::utils::make_group_convolution(inputParams[0], multiply_node, netType, stride, padBegin,
+            groupConvolutionNode = ov::test::utils::make_group_convolution(inputParams.front(), multiply_node, netType, stride, padBegin,
                                                                            padEnd, dilation, padType);
         } else {
-            groupConvolutionNode = ov::test::utils::make_group_convolution(inputParams[0], netType, kernel, stride, padBegin,
+            groupConvolutionNode = ov::test::utils::make_group_convolution(inputParams.front(), netType, kernel, stride, padBegin,
                                                                            padEnd, dilation, padType, convOutChannels, group);
         }
 
@@ -121,7 +121,7 @@ protected:
             const auto& funcInput = funcInputs[i];
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = -10;
-            in_data.resolution = 1000;
+            in_data.resolution = 8092;
             in_data.range = 20u;
 
             ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
@@ -130,8 +130,12 @@ protected:
     }
 };
 
-const std::vector<InputShape> input_shapes_1d = {
-        {{100, 512, 3}, {{100, 512, 3}}},
+const InputShape input_shapes_1d = {
+        {10, 32, 3}, {{10, 32, 3}}
+    };
+
+const InputShape input_shapes_depthwise = {
+        {10, 64, 3}, {{10, 64, 3}}
     };
 
 TEST_P(GroupConvolutionLayerGPUTest, Inference) {
@@ -147,13 +151,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionLayerGPUTest_1D_basic,
                                                                ::testing::Values(std::vector<ptrdiff_t>{0}),
                                                                ::testing::Values(std::vector<size_t>{1}),
                                                                ::testing::Values(4),
-                                                               ::testing::Values(512),
+                                                               ::testing::Values(32),
                                                                ::testing::Values(ov::op::PadType::EXPLICIT)),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::element::i8),
                                             ::testing::Values(input_shapes_1d),
+                                            ::testing::Values(true),
+                                            ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                         GroupConvolutionLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionLayerGPUTest_1D_depthwise,
+                         GroupConvolutionLayerGPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(std::vector<size_t>{3}),
+                                                               ::testing::Values(std::vector<size_t>{1}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{2}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{0}),
+                                                               ::testing::Values(std::vector<size_t>{1}),
+                                                               ::testing::Values(1),
+                                                               ::testing::Values(64),
+                                                               ::testing::Values(ov::op::PadType::EXPLICIT)),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::i8),
+                                            ::testing::Values(input_shapes_depthwise),
                                             ::testing::Values(true),
                                             ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                          GroupConvolutionLayerGPUTest::getTestCaseName);

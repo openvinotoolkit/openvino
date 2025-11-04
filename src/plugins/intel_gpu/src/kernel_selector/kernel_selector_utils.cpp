@@ -97,9 +97,7 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
                          WeightsReorderParams& weightsReorderParams,
                          const ParamsKey& paramsKey,
                          size_t groups,
-                         bool rotate,
-                         bool deformable,
-                         bool grouped_weights_shape) {
+                         bool rotate) {
     const auto inType = DataTypeToWeightsType(newParams.inputs[0].GetDType());
     const auto dtype = paramsKey.isEnabledDifferentInputWeightsTypes() ? newParams.weights.GetDType() : inType;
     switch (CheckWeights(newParams, inType, reqLayout, paramsKey, rotate)) {
@@ -113,10 +111,10 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
             }
             weightsReorderParams.is_initialized = true;
             weightsReorderParams.src = newParams.weights;
-            weightsReorderParams.dest = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups, false, deformable, grouped_weights_shape);
+            weightsReorderParams.dest = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups, false);
             weightsReorderParams.rotate = rotate;
 
-            newParams.weights = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups, true, deformable, grouped_weights_shape);
+            newParams.weights = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups);
             return true;
         }
     }
