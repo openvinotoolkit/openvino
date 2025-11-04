@@ -1,12 +1,6 @@
 #include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/primitives/fully_connected.hpp>
-#include <intel_gpu/primitives/moe_fused_compressed.hpp>
-#include <intel_gpu/primitives/reorder.hpp>
-#include <iostream>
 #include <numeric>
 #include <vector>
-
-#include "random_generator.hpp"
 #include "test_utils.h"
 
 std::vector<ov::float16> hidden_states_data = {
