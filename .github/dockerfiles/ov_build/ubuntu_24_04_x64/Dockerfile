@@ -25,9 +25,6 @@ RUN apt-get update && \
         # parallel gzip
         pigz \
         # Pythons
-        python3.9-dev \
-        python3.9-venv \
-        python3.9-distutils \
         python3.10-dev \
         python3.10-venv \
         python3.10-distutils \
@@ -76,7 +73,6 @@ ENV PATH="/venv/bin:$PATH"
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.9 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <future>
+#include <random>
 #include <string>
 
 #include "llm_compiled_model_utils.hpp"
@@ -171,6 +173,8 @@ struct Unique {
     }
 };
 
+std::string generate_random_string(std::size_t size = 32);
+
 using TensorPtr = ov::SoPtr<ov::ITensor>;
 TensorPtr allocMem(const ov::element::Type type,
                    const ov::Shape& shape,
@@ -184,6 +188,60 @@ bool matchLoRAMatMulAString(const std::string& input);
 bool matchLoRAMatMulBString(const std::string& input);
 
 bool matchLoRAMatMulAlphaString(const std::string& input);
+
+template <typename T>
+void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
+    T* tensor_data = tensor->data<T>();
+    std::fill(tensor_data + offset, tensor_data + tensor->get_size(), fill_val);
+}
+
+void fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val);
+
+template <class T>
+typename std::underlying_type<T>::type _v(T&& t) {
+    return static_cast<typename std::underlying_type<T>::type>(t);
+}
+
+template <class T>
+class Delayed {
+public:
+    T& get() {
+        return const_cast<T&>(get_impl());
+    }
+    // FIXME: since main purpose of this is to guard closure,
+    // even const get should wait for the future to finish,
+    // otherwise it's not ready yet (e.g. .size() method).
+    const T& get() const {
+        return get_impl();
+    }
+    T& unsafe_get() {
+        return data;
+    }
+    void set_future(std::shared_future<void>& f) {
+        future = f;
+    }
+    void wait() const {
+        if (!done && future.valid()) {
+            future.wait();
+            done = true;
+        }
+    }
+
+private:
+    const T& get_impl() const {
+        if (done)
+            return data;
+        if (future.valid()) {
+            future.wait();
+            done = true;
+        }
+        return data;
+    }
+
+    T data;
+    std::shared_future<void> future;
+    mutable bool done = false;
+};
 
 }  // namespace util
 }  // namespace npuw

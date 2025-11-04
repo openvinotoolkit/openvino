@@ -29,6 +29,18 @@
 #include "transformations/rt_info/attributes.hpp"
 
 namespace ov::util {
+
+template <>
+void str_to_container<std::vector<std::string>>(const std::string& value, std::vector<std::string>& res) {
+    std::stringstream ss(value);
+    std::string field;
+    while (getline(ss, field, ',')) {
+        field = ov::util::trim(field);
+        if (!field.empty()) {
+            res.emplace_back(field);
+        }
+    }
+}
 namespace {
 
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
@@ -43,25 +55,11 @@ bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::s
 }
 
 template <class T>
-void str_to_container(const std::string& value, T& res) {
-    std::stringstream ss(value);
-    std::string field;
-    while (getline(ss, field, ',')) {
-        if (field.empty())
-            OPENVINO_THROW("Cannot get vector of parameters! \"", value, "\" is incorrect");
-        std::stringstream fs(field);
-        typename T::value_type val;
-        fs >> val;
-        res.insert(res.end(), val);
-    }
-}
-
-template <class T>
 bool getParameters(const pugi::xml_node& node, const std::string& name, std::vector<T>& value) {
     std::string param;
     if (!getStrAttribute(node, name, param))
         return false;
-    str_to_container(param, value);
+    ov::util::str_to_container(param, value);
     return true;
 }
 
@@ -102,17 +100,6 @@ void str_to_set_of_strings(const std::string& value, std::set<std::string>& res)
         auto strRange = field.find_last_not_of(" ") - strBegin + 1;
 
         res.insert(field.substr(strBegin, strRange));
-    }
-}
-
-void str_to_container(const std::string& value, std::vector<std::string>& res) {
-    std::stringstream ss(value);
-    std::string field;
-    while (getline(ss, field, ',')) {
-        field = ov::util::trim(field);
-        if (!field.empty()) {
-            res.emplace_back(field);
-        }
     }
 }
 
