@@ -197,6 +197,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
         if (static_cast<size_t>(iidx) >= op->get_input_size())
             OPENVINO_THROW("Invalid input tensor for index: ", iidx);
         auto inputDims = op->get_input_shape(iidx);
+        // Regardless of whether the model has one or more outputs, only the first output is used to update gws and lws.
         cldnn::custom_gpu_primitive::update_work_group_size(op->get_output_partial_shape(0),
                                                             iidx,
                                                             inputDims,
@@ -205,6 +206,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
                                                             gws,
                                                             lws);
     } else {
+        // Regardless of whether the model has one or more outputs, only the first output is used to update gws and lws.
         cldnn::custom_gpu_primitive::update_work_group_size(op->get_output_partial_shape(0),
                                                             iidx,
                                                             ov::PartialShape(),
