@@ -60,7 +60,7 @@ protected:
     std::shared_ptr<ov::Model> init_subgraph(const ov::PartialShape& input_shape, const ov::element::Type& quantization_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
         // Note: these params are taken from the real cases
-        const static std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
+        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
             {ov::element::Type_t::u16, {{0.f, 10.f, 0.f, 65535.f, 0}, {-6.244578838348389f, 6.347373962402344f, 0.f, 65535.f, 32500}}},
             {ov::element::Type_t::i16,
              {{-5.000076293945312f, 4.999923706054688f, -32768.f, 32767.f, 0}, {-6.296072483062744f, 6.295880317687988f, -32768.f, 32767.f, 0}}},
