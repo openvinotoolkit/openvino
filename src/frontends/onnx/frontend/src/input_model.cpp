@@ -693,11 +693,11 @@ void InputModel::InputModelONNXImpl::load_model() {
             auto name = tensor_place->get_names()[0];
             if (m_tensor_places.count(name) == 0) {
                 m_tensor_places[name] = tensor_place;
-                if (tensor_place->is_input())
-                    m_inputs.push_back(tensor_place);
-                if (tensor_place->is_output())
-                    m_outputs.push_back(tensor_place);
             }
+            if (tensor_place->is_input())
+                m_inputs.push_back(tensor_place);
+            if (tensor_place->is_output())
+                m_outputs.push_back(tensor_place);
             continue;
         }
         m_op_places.push_back(std::make_shared<OpPlace>(m_input_model, decoder));

@@ -324,7 +324,7 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     }
 
     auto wt = weights.GetDType();
-    if ((wt == WeightsType::UINT4 || wt == WeightsType::INT4) && (weights.IFM().v % 2 != 0 || weights.OFM().v % 2 != 0)) {
+    if ((wt == WeightsType::UINT4 || wt == WeightsType::INT4) && (weights.IFM().v % 2 != 0)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
@@ -635,7 +635,7 @@ KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params
 
     size_t output_b = get_output_aligned_bf_size(fc_params, false).first;
 
-    float estimated_time = FORCE_PRIORITY_9;
+    float estimated_time = FORCE_PRIORITY_5;
     if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
         estimated_time = FORCE_PRIORITY_3;
     else if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
@@ -651,8 +651,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     size_t quantize_grp_size = get_dynamic_quantize_group_size(params);
 
     if (is_swiglu_fused(params)) {
-        auto split_length = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_length;
-        auto split_to_glu_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_to_glu_idx;
+        auto split_length = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->glu_stride;
+        auto split_to_glu_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->gate_idx;
         jit.AddConstant(MakeJitConstant("SWIGLU_LENGTH", split_length));
         jit.AddConstant(MakeJitConstant("SWIGLU_SPLIT_TO_GLU_IDX", split_to_glu_idx));
     }
