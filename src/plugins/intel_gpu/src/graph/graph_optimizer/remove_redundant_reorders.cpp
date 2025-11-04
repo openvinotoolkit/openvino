@@ -148,7 +148,7 @@ void remove_redundant_reorders::run(program& p) {
         }
     }
 
-    // Remove redundant reorder in dyanmic shape
+    // Remove redundant reorder in dyanmic shape for an user node which perfers same format
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto& node_ptr = *itr++;
