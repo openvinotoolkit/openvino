@@ -288,16 +288,6 @@ TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>&
 
 TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v);
 
-template <typename AllowedType>
-bool is_allowed_node_type(ov::Node* node) {
-    return ov::is_type<AllowedType>(node);
-}
-
-template <typename FirstType, typename SecondType, typename... AllowedTypes>
-bool is_allowed_node_type(ov::Node* node) {
-    return is_allowed_node_type<FirstType>(node) || is_allowed_node_type<SecondType, AllowedTypes...>(node);
-}
-
 template <typename... AllowedTypes>
 bool is_on_path(const ov::Output<ov::Node>& output) {
     auto status = true;
@@ -321,7 +311,7 @@ bool is_on_path(const ov::Output<ov::Node>& output) {
             return false;
         }
 
-        if (current_node->get_input_size() == 0 && !(is_allowed_node_type<AllowedTypes...>(current_node))) {
+        if (current_node->get_input_size() == 0 && !(ov::is_type_any_of<AllowedTypes...>(current_node))) {
             status = false;
         } else {
             // not a leaf - continue to search
