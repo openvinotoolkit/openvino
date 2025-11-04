@@ -12,6 +12,7 @@
 #include <unordered_map>
 
 #include "core/operator_set.hpp"
+#include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "version_range.hpp"
 
 namespace ov {
@@ -86,6 +87,11 @@ private:
     // }
     std::unordered_map<std::string, DomainOpset> m_map;
 };
+
+namespace detail {
+OperatorsBridge register_extensions(OperatorsBridge& bridge,
+                                    const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions);
+}
 
 }  // namespace onnx
 }  // namespace frontend
