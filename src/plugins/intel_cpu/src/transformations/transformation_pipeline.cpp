@@ -1226,7 +1226,7 @@ void Transformations::MainSnippets() {
     // Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
     CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>& node) -> bool {
         const auto transpose = ov::as_type_ptr<const ov::op::v1::Transpose>(node->shared_from_this());
         if (!transpose) {
@@ -1240,17 +1240,19 @@ void Transformations::MainSnippets() {
         if (order_value.size() <= 2) {
             return false;
         }
+
+#    if defined(OPENVINO_ARCH_X86_64)
         const auto& outputs = transpose->get_output_target_inputs(0);
         bool is_brgemm_case = false;
         if (!outputs.empty()) {
             const auto child_node = outputs.begin()->get_node()->shared_from_this();
             is_brgemm_case = ov::is_type<ov::op::v0::MatMul>(child_node);
         }
-        if ((is_brgemm_case && TokenizeMHASnippets::get_fusion_transpose_order(order_value.size()) == order_value) ||
-            (TokenizeMHASnippets::get_decomposed_transpose_order(order_value.size()) == order_value)) {
-            return true;
-        }
-        return false;
+        return (is_brgemm_case && TokenizeMHASnippets::get_fusion_transpose_order(order_value.size()) == order_value) ||
+               (TokenizeMHASnippets::get_decomposed_transpose_order(order_value.size()) == order_value);
+#    elif defined(OPENVINO_ARCH_ARM64)
+        return TokenizeMHASnippets::get_decomposed_transpose_order(order_value.size()) == order_value;
+#    endif
     });
 #else
     common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>&) -> bool {
