@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,6 @@ bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("top_k", m_config.top_k);
     visitor.on_attribute("group_size", m_config.group_size);
     visitor.on_attribute("out_type", m_config.out_type);
-
     return true;
 }
 

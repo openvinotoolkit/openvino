@@ -313,3 +313,4 @@ REGISTER_FACTORY(internal, LoraSubgraph);
 REGISTER_FACTORY(internal, LoraSubgraphFused);
 REGISTER_FACTORY(internal, VLSDPA);
 REGISTER_FACTORY(internal, MOEFusedCompressed);
+REGISTER_FACTORY(internal, MOECompressed);

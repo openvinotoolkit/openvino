@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/op/op.hpp"
 #include "openvino/op/moe.hpp"
 
 namespace ov::intel_gpu::op {
@@ -14,7 +15,6 @@ public:
     OPENVINO_OP("MOECompressed", "gpu_opset", ov::op::internal::MOE);
 
     MOECompressed() = default;
-
     MOECompressed(const OutputVector& args) : MOE(args) {}
 
     struct Config : public MOE::Config {
@@ -23,12 +23,16 @@ public:
         size_t num_expert = 0;
         size_t top_k = 0;
         size_t group_size = 0;
+        // In CB, intermediate shapes are expanded to {SeqLen, 1, HiddenSize}
+        // In Non-CB, intermediate shapes are expanded to {Batch, SeqLen, HiddenSize}
+        size_t has_batch_dim = 0;
+        bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
         Config() = default;
         Config(const MOE::Config& moe_config) : MOE::Config(moe_config) {}
     };
 
-    /// \brief Constructs a MOECompressed operation with config.
+    /// \brief Constructs a MOECompressed operation with config only
     /// \param args The input tensors, in the following order:
     ///   0: hidden_states - input tensor with hidden representations
     ///   1: routing_weights - [num_experts, ...] normalized weights for selected experts

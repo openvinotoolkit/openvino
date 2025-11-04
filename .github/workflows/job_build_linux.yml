@@ -402,7 +402,7 @@ jobs:
 
       - name: Store artifacts to a shared drive
         id: store_artifacts
-        if: ${{ inputs.event-name != 'schedule' }}
+        if: ${{ inputs.event-name != 'schedule' && inputs.event-name != 'merge_group' }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |

@@ -80,7 +80,7 @@ TEST_F(TransformationTestsF, ConvertMOEToMOECompressedTest) {
         auto moe = std::make_shared<ov::op::internal::MOE>(
             ov::OutputVector{hidden_states, routing_weights, routing_idx, convert_gate, convert_up, convert_down}, config);
         model = std::make_shared<ov::Model>(moe, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
-        manager.register_pass<ConvertMOEToMOECompressed>();
+        manager.register_pass<ConvertMOEToMOECompressed>(0);
     }
     {
         // Inputs
