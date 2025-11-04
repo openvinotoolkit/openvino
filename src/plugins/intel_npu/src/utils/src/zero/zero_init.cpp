@@ -331,15 +331,42 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     }
 }
 
-const std::shared_ptr<ZeroInitStructsHolder>& ZeroInitStructsHolder::getInstance() {
-    static std::shared_ptr<ZeroInitStructsHolder> instance = std::make_shared<ZeroInitStructsHolder>();
+const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {
+    std::lock_guard<std::mutex> lock(getMutex());
+    auto instance = getInstanceStorage().lock();
+    if (!instance) {
+        instance = std::shared_ptr<ZeroInitStructsHolder>(new ZeroInitStructsHolder());
+        getInstanceStorage() = instance;
+    }
     return instance;
 }
 
-ZeroInitStructsHolder::~ZeroInitStructsHolder() {
+void ZeroInitStructsHolder::destroy() {
+    std::lock_guard<std::mutex> lock(getMutex());
+    auto instance = getInstanceStorage().lock();
+
+    if (instance.use_count() == 2) {
+        instance->destroy_context();
+    }
+    // don't destroy if ref count is higher than 2.
+    // one is after getInstanceStorage().lock() and another one is hold by the caller
+}
+
+std::weak_ptr<ZeroInitStructsHolder>& ZeroInitStructsHolder::getInstanceStorage() {
+    static std::weak_ptr<ZeroInitStructsHolder> weak_instance;
+    return weak_instance;
+}
+
+std::mutex& ZeroInitStructsHolder::getMutex() {
+    static std::mutex m;
+    return m;
+}
+
+void ZeroInitStructsHolder::destroy_context() {
     if (context) {
         log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
         auto result = zeContextDestroy(context);
+        context = nullptr;
         if (result != ZE_RESULT_SUCCESS) {
             if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
                 log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
@@ -348,6 +375,10 @@ ZeroInitStructsHolder::~ZeroInitStructsHolder() {
             }
         }
     }
+}
+
+ZeroInitStructsHolder::~ZeroInitStructsHolder() {
+    destroy_context();
 }
 
 }  // namespace intel_npu

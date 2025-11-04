@@ -37,8 +37,6 @@ bool ZeroEngineBackend::isLUIDExtSupported() const {
     return _initStruct->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME), ZE_MAKE_VERSION(1, 0));
 }
 
-ZeroEngineBackend::~ZeroEngineBackend() = default;
-
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
     if (_devices.empty()) {
         _logger.debug("ZeroEngineBackend - getDevice() returning empty list");
@@ -143,6 +141,13 @@ void ZeroEngineBackend::updateInfo(const Config& config) {
 
 const std::shared_ptr<ZeroInitStructsHolder> ZeroEngineBackend::getInitStructs() const {
     return _initStruct;
+}
+
+ZeroEngineBackend::~ZeroEngineBackend() {
+    if (_initStruct != nullptr) {
+        _devices.clear();
+        _initStruct->destroy();
+    }
 }
 
 }  // namespace intel_npu
