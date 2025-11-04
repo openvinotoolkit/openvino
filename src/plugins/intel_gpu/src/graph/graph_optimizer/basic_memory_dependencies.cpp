@@ -59,31 +59,6 @@ void basic_memory_dependencies::run(program& p) {
                     }
                 }
             }
-
-            // onednn concatenation doesn't support non-zero padding which can occur for unaligned feature.
-            if (node->is_type<concatenation>()) {
-                auto is_feature_aligned = [](const cldnn::layout& l) {
-                    if (!format::is_blocked(l.format)) {
-                        return true;
-                    }
-
-                    const auto& order = format::internal_order(l.format);
-                    int f_bs = 1;
-                    for (const auto& [dim, bs] : format::block_sizes(l.format)) {
-                        if (dim < order.size() && order[dim] == 'f') {
-                            f_bs = bs;
-                        }
-                    }
-                    return l.feature() % f_bs == 0;
-                };
-
-                if (node->is_dynamic() || (!node->is_dynamic() && !is_feature_aligned(node->get_output_layout()))) {
-                    node->can_share_buffer(false);
-                    for (auto& dep : node->get_dependencies()) {
-                        dep.first->can_share_buffer(false);
-                    }
-                }
-            }
         }
 
         // Note we iterate over processing order, it means if primitve has processing num greater than any of outputs,
