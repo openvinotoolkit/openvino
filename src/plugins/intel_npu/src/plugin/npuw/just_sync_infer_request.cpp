@@ -890,14 +890,13 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
 
         // FIXME: No need to copy whole attention mask, just mark the new tokens to valid
 
-        // Fill invalid positions with -inf
-        ov::npuw::util::fill_tensor<ov::float16>(dst, -std::numeric_limits<ov::float16>::infinity(), past_len);
+        std::size_t dst_present_offset = dst_shape[kv_dim] - present_len;
 
         // Copy present mask: tail of source -> tail of destination
-        copy_mask_segment(dst_shape[kv_dim] - present_len, full_mask_shape[kv_dim] - present_len, present_len);
+        copy_mask_segment(dst_present_offset, full_mask_shape[kv_dim] - present_len, present_len);
 
-        // Copy past mask: head of source -> head of destination
-        copy_mask_segment(0, 0, past_len);
+        // Copy past mask: head of source [0, dst_present_offset) -> head of destination
+        copy_mask_segment(0, 0, dst_present_offset);
 
         m_cached_attention_mask = dst;
     } else if (this_case == pyramid_attention::Selector::Case::PREFILL) {
