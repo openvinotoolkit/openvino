@@ -244,6 +244,16 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
         logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
                     ex.what());
     }
+
+    if (successfullyDebatched && localConfig.isAvailable(ov::hint::performance_mode.name())) {
+        if (localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
+            logger.info("Override performance mode to THROUGHPUT");
+            std::stringstream strStream;
+            strStream << ov::hint::PerformanceMode::THROUGHPUT;
+            localConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+        }
+    }
+
     return {reshapedModel, successfullyDebatched};
 }
 
