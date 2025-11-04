@@ -20,9 +20,8 @@ using Result = IShapeInfer::Result;
 
 class GatherMatmulShapeInfer : public ShapeInferEmptyPads {
 public:
-    GatherMatmulShapeInfer(size_t output_rank, bool transpose_a, bool transpose_b)
-        : m_out_rank(output_rank),
-          m_transpose_a(transpose_a),
+    GatherMatmulShapeInfer(bool transpose_a, bool transpose_b)
+        : m_transpose_a(transpose_a),
           m_transpose_b(transpose_b) {}
 
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
@@ -43,9 +42,11 @@ public:
     explicit GatherMatmulShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
 
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
-        const auto output_rank = m_op->get_output_partial_shape(0).rank().get_length();
         // BatchGatherMatmul has fixed transpose settings: transpose_a=false, transpose_b=true
-        return std::make_shared<GatherMatmulShapeInfer>(output_rank, false, true);
+        OPENVINO_DEBUG_ASSERT(m_op->get_output_partial_shape(0).rank().get_length() == 3,
+                              "GatherMatmul output must be 3D, got rank: ",
+                              m_op->get_output_partial_shape(0).rank().get_length());
+        return std::make_shared<GatherMatmulShapeInfer>(false, true);
     }
 
 private:
