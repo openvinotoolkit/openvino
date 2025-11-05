@@ -381,7 +381,13 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
         OPENVINO_ASSERT(w_gate.stride_bytes(0) == w_up.stride_bytes(0));
         if (m_config.gate_up_combined) {
             N = w_gate.size(0) / 2;
-            gate_up.setup(w_gate.ptr_v(), w_up.ptr_v(N, 0), w_up.stride_bytes(0), N * 2, K, config);
+            if (m_config.gate_up_swapped) {
+                // When VariadicSplit output[1] connects to gate instead of up, swap the pointers
+                gate_up.setup(w_gate.ptr_v(N, 0), w_gate.ptr_v(), w_gate.stride_bytes(0), N * 2, K, config);
+            } else {
+                // Normal case: VariadicSplit output[1] connects to up
+                gate_up.setup(w_gate.ptr_v(), w_gate.ptr_v(N, 0), w_gate.stride_bytes(0), N * 2, K, config);
+            }
         } else {
             gate_up.setup(w_gate.ptr_v(), w_up.ptr_v(), w_up.stride_bytes(0), N * 2, K, config);
         }
