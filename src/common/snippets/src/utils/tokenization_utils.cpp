@@ -92,13 +92,9 @@ std::function<bool(const std::shared_ptr<const ov::Node>&)> make_transpose_suppo
 
     return [include_brgemm_case](const std::shared_ptr<const ov::Node>& node) -> bool {
         const auto transpose = ov::as_type_ptr<const Transpose>(node->shared_from_this());
-        if (!transpose) {
-            return false;
-        }
+        OPENVINO_ASSERT(transpose, "make_transpose_support_callback expects a Transpose node");
         const auto order = ov::as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
-        if (!order) {
-            return false;
-        }
+        OPENVINO_ASSERT(order, "make_transpose_support_callback expects a Constant order input");
         const auto order_value = order->cast_vector<int>();
         if (order_value.size() <= 2) {
             return false;
@@ -107,6 +103,7 @@ std::function<bool(const std::shared_ptr<const ov::Node>&)> make_transpose_suppo
         bool allow = false;
         if (include_brgemm_case) {
             const auto& outputs = transpose->get_output_target_inputs(0);
+            OPENVINO_ASSERT(!outputs.empty(), "Transpose should have at least one output consumer");
             if (!outputs.empty()) {
                 const auto child_node = outputs.begin()->get_node()->shared_from_this();
                 const bool is_brgemm_case = ov::is_type<MatMul>(child_node);

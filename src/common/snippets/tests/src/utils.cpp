@@ -6,9 +6,6 @@
 
 #include <limits>
 
-#include "openvino/op/constant.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/transpose.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/mlp_seq_tokenization.hpp"
