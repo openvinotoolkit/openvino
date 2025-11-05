@@ -27,7 +27,7 @@ using namespace ov::intel_gpu;
 namespace ov {
 namespace test {
 namespace intel_gpu {
-TEST_F(TransformationTestsF, ConvertMOEToMOECompressedTest) {
+TEST_F(TransformationTestsF, ConvertMOEToMOE3GemmCompressedTest) {
     disable_rt_info_check();
     {
         // tokens:32, hidden_size:2048, iter_size:768, experts:128, topk:8
