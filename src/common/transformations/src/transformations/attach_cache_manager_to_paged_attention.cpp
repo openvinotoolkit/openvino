@@ -18,15 +18,10 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
 
-namespace ov {
-namespace pass {
-
-bool AttachCacheManagerToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_MODEL_SCOPE(AttachCacheManagerToPagedAttention);
+bool ov::pass::AttachCacheManagerToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_FUNCTION_SCOPE(AttachCacheManagerToPagedAttention);
 
     std::shared_ptr<ov::internal::PagedCacheManager> shared_cache_manager;
-
-    bool graph_modified = false;
 
     for (const auto& node : model->get_ordered_ops()) {
         auto pa = std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(node);
@@ -53,12 +48,7 @@ bool AttachCacheManagerToPagedAttention::run_on_model(const std::shared_ptr<ov::
 
         // Attach the shared CacheManager to this PagedAttention
         pa->set_cache_manager(shared_cache_manager);
-
-        graph_modified = true;
     }
 
-    return graph_modified;
+    return false;
 }
-
-}  // namespace pass
-}  // namespace ov
