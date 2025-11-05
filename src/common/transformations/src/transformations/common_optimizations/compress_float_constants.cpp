@@ -222,7 +222,8 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
                 convert->set_friendly_name(postponed_constant_node->get_friendly_name());
                 ov::mark_as_decompression(convert);
                 ov::copy_runtime_info(const_node, convert);
-                postponed_constant_node->set_friendly_name(postponed_constant_node->get_friendly_name() + "_compressed");
+                postponed_constant_node->set_friendly_name(postponed_constant_node->get_friendly_name() +
+                                                           "_compressed");
                 postpone_fp16_compression(postponed_constant_node->get_rt_info());
                 postpone_fp16_compression(postponed_constant_node->get_output_tensor(0).get_rt_info());
 
