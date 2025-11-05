@@ -277,6 +277,12 @@ std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
 }
 
 void ov::npuw::LLMInferRequest::bind_past_kv() {
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    if (kvcache_desc.v_tensors_transposed_pre != kvcache_desc.v_tensors_transposed_gen) {
+        // FIXME: disable kv cache sharing when one of the models is transposed for now
+        return;
+    }
+
     // Only reuse KV cache related tensors (past_key_values)
     for (const auto& [input_name, input_port] : m_prefill_in_ports) {
         // Only process KV cache inputs (past_key_values)
@@ -294,8 +300,8 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
         auto data = kvcache_past_kv_in_tensor->data();
 
         auto origTensor = m_prefill_request->get_tensor(input_port);
-        auto new_tensor =
-            ov::get_tensor_impl(ov::Tensor(origTensor->get_element_type(), origTensor->get_shape(), data, origTensor->get_strides()));
+        auto new_tensor = ov::get_tensor_impl(
+            ov::Tensor(origTensor->get_element_type(), origTensor->get_shape(), data, origTensor->get_strides()));
         m_prefill_request->set_tensor(input_port, new_tensor);
 
         // Record that we have already bind past_kv, will need data copy when update past kv in infer requests to
@@ -469,12 +475,10 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - m_tokens_in_present_chunk;
             if (tokens_in_past_chunks > 0) {
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
-                auto prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv,
-                                                            pre_kv_dim,
-                                                            0u,
-                                                            static_cast<uint32_t>(tokens_in_past_chunks));
-
-                // FIXME: if pre_kv_dim != gen_kv_dim, do copy?
+                auto prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv,
+                                                                    pre_kv_dim,
+                                                                    0u,
+                                                                    static_cast<uint32_t>(tokens_in_past_chunks));
 
                 auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
                                                                     gen_kv_dim,
