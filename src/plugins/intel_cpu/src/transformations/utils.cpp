@@ -10,6 +10,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "ov_ops/fully_connected.hpp"

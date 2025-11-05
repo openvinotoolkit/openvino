@@ -41,6 +41,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"

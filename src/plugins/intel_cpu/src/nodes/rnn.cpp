@@ -44,6 +44,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_cell.hpp"
