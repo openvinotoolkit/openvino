@@ -299,7 +299,10 @@ private:
         index_str = std::string(num_digits_in_pass_index, '0') + index_str;
 
         name << model_name << std::string("_") << index_str << std::string("_") << pass_name;
-        return name.str();
+        auto ret = name.str();
+        // Replace all `:` characters with `_` to avoid issues with file names
+        std::replace(ret.begin(), ret.end(), ':', '_');
+        return ret;
     }
 
     std::unordered_map<std::string, stopwatch> stopwatches;
