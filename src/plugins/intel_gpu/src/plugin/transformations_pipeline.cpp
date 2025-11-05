@@ -405,7 +405,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // Currently moe op is only supported by >= xe2
                 auto& engine = m_context->get_engine();
                 const auto& info = engine.get_device_info();
-                return (info.arch != cldnn::gpu_arch::xe2) && (info.arch != cldnn::gpu_arch::xe2);
+                return (info.arch != cldnn::gpu_arch::xe2) && (info.arch != cldnn::gpu_arch::xe3);
             });
             bool is_pa = false;
             for (const auto& op : func->get_ops()) {
