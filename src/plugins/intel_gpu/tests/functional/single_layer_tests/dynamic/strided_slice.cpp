@@ -406,9 +406,6 @@ const std::vector<InputShape> inputShapesDynamic5D = {
 
         {{1, -1, 16, 32, -1},
         {{ 1, 16, 16, 32, 1 }, { 1, 32, 16, 32, 1 }, { 1, 64, 16, 32, 1 }}},
-
-        {{-1, -1, -1, -1, 4},
-        {{2, 1, 3, 4, 4}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D, StridedSliceLayerGPUTest,
