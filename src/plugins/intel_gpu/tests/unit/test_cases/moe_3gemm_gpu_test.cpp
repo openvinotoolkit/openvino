@@ -9,7 +9,7 @@
 
 #include "random_generator.hpp"
 #include "test_utils.h"
-#include "moe_test_data.h"
+#include "moe_3gemm_test_data.h"
 
 using namespace cldnn;
 using namespace ::tests;
