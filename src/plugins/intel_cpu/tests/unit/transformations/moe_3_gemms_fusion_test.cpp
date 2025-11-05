@@ -47,6 +47,7 @@ using namespace ov::intel_cpu;
 
 using Moe3GeMMsFusionParams = std::tuple<bool,   // use_scatter_v12
                                          bool,   // use_broadcast_v3
+                                         bool,   // skip_unsqueeze
                                          bool,   // matmul_transpose_b
                                          bool>;  // transformation_should_be_applied
 
@@ -67,6 +68,7 @@ inline std::shared_ptr<ov::Node> build_matmul_weights(const ov::Shape& weights_s
 
 inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
                                                        bool use_broadcast_v3,
+                                                       bool skip_unsqueeze,
                                                        bool matmul_transpose_b) {
     // Fixed values that don't affect pass behavior
     const ov::PartialShape input_shape = {-1, -1, 256};
@@ -203,14 +205,29 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0}));
 
     auto minus_one = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-    const auto router_shape =
-        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{number_of_experts_const, first_topk_dim, minus_one}, 0);
+    std::shared_ptr<ov::op::v0::Concat> router_shape;
+    if (skip_unsqueeze) {
+        auto one_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+        router_shape = std::make_shared<ov::op::v0::Concat>(
+            ov::OutputVector{number_of_experts_const, first_topk_dim, minus_one, one_const},
+            0);
+    } else {
+        router_shape =
+            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{number_of_experts_const, first_topk_dim, minus_one},
+                                                 0);
+    }
 
     auto router_reshape = std::make_shared<ov::op::v1::Reshape>(router_transpose, router_shape, true);
 
-    auto unsqueeze_routing_weights = std::make_shared<ov::op::v0::Unsqueeze>(
-        router_reshape,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{3}));
+    std::shared_ptr<ov::Node> routing_weights_final;
+    if (skip_unsqueeze) {
+        routing_weights_final = router_reshape;
+    } else {
+        auto unsqueeze_routing_weights = std::make_shared<ov::op::v0::Unsqueeze>(
+            router_reshape,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{3}));
+        routing_weights_final = unsqueeze_routing_weights;
+    }
 
     auto last_in_dim = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(input, {2});
     auto end_shape = std::make_shared<ov::op::v0::Concat>(
@@ -218,7 +235,7 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
         0);
     auto end_reshape = std::make_shared<ov::op::v1::Reshape>(down_matmul, end_shape, true);
 
-    auto mul3 = std::make_shared<ov::op::v1::Multiply>(end_reshape, unsqueeze_routing_weights);
+    auto mul3 = std::make_shared<ov::op::v1::Multiply>(end_reshape, routing_weights_final);
 
     auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
         mul3,
@@ -237,6 +254,7 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
 
 inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
                                                           bool use_broadcast_v3,
+                                                          bool skip_unsqueeze,
                                                           bool matmul_transpose_b) {
     // Fixed values that don't affect pass behavior
     const ov::PartialShape input_shape = {-1, -1, 256};
@@ -372,10 +390,12 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
 class Moe3GeMMsFusionTest : public TransformationTestsF, public WithParamInterface<Moe3GeMMsFusionParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<Moe3GeMMsFusionParams>& obj) {
-        const auto& [use_scatter_v12, use_broadcast_v3, matmul_transpose_b, should_be_applied] = obj.param;
+        const auto& [use_scatter_v12, use_broadcast_v3, skip_unsqueeze, matmul_transpose_b, should_be_applied] =
+            obj.param;
         std::ostringstream result;
         result << "ScatterV" << (use_scatter_v12 ? "12" : "3") << "_BroadcastV" << (use_broadcast_v3 ? "3" : "1")
-               << "_MatMulTransposeB_" << (matmul_transpose_b ? "true" : "false") << "_shouldBeApplied_"
+               << "_SkipUnsqueeze_" << (skip_unsqueeze ? "true" : "false") << "_MatMulTransposeB_"
+               << (matmul_transpose_b ? "true" : "false") << "_shouldBeApplied_"
                << (should_be_applied ? "true" : "false");
         return result.str();
     }
@@ -383,13 +403,14 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        const auto& [use_scatter_v12, use_broadcast_v3, matmul_transpose_b, should_be_applied] = this->GetParam();
-        model = initMoE3GeMMSubgraph(use_scatter_v12, use_broadcast_v3, matmul_transpose_b);
+        const auto& [use_scatter_v12, use_broadcast_v3, skip_unsqueeze, matmul_transpose_b, should_be_applied] =
+            this->GetParam();
+        model = initMoE3GeMMSubgraph(use_scatter_v12, use_broadcast_v3, skip_unsqueeze, matmul_transpose_b);
         manager.register_pass<ov::pass::Serialize>("before.xml", "");
         manager.register_pass<MoEMatMulsFusion>();
         manager.register_pass<ov::pass::Serialize>("after.xml", "");
         if (should_be_applied) {
-            model_ref = initMoE3GeMMSubgraphRef(use_scatter_v12, use_broadcast_v3, matmul_transpose_b);
+            model_ref = initMoE3GeMMSubgraphRef(use_scatter_v12, use_broadcast_v3, skip_unsqueeze, matmul_transpose_b);
             ov::pass::Serialize("reference.xml", "").run_on_model(model_ref);
         }
     }
@@ -399,11 +420,13 @@ TEST_P(Moe3GeMMsFusionTest, CompareFunctions) {}
 
 const std::vector<bool> scatter_versions = {false, true};    // false = v3, true = v12
 const std::vector<bool> broadcast_versions = {false, true};  // false = v1, true = v3
+const std::vector<bool> skip_unsqueeze = {false, true};
 
 INSTANTIATE_TEST_SUITE_P(Moe3GeMMsFusionTest_positive_cases,
                          Moe3GeMMsFusionTest,
                          ::testing::Combine(::testing::ValuesIn(scatter_versions),
                                             ::testing::ValuesIn(broadcast_versions),
+                                            ::testing::ValuesIn(skip_unsqueeze),
                                             ::testing::Values(true),
                                             ::testing::Values(true)),
                          Moe3GeMMsFusionTest::getTestCaseName);
@@ -412,6 +435,7 @@ INSTANTIATE_TEST_SUITE_P(Moe3GeMMsFusionTest_negative_cases,
                          Moe3GeMMsFusionTest,
                          ::testing::Combine(::testing::ValuesIn(scatter_versions),
                                             ::testing::ValuesIn(broadcast_versions),
+                                            ::testing::ValuesIn(skip_unsqueeze),
                                             ::testing::Values(false),
                                             ::testing::Values(false)),
                          Moe3GeMMsFusionTest::getTestCaseName);
