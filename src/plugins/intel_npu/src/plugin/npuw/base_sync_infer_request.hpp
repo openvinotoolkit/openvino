@@ -103,12 +103,10 @@ protected:
 
     struct TensorStorage {
         ov::SoPtr<ov::ITensor> tensor;
-        bool persistent = false;           // true for the parent I/O tensors
-        bool allocated_on_device = false;  // mark for internally allocated I/O
-        bool set_from_outside = false;     // outside I/O tensors shouldn't be reallocated
-        std::size_t num_readers = 0u;      // fixed during execution
-        std::size_t num_reads = 0u;        // changes during execution (ref-counter-like).
-                                           // reset to 0 before every new execution
+        bool persistent = false;       // true for the parent I/O tensors
+        std::size_t num_readers = 0u;  // fixed during execution
+        std::size_t num_reads = 0u;    // changes during execution (ref-counter-like).
+                                       // reset to 0 before every new execution
     };
     // FROM(Every subrequests' output port) TO(Its output tensor)
     mutable std::map<ov::Output<const ov::Node>, TensorStorage>

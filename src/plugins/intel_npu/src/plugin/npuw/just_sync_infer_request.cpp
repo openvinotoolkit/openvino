@@ -391,7 +391,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                             const ov::SoPtr<ov::ITensor>& tensor) {
     NPUW_ASSERT(is_io(port));
-    m_port_to_tensor[port] = TensorStorage{tensor, true, false, true};
+    m_port_to_tensor[port] = TensorStorage{tensor, true};
 
     // Check if setting output tensor
     for (std::size_t i = 0; i < m_npuw_model->outputs().size(); ++i) {
