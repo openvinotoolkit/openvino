@@ -104,7 +104,7 @@ std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& config) {
     OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
-    return compile_model(model, ov::DEFAULT_DEVICE_NAME, config);
+    return compile_model(model, ov::default_device_name, config);
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -119,7 +119,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
 
 CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& config) {
     OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
-    return compile_model(model_path, ov::DEFAULT_DEVICE_NAME, config);
+    return compile_model(model_path, ov::default_device_name, config);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

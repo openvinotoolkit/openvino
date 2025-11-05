@@ -20,7 +20,7 @@ namespace ov {
 using CreateExtensionFunc = void(std::vector<::ov::Extension::Ptr>&);
 using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
 
-static const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
+static const std::string default_device_name = "DEFAULT_DEVICE";
 class CoreConfig final {
 public:
     CoreConfig() = default;

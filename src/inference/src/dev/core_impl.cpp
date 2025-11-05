@@ -646,7 +646,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "CoreImpl::get_plugin");
 
     auto device_name = plugin_name;
-    if (device_name == ov::DEFAULT_DEVICE_NAME)
+    if (device_name == ov::default_device_name)
         device_name = "AUTO";
     if (device_name == "(CPU)")
         device_name = "CPU";
@@ -660,7 +660,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
         // Plugin is not created, check that plugin is registered
         it = m_plugin_registry.find(device_name);
         if (it == m_plugin_registry.end()) {
-            if (plugin_name == ov::DEFAULT_DEVICE_NAME)
+            if (plugin_name == ov::default_device_name)
                 OPENVINO_THROW("No device is provided, so AUTO device is used by default, which is not registered in "
                                "the OpenVINO Runtime.");
             else
