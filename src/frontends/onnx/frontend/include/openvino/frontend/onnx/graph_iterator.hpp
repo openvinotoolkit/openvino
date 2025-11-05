@@ -47,6 +47,9 @@ public:
     /// If there are no domain found returns -1
     virtual int64_t get_opset_version(const std::string& domain) const = 0;
 
+    /// \brief Retrieves metadata associated with the graph.
+    virtual std::map<std::string, std::string> get_metadata() const = 0;
+
     /// \brief Destructor
     virtual ~GraphIterator();
 };
