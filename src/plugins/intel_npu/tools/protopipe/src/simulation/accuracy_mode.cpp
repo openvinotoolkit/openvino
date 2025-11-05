@@ -8,22 +8,12 @@
 #include "simulation/computation_builder.hpp"
 #include "simulation/executor.hpp"
 #include "simulation/layers_data.hpp"
+#include "simulation/layer_validator.hpp"
 #include "scenario/inference.hpp"
 #include "utils/logger.hpp"
 #include "utils/utils.hpp"
 
 #include <opencv2/gapi/gproto.hpp>  // cv::GCompileArgs
-
-class LayerValidator {
-public:
-    LayerValidator(const std::string& tag, const std::string& layer_name, IAccuracyMetric::Ptr metric);
-    Result operator()(const cv::Mat& lhs, const cv::Mat& rhs);
-
-private:
-    std::string m_tag;
-    std::string m_layer_name;
-    IAccuracyMetric::Ptr m_metric;
-};
 
 struct FailedIter {
     size_t iter_idx;
@@ -46,7 +36,7 @@ static std::vector<std::string> compareOutputs(
         default_metric
     );
 
-    for (size_t i = 0; i < ref_mats.size(); ++i) {
+    for (size_t i = 0; i < infer.output_layers.size(); ++i) {
         const auto& layer = infer.output_layers[i];
         LayerValidator validator{infer.tag, layer.name, per_layer_metrics.at(layer.name)};
         auto result = validator(ref_mats[i], tgt_mats[i]);
@@ -264,7 +254,6 @@ public:
 AccuracyStrategy::AccuracyStrategy(const AccuracySimulation::Options& _opts): opts(_opts) {
 }
 
-// Pregateste infrastructura pentru reference mode (input/output directories) si returneaza providerii pentru input (random/constant), metadata pentru input/output data
 IBuildStrategy::InferBuildInfo AccuracyStrategy::build(const InferDesc& infer) {
     current_infer = infer;
     const auto& input_data = opts.input_data_map.at(infer.tag);
@@ -342,9 +331,8 @@ private:
     std::vector<Meta> m_ref_out_meta;
     std::vector<Meta> m_tgt_out_meta;
     cv::optional<uint64_t> m_required_num_iterations;
-    // TODO: Investigate why m_opts can't be const&
-    AccuracySimulation::Options m_opts;
-    InferDesc m_infer;
+    const AccuracySimulation::Options m_opts;
+    const InferDesc m_infer;
 
     std::vector<cv::Mat> m_ref_out_mats;
     std::vector<cv::Mat> m_tgt_out_mats;
@@ -387,7 +375,7 @@ SyncSimulation::SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt
           m_ref_out_mats(m_ref_out_meta.size()),
           m_tgt_out_mats(m_tgt_out_meta.size()),
           m_opts(std::move(opts)),
-          m_infer(infer),
+          m_infer(std::move(infer)),
           m_ref_iter_idx(0u),
           m_tgt_iter_idx(0u),
           m_required_num_iterations(required_num_iterations) {

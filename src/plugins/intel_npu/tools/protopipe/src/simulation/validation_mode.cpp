@@ -9,37 +9,11 @@
 #include "simulation/computation_builder.hpp"
 #include "simulation/executor.hpp"
 #include "simulation/layers_data.hpp"
-#include "simulation/validation_mode.hpp"
+#include "simulation/layer_validator.hpp"
 #include "utils/logger.hpp"
 #include "utils/utils.hpp"
 
 #include <opencv2/gapi/gproto.hpp>  // cv::GCompileArgs
-
-class LayerValidator {
-public:
-    LayerValidator(const std::string& tag, const std::string& layer_name, IAccuracyMetric::Ptr metric);
-    Result operator()(const cv::Mat& lhs, const cv::Mat& rhs);
-
-private:
-    std::string m_tag;
-    std::string m_layer_name;
-    IAccuracyMetric::Ptr m_metric;
-};
-
-LayerValidator::LayerValidator(const std::string& tag, const std::string& layer_name, IAccuracyMetric::Ptr metric)
-        : m_tag(tag), m_layer_name(layer_name), m_metric(metric) {
-}
-
-Result LayerValidator::operator()(const cv::Mat& lhs, const cv::Mat& rhs) {
-    auto result = m_metric->compare(lhs, rhs);
-    if (!result) {
-        std::stringstream ss;
-        ss << "Model: " << m_tag << ", Layer: " << m_layer_name << ", Metric: " << m_metric->str()
-           << ", Reason: " << result.str() << ";";
-        return Error{ss.str()};
-    }
-    return Success{"Passed"};
-}
 
 namespace {
 
