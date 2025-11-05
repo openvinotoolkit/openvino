@@ -82,10 +82,10 @@
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fc_per_layer_scaling.hpp"
-#include "plugin/transformations/fuse_moe_compressed.hpp"
+#include "plugin/transformations/fuse_moe_3gemm_compressed.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
-#include "plugin/transformations/keep_moe_const_precision.hpp"
+#include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
@@ -427,7 +427,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
             }
             manager.register_pass<ov::intel_gpu::ConvertMOEToMOECompressed>(is_pa);
-            manager.register_pass<ov::intel_gpu::FuseMOECompressed>();
+            manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
         }
 
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -542,7 +542,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
         // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".
         // After constant-folding, the precision of new constant should not be converted.
-        manager.register_pass<ov::intel_gpu::KeepMOEConstPrecision>();
+        manager.register_pass<ov::intel_gpu::KeepMOE3GemmConstPrecision>();
         // In the case of "input -> reshape -> convert -> multiply",
         // the "input -> reshape" subgraph is constant-folded in the above "CommonOptimizations"
         // To handle this case, "KeepConstPrecision" is executed again.

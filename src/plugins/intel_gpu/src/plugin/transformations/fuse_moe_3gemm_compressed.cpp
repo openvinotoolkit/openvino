@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "fuse_moe_compressed.hpp"
+#include "fuse_moe_3gemm_compressed.hpp"
 
 #include <memory>
 
 #include "intel_gpu/op/moe_compressed.hpp"
-#include "intel_gpu/op/moe_fused_compressed.hpp"
+#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -34,7 +34,7 @@
 namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 
-FuseMOECompressed::FuseMOECompressed() {
+FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto hidden_state_m = any_input();
     auto routers_m = any_input();
     auto router_matmul_m = wrap_type<ov::op::v0::MatMul>({hidden_state_m, routers_m}, consumers_count(1));
@@ -104,15 +104,15 @@ FuseMOECompressed::FuseMOECompressed() {
         args[9] = pattern_map.at(down_scale_m);
         args[10] = pattern_map.at(down_zp_m);
 
-        auto moe_fused_compressed = std::make_shared<ov::intel_gpu::op::MOEFusedCompressed>(args, moe_compressed->get_config());
-        moe_fused_compressed->set_friendly_name(moe_compressed->get_friendly_name());
-        ov::copy_runtime_info(moe_compressed, moe_fused_compressed);
-        ov::replace_node(moe_compressed, moe_fused_compressed);
+        auto moe_3gemm_fused_compressed = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, moe_compressed->get_config());
+        moe_3gemm_fused_compressed->set_friendly_name(moe_compressed->get_friendly_name());
+        ov::copy_runtime_info(moe_compressed, moe_3gemm_fused_compressed);
+        ov::replace_node(moe_compressed, moe_3gemm_fused_compressed);
 
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(moe_compressed_m, "FuseMOECompressed");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(moe_compressed_m, "FuseMOE3GemmCompressed");
     this->register_matcher(m, callback);
 }
 

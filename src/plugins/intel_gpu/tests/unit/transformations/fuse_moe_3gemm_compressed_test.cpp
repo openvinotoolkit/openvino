@@ -6,7 +6,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "intel_gpu/op/moe_compressed.hpp"
-#include "intel_gpu/op/moe_fused_compressed.hpp"
+#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -24,7 +24,7 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "plugin/transformations/fuse_moe_compressed.hpp"
+#include "plugin/transformations/fuse_moe_3gemm_compressed.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -32,7 +32,7 @@ using namespace ov::intel_gpu;
 namespace ov {
 namespace test {
 namespace intel_gpu {
-TEST_F(TransformationTestsF, FuseMOECompressedTest) {
+TEST_F(TransformationTestsF, FuseMOE3GemmCompressedTest) {
     {
         // tokens:32, hidden_size:2048, iter_size:768, experts:128, topk:8
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
@@ -102,7 +102,7 @@ TEST_F(TransformationTestsF, FuseMOECompressedTest) {
             ov::OutputVector{hidden_states, unsqueeze_moe, topk->output(1),
                 wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down}, config);
         model = std::make_shared<ov::Model>(moe_compressed, ov::ParameterVector{hidden_states});
-        manager.register_pass<FuseMOECompressed>();
+        manager.register_pass<FuseMOE3GemmCompressed>();
     }
     {
         // tokens:32, hidden_size:2048, iter_size:768, experts:128, topk:8
@@ -128,11 +128,11 @@ TEST_F(TransformationTestsF, FuseMOECompressedTest) {
         config.group_size = 128;
         config.top_k = 8;
         config.out_type = ov::element::f16;
-        auto moe_fused_compressed = std::make_shared<ov::intel_gpu::op::MOEFusedCompressed>(
+        auto moe_3gemm_fused_compressed = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
             ov::OutputVector{hidden_states, routing_weights,
                 wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down}, config);
 
-        model_ref = std::make_shared<ov::Model>(moe_fused_compressed, ov::ParameterVector{hidden_states});
+        model_ref = std::make_shared<ov::Model>(moe_3gemm_fused_compressed, ov::ParameterVector{hidden_states});
     }
 }
 }  // namespace intel_gpu

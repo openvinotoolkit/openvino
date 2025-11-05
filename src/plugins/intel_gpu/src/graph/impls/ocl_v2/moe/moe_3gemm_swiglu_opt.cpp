@@ -18,11 +18,11 @@
 #    include "common_utils/jitter.hpp"
 #    include "debug_helper.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
-#    include "intel_gpu/primitives/moe_fused_compressed.hpp"
+#    include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #    include "intel_gpu/runtime/lru_cache.hpp"
 #    include "intel_gpu/runtime/stream.hpp"
 #    include "intel_gpu/runtime/utils.hpp"
-#    include "moe_inst.h"
+#    include "moe_3gemm_fused_inst.h"
 #    include "ocl_v2/utils/fused_ops_jitter.hpp"
 #    include "ocl_v2/utils/jitter.hpp"
 #    include "primitive_inst.h"
@@ -342,7 +342,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_fused_compressed>();
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         jit.make("SOFTMAX_TOPK_ENABLE", 1);
         jit.make("TOP_K", desc->_config.top_k);
         jit.make("VALUE_NUM", desc->_config.num_expert);
@@ -369,7 +369,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_fused_compressed>();
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         auto& engine = params.prog->get_engine();
         const auto& info = engine.get_device_info();
         jit.make("GATHER_ENABLE", 1);
@@ -398,7 +398,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_fused_compressed>();
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         jit.make("SCATTER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
         jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
@@ -421,7 +421,7 @@ protected:
 #    define SUBGROUP_NUM 8
 
 static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
-    auto desc = params.typed_desc<moe_fused_compressed>();
+    auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
     jit.make("MAX_TOPK", desc->_config.top_k);
@@ -443,7 +443,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_fused_compressed>();
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
         return jit;
@@ -466,7 +466,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_fused_compressed>();
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
         return jit;
@@ -489,7 +489,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_fused_compressed>();
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("REDUCE_ENABLE", 1);
         return jit;
@@ -580,7 +580,7 @@ public:
 
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
-        init(node.as<moe_fused_compressed>().get_primitive());
+        init(node.as<moe_3gemm_fused_compressed>().get_primitive());
 
         add_stage(softmax_topk, params);
         add_stage(gather, params);
@@ -590,13 +590,13 @@ public:
         add_stage(mlp_reduce, params);
     }
 
-    void init(const std::shared_ptr<const moe_fused_compressed>& cur_moe) {
+    void init(const std::shared_ptr<const moe_3gemm_fused_compressed>& cur_moe) {
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
         _group_size = static_cast<int>(cur_moe->_config.group_size);
     }
 
-    void init_dnnl_weights(const std::shared_ptr<const moe_fused_compressed>& cur_moe,
+    void init_dnnl_weights(const std::shared_ptr<const moe_3gemm_fused_compressed>& cur_moe,
                            cldnn::engine& engine,
                            const struct moe_fusion_weights_base_addr& moe_fusion_wei_addr) {
         if (_dnnl_weights.size() == cur_moe->_config.num_expert)
@@ -642,7 +642,7 @@ public:
     void load(BinaryInputBuffer& ib) override {
         PrimitiveImplOCL::load(ib);
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
-        init(impl_params->typed_desc<moe_fused_compressed>());
+        init(impl_params->typed_desc<moe_3gemm_fused_compressed>());
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -655,7 +655,7 @@ public:
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
-        auto cur_moe = params.typed_desc<moe_fused_compressed>();
+        auto cur_moe = params.typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         int max_topk = static_cast<int>(config.top_k);
         int expert_num = static_cast<int>(config.num_expert);
@@ -691,7 +691,7 @@ public:
         return internal_buffers;
     }
 
-    void prepare_internal_buffers(typed_primitive_inst<moe_fused_compressed>& instance, scratch_buffers& scratch, size_t batch) {
+    void prepare_internal_buffers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch, size_t batch) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
         auto& engine = instance.get_network().get_engine();
         scratch.topk_id = intermediates_memories[0];
@@ -702,7 +702,7 @@ public:
             scratch.x = intermediates_memories[4];
             scratch.routing_weights = intermediates_memories[5];
             scratch.gate = intermediates_memories[6];
-            const auto& config = instance.get_typed_desc<moe_fused_compressed>()->_config;
+            const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
             int expert_num = static_cast<int>(config.num_expert);
             scratch.expert_masks.resize(expert_num);
             for (int i = 0; i < expert_num; i++) {
@@ -728,7 +728,7 @@ public:
         scratch.moe_fusion_wei_addr.zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::ZP_2));
     }
 
-    void get_expert_mask_from_gpu(const MOEFusedCompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
+    void get_expert_mask_from_gpu(const MOE3GemmFusedCompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
         // shape: [batch, topk]
         auto layout = mem->get_layout();
         const auto& shape = layout.get_shape();
@@ -825,15 +825,15 @@ public:
         return stream.enqueue_kernel(*stage.kernel, desc, {}, events, needs_completion_event);
     }
 
-    auto get_input_info(typed_primitive_inst<moe_fused_compressed>& instance, int idx) {
+    auto get_input_info(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, int idx) {
         auto mem = instance.input_memory_ptr(idx);
         auto dep = instance.dependencies()[idx];
         auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
         return std::make_tuple(mem, layout);
     }
 
-    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe_fused_compressed>& instance, scratch_buffers& scratch) {
-        auto cur_moe = instance.get_typed_desc<moe_fused_compressed>();
+    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch) {
+        auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         int max_topk = static_cast<int>(cur_moe->_config.top_k);
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
@@ -911,7 +911,7 @@ public:
 
     using lru_cache_hash = LruCache<std::pair<int, int>, std::shared_ptr<onednn_kernel>, PairHash>;
     lru_cache_hash _kernels = lru_cache_hash(1024);
-    onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_fused_compressed>& instance) {
+    onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
         auto key = std::make_pair(n_token, expert_no);
         if (_kernels.has(key)) {
             return *_kernels.get(key);
@@ -987,8 +987,8 @@ public:
     //
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::execute"));
-        auto& instance = reinterpret_cast<typed_primitive_inst<moe_fused_compressed>&>(ins);
-        auto cur_moe = instance.get_typed_desc<moe_fused_compressed>();
+        auto& instance = reinterpret_cast<typed_primitive_inst<moe_3gemm_fused_compressed>&>(ins);
+        auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         int max_topk = static_cast<int>(config.top_k);
         auto& cur_net = instance.get_network();
@@ -1115,13 +1115,13 @@ public:
 }  // namespace
 
 std::unique_ptr<primitive_impl> moe_3gemm_swiglu_opt::create_impl(const program_node& node, const RuntimeParams& params) const {
-    assert(node.is_type<moe_fused_compressed>());
+    assert(node.is_type<moe_3gemm_fused_compressed>());
     return std::make_unique<moe_3gemm_swiglu_opt_impl>(node, params);
 }
 
 }  // namespace ov::intel_gpu::ocl
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_fused_compressed)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_3gemm_fused_compressed)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::moe_3gemm_swiglu_opt_impl)
 
 #else

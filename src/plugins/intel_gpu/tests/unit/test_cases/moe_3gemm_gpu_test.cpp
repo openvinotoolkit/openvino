@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
-#include <intel_gpu/primitives/moe_fused_compressed.hpp>
+#include <intel_gpu/primitives/moe_3gemm_fused_compressed.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <iostream>
 #include <numeric>
@@ -14,10 +14,9 @@
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(moe_compressed_gpu, moe_accuracy_test) {
+TEST(moe_3gemm_compressed_gpu, moe_accuracy_test) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
-        std::cout << "not support immad, skip test" << std::endl;
         return;
     }
 
@@ -83,7 +82,6 @@ TEST(moe_compressed_gpu, moe_accuracy_test) {
     // Add input layouts
     topology.add(input_layout("hidden_states", hidden_states->get_layout()));
     topology.add(input_layout("routing_weights", routing_weights->get_layout()));
-    // topology.add(input_layout("topk_indices", topk_indices->get_layout()));
 
     // Add weight data
     topology.add(data("w0_weight", w0_weight));
@@ -96,8 +94,8 @@ TEST(moe_compressed_gpu, moe_accuracy_test) {
     topology.add(data("w2_scale", w2_scale));
     topology.add(data("w2_zp", w2_zp));
 
-    // Create MOECompressed config
-    cldnn::MOEFusedCompressed::Config config;
+    // Create MOE3GemmFusedCompressed config
+    cldnn::MOE3GemmFusedCompressed::Config config;
     config.hidden_size = hidden_size;
     config.inter_size = inter_size;
     config.num_expert = num_experts;
@@ -106,7 +104,7 @@ TEST(moe_compressed_gpu, moe_accuracy_test) {
     config.out_type = data_types::f16;
 
     // Create MOECompressed primitive
-    auto moe_prim = moe_fused_compressed("moe_fused_compressed",
+    auto moe_prim = moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
                                          {input_info("hidden_states"),
                                           input_info("routing_weights"),
                                           input_info("w0_weight"),
@@ -126,11 +124,10 @@ TEST(moe_compressed_gpu, moe_accuracy_test) {
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("hidden_states", hidden_states);
     network.set_input_data("routing_weights", routing_weights);
-    // network.set_input_data("topk_indices", topk_indices);
 
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
-    ASSERT_EQ(outputs.begin()->first, "moe_fused_compressed");
+    ASSERT_EQ(outputs.begin()->first, "moe_3gemm_fused_compressed");
 
     auto output_prim = outputs.begin()->second.get_memory();
     get_test_stream().flush();

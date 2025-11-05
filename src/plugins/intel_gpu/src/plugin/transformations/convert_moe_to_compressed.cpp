@@ -192,17 +192,21 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             args[11] = gemm3_transpose_zp_down;
             ov::intel_gpu::op::MOECompressed::Config config(moe->get_config());
             auto wei_partial_shape = pattern_map.at(gemm3_compressed_weights_m_up).get_partial_shape();
-            OPENVINO_ASSERT(wei_partial_shape.is_static(), "moe weight shape should be static.");
+            if (!wei_partial_shape.is_static()) {
+                OPENVINO_THROW("Moe weight shape should be static.");
+            }
             auto weight_shape = wei_partial_shape.to_shape();
             if (weight_shape.size() != 4) {
-                return false;
+                OPENVINO_THROW("Moe weight shape must be 4D.");
             }
             config.hidden_size = weight_shape[2] * weight_shape[3];
             config.inter_size = weight_shape[1];
             config.num_expert = weight_shape[0];
             config.group_size = weight_shape[3];
             auto topk_shape = pattern_map.at(topk_m).get_partial_shape();
-            OPENVINO_ASSERT(topk_shape[1].is_static(), "k dimenion in moe topk input should be static.");
+            if (!topk_shape[1].is_static()) {
+                OPENVINO_THROW("K dimenion in moe topk input should be static..");
+            }
             config.top_k = topk_shape[1].get_length();
             config.out_type = ov::element::f16;
             auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);

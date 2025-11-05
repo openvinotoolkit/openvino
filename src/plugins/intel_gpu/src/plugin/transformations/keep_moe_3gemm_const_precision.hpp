@@ -8,10 +8,10 @@
 
 namespace ov::intel_gpu {
 
-class KeepMOEConstPrecision: public ov::pass::MatcherPass {
+class KeepMOE3GemmConstPrecision: public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("KeepMOEConstPrecision");
-    KeepMOEConstPrecision();
+    OPENVINO_MATCHER_PASS_RTTI("KeepMOE3GemmConstPrecision");
+    KeepMOE3GemmConstPrecision();
 };
 
 }   // namespace ov::intel_gpu

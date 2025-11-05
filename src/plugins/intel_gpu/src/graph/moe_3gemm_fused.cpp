@@ -6,14 +6,14 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include "moe_inst.h"
+#include "moe_3gemm_fused_inst.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "primitive_type_base.h"
 #include "program_node.h"
 
 namespace cldnn {
-GPU_DEFINE_PRIMITIVE_TYPE_ID(moe_fused_compressed)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(moe_3gemm_fused_compressed)
 
 /*
     Calc_output_layout method is called only when output layout is invalidated.

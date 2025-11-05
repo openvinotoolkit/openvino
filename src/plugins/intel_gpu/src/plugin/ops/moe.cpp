@@ -5,10 +5,10 @@
 #include "openvino/op/moe.hpp"
 #include "intel_gpu/op/moe_compressed.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/op/moe_fused_compressed.hpp"
+#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/primitives/moe_fused_compressed.hpp"
+#include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
 #include <intel_gpu/primitives/moe_scatter_reduction.hpp>
@@ -21,7 +21,7 @@
 namespace ov {
 namespace op {
 namespace internal {
-using MOEFusedCompressed = ov::intel_gpu::op::MOEFusedCompressed;
+using MOE3GemmFusedCompressed = ov::intel_gpu::op::MOE3GemmFusedCompressed;
 using MOECompressed = ov::intel_gpu::op::MOECompressed;
 }  // namespace internal
 }  // namespace op
@@ -30,7 +30,7 @@ using MOECompressed = ov::intel_gpu::op::MOECompressed;
 namespace ov::intel_gpu {
 using namespace cldnn;
 
-static void CreateMOEFusedCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::MOEFusedCompressed>& op) {
+static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed>& op) {
     auto inputs = p.GetInputInfo(op);
     const auto& config = op->get_config();
     ///   0: hidden_states - input tensor with hidden representations
@@ -56,7 +56,7 @@ static void CreateMOEFusedCompressedOp(ProgramBuilder& p, const std::shared_ptr<
     validate_inputs_count(op, {11});
 
     const std::string layerName = layer_type_name_ID(op);
-    const cldnn::moe_fused_compressed moe(layerName, inputs, config);
+    const cldnn::moe_3gemm_fused_compressed moe(layerName, inputs, config);
 
     p.add_primitive(*op, moe);
 }
@@ -93,7 +93,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         //   11: w2_zp - expert zp for final projection for compressed experts,
         //   shape [num_experts, hidden_size, group_num, 1]
 
-        // Use moe_fused_compressed to replace it.
+        // Use moe_3gemm_fused_compressed to replace it.
     } else  {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives
         // input0 : input {#tokens, hidden_size}
@@ -214,7 +214,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         p.add_primitive(*op, moe_scatter_reduce_prim);
     }
 }
-REGISTER_FACTORY_IMPL(internal, MOEFusedCompressed);
+REGISTER_FACTORY_IMPL(internal, MOE3GemmFusedCompressed);
 REGISTER_FACTORY_IMPL(internal, MOECompressed);
 
 }  // namespace ov::intel_gpu
