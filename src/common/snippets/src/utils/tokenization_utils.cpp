@@ -104,12 +104,10 @@ std::function<bool(const std::shared_ptr<const ov::Node>&)> make_transpose_suppo
         if (include_brgemm_case) {
             const auto& outputs = transpose->get_output_target_inputs(0);
             OPENVINO_ASSERT(!outputs.empty(), "Transpose should have at least one output consumer");
-            if (!outputs.empty()) {
-                const auto child_node = outputs.begin()->get_node()->shared_from_this();
-                const bool is_brgemm_case = ov::is_type<MatMul>(child_node);
-                allow = allow || (is_brgemm_case && ov::snippets::pass::TokenizeMHASnippets::get_fusion_transpose_order(
-                                                        order_value.size()) == order_value);
-            }
+            const auto child_node = outputs.begin()->get_node()->shared_from_this();
+            const bool is_brgemm_case = ov::is_type<MatMul>(child_node);
+            allow = allow || (is_brgemm_case && ov::snippets::pass::TokenizeMHASnippets::get_fusion_transpose_order(
+                                                    order_value.size()) == order_value);
         }
         // Always allow decomposed order accepted by MHA tokenization
         allow = allow || (ov::snippets::pass::TokenizeMHASnippets::get_decomposed_transpose_order(order_value.size()) ==
