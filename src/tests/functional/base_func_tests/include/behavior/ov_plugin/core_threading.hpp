@@ -499,7 +499,8 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_SingleCore) {
                 return output_tensor;
             };
 
-            auto outputActual = getOutputBlob(core);
+            ov::Tensor outputActual;
+            OV_ASSERT_NO_THROW(outputActual = getOutputBlob(core));
 
             // compare actual value using the same Core
             auto outputRef = getOutputBlob(core);
@@ -543,7 +544,8 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_MultipleCores) {
                 return output_tensor;
             };
 
-            auto outputActual = getOutputBlob(core);
+            ov::Tensor outputActual;
+            OV_ASSERT_NO_THROW(outputActual = getOutputBlob(core));
 
             // compare actual value using the second Core
             {
