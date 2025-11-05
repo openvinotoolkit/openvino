@@ -73,15 +73,19 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_moe_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
+#include "plugin/transformations/convert_moe_to_compressed.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fc_per_layer_scaling.hpp"
+#include "plugin/transformations/fuse_moe_3gemm_compressed.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
+#include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
@@ -94,6 +98,7 @@
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
+#include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -108,6 +113,7 @@
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
+#include "transformations/common_optimizations/matmul_experts_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
@@ -189,6 +195,7 @@
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/moe.hpp"
 #include "openvino/op/reverse_sequence.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
@@ -210,13 +217,14 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
 }
 
 static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node, bool supports_immad) {
-    std::vector<ov::DiscreteTypeInfo> target_consumers = { ov::opset1::MatMul::get_type_info_static(),
-                                                           ov::op::v8::Gather::get_type_info_static(),
-                                                           ov::op::v1::Convolution::get_type_info_static(),
-                                                           ov::opset1::Convolution::get_type_info_static(),
-                                                           ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
-                                                           ov::opset1::ConvolutionBackpropData::get_type_info_static(),
-                                                           ov::opset1::GroupConvolution::get_type_info_static() };
+    std::vector<ov::DiscreteTypeInfo> target_consumers = {ov::opset1::MatMul::get_type_info_static(),
+                                                          ov::op::internal::MOE::get_type_info_static(),
+                                                          ov::op::v8::Gather::get_type_info_static(),
+                                                          ov::op::v1::Convolution::get_type_info_static(),
+                                                          ov::opset1::Convolution::get_type_info_static(),
+                                                          ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
+                                                          ov::opset1::ConvolutionBackpropData::get_type_info_static(),
+                                                          ov::opset1::GroupConvolution::get_type_info_static()};
 
     std::vector<ov::DiscreteTypeInfo> convolutions = { ov::op::v1::Convolution::get_type_info_static(),
                                                        ov::opset1::Convolution::get_type_info_static(),
@@ -394,6 +402,34 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
             !device_info.supports_immad);
+        const bool disable_moe_opt = GPU_DEBUG_VALUE_OR(config.get_disable_moe_opt(), false);
+        if (!disable_moe_opt) {
+            manager.register_pass<ov::pass::FuseVectorizedMOE2GEMM>();
+            pass_config->set_callback<ov::pass::FuseVectorizedMOE2GEMM>([&](const_node_ptr& root) -> bool {
+                // Currently moe op is only supported by >= xe2
+                auto& engine = m_context->get_engine();
+                const auto& info = engine.get_device_info();
+                return (info.arch != cldnn::gpu_arch::xe2) && (info.arch != cldnn::gpu_arch::xe3);
+            });
+
+            manager.register_pass<ov::pass::FuseVectorizedMOE3GEMM>();
+            pass_config->set_callback<ov::pass::FuseVectorizedMOE3GEMM>([&](const_node_ptr& root) -> bool {
+                // Currently moe gemm3 is only supported by systolic-array architectures
+                auto& engine = m_context->get_engine();
+                const auto& info = engine.get_device_info();
+                return (!info.supports_immad);
+            });
+
+            bool is_pa = false;
+            for (const auto& op : func->get_ops()) {
+                if (auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+                    is_pa = true;
+                    break;
+                }
+            }
+            manager.register_pass<ov::intel_gpu::ConvertMOEToMOECompressed>(is_pa);
+            manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
+        }
 
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
@@ -465,7 +501,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (is_type<ov::op::v0::Convert>(next_node)) {
                     next_node = next_node->get_output_target_inputs(0).begin()->get_node();
                 }
-                return !is_type<ov::op::v0::MatMul>(next_node);
+                return !is_type<ov::op::v0::MatMul>(next_node) && !is_type<ov::op::internal::MOE>(next_node);
             });
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
@@ -504,6 +540,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
+        // In the case of "zp/scale -> reshape -> transpose -> MOE",
+        // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".
+        // After constant-folding, the precision of new constant should not be converted.
+        manager.register_pass<ov::intel_gpu::KeepMOE3GemmConstPrecision>();
         // In the case of "input -> reshape -> convert -> multiply",
         // the "input -> reshape" subgraph is constant-folded in the above "CommonOptimizations"
         // To handle this case, "KeepConstPrecision" is executed again.
@@ -1209,6 +1249,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
+        manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 
