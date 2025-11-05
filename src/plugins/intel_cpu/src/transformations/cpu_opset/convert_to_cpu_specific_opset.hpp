@@ -6,17 +6,20 @@
 #include <memory>
 
 #include "common/pass/align_matmul_input_ranks.hpp"
+#include "common/pass/convert_batch_gather_matmul_to_compressed.hpp"
 #include "common/pass/convert_matmul_to_fc.hpp"
 #include "common/pass/convert_tile_to_seq_tiles.hpp"
 #include "common/pass/convert_to_leaky_relu.hpp"
 #include "common/pass/convert_to_power_static.hpp"
 #include "common/pass/convert_to_swish_cpu.hpp"
 #include "common/pass/fc_bias_fusion.hpp"
+#include "common/pass/moe_matmuls_fusion.hpp"
 #include "common/pass/move_fc_reshape_to_weights.hpp"
 #include "common/pass/move_readvalue_inputs_to_subgraph.hpp"
 #include "common/pass/rnn_sequences_optimization.hpp"
 #include "config.h"
 #include "nodes/fullyconnected.h"
+#include "nodes/gathermatmul.h"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -38,6 +41,20 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
 
     ov::pass::Manager manager("CPU:ConvertToCPUSpecificOpset");
     manager.set_per_pass_validation(false);
+
+    CPU_REGISTER_PASS_X64(manager, MoEMatMulsFusion);
+    CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
+    CPU_REGISTER_PASS_X64(
+        manager,
+        ConvertBatchGatherMatmulToBatchGatherMatmulCompressed,
+        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
+        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
+        [&](const std::shared_ptr<ov::intel_cpu::BatchGatherMatmulCompressed>& gather_matmul,
+            size_t IC,
+            size_t OC,
+            size_t G) {
+            return ov::intel_cpu::node::GatherMatmul::isSupportedCompressedOperation(gather_matmul, IC, OC, G, config);
+        });
 
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFusion);

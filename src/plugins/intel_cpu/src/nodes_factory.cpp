@@ -41,6 +41,7 @@
 #include "nodes/gather_elements.h"
 #include "nodes/gather_nd.h"
 #include "nodes/gather_tree.h"
+#include "nodes/gathermatmul.h"
 #include "nodes/generate_proposals.h"
 #include "nodes/grn.h"
 #include "nodes/identity.hpp"
@@ -240,6 +241,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
     INTEL_CPU_NODE(SegmentMax, Type::SegmentMax);
     INTEL_CPU_NODE(LoRA, Type::LoRA);
+    INTEL_CPU_NODE(GatherMatmul, Type::GatherMatmul);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);
