@@ -304,7 +304,14 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     auto translate_session = node.get_translate_session();
 
     for (; body_inputs_it != body_inputs.end(); ++body_inputs_it) {
-        auto known_input = translate_session->lookup_tensor(body_inputs_it->get()->get_friendly_name());
+        const auto& names = body_inputs_it->get()->output(0).get_names();
+        ov::Output<ov::Node> known_input;
+        for (const auto& name : names) {
+            known_input = translate_session->lookup_tensor(name);
+            if (known_input.get_node() != nullptr) {
+                break;
+            }
+        }
         if (known_input.get_node() != nullptr) {
             loop->set_invariant_input(*body_inputs_it, known_input);
         } else {
