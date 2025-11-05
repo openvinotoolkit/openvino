@@ -98,7 +98,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         ov::Output<ov::Node> position_ids =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         if (node->get_input_size() > 8) {
-            position_ids = node->input_value(8).get_node_shared_ptr();;
+            position_ids = node->input_value(8).get_node_shared_ptr();
         }
         else
         {
@@ -130,7 +130,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     }
 
     past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
-    past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
+    past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);    
     K = construct_kv_cache(past_key, K);
     V = construct_kv_cache(past_value, V);
 
@@ -159,7 +159,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     }
 
     // Make attention mask
-
     std::shared_ptr<ov::Node> mask;
     if (node->get_input_size() > 9) {
         mask = node->input_value(9).get_node_shared_ptr();
