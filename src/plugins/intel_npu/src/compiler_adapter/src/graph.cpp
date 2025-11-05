@@ -232,7 +232,9 @@ void Graph::initialize(const Config& config) {
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
 
-    _batchSize = determine_batch_size();
+    if (!_batchSize.has_value()) {
+        _batchSize = determine_batch_size();
+    }
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
@@ -243,8 +245,9 @@ void Graph::initialize(const Config& config) {
 }
 
 bool Graph::release_blob(const Config& config) {
-    if (_graphDesc._memoryPersistent || _blobIsPersistent || _blob == std::nullopt ||
-        _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8) || config.get<PERF_COUNT>()) {
+    if ((_zeGraphExt != nullptr && _zeGraphExt->isBlobDataImported(_graphDesc)) || _blobIsPersistent ||
+        _blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8) ||
+        config.get<PERF_COUNT>()) {
         return false;
     }
 

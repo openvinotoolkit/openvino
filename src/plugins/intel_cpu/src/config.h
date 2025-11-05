@@ -138,6 +138,9 @@ struct Config {
     std::function<std::string(const std::string&)> cacheEncrypt;
     std::function<std::string(const std::string&)> cacheDecrypt;
 
+    ov::CacheMode m_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
+    bool enableWeightless = false;
+
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;
     void applyDebugCapsProperties();

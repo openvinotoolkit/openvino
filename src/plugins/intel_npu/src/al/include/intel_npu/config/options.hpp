@@ -442,6 +442,7 @@ struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPE
     }
 };
 
+// BATCH_MODE is required to maintain backward/forward compatibility
 struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     static std::string_view key() {
         return ov::intel_npu::batch_mode.name();
@@ -845,8 +846,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static ov::intel_npu::CompilerType parse(std::string_view val) {
-        if (val == "MLIR") {
-            return ov::intel_npu::CompilerType::MLIR;
+        if (val == "PLUGIN" || val == "MLIR") {
+            return ov::intel_npu::CompilerType::PLUGIN;
         } else if (val == "DRIVER") {
             return ov::intel_npu::CompilerType::DRIVER;
         }
@@ -856,8 +857,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
 
     static std::string toString(const ov::intel_npu::CompilerType& val) {
         std::stringstream strStream;
-        if (val == ov::intel_npu::CompilerType::MLIR) {
-            strStream << "MLIR";
+        if (val == ov::intel_npu::CompilerType::PLUGIN) {
+            strStream << "PLUGIN";
         } else if (val == ov::intel_npu::CompilerType::DRIVER) {
             strStream << "DRIVER";
         } else {
@@ -1404,6 +1405,20 @@ struct WS_COMPILE_CALL_NUMBER final : OptionBase<WS_COMPILE_CALL_NUMBER, uint32_
                            ov::intel_npu::ws_compile_call_number.name(),
                            ". Expected only positive integer numbers");
         }
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
+struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::use_base_model_serializer.name();
+    }
+
+    static bool defaultValue() {
+        return true;
     }
 
     static OptionMode mode() {
