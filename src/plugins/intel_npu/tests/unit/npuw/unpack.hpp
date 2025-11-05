@@ -481,7 +481,7 @@ protected:
                     float ref_scaled = details::half_to_float(ref[ref_index]);
                     size_t scale_index = c * W + w;
                     if (scaleType == ov::element::f32) {
-                        ref_scaled *= scale_f32[scaleIndex];
+                        ref_scaled *= scale_f32[scale_index];
                     } else if (scaleType == ov::element::f16) {
                         ref_scaled *= details::half_to_float(scale_f16[scale_index]);
                     }
