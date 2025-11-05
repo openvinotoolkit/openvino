@@ -117,6 +117,9 @@ protected:
     // FIXME: too much details we have to keep in mind - consider a better solution
     void reserve_for_lazy_io();
 
+    // FIXME: need to lock during get_tensor() as it changes internal storages and be called in parallel
+    mutable std::mutex m_get_tensor_mutex;
+
     // Check that m_port_to_tensor does have a tensor stored at the port
     bool is_stored(const ov::Output<const ov::Node>& port) const;
     // Check the port is I/O
