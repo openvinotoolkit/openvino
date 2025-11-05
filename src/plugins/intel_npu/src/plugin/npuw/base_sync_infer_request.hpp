@@ -103,16 +103,22 @@ protected:
 
     struct TensorStorage {
         ov::SoPtr<ov::ITensor> tensor;
-        bool persistent = false;           // true for the parent I/O tensors
-        bool allocated_on_device = false;  // mark for internally allocated I/O
-        bool set_from_outside = false;     // outside I/O tensors shouldn't be reallocated
-        std::size_t num_readers = 0u;      // fixed during execution
-        std::size_t num_reads = 0u;        // changes during execution (ref-counter-like).
-                                           // reset to 0 before every new execution
+        bool persistent = false;       // true for the parent I/O tensors
+        std::size_t num_readers = 0u;  // fixed during execution
+        std::size_t num_reads = 0u;    // changes during execution (ref-counter-like).
+                                       // reset to 0 before every new execution
     };
     // FROM(Every subrequests' output port) TO(Its output tensor)
     mutable std::map<ov::Output<const ov::Node>, TensorStorage>
         m_port_to_tensor;  // mutable due to lazy I/O allocation in get_tensor()
+
+    // Have to reserve size of all structures modified by get_tensor(),
+    // otherwise iterators get invalid during parallel loops.
+    // FIXME: too much details we have to keep in mind - consider a better solution
+    void reserve_for_lazy_io();
+
+    // FIXME: need to lock during get_tensor() as it changes internal storages and be called in parallel
+    mutable std::mutex m_get_tensor_mutex;
 
     // Check that m_port_to_tensor does have a tensor stored at the port
     bool is_stored(const ov::Output<const ov::Node>& port) const;
