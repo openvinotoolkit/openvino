@@ -5,7 +5,8 @@
 #include "shared_test_classes/subgraph/gather_weights_decompression.hpp"
 
 #include "ov_ops/gather_compressed.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/op/convert.hpp"
 
 namespace ov {
@@ -78,7 +79,7 @@ std::shared_ptr<ov::Model> GatherWeightsDecompression::init_subgraph(const ov::S
                                                                      const bool per_tensor_scale) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, indices_shape)};
     auto axis_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {axis});
-    const auto data_subgraph = initGatherDecompressionSubgraph(data_shape,
+    const auto data_subgraph = ov::test::utils::initGatherDecompressionSubgraph(data_shape,
                                                                group_size,
                                                                data_precision,
                                                                output_precision,

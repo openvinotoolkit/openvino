@@ -10,7 +10,8 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/subgraph/moe_builders.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 
@@ -40,8 +41,8 @@ using MoeCompressedWeightsTestParams = std::tuple<MoePatternParams,
                                                   ov::test::ElementType,  // weights precision
                                                   ov::test::ElementType,  // decompression precision
                                                   ov::test::ElementType,  // scale precision
-                                                  DecompressionType,      // decompression multiply type
-                                                  DecompressionType,      // decompression subtract type
+                                                  ov::test::utils::DecompressionType,      // decompression multiply type
+                                                  ov::test::utils::DecompressionType,      // decompression subtract type
                                                   bool,                   // reshape on decompression constants
                                                   int,                    // decompression_group_size
                                                   ov::AnyMap,             // additional config
@@ -315,8 +316,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights,
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::element::f32),
-                                            ::testing::Values(DecompressionType::full),
-                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(false),  // reshape on decompression
                                             ::testing::Values(16),     // decompression group size
                                             ::testing::ValuesIn(generate_additional_config()),

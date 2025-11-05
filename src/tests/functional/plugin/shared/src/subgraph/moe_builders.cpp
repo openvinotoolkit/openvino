@@ -34,7 +34,8 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -48,8 +49,8 @@ std::shared_ptr<ov::Node> build_matmul_weights(
     bool use_weight_decompression,
     const std::optional<ov::element::Type>& decompression_precision = std::nullopt,
     const std::optional<ov::element::Type>& scale_precision = std::nullopt,
-    const std::optional<DecompressionType>& decompression_multiply_type = std::nullopt,
-    const std::optional<DecompressionType>& decompression_subtract_type = std::nullopt,
+    const std::optional<ov::test::utils::DecompressionType>& decompression_multiply_type = std::nullopt,
+    const std::optional<ov::test::utils::DecompressionType>& decompression_subtract_type = std::nullopt,
     const std::optional<bool>& reshape_on_decompression = std::nullopt,
     const std::optional<int>& decompression_group_size = std::nullopt) {
     if (!use_weight_decompression) {
@@ -73,7 +74,7 @@ std::shared_ptr<ov::Node> build_matmul_weights(
                         "reshape_on_decompression must be set when use_weight_decompression is true");
         OPENVINO_ASSERT(decompression_group_size.has_value(),
                         "decompression_group_size must be set when use_weight_decompression is true");
-        return initMatMulDecompressionSubgraphQuantization(weights_shape,
+        return ov::test::utils::initMatMulDecompressionSubgraphQuantization(weights_shape,
                                                            decompression_group_size.value(),
                                                            data_precision,
                                                            weights_precision,
@@ -94,8 +95,8 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_para
                                                 const bool use_weight_decompression,
                                                 const std::optional<ov::element::Type> decompression_precision,
                                                 const std::optional<ov::element::Type> scale_precision,
-                                                const std::optional<DecompressionType> decompression_multiply_type,
-                                                const std::optional<DecompressionType> decompression_subtract_type,
+                                                const std::optional<ov::test::utils::DecompressionType> decompression_multiply_type,
+                                                const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type,
                                                 const std::optional<bool> reshape_on_decompression,
                                                 const std::optional<int> decompression_group_size) {
     // Use parameters from shape_params - static shapes only
@@ -303,8 +304,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(const MoePatternParams& moe_para
                                                 const bool use_weight_decompression,
                                                 const std::optional<ov::element::Type> decompression_precision,
                                                 const std::optional<ov::element::Type> scale_precision,
-                                                const std::optional<DecompressionType> decompression_multiply_type,
-                                                const std::optional<DecompressionType> decompression_subtract_type,
+                                                const std::optional<ov::test::utils::DecompressionType> decompression_multiply_type,
+                                                const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type,
                                                 const std::optional<bool> reshape_on_decompression,
                                                 const std::optional<int> decompression_group_size) {
     // Use parameters from shape_params - static shapes only

@@ -3,6 +3,7 @@
 //
 
 #include "custom/subgraph_tests/src/classes/matmul_weights_decompression.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 
 using namespace CPUTestUtils;
 
@@ -10,6 +11,7 @@ namespace ov {
 namespace test {
 
 namespace {
+using namespace ov::test::utils;
 
 std::vector<ov::AnyMap> filter_additional_config_basic() {
     std::vector<ov::AnyMap> additional_config = {{ov::hint::dynamic_quantization_group_size(0)}};
@@ -71,8 +73,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(true),
-                                            ::testing::Values(DecompressionType::full),
-                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
                                             // todo: zero points converted to fp32 for reshape == true case
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_basic()),
@@ -191,9 +193,9 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_corner_cases_amx 
 };
 
 const std::vector<bool> transpose_weights = {true, false};
-const std::vector<DecompressionType> decompression_subtract_type = {DecompressionType::full,
-                                                                    DecompressionType::scalar,
-                                                                    DecompressionType::empty};
+const std::vector<ov::test::utils::DecompressionType> decompression_subtract_type = {ov::test::utils::DecompressionType::full,
+                                                                    ov::test::utils::DecompressionType::scalar,
+                                                                    ov::test::utils::DecompressionType::empty};
 const std::vector<bool> reshape_on_decompression = {true, false};
 const std::vector<ov::test::ElementType> decompression_precisions_corner_cases = {ov::element::f16, ov::element::f32};
 

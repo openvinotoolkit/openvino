@@ -24,7 +24,8 @@
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/codec_xor.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #ifndef WIN32
 #    include <unistd.h>
 #endif
@@ -255,15 +256,15 @@ TEST_P(CheckWeightlessCacheAccuracyLowPrecision, MatmulWeightsDecompression) {
         dynShape = shape_params.data_shape.second.front();
     }
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, dynShape)};
-    const auto weights_subgraph = ov::test::initMatMulDecompressionSubgraph(shape_params.weights_shape,
+    const auto weights_subgraph = ov::test::utils::initMatMulDecompressionSubgraph(shape_params.weights_shape,
                                                                             shape_params.decompression_group_size,
                                                                             ov::element::f32,
                                                                             model_dtype,
                                                                             ov::element::f32,
                                                                             ov::element::dynamic,
                                                                             true,
-                                                                            ov::test::DecompressionType::full,
-                                                                            ov::test::DecompressionType::full,
+                                                                            ov::test::utils::DecompressionType::full,
+                                                                            ov::test::utils::DecompressionType::full,
                                                                             false);
     auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
 

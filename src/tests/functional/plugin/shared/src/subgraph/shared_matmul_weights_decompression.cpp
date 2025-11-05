@@ -6,7 +6,8 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/transpose.hpp"
@@ -46,15 +47,15 @@ std::shared_ptr<ov::Model> SharedMatmulWeightsDecompression::initSubgraph(
     const ov::element::Type weights_precision,
     const ov::element::Type decompression_precision,
     const bool transpose_weights,
-    const DecompressionType decompression_subtract_type) {
-    const auto weights_subgraph = initMatMulDecompressionSubgraph(weights_shape,
+    const ov::test::utils::DecompressionType decompression_subtract_type) {
+    const auto weights_subgraph = ov::test::utils::initMatMulDecompressionSubgraph(weights_shape,
                                                                   group_size,
                                                                   data_precision,
                                                                   weights_precision,
                                                                   decompression_precision,
                                                                   ov::element::dynamic,
                                                                   transpose_weights,
-                                                                  DecompressionType::full,
+                                                                  ov::test::utils::DecompressionType::full,
                                                                   decompression_subtract_type,
                                                                   false);
     ov::ParameterVector params;
