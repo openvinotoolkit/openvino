@@ -23,7 +23,6 @@
 #include "group_normalization_inst.h"
 #include "mvn_inst.h"
 #include "rms_inst.h"
-#include "resample_inst.h"
 
 #include <vector>
 #include <list>
