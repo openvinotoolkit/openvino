@@ -20,8 +20,8 @@ class TRANSFORMATIONS_API AttachCacheManagerToPagedAttention;
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Model pass that finds ov::internal::PagedAttention nodes, constructs a single
- *        ov::internal::CacheManager (assumes same data type for all PagedAttention nodes),
+ * @brief Model pass that finds ov::util::PagedAttention nodes, constructs a single
+ *        ov::util::PagedCacheManager (assumes same data type for all PagedAttention nodes),
  *        and attaches it to every PagedAttention via set_cache_manager(...).
  */
 class ov::pass::AttachCacheManagerToPagedAttention : public ov::pass::ModelPass {

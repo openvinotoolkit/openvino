@@ -140,10 +140,10 @@ struct paged_attention_kernel_context {
 };
 
 struct cache_manager_adapter {
-    ov::internal::PagedCacheManager& cm;
+    ov::util::PagedCacheManager& cm;
     size_t node_id;
 
-    explicit cache_manager_adapter(ov::internal::PagedCacheManager& mgr, size_t node_id) : cm(mgr), node_id(node_id) {}
+    explicit cache_manager_adapter(ov::util::PagedCacheManager& mgr, size_t node_id) : cm(mgr), node_id(node_id) {}
 
     inline void* get_key_cache_base() const {
         return cm.get_cache_blocks().key_base;
@@ -307,7 +307,7 @@ inline void accumulate_value_from_new_key(int32_t abs_token_idx,
 
 template <typename T>
 void paged_attention(const size_t node_id,
-                     const std::shared_ptr<ov::internal::PagedCacheManager>& cache_manager,
+                     const std::shared_ptr<ov::util::PagedCacheManager>& cache_manager,
                      T* out,
                      T* out_scores,
                      const T* query,
