@@ -39,6 +39,7 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -47,6 +48,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/utils.hpp"
+
 namespace ov {
 namespace pass {
 
@@ -396,8 +398,8 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                 }
 
                 auto fused = std::make_shared<ov::op::v0::Concat>(inputs, 0);
-                if (std::all_of(inputs.begin(), inputs.end(), [](const Output<Node>& input) {
-                        return ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr()) != nullptr;
+                if (std::all_of(inputs.begin(), inputs.end(), [](const auto& input) {
+                        return ov::op::util::is_constant(input.get_node());
                     })) {
                     // postponed_constant attribute is needed to perform constant folding on serialization step
                     fused->get_rt_info()["postponed_constant"] = true;
