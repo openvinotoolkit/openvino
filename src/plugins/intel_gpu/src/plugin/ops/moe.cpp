@@ -5,7 +5,10 @@
 #include "openvino/op/moe.hpp"
 #include "intel_gpu/op/moe_compressed.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-
+#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
 #include <intel_gpu/primitives/moe_scatter_reduction.hpp>
@@ -18,14 +21,46 @@
 namespace ov {
 namespace op {
 namespace internal {
+using MOE3GemmFusedCompressed = ov::intel_gpu::op::MOE3GemmFusedCompressed;
 using MOECompressed = ov::intel_gpu::op::MOECompressed;
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
 
-
 namespace ov::intel_gpu {
 using namespace cldnn;
+
+static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed>& op) {
+    auto inputs = p.GetInputInfo(op);
+    const auto& config = op->get_config();
+    ///   0: hidden_states - input tensor with hidden representations
+    ///   1: routing_weights - [num_seq, num_experts] routing weights for all experts
+    ///   2: w0_weight - expert weights for first projection,
+    ///                  shape [num_experts, inter_size, group_num, group_size]
+    ///   3: w0_scale - expert scale for first projection for compressed experts,
+    ///                  shape [num_experts, inter_size, group_num, 1]
+    ///   4: w0_zp - expert zp for first projection for compressed experts,
+    ///                  shape [num_experts, inter_size, group_num, 1]
+    ///   5: w1_weight - expert weights for second projection,
+    ///                  shape [num_experts, inter_size, group_num, group_size]
+    ///   6: w1_scale - expert scale for second projection for compressed experts,
+    ///                  shape [num_experts, inter_size, group_num, 1]
+    ///   7: w1_zp - expert zp for second projection for compressed experts,
+    ///                  shape [num_experts, inter_size, group_num, 1]
+    ///   8: w2_weight - expert weights for final projection,
+    ///                  shape [num_experts, hidden_size, group_num, group_size]
+    ///   9: w2_scale - expert scale for final projection for compressed experts,
+    ///                  shape [num_experts, hidden_size, group_num, 1]
+    ///   10: w2_zp - expert zp for final projection for compressed experts,
+    ///                  shape [num_experts, hidden_size, group_num, 1]
+    validate_inputs_count(op, {11});
+
+    const std::string layerName = layer_type_name_ID(op);
+    const cldnn::moe_3gemm_fused_compressed moe(layerName, inputs, config);
+
+    p.add_primitive(*op, moe);
+}
+
 static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOECompressed>& op) {
     auto inputs = p.GetInputInfo(op);
     auto& config = op->get_config();
@@ -35,6 +70,30 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     }
     if (config.expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
         // Create GEMM3_SWIGLU specific primitives
+        //   0: hidden_states - input tensor with hidden representations
+        //   1: routing_weights - [num_experts, ...] normalized weights for selected experts
+        //      (input to final multiplication)
+        //   2: router_topk_output_indices - [..., topk] indices of selected top-k experts
+        //   3: w0_weight - expert weights for first projection,
+        //   shape [num_experts, inter_size, group_num, group_size]
+        //   4: w0_scale - expert scale for first projection for compressed experts,
+        //   shape [num_experts, inter_size, group_num, 1]
+        //   5: w0_zp - expert zp for first projection for compressed experts,
+        //   shape [num_experts, inter_size, group_num, 1]
+        //   6: w1_weight - expert weights for second projection,
+        //   shape [num_experts, inter_size, group_num, group_size]
+        //   7: w1_scale - expert scale for second projection for compressed experts,
+        //   shape [num_experts, inter_size, group_num, 1]
+        //   8: w1_zp - expert zp for second projection for compressed experts,
+        //   shape [num_experts, inter_size, group_num, 1]
+        //   9: w2_weight - expert weights for final projection,
+        //   shape [num_experts, hidden_size, group_num, group_size]
+        //   10: w2_scale - expert scale for final projection for compressed experts,
+        //   shape [num_experts, hidden_size, group_num, 1]
+        //   11: w2_zp - expert zp for final projection for compressed experts,
+        //   shape [num_experts, hidden_size, group_num, 1]
+
+        // Use moe_3gemm_fused_compressed to replace it.
     } else  {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives
         // input0 : input {#tokens, hidden_size}
@@ -155,7 +214,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         p.add_primitive(*op, moe_scatter_reduce_prim);
     }
 }
-
+REGISTER_FACTORY_IMPL(internal, MOE3GemmFusedCompressed);
 REGISTER_FACTORY_IMPL(internal, MOECompressed);
 
 }  // namespace ov::intel_gpu

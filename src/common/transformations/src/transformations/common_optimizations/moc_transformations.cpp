@@ -291,10 +291,9 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, ResolveNameCollisions, true);
-    // todo: enable after plugin support for MoE
-    // Remove pytestmark to enable e2e test:
+    // TODO: Remove pytestmark to enable e2e test:
     // tests/model_hub_tests/transformation_tests/test_moe_transformation.py
-    // REGISTER_PASS(manager, FuseMOE)
+    REGISTER_PASS(manager, FuseMOE)
     REGISTER_PASS(manager, VectorizedMOE2GEMMTransposeWeights)
 
     manager.run_passes(f);
