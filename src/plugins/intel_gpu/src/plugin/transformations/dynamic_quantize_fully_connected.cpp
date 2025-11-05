@@ -58,6 +58,9 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         // Add precomputed_reduction connection, if possible
         if (precomputed_reduction && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_static_wzp) {
             auto weight_zp_shape = m_fc->get_input_partial_shape(4);
+            if (weight_zp_shape.size() < 1) {
+                return false;
+            }
             auto weight_scale_shape = m_fc->get_input_partial_shape(3);
             const size_t wei_zp_group_size = innermost_size / weight_zp_shape[weight_zp_shape.size() - 1].get_length();
             const size_t wei_scale_group_size = innermost_size / weight_scale_shape[weight_scale_shape.size() - 1].get_length();
