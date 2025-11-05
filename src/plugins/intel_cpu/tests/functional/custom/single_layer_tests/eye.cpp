@@ -135,7 +135,6 @@ protected:
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        __lsan_enable();
         makeLeak();
         makeLeak2();
         makeLeak3();
