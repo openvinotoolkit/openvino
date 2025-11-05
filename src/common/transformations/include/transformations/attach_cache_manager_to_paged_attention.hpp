@@ -29,4 +29,3 @@ public:
     OPENVINO_MODEL_PASS_RTTI("AttachCacheManagerToPagedAttention");
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
-
