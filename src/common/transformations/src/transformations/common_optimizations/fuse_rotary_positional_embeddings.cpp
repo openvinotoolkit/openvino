@@ -783,7 +783,10 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     auto reshape = pattern::wrap_type<v1::Reshape>({qk_linear, pattern::any_input()},
                                                    pattern::shape_matches("[?, head_cnt, 1, head_size]"),
                                                    {{"special_zero", false}});
-    auto slice_1 = NewGenSlice(reshape, 0, "ndims", 1, 3);
+
+    auto qkv_proj = pattern::wrap_type<v1::VariadicSplit>({reshape, 3, {"ndims", "ndims"}});
+    qkv_proj->set_output_size(2);
+    auto slice_1 = NewGenSlice(reshape, 0, "ndims", 1, 3) | qkv_proj->output(0);
 
     auto const_idx =
         pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches(ov::element::i32) && const_idx_predicate);
@@ -807,7 +810,7 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     auto multiply_1 = pattern::wrap_type<v1::Multiply>({flatten, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
     auto add = pattern::wrap_type<v1::Add>({multiply, multiply_1}, {{"auto_broadcast", "numpy"}});
 
-    auto slice_5 = NewGenSlice(reshape, "ndims", INT_MAX, 1, 3);
+    auto slice_5 = NewGenSlice(reshape, "ndims", INT_MAX, 1, 3) | qkv_proj->output(1);
     auto result = pattern::wrap_type<v0::Concat>({add, slice_5}, {{"axis", -1}});
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
