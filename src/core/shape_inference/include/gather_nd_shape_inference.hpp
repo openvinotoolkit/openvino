@@ -47,9 +47,10 @@ std::vector<TRShape> gather_nd_base_shape_infer(const TOp* op, const std::vector
         output_dims.reserve(batch_dims + output_indices_length + slice_length);
         // Merge batch dimensions (with broadcasting support for ONNXRuntime compatibility)
         for (size_t dim_idx = 0; dim_idx < batch_dims; ++dim_idx) {
-            NODE_VALIDATION_CHECK(op,
-                                  DimType::broadcast_merge(output_dims[dim_idx], data_pshape[dim_idx], indices_pshape[dim_idx]),
-                                  "Batch dimensions of data and indices must be broadcastable.");
+            NODE_VALIDATION_CHECK(
+                op,
+                DimType::broadcast_merge(output_dims[dim_idx], data_pshape[dim_idx], indices_pshape[dim_idx]),
+                "Batch dimensions of data and indices must be broadcastable.");
         }
         // Insert middle dimensions from the indices shape
         for (auto dim_idx = batch_dims; dim_idx < indices_pshape.size() - 1; ++dim_idx) {
