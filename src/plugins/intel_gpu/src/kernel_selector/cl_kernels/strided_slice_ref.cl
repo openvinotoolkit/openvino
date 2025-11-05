@@ -12,14 +12,14 @@ inline void FUNC(get_slice_step)(OPTIONAL_SHAPE_INFO_ARG
 {
     const uint batch_index = DIM_IDX_BATCH;
     const uint feature_index = DIM_IDX_FEATURE;
-#ifdef OUTPUT_LAYOUT_BFYX
+#ifdef INPUT0_LAYOUT_BFYX
     const uint y_index = DIM_IDX_Y;
     const uint x_index = DIM_IDX_X;
-#elif OUTPUT_LAYOUT_BFZYX
+#elif INPUT0_LAYOUT_BFZYX
     const uint z_index = DIM_IDX_Z;
     const uint y_index = DIM_IDX_Y;
     const uint x_index = DIM_IDX_X;
-#elif OUTPUT_LAYOUT_BFWZYX
+#elif INPUT0_LAYOUT_BFWZYX
     const uint w_index = DIM_IDX_W;
     const uint z_index = DIM_IDX_Z;
     const uint y_index = DIM_IDX_Y;
@@ -28,13 +28,13 @@ inline void FUNC(get_slice_step)(OPTIONAL_SHAPE_INFO_ARG
 
     *step_batch = batch_index < STRIDE_DIMS ? stride[batch_index] : 1;
     *step_feature = feature_index < STRIDE_DIMS ? stride[feature_index] : 1;
-#ifdef OUTPUT_LAYOUT_BFYX
+#ifdef INPUT0_LAYOUT_BFYX
     *step_w = 0;
     *step_z = 0;
-#elif OUTPUT_LAYOUT_BFZYX
+#elif INPUT0_LAYOUT_BFZYX
     *step_w = 0;
     *step_z = z_index < STRIDE_DIMS ? stride[z_index] : 1;
-#elif OUTPUT_LAYOUT_BFWZYX
+#elif INPUT0_LAYOUT_BFWZYX
     *step_w = w_index < STRIDE_DIMS ? stride[w_index] : 1;
     *step_z = z_index < STRIDE_DIMS ? stride[z_index] : 1;
 #endif
@@ -242,14 +242,14 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef SHRINK_MODE
     FUNC_CALL(calculate_index)(&step_batch, &begin_batch, &end_batch, INPUT0_BATCH_NUM, SHRINK_BATCH);
     FUNC_CALL(calculate_index)(&step_feature, &begin_feature, &end_feature, INPUT0_FEATURE_NUM, SHRINK_FEATURE);
-#ifdef OUTPUT_LAYOUT_BFYX
+#ifdef INPUT0_LAYOUT_BFYX
     FUNC_CALL(calculate_index)(&step_y, &begin_y, &end_y, INPUT0_SIZE_Y, SHRINK_Y);
     FUNC_CALL(calculate_index)(&step_x, &begin_x, &end_x, INPUT0_SIZE_X, SHRINK_X);
-#elif OUTPUT_LAYOUT_BFZYX
+#elif INPUT0_LAYOUT_BFZYX
     FUNC_CALL(calculate_index)(&step_z, &begin_z, &end_z, INPUT0_SIZE_Z, SHRINK_Z);
     FUNC_CALL(calculate_index)(&step_y, &begin_y, &end_y, INPUT0_SIZE_Y, SHRINK_Y);
     FUNC_CALL(calculate_index)(&step_x, &begin_x, &end_x, INPUT0_SIZE_X, SHRINK_X);
-#elif OUTPUT_LAYOUT_BFWZYX
+#elif INPUT0_LAYOUT_BFWZYX
     FUNC_CALL(calculate_index)(&step_w, &begin_w, &end_w, INPUT0_SIZE_W, SHRINK_W);
     FUNC_CALL(calculate_index)(&step_z, &begin_z, &end_z, INPUT0_SIZE_Z, SHRINK_Z);
     FUNC_CALL(calculate_index)(&step_y, &begin_y, &end_y, INPUT0_SIZE_Y, SHRINK_Y);
