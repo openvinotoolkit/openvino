@@ -846,8 +846,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static ov::intel_npu::CompilerType parse(std::string_view val) {
-        if (val == "MLIR") {
-            return ov::intel_npu::CompilerType::MLIR;
+        if (val == "PLUGIN" || val == "MLIR") {
+            return ov::intel_npu::CompilerType::PLUGIN;
         } else if (val == "DRIVER") {
             return ov::intel_npu::CompilerType::DRIVER;
         }
@@ -857,8 +857,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
 
     static std::string toString(const ov::intel_npu::CompilerType& val) {
         std::stringstream strStream;
-        if (val == ov::intel_npu::CompilerType::MLIR) {
-            strStream << "MLIR";
+        if (val == ov::intel_npu::CompilerType::PLUGIN) {
+            strStream << "PLUGIN";
         } else if (val == ov::intel_npu::CompilerType::DRIVER) {
             strStream << "DRIVER";
         } else {
