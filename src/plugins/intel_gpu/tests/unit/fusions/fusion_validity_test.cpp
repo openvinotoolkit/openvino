@@ -126,8 +126,8 @@ TEST_P(format_mismatch_multiple_fusing, multiple_fused_node) {
 }
 
 INSTANTIATE_TEST_SUITE_P(validate_fusings_gpu, format_mismatch_multiple_fusing, ::testing::ValuesIn(std::vector<fusing_test_params>{
-    fusing_test_params{ CASE_RESAMPLE_FSV16_1, 3, 4 },
-    fusing_test_params{ CASE_RESAMPLE_FSV16_2, 3, 4 }
+    fusing_test_params{ CASE_RESAMPLE_FSV16_1, 4, 4 },
+    fusing_test_params{ CASE_RESAMPLE_FSV16_2, 4, 4 }
 }));
 
 #define CASE_RESAMPLE_ONNX_4D_FSV16_1 { 1, 16, 64, 64 }, { 1, 16, 128, 128 }, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, data_types::f16, format::bfyx
