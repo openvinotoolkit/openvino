@@ -282,23 +282,32 @@ ov::intel_cpu::MoE3GeMMFusion::MoE3GeMMFusion() {
 
         const auto down_gathered_mm =
             std::make_shared<BatchGatherMatmul>(pattern_map.at(swiglu), down_mm_node->input_value(1), active_indices);
+        ov::copy_runtime_info(down_mm_node, down_gathered_mm);
+        down_gathered_mm->set_friendly_name(down_mm_node->get_friendly_name());
+
         const auto& chosen_experts_input = pattern_map.at(chosen_experts);
         const auto router_transpose_node = pattern_map.at(router_transpose).get_node_shared_ptr();
         const auto new_router_transpose =
             router_transpose_node->clone_with_new_inputs({chosen_experts_input, router_transpose_node->input_value(1)});
+        ov::copy_runtime_info(router_transpose_node, new_router_transpose);
+        new_router_transpose->set_friendly_name(router_transpose_node->get_friendly_name());
 
         const auto router_unsqueeze_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
         const auto router_unsqueeze =
             std::make_shared<ov::op::v0::Unsqueeze>(new_router_transpose, router_unsqueeze_const);
+        ov::copy_runtime_info(router_transpose_node, {router_unsqueeze_const, router_unsqueeze});
 
         const auto final_mul_node = pattern_map.at(mul3).get_node_shared_ptr();
         const auto new_final_mul =
             final_mul_node->clone_with_new_inputs({down_gathered_mm->output(0), router_unsqueeze->output(0)});
-        ov::replace_node_update_name(final_mul_node, new_final_mul);
+        ov::copy_runtime_info(final_mul_node, new_final_mul);
+        new_final_mul->set_friendly_name(final_mul_node->get_friendly_name());
+        const auto reduce_sum_node = pattern_map.at(reduce_sum).get_node_shared_ptr();
+        const auto new_reduce_sum =
+            reduce_sum_node->clone_with_new_inputs({new_final_mul->output(0), reduce_sum_node->input_value(1)});
+        ov::copy_runtime_info(reduce_sum_node, new_reduce_sum);
+        new_reduce_sum->set_friendly_name(reduce_sum_node->get_friendly_name());
 
-        validate_nodes(pattern_map, {reduce_sum});
-
-        const auto& reduce_sum_out = pattern_map.at(reduce_sum);
         const auto& end_reshape_out = pattern_map.at(end_reshape);
         const auto end_reshape_rank = end_reshape_out.get_partial_shape().rank();
         const auto& end_reshape_shape = pattern_map.at(end_reshape_target_shape);
@@ -309,9 +318,16 @@ ov::intel_cpu::MoE3GeMMFusion::MoE3GeMMFusion() {
             ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {end_reshape_rank.get_length()}),
             ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}),
             ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0}));
+        ov::copy_runtime_info(end_reshape_out.get_node_shared_ptr(),
+                              {slice,
+                               slice->get_input_node_shared_ptr(1),
+                               slice->get_input_node_shared_ptr(2),
+                               slice->get_input_node_shared_ptr(3),
+                               slice->get_input_node_shared_ptr(4)});
 
-        const auto reshape = std::make_shared<ov::op::v1::Reshape>(reduce_sum_out, slice, true);
-        ov::replace_output_update_name(reduce_sum_out, reshape->output(0));
+        const auto reshape = std::make_shared<ov::op::v1::Reshape>(new_reduce_sum, slice, true);
+        ov::replace_output_update_name(pattern_map.at(reduce_sum), reshape->output(0));
+        reshape->set_friendly_name(new_reduce_sum->get_friendly_name() + "_Reshape");
         return true;
     };
 
