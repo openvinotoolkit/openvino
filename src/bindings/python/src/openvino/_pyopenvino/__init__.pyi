@@ -766,6 +766,24 @@ class Core:
                         :return: Plugin version information.
                         :rtype: dict[str, openvino.Version]
         """
+    @typing.overload
+    def import_model(self, tensor: Tensor, device_name: str, properties: collections.abc.Mapping[str, typing.Any]) -> CompiledModel:
+        """
+                    Imports a compiled model from a previously exported one.
+        
+                    GIL is released while running this function.
+        
+                    :param compiled_blob: ov::Tensor input blob containing a model previously exported using the ov::CompiledModel::export_model method.
+                    :type compiled_blob: openvino.Tensor
+                    :param device_name: Name of device to which compiled model is imported.
+                                        Note: if device_name is not used to compile the original model, an exception is thrown.
+                    :type device_name: str
+                    :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
+                    :type properties: dict[str, typing.Any], optional
+                    :return: A compiled model.
+                    :rtype: openvino.CompiledModel
+        """
+    @typing.overload
     def import_model(self, model_stream: typing.Any, device_name: str, properties: collections.abc.Mapping[str, typing.Any]) -> CompiledModel:
         """
                     Imports a compiled model from a previously exported one.
