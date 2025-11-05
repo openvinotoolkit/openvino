@@ -140,6 +140,9 @@ private:
         writer(stream);
         stream.close();
         std::cout << "UUUUUUUUUUUUUUUU write_cache_entry" << std::endl;
+        if (std::filesystem::exists(blob_path)) {
+            std::cout << "UUUUUUUUUUUUUUUU std::filesystem::exists" << std::endl;
+        }
         std::filesystem::permissions(blob_path,
                                      std::filesystem::perms::owner_read | std::filesystem::perms::group_read);
         std::cout << "UUUUUUUUUUUUUUUU write_cache_entry1" << std::endl;
