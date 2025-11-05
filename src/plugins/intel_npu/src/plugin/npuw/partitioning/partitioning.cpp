@@ -1894,7 +1894,7 @@ void Partitioner::attention(const std::string& func_name) {
 
     if (!cfg.get<::intel_npu::NPUW_ATTN>()) {
         LOG_VERB("Dynamic handling is possible for  " << func_name << " in model " << model->get_friendly_name()
-                                                    << " but is disabled explicitly");
+                                                      << " but is disabled explicitly");
         return;
     }
 
