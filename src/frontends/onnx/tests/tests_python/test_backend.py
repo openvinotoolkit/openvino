@@ -593,7 +593,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_gelu_default_2_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_max_empty_set_cpu",
-        "OnnxBackendNodeModelTest.test_group_normalization_epsilon_cpu",
         "OnnxBackendNodeModelTest.test_group_normalization_example_cpu",
         "OnnxBackendNodeModelTest.test_qlinearmatmul_3D_int8_float16_cpu",
         "OnnxBackendNodeModelTest.test_qlinearmatmul_3D_int8_float32_cpu",
@@ -631,8 +630,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_139937,
-        "OnnxBackendNodeModelTest.test_dequantizelinear_blocked_cpu",
-        "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_int8_float16_cpu",
     ),
     (
         xfail_issue_139938,

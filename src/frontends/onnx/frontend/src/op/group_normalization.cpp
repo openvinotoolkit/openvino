@@ -19,7 +19,7 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace ai_onnx {
-namespace opset_1 {
+namespace opset_18 {
 ov::OutputVector group_normalization(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     OPENVINO_ASSERT(inputs.size() == 3);
@@ -51,8 +51,24 @@ ov::OutputVector group_normalization(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v12::GroupNormalization>(data, c_scale, c_bias, num_groups, eps)};
 }
-ONNX_OP("GroupNormalization", OPSET_SINCE(1), ai_onnx::opset_1::group_normalization);
-}  // namespace opset_1
+ONNX_OP("GroupNormalization", OPSET_SINCE(18), ai_onnx::opset_18::group_normalization);
+}  // namespace opset_18
+namespace opset_21 {
+ov::OutputVector group_normalization(const ov::frontend::onnx::Node& node) {
+    const auto inputs = node.get_ov_inputs();
+    OPENVINO_ASSERT(inputs.size() == 3);
+
+    const auto& data = inputs[0];   // Shape [N, C, ...]
+    const auto& scale = inputs[1];  // Shape [C]
+    const auto& bias = inputs[2];   // Shape [C]
+
+    const auto eps = node.get_attribute_value<float>("epsilon", 1e-05f);
+    const auto num_groups = node.get_attribute_value<int64_t>("num_groups");
+
+    return {std::make_shared<v12::GroupNormalization>(data, scale, bias, num_groups, eps)};
+}
+ONNX_OP("GroupNormalization", OPSET_SINCE(21), ai_onnx::opset_21::group_normalization);
+}  // namespace opset_21
 }  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
