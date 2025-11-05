@@ -75,8 +75,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvertI420WithLegacyTest.*)",
         // Plugin version was changed to ov::Version
         R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
-        // New plugin doesn't support dynamic preprocessing, here we set blob with changed layout
-        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*_iPRC=0.*_iLT=1.*)",
         // New plugin API doesn't support changes of pre-processing
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
