@@ -47,7 +47,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/유니코드폴더/install/tests/layer_tests
+      LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
