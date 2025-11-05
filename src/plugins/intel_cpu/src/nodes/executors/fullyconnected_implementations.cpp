@@ -195,7 +195,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(MlasGemmExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
-
+                VERIFY(weiRank(config) <= 3U, UNSUPPORTED_WEI_RANK);
+                VERIFY(weiRank(config) != 3U || weiDims(config)[0] <= 1, UNSUPPORTED_WEI_RANK);
                 return true;
             },
             HasNoOptimalConfig<FCAttrs>{},
@@ -365,7 +366,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(all_of(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
-                VERIFY(any_of(weiType(config), f32, i8), UNSUPPORTED_WEI_PRECISIONS);
+                VERIFY(any_of(weiType(config), f32, i8, i4), UNSUPPORTED_WEI_PRECISIONS);
                 if (config.attrs.withBias) {
                     VERIFY(biaType(config) == f32, UNSUPPORTED_SRC_PRECISIONS);
                 }
@@ -402,13 +403,16 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             OperationType::MatMul,
             // supports
             []([[maybe_unused]] const FCConfig& config) -> bool {
-                // enable only with debug caps and env variable defined for now
                 CPU_DEBUG_CAP_ENABLE(
                     if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                         return true;
                     })
-                return false;
+                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
+                VERIFY(weiDims(config)[0] > 1, UNSUPPORTED_WEI_RANK);
+                return true;
             },
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
@@ -425,8 +429,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 MatMulAttrs matMulAttrs{false,
                                         false};
                 matMulAttrs.postOps = attrs.postOps;
-                matMulAttrs.transposeB = attrs.weightsNonTransposed;
+                matMulAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
                 matMulAttrs.constantWeights = true;
+                matMulAttrs.fcSemantic = true;
                 
                 return std::make_shared<
                     DnnlExecutor<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData,

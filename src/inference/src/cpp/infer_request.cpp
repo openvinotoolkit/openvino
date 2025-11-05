@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/runtime/compiled_model.hpp"

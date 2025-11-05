@@ -296,12 +296,12 @@ class Core(openvino._pyopenvino.Core):
                 :rtype: openvino.CompiledModel
                 
         """
-    def import_model(self, model_stream: bytes, device_name: str, config: typing.Optional[dict[str, typing.Any]] = None) -> CompiledModel:
+    def import_model(self, model_stream: typing.Union[bytes, _io.BytesIO, openvino._pyopenvino.Tensor], device_name: str, config: typing.Optional[dict[str, typing.Any]] = None) -> CompiledModel:
         """
         Imports a compiled model from a previously exported one.
         
-                :param model_stream: Input stream, containing a model previously exported, using export_model method.
-                :type model_stream: bytes
+                :param model_stream: Input stream or tensor, containing a model previously exported, using export_model method.
+                :type model_stream: Union[bytes, io.BytesIO, openvino.Tensor]
                 :param device_name: Name of device to which compiled model is imported.
                                     Note: if device_name is not used to compile the original model,
                                     an exception is thrown.
