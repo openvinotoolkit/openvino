@@ -608,12 +608,11 @@ Example:
 
     <!-- E#112064 -->
     <skip_config>
-        <message>Failing common core threading tests</message>
+        <message>INFERENCE_PRECISION_HINT = FP32 not supported on NPU</message>
         <enable_rules>
             <backend>LEVEL0</backend>
         </enable_rules>
         <filters>
-            <!-- INFERENCE_PRECISION_HINT = FP32 not supported on NPU -->
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*</filter>
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_MultipleCores.*</filter>
         </filters>
