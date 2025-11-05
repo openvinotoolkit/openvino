@@ -174,6 +174,31 @@ ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
         node.get_attribute_value<std::vector<std::int64_t>>("output_padding",
                                                             std::vector<std::int64_t>(num_spatial_dims, 0))};
 
+    // Calculate padding for auto_pad modes when output_shape is not provided
+    // Per ONNX spec, for ConvTranspose with SAME_UPPER/SAME_LOWER: output = input * stride
+    if (output_shape.empty() &&
+        (auto_pad_type == ov::op::PadType::SAME_UPPER || auto_pad_type == ov::op::PadType::SAME_LOWER)) {
+        // Only calculate if shapes are static (required for padding calculation)
+        if (data_pshape.is_static() && filters_pshape.is_static()) {
+            const ov::Shape data_static_shape = data_pshape.to_shape();
+            const ov::Shape filters_static_shape = filters_pshape.to_shape();
+
+            // Calculate padding to satisfy ONNX spec: output = input * stride
+            convpool::calculate_transpose_auto_pads(
+                data_static_shape,
+                filters_static_shape,
+                strides,
+                dilations,
+                auto_pad_type,
+                ov::CoordinateDiff(std::begin(output_padding), std::end(output_padding)),
+                pads_begin,
+                pads_end);
+
+            // Override auto_pad_type to EXPLICIT since we've calculated explicit pads
+            auto_pad_type = ov::op::PadType::EXPLICIT;
+        }
+    }
+
     int64_t groups{node.get_attribute_value<int64_t>("group", 1)};
 
     CHECK_VALID_NODE(node, groups >= 0, "Incorrect value of 'group' attribute: ", groups);
