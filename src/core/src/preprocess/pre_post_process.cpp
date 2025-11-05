@@ -51,8 +51,7 @@ struct RTInfoCache {
 
     void restore(const std::shared_ptr<ov::Model>& model) {
         traverse(model, [this](const std::shared_ptr<ov::Node>& op) {
-            auto it = m_rt_info_cache.find(op);
-            if (it != m_rt_info_cache.end()) {
+            if (const auto it = m_rt_info_cache.find(op); it != m_rt_info_cache.end()) {
                 op->get_rt_info() = it->second;
             } else {
                 ov::pass::enable_constant_folding(op);
@@ -65,20 +64,14 @@ struct RTInfoCache {
 private:
     struct WeakNodeHash {
         size_t operator()(const std::weak_ptr<ov::Node>& wn) const {
-            auto sn = wn.lock();
+            const auto sn = wn.lock();
             return sn ? std::hash<ov::Node*>()(sn.get()) : 0;
         }
     };
 
     struct WeakNodeEqual {
-        bool operator()(const std::weak_ptr<ov::Node>& wl, const std::weak_ptr<ov::Node>& wr) const {
-            const auto l = wl.lock();
-            const auto r = wr.lock();
-            if (!l && !r)
-                return true;
-            if (!l || !r)
-                return false;
-            return l.get() == r.get();
+        bool operator()(const std::weak_ptr<ov::Node>& lhs, const std::weak_ptr<ov::Node>& rhs) const {
+            return !lhs.owner_before(rhs) && !rhs.owner_before(lhs);
         }
     };
 
