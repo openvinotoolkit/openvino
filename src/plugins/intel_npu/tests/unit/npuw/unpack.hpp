@@ -465,8 +465,6 @@ protected:
 
         size_t nElements = from->get_size();
 
-        const size_t nOutputElementsPerScale = ref_output.size() / (toType.bitwidth() / 8) / scale->get_size();
-
         details::unpack_i4f16(input.data(), ref_output.data(), static_cast<int>(nElements));
 
         uint16_t * ref = reinterpret_cast<uint16_t*>(ref_output.data());
@@ -479,15 +477,15 @@ protected:
         for (size_t c = 0; c < C; c++) {
             for (size_t h = 0; h < H; h++) {
                 for (size_t w = 0; w < W; w++) {
-                    size_t refIndex = c * H * W + h * W + w;
-                    float ref_scaled = details::half_to_float(ref[refIndex]);
-                    size_t scaleIndex = c * W + w;
+                    size_t ref_index = c * H * W + h * W + w;
+                    float ref_scaled = details::half_to_float(ref[ref_index]);
+                    size_t scale_index = c * W + w;
                     if (scaleType == ov::element::f32) {
                         ref_scaled *= scale_f32[scaleIndex];
                     } else if (scaleType == ov::element::f16) {
-                        ref_scaled *= details::half_to_float(scale_f16[scaleIndex]);
+                        ref_scaled *= details::half_to_float(scale_f16[scale_index]);
                     }
-                    *(ref + refIndex) = details::float_to_half(ref_scaled);
+                    *(ref + ref_index) = details::float_to_half(ref_scaled);
                 }
             }
         }
