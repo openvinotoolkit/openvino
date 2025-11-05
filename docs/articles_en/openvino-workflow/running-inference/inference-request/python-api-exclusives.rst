@@ -207,7 +207,7 @@ List of Functions that Release the GIL
 * openvino.Core.read_model
 * openvino.Core.import_model
 * openvino.Core.query_model
-* openvinot_available_devices
+* openvino.Core.get_available_devices
 * openvino.InferRequest.infer
 * openvino.InferRequest.start_async
 * openvino.InferRequest.wait
