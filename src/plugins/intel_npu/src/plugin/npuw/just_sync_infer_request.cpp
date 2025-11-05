@@ -326,6 +326,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
     }  // if(function_pipelining)
 
+    reserve_for_lazy_io();
     alloc_quant_gather();
     connect_subrequests();
     init_gio();
