@@ -88,11 +88,11 @@ jobs:
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
       PYTHONIOENCODING: utf-8
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      INSTALL_DIR: "${{ github.workspace }}\\ascii_test\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\ascii_test\\install\\tests"
-      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\ascii_test\\install\\wheels"
-      SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\ascii_test\\install\\samples"
-      BUILD_DIR: "${{ github.workspace }}\\ascii_test\\build"
+      INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests"
+      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\wheels"
+      SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\samples"
+      BUILD_DIR: "${{ github.workspace }}\\유니코드폴더\\build"
 
     steps:
       - name: Download OpenVINO package
@@ -274,10 +274,10 @@ jobs:
     env:
       PYTHONIOENCODING: utf-8
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      INSTALL_DIR: "${{ github.workspace }}\\ascii_test\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\ascii_test\\install\\tests"
-      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\ascii_test\\install\\wheels"
-      LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\ascii_test\\install\\tests\\layer_tests"
+      INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests"
+      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\wheels"
+      LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests\\layer_tests"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
 
     steps:
@@ -439,9 +439,9 @@ jobs:
     env:
       PYTHONIOENCODING: utf-8
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      INSTALL_DIR: "${{ github.workspace }}\\ascii_test\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\ascii_test\\install\\tests"
-      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\ascii_test\\install\\wheels"
+      INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests"
+      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\wheels"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
     steps:
       - name: Download OpenVINO artifacts (tarballs)
@@ -580,10 +580,10 @@ jobs:
     runs-on: aks-win-8-cores-16gb-test
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      INSTALL_DIR: "${{ github.workspace }}\\ascii_test\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\ascii_test\\install\\tests"
-      PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\ascii_test\\install\\tests\\functional_test_utils\\layer_tests_summary\\run_parallel.py"
-      PARALLEL_TEST_CACHE: "${{ github.workspace }}\\ascii_test\\install\\tests\\test_cache.lst"
+      INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests"
+      PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\유니코드폴더\\install\\tests\\functional_test_utils\\layer_tests_summary\\run_parallel.py"
+      PARALLEL_TEST_CACHE: "${{ github.workspace }}\\유니코드폴더\\install\\tests\\test_cache.lst"
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
       - name: Download OpenVINO package
@@ -628,7 +628,7 @@ jobs:
           # Set code page to UTF-8
           chcp 65001
 
-          python3 -m pip install -r ${{ github.workspace }}\ascii_test\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
+          python3 -m pip install -r ${{ github.workspace }}\유니코드폴더\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
