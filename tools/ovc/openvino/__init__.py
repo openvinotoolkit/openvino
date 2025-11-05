@@ -60,8 +60,6 @@ from openvino._ov_api import InferRequest
 from openvino._ov_api import AsyncInferQueue
 
 # Import all public modules
-from openvino.package_utils import LazyLoader
-runtime = LazyLoader("openvino.runtime")
 from openvino import frontend as frontend
 from openvino import helpers as helpers
 from openvino import experimental as experimental
