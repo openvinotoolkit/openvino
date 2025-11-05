@@ -148,31 +148,6 @@ void remove_redundant_reorders::run(program& p) {
         }
     }
 
-    // Remove redundant reorder in dyanmic shape for an user node which perfers same format
-    itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
-        auto& node_ptr = *itr++;
-        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 ||
-            node_ptr->get_dependencies().size() != 1)
-            continue;
-
-        auto& node = node_ptr->as<reorder>();
-        auto& usr = node_ptr->get_users().front();
-        auto& dep = node_ptr->get_dependency(0);
-
-        auto redundant_format = usr->is_type<resample>() &&
-                                (dep.get_output_layout().format == usr->get_output_layout().format);
-        auto same_data_type = (node.get_input_layout().data_type == node.get_output_layout().data_type);
-        if (!redundant_format || !same_data_type)
-            continue;
-
-        LOG_NODE_REMOVAL(node.id());
-        p.replace_all_usages(node, dep);
-        p.add_optimized_primitive_info(node.id());
-        p.remove_all_connections(node);
-        p.remove_if_dangling(node);
-    }
-
     // Shrink reorder chains
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {

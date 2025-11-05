@@ -116,8 +116,6 @@ TEST_P(format_mismatch_multiple_fusing, multiple_fused_node) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    ov::intel_gpu::ImplementationDesc resample_impl = { p.input_format, "resample_opt" };
-    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_prim", resample_impl } }));
     ov::intel_gpu::ImplementationDesc ref_resample_impl = { p.input_format, "resample_ref" };
     cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_prim", ref_resample_impl } }));
     ov::intel_gpu::ImplementationDesc ref_eltwise = { p.input_format, "" };
