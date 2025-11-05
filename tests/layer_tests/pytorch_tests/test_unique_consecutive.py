@@ -8,18 +8,21 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 class aten_unique_consecutive(torch.nn.Module):
-    def __init__(self, dim=None, return_inverse=False, return_counts=False, dtype=None):
+    def __init__(self, return_inverse=False, return_counts=False, dim=None):
         super().__init__()
-        self.dim = dim
         self.return_inverse = return_inverse
         self.return_counts = return_counts
-        self.dtype = dtype
+        self.dim = dim
 
     def forward(self, x):
-        return torch.unique_consecutive(x, dim=self.dim,
-                                        return_inverse=self.return_inverse,
-                                        return_counts=self.return_counts,
-                                        dtype=self.dtype)
+        result, inverse, counts = torch.unique_consecutive(x, self.return_inverse, self.return_counts, self.dim)
+        output = (result, )
+        if self.return_inverse:
+            output += (inverse, )
+        if self.return_counts:
+            output += (counts, )
+        return output
+
 class TestUniqueConsecutive(PytorchLayerTest):
     def _prepare_input(self, shape, dtype):
         size = np.prod(shape)
@@ -31,24 +34,20 @@ class TestUniqueConsecutive(PytorchLayerTest):
         data = data.reshape(shape)
         return (data,)
 
-    @pytest.mark.parametrize("shape, dim, return_inverse, return_counts, dtype", [
-        ([10], None, False, False, None),
-        ([10], None, True, False, None),
-        ([10], None, True, True, None),
-        ([3, 4], 1, False, False, None),
-        ([3, 4], 0, True, False, None),
-        ([3, 4], -1, True, True, None),
-        ([2, 3, 4], 1, False, False, torch.int64),
-        ([2, 3, 4], 2, True, True, torch.int32),
+    @pytest.mark.parametrize("shape", [
+        [10], [3, 4], [2, 3, 4]
     ])
+    @pytest.mark.parametrize("return_inverse", [False, True])
+    @pytest.mark.parametrize("return_counts", [False, True])
+    @pytest.mark.parametrize("dim", [None, 0, 1, -1])   # TODO: need to make multiple functions for different ranks to avoid invalid dim
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_unique_consecutive(self, shape, dim, return_inverse, return_counts, dtype,
+    def test_unique_consecutive(self, shape, return_inverse, return_counts, dim, dtype,
                                 ie_device, precision, ir_version):
-        self._test(aten_unique_consecutive(dim, return_inverse, return_counts, dtype),
+        self._test(aten_unique_consecutive(return_inverse, return_counts, dim),
                    None,
                    "aten::unique_consecutive",
                    ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"shape": shape, "dtype": np.int32},
-                   trace_model=True,
+                   kwargs_to_prepare_input={"shape": shape, "dtype": dtype},
+                #    trace_model=True,
                    )
