@@ -59,17 +59,21 @@ jobs:
       fail-fast: false
       matrix:
         variant:
-          - name: 'baseline'
-            runner: 'aks-win-16-cores-32gb-build-st'
-          - name: 'nvme'
-            runner: 'aks-win-16-cores-32gb-nvme-st'
-          - name: 'managed-disk'
-            runner: 'aks-win-16-cores-32gb-mdsk-st'
-          - name: 'd-size'
-            runner: 'aks-win-16-cores-32gb-d-st'
+          - name: baseline
+            runner: aks-win-32-cores-128gb-build-st
+          - name: nvme
+            runner: aks-win-32-cores-128gb-nvme-st
+          - name: tempdisk
+            runner: aks-win-32-cores-128gb-tdsk-st
+          - name: amd
+            runner: aks-win-32-cores-128gb-amd-st
+          - name: lessram
+            runner: aks-win-32-cores-64gb-ram-st
+          - name: amd_nvme
+            runner: aks-win-16-cores-32gb-amd-nvme-st
         cache:
-          - True
           - False
+          - True
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
     name: "Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"

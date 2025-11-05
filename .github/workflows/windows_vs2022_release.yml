@@ -69,6 +69,8 @@ jobs:
             runner: 'aks-win-16-cores-32gb-mdsk-st'
           - name: 'd-size'
             runner: 'aks-win-16-cores-32gb-d-st'
+          - name: 'amd_nvme'
+            runner: 'aks-win-16-cores-32gb-amd-nvme-st'
         cache:
           - True
           - False
