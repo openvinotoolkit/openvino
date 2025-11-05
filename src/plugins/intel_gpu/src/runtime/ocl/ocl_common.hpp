@@ -53,9 +53,9 @@ inline void rethrow(std::string message, cl_int error, const device_info& info) 
            << "\tFor case 1 (Insufficient Memory)"
            << "\t  - Try adjusting some model parameters (e.g., using a smaller batch size, lower inference precision, fewer streams, etc.) to reduce the re"
            << "quired memory size.\n"
-           << "\t  - Alternatively, for Intel integrated Arc GPUs on Microsoft Windows 10 or 11 host systems the shared memory allocation can be increased v"
-           << "ia the Intel Graphics Software tool: 'Graphics > General > Shared GPU Memory Override', as long as it is not already at its upper limit defin"
-           << "ed by the software.\n"
+           << "\t  - Alternatively, for Intel integrated Arc GPUs on Microsoft Windows 10 or 11 host systems with more than 10 GB of system memory, the shar"
+           << "ed memory allocation can be increased via the Intel Graphics Software tool: 'Graphics > General > Shared GPU Memory Override', as long as it "
+           << "is not already at its software-defined upper limit.\n"
            << "\tFor case 2 (Out-of-Bounds Access):\n"
            << "\t  - Please submit a bug report to the OpenVINO team.\n"
            << "\tAdditionally, please try updating the driver to the latest version.\n";
