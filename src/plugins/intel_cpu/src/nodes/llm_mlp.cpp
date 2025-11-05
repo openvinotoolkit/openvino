@@ -401,10 +401,20 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
             if (m_config.gate_up_combined) {
                 w_scale_up = w_scale_gate + N;
             }
+
+            // When gate_up_combined=true and gate_up_swapped=true, we need to swap the scales
+            // to match the swapped weight layout
+            auto* scale_first = w_scale_gate;
+            auto* scale_second = w_scale_up;
+            if (m_config.gate_up_combined && m_config.gate_up_swapped) {
+                scale_first = w_scale_up;
+                scale_second = w_scale_gate;
+            }
+
             for (size_t i = 0; i < N; i += 16) {
-                memcpy(dst, w_scale_gate + i, 16 * sizeof(float));
+                memcpy(dst, scale_first + i, 16 * sizeof(float));
                 dst += 16;
-                memcpy(dst, w_scale_up + i, 16 * sizeof(float));
+                memcpy(dst, scale_second + i, 16 * sizeof(float));
                 dst += 16;
             }
         }
