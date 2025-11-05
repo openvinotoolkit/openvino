@@ -12,6 +12,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "snippets/pass/tokenization_config.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -42,7 +43,7 @@ namespace ov::snippets::pass {
  *              * After MatMul1 may be only Transpose3 or any count of Eltwise, Select ops.
  * @ingroup snippets
  */
-class TokenizeMHASnippets : public ov::pass::MatcherPass {
+class SNIPPETS_API TokenizeMHASnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeMHASnippets");
 
@@ -51,7 +52,7 @@ public:
      * @brief Configuration for TokenizeMHASnippets pass
      * @ingroup snippets
      */
-    struct Config : public TokenizationConfig {
+    struct SNIPPETS_API Config : public TokenizationConfig {
         Config(const TokenizationConfig& tokenization_config,
                bool enable_transpose_on_output,
                bool dyn_mha_token,

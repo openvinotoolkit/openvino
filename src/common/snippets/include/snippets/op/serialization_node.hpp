@@ -12,6 +12,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 
@@ -20,7 +21,7 @@ namespace ov::snippets::op {
  * @brief Fake node needed to serialize lowered::Expression sessionIR
  * @ingroup snippets
  */
-class SerializationNode : public ov::op::Op {
+class SNIPPETS_API SerializationNode : public ov::op::Op {
 public:
     OPENVINO_OP("SerializationNode", "SnippetsOpset");
 

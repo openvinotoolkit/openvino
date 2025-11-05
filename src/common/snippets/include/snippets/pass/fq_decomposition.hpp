@@ -12,6 +12,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -52,7 +53,7 @@ namespace ov::snippets::pass {
  *
  */
 
-class FakeQuantizeDecomposition : public ov::pass::MatcherPass {
+class SNIPPETS_API FakeQuantizeDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::FakeQuantizeDecomposition");
     FakeQuantizeDecomposition();
@@ -83,7 +84,7 @@ public:
  *          2. ConstantFolding
  *          3. Validate
  */
-class CommonFakeQuantizeDecomposition : public ov::pass::ModelPass {
+class SNIPPETS_API CommonFakeQuantizeDecomposition : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::CommonFakeQuantizeDecomposition");
 

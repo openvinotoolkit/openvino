@@ -11,6 +11,7 @@
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::modifier {
 
@@ -23,7 +24,7 @@ namespace ov::snippets::modifier {
  * @ingroup snippets
  */
 
-class MemoryAccess {
+class SNIPPETS_API MemoryAccess {
 public:
     /**
      * @interface PortDescriptor
@@ -33,7 +34,7 @@ public:
      * @param m_index - port index
      * @ingroup snippets
      */
-    struct PortDescriptor {
+    struct SNIPPETS_API PortDescriptor {
         PortDescriptor(size_t count, size_t offset) : count(count), offset(offset) {}
         PortDescriptor() = default;
         // TODO: should we deprecate count in favor of subtensors, ticket: 130004

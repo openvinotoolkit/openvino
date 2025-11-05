@@ -10,6 +10,7 @@
 
 #include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -21,7 +22,7 @@ namespace ov::snippets::pass {
  *          - Doesn't support `layouts` in PortDescriptors
  * @ingroup snippets
  */
-class AnalyzeBroadcastableInputs : public ov::pass::ModelPass {
+class SNIPPETS_API AnalyzeBroadcastableInputs : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::AnalyzeBroadcastableInputs");
     // [Index of Parameter -> Index of broadcastable dimension from end]

@@ -1,3 +1,4 @@
+#include "snippets/snippets_visibility.hpp"
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -33,7 +34,7 @@ namespace utils {
  * @brief Dumper for node debug properties
  * @ingroup snippets
  */
-class Dumper {
+class SNIPPETS_API Dumper {
 public:
     Dumper() = default;
     virtual ~Dumper() = default;
@@ -51,7 +52,7 @@ protected:
  * @brief Dumper for node debug properties (output: stdout)
  * @ingroup snippets
  */
-class ConsoleDumper : public Dumper {
+class SNIPPETS_API ConsoleDumper : public Dumper {
 public:
     ConsoleDumper() = default;
     ~ConsoleDumper() override;
@@ -68,7 +69,7 @@ private:
  * @brief Dumper for node debug properties (output: .csv file)
  * @ingroup snippets
  */
-class CSVDumper : public Dumper {
+class SNIPPETS_API CSVDumper : public Dumper {
 public:
     explicit CSVDumper(std::string csv_path);
     ~CSVDumper() override;
@@ -88,7 +89,7 @@ namespace op {
  * @brief Base class for PerfCountBegin and PerfCountRdtscBegin(cpu)
  * @ingroup snippets
  */
-class PerfCountBeginBase : public ov::op::Op {
+class SNIPPETS_API PerfCountBeginBase : public ov::op::Op {
 public:
     OPENVINO_OP("PerfCountBeginBase", "SnippetsOpset");
     explicit PerfCountBeginBase(const std::vector<Output<Node>>& args);
@@ -105,7 +106,7 @@ protected:
  * @brief Base class for PerfCountEnd and PerfCountRdtscEnd
  * @ingroup snippets
  */
-class PerfCountEndBase : public ov::op::Op {
+class SNIPPETS_API PerfCountEndBase : public ov::op::Op {
 public:
     OPENVINO_OP("PerfCountEndBase", "SnippetsOpset");
     explicit PerfCountEndBase(const std::vector<Output<Node>>& args);
@@ -119,7 +120,7 @@ public:
  * @brief Performance count start time with chrono call
  * @ingroup snippets
  */
-class PerfCountBegin : public PerfCountBeginBase {
+class SNIPPETS_API PerfCountBegin : public PerfCountBeginBase {
 public:
     OPENVINO_OP("PerfCountBegin", "SnippetsOpset", PerfCountBeginBase);
     PerfCountBegin();
@@ -138,7 +139,7 @@ private:
  * @brief Performance count end time and duration with chrono call
  * @ingroup snippets
  */
-class PerfCountEnd : public PerfCountEndBase {
+class SNIPPETS_API PerfCountEnd : public PerfCountEndBase {
 public:
     OPENVINO_OP("PerfCountEnd", "SnippetsOpset", PerfCountEndBase);
     explicit PerfCountEnd(const Output<Node>& pc_begin,

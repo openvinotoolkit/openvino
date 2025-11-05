@@ -9,6 +9,7 @@
 #include "openvino/core/rtti.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
+#include "snippets/snippets_visibility.hpp"
 #include "subgraph_pass.hpp"
 
 namespace ov::snippets::pass {
@@ -19,7 +20,7 @@ namespace ov::snippets::pass {
  * inside body
  * @ingroup snippets
  */
-class ExtractConstants : public CommonOptimizations::SubgraphPass {
+class SNIPPETS_API ExtractConstants : public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("ExtractConstants", "0");
     ExtractConstants() : SubgraphPass("ExtractConstants") {}

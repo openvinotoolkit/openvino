@@ -21,6 +21,7 @@
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 #include "snippets/pass/tokenization_config.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -36,19 +37,19 @@ enum class SnippetsNodeType : uint8_t { NotSet, SkippedByPlugin };
              It's used in separate tokenization pass, for example, tokenization by matcher (MHA Tokenization).
  */
 enum class SnippetsSubgraphType : uint8_t { NotSet, Completed };
-void SetSnippetsNodeType(const std::shared_ptr<Node>& node, SnippetsNodeType nodeType);
-void SetSnippetsSubgraphType(const std::shared_ptr<op::Subgraph>& node, SnippetsSubgraphType nodeType);
-SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>& node);
-SnippetsSubgraphType GetSnippetsSubgraphType(const std::shared_ptr<const op::Subgraph>& node);
-void SetTopologicalOrder(const std::shared_ptr<Node>& node, int64_t order);
-int64_t GetTopologicalOrder(const std::shared_ptr<const Node>& node);
+SNIPPETS_API void SetSnippetsNodeType(const std::shared_ptr<Node>& node, SnippetsNodeType nodeType);
+SNIPPETS_API void SetSnippetsSubgraphType(const std::shared_ptr<op::Subgraph>& node, SnippetsSubgraphType nodeType);
+SNIPPETS_API SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>& node);
+SNIPPETS_API SnippetsSubgraphType GetSnippetsSubgraphType(const std::shared_ptr<const op::Subgraph>& node);
+SNIPPETS_API void SetTopologicalOrder(const std::shared_ptr<Node>& node, int64_t order);
+SNIPPETS_API int64_t GetTopologicalOrder(const std::shared_ptr<const Node>& node);
 
 /**
  * @interface EnumerateNodes
  * @brief  Snippets rely on topological order to avoid creating cyclic dependencies. This transformation sets the order.
  * @ingroup snippets
  */
-class EnumerateNodes : public ov::pass::ModelPass {
+class SNIPPETS_API EnumerateNodes : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::EnumerateNodes");
     EnumerateNodes() : ModelPass() {}
@@ -70,7 +71,7 @@ public:
  *             "_original".
  * @ingroup snippets
  */
-class SnippetsTokenization : public ov::pass::ModelPass {
+class SNIPPETS_API SnippetsTokenization : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::SnippetsTokenization");
 
