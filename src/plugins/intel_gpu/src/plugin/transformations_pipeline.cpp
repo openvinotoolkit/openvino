@@ -400,7 +400,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32}, true);
             // 3. Strip FQ layers with unsupported levels
             bool replace_with_clamp = ov::util::getenv_bool("REPLACE_QDQ_WITH_CLAMP", true);
-            std::cout << "[ QDQ STRIPPING INFO ] replace_with_clamp = " << replace_with_clamp << std::endl;
             manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, replace_with_clamp);
             manager.register_pass<ov::pass::Validate>();
         }
