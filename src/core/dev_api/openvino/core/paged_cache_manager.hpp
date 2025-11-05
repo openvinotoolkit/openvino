@@ -32,7 +32,7 @@
 #define CACHE_SIZE 1000000
 
 namespace ov {
-namespace internal {
+namespace util {
 
 class OPENVINO_API PagedCacheManager {
 public:
@@ -145,9 +145,12 @@ private:
     static bool is_element_compatible_with_T(ov::element::Type et, size_t sizeofT) noexcept;
 
     void rebuild_evict_heap_unlocked();
-    static bool heap_less_(const std::vector<block_t>& blocks, std::size_t a, std::size_t b) noexcept;
+    static bool heap_less(const std::vector<block_t>& blocks, std::size_t a, std::size_t b) noexcept;
 
 private:
+    static void* aligned_allocate(std::size_t size);
+    static void aligned_free(void* p);
+
     const ov::element::Type m_elem_type{};
     const std::size_t m_total_bytes{0};
 
@@ -245,5 +248,5 @@ void PagedCacheManager::set_block_scores(size_t node_id,
     set_scores_for_blocks_unlocked(node_id, block_indices, fs.data());
 }
 
-}  // namespace internal
+}  // namespace util
 }  // namespace ov

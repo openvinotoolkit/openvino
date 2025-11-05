@@ -15,12 +15,9 @@
 #    include <malloc.h>
 #endif
 
-namespace ov {
-namespace internal {
-
 // aligned allocation for better performance (similar to CPU plugin)
 // aligned to 64 bits for all dtypes
-static void* aligned_allocate(std::size_t size) {
+void* ov::util::PagedCacheManager::aligned_allocate(std::size_t size) {
 #if defined(_MSC_VER)
     return _aligned_malloc(size, 64);
 #else
@@ -31,7 +28,7 @@ static void* aligned_allocate(std::size_t size) {
 #endif
 }
 
-static void aligned_free(void* p) {
+void ov::util::PagedCacheManager::aligned_free(void* p) {
 #if defined(_MSC_VER)
     _aligned_free(p);
 #else
@@ -39,7 +36,7 @@ static void aligned_free(void* p) {
 #endif
 }
 
-PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, std::size_t total_bytes)
+ov::util::PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, std::size_t total_bytes)
     : m_elem_type(elem_type),
       m_total_bytes(total_bytes) {
     // Check for perfect split of bytes
@@ -57,23 +54,23 @@ PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, std::size_t to
     }
 }
 
-PagedCacheManager::~PagedCacheManager() {
+ov::util::PagedCacheManager::~PagedCacheManager() {
     aligned_free(m_key_base);
     aligned_free(m_value_base);
 }
 
 // every op registered once
-bool PagedCacheManager::operator_registered(const size_t node_id) {
+bool ov::util::PagedCacheManager::operator_registered(const size_t node_id) {
     return m_ops.count(node_id);
 }
 
 // registration
 // returns unique node_id id assigned to the given node_id
-size_t PagedCacheManager::register_operator(const size_t block_size,
-                                            const size_t num_heads,
-                                            const size_t key_head_size,
-                                            const size_t value_head_size,
-                                            const size_t query_head_size) {
+size_t ov::util::PagedCacheManager::register_operator(const size_t block_size,
+                                                      const size_t num_heads,
+                                                      const size_t key_head_size,
+                                                      const size_t value_head_size,
+                                                      const size_t query_head_size) {
     std::lock_guard<std::mutex> lock(m_mutex);
 
     operator_state state;
@@ -85,13 +82,14 @@ size_t PagedCacheManager::register_operator(const size_t block_size,
 }
 
 // buffers
-PagedCacheManager::cache_blocks PagedCacheManager::get_cache_blocks() const noexcept {
+ov::util::PagedCacheManager::cache_blocks ov::util::PagedCacheManager::get_cache_blocks() const noexcept {
     std::lock_guard<std::mutex> lock(m_mutex);
     return cache_blocks{m_key_base, m_value_base, m_total_bytes / 2, m_total_bytes / 2};
 }
 
 // per-operator metadata
-PagedCacheManager::subsequence_view PagedCacheManager::get_subsequence_begins(size_t node_id) const {
+ov::util::PagedCacheManager::subsequence_view ov::util::PagedCacheManager::get_subsequence_begins(
+    size_t node_id) const {
     std::lock_guard<std::mutex> lock(m_mutex);
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
@@ -102,12 +100,12 @@ PagedCacheManager::subsequence_view PagedCacheManager::get_subsequence_begins(si
 
 // Check if sizes match, initialize empty blocks since we know the size of a block and dtype at this point, prepare a
 // state for a given PA
-void PagedCacheManager::compute_operator_cache_geometry(operator_state& state,
-                                                        const size_t block_size,
-                                                        const size_t num_heads,
-                                                        const size_t key_head_size,
-                                                        const size_t value_head_size,
-                                                        const size_t query_head_size) {
+void ov::util::PagedCacheManager::compute_operator_cache_geometry(operator_state& state,
+                                                                  const size_t block_size,
+                                                                  const size_t num_heads,
+                                                                  const size_t key_head_size,
+                                                                  const size_t value_head_size,
+                                                                  const size_t query_head_size) {
     if (m_block_size != block_size) {
         if (!m_block_size) {
             m_block_size = block_size;
@@ -169,12 +167,12 @@ void PagedCacheManager::compute_operator_cache_geometry(operator_state& state,
 }
 
 // block mgmt
-std::vector<std::size_t> PagedCacheManager::acquire_blocks(size_t node_id, std::size_t block_count) {
+std::vector<std::size_t> ov::util::PagedCacheManager::acquire_blocks(size_t node_id, std::size_t block_count) {
     std::lock_guard<std::mutex> lock(m_mutex);
     return acquire_blocks_unlocked(node_id, block_count);
 }
 
-void PagedCacheManager::release_blocks(size_t node_id, const std::vector<std::size_t>& blocks) {
+void ov::util::PagedCacheManager::release_blocks(size_t node_id, const std::vector<std::size_t>& blocks) {
     std::lock_guard<std::mutex> lock(m_mutex);
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
@@ -203,7 +201,7 @@ void PagedCacheManager::release_blocks(size_t node_id, const std::vector<std::si
 }
 
 // insert & scoring helpers
-std::vector<std::size_t> PagedCacheManager::acquire_blocks_unlocked(size_t node_id, std::size_t block_count) {
+std::vector<std::size_t> ov::util::PagedCacheManager::acquire_blocks_unlocked(size_t node_id, std::size_t block_count) {
     if (block_count == 0)
         return {};
     auto it = m_ops.find(node_id);
@@ -237,9 +235,9 @@ std::vector<std::size_t> PagedCacheManager::acquire_blocks_unlocked(size_t node_
     return granted;
 }
 
-void PagedCacheManager::copy_blocks_into_buffers_unlocked(const void* key_src_bytes,
-                                                          const void* value_src_bytes,
-                                                          const std::vector<std::size_t>& block_idxs) {
+void ov::util::PagedCacheManager::copy_blocks_into_buffers_unlocked(const void* key_src_bytes,
+                                                                    const void* value_src_bytes,
+                                                                    const std::vector<std::size_t>& block_idxs) {
     if (block_idxs.empty())
         return;
     const auto* ksrc = static_cast<const unsigned char*>(key_src_bytes);
@@ -253,9 +251,9 @@ void PagedCacheManager::copy_blocks_into_buffers_unlocked(const void* key_src_by
     }
 }
 
-void PagedCacheManager::set_scores_for_blocks_unlocked(size_t node_id,
-                                                       const std::vector<std::size_t>& block_idxs,
-                                                       const float* scores) {
+void ov::util::PagedCacheManager::set_scores_for_blocks_unlocked(size_t node_id,
+                                                                 const std::vector<std::size_t>& block_idxs,
+                                                                 const float* scores) {
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
         throw std::runtime_error("PagedCacheManager::set_scores_for_blocks_unlocked: unknown handle");
@@ -280,7 +278,7 @@ void PagedCacheManager::set_scores_for_blocks_unlocked(size_t node_id,
 }
 
 // eviction
-void PagedCacheManager::ensure_free_blocks_unlocked(std::size_t need_blocks) {
+void ov::util::PagedCacheManager::ensure_free_blocks_unlocked(std::size_t need_blocks) {
     if (m_free_block_list.size() >= need_blocks)
         return;
     const std::size_t deficit = need_blocks - m_free_block_list.size();
@@ -291,14 +289,14 @@ void PagedCacheManager::ensure_free_blocks_unlocked(std::size_t need_blocks) {
     }
 }
 
-void PagedCacheManager::evict_one_unlocked() {
+void ov::util::PagedCacheManager::evict_one_unlocked() {
     if (m_evict_heap.empty())
         rebuild_evict_heap_unlocked();
     if (m_evict_heap.empty())
         return;
 
     std::pop_heap(m_evict_heap.begin(), m_evict_heap.end(), [this](std::size_t a, std::size_t b) {
-        return heap_less_(m_blocks, a, b);
+        return heap_less(m_blocks, a, b);
     });
     const std::size_t victim = m_evict_heap.back();
     m_evict_heap.pop_back();
@@ -327,7 +325,7 @@ void PagedCacheManager::evict_one_unlocked() {
     m_free_block_list.push_back(victim);
 }
 
-void PagedCacheManager::evict_to_target_free(std::size_t target_free_blocks) {
+void ov::util::PagedCacheManager::evict_to_target_free(std::size_t target_free_blocks) {
     std::lock_guard<std::mutex> lock(m_mutex);
     while (m_free_block_list.size() < target_free_blocks) {
         evict_one_unlocked();
@@ -337,19 +335,19 @@ void PagedCacheManager::evict_to_target_free(std::size_t target_free_blocks) {
 }
 
 // priv helpers
-void* PagedCacheManager::offset_key(std::size_t block_idx) const noexcept {
+void* ov::util::PagedCacheManager::offset_key(std::size_t block_idx) const noexcept {
     return static_cast<void*>(static_cast<unsigned char*>(m_key_base) + block_idx * m_block_bytes);
 }
 
-void* PagedCacheManager::offset_value(std::size_t block_idx) const noexcept {
+void* ov::util::PagedCacheManager::offset_value(std::size_t block_idx) const noexcept {
     return static_cast<void*>(static_cast<unsigned char*>(m_value_base) + block_idx * m_block_bytes);
 }
 
-void PagedCacheManager::compute_subsequence_begins_unlocked(operator_state& state) const {
+void ov::util::PagedCacheManager::compute_subsequence_begins_unlocked(operator_state& state) const {
     (void)state;  // hook for real PA wiring if needed
 }
 
-float PagedCacheManager::cast_score_to_float(ov::element::Type et, const void* src_scalar) noexcept {
+float ov::util::PagedCacheManager::cast_score_to_float(ov::element::Type et, const void* src_scalar) noexcept {
     switch (et) {
     case ov::element::f32:
         return *static_cast<const float*>(src_scalar);
@@ -387,7 +385,7 @@ float PagedCacheManager::cast_score_to_float(ov::element::Type et, const void* s
     }
 }
 
-bool PagedCacheManager::is_element_compatible_with_T(ov::element::Type et, size_t sizeofT) noexcept {
+bool ov::util::PagedCacheManager::is_element_compatible_with_T(ov::element::Type et, size_t sizeofT) noexcept {
     switch (et) {
     case ov::element::f32:
         return sizeofT == 4;
@@ -402,7 +400,7 @@ bool PagedCacheManager::is_element_compatible_with_T(ov::element::Type et, size_
     }
 }
 
-void PagedCacheManager::rebuild_evict_heap_unlocked() {
+void ov::util::PagedCacheManager::rebuild_evict_heap_unlocked() {
     m_evict_heap.clear();
     m_evict_heap.reserve(m_blocks.size());
     for (const auto& pg : m_blocks) {
@@ -411,15 +409,12 @@ void PagedCacheManager::rebuild_evict_heap_unlocked() {
         }
     }
     std::make_heap(m_evict_heap.begin(), m_evict_heap.end(), [this](std::size_t a, std::size_t b) {
-        return heap_less_(m_blocks, a, b);
+        return heap_less(m_blocks, a, b);
     });
 }
 
-bool PagedCacheManager::heap_less_(const std::vector<block_t>& blocks, std::size_t a, std::size_t b) noexcept {
+bool ov::util::PagedCacheManager::heap_less(const std::vector<block_t>& blocks, std::size_t a, std::size_t b) noexcept {
     const float sa = (a < blocks.size()) ? blocks[a].score : std::numeric_limits<float>::infinity();
     const float sb = (b < blocks.size()) ? blocks[b].score : std::numeric_limits<float>::infinity();
     return sa > sb;  // lower score = higher eviction priority
 }
-
-}  // namespace internal
-}  // namespace ov

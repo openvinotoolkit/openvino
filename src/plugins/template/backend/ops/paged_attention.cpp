@@ -12,7 +12,7 @@ template <ov::element::Type_t ET>
 bool evaluate(ov::TensorVector& outputs,
               const ov::TensorVector& inputs,
               const size_t node_id,
-              const std::shared_ptr<ov::internal::PagedCacheManager> cache_manager) {
+              const std::shared_ptr<ov::util::PagedCacheManager> cache_manager) {
     using T = typename ov::element_type_traits<ET>::value_type;
 
     const bool has_rotation = inputs.size() == 20;
