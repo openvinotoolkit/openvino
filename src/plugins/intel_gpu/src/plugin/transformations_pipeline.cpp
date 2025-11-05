@@ -881,8 +881,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     is_batch_one_with_dynamic_seq_len) &&
                     gru_seq->get_linear_before_reset();
             } else if (const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
-                return !data_pshape[1].is_static() ? false :
-                    (lstm_seq->get_clip() == 0.0f &&
+                if (!data_pshape[1].is_static())
+                    return false;
+                return (lstm_seq->get_clip() == 0.0f &&
                     lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
                     max_seq_len != 1 &&
                     !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
