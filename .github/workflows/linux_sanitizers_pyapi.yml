@@ -411,7 +411,7 @@ jobs:
           # python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 ${{ env.GTEST_FILTER }} --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml --gtest_catch_exceptions=0
           ## objdump -T  ${INSTALL_TEST_DIR}/ov_cpu_func_tests | grep asan
           ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 \
-                --gtest_filter=${{ env.GTEST_FILTER }} \
+                ${{ env.GTEST_FILTER }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml
           
         timeout-minutes: ${{ inputs.scope == 'nightly' && 125 || 400 }}
