@@ -119,6 +119,8 @@ public:
 
     std::int64_t get_opset_version(const std::string& domain) const override;
 
+    std::map<std::string, std::string> get_metadata() const override;
+
     std::string get_model_dir() const {
         return *m_model_dir;
     }

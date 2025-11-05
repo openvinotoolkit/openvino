@@ -146,6 +146,7 @@ public:
     void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                           const std::vector<ov::frontend::Place::Ptr>& outputs) override;
 
+    std::map<std::string, std::string> get_metadata() const;
     std::shared_ptr<TelemetryExtension> get_telemetry_extension();
 
     bool is_enabled_mmap() const;

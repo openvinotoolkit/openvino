@@ -502,6 +502,20 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
     return -1;
 }
 
+std::map<std::string, std::string> GraphIteratorProto::get_metadata() const {
+    std::map<std::string, std::string> metadata;
+
+    if (!m_model) {
+        return metadata;
+    }
+
+    const auto& model_metadata = m_model->metadata_props();
+    for (const auto& prop : model_metadata) {
+        metadata.emplace(prop.key(), prop.value());
+    }
+    return metadata;
+}
+
 namespace detail {
 namespace {
 enum Field {
