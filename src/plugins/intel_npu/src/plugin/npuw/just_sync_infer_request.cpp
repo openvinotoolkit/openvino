@@ -298,10 +298,15 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             m_funcall_pipeline[i].subrequest = rqs.at(1);
         }
 
-        // Create infer requests for pyramid attention models if present (only for function calls)
+        // Create pyramid attention infer requests if this function has pyramid attention
+        // IMPORTANT: Must be created AFTER main infer requests to enable direct reuse:
+        // The last pyramid infer request directly reuses the main infer request object
         if (comp_model_desc.replaced_by) {
             const auto real_idx = comp_model_desc.replaced_by.value();
-            setup_pyramid_infer_requests(real_idx, is_piped, false);
+            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+            if (proto_comp_model_desc.pyramid_attention) {
+                setup_pyramid_infer_requests(real_idx, is_piped, false);
+            }
         }
 
         LOG_INFO("DONE");
@@ -705,7 +710,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     }
 
     if (is_pyramid) {
-        m_profile["pyramid_attn(act)"] += ov::npuw::perf::ms_to_run([&]() {
+        m_profile["attn(act)"] += ov::npuw::perf::ms_to_run([&]() {
             function_prologue_pyramid_attn(real_idx, idx);
         });
     }
@@ -852,14 +857,7 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
     auto pos_id = m_pyramid_selector->length();
     if (pos_id == -1) {
         // Pyramid dynamic range couldn't be identified - fallback to default behavior
-        const auto full_mask_shape = graph_mask->get_shape();
-        const auto past_len = dst->get_shape()[kv_dim] - present_len;
-
-        // Copy present mask: tail of source -> [past_len, past_len + present_len)
-        copy_mask_segment(past_len, full_mask_shape[kv_dim] - present_len, present_len);
-
-        // Copy past mask: head of source -> [0, past_len)
-        copy_mask_segment(0, 0, past_len);
+        r->set_tensor(mask_iport, graph_mask);
         return;
     }
 
@@ -929,9 +927,12 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
         m_funcall_pipeline[real_idx].subrequest = new_rqs.at(1);
     }
 
-    // Recreate pyramid infer requests if present (only for function calls)
+    // Recreate pyramid infer requests if this function has pyramid attention
     if (comp_model_desc.replaced_by) {
-        setup_pyramid_infer_requests(real_idx, is_piped, true);
+        auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+        if (proto_comp_model_desc.pyramid_attention) {
+            setup_pyramid_infer_requests(real_idx, is_piped, true);
+        }
     }
 
     // After an infer request is recreated, the internal cross-request

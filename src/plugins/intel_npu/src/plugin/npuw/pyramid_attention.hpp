@@ -42,13 +42,6 @@ struct PyramidModelResult {
     }
 };
 
-// Helper function to patch broadcast constants (set to 1 for dynamic handling)
-void patch_broadcast_constants(const std::shared_ptr<ov::Model>& model, size_t target_length);
-
-// Helper function to patch reshape constants for pre-reshape (-1 substitution)
-void patch_reshape_constants(const std::shared_ptr<ov::Model>& model,
-                             const std::map<std::string, size_t>& past_value_sequence_dims);
-
 // Helper function to create Attention instance from a model
 std::optional<ov::npuw::function::Attention> create_attention_from_model(
     const std::shared_ptr<ov::Model>& model,

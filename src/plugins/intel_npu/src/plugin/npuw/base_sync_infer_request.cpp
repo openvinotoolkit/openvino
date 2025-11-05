@@ -598,7 +598,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     });
 
     // Handle pyramid attention inputs, if required
-    m_profile["pyramid_attn(io)"].record([&]() {
+    m_profile["attn(io)"].record([&]() {
         bind_pyramid_attention_inputs(idx, request);
     });
 
@@ -776,15 +776,7 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
         for (auto&& param : attention_info.params) {
             const auto& iport = pyramid_model->inputs()[param.idx];
             const auto& input = m_attention_io[idx].inputs.at(param.idx);
-
-            const auto& dst = request->get_tensor(iport);
-            const auto past_len = dst->get_shape()[param.dim];
-            // Create view of past KV data
-            const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
-            ov::npuw::util::copy_tensor_by_dim(view,
-                                               dst,
-                                               static_cast<uint32_t>(param.dim),
-                                               static_cast<uint32_t>(param.dim));
+            request->set_tensor(iport, input);
         }
 
         return;
