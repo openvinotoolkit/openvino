@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <ov_ops/gather_compressed.hpp>
 #include <set>
 #include <vector>
 
@@ -50,6 +49,7 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "ov_ops/gather_compressed.hpp"
 
 // Common transformations
 #include "openvino/pass/constant_folding.hpp"
