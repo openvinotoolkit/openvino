@@ -885,7 +885,7 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
 }
 
 WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType t, size_t g, bool should_split) const {
-    const uint32_t src_channels = ChannelsCount(layout) - ((DoesGroupDimExist(layout))? 1 : 0);
+    const uint32_t src_channels = ChannelsCount(layout) - (DoesGroupDimExist(layout) ? 1 : 0);
     const uint32_t dst_channels = ChannelsCount(l) - (DoesGroupDimExist(l) ? 1 : 0);
 
     const size_t src_x = X().v;

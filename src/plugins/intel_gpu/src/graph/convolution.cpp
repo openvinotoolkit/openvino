@@ -212,24 +212,16 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                           "Input/output rank mismatch");
 
     auto filter_inst = node.weights().get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
+
     // Extend grouped 1d conv weights shape from 4d to 5d when conv input shape is canonicalized to 4d by allow_new_shape_infer=false
-    bool filter_update_required = (!network.get_program()->is_new_shape_infer() &&
-                                    argument->grouped_weights_shape &&
-                                    argument->groups > 1 &&
-                                    filter_inst.get_rank() == 4 &&
-                                    !format::is_grouped(filter_inst.format));
-    if (filter_update_required) {
-        std::vector<size_t> new_shape = {filter_inst.get_shape()[0],
-                                        filter_inst.get_shape()[1],
-                                        filter_inst.get_shape()[2],
-                                        filter_inst.get_shape()[3],
-                                        1};
-        ov::PartialShape new_pshape(new_shape);
-        cldnn::layout new_weights_layout(new_pshape,
-                                        filter_inst.data_type,
-                                        filter_inst.format == format::oiyx ? format::get_default_format(5, true, true)
-                                        : filter_inst.format);
-        filter_inst = new_weights_layout;
+    const bool needs_filter_extension = !network.get_program()->is_new_shape_infer() &&
+                                        argument->grouped_weights_shape &&
+                                        argument->groups > 1 &&
+                                        filter_inst.get_rank() == 4 &&
+                                        !format::is_grouped(filter_inst.format);
+
+    if (needs_filter_extension) {
+        filter_inst = extend_weights_layout_to_5d(filter_inst);
     }
 
     if (bias_term()) {
