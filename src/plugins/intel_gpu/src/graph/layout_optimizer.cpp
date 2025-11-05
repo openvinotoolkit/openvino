@@ -1378,11 +1378,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             expected = format::get_default_format(input_layout.get_rank());
         }
     } else if (node.is_type<resample>()) {
-        // Resample does not need preferred input format. Propagated format should be selected for both data input and input of fused ops.
-        for (size_t i = 0; i < node.get_dependencies().size(); i++) {
-            node.set_preferred_input_fmt(i, format::any);
-        }
-
         // if the resample is in the last part of the network and there are no users using blocked format,
         // it is better to reorder to bfyx before resample is done.
         // Skip all user format check when node is dynamic. It could cause endless recursive call in get_preferred_foramt()

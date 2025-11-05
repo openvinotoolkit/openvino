@@ -23,6 +23,7 @@
 #include "group_normalization_inst.h"
 #include "mvn_inst.h"
 #include "rms_inst.h"
+#include "resample_inst.h"
 
 #include <vector>
 #include <list>
@@ -145,6 +146,31 @@ void remove_redundant_reorders::run(program& p) {
                 rl->recalc_output_layout(true);
             }
         }
+    }
+
+    // Remove redundant reorder in dyanmic shape if its user node perfers same format
+    itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto& node_ptr = *itr++;
+        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() ||
+            node_ptr->get_users().size() != 1 || node_ptr->get_dependencies().size() != 1)
+            continue;
+
+        auto& node = node_ptr->as<reorder>();
+        auto& usr = node_ptr->get_users().front();
+        auto& dep = node_ptr->get_dependency(0);
+
+        auto redundant_format = usr->is_type<resample>() && node.is_simple_reorder() &&
+                                (dep.get_output_layout().format == usr->get_output_layout().format);
+        auto same_data_type = (node.get_input_layout().data_type == node.get_output_layout().data_type);
+        if (!redundant_format || !same_data_type)
+            continue;
+
+        LOG_NODE_REMOVAL(node.id());
+        p.replace_all_usages(node, dep);
+        p.add_optimized_primitive_info(node.id());
+        p.remove_all_connections(node);
+        p.remove_if_dangling(node);
     }
 
     // Shrink reorder chains
