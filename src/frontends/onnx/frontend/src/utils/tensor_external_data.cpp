@@ -107,7 +107,7 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_mem_data() const {
     }
     // Empty node will create a constant with zero shape and zero size external data.
     bool is_valid_buffer = m_offset && m_data_length;
-    bool is_empty_buffer = (m_offset == 0) && (m_data_length == 0);
+    bool is_empty_buffer = (m_data_length == 0);
     if (!(is_valid_buffer || is_empty_buffer)) {
         throw error::invalid_external_data{*this};
     }
