@@ -2899,6 +2899,11 @@ size_t jit_squared_difference_emitter::get_inputs_num() const {
     return 2;
 }
 
+size_t jit_squared_difference_emitter::aux_vecs_count() const {
+    // Need one auxiliary vector to hold (src0 - src1) so we don't overwrite inputs
+    return 1;
+}
+
 void jit_squared_difference_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                                const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
@@ -2916,11 +2921,16 @@ void jit_squared_difference_emitter::emit_isa(const std::vector<size_t>& in_vec_
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto dst = VReg(out_vec_idxs[0]);
+    // Use an auxiliary vector to avoid clobbering inputs when dst aliases an input
+    // tmp = src0 - src1
+    // dst = tmp * tmp
+    auto aux0 = VReg(aux_vec_idxs[0]);
 
-    // dst = (src0 - src1) * (src0 - src1)
-    h->vfsub_vv(dst, src0, src1);
-    h->vfmul_vv(dst, dst, dst);
+    h->vfsub_vv(aux0, src0, src1);
+    h->vfmul_vv(dst, aux0, aux0);
 }
+
+
 
 std::set<std::vector<element::Type>> jit_squared_difference_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
