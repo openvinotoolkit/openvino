@@ -430,6 +430,9 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
         gate_up_group_size = desc->_config.hidden_size;
         down_group_size = desc->_config.inter_size;
     }
+
+    GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt: group_size=" << desc->_config.group_size << ", gate_up_group_size=" << gate_up_group_size
+                           << ", down_group_size=" << down_group_size << std::endl;
     jit.make("MAX_TOPK", desc->_config.top_k);
     jit.make("EXPERT_NUM", desc->_config.num_expert);
     jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
@@ -583,7 +586,8 @@ public:
     std::vector<std::vector<dnnl_weights>> _dnnl_weights;
     int _hidden_size;
     int _intermediate_size;
-    int _group_size;
+    int _gate_up_group_size;
+    int _down_group_size;
 
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
@@ -600,7 +604,16 @@ public:
     void init(const std::shared_ptr<const moe_3gemm_fused_compressed>& cur_moe) {
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
-        _group_size = static_cast<int>(cur_moe->_config.group_size);
+        _gate_up_group_size = static_cast<int>(cur_moe->_config.group_size);
+        _down_group_size = static_cast<int>(cur_moe->_config.group_size);
+
+        if (cur_moe->_config.group_size == std::numeric_limits<size_t>::max()) {
+            _gate_up_group_size = cur_moe->_config.hidden_size;
+            _down_group_size = cur_moe->_config.inter_size;
+        }
+
+        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt prefill: group_size=" << cur_moe->_config.group_size
+                               << ", gate_up_group_size=" << _gate_up_group_size << ", down_group_size=" << _down_group_size << std::endl;
     }
 
     void init_dnnl_weights(const std::shared_ptr<const moe_3gemm_fused_compressed>& cur_moe,
@@ -615,13 +628,13 @@ public:
             auto& dnnl_weights = _dnnl_weights[j];
             dnnl_weights.resize(3);
             dnnl_weights[0].ic = _hidden_size;
-            dnnl_weights[0].ic_group_size = _group_size;
+            dnnl_weights[0].ic_group_size = _gate_up_group_size;
             dnnl_weights[0].oc = _intermediate_size;
             dnnl_weights[1].ic = _hidden_size;
-            dnnl_weights[1].ic_group_size = _group_size;
+            dnnl_weights[1].ic_group_size = _gate_up_group_size;
             dnnl_weights[1].oc = _intermediate_size;
             dnnl_weights[2].ic = _intermediate_size;
-            dnnl_weights[2].ic_group_size = _group_size;
+            dnnl_weights[2].ic_group_size = _down_group_size;
             dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
                 // weight shape: [ic, oc], type: u4
@@ -657,7 +670,8 @@ public:
         cur_moe->_dnnl_weights = _dnnl_weights;
         cur_moe->_hidden_size = _hidden_size;
         cur_moe->_intermediate_size = _intermediate_size;
-        cur_moe->_group_size = _group_size;
+        cur_moe->_gate_up_group_size = _gate_up_group_size;
+        cur_moe->_down_group_size = _down_group_size;
         return cur_moe;
     }
 
