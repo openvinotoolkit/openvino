@@ -1287,7 +1287,9 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         }
 
         // Evaluate and allocate all LazyTensors inside the bank
-        m_weights_bank->evaluate_and_allocate();
+        m_profile["weights bank"].record([&]() {
+            m_weights_bank->evaluate_and_allocate();
+        });
 
         // Set evaluated and allocated ov::Tensors to closures
         for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {

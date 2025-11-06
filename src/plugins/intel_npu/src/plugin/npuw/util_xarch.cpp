@@ -1663,7 +1663,7 @@ void ov::npuw::util::XARCH::copy(const ov::Tensor& from, ov::Tensor& to) {
     const uint8_t* src = static_cast<const uint8_t*>(from.data());
     uint8_t* dst = static_cast<uint8_t*>(to.data());
 
-    pre_touch_pages(src, bytes_total);
+    //pre_touch_pages(src, bytes_total);
 
     if (bytes_total < 64 * 1024) {
         std::memcpy(dst, src, bytes_total);
