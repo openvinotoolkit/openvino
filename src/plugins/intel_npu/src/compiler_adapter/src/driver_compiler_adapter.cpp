@@ -190,7 +190,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
         _logger.debug("build flags");
         buildFlags = serializedIOInfo;
         buildFlags += " ";
-        buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
+        buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
+                                                             compilerVersion,
+                                                             _zeGraphExt->isTurboOptionSupported(compilerVersion));
 
         _logger.debug("compile start");
         // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching

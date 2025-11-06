@@ -68,7 +68,11 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
 
     EXPECT_NO_THROW(::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, 0));
     EXPECT_NO_THROW(::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, 100));
-    EXPECT_NO_THROW(::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, 1e9));
+    EXPECT_NO_THROW(::intel_npu::driver_compiler_utils::serializeIR(model,
+                                                                    dummyCompilerVersion,
+                                                                    11,
+                                                                    false,
+                                                                    static_cast<size_t>(1e9)));
 }
 
 const std::vector<ov::AnyMap> configs = {
