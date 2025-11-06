@@ -60,6 +60,8 @@ bool ITensor::is_continuous() const {
     }
 
     const auto default_last = default_strides.rend();
+    // It assumed that `default_strides' and `strides' have the same size, thus `default_stride' iterator is valid
+    // coverity[deref_iterator:SUPPRESS]
     return (default_stride == default_last) || (*default_stride < *stride && (get_shape()[0] == 1) &&
                                                 std::all_of(default_stride, default_last, cmp::Equal(*default_stride)));
 }
