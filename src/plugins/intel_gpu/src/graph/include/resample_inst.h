@@ -23,10 +23,9 @@ public:
     program_node& input() const { return get_dependency(0); }
 
     std::vector<size_t> get_shape_infer_dependencies() const override {
-        if (typed_desc()->sizes.size() != 0)
+        // if vector of sizes or scales exists, resample in CreateInterpolateOp generates no dependency for inputs of sizes and scales
+        if (typed_desc()->sizes.size() != 0 || typed_desc()->scales.size() != 0)
             return {};
-        else if (typed_desc()->scales.size() != 0)
-            return {1};
         else
             return {1, 2};
     }
