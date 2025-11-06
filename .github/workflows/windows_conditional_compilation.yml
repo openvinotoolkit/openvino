@@ -66,12 +66,6 @@ jobs:
             runner: aks-win-32-cores-128gb-tdsk-st
           - name: amd
             runner: aks-win-32-cores-128gb-amd-st
-          - name: lessram
-            runner: aks-win-32-cores-64gb-ram-st
-          - name: amd_nvme
-            runner: aks-win-32-cores-64gb-amd-nvme-st
-          - name: release_build_baseline
-            runner: aks-win-16-cores-32gb-build-st
         cache:
         #  - True # Getting 0% cache hits, turn on after this will be fixed
           - False
