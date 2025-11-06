@@ -3,8 +3,6 @@
 #
 
 # Find required packages
-list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew/Cellar/nlohmann-json/3.12.0/lib/cmake")
-list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew/Cellar/yaml-cpp/0.8.0/lib/cmake")
 find_package(nlohmann_json REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
