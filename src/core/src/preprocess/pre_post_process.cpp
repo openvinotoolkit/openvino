@@ -45,13 +45,13 @@ struct RTInfoCache {
 
     void store(const std::shared_ptr<ov::Model>& model) {
         traverse(model, [this](const std::shared_ptr<ov::Node>& op) {
-            m_rt_info_cache[op] = op->get_rt_info();
+            m_rt_info_cache[CacheKey{op}] = op->get_rt_info();
         });
     }
 
     void restore(const std::shared_ptr<ov::Model>& model) {
         traverse(model, [this](const std::shared_ptr<ov::Node>& op) {
-            if (const auto it = m_rt_info_cache.find(op); it != m_rt_info_cache.end()) {
+            if (const auto it = m_rt_info_cache.find(CacheKey{op}); it != m_rt_info_cache.end()) {
                 op->get_rt_info() = it->second;
             } else {
                 ov::pass::enable_constant_folding(op);
@@ -62,20 +62,24 @@ struct RTInfoCache {
     }
 
 private:
-    struct WeakNodeHash {
-        size_t operator()(const std::weak_ptr<ov::Node>& wn) const {
-            const auto sn = wn.lock();
-            return sn ? std::hash<ov::Node*>()(sn.get()) : 0;
-        }
-    };
+    struct CacheKey {
+        explicit CacheKey(const std::shared_ptr<ov::Node>& n) : hash_value{std::hash<ov::Node*>{}(n.get())}, node{n} {}
+        struct Hash {
+            size_t operator()(const CacheKey& k) const {
+                return k.hash_value;
+            }
+        };
+        struct Equal {
+            bool operator()(const CacheKey& lhs, const CacheKey& rhs) const {
+                return !lhs.node.owner_before(rhs.node) && !rhs.node.owner_before(lhs.node);
+            }
+        };
 
-    struct WeakNodeEqual {
-        bool operator()(const std::weak_ptr<ov::Node>& lhs, const std::weak_ptr<ov::Node>& rhs) const {
-            return !lhs.owner_before(rhs) && !rhs.owner_before(lhs);
-        }
+    private:
+        size_t hash_value{0};
+        std::weak_ptr<ov::Node> node;
     };
-
-    std::unordered_map<std::weak_ptr<ov::Node>, ov::RTMap, WeakNodeHash, WeakNodeEqual> m_rt_info_cache;
+    std::unordered_map<CacheKey, ov::RTMap, CacheKey::Hash, CacheKey::Equal> m_rt_info_cache;
 };
 
 void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
