@@ -150,7 +150,7 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 ## Other options
 
 * `ENABLE_CPPLINT` enables code style check using [cpplint] static code checker:
-    * `ON` is default.
+    * `OFF` is default.
 * `ENABLE_CLANG_FORMAT` enables [Clang format] code style check:
     * `ON` is default.
 * `ENABLE_FASTER_BUILD` enables [precompiled headers] and [unity build] using CMake:

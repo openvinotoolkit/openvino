@@ -528,7 +528,7 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
                                                        attrs.transposeA,
                                                        attrs.transposeB,
                                                        dstDesc->getShape().getRank());
-        if (attrs.weightsNonTransposed) {
+        if (attrs.fcSemantic && weiDymmyDims.size() == 3) {
             std::swap(weiDymmyDims[weiDymmyDims.size() - 1], weiDymmyDims[weiDymmyDims.size() - 2]);
         }
         srcDesc = std::make_shared<DnnlBlockedMemoryDesc>(srcDesc->getPrecision(), Shape(inDymmyDims));
