@@ -377,7 +377,7 @@ const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance(
 void ZeroInitStructsHolder::destroy() {
     std::lock_guard<std::mutex> lock(getMutex());
     auto instance = getInstanceStorage().lock();
-    if (instance.use_count() == 2) {
+    if (instance && instance.use_count() == 2) {
         instance->destroy_context();
     }
     // don't destroy if ref count is higher than 2.
