@@ -22,7 +22,7 @@ public:
         size_t inter_size = 0;
         size_t num_expert = 0;
         size_t top_k = 0;
-        size_t group_size = 0;
+        size_t group_size = 0;  // numeric_limits<size_t>::max() means full size compression, not grouped.
         // In CB, intermediate shapes are expanded to {SeqLen, 1, HiddenSize}
         // In Non-CB, intermediate shapes are expanded to {Batch, SeqLen, HiddenSize}
         size_t has_batch_dim = 0;
