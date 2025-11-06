@@ -88,7 +88,7 @@ INSTANTIATE_TEST_SUITE_P(UnpackWithScaleTests, UnpackWithScaleTests,
 
 
 const auto TestCasesScaleI4F16 = ::testing::Combine(
-        ::testing::ValuesIn({ov::element::Type_t::i4}), // TODO: add i8 as input for test
+        ::testing::ValuesIn({ov::element::Type_t::i4}),
         ::testing::ValuesIn({ov::element::Type_t::f16}),
         ::testing::ValuesIn({ov::element::Type_t::f32}),
         ::testing::ValuesIn({ov::element::Type_t::dynamic}), // no used in this test

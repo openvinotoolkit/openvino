@@ -495,7 +495,6 @@ protected:
 
 using UnpackWithScaleTestsI4F16 = UnpackTestsTmpl<UnpackWithScaleTestsI4F16Base>;
 
-
 TEST_P(UnpackWithScaleTestsI4F16, i4f16_scale) {
     ASSERT_NO_THROW_IF(!isNegative(),
                       ov::npuw::util::unpack(from, scale, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
