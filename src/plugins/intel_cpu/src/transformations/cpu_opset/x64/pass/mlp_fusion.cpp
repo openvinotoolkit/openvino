@@ -122,6 +122,26 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
+
+        // Verify VariadicSplit output[1] connects to Multiply (up branch) in combined mode
+        if (pattern_map.count(gate_up_proj_split)) {
+            auto mlp_gated_up_node = pattern_map.at(mlp_gated_up).get_node_shared_ptr();
+            auto input0 = mlp_gated_up_node->input_value(0);
+            auto input1 = mlp_gated_up_node->input_value(1);
+
+            bool found_valid_up_connection = false;
+
+            if (input0.get_node() == pattern_map.at(gate_up_proj_split).get_node() && input0.get_index() == 1) {
+                found_valid_up_connection = true;
+            }
+            if (input1.get_node() == pattern_map.at(gate_up_proj_split).get_node() && input1.get_index() == 1) {
+                found_valid_up_connection = true;
+            }
+
+            if (!found_valid_up_connection) {
+                return false;
+            }
+        }
         auto src = pattern_map.at(input);
         if (!src.get_element_type().is_real()) {
             // FakeQuantize, should skip fusion
