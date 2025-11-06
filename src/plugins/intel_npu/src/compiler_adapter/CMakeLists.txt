@@ -25,7 +25,7 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino::npu_al
         openvino::npu_common
-        openvino_xml_util
+        openvino::xml_util
 )
 
 #
