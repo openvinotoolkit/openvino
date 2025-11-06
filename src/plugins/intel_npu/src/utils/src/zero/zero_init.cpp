@@ -324,16 +324,18 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
 
     // Create context - share between the compiler and the backend
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
-    log.debug("ZeroInitStructsHolder initialize complete");
 
+    ze_context_properties_npu_ext_t context_properties = {};
     if (context_ext_version >= ZE_MAKE_VERSION(1, 0)) {
         context_options |= ZE_NPU_CONTEXT_OPTION_ENABLE_IDLE_OPTIMIZATIONS;
-        ze_context_properties_npu_ext_t context_properties = {ZE_STRUCTURE_TYPE_CONTEXT_PROPERTIES_NPU_EXT,
-                                                              nullptr,
-                                                              context_options};
-        context_npu_dditable_ext_decorator->pfnSetProperties(context, &context_properties);
+
+        context_properties.stype = ZE_STRUCTURE_TYPE_CONTEXT_PROPERTIES_NPU_EXT;
+        context_properties.options = context_options;
+        context_desc.pNext = static_cast<const void*>(&context_properties);
     }
+
+    THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
+    log.debug("ZeroInitStructsHolder initialize complete");
 
     // Obtain compiler-in-driver properties
     compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
