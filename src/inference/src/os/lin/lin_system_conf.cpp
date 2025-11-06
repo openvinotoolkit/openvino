@@ -248,6 +248,7 @@ CPU::CPU() {
                                _numa_nodes,
                                _sockets,
                                _cores,
+                               _blocked_cores,
                                _proc_type_table,
                                _cpu_mapping_table);
     }
@@ -395,6 +396,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                             int& _numa_nodes,
                             int& _sockets,
                             int& _cores,
+                            int& _blocked_cores,
                             std::vector<std::vector<int>>& _proc_type_table,
                             std::vector<std::vector<int>>& _cpu_mapping_table) {
     int n_group = 0;
@@ -481,6 +483,16 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
 
                 for (int m = core_1; m <= core_2; m++) {
                     update_proc_info(m, core_type);
+
+                    if ((core_2 - core_1 == 1) &&
+                        _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] == LP_EFFICIENT_CORE_PROC) {
+                        _cpu_mapping_table[m][CPU_MAP_GROUP_ID] = CPU_BLOCKED;
+                        _cpu_mapping_table[m][CPU_MAP_USED_FLAG] = CPU_BLOCKED;
+                        _blocked_cores++;
+                        _cores--;
+                        _proc_type_table[0][ALL_PROC]--;
+                        _proc_type_table[0][_cpu_mapping_table[m][CPU_MAP_CORE_TYPE]]--;
+                    }
                 }
             } else {
                 core_1 = std::stoi(system_info_table[nproc][0]);
@@ -539,11 +551,6 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                         sub_str = system_info_table[n][info_index].substr(endpos + 1);
                         core_2 = std::stoi(sub_str);
 
-                        if ((info_index == 1) && (core_2 - core_1 == 1) &&
-                            (_proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
-                            offline_list.push_back(n);
-                            break;
-                        }
                         for (int m = core_1; m <= core_2; m++) {
                             _cpu_mapping_table[m][CPU_MAP_SOCKET_ID] = _sockets;
                             _cpu_mapping_table[m][CPU_MAP_NUMA_NODE_ID] = _cpu_mapping_table[m][CPU_MAP_SOCKET_ID];
@@ -602,6 +609,8 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
         _cpu_mapping_table.erase(_cpu_mapping_table.begin() + offline_list[n] - n);
         _processors--;
     }
+
+    _processors = _processors - _blocked_cores;
 };
 
 void get_cpu_mapping_from_cores(const int _processors,

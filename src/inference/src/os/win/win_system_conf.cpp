@@ -318,7 +318,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
         phys_cores++;
     } while (offset < sz);
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         phys_cores = custom::info::default_concurrency(
@@ -328,7 +328,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
     return phys_cores;
 }
 
-#if !(OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if !OV_THREAD_USE_TBB
 // OMP/SEQ threading on the Windows doesn't support NUMA
 std::vector<int> get_available_numa_nodes() {
     return {-1};

@@ -985,6 +985,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
 // and indices tensor of shape [i_0, i_1, ..., i_k].
 // Updates tensor shape should be [d_0, d_1, ... d_(axis - 1), i_0, i_1, ..., i_k, d_(axis + 1), ..., d_n].
 void ScatterUpdate::scatterUpdate(uint8_t* indices, uint8_t* update, int axis, uint8_t* dstData) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     const auto& updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
@@ -1006,7 +1007,7 @@ void ScatterUpdate::scatterUpdate(uint8_t* indices, uint8_t* update, int axis, u
     size_t blockToUpdate = srcBlockND[axis + 1];
     size_t blockToUpdateSize = blockToUpdate * dataSize;
 
-    parallel_for2d(batchToUpdate, idxLength, [&](size_t b, size_t idx) {
+    cpu_parallel->parallel_for2d(batchToUpdate, idxLength, [&](size_t b, size_t idx) {
         int64_t idxValue = getIndicesValue(indices, idx);
         uint8_t* dstEntry = dstData + (b * srcBlockND[axis] + idxValue * blockToUpdate) * dataSize;
         uint8_t* updateEntry = update + (b * updateBlockND[axis] + idx * blockToUpdate) * dataSize;
@@ -1038,6 +1039,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
                                     const MemoryPtr& mem_indices,
                                     const MemoryPtr& mem_updates,
                                     [[maybe_unused]] const scatter_reductions::ReduceNone& kernel) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto* indices = mem_indices->getDataAs<uint8_t>();
     auto* update = mem_updates->getDataAs<uint8_t>();
     auto* dstData = mem_data->getDataAs<uint8_t>();
@@ -1055,7 +1057,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
     }
 
     size_t sizeToUpdate = srcBlockND[k] * dataSize;
-    parallel_for(idxTupleNum, [&](size_t tupleIdx) {
+    cpu_parallel->parallel_for(idxTupleNum, [&](size_t tupleIdx) {
         size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
         for (size_t i = 0; i < k; i++) {

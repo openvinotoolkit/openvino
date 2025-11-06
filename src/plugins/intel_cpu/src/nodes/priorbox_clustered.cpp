@@ -20,7 +20,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
@@ -107,6 +106,7 @@ void PriorBoxClustered::createPrimitive() {
 }
 
 void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];
@@ -126,7 +126,7 @@ void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& out_shape = getChildEdgeAt(0)->getMemory().getShape().getStaticDims();
 
     size_t var_size = variances.size();
-    parallel_for2d(layer_height, layer_width, [&](int64_t h, int64_t w) {
+    cpu_parallel->parallel_for2d(layer_height, layer_width, [&](int64_t h, int64_t w) {
         float center_x = (static_cast<float>(w) + offset) * step_w;
         float center_y = (static_cast<float>(h) + offset) * step_h;
 

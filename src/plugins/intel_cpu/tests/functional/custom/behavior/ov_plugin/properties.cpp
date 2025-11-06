@@ -61,6 +61,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::log::level.name()),
         RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
+        RW_property(ov::intel_cpu::tbb_partitioner.name()),
         RW_property(ov::hint::dynamic_quantization_group_size.name()),
         RW_property(ov::hint::kv_cache_precision.name()),
         RW_property(ov::key_cache_precision.name()),
