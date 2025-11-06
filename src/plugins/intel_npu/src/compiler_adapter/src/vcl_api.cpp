@@ -289,7 +289,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                             VCL_COMPILER_VERSION_MINOR,
                             _vclVersion.major,
                             _vclVersion.minor,
-                            supportVclCompiler(usedMajor, usedMinor).c_str);
+                            supportVclCompiler(usedMajor, usedMinor).c_str());
         }
         // For older versions, we use vclAllocatedExecutableCreate
         _logger.debug("Using vclAllocatedExecutableCreate for 6.1 < VCL < 7.4");
