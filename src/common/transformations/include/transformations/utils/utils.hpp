@@ -291,6 +291,16 @@ TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output)
 
 TRANSFORMATIONS_API bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node);
 
+/// \brief Disconnect output from consumer's target inputs (internal utility for transformations)
+/// \param output_to_disconnect The output that should be disconnected
+/// \param consumer_output The output whose targets should be cleaned
+///
+/// Removes connections from output_to_disconnect that appear in consumer_output's target inputs.
+/// This is useful after replace() to clean up incorrect cyclic connections.
+/// Should be at most one such connection in normal cases.
+TRANSFORMATIONS_API void disconnect_output_from_consumers(const Output<Node>& output_to_disconnect,
+                                                          const Output<Node>& consumer_output);
+
 TRANSFORMATIONS_API std::tuple<std::shared_ptr<ov::Node>,  // result
                                std::shared_ptr<ov::Node>,  // reshape_kv
                                std::shared_ptr<ov::Node>,  // unsqueeze_kv
