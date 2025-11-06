@@ -438,6 +438,9 @@ public:
     /// @return Constant's strides in bytes.
     const Strides& get_strides() const;
 
+    size_t m_offset;
+    size_t m_size;
+
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
 

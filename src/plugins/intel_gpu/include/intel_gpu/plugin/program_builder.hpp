@@ -106,6 +106,7 @@ public:
     const std::map<size_t, cldnn::layout>& get_input_layouts() const { return inputLayouts; }
     cldnn::engine& get_engine() const { return m_engine; }
     const ExecutionConfig& get_config() const { return m_config; }
+    const std::shared_ptr<ov::Model>& get_model() const { return m_model; }
 
     int64_t get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const;
     int64_t get_result_index(const ov::Output<ov::Node>& value) const;

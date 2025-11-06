@@ -324,6 +324,8 @@ Constant::Constant(const element::Type& type, const Shape& shape, const std::sha
 Constant::Constant(const Constant& other)
     : m_element_type{other.m_element_type},
       m_shape{other.m_shape},
+      m_offset{other.m_offset},
+      m_size{other.m_size},
       m_byte_strides{other.m_byte_strides},
       m_data{other.m_data},
       m_all_elements_bitwise_identical{other.m_all_elements_bitwise_identical.load()},
@@ -597,6 +599,8 @@ bool Constant::visit_attributes(AttributeVisitor& visitor) {
     const auto prev_type = m_element_type;
     visitor.on_attribute("element_type", m_element_type);
     visitor.on_attribute("shape", m_shape);
+    visitor.on_attribute("offset", m_offset);
+    visitor.on_attribute("size", m_size);
 
     const auto need_to_reallocate = (m_shape != prev_shape) || (prev_type != m_element_type);
     const auto is_string_constant = (m_element_type == element::string);

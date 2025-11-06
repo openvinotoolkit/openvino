@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+﻿// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,7 @@
 #    include "primitive_inst.h"
 #    include "primitive_ocl_base.hpp"
 #    include "utils/kernel_generator.hpp"
+#include "LRUCache.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -516,6 +517,111 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
     return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
 }
 
+static void read_from_file(const char * fname, void * ptr, size_t len, size_t offset) {
+    thread_local HANDLE hFile = NULL;
+    if (!hFile) {
+        hFile = CreateFileA(fname, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (hFile == INVALID_HANDLE_VALUE) {
+            printf("Failed to open file: %lu\n", GetLastError());
+        }
+    }
+
+    LARGE_INTEGER li;
+    li.QuadPart = offset;
+    BOOL ret = SetFilePointerEx(hFile, li, NULL, SEEK_SET);
+    if (!ret) {
+        printf("SetFilePointerEx failed!\n");
+    }
+
+    size_t bytes_read = 0;
+    while (bytes_read < len) {
+        DWORD chunk_size = static_cast<DWORD>(std::min<size_t>(len - bytes_read, 64 * 1024 * 1024));
+        DWORD chunk_read = 0;
+        BOOL result = ReadFile(hFile, reinterpret_cast<char*>(ptr) + bytes_read, chunk_size, &chunk_read, NULL);
+        if (!result) {
+            printf("ReadFile failed!\n");
+        }
+        if (chunk_read < chunk_size || chunk_read == 0) {
+            printf("unexpectedly reached end of file\n");
+        }
+
+        bytes_read += chunk_read;
+    }
+}
+
+static void fill_weights_memory_new(stream& stream, const std::shared_ptr<ov::op::internal::MOE>& op, std::vector<cldnn::mlp_params>& params,
+    cldnn::mlp_weights_mem& wei_mem, const std::vector<uint32_t>& experts_list, bool only_offsets = false) {
+    auto fill = [&] (const std::shared_ptr<ov::op::v0::Constant>& op, cldnn::memory_ptr mem, bool try_repack = false) {
+        if (only_offsets)
+            return;
+        if (!mem)
+            return;
+        ov::Shape const_shape = op->get_shape();
+        auto constFormat = cldnn::format::get_default_format(const_shape.size());
+        cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
+        auto layout = cldnn::layout(const_shape, out_dtype, constFormat);
+
+        auto offset = op->m_offset;
+        auto size   = op->m_size;
+        LPVOID pBase = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        if (!pBase) {
+            printf("VirtualAlloc failed: %lu\n", GetLastError());
+            return;
+        }
+        read_from_file(cldnn::file_path.c_str(), pBase, size, offset);
+
+        auto data = pBase;
+        std::vector<uint8_t> repacked_buf;
+        if (try_repack) {
+            auto repacked = repack_zp_scale(repacked_buf, (uint8_t*)data, const_shape, op->get_output_element_type(0));
+            if (repacked) {
+                data = repacked_buf.data();
+                auto new_shape = ov::Shape{const_shape[1], const_shape[0], 1};
+                layout = cldnn::layout(new_shape, out_dtype, constFormat);
+            }
+        }
+
+        mem->copy_from(stream, data, 0, 0, layout.bytes_count(), true);
+        VirtualFree(pBase, 0, MEM_RELEASE);
+    };
+    const auto& consts = op->get_consts();
+
+    auto weights_base_ptr = reinterpret_cast<uint8_t*>(wei_mem.weights_base->buffer_ptr());
+    std::vector<uint32_t> offsets;
+    offsets.reserve(consts.size() * EACH_EXPERT_WEIGHTS_OFFSET_SIZE / sizeof(uint32_t));
+    size_t i = 0; 
+    for (uint32_t expert: experts_list) {
+        auto current_consts = consts[expert];
+#define SET_BUF(src_name, dst_idx)                                                                                           \
+        fill(current_consts.src_name[0], params[i].param[dst_idx].weight);                                                   \
+        offsets.push_back(reinterpret_cast<uint8_t*>(params[i].param[dst_idx].weight->buffer_ptr()) - weights_base_ptr);     \
+        fill(current_consts.src_name[1], params[i].param[dst_idx].scale, true);                                              \
+        offsets.push_back(reinterpret_cast<uint8_t*>(params[i].param[dst_idx].scale->buffer_ptr()) - weights_base_ptr);      \
+        fill(current_consts.src_name[2], params[i].param[dst_idx].zp, true);                                                 \
+        offsets.push_back(reinterpret_cast<uint8_t*>(params[i].param[dst_idx].zp->buffer_ptr()) - weights_base_ptr);
+
+        SET_BUF(gates, 0)
+        SET_BUF(ups, 1)
+        SET_BUF(downs, 2)
+#undef SET_BUF
+        // padding
+        for (size_t j = 0; j < EACH_EXPERT_WEIGHTS_OFFSET_SIZE / sizeof(uint32_t) - 9; j++) {
+            offsets.push_back(0);
+        }
+        i++;
+    }
+    wei_mem.weights_offset->copy_from(stream, offsets.data(), 0, 0, wei_mem.weights_offset->get_layout().bytes_count(), true);
+}
+
+static void on_evict(size_t layer, size_t expert, void* addr, void* params) {
+    if (addr) {
+        delete static_cast<cldnn::mlp_weights_mem*>(addr);
+    }
+    if (params) {
+        delete static_cast<std::vector<cldnn::mlp_params>*>(params);
+    }
+}
+
 class MOEOptImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MOEOptImpl)
@@ -794,7 +900,165 @@ public:
         return std::make_tuple(mem, layout);
     }
 
-    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe>& instance, scratch_buffers& scratch) {
+    cldnn::event::ptr exec_offload_to_disk(typed_primitive_inst<moe>& instance, scratch_buffers& scratch, LRUCache& cache, bool is_single_batch, size_t expert_no = 0) {
+        auto cur_moe = instance.get_typed_desc<moe>();
+        auto& op = cur_moe->_op;
+        int max_topk = static_cast<int>(cur_moe->_config.topk);
+        auto& engine = instance.get_network().get_engine();
+        auto& stream = engine.get_service_stream();
+        std::vector<uint32_t> experts_list;
+        std::vector<cldnn::mlp_params> params;
+        event::ptr ret;
+
+        auto& id = cur_moe->id;
+        size_t layer;
+        if (id == "moe:moe_router") {
+            layer = 0;
+        } else {
+            size_t pos = id.rfind('_');
+            if (pos != std::string::npos && pos + 1 < id.size()) {
+                std::string numStr = id.substr(pos + 1);
+                layer = atoi(numStr.c_str());
+            } 
+        }
+
+        #define PREPARE_CREATE_WEIGHTS(n_expert)                                                                                            \
+            auto config = op->get_config();                                                                                                 \
+            auto size = get_weights_size(op) / config.expert_num * n_expert;                                                                \
+            auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(size)}, ov::element::i8, cldnn::format::bfyx);     \
+            auto alloc_type = engine.get_preferred_memory_allocation_type(false);                                                           \
+            config.expert_num = n_expert;
+
+        auto get_params = [&] (uint32_t expert) {
+            std::vector<cldnn::mlp_params> tmp_params;
+
+            if (LRUCache::INSERT == cache.insert_or_refresh(layer, expert, nullptr, nullptr)) {
+                std::vector<cldnn::mlp_params>* expert_params = new std::vector<cldnn::mlp_params>;
+                std::vector<uint32_t> experts_list_single;
+                experts_list_single.push_back(expert);
+                cldnn::mlp_weights_mem* tmp_weights_mem = new cldnn::mlp_weights_mem;
+                PREPARE_CREATE_WEIGHTS(1)
+                tmp_weights_mem->weights_base = engine.allocate_memory(layout, alloc_type, false);
+                create_weights_memory(*tmp_weights_mem, config, engine, *expert_params);
+                fill_weights_memory_new(stream, op, *expert_params, *tmp_weights_mem, experts_list_single);
+                cache.insert_or_refresh(layer, expert, (void*)tmp_weights_mem, (void*)expert_params);
+                tmp_params = *expert_params;
+            } else {
+                tmp_params = *static_cast<std::vector<cldnn::mlp_params>*>(cache.get_expert_params(layer, expert));
+            }
+
+            return tmp_params;
+        };
+
+        if (is_single_batch) {
+            auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
+            auto batch_mem_ptr = scratch.topk_id;
+            auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 0);
+            auto routing_mem_ptr = scratch.topk_weights;
+
+            _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
+            _intermediate_size = static_cast<int>(cur_moe->_config.intermediate_size);
+
+            const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
+            const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
+
+            Sleep(5); // wait topk done and write to memory
+            uint32_t* p_expert = (uint32_t*)batch_mem_ptr->buffer_ptr();
+            for (size_t i = 0; i < max_topk; i++) {
+                experts_list.push_back(*p_expert++);
+            }
+
+            static bool initialized = false;
+            static cldnn::mlp_weights_mem weights_mem;
+            static std::vector<cldnn::mlp_params> shell_params;
+            static memory::ptr expert_index_buffer = nullptr;
+            if (!initialized) {
+                PREPARE_CREATE_WEIGHTS(max_topk)
+                weights_mem.weights_base = engine.allocate_memory(layout, alloc_type, false);
+                create_weights_memory(weights_mem, config, engine, shell_params);
+                fill_weights_memory_new(stream, op, shell_params, weights_mem, experts_list, true);
+
+                size_t experts_index_size = 4 * max_topk; // each expert has 4 bytes
+                auto layout_expert = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(experts_index_size)}, ov::element::i8, cldnn::format::bfyx);
+                expert_index_buffer = engine.allocate_memory(layout_expert, allocation_type::usm_host, false);
+                uint32_t* p_expert_index = (uint32_t*)expert_index_buffer->buffer_ptr();
+                for (uint32_t i = 0; i < max_topk; i++) {
+                    *p_expert_index++ = i;  // update batch_mem_ptr as re-map
+                }
+
+                initialized = true;
+            }
+            batch_mem_ptr = expert_index_buffer;
+
+            int i = 0;
+            for (uint32_t expert: experts_list) {
+                params = get_params(expert);
+
+                cldnn::memory_ptr src, dst;
+                #define COPY_BUF(dst_idx)                                                                                       \
+                        src = params[0].param[dst_idx].weight;                                                                  \
+                        dst = shell_params[i].param[dst_idx].weight;                                                            \
+                        dst->copy_from(stream, *src, 0, 0, src->size(), true);                                                  \
+                        src = params[0].param[dst_idx].scale;                                                                   \
+                        dst = shell_params[i].param[dst_idx].scale;                                                             \
+                        dst->copy_from(stream, *src, 0, 0, src->size(), true);                                                  \
+                        src = params[0].param[dst_idx].zp;                                                                      \
+                        dst = shell_params[i].param[dst_idx].zp;                                                                \
+                        dst->copy_from(stream, *src, 0, 0, src->size(), true);
+
+                        COPY_BUF(0)
+                        COPY_BUF(1)
+                        COPY_BUF(2)
+                #undef COPY_BUF
+
+                i++;
+            }
+
+            // scratch.up = up(x) * silu(gate(x))
+            execute_stage({},
+                        instance,
+                        *mlp_gate_up,
+                        {batch_mem_ptr, weights_mem.weights_base, weights_mem.weights_offset, hidden_states_mem_ptr},
+                        {scratch.up},
+                        {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
+                        {1, subgroup_size, SUBGROUP_NUM}); 
+
+            // scratch.y = down(scratch.up) * weight[expert_no]
+            execute_stage({},
+                        instance,
+                        *mlp_down,
+                        {batch_mem_ptr, weights_mem.weights_base, weights_mem.weights_offset, scratch.up, routing_mem_ptr},
+                        {scratch.y},
+                        {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
+                        {1, subgroup_size, SUBGROUP_NUM});
+
+            // final = sum(scratch.y)
+            ret = execute_stage({},
+                                instance,
+                                *mlp_reduce,
+                                {scratch.y},
+                                {final_hidden_states_mem_ptr},
+                                {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
+                                {1, std::min(max_work_group_size, size_t{1024})},
+                                instance.needs_completion_event());
+        } else {
+            auto& dnnl_weights = _dnnl_weights[expert_no];
+            params = get_params(static_cast<uint32_t>(expert_no));
+            for (int i = 0; i < 3; i++) {
+                dnnl_weights[i].scale = convert2dnnl(params[0].param[i].scale,
+                                                        {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
+                                                        dnnl::memory::format_tag::ab);
+                dnnl_weights[i].zp = convert2dnnl(params[0].param[i].zp,
+                                                    {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
+                                                    dnnl::memory::format_tag::ab);
+                dnnl_weights[i].weight = convert2dnnl(params[0].param[i].weight, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba);
+            }
+        }
+
+        return ret;
+    }
+
+    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe>& instance, scratch_buffers& scratch, LRUCache& cache) {
         auto cur_moe = instance.get_typed_desc<moe>();
         int max_topk = static_cast<int>(cur_moe->_config.topk);
 
@@ -808,27 +1072,29 @@ public:
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
-        const auto& mlp_weight_mem = cur_moe->_mlp_weights_mem;
+        auto& mlp_weight_mem = cur_moe->_mlp_weights_mem;
         event::ptr ret;
 
-        {
+        if (cldnn::offload_to_disk) {
+            return exec_offload_to_disk(instance, scratch, cache, true);
+        } else {
             // scratch.up = up(x) * silu(gate(x))
             execute_stage({},
-                          instance,
-                          *mlp_gate_up,
-                          {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, hidden_states_mem_ptr},
-                          {scratch.up},
-                          {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
-                          {1, subgroup_size, SUBGROUP_NUM});
+                        instance,
+                        *mlp_gate_up,
+                        {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, hidden_states_mem_ptr},
+                        {scratch.up},
+                        {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
+                        {1, subgroup_size, SUBGROUP_NUM}); 
 
             // scratch.y = down(scratch.up) * weight[expert_no]
             execute_stage({},
-                          instance,
-                          *mlp_down,
-                          {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, scratch.up, routing_mem_ptr},
-                          {scratch.y},
-                          {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
-                          {1, subgroup_size, SUBGROUP_NUM});
+                        instance,
+                        *mlp_down,
+                        {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, scratch.up, routing_mem_ptr},
+                        {scratch.y},
+                        {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
+                        {1, subgroup_size, SUBGROUP_NUM});
 
             // final = sum(scratch.y)
             ret = execute_stage({},
@@ -839,8 +1105,8 @@ public:
                                 {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
                                 {1, std::min(max_work_group_size, size_t{1024})},
                                 instance.needs_completion_event());
+            return ret;
         }
-        return ret;
     }
 
     struct onednn_kernel {
@@ -914,6 +1180,15 @@ public:
                                              dnnl_weights[2].weight,
                                              dnnl_weights[2].scale,
                                              dnnl_weights[2].zp);
+        
+        // each time dnnl_weights updated need refresh kernel cache in OTD mode, if not, the stream engine context and memory storage engine context will mismatch,
+        // dnnl kernel will report invalid_arguments and fail or compute wrong and output wrong tokens. if any perf concerns, need deep dive here.
+        if (cldnn::offload_to_disk) {
+            static auto otd_kernel = std::make_shared<onednn_kernel>();
+            otd_kernel = kernel;
+            return *otd_kernel;
+        }
+
         _kernels.add(key, kernel);
         return *_kernels.get(key);
     }
@@ -941,6 +1216,7 @@ public:
         int max_topk = static_cast<int>(config.topk);
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
+        static LRUCache cache(cldnn::offload_to_disk, on_evict);
 
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 0);
         auto batch = static_cast<int>(hidden_states_layout.get_shape()[0]);
@@ -962,7 +1238,7 @@ public:
         // and we can apply optimal kernels against memory bound to improve performance.
         // It is very important for MoE's second token performance.
         if (batch == 1) {
-            return exec_single_batch(instance, scratch);
+            return exec_single_batch(instance, scratch, cache);
         }
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
@@ -1001,6 +1277,9 @@ public:
                 continue;
             }
             auto& dnnl_weights = _dnnl_weights[expert_no];
+            if (cldnn::offload_to_disk) {
+                exec_offload_to_disk(instance, scratch, cache, false, expert_no);
+            }
 
             // expert_mask
             expert_mask_gpu& expert_mask_mem = scratch.expert_masks[expert_no];
