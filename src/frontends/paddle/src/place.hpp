@@ -156,10 +156,10 @@ public:
     Ptr get_target_tensor(const std::string& outputName, int outputPortIndex) const override;
 
 private:
-    const ::paddle::framework::proto::OpDesc& m_op_desc;  // TODO: to conceal it behind decoder.
     std::shared_ptr<DecoderBase> m_op_decoder;
     std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>> m_input_ports;
     std::map<std::string, std::vector<std::shared_ptr<OutPortPlace>>> m_output_ports;
+    const ::paddle::framework::proto::OpDesc& m_op_desc;  // Kept for transition, access via decoder
 };
 
 class TensorPlace : public Place {
