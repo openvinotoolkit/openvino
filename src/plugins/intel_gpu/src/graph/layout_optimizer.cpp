@@ -1363,6 +1363,20 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         auto input_layout = node.get_input_layout(0);
         if (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) {
             expected = format::get_default_format(input_layout.get_rank());
+        } else {
+            // nvm blocked opt kernels for i8/u8 support only aligned input shape.
+            // If there is possibility of blocked format input with unaligned shape, set expected to plain format.
+            auto prim = node.as<mvn>().get_primitive();
+            auto input_pshape = input_layout.get_partial_shape();
+            if (prim->requires_alignment(input_pshape)) {
+                auto possible_block_sizes = format::block_sizes(cldnn::format::b_fs_yx_fsv16);
+                auto axes = prim->reduction_axes;
+                if (input_layout.is_dynamic() ||
+                    (input_pshape[possible_block_sizes[0].first].get_length() % possible_block_sizes[0].second != 0 &&
+                    std::count(axes.begin(), axes.end(), possible_block_sizes[0].first) == 0)) {
+                    expected = format::get_default_format(input_layout.get_rank());
+                }
+            }
         }
     } else if (node.is_type<resample>()) {
         // if the resample is in the last part of the network and there are no users using blocked format,
