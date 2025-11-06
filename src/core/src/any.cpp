@@ -157,6 +157,8 @@ void Any::impl_check() const {
 
 const std::type_info& Any::type_info() const {
     impl_check();
+    // `impl_check' asserts valid deference
+    // coverity[dereference:FALSE]
     return _impl->type_info();
 }
 
