@@ -608,8 +608,8 @@ public:
         _down_group_size = static_cast<int>(cur_moe->_config.group_size);
 
         if (cur_moe->_config.group_size == std::numeric_limits<size_t>::max()) {
-            _gate_up_group_size = cur_moe->_config.hidden_size;
-            _down_group_size = cur_moe->_config.inter_size;
+            _gate_up_group_size = static_cast<int>(cur_moe->_config.hidden_size);
+            _down_group_size = static_cast<int>(cur_moe->_config.inter_size);
         }
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt prefill: group_size=" << cur_moe->_config.group_size
@@ -853,7 +853,9 @@ public:
         return std::make_tuple(mem, layout);
     }
 
-    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch) {
+    cldnn::event::ptr exec_single_batch(const std::vector<cldnn::event::ptr>& events,
+                                        typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                        scratch_buffers& scratch) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         int max_topk = static_cast<int>(cur_moe->_config.top_k);
 
@@ -886,8 +888,8 @@ public:
 
         {
             // scratch.up = up(x) * silu(gate(x))
-            execute_stage(
-                {},
+            auto ret_event = execute_stage(
+                events,
                 instance,
                 *mlp_gate_up,
                 {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem, hidden_states_mem_ptr},
@@ -896,16 +898,16 @@ public:
                 {1, subgroup_size, SUBGROUP_NUM});
 
             // scratch.y = down(scratch.up) * weight[expert_no]
-            execute_stage({},
-                          instance,
-                          *mlp_down,
-                          {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem, scratch.up, routing_mem_ptr},
-                          {scratch.y},
-                          {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
-                          {1, subgroup_size, SUBGROUP_NUM});
+            ret_event = execute_stage({ret_event},
+                                      instance,
+                                      *mlp_down,
+                                      {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem, scratch.up, routing_mem_ptr},
+                                      {scratch.y},
+                                      {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
+                                      {1, subgroup_size, SUBGROUP_NUM});
 
             // final = sum(scratch.y)
-            ret = execute_stage({},
+            ret = execute_stage({ret_event},
                                 instance,
                                 *mlp_reduce,
                                 {scratch.y},
@@ -1035,7 +1037,7 @@ public:
         // and we can apply optimal kernels against memory bound to improve performance.
         // It is very important for MoE's second token performance.
         if (batch == 1) {
-            return exec_single_batch(instance, scratch);
+            return exec_single_batch({topk_event}, instance, scratch);
         }
 
         auto& engine = instance.get_network().get_engine();
@@ -1055,7 +1057,7 @@ public:
         get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
 
         auto& dnn_stream = stream.get_onednn_stream();
-        cldnn::event::ptr result_event;
+        cldnn::event::ptr result_event = nullptr;
 
         auto routing_mem_ptr = scratch.topk_weights;
         auto get_best_lws = [](size_t hidden_size) {
@@ -1090,13 +1092,14 @@ public:
             onednn_kernel& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
 
             // gather
-            execute_stage(events,
-                          instance,
-                          *gather,
-                          {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem.batch, expert_mask_mem.topk},
-                          {scratch.x, scratch.routing_weights},
-                          {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
-                          {1, lws_size});
+            result_event = execute_stage({result_event},
+                                         instance,
+                                         *gather,
+                                         {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem.batch, expert_mask_mem.topk},
+                                         {scratch.x, scratch.routing_weights},
+                                         {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
+                                         {1, lws_size},
+                                         instance.needs_completion_event());
 
             // up
             kernel.up.forward(dnn_stream,
@@ -1119,7 +1122,7 @@ public:
                                 convert2dnnl(scratch.y, {static_cast<int>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.routing_weights, {n_token * max_topk}, dnnl::memory::format_tag::a));
             // index_add
-            result_event = execute_stage(events,
+            result_event = execute_stage({result_event},
                                          instance,
                                          *scatter,
                                          {scratch.y, expert_mask_mem.batch},
