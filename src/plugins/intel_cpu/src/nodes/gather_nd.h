@@ -70,9 +70,9 @@ private:
         size_t batchDims = 0LU;
         VectorDims srcDims;
         VectorDims idxDims;
-        VectorDims batchShape;        // output batch shape (broadcast result)
-        VectorDims srcBatchStrides;   // per-dimension strides for src (0 if dim=1)
-        VectorDims idxBatchStrides;   // per-dimension strides for indices (0 if dim=1)
+        VectorDims batchShape;       // output batch shape (broadcast result)
+        VectorDims srcBatchStrides;  // per-dimension strides for src (0 if dim=1)
+        VectorDims idxBatchStrides;  // per-dimension strides for indices (0 if dim=1)
 
         struct GatherNDContext {
             GatherNDExecutor* executor;
