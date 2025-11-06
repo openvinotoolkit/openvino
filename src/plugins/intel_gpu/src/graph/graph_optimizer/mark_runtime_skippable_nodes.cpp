@@ -296,7 +296,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             auto prim = impl_params->typed_desc<resample>();
             const auto& pads_begin = prim->pads_begin;
             const auto& pads_end = prim->pads_end;
-            bool no_padding = all_zeroes(pads_begin) && all_zeroes(pads_begin);
+            bool no_padding = all_zeroes(pads_begin) && all_zeroes(pads_end);
             if (!node.has_fused_primitives() && no_padding) {
                 node.can_be_optimized(true);
                 node.set_runtime_skippable(true);
