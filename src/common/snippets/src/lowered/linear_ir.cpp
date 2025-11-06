@@ -57,6 +57,10 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
                    const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                    Config config)
     : LinearIR(std::move(config), factory) {
+    const auto total_nodes = model->get_ops().size();
+    const auto inputs_count = model->get_parameters().size();
+    const auto outputs_count = model->get_results().size();
+    OPENVINO_ASSERT(total_nodes > inputs_count + outputs_count, "LinearIR is empty (only Parameters/Results)");
     auto last_param = m_expressions.end();
     for (const auto& n : get_ordered_ops(model)) {
         auto insertion_pos = m_expressions.end();
