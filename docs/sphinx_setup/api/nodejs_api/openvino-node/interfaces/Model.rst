@@ -77,7 +77,7 @@ Methods
 
 
 .. rubric:: getFriendlyName
-   name: getFriendlyName
+   :name: getFriendlyName
 
 *
 

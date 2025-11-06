@@ -24,6 +24,7 @@ Operation Specifications
    AUGRUSequence <operation-specs/internal/augru-sequence>
    AvgPool-1 <operation-specs/pooling/avg-pool-1>
    AvgPool-14 <operation-specs/pooling/avg-pool-14>
+   AvgPool-16 <operation-specs/pooling/avg-pool-16>
    BatchNormInference-1 <operation-specs/normalization/batch-norm-inference-1>
    BatchNormInference-5 <operation-specs/normalization/batch-norm-inference-5>
    BatchToSpace-2 <operation-specs/movement/batch-to-space-2>
@@ -106,8 +107,10 @@ Operation Specifications
    HSwish-4 <operation-specs/activation/hswish-4>
    I420toBGR-8 <operation-specs/image/i420-to-bgr-8>
    I420toRGB-8 <operation-specs/image/i420-to-rgb-8>
+   Identity-16 <operation-specs/activation/identity-16>
    IDFT-7 <operation-specs/signals/idft-7>
    IRDFT-9 <operation-specs/signals/irdft-9>
+   ISTFT-16 <operation-specs/signals/istft-16>
    If-8 <operation-specs/condition/if-8>
    Interpolate-1 <operation-specs/image/interpolate-1>
    Interpolate-4 <operation-specs/image/interpolate-4>
@@ -157,6 +160,7 @@ Operation Specifications
    NV12toBGR-8 <operation-specs/image/nv12-to-bgr-8>
    NV12toRGB-8 <operation-specs/image/nv12-to-rgb-8>
    OneHot-1 <operation-specs/sequence/one-hot-1>
+   OneHot-16 <operation-specs/sequence/one-hot-16>
    PReLU-1 <operation-specs/activation/prelu-1>
    PSROIPooling-1 <operation-specs/detection/psroi-pooling-1>
    Pad-1 <operation-specs/movement/pad-1>
@@ -190,6 +194,7 @@ Operation Specifications
    Result-1 <operation-specs/infrastructure/result-1>
    Reverse-1 <operation-specs/movement/reverse-1>
    ReverseSequence-1 <operation-specs/movement/reverse-sequence-1>
+   RMS <operation-specs/internal/rms>
    RNNCell-3 <operation-specs/sequence/rnn-cell-3>
    RNNSequence-5 <operation-specs/sequence/rnn-sequence-5>
    ROIAlign-3 <operation-specs/detection/roi-align-3>
@@ -205,6 +210,7 @@ Operation Specifications
    ScatterNDUpdate-15 <operation-specs/movement/scatter-nd-update-15>
    ScatterUpdate-3 <operation-specs/movement/scatter-update-3>
    SearchSorted-15 <operation-specs/sort/search-sorted-15>
+   SegmentMax-16 <operation-specs/arithmetic/segment-max-16>
    Select-1 <operation-specs/condition/select-1>
    Selu-1 <operation-specs/activation/selu-1>
    ShapeOf-1 <operation-specs/shape/shape-of-1>
@@ -222,6 +228,7 @@ Operation Specifications
    SoftSign-9 <operation-specs/activation/softsign-9>
    SpaceToBatch-2 <operation-specs/movement/space-to-batch-2>
    SpaceToDepth-1 <operation-specs/movement/space-to-depth-1>
+   SparseFillEmptyRows-16 <operation-specs/sparse/fill-empty-rows-16>
    Split-1 <operation-specs/movement/split-1>
    Sqrt-1 <operation-specs/arithmetic/sqrt-1>
    SquaredDifference-1 <operation-specs/arithmetic/squared-difference-1>
