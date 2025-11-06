@@ -368,7 +368,7 @@ const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance(
     std::lock_guard<std::mutex> lock(getMutex());
     auto instance = getInstanceStorage().lock();
     if (!instance) {
-        instance = std::shared_ptr<ZeroInitStructsHolder>(new ZeroInitStructsHolder());
+        instance = std::make_shared<ZeroInitStructsHolder>();
         getInstanceStorage() = instance;
     }
     return instance;
@@ -377,7 +377,6 @@ const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance(
 void ZeroInitStructsHolder::destroy() {
     std::lock_guard<std::mutex> lock(getMutex());
     auto instance = getInstanceStorage().lock();
-
     if (instance.use_count() == 2) {
         instance->destroy_context();
     }
@@ -391,8 +390,8 @@ std::weak_ptr<ZeroInitStructsHolder>& ZeroInitStructsHolder::getInstanceStorage(
 }
 
 std::mutex& ZeroInitStructsHolder::getMutex() {
-    static std::mutex m;
-    return m;
+    static std::mutex mutex;
+    return mutex;
 }
 
 void ZeroInitStructsHolder::destroy_context() {
