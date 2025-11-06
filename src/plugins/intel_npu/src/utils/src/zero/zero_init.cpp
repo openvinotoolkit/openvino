@@ -181,7 +181,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     // Query our graph extension version
     std::string graph_ext_name;
     uint32_t graph_ext_version = 0;
-    uint32_t target_graph_ext_version = ZE_GRAPH_EXT_VERSION_CURRENT;
+    uint32_t target_graph_ext_version = ZE_GRAPH_EXT_VERSION_1_14;
 
 #if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     const char* extVersion = std::getenv("NPU_ZE_GRAPH_EXT_VERSION");
