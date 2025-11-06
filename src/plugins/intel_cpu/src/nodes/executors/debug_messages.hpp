@@ -11,6 +11,7 @@
 #define UNSUPPORTED_TYPE_OF_POSTOPS          " the type of post ops is not supported"
 #define UNSUPPORTED_SRC_PRECISIONS           " unsupported src precisions"
 #define UNSUPPORTED_WEI_PRECISIONS           " unsupported wei precisions"
+#define UNSUPPORTED_BIAS_PRECISIONS          " unsupported bias precisions"
 #define UNSUPPORTED_DST_PRECISIONS           " unsupported dst precisions"
 #define UNSUPPORTED_ISA                      " unsupported isa"
 #define UNSUPPORTED_SRC_RANK                 " unsupported src rank"
