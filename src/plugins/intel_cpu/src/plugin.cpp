@@ -49,6 +49,7 @@
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "sigstack_manager.h"
 #include "transformations/transformation_pipeline.h"
@@ -325,7 +326,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& orig_config) const {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Plugin::compile_model");
+    OV_ITT_SCOPED_TASK(itt::domains::ov_intel_cpu, "Plugin::compile_model");
     CREATE_DEBUG_TIMER(debugLoadTimer);
 
     // verification of supported input
@@ -529,6 +530,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::weights_path)::value_type(std::string(""));
     }
 
+    if (name == ov::enable_weightless) {
+        return decltype(ov::enable_weightless)::value_type{engConfig.enableWeightless};
+    }
+
     return get_ro_property(name, options);
 }
 
@@ -580,7 +585,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
                                                    RW_property(ov::key_cache_precision.name()),
                                                    RW_property(ov::value_cache_precision.name()),
                                                    RW_property(ov::key_cache_group_size.name()),
-                                                   RW_property(ov::value_cache_group_size.name())};
+                                                   RW_property(ov::value_cache_group_size.name()),
+                                                   RW_property(ov::enable_weightless.name())};
 
         std::vector<ov::PropertyName> wo_properties{WO_property(ov::weights_path.name())};
 
@@ -719,17 +725,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 static std::string get_origin_weights_path(const ov::AnyMap& config) {
-    ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
     std::string origin_weights_path;
 
-    auto cm_it = config.find(ov::cache_mode.name());
-    if (cm_it != config.end()) {
-        cache_mode = cm_it->second.as<ov::CacheMode>();
-        if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
-            auto wp_it = config.find(ov::weights_path.name());
-            if (wp_it != config.end()) {
-                origin_weights_path = wp_it->second.as<std::string>();
-            }
+    if (ov::util::is_weightless_enabled(config).value_or(false)) {
+        auto wp_it = config.find(ov::weights_path.name());
+        if (wp_it != config.end()) {
+            origin_weights_path = wp_it->second.as<std::string>();
         }
     }
 
@@ -747,7 +748,7 @@ static bool get_cache_decrypt_fn(const ov::AnyMap& config, CacheDecrypt& decrypt
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
@@ -760,7 +761,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model_tensor,
                                                          const ov::AnyMap& config) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);

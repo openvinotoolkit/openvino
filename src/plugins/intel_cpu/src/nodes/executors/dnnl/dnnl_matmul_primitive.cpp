@@ -162,10 +162,15 @@ DnnlMemoryDescPtr DnnlMatMulPrimitive::makeTransposedWeightDescriptor(const Dnnl
     const auto& weiDesc = srcDesc->getDnnlDesc();
     auto wDims = weiDesc.get_dims();
     std::swap(wDims[wDims.size() - 1], wDims[wDims.size() - 2]);
+    const auto wDataType = weiDesc.get_data_type();
+    if (wDims.size() == 3 && !weightsNonTransposed) {
+        const auto format3D = dnnl::memory::format_tag::acb;
+        const auto transposed3DWeiDesc = dnnl::memory::desc{wDims, wDataType, format3D};
+        return DnnlExtensionUtils::makeDescriptor(transposed3DWeiDesc);
+    }
 
     const dnnl::memory::dims wDims2D = reshapeDownToRank<2>(wDims);
     const auto format = weightsNonTransposed ? dnnl::memory::format_tag::ab : dnnl::memory::format_tag::ba;
-    const auto wDataType = weiDesc.get_data_type();
     const auto transposedWeiDesc = dnnl::memory::desc{wDims2D, wDataType, format};
 
     const auto reshapedWeiDesc = transposedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
@@ -308,6 +313,23 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           [[maybe_unused]] const bool useSparseWeights,
                                           const bool useWeightsDecompression,
                                           const bool fcSemantic) {
+    auto createDescriptor = [&]() {
+        return fcSemantic ? createDescriptorInternalAsFc(inputDesc,
+                                                         weightDesc,
+                                                         biasDesc,
+                                                         outputDesc,
+                                                         attr,
+                                                         engine,
+                                                         useWeightsDecompression)
+                          : createDescriptorInternal(inputDesc,
+                                                     weightDesc,
+                                                     biasDesc,
+                                                     outputDesc,
+                                                     attr,
+                                                     engine,
+                                                     transposeA,
+                                                     transposeB);
+    };
     if (defaultImplType == impl_desc_type::undef) {
         struct PrimitiveDescWithPriority {
             dnnl::primitive_desc prim_desc;
@@ -317,8 +339,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
         PrimitiveDescWithPriority prim_desc_w_priority{dnnl::primitive_desc(), implPriorities.size()};
         const bool first_match = implPriorities.front() == impl_desc_type::unknown;
 
-        auto cur_desc =
-            createDescriptorInternal(inputDesc, weightDesc, biasDesc, outputDesc, attr, engine, transposeA, transposeB);
+        auto cur_desc = createDescriptor();
 
         DnnlExtensionUtils::for_each_implementation(
             cur_desc,
@@ -340,21 +361,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
         return prim_desc_w_priority.prim_desc;
     }
 
-    auto prim_desc = fcSemantic ? createDescriptorInternalAsFc(inputDesc,
-                                                               weightDesc,
-                                                               biasDesc,
-                                                               outputDesc,
-                                                               attr,
-                                                               engine,
-                                                               useWeightsDecompression)
-                                : createDescriptorInternal(inputDesc,
-                                                           weightDesc,
-                                                           biasDesc,
-                                                           outputDesc,
-                                                           attr,
-                                                           engine,
-                                                           transposeA,
-                                                           transposeB);
+    auto prim_desc = createDescriptor();
 
     OPENVINO_ASSERT(prim_desc, "Failed to create matmul primitive descriptor");
     auto first_desc = dnnl::matmul::primitive_desc(prim_desc.get());
@@ -417,6 +424,8 @@ static std::pair<VectorDims, VectorDims> makeDummyInputDims(const Shape& in0,
                 } else {
                     inDims1[idx1] = inDims0[idx0];
                 }
+            } else if (inDims0[idx0] != Shape::UNDEFINED_DIM && inDims1[idx1] != Shape::UNDEFINED_DIM) {
+                inDims1[idx1] = inDims0[idx0];
             }
         }
     };
@@ -514,13 +523,16 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
     if (srcDesc->getShape().isDynamic() || weiDesc->getShape().isDynamic()) {
         const auto& srcShape = srcDesc->getShape();
         const auto& weiShape = weiDesc->getShape();
-        const auto& [inDymmyDims, weiDymmyDims] =
+        auto [inDymmyDims, weiDymmyDims] =
             makeDummyInputDims(srcShape, weiShape, dstDesc->getShape(), attrs.transposeA, attrs.transposeB);
         const auto& outDymmyDims = makeDummyOutputDims(inDymmyDims,
                                                        weiDymmyDims,
                                                        attrs.transposeA,
                                                        attrs.transposeB,
                                                        dstDesc->getShape().getRank());
+        if (attrs.fcSemantic && weiDymmyDims.size() == 3) {
+            std::swap(weiDymmyDims[weiDymmyDims.size() - 1], weiDymmyDims[weiDymmyDims.size() - 2]);
+        }
         srcDesc = std::make_shared<DnnlBlockedMemoryDesc>(srcDesc->getPrecision(), Shape(inDymmyDims));
         weiDesc = std::make_shared<DnnlBlockedMemoryDesc>(weiDesc->getPrecision(), Shape(weiDymmyDims));
         dstDesc = std::make_shared<DnnlBlockedMemoryDesc>(dstDesc->getPrecision(), Shape(outDymmyDims));
