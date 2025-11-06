@@ -19,6 +19,7 @@
 #include "scatter_nd_update_inst.h"
 #include "dynamic_quantize_inst.h"
 #include "lora_inst.h"
+#include "resample_inst.h"
 #include "program_helpers.h"
 
 using namespace cldnn;
@@ -283,6 +284,20 @@ void mark_runtime_skippable_nodes::run(program& p) {
         program_helpers::do_for_types<lora>(*node, [](lora_node& node) {
             // Dynamic LoRA can always potentially be with empty adapters
             if (node.is_dynamic() && !node.has_fused_primitives()) {
+                node.can_be_optimized(true);
+                node.set_runtime_skippable(true);
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            }
+        });
+
+        program_helpers::do_for_types<resample>(*node, [](resample_node& node) {
+            // try to skip resample when inpu/ouput are same
+            auto impl_params = node.get_kernel_impl_params();
+            auto prim = impl_params->typed_desc<resample>();
+            const auto& pads_begin = prim->pads_begin;
+            const auto& pads_end = prim->pads_end;
+            bool no_padding = all_zeroes(pads_begin) && all_zeroes(pads_begin);
+            if (!node.has_fused_primitives() && no_padding) {
                 node.can_be_optimized(true);
                 node.set_runtime_skippable(true);
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
