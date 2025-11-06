@@ -1,0 +1,98 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend Test"
+producer_version: "1.0"
+graph {
+  node {
+    input: "data"
+    input: "filters"
+    output: "output"
+    op_type: "ConvTranspose"
+    attribute {
+      name: "auto_pad"
+      s: "SAME_LOWER"
+      type: STRING
+    }
+    attribute {
+      name: "kernel_shape"
+      ints: 3
+      ints: 3
+      type: INTS
+    }
+    attribute {
+      name: "strides"
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+  }
+  name: "test_convtranspose_auto_pad_same_lower_no_output_shape"
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 32
+          }
+          dim {
+            dim_value: 32
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "filters"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 32
+          }
+          dim {
+            dim_value: 32
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}
