@@ -217,4 +217,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
     auto model_name = "onnx_Frontend_IR";
     ov_model = std::make_shared<ov::Model>(results, m_parameters, model_name);
+
+    const auto& metadata = model_onnx->get_metadata();
+    const std::string framework_section = "framework";
+    for (const auto& pair : metadata) {
+        ov_model->set_rt_info(pair.second, framework_section, pair.first);
+    }
 }
