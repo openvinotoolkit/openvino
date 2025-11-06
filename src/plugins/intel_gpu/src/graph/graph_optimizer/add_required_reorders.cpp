@@ -272,7 +272,7 @@ void add_required_reorders::run(program& p) {
             auto input_pshape = input_layout.get_partial_shape();
             auto prim = usr->as<mvn>().get_primitive();
 
-            if (prim->requires_alignment(input_pshape)) {
+            if (!cldnn::format::is_default_format(input_layout.format) && prim->requires_alignment(input_pshape)) {
                 auto block_sizes = format::block_sizes(input_layout.format);
                 auto axes = prim->reduction_axes;
                 if (input_layout.is_dynamic() || block_sizes.size() > 1

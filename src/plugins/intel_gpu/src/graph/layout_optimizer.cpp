@@ -1364,17 +1364,29 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) {
             expected = format::get_default_format(input_layout.get_rank());
         } else {
-            // nvm blocked opt kernels for i8/u8 support only aligned input shape.
-            // If there is possibility of blocked format input with unaligned shape, set expected to plain format.
+            // For i8/u8: blocked format requires aligned shapes
+            // Check if we need to fall back to plain format for unaligned shapes
             auto prim = node.as<mvn>().get_primitive();
             auto input_pshape = input_layout.get_partial_shape();
+            
             if (prim->requires_alignment(input_pshape)) {
-                auto possible_block_sizes = format::block_sizes(cldnn::format::b_fs_yx_fsv16);
-                auto axes = prim->reduction_axes;
-                if (input_layout.is_dynamic() ||
-                    (input_pshape[possible_block_sizes[0].first].get_length() % possible_block_sizes[0].second != 0 &&
-                    std::count(axes.begin(), axes.end(), possible_block_sizes[0].first) == 0)) {
-                    expected = format::get_default_format(input_layout.get_rank());
+                // Get the block size info for the target blocked format
+                auto block_sizes = format::block_sizes(format::b_fs_yx_fsv16);
+                if (!block_sizes.empty()) {
+                    auto blocked_axis = block_sizes[0].first;
+                    auto block_size = block_sizes[0].second;
+                    auto& reduction_axes = prim->reduction_axes;
+                    
+                    // Use plain format if:
+                    // 1. Dynamic shape (can't verify alignment at compile time), OR
+                    // 2. Static shape that's unaligned and the blocked axis is NOT reduced
+                    bool is_unaligned = input_pshape[blocked_axis].is_dynamic() ||
+                                       (input_pshape[blocked_axis].get_length() % block_size != 0);
+                    bool axis_not_reduced = std::count(reduction_axes.begin(), reduction_axes.end(), blocked_axis) == 0;
+                    
+                    if (input_layout.is_dynamic() || (is_unaligned && axis_not_reduced)) {
+                        expected = format::get_default_format(input_layout.get_rank());
+                    }
                 }
             }
         }
