@@ -4,12 +4,15 @@
 
 #include "vcl_api.hpp"
 
+#include "intel_npu/config/options.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/profiling.hpp"
-#include "ir_serializer.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "vcl_serializer.hpp"
 #include "ze_graph_ext_wrappers.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 
 namespace intel_npu {
 
@@ -207,7 +210,8 @@ std::string supportVclCompiler(int major, int minor) {
     return "unsupported VCL version";
 }
 
-NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
+NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
+                                            const Config& config) const {
     _logger.debug("compile start");
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
@@ -217,16 +221,27 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
-    driver_compiler_utils::IRSerializer irSerializer(model, maxOpsetVersion);
-    auto serializedIR = irSerializer.serializeIR(model, compilerVersion, maxOpsetVersion);
+
+    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
+    if (filteredConfig == nullptr) {
+        OPENVINO_THROW("config is not FilteredConfig");
+    }
+    FilteredConfig updatedConfig = *filteredConfig;
+    auto serializedIR = driver_compiler_utils::serializeIR(
+        model,
+        compilerVersion,
+        maxOpsetVersion,
+        updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? updatedConfig.get<USE_BASE_MODEL_SERIALIZER>()
+                                                                            : true,
+        updatedConfig.get<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
     _logger.debug("create build flags");
-    buildFlags += irSerializer.serializeIOInfo(model, useIndices);
+    buildFlags += driver_compiler_utils::serializeIOInfo(model, useIndices);
     buildFlags += " ";
-    buildFlags += irSerializer.serializeConfig(config, compilerVersion);
+    buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
@@ -259,9 +274,8 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                             VCL_COMPILER_VERSION_MINOR,
                             _vclVersion.major,
                             _vclVersion.minor,
-                            supportVclCompiler(usedMajor, usedMinor));
+                            supportVclCompiler(usedMajor, usedMinor).c_str());
         }
-        // check the vcl version whether support the lastest compile api
         // support the lastest vcl api
         // For VCL 7.4 and later, we can use vclAllocatedExecutableCreate2
         _logger.debug("Using vclAllocatedExecutableCreate2 for 7.4 <= VCL < 7.5");
@@ -290,7 +304,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                             VCL_COMPILER_VERSION_MINOR,
                             _vclVersion.major,
                             _vclVersion.minor,
-                            supportVclCompiler(usedMajor, usedMinor));
+                            supportVclCompiler(usedMajor, usedMinor).c_str());
         }
         // For older versions, we use vclAllocatedExecutableCreate
         _logger.debug("Using vclAllocatedExecutableCreate for 6.1 < VCL < 7.4");
@@ -355,7 +369,8 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     }
 }
 
-intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
+intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network,
+                                                  const Config& config) const {
     _logger.debug("parse start");
     // VCL does not support parse, return empty metadata
     return intel_npu::NetworkMetadata();
@@ -421,7 +436,8 @@ uint32_t VCLCompilerImpl::get_version() const {
     return ZE_MAKE_VERSION(_compilerProperties.version.major, _compilerProperties.version.minor);
 }
 
-ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
+ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model,
+                                           const Config& config) const {
     _logger.debug("query start");
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -430,11 +446,22 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
-    driver_compiler_utils::IRSerializer irSerializer(model, maxOpsetVersion);
-    auto serializedIR = irSerializer.serializeIR(model, compilerVersion, maxOpsetVersion);
+    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
+    if (filteredConfig == nullptr) {
+        OPENVINO_THROW("config is not FilteredConfig");
+    }
+    FilteredConfig updatedConfig = *filteredConfig;
+
+    auto serializedIR = driver_compiler_utils::serializeIR(
+        model,
+        compilerVersion,
+        maxOpsetVersion,
+        updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? updatedConfig.get<USE_BASE_MODEL_SERIALIZER>()
+                                                                            : true,
+        updatedConfig.get<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
 
     std::string buildFlags;
-    buildFlags += irSerializer.serializeConfig(config, compilerVersion);
+    buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;

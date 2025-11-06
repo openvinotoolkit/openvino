@@ -135,7 +135,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 #endif
                                    std::move(tensor),
                                    config,
-                                   /* blobAllocatedByPlugin = */ false,
+                                   /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
                                    _compiler);
 }
 
@@ -159,7 +159,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         return starts_with(name, "main");
     };
 
-    Config localConfig = config;
+    FilteredConfig localConfig = config;
     if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
         localConfig.update({{ov::intel_npu::separate_weights_version.name(), "ONE_SHOT"}});
     }
@@ -294,7 +294,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     _logger.debug("parse start");
     network.assign(reinterpret_cast<const uint8_t*>(mainBlob.data()),
                    reinterpret_cast<const uint8_t*>(mainBlob.data()) + mainBlob.get_byte_size());
-    auto networkMeta = _compiler->parse(network, config);
+    networkMeta = _compiler->parse(network, config);
     network.clear();
     network.shrink_to_fit();
 
