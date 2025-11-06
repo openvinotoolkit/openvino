@@ -55,11 +55,14 @@ constexpr std::string_view ONNX_EXTENSION = ".onnx";
  */
 std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
                                               const std::vector<IODescriptor>& outputDescriptors,
-                                              std::optional<int64_t> batchSize) {
+                                              const std::optional<int64_t> batchSize,
+                                              const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                              const std::optional<std::vector<ov::Layout>>& outputLayouts) {
     ov::ParameterVector parameters;
     ov::ResultVector results;
 
-    for (const IODescriptor& inputDescriptor : inputDescriptors) {
+    for (size_t inputIndex = 0; inputIndex < inputDescriptors.size(); ++inputIndex) {
+        const IODescriptor& inputDescriptor = inputDescriptors.at(inputIndex);
         if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
             inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
             continue;
@@ -77,6 +80,9 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
         parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
         parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
+        if (inputLayouts.has_value()) {
+            parameter->set_layout(inputLayouts->at(inputIndex));
+        }
         parameters.push_back(std::move(parameter));
     }
 
@@ -84,7 +90,8 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     // the "Constant" node was required since the specific constructor does not accept "ov::PartialShape" values (a
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
-    for (const IODescriptor& outputDescriptor : outputDescriptors) {
+    for (size_t outputIndex = 0; outputIndex < outputDescriptors.size(); ++outputIndex) {
+        const IODescriptor& outputDescriptor = outputDescriptors.at(outputIndex);
         if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor ||
             outputDescriptor.isInitOutputWeights) {
             continue;
@@ -107,6 +114,9 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
         auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
         result->output(0).set_tensor_ptr(tensorDummy);
+        if (outputLayouts.has_value()) {
+            result->set_layout(outputLayouts->at(outputIndex));
+        }
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
     }
 
@@ -595,8 +605,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
-        if (compilerType == ov::intel_npu::CompilerType::MLIR) {
-            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with MLIR compiler type");
+        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
         }
     }
 
@@ -691,14 +701,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
+    auto compileWithConfig = [&](const auto& modelToCompile, const auto& config) {
+        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
+            return compiler->compile(modelToCompile, config);
+        } else {
+            check_weightless_cache_attribute_occurrence(model);
+            return compiler->compileWS(modelToCompile, config);
+        }
+    };
+
     try {
         _logger.debug("performing compile");
 
-        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
-            graph = compiler->compile(successfullyDebatched ? batchedModel : model->clone(), localConfig);
+        // Determine which model to use
+        auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
+
+        if (successfullyDebatched && localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
+            _logger.info("Override performance mode to THROUGHPUT for compilation");
+
+            auto modifiedConfig = localConfig;  // Copy only when needed
+            std::stringstream strStream;
+            strStream << ov::hint::PerformanceMode::THROUGHPUT;
+            modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+
+            graph = compileWithConfig(modelToCompile, modifiedConfig);
         } else {
-            check_weightless_cache_attribute_occurrence(model);
-            graph = compiler->compileWS(successfullyDebatched ? batchedModel : model->clone(), localConfig);
+            graph = compileWithConfig(modelToCompile, localConfig);  // No copy
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -814,7 +842,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
     // Need to create intermediate istream for NPUW
-    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
+    ov::SharedStreamBuffer buffer{compiled_blob.data(), compiled_blob.get_byte_size()};
     std::istream stream{&buffer};
 
     auto npu_plugin_properties = properties;
@@ -991,7 +1019,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =
-        create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs, batchSize);
+        create_dummy_model(graph->get_metadata().inputs,
+                           graph->get_metadata().outputs,
+                           batchSize,
+                           metadata ? metadata->get_input_layouts() : std::nullopt,
+                           metadata ? metadata->get_output_layouts() : std::nullopt);
 
     if (batchSize.has_value()) {
         if (batchSize.value() > 0) {

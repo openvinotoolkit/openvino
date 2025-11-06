@@ -251,6 +251,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("output",
             (const ov::Output<const ov::Node>& (ov::CompiledModel::*)() const) & ov::CompiledModel::output,
+            py::return_value_policy::reference_internal,
             R"(
                 Gets a single output of a compiled model.
                 If the model has more than one output, this method throws an exception.
@@ -261,6 +262,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("output",
             (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(size_t) const) & ov::CompiledModel::output,
+            py::return_value_policy::reference_internal,
             py::arg("index"),
             R"(
                 Gets output of a compiled model identified by an index.
@@ -275,6 +277,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def("output",
             (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&) const) &
                 ov::CompiledModel::output,
+            py::return_value_policy::reference_internal,
             py::arg("tensor_name"),
             R"(
                 Gets output of a compiled model identified by a tensor_name.

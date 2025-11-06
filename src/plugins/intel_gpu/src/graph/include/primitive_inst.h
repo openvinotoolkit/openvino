@@ -348,7 +348,7 @@ public:
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
-    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
+    kernel_impl_params get_fake_aligned_params_if_possible(program_node const& node, kernel_impl_params const& orig_impl_param);
     bool all_dependencies_cpu_impl() const;
 
 protected:
@@ -481,21 +481,7 @@ protected:
         return false;
     }
 
-    virtual bool need_reset_output_memory() const {
-        for (const auto& user_inst : get_user_insts()) {
-            // Check users of optimized_out inst, as the optimized out inst will not be able to
-            // reset it's memory
-            if (user_inst->can_be_optimized()) {
-                if (user_inst->need_reset_output_memory())
-                    return true;
-                continue;
-            }
-
-            if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
-                return true;
-        }
-        return false;
-    }
+    virtual bool need_reset_output_memory() const;
 
     void clear_output_memory();
 

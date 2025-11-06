@@ -18,11 +18,12 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                  const bool is_input)
     : _init_structs(init_structs),
       _logger("ZeHostMem", Logger::global().level()),
-      _size((bytes + alignment - 1) & ~(alignment - 1)) {
+      _size(bytes == 0 ? alignment : (bytes + alignment - 1) & ~(alignment - 1)) {
     uint32_t zero_memory_flag = 0;
     if (is_input) {
         zero_memory_flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
     }
+
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, zero_memory_flag};
     THROW_ON_FAIL_FOR_LEVELZERO("zeMemAllocHost",
                                 zeMemAllocHost(_init_structs->getContext(), &desc, _size, alignment, &_ptr));
@@ -66,7 +67,7 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
             nullptr,
             const_cast<void*>(data),
             _size};
-        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, zero_memory_flag};
+        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, &memory_import, zero_memory_flag};
         auto result = zeMemAllocHost(_init_structs->getContext(), &desc, _size, utils::STANDARD_PAGE_SIZE, &_ptr);
 
         if (result != ZE_RESULT_SUCCESS) {

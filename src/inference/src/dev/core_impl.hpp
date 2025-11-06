@@ -178,6 +178,7 @@ private:
         std::vector<ov::util::FilePath> listOfExtentions;
         CreatePluginEngineFunc* pluginCreateFunc = nullptr;
         CreateExtensionFunc* extensionCreateFunc = nullptr;
+        mutable std::vector<Extension::Ptr> extensions;  // mutable because of lazy init
 
         PluginDescriptor() = default;
 
@@ -200,7 +201,7 @@ private:
 
     std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;
     mutable std::unordered_set<std::string> opsetNames;
-    mutable std::vector<ov::Extension::Ptr> extensions;
+    mutable std::vector<Extension::Ptr> extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
 
@@ -233,14 +234,7 @@ private:
     bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
 
-    void try_to_register_plugin_extensions(const ov::util::Path& path) const {
-        try {
-            auto plugin_extensions = ov::detail::load_extensions(path.native());
-            add_extensions_unsafe(plugin_extensions);
-        } catch (const std::runtime_error&) {
-            // in case of shared library is not opened
-        }
-    }
+
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 
     std::vector<ov::Extension::Ptr> get_extensions_copy() const;
