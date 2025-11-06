@@ -454,9 +454,12 @@ OPENVINO_TEST(onnx_editor, subgraph__twice_input_edge_from_tensor_with_single_co
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/add_ab.onnx", &front_end);
 
-    input_model->extract_subgraph(
-        {input_model->get_place_by_tensor_name("X")->get_consuming_operations()[0]->get_input_port(1)},
-        {});
+    auto x_place = input_model->get_place_by_tensor_name("X");
+    ASSERT_TRUE(x_place != nullptr) << "get_place_by_tensor_name(\"X\") returned nullptr";
+    auto x_consumers = x_place->get_consuming_operations();
+    ASSERT_FALSE(x_consumers.empty()) << "get_consuming_operations() returned empty container for \"X\"";
+
+    input_model->extract_subgraph({x_consumers[0]->get_input_port(1)}, {});
 
     auto model = front_end->convert(input_model);
     auto model_ref =
@@ -474,7 +477,12 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
     auto relu_node = input_model->get_place_by_operation_name("relu1_name");
+    ASSERT_TRUE(relu_node != nullptr) << "get_place_by_operation_name(\"relu1_name\") returned nullptr";
     auto relu_consumers = relu_node->get_consuming_operations();
+
+    ASSERT_GE(relu_consumers.size(), 3) << "relu_consumers vector does not have enough elements";
+    ASSERT_TRUE(relu_consumers[0] != nullptr) << "relu_consumers[0] is nullptr";
+    ASSERT_TRUE(relu_consumers[2] != nullptr) << "relu_consumers[2] is nullptr";
 
     input_model->extract_subgraph(
         {relu_consumers[0]->get_input_port(0), relu_consumers[2]->get_input_port(0)},
@@ -496,7 +504,10 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
     auto relu_node = input_model->get_place_by_operation_name("relu1_name");
+    ASSERT_TRUE(relu_node != nullptr) << "get_place_by_operation_name(\"relu1_name\") returned nullptr";
     auto relu_consumers = relu_node->get_consuming_operations();
+    ASSERT_GE(relu_consumers.size(), 2) << "relu_consumers vector does not have enough elements";
+    ASSERT_TRUE(relu_consumers[1] != nullptr) << "relu_consumers[1] is nullptr";
 
     input_model->extract_subgraph(
         {relu_consumers[1]->get_input_port(0), relu_consumers[1]->get_input_port(1)},
@@ -518,7 +529,11 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
     auto relu_node = input_model->get_place_by_operation_name("relu1_name");
+    ASSERT_TRUE(relu_node != nullptr) << "get_place_by_operation_name(\"relu1_name\") returned nullptr";
     auto relu_consumers = relu_node->get_consuming_operations();
+    ASSERT_GE(relu_consumers.size(), 3) << "relu_consumers vector does not have enough elements";
+    ASSERT_TRUE(relu_consumers[1] != nullptr) << "relu_consumers[1] is nullptr";
+    ASSERT_TRUE(relu_consumers[2] != nullptr) << "relu_consumers[2] is nullptr";
 
     input_model->extract_subgraph(
         {relu_consumers[1]->get_input_port(0), relu_consumers[2]->get_input_port(0)},
@@ -540,7 +555,11 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
     auto relu_node = input_model->get_place_by_operation_name("relu1_name");
+    ASSERT_TRUE(relu_node != nullptr) << "get_place_by_operation_name(\"relu1_name\") returned nullptr";
     auto relu_consumers = relu_node->get_consuming_operations();
+    ASSERT_GE(relu_consumers.size(), 2) << "relu_consumers vector does not have enough elements";
+    ASSERT_TRUE(relu_consumers[0] != nullptr) << "relu_consumers[0] is nullptr";
+    ASSERT_TRUE(relu_consumers[1] != nullptr) << "relu_consumers[1] is nullptr";
 
     input_model->extract_subgraph({relu_consumers[0]->get_input_port(0), relu_consumers[1]->get_input_port(0)}, {});
     auto model = front_end->convert(input_model);
@@ -560,7 +579,10 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
     auto relu_node = input_model->get_place_by_operation_name("relu1_name");
+    ASSERT_TRUE(relu_node != nullptr) << "get_place_by_operation_name(\"relu1_name\") returned nullptr";
     auto relu_consumers = relu_node->get_consuming_operations();
+    ASSERT_GE(relu_consumers.size(), 2) << "relu_consumers vector does not have enough elements";
+    ASSERT_TRUE(relu_consumers[1] != nullptr) << "relu_consumers[1] is nullptr";
 
     input_model->extract_subgraph(
         {relu_consumers[1]->get_input_port(0)},
@@ -582,7 +604,14 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
     auto relu_node = input_model->get_place_by_operation_name("relu1_name");
+    ASSERT_TRUE(relu_node != nullptr) << "get_place_by_operation_name(\"relu1_name\") returned nullptr";
     auto relu_consumers = relu_node->get_consuming_operations();
+
+    ASSERT_GE(relu_consumers.size(), 3) << "relu_consumers vector does not have enough elements";
+    ASSERT_TRUE(relu_consumers[0] != nullptr) << "relu_consumers[0] is nullptr";
+    ASSERT_TRUE(relu_consumers[2] != nullptr) << "relu_consumers[2] is nullptr";
+    ASSERT_TRUE(relu_consumers[0]->get_input_port(0) != nullptr) << "relu_consumers[0]->get_input_port(0) is nullptr";
+    ASSERT_TRUE(relu_consumers[2]->get_input_port(0) != nullptr) << "relu_consumers[2]->get_input_port(0) is nullptr";
 
     input_model->cut_and_add_new_input(relu_consumers[0]->get_input_port(0), "new_name_1");
     input_model->cut_and_add_new_input(relu_consumers[2]->get_input_port(0), "new_name_2");
@@ -660,10 +689,16 @@ OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_rel
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests_2.onnx", &front_end);
 
-    input_model->extract_subgraph(
-        {input_model->get_place_by_tensor_name("in2"),
-         input_model->get_place_by_tensor_name("relu3")->get_consuming_operations()[0]->get_input_port(0)},
-        {});
+    auto in2_place = input_model->get_place_by_tensor_name("in2");
+    ASSERT_TRUE(in2_place != nullptr) << "get_place_by_tensor_name(\"in2\") returned nullptr";
+    auto relu3_place = input_model->get_place_by_tensor_name("relu3");
+    ASSERT_TRUE(relu3_place != nullptr) << "get_place_by_tensor_name(\"relu3\") returned nullptr";
+    auto relu3_consumers = relu3_place->get_consuming_operations();
+    ASSERT_FALSE(relu3_consumers.empty()) << "get_consuming_operations() returned empty container for \"relu3\"";
+    auto relu3_input_port = relu3_consumers[0]->get_input_port(0);
+    ASSERT_TRUE(relu3_input_port != nullptr) << "get_input_port(0) returned nullptr for relu3's first consumer";
+
+    input_model->extract_subgraph({in2_place, relu3_input_port}, {});
 
     auto model = front_end->convert(input_model);
 
@@ -870,15 +905,25 @@ OPENVINO_TEST(onnx_editor, cut_operator_with_no_schema) {
 OPENVINO_TEST(onnx_editor, is_model_input) {
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx");
 
-    EXPECT_TRUE(input_model->get_place_by_tensor_name("in2")->is_input());
-    EXPECT_FALSE(input_model->get_place_by_tensor_name("conv1")->is_input());
+    auto in2_place = input_model->get_place_by_tensor_name("in2");
+    ASSERT_TRUE(in2_place != nullptr) << "get_place_by_tensor_name(\"in2\") returned nullptr";
+    EXPECT_TRUE(in2_place->is_input());
+
+    auto conv1_place = input_model->get_place_by_tensor_name("conv1");
+    ASSERT_TRUE(conv1_place != nullptr) << "get_place_by_tensor_name(\"conv1\") returned nullptr";
+    EXPECT_FALSE(conv1_place->is_input());
 }
 
 OPENVINO_TEST(onnx_editor, is_model_output) {
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx");
 
-    EXPECT_TRUE(input_model->get_place_by_tensor_name("split2")->is_output());
-    EXPECT_FALSE(input_model->get_place_by_tensor_name("add2")->is_output());
+    auto split2_place = input_model->get_place_by_tensor_name("split2");
+    ASSERT_TRUE(split2_place != nullptr) << "get_place_by_tensor_name(\"split2\") returned nullptr";
+    EXPECT_TRUE(split2_place->is_output());
+
+    auto add2_place = input_model->get_place_by_tensor_name("add2");
+    ASSERT_TRUE(add2_place != nullptr) << "get_place_by_tensor_name(\"add2\") returned nullptr";
+    EXPECT_FALSE(add2_place->is_output());
 }
 
 OPENVINO_TEST(onnx_editor, model_inputs) {
@@ -965,12 +1010,17 @@ OPENVINO_TEST(onnx_editor, is_correct_tensor_name) {
 OPENVINO_TEST(onnx_editor, get_input_ports) {
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx");
     const auto ports_1 = input_model->get_place_by_operation_name("relu1_name");
+    ASSERT_TRUE(ports_1 != nullptr) << "get_place_by_operation_name(\"relu1_name\") returned nullptr";
     EXPECT_EQ(ports_1->get_input_port()->get_source_tensor()->get_names()[0], "in1");
     EXPECT_FALSE(ports_1->get_input_port(1));
     const auto ports_2 = input_model->get_place_by_operation_name("split_name");
+    ASSERT_TRUE(ports_2 != nullptr) << "get_place_by_operation_name(\"split_name\") returned nullptr";
     EXPECT_EQ(ports_2->get_input_port(0)->get_source_tensor()->get_names()[0], "add2");
     EXPECT_FALSE(ports_2->get_input_port(1));
-    const auto ports_3 = input_model->get_place_by_tensor_name("add2")->get_producing_operation();
+    const auto add2_tensor = input_model->get_place_by_tensor_name("add2");
+    ASSERT_TRUE(add2_tensor != nullptr) << "get_place_by_tensor_name(\"add2\") returned nullptr";
+    const auto ports_3 = add2_tensor->get_producing_operation();
+    ASSERT_TRUE(ports_3 != nullptr) << "get_producing_operation() for \"add2\" returned nullptr";
     EXPECT_EQ(ports_3->get_input_port(0)->get_source_tensor()->get_names()[0], "relu1");
     EXPECT_EQ(ports_3->get_input_port(1)->get_source_tensor()->get_names()[0], "add1");
     EXPECT_FALSE(ports_3->get_input_port(2));
@@ -979,21 +1029,48 @@ OPENVINO_TEST(onnx_editor, get_input_ports) {
 OPENVINO_TEST(onnx_editor, get_output_ports) {
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx");
     const auto ports_1 = input_model->get_place_by_operation_name("relu1_name");
-    EXPECT_EQ(ports_1->get_output_port(0)->get_target_tensor()->get_names()[0], "relu1");
+    ASSERT_TRUE(ports_1 != nullptr) << "get_place_by_operation_name(\"relu1_name\") returned nullptr";
+    const auto relu1_out_port_0 = ports_1->get_output_port(0);
+    ASSERT_TRUE(relu1_out_port_0 != nullptr) << "get_output_port(0) for relu1_name returned nullptr";
+    const auto relu1_target_tensor = relu1_out_port_0->get_target_tensor();
+    ASSERT_TRUE(relu1_target_tensor != nullptr) << "get_target_tensor() for relu1_name output port 0 returned nullptr";
+    EXPECT_EQ(relu1_target_tensor->get_names()[0], "relu1");
     EXPECT_FALSE(ports_1->get_output_port(1));
+
     const auto ports_2 = input_model->get_place_by_operation_name("split_name");
-    EXPECT_EQ(ports_2->get_output_port(0)->get_target_tensor()->get_names()[0], "split1");
-    EXPECT_EQ(ports_2->get_output_port(1)->get_target_tensor()->get_names()[0], "split2");
+    EXPECT_TRUE(ports_2 != nullptr) << "get_place_by_operation_name(\"split_name\") returned nullptr";
+    const auto split_out_port_0 = ports_2->get_output_port(0);
+    ASSERT_TRUE(split_out_port_0 != nullptr) << "get_output_port(0) for split_name returned nullptr";
+    const auto split_target_tensor_0 = split_out_port_0->get_target_tensor();
+    ASSERT_TRUE(split_target_tensor_0 != nullptr)
+        << "get_target_tensor() for split_name output port 0 returned nullptr";
+    EXPECT_EQ(split_target_tensor_0->get_names()[0], "split1");
+    const auto split_out_port_1 = ports_2->get_output_port(1);
+    ASSERT_TRUE(split_out_port_1 != nullptr) << "get_output_port(1) for split_name returned nullptr";
+    const auto split_target_tensor_1 = split_out_port_1->get_target_tensor();
+    ASSERT_TRUE(split_target_tensor_1 != nullptr)
+        << "get_target_tensor() for split_name output port 1 returned nullptr";
+    EXPECT_EQ(split_target_tensor_1->get_names()[0], "split2");
     EXPECT_FALSE(ports_2->get_output_port(2));
-    const auto ports_3 = input_model->get_place_by_tensor_name("add2")->get_producing_operation();
-    EXPECT_EQ(ports_3->get_output_port()->get_target_tensor()->get_names()[0], "add2");
+
+    const auto add2_tensor = input_model->get_place_by_tensor_name("add2");
+    EXPECT_TRUE(add2_tensor != nullptr) << "get_place_by_tensor_name(\"add2\") returned nullptr";
+    const auto ports_3 = add2_tensor->get_producing_operation();
+    EXPECT_TRUE(ports_3 != nullptr) << "get_producing_operation() for \"add2\" returned nullptr";
+    const auto add2_out_port_0 = ports_3->get_output_port();
+    ASSERT_TRUE(add2_out_port_0 != nullptr) << "get_output_port() for add2 producing operation returned nullptr";
+    const auto add2_target_tensor = add2_out_port_0->get_target_tensor();
+    ASSERT_TRUE(add2_target_tensor != nullptr) << "get_target_tensor() for add2 output port returned nullptr";
+    EXPECT_EQ(add2_target_tensor->get_names()[0], "add2");
     EXPECT_FALSE(ports_3->get_output_port(1));
 }
 
 OPENVINO_TEST(onnx_editor, add_output) {
     auto input_model = load_model("model_editor/add_abc.onnx");
 
-    input_model->add_output(input_model->get_place_by_operation_name("add_node1")->get_target_tensor());
+    auto add_node1_place = input_model->get_place_by_operation_name("add_node1");
+    ASSERT_TRUE(add_node1_place != nullptr) << "get_place_by_operation_name(\"add_node1\") returned nullptr";
+    input_model->add_output(add_node1_place->get_target_tensor());
 
     EXPECT_EQ(input_model->get_outputs().size(), 2);
 
