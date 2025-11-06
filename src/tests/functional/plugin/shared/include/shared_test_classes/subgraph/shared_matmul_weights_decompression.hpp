@@ -40,7 +40,7 @@ using MatmulSharedWeightsDecompressionParams =
                ElementType,                          // weights precision
                ElementType,                          // decompression precision
                bool,                                 // transpose on weights
-               ov::test::utils::DecompressionType,                    // decompression subtract type
+               ov::test::utils::DecompressionType,   // decompression subtract type
                bool,                                 // use matmul decompression implementation
                std::map<std::string, std::string>>;  // additional configeration
 

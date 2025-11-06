@@ -3,6 +3,7 @@
 //
 
 #include "custom/subgraph_tests/src/classes/matmul_weights_decompression.hpp"
+
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 
 using namespace CPUTestUtils;
@@ -193,9 +194,10 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_corner_cases_amx 
 };
 
 const std::vector<bool> transpose_weights = {true, false};
-const std::vector<ov::test::utils::DecompressionType> decompression_subtract_type = {ov::test::utils::DecompressionType::full,
-                                                                    ov::test::utils::DecompressionType::scalar,
-                                                                    ov::test::utils::DecompressionType::empty};
+const std::vector<ov::test::utils::DecompressionType> decompression_subtract_type = {
+    ov::test::utils::DecompressionType::full,
+    ov::test::utils::DecompressionType::scalar,
+    ov::test::utils::DecompressionType::empty};
 const std::vector<bool> reshape_on_decompression = {true, false};
 const std::vector<ov::test::ElementType> decompression_precisions_corner_cases = {ov::element::f16, ov::element::f32};
 
@@ -287,8 +289,8 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_basic_dyn_quant_u
 const std::vector<ov::test::ElementType> weights_precisions_dyn_quant = {ov::element::u8, ov::element::u4};
 const std::vector<fusingSpecificParams> fusing_params_dyn_quant{
     emptyFusingSpec,
-    fusingBias, // bias is hanlded in separate code-path with post-ops
-    fusingSwish // max amount of post-op regs (which reduces available accum regs)
+    fusingBias,  // bias is hanlded in separate code-path with post-ops
+    fusingSwish  // max amount of post-op regs (which reduces available accum regs)
 };
 
 std::vector<ov::AnyMap> filter_additional_config_dyn_quant() {
@@ -370,10 +372,8 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_scalar_scale = {
 };
 
 std::vector<ov::AnyMap> filter_additional_config_scalar_scale() {
-    std::vector<ov::AnyMap> additional_config = {
-        {{ov::hint::dynamic_quantization_group_size(0)}},
-        {{ov::hint::dynamic_quantization_group_size(16)}}
-    };
+    std::vector<ov::AnyMap> additional_config = {{{ov::hint::dynamic_quantization_group_size(0)}},
+                                                 {{ov::hint::dynamic_quantization_group_size(16)}}};
     return additional_config;
 }
 
@@ -391,7 +391,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_scalar_scale,
                                             ::testing::Values(emptyFusingSpec),
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
-
 
 const std::vector<MatMulDecompressionShapeParams> input_shapes_non_multiples_groups = {
     {{{}, {{4, 2, 8}}}, {8, 8}, 8lu},

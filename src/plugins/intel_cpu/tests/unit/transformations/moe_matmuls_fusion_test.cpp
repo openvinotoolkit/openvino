@@ -85,21 +85,18 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
                                                        bool use_broadcast_v3,
                                                        bool skip_unsqueeze,
                                                        bool matmul_transpose_b) {
+    // Fixed values that don't affect pass behavior
     const auto expert_alpha = 1.625f;
     const auto expert_beta = 7.0f;
-
-    // Fixed values that don't affect pass behavior
     const ov::PartialShape input_shape = {-1, -1, 256};
     const size_t topk = 4;
     const size_t number_of_experts = 8;
     const size_t intermediate_size = 512;
     const ov::element::Type data_precision = ov::element::f32;
     const ov::element::Type weights_precision = ov::element::f32;
+    constexpr int64_t fusion_factor = 2;
 
-    constexpr int64_t fusion_factor = 2;  // property of GPT-OSS
-    // Create input parameter with dynamic shape - batch and hidden_size are fixed, seq_len is dynamic
     auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, input_shape);
-
     const auto hidden_size = static_cast<size_t>(input_shape[2].get_length());
 
     // Expert processing path - use -1 for dynamic reshape like in reference
@@ -143,7 +140,6 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
         ov::test::utils::make_constant(data_precision,
                                        ov::Shape{number_of_experts, 1, intermediate_size * fusion_factor}));
 
-    // Slice the last axis, every second element
     auto slice1 = std::make_shared<ov::op::v8::Slice>(
         gate_up_add,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
@@ -171,7 +167,6 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
 
     auto multiply2 = std::make_shared<ov::op::v1::Multiply>(add1, swish);
 
-    // Down projection
     auto down_proj_weights = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
                                                   weights_precision,
                                                   seed++,
@@ -279,7 +274,6 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
 
     auto mul3 = std::make_shared<ov::op::v1::Multiply>(end_reshape, routing_weights_final);
 
-    // ReduceSum - final node of the MOE pattern
     auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
         mul3,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
@@ -293,38 +287,34 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
                                                           bool use_broadcast_v3,
                                                           bool skip_unsqueeze,
                                                           bool matmul_transpose_b) {
+    // Fixed values that don't affect pass behavior
     const auto expert_alpha = 1.625f;
     const auto expert_beta = 7.0f;
-
-    // Fixed values that don't affect pass behavior
     const ov::PartialShape input_shape = {-1, -1, 256};
     const size_t topk = 4;
     const size_t number_of_experts = 8;
     const size_t intermediate_size = 512;
     const ov::element::Type data_precision = ov::element::f32;
     const ov::element::Type weights_precision = ov::element::f32;
+    constexpr int64_t fusion_factor = 2;
 
-    constexpr int64_t fusion_factor = 2;  // property of GPT-OSS
-    // Create input parameter with dynamic shape - batch and hidden_size are fixed, seq_len is dynamic
     auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, input_shape);
 
     const auto hidden_size = static_cast<size_t>(input_shape[2].get_length());
 
-    // Expert processing path - use -1 for dynamic reshape like in reference
     auto experts_reshape = std::make_shared<ov::op::v1::Reshape>(
         input,
         ov::op::v0::Constant::create(
             ov::element::i64,
             ov::Shape{2},
-            std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)}),  // -1 flattens batch*seq_len
+            std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)}),
         false);
 
-    // Add unsqueeze to introduce n_experts dimension (as done in transformation)
+    // Add unsqueeze to introduce n_experts dimension
     auto unsqueeze_experts =
         std::make_shared<ov::op::v0::Unsqueeze>(experts_reshape,
                                                 ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
 
-    // Router part - same as original to get active_indices and chosen_experts
     auto router_weights =
         build_matmul_weights(ov::Shape{hidden_size, number_of_experts}, weights_precision, 4, matmul_transpose_b);
 
@@ -365,11 +355,9 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
         ov::test::utils::make_constant(data_precision,
                                        ov::Shape{number_of_experts, 1, intermediate_size * fusion_factor});
 
-    // Replace gate_up_matmul with BatchGatherMatmul
     auto gate_up_gathered_mm =
         std::make_shared<BatchGatherMatmul>(unsqueeze_experts, gate_up_weights, router_topk_indices, gate_up_bias);
 
-    // Slice the last axis, every second element
     auto slice1 = std::make_shared<ov::op::v8::Slice>(
         gate_up_gathered_mm,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
@@ -397,7 +385,6 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
 
     auto multiply2 = std::make_shared<ov::op::v1::Multiply>(add1, swish);
 
-    // Down projection
     auto down_proj_weights = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
                                                   weights_precision,
                                                   seed++,
@@ -405,11 +392,9 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
 
     auto down_proj_bias = ov::test::utils::make_constant(data_precision, ov::Shape{number_of_experts, 1, hidden_size});
 
-    // Replace down_proj_matmul with BatchGatherMatmul
     auto down_gathered_mm =
         std::make_shared<BatchGatherMatmul>(multiply2, down_proj_weights, router_topk_indices, down_proj_bias);
 
-    // Simplified routing path using chosen_experts directly
     auto router_transpose = std::make_shared<ov::op::v1::Transpose>(
         slice3,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0}));
@@ -420,13 +405,11 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
 
     auto mul3 = std::make_shared<ov::op::v1::Multiply>(down_gathered_mm, router_unsqueeze);
 
-    // ReduceSum - final node of the MOE pattern
     auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
         mul3,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
         false);
 
-    // Final reshape to remove the experts dimension (as added in transformation)
     const auto number_of_experts_const =
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(number_of_experts)});
     auto first_in_dim = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(input, {0});
@@ -437,7 +420,6 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
         ov::OutputVector{number_of_experts_const, first_in_dim, minus_one, last_in_dim},
         0);
 
-    // Slice to remove the first dimension (n_all_experts) from the shape
     auto slice_shape =
         std::make_shared<ov::op::v8::Slice>(end_shape,
                                             ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}),
@@ -463,12 +445,9 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
     const ov::element::Type data_precision = ov::element::f32;
     const ov::element::Type weights_precision = ov::element::f32;
 
-    // Create input parameter with dynamic shape - batch and hidden_size are fixed, seq_len is dynamic
     auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, input_shape);
-
     const auto hidden_size = static_cast<size_t>(input_shape[2].get_length());
 
-    // Expert processing path - use -1 for dynamic reshape like in reference
     auto experts_reshape = std::make_shared<ov::op::v1::Reshape>(
         input,
         ov::op::v0::Constant::create(
@@ -503,10 +482,7 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
 
     gate_matmul->set_friendly_name("GateMatMul");
 
-    // Apply Swish activation directly to gate
     auto swish = std::make_shared<ov::op::v4::Swish>(gate_matmul);
-
-    // Second GEMM (up_projection)
     auto up_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
                                            weights_precision,
                                            seed++,
@@ -516,10 +492,8 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
 
     up_matmul->set_friendly_name("UpMatMul");
 
-    // Join: Multiply (SwiGLU)
     auto swiglu = std::make_shared<ov::op::v1::Multiply>(swish, up_matmul);
 
-    // Third GEMM (down_projection)
     auto down_weights = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
                                              weights_precision,
                                              seed++,
@@ -529,7 +503,6 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
 
     down_matmul->set_friendly_name("DownMatMul");
 
-    // Router subgraph - this is crucial for the MoE pattern recognition
     auto router_weights =
         build_matmul_weights(ov::Shape{hidden_size, number_of_experts}, weights_precision, seed++, matmul_transpose_b);
 
@@ -627,7 +600,6 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
         false);
 
-    // Note: here we imitate a real model scenario with special zero value
     auto final_reshape_const = ov::op::v0::Constant::create(ov::element::i64,
                                                             ov::Shape{2},
                                                             std::vector<int64_t>{0, static_cast<int64_t>(hidden_size)});
@@ -649,26 +621,22 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
     const ov::element::Type data_precision = ov::element::f32;
     const ov::element::Type weights_precision = ov::element::f32;
 
-    // Create input parameter with dynamic shape - batch and hidden_size are fixed, seq_len is dynamic
     auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, input_shape);
 
     const auto hidden_size = static_cast<size_t>(input_shape[2].get_length());
 
-    // Expert processing path - use -1 for dynamic reshape like in reference
     auto experts_reshape = std::make_shared<ov::op::v1::Reshape>(
         input,
         ov::op::v0::Constant::create(
             ov::element::i64,
             ov::Shape{2},
-            std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)}),  // -1 flattens batch*seq_len
+            std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)}),
         false);
 
-    // Add unsqueeze to introduce n_experts dimension (as done in transformation)
     auto unsqueeze_experts =
         std::make_shared<ov::op::v0::Unsqueeze>(experts_reshape,
                                                 ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
 
-    // Router part - based on original pattern to get active_indices and chosen_experts
     auto router_weights =
         build_matmul_weights(ov::Shape{hidden_size, number_of_experts}, weights_precision, 4, matmul_transpose_b);
 
@@ -695,8 +663,6 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
 
     // Note: we need to use different seed to avoid the exact weights generation for the MatMuls with the same shape
     size_t seed = 1;
-
-    // First GEMM (gate) - Replace with BatchGatherMatmul
     auto gate_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
                                              weights_precision,
                                              seed++,
@@ -704,10 +670,8 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
 
     auto gate_gathered_mm = std::make_shared<BatchGatherMatmul>(unsqueeze_experts, gate_weights, router_topk_indices);
 
-    // Apply Swish activation directly to gate
     auto swish = std::make_shared<ov::op::v4::Swish>(gate_gathered_mm);
 
-    // Second GEMM (up) - Replace with BatchGatherMatmul
     auto up_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
                                            weights_precision,
                                            seed++,
@@ -715,10 +679,8 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
 
     auto up_gathered_mm = std::make_shared<BatchGatherMatmul>(unsqueeze_experts, up_weights, router_topk_indices);
 
-    // Join: Multiply (SwiGLU)
     auto swiglu = std::make_shared<ov::op::v1::Multiply>(swish, up_gathered_mm);
 
-    // Third GEMM (down) - Replace with BatchGatherMatmul
     auto down_weights = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
                                              weights_precision,
                                              seed++,
@@ -726,7 +688,6 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
 
     auto down_gathered_mm = std::make_shared<BatchGatherMatmul>(swiglu, down_weights, router_topk_indices);
 
-    // Simplified routing path using chosen_experts directly (as transformation does)
     auto router_transpose = std::make_shared<ov::op::v1::Transpose>(
         router_topk_values_normalization,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0}));
@@ -742,7 +703,6 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
         false);
 
-    // Final reshape as added by transformation - needs to match original model's final output shape
     const auto number_of_experts_const =
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(number_of_experts)});
     auto first_topk_dim = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(router_topk_indices, {0});
@@ -753,7 +713,6 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
         ov::OutputVector{number_of_experts_const, first_topk_dim, minus_one, last_in_dim},
         0);
 
-    // Slice to remove the first dimension (n_all_experts) from the shape (as transformation does)
     auto slice_shape =
         std::make_shared<ov::op::v8::Slice>(end_shape,
                                             ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}),

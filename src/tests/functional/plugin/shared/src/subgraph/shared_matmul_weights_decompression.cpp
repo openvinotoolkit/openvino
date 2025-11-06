@@ -48,16 +48,17 @@ std::shared_ptr<ov::Model> SharedMatmulWeightsDecompression::initSubgraph(
     const ov::element::Type decompression_precision,
     const bool transpose_weights,
     const ov::test::utils::DecompressionType decompression_subtract_type) {
-    const auto weights_subgraph = ov::test::utils::initMatMulDecompressionSubgraph(weights_shape,
-                                                                  group_size,
-                                                                  data_precision,
-                                                                  weights_precision,
-                                                                  decompression_precision,
-                                                                  ov::element::dynamic,
-                                                                  transpose_weights,
-                                                                  ov::test::utils::DecompressionType::full,
-                                                                  decompression_subtract_type,
-                                                                  false);
+    const auto weights_subgraph =
+        ov::test::utils::initMatMulDecompressionSubgraph(weights_shape,
+                                                         group_size,
+                                                         data_precision,
+                                                         weights_precision,
+                                                         decompression_precision,
+                                                         ov::element::dynamic,
+                                                         transpose_weights,
+                                                         ov::test::utils::DecompressionType::full,
+                                                         decompression_subtract_type,
+                                                         false);
     ov::ParameterVector params;
     ov::OutputVector last_layers;
     for (size_t i = 0; i < 2; ++i) {

@@ -80,13 +80,13 @@ std::shared_ptr<ov::Model> GatherWeightsDecompression::init_subgraph(const ov::S
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, indices_shape)};
     auto axis_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {axis});
     const auto data_subgraph = ov::test::utils::initGatherDecompressionSubgraph(data_shape,
-                                                               group_size,
-                                                               data_precision,
-                                                               output_precision,
-                                                               add_subtract,
-                                                               reshape_on_decompression,
-                                                               per_tensor_zp,
-                                                               per_tensor_scale);
+                                                                                group_size,
+                                                                                data_precision,
+                                                                                output_precision,
+                                                                                add_subtract,
+                                                                                reshape_on_decompression,
+                                                                                per_tensor_zp,
+                                                                                per_tensor_scale);
 
     auto gather = std::make_shared<ov::op::v8::Gather>(data_subgraph, params[0], axis_const, batch_dims);
     gather->set_friendly_name("gather_node");
