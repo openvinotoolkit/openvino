@@ -494,7 +494,7 @@ void Plugin::filter_global_config_safe(const std::map<std::string, std::string>&
     if (!_globalConfig.wasFiltered()) {
         // filter out unsupported options
         filter_config_by_compiler_support(_globalConfig);
-        // 2. Reset properties for the new options
+        // reset properties for the new options
         _properties->registerProperties();
     }
 }
