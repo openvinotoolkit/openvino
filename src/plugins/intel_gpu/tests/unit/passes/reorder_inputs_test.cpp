@@ -484,7 +484,7 @@ TEST(reorder_inputs, add_reorder_between_single_output_type_node_and_multiple_us
     ASSERT_TRUE(fc1.get_dependency(0).is_type<reorder>());
     ASSERT_TRUE(fc2.get_dependency(0).is_type<reorder>());
 }
-
+specific input shape with specific reduction axes of mvn causes error in mvn blocked kernel
 TEST(reorder_inputs, mvn_expected_plain_format) {
     // Topology: fsv16 -> permute -> mvn -> permute
     // Given input shape is not supported by mvn fsv16 kernel, so expected format of mvn should be plain (bfyx) with proper reorders
