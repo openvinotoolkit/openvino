@@ -368,7 +368,10 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
                                std::shared_ptr<ov::Model>& ov_model) const {
     auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
+
     auto translators_map = std::make_shared<OperatorsBridge>();
+    translators_map->register_extensions(m_extensions.conversions);
+
     TranslateSession translate_session(input_model, translators_map, "MainGraph");
     translate_session.set_fail_fast(fail_fast);
     try {
@@ -376,7 +379,6 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
     } catch (const std::exception&) {
         throw;
     }
-    return;
 }
 
 std::shared_ptr<ov::Model> FrontEnd::decode_unify(const InputModel::Ptr& model) const {
