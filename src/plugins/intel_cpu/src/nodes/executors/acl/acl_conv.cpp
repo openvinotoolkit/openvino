@@ -94,6 +94,9 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
                        config.descs.at(ARG_WEI)->getPrecision() == ov::element::i8;
 
     VERIFY(isQuantized, UNSUPPORTED_SRC_PRECISIONS);
+    if (config.attrs.withBias) {
+        VERIFY(config.descs.at(ARG_BIAS)->getPrecision() == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
+    }
     VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
 
     return true;
