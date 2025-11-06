@@ -65,7 +65,8 @@ Example 3 shows how *GatherND* operates when `indices` tensor has leading dimens
 
   * **Description**: *batch_dims* (denoted as ``b``) is a leading number of dimensions of ``data`` tensor
     and ``indices`` representing the batches, and *GatherND* starts to gather from the ``b+1`` dimension.
-    It requires the first ``b`` dimensions in ``data`` and ``indices`` tensors to be equal.
+    It requires the first ``b`` dimensions in ``data`` and ``indices`` tensors to be broadcastable
+    (i.e., either equal or one of them equals 1, which will be broadcast to the other dimension).
     In case of non-default value for *batch_dims*, the output shape is calculated as
     ``(multiplication of indices.shape[:b]) + indices.shape[b:-1] + data.shape[(indices.shape[-1] + b):]``.
 

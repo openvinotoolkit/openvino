@@ -180,6 +180,19 @@ std::vector<GatherNDParams> generateParams() {
             2,
             reference_tests::Tensor(IN_ET, {6, 1}, std::vector<T>{2, 5, 11, 13, 19, 23}),
             "gather_nd_batch_dims2_lead_dims"),
+        GatherNDParams(
+            reference_tests::Tensor(IN_ET, {1, 3, 4}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+            reference_tests::Tensor(element::i32, {2, 1}, std::vector<int32_t>{1, 0}),
+            1,
+            reference_tests::Tensor(IN_ET, {2, 4}, std::vector<T>{5, 6, 7, 8, 1, 2, 3, 4}),
+            "gather_nd_broadcast_data_batch"),
+        GatherNDParams(
+            reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                                                                     13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
+            reference_tests::Tensor(element::i32, {1, 1}, std::vector<int32_t>{1}),
+            1,
+            reference_tests::Tensor(IN_ET, {2, 4}, std::vector<T>{5, 6, 7, 8, 17, 18, 19, 20}),
+            "gather_nd_broadcast_indices_batch"),
     };
     return params;
 }
@@ -384,6 +397,25 @@ std::vector<GatherNDParams> generateParams_v8() {
                                66, 67, 68, 69, 70, 61,  62,  63,  64,  65,  91,  92,  93,  94,  95,
                                81, 82, 83, 84, 85, 111, 112, 113, 114, 115, 101, 102, 103, 104, 105}),
             "gather_8_nd_batch_dims2_non_scalar_slices"),
+        GatherNDParams(
+            reference_tests::Tensor(IN_ET, {1, 3, 4}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+            reference_tests::Tensor(element::i32, {2, 1}, std::vector<int32_t>{1, 0}),
+            1,
+            reference_tests::Tensor(IN_ET, {2, 4}, std::vector<T>{5, 6, 7, 8, 1, 2, 3, 4}),
+            "gather_nd_8_broadcast_data_batch"),
+        GatherNDParams(
+            reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                                                                     13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
+            reference_tests::Tensor(element::i32, {1, 1}, std::vector<int32_t>{1}),
+            1,
+            reference_tests::Tensor(IN_ET, {2, 4}, std::vector<T>{5, 6, 7, 8, 17, 18, 19, 20}),
+            "gather_nd_8_broadcast_indices_batch"),
+        GatherNDParams(
+            reference_tests::Tensor(IN_ET, {1, 1, 3, 4}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+            reference_tests::Tensor(element::i32, {3, 2, 1}, std::vector<int32_t>{0, 1, 2, 0, 1, 2}),
+            2,
+            reference_tests::Tensor(IN_ET, {3, 2, 4}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+            "gather_nd_8_broadcast_both_batches"),
     };
     return params;
 }
