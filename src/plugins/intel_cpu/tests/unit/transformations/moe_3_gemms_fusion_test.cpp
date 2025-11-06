@@ -45,6 +45,7 @@
 using namespace testing;
 using namespace ov::intel_cpu;
 
+namespace {
 using Moe3GeMMsFusionParams = std::tuple<bool,   // use_scatter_v12
                                          bool,   // use_broadcast_v3
                                          bool,   // skip_unsqueeze
@@ -54,7 +55,7 @@ using Moe3GeMMsFusionParams = std::tuple<bool,   // use_scatter_v12
 inline std::shared_ptr<ov::Node> build_matmul_weights(const ov::Shape& weights_shape,
                                                       const ov::element::Type& weights_precision,
                                                       size_t seed,
-                                                      bool transpose_b = true) {
+                                                      bool transpose_b) {
     // Note: builder takes planar weights shape, but it is transposed here
     // only if transpose_b=true (which is the default case for MoE matmuls)
     auto final_weights_shape = weights_shape;
@@ -439,3 +440,4 @@ INSTANTIATE_TEST_SUITE_P(Moe3GeMMsFusionTest_negative_cases,
                                             ::testing::Values(false),
                                             ::testing::Values(false)),
                          Moe3GeMMsFusionTest::getTestCaseName);
+}  // namespace
