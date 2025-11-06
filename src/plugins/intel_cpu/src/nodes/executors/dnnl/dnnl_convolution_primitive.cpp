@@ -450,7 +450,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
 
     const auto& originalOutputDims = dstDesc->getShape().getMinDims();
-    const auto& outputDims = attrs.fcSemantic ? normalizeDims(originalOutputDims) : originalOutputDims;
+    const auto& outputDims = attrs.fcSemantic ? VectorDims(normalizeDims(originalOutputDims)) : originalOutputDims;
 
     auto isINT8 =
         any_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
