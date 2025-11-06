@@ -39,7 +39,9 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                                                 {ov::intel_npu::use_base_model_serializer(false),
                                                  ov::intel_npu::serialization_weights_size_threshold(0)},
                                                 {ov::intel_npu::use_base_model_serializer(false),
-                                                 ov::intel_npu::serialization_weights_size_threshold(100)}})),
+                                                 ov::intel_npu::serialization_weights_size_threshold(100)},
+                                                {ov::intel_npu::use_base_model_serializer(false),
+                                                 ov::intel_npu::serialization_weights_size_threshold(1e9)}})),
                          ov::test::utils::appendPlatformTypeTestName<OVCompileAndInferRequestSerializers>);
 
 }  // namespace

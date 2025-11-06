@@ -16,9 +16,6 @@ using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
 
-using VCLSerializerWithWeightsCopy = intel_npu::driver_compiler_utils::VCLSerializerWithWeightsCopy;
-using VCLSerializerWithoutWeightsCopy = intel_npu::driver_compiler_utils::VCLSerializerWithoutWeightsCopy;
-
 namespace ov::test::behavior {
 
 class DriverCompilerAdapterCustomStreamTestNPU : public ov::test::behavior::OVPluginTestBase,
@@ -62,15 +59,16 @@ protected:
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelWeightsCopy) {
     auto model = createModelWithLargeSize();
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
-    VCLSerializerWithWeightsCopy serializer(model, dummyCompilerVersion, 11);
-    EXPECT_NO_THROW(serializer.serialize());
+    EXPECT_NO_THROW(::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, true));
 }
 
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
     auto model = createModelWithLargeSize();
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
-    VCLSerializerWithoutWeightsCopy serializer(model, dummyCompilerVersion, 11);
-    EXPECT_NO_THROW(serializer.serialize());
+
+    EXPECT_NO_THROW(::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, 0));
+    EXPECT_NO_THROW(::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, 100));
+    EXPECT_NO_THROW(::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, 1e9));
 }
 
 const std::vector<ov::AnyMap> configs = {

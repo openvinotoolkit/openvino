@@ -82,11 +82,6 @@ protected:
         std::shared_ptr<ZeroInitStructsMock> zeroInitMock = std::make_shared<ZeroInitStructsMock>(graphExtVersion);
         zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
         zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
-
-        auto compilerProperties = zeroInitStruct->getCompilerProperties();
-        const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-        vclSerializer =
-            std::make_shared<VCLSerializerWithWeightsCopy>(model, compilerProperties.compilerVersion, maxOpsetVersion);
     }
 
     void TearDown() override {
@@ -94,7 +89,10 @@ protected:
     }
 
     void serializeIR() {
-        serializedIR = vclSerializer->serialize();
+        auto compilerProperties = zeroInitStruct->getCompilerProperties();
+        const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
+        serializedIR =
+            driver_compiler_utils::serializeIR(model, compilerProperties.compilerVersion, maxOpsetVersion, true);
     }
 
     bool bypassUmdCache() {
@@ -125,7 +123,6 @@ protected:
     GraphDescriptor graphDescriptor;
 
     std::shared_ptr<ov::Model> model;
-    std::shared_ptr<driver_compiler_utils::VCLSerializerWithWeightsCopy> vclSerializer;
 
     std::string targetDevice;
     std::string blobPath;
