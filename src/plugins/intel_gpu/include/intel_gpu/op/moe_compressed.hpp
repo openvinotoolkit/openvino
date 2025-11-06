@@ -15,6 +15,7 @@ public:
     OPENVINO_OP("MOECompressed", "gpu_opset", ov::op::internal::MOE);
 
     MOECompressed() = default;
+    MOECompressed(const OutputVector& args) : MOE(args) {}
 
     struct Config : public MOE::Config {
         size_t hidden_size = 0;
