@@ -713,6 +713,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     std::shared_ptr<intel_npu::IGraph> graph;
+
     try {
         _logger.debug("performing compile");
 
