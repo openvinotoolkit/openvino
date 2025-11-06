@@ -70,7 +70,7 @@ jobs:
           - name: lessram
             runner: aks-win-32-cores-64gb-ram-st
           - name: amd_nvme
-            runner: aks-win-16-cores-32gb-amd-nvme-st
+            runner: aks-win-32-cores-64gb-amd-nvme-st
         cache:
           - False # cache doesn't work in Windows Debug builds
     needs: [ Smart_CI ]
