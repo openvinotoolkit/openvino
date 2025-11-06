@@ -99,6 +99,7 @@ private:
     Logger log;
 
     ze_context_handle_t context = nullptr;
+    uint32_t context_options = 0;
     ze_driver_handle_t driver_handle = nullptr;
     ze_device_handle_t device_handle = nullptr;
 
@@ -106,6 +107,7 @@ private:
     std::unique_ptr<ze_graph_dditable_ext_decorator> graph_dditable_ext_decorator;
     std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator> command_queue_npu_dditable_ext_decorator;
     std::unique_ptr<ze_graph_profiling_ddi_table_ext_decorator> graph_profiling_npu_dditable_ext_decorator;
+    std::unique_ptr<ze_context_npu_dditable_ext_decorator> context_npu_dditable_ext_decorator;
 
     ze_driver_properties_t driver_properties = {};
     uint32_t mutable_command_list_ext_version = 0;
