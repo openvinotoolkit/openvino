@@ -424,6 +424,12 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
+    auto gate_up_group_size = desc->_config.group_size;
+    auto down_group_size = desc->_config.group_size;
+    if (desc->_config.group_size == std::numeric_limits<size_t>::max()) {
+        gate_up_group_size = desc->_config.hidden_size;
+        down_group_size = desc->_config.inter_size;
+    }
     jit.make("MAX_TOPK", desc->_config.top_k);
     jit.make("EXPERT_NUM", desc->_config.num_expert);
     jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
@@ -431,7 +437,8 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("N_BLOCK", N_BLOCK);
     jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
     jit.make("SUBGROUP_NUM", SUBGROUP_NUM);
-    jit.make("GROUP_SIZE", desc->_config.group_size);
+    jit.make("GATE_UP_GROUP_SIZE", gate_up_group_size);
+    jit.make("DOWN_GROUP_SIZE", down_group_size);
     jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
     jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
 }
