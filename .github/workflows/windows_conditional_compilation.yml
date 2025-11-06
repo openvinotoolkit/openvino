@@ -73,7 +73,7 @@ jobs:
           - name: release_build_baseline
             runner: aks-win-16-cores-32gb-build-st
         cache:
-          - True
+        #  - True # Getting 0% cache hits, turn on after this will be fixed
           - False
     name: "Build OpenVINO - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"
     needs: Smart_CI

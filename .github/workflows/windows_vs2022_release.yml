@@ -72,7 +72,7 @@ jobs:
           - name: 'amd_nvme'
             runner: 'aks-win-16-cores-32gb-amd-nvme-st'
         cache:
-          - True
+          # - True # Getting 0% cache hits, turn on after this will be fixed
           - False
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"

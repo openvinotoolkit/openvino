@@ -72,8 +72,7 @@ jobs:
           - name: amd_nvme
             runner: aks-win-16-cores-32gb-amd-nvme-st
         cache:
-          - False
-          - True
+          - False # cache doesn't work in Windows Debug builds
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
     name: "Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"
