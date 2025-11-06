@@ -12,6 +12,7 @@
 #include "layout.hpp"
 #include "execution_config.hpp"
 #include "engine_configuration.hpp"
+#include "kernel_builder.hpp"
 
 #include <memory>
 #include <set>
@@ -143,10 +144,9 @@ public:
     /// Returns service stream which can be used during program build and optimizations
     virtual stream& get_service_stream() const = 0;
 
-    virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
+    virtual std::shared_ptr<kernel_builder> create_kernel_builder() const = 0;
 
-    // Build kernels for current engine and append them to output vector.
-    virtual void build_kernels(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> out) const = 0;
+    virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
 
     void set_enable_large_allocations(bool enable_large_allocations);
 

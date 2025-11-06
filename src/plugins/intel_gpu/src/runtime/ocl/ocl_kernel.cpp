@@ -38,5 +38,16 @@ std::vector<uint8_t> ocl_kernel::get_binary() const {
     return binary;
 }
 
+std::string ocl_kernel::get_build_log() const {
+    auto program = _compiled_kernel.getInfo<CL_KERNEL_PROGRAM>();
+    auto log = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>();
+    // Assume program was build for only 1 device
+    // Return first log
+    if (log.size() > 0) {
+        return log[0].second;
+    }
+    OPENVINO_THROW("[GPU] Failed to retrieve kernel build log");
+}
+
 }  // namespace ocl
 }  // namespace cldnn

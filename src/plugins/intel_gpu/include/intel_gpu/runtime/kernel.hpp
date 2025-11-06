@@ -6,16 +6,11 @@
 
 #include <memory>
 #include <vector>
+#include <string>
 
 namespace cldnn {
 
 using kernel_id = std::string;
-
-enum class KernelFormat {
-    SOURCE,
-    IL,
-    NATIVE_BIN,
-};
 
 class kernel {
 public:
@@ -25,6 +20,7 @@ public:
 
     virtual std::string get_id() const = 0;
     virtual std::vector<uint8_t> get_binary() const = 0;
+    virtual std::string get_build_log() const = 0;
 };
 
 }  // namespace cldnn

@@ -22,12 +22,11 @@ public:
     ~ze_kernel_holder() {
         OV_ZE_WARN(zeKernelDestroy(m_kernel));
     }
-    ze_kernel_handle_t get_kernel() { return m_kernel; }
-    ze_module_handle_t get_module() { return m_module->get_module(); }
+    ze_kernel_handle_t get_kernel_handle() { return m_kernel; }
+    std::shared_ptr<ze_module_holder> get_module() { return m_module; }
 private:
     ze_kernel_handle_t m_kernel;
     std::shared_ptr<ze_module_holder> m_module;
-}
-
+};
 }  // namespace ze
 }  // namespace cldnn

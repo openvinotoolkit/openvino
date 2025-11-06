@@ -234,7 +234,7 @@ void ze_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_
     std::lock_guard<std::mutex> guard(m);
 
     auto& ze_kernel = downcast<ze::ze_kernel>(kernel);
-    auto& kern = ze_kernel.get_handle();
+    auto kern = ze_kernel.get_kernel_handle();
     set_arguments_impl(kern, args_desc.arguments, args);
 }
 
@@ -245,7 +245,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                      bool is_output) {
     auto& ze_kernel = downcast<ze::ze_kernel>(kernel);
 
-    auto& kern = ze_kernel.get_handle();
+    auto kern = ze_kernel.get_kernel_handle();
 
     std::vector<ze_event_handle_t> dep_events;
     std::vector<ze_event_handle_t>* dep_events_ptr = nullptr;

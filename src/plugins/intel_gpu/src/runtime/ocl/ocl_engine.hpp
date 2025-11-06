@@ -46,7 +46,7 @@ public:
     stream_ptr create_stream(const ExecutionConfig& config, void *handle) const override;
     stream& get_service_stream() const override;
 
-    void build_kernels(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> out) const override;
+    std::shared_ptr<kernel_builder> create_kernel_builder() const override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     void create_onednn_engine(const ExecutionConfig& config) override;

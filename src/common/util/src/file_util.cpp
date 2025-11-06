@@ -515,7 +515,7 @@ std::vector<uint8_t> ov::util::load_binary(const std::string& path) {
     return {};
 }
 
-void ov::util::save_binary(const std::string& path, std::vector<uint8_t> binary) {
+void ov::util::save_binary(const std::string& path, const std::vector<uint8_t> &binary) {
     save_binary(path, reinterpret_cast<const char*>(&binary[0]), binary.size());
     return;
 }

@@ -35,6 +35,7 @@ public:
     }
 
     std::vector<uint8_t> get_binary() const override;
+    std::string get_build_log() const override;
 };
 
 }  // namespace ocl

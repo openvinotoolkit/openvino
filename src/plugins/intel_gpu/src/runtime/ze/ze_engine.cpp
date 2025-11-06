@@ -5,7 +5,7 @@
 #include "ze_engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "openvino/core/except.hpp"
-#include "ze/ze_kernel.hpp"
+#include "ze_kernel_builder.hpp"
 #include "ze_api.h"
 #include "ze_engine_factory.hpp"
 #include "ze_common.hpp"
@@ -25,27 +25,6 @@
 #endif
 namespace cldnn {
 namespace ze {
-
-namespace {
-
-ze_module_handle_t ze_create_module_with_level_zero(const cldnn::ze::ze_engine& engine, std::vector<uint8_t> binary) {
-    auto desc = ze_module_desc_t();
-    desc.stype = ZE_STRUCTURE_TYPE_MODULE_DESC;
-    desc.format = ZE_MODULE_FORMAT_NATIVE;
-    desc.inputSize = binary.size();
-    desc.pInputModule = binary.data();
-    desc.pBuildFlags = "";
-    desc.pConstants = nullptr;
-
-    ze_module_handle_t ze_module;
-
-    auto ze_device = engine.get_device();
-    auto ze_ctx = engine.get_context();
-    OV_ZE_EXPECT(zeModuleCreate(ze_ctx, ze_device, &desc, &ze_module, nullptr));
-    return ze_module;
-}
-
-}  // namespace
 
 ze_engine::ze_engine(const device::ptr dev, runtime_types runtime_type)
     : engine(dev) {
@@ -222,58 +201,10 @@ bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
     return (reinterpret_cast<const ze::gpu_usm&>(mem1).get_buffer().get() == reinterpret_cast<const ze::gpu_usm&>(mem2).get_buffer().get());
 }
 
-void ze_engine::build_kernels(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> out) const {
-    ze_module_desc_t module_desc = {
-        ZE_STRUCTURE_TYPE_MODULE_DESC,
-        nullptr,
-        ZE_MODULE_FORMAT_NATIVE,
-        src_bytes,
-        reinterpret_cast<const uint8_t *>(src),
-        options.c_str(),
-        nullptr // specialization constants
-    };
-    switch (src_format)
-    {
-    case KernelFormat::SOURCE:
-        module_desc.format = ze_module_format_oclc;
-        break;
-    case KernelFormat::IL:
-        module_desc.format = ZE_MODULE_FORMAT_IL_SPIRV;
-        break;
-    case KernelFormat::NATIVE_BIN:
-        module_desc.format = ZE_MODULE_FORMAT_NATIVE;
-        break;
-    default:
-        OPENVINO_THROW("[GPU] Trying to build kernel from unexpected format");
-        break;
-    }
-    ze_module_handle_t module_handle;
-    ze_module_build_log_handle_t log_handle;
-    ze_result_t build_result = zeModuleCreate(get_context(), get_device(), &module_desc, &module_handle, &log_handle);
-    if (build_result != ZE_RESULT_SUCCESS) {
-        size_t log_size = 0;
-        OV_ZE_EXPECT(zeModuleBuildLogGetString(log_handle, &log_size, nullptr));
-        std::string log(log_size, ' ');
-        OV_ZE_EXPECT(zeModuleBuildLogGetString(log_handle, &log_size, log.data()));
-        OV_ZE_EXPECT(zeModuleBuildLogDestroy(log_handle));
-        OPENVINO_THROW(log);
-    }
-    auto module_holder = std::make_shared<ze_module_holder>(module_handle);
-    OV_ZE_EXPECT(zeModuleBuildLogDestroy(log_handle));
-    uint32_t kernel_count = 0;
-    OV_ZE_EXPECT(zeModuleGetKernelNames(module_handle, &kernel_count, nullptr));
-    std::vector<const char*> kernel_names(kernel_count);
-    OV_ZE_EXPECT(zeModuleGetKernelNames(module_handle, &kernel_count, kernel_names.data()));
-    ze_kernel_flags_t flags = 0;
-    ze_kernel_desc_t kernel_desc = {
-        ZE_STRUCTURE_TYPE_KERNEL_DESC, nullptr, flags, nullptr};
-    for (auto name : kernel_names) {
-        kernel_desc.pKernelName = name;
-        ze_kernel_handle_t kernel_handle;
-        OV_ZE_EXPECT(zeKernelCreate(module_handle, &kernel_desc, &kernel_handle));
-        auto kernel_holder = std::make_shared<ze_kernel_holder>(kernel_handle, module_holder);
-        out.push_back(std::make_shared<ze_kernel>(kernel_holder, std::string(name)));
-    }
+std::shared_ptr<kernel_builder> ze_engine::create_kernel_builder() const {
+    auto casted = std::dynamic_pointer_cast<ze_device>(_device);
+    OPENVINO_ASSERT(casted, "[GPU] Invalid device type for ze_engine");
+    return std::make_shared<ze_kernel_builder>(*casted);
 }
 
 void* ze_engine::get_user_context() const {

@@ -221,12 +221,11 @@ protected:
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
-        auto& engine = kernels.begin()->first.get_program().get_engine();
         _kernels.clear();
         _kernels.resize(kernel_vec.size());
         for (auto& k : kernel_vec) {
             auto sub_kernel_idx = k.second;
-            _kernels[sub_kernel_idx] = engine.prepare_kernel(k.first);
+            _kernels[sub_kernel_idx] = k.first;
         }
     }
 

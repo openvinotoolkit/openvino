@@ -4,7 +4,8 @@
 
 #include "ocl_engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
-#include "ocl/ocl_kernel.hpp"
+#include "ocl_kernel.hpp"
+#include "ocl_kernel_builder.hpp"
 #include "ocl_common.hpp"
 #include "ocl_memory.hpp"
 #include "ocl_stream.hpp"
@@ -307,13 +308,10 @@ void* ocl_engine::get_user_context() const {
     return static_cast<void*>(cl_device.get_context().get());
 }
 
-std::vector<kernel::ptr> ocl_engine::build_kernels(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options) const {
-    cl::Program()
-}
-
-kernel::ptr ocl_engine::prepare_kernel(const kernel::ptr kernel) const {
-    OPENVINO_ASSERT(downcast<const ocl::ocl_kernel>(kernel.get()) != nullptr);
-    return kernel;
+std::shared_ptr<kernel_builder> ocl_engine::create_kernel_builder() const {
+    auto cl_device = std::dynamic_pointer_cast<ocl_device>(_device);
+    OPENVINO_ASSERT(cl_device, "[GPU] Invalid device type for ocl_engine");
+    return std::make_shared<ocl_kernel_builder>(*cl_device);
 }
 
 bool ocl_engine::extension_supported(std::string extension) const {
