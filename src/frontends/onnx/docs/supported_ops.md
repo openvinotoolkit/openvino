@@ -78,7 +78,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Greater                                                 |1                       |13, 9, 7, 1                     |                                |
 |                        |GreaterOrEqual                                          |16, 12                  |16, 12                          |                                |
 |                        |GridSample                                              |16                      |22, 20, 16                      |                                |
-|                        |GroupNormalization                                      |18                      |21, 18                          |                                |
+|                        |GroupNormalization                                      |21, 18                  |21, 18                          |                                |
 |                        |HammingWindow                                           |17                      |17                              |                                |
 |                        |HannWindow                                              |17                      |17                              |                                |
 |                        |HardSigmoid                                             |1                       |22, 6, 1                        |                                |

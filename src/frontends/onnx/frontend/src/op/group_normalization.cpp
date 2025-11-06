@@ -51,7 +51,7 @@ ov::OutputVector group_normalization(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v12::GroupNormalization>(data, c_scale, c_bias, num_groups, eps)};
 }
-ONNX_OP("GroupNormalization", OPSET_SINCE(18), ai_onnx::opset_18::group_normalization);
+ONNX_OP("GroupNormalization", OPSET_RANGE(1, 20), ai_onnx::opset_18::group_normalization);
 }  // namespace opset_18
 namespace opset_21 {
 ov::OutputVector group_normalization(const ov::frontend::onnx::Node& node) {
