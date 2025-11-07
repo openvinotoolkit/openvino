@@ -144,8 +144,8 @@ void concat_input_order::run(program& p) {
         std::vector<tensor::value_type> feature_sizes;
         feature_sizes.reserve(inputs_count);
         for (size_t input_idx = 0; input_idx < inputs_count; ++input_idx) {
-            auto& dep = concat_node.get_dependency(input_idx);
-            auto dep_layout = dep.get_output_layout();
+            const auto dep = concat_node.get_dependency_with_port(input_idx);
+            auto dep_layout = dep.first->get_output_layout(false, dep.second);
             single_format &= dep_layout.format == out_format;
             feature_sizes.push_back(dep_layout.feature());
         }
