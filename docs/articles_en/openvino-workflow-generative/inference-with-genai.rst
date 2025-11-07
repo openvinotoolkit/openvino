@@ -494,6 +494,47 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
          For more information, refer to the
          `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text_generation/chat_sample/>`__
 
+      .. tab-item:: JavaScript/TypeScript
+         :sync: js
+
+         .. code-block:: typescript
+
+            import { LLMPipeline } from "openvino-genai-node";
+            import readline from 'readline';
+
+            const pipe = await LLMPipeline(model_path, 'CPU');
+
+            const config = { 
+                max_new_tokens: 100, 
+                num_beam_groups: 3, 
+                num_beams: 15, 
+                diversity_penalty: 1.5 
+            };
+
+            await pipe.startChat();
+            
+            const rl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout,
+            });
+
+            console.log('question:');
+            rl.on('line', async (prompt) => {
+                console.log('answer:');
+                const answer = await pipe.generate(prompt, config);
+                console.log(answer);
+                console.log('\n----------\nquestion:');
+            });
+
+            rl.on('close', async () => {
+                // highlight-next-line
+                await pipe.finishChat();
+                process.exit(0);
+            });
+
+         For more information, refer to the
+         `JavaScript sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/js/text_generation/chat_sample/>`__.
+
 
 .. dropdown:: Using GenAI with Vision Language Models
 
@@ -702,6 +743,29 @@ parameters.
             std::cout << pipe.generate("The Sun is yellow because", ov::genai::max_new_tokens(100));
          }
 
+   .. tab-item:: JavaScript/TypeScript
+      :sync: js
+
+      .. code-block:: console
+
+         optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
+
+      .. code-block:: typescript
+
+         import { LLMPipeline, GenerationConfig } from 'openvino-genai-node';
+
+         async function main() {
+           const modelPath = process.argv[2];
+           const pipe = await LLMPipeline.LLMPipeline(modelPath, 'CPU');
+
+           const config: GenerationConfig = { maxNewTokens: 100 };
+           const result = await pipe.generate('The Sun is yellow because', config);
+           
+           console.log(result.texts[0]);
+         }
+
+         main();
+
 
 
 Streaming the Output
@@ -742,6 +806,25 @@ lambda function outputs words to the console immediately upon generation:
             };
             pipe.generate("The Sun is yellow because", ov::genai::streamer(streamer), ov::genai::max_new_tokens(100));
          }
+
+   .. tab-item:: JavaScript/TypeScript
+      :sync: js
+
+      .. code-block:: typescript
+
+         import { LLMPipeline, GenerationConfig } from 'openvino-genai-node';
+
+         async function main() {
+           const modelPath = process.argv[2];
+           const pipe = await LLMPipeline.LLMPipeline(modelPath, 'CPU');
+
+           const config: GenerationConfig = { maxNewTokens: 100 };
+           for await (const chunk of pipe.stream('The Sun is yellow because', config)) {
+             process.stdout.write(chunk);
+           }
+         }
+
+         main();
 
 You can also create your custom streamer for more sophisticated processing:
 
@@ -843,6 +926,30 @@ For better text generation quality and more efficient batch processing, specify
 
             cout << pipe.generate("The Sun is yellow because", config);
          }
+
+   .. tab-item:: JavaScript/TypeScript
+      :sync: js
+
+      .. code-block:: typescript
+
+         import { LLMPipeline, GenerationConfig } from 'openvino-genai-node';
+
+         async function main() {
+           const modelPath = process.argv[2];
+           const pipe = await LLMPipeline(modelPath, 'CPU');
+
+           const config : GenerationConfig = {
+               maxNewTokens: 256,
+               numBeamGroups: 3,
+               numBeams: 15,
+               diversityPenalty: 1.0
+           };
+
+           const result = await pipe.generate('The Sun is yellow because', config);
+           console.log(result.toString());
+         }
+
+         main();
 
 
 Efficient Text Generation via Speculative Decoding
@@ -1024,6 +1131,29 @@ To perform inference with a GGUF model using OpenVINO GenAI, simply provide the 
              return EXIT_FAILURE;
          }
 
+   .. tab-item:: JavaScript/TypeScript
+      :sync: js
+
+      .. code-block:: typescript
+
+         import { LLMPipeline, GenerationConfig } from 'openvino-genai-node';
+
+         async function main() {
+           const config: GenerationConfig = {
+             maxNewTokens: 100
+           };
+
+           const modelPath = 'SmolLM2-135M.F16.gguf';
+           const prompt = 'The Sun is yellow because';
+
+           const pipe = await LLMPipeline(modelPath, 'CPU');
+
+           const result = await pipe.generate(prompt, config);
+           console.log('result =', result.toString());
+         }
+
+         main();
+
 
 
 
@@ -1086,6 +1216,7 @@ Additional Resources
 ####################
 
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
+* `OpenVINO GenAI Documentation <https://openvinotoolkit.github.io/openvino.genai/>`__
 * `OpenVINO GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples>`__
 * A Jupyter notebook demonstrating
   `Visual-language assistant with MiniCPM-V2 and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/minicpm-v-multimodal-chatbot>`__
