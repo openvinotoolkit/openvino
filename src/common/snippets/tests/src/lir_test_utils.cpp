@@ -114,10 +114,28 @@ InnerSplittedUnifiedLoopInfoPtr make_inner_split_loop_info(size_t work_amount,
                                                            const std::vector<LoopPort>& exits,
                                                            const UnifiedLoopInfoPtr& outer_split_loop_info,
                                                            const std::optional<IOLoopPortDescs>& io_descs) {
-    outer_split_loop_info
-        ->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
-    outer_split_loop_info
-        ->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
+    // Note: since make_inner_split_loop_info can be called several times for the same outer_split_loop_info,
+    // we need to ensure that SplitLoops::TransformInnerSplitLoop pass is registered only once
+    const auto& outer_split_loop_main_body_handlers =
+        outer_split_loop_info->get_handlers().get_passes<SpecificLoopIterType::MAIN_BODY>().get_passes();
+    if (std::find_if(outer_split_loop_main_body_handlers.begin(),
+                     outer_split_loop_main_body_handlers.end(),
+                     [](const auto& pass) {
+                         return ov::as_type_ptr<SplitLoops::TransformInnerSplitLoop>(pass) != nullptr;
+                     }) == outer_split_loop_main_body_handlers.end()) {
+        outer_split_loop_info
+            ->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
+    }
+    const auto& outer_split_loop_last_iter_handlers =
+        outer_split_loop_info->get_handlers().get_passes<SpecificLoopIterType::MAIN_BODY>().get_passes();
+    if (std::find_if(outer_split_loop_last_iter_handlers.begin(),
+                     outer_split_loop_last_iter_handlers.end(),
+                     [](const auto& pass) {
+                         return ov::as_type_ptr<SplitLoops::TransformInnerSplitLoop>(pass) != nullptr;
+                     }) == outer_split_loop_last_iter_handlers.end()) {
+        outer_split_loop_info
+            ->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
+    }
     // Note: this temporary loop is needed to easily create InnerSplittedUnifiedLoopInfo:
     // we extract all automatically calculated parameters from it such as SpecificIterationHandlers
     const auto tmp_unified_loop =
