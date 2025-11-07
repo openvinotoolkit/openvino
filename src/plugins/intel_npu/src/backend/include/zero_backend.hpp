@@ -15,7 +15,7 @@ namespace intel_npu {
 class ZeroEngineBackend final : public IEngineBackend {
 public:
     ZeroEngineBackend();
-    ~ZeroEngineBackend();
+    ~ZeroEngineBackend() override = default;
     const std::shared_ptr<IDevice> getDevice() const override;
     const std::shared_ptr<IDevice> getDevice(const std::string&) const override;
     const std::string getName() const override {

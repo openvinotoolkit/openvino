@@ -143,11 +143,4 @@ const std::shared_ptr<ZeroInitStructsHolder> ZeroEngineBackend::getInitStructs()
     return _initStruct;
 }
 
-ZeroEngineBackend::~ZeroEngineBackend() {
-    if (_initStruct != nullptr) {
-        _devices.clear();
-        _initStruct->destroy();
-    }
-}
-
 }  // namespace intel_npu

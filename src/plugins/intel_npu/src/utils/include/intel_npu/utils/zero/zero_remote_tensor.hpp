@@ -71,7 +71,7 @@ public:
     void* get_original_memory() const;
     ze_context_handle_t get_zero_context_handle() const;
 
-    ~ZeroRemoteTensor() override;
+    ~ZeroRemoteTensor() override = default;
 
 private:
     void allocate(const size_t bytes);

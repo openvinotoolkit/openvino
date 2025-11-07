@@ -329,7 +329,7 @@ ZeroInitStructsMock::ZeroInitStructsMock(int extVersion)
     }
 }
 
-void ZeroInitStructsMock::destroy_context() {
+ZeroInitStructsMock::~ZeroInitStructsMock() {
     if (context) {
         if (context_npu_dditable_ext_decorator->version() >= ZE_MAKE_VERSION(1, 0)) {
             context_options &= ~(ZE_NPU_CONTEXT_OPTION_ENABLE_IDLE_OPTIMIZATIONS);
@@ -350,10 +350,6 @@ void ZeroInitStructsMock::destroy_context() {
             }
         }
     }
-}
-
-ZeroInitStructsMock::~ZeroInitStructsMock() {
-    destroy_context();
 }
 
 }  // namespace intel_npu

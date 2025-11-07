@@ -117,8 +117,4 @@ std::shared_ptr<ov::IRemoteContext> RemoteContextImpl::get_this_shared_ptr() {
     return shared_from_this();
 }
 
-RemoteContextImpl::~RemoteContextImpl() {
-    _init_structs->destroy();
-}
-
 }  // namespace intel_npu
