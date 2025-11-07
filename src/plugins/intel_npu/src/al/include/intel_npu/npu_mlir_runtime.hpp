@@ -106,8 +106,9 @@ typedef struct _npu_mlir_runtime_mem_ref_t {
     const void* basePtr;
     const void* data;
     int64_t offset;
-    int64_t sizes[4];
-    int64_t strides[4];
+    int64_t sizes[ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE];
+    int64_t strides[ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE];
+    uint32_t dimsCount;
 } npu_mlir_runtime_mem_ref_t;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -153,7 +154,8 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
     npu_mlir_runtime_handle_t hRuntime,                          ///< [in] handle of mlir runtime object
     uint32_t argIndex,                                           ///< [in] index of the argument
     ze_graph_argument_properties_3_t* pGraphArgumentProperties,  ///< [out] query result for graph argument properties
-    ze_graph_argument_metadata_t* pGraphArgumentMetadata         ///< [out] query result for graph argument metadata
+    ze_graph_argument_metadata_t* pGraphArgumentMetadata,        ///< [out] query result for graph argument metadata
+    int64_t* upperBound
 );
 
 ///////////////////////////////////////////////////////////////////////////////
