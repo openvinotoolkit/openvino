@@ -201,6 +201,9 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
 }
 
 std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() const {
+    static std::map<std::string, std::shared_ptr<RemoteContextImpl>> m_default_contexts;
+    static std::once_flag m_default_contexts_once;
+
     std::call_once(m_default_contexts_once, [this]() {
         // Create default context
         for (auto& device : m_device_map) {
