@@ -316,7 +316,7 @@ std::vector<uint8_t> load_binary(const std::string& path);
  * @brief save binary data to file
  * @param path - binary file path to store
  */
-void save_binary(const std::string& path, const std::vector<uint8_t> &binary);
+void save_binary(const std::string& path, const std::vector<uint8_t>& binary);
 void save_binary(const std::string& path, const char* binary, size_t bin_size);
 
 /**
