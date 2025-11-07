@@ -834,7 +834,8 @@ int main(int argc, char** argv) {
                 std::vector<double> ms_runs; ms_runs.reserve(outer_reps);
                 const char* kernel_name = nullptr; bool used_vnni = false;
                 // Optional: reuse pre-quantized X and repacked W for per-tensor i8 (fastpath timing)
-                bool reuse_xq = (std::getenv("GEMMV_REUSE_XQ") && std::string(std::getenv("GEMMV_REUSE_XQ")) == "1" && use_vnni && wtype==w_dtype_t::i8 && per_tensor);
+                // Compute-only path: for per-tensor i8 always reuse pre-quantized X and k64-repacked W
+                bool reuse_xq = (wtype==w_dtype_t::i8 && per_tensor);
                 std::vector<uint8_t> Xq_reuse; float s_x_reuse = 1.f; int32_t zp_x_reuse = 128; int32_t sumX_reuse = 0;
                 std::unique_ptr<uint8_t, void(*)(void*)> Wk64_reuse(nullptr, free); int ld_w_k64 = 0; std::vector<int32_t> sumW_k64;
                 if (reuse_xq) {
@@ -859,37 +860,18 @@ int main(int argc, char** argv) {
                         if (reuse_xq) {
                             const int K_blk=64; const int K_grp=(K + K_blk - 1)/K_blk;
                             float s_w = scales_eff[0]; float bias0 = bias_eff.empty()?0.f:bias_eff[0];
-                            bool force_amx = (std::getenv("GEMMV_FORCE_AMX") && std::string(std::getenv("GEMMV_FORCE_AMX")) == "1");
-                            if (force_amx) {
-                                // AMX compute-only path with prequantized X and k64 weights
-                                bool ok = run_gemmv_amx_i8u8_fp32_xq(Xq_reuse.data(), K, sumX_reuse,
+                            // Try AMX compute-only path first; if unavailable, fall back to VNNI
+                            bool ok_amx = run_gemmv_amx_i8u8_fp32_xq(Xq_reuse.data(), K, sumX_reuse,
                                                                      Wk64_reuse.get(), M, K_grp * (M_blk * K_blk),
                                                                      &s_w, /*zps*/nullptr, Y.data(), &bias0,
                                                                      quant_granularity_t::per_tensor, 0, sumW_k64.data());
-                                (void)ok; kernel_name = "amx_reuse_xq"; used_vnni = false;
-                            } else {
-                                // Direct VNNI intrinsics with pre-quantized X and k64 weights
+                            if (ok_amx) { kernel_name = "amx_reuse_xq"; used_vnni = false; }
+                            else {
                                 bool ok = run_gemmv_vnni_intrin_i8u8_fp32_k64(Xq_reuse.data(), K,
                                                                               Wk64_reuse.get(), M, K_grp * (M_blk * K_blk),
                                                                               s_w, /*zp_w*/ 0, s_x_reuse, zp_x_reuse,
                                                                               Y.data(), bias0, sumW_k64.data());
                                 (void)ok; kernel_name = "vnni_k64_reuse_xq"; used_vnni = true;
-                            }
-                        } else if (use_vnni && wtype==w_dtype_t::i8 && per_tensor) {
-                            bool force_intrin = (std::getenv("GEMMV_USE_VNNI_INTRIN") && std::string(std::getenv("GEMMV_USE_VNNI_INTRIN")) == "1");
-                            if (force_intrin) setenv("GEMMV_VNNI_STUB", "1", 1);
-                            bool ok = run_gemmv_vnni_q8s8_ex(X.data(), K,
-                                                             Wpack_i8_k4.get(), M, ld_w_k4,
-                                                             scales_eff.data(), zps_eff.data(),
-                                                             Y.data(), bias_eff.data(), gran,
-                                                             /*dbg*/-1,nullptr,nullptr,
-                                                             sumW_i8.data());
-                            if (force_intrin) unsetenv("GEMMV_VNNI_STUB");
-                            if (ok) { kernel_name = "vnni_i8u8"; used_vnni = true; }
-                            else {
-                                run_gemmv_q_fp32_ex(X.data(), K, W, M, ld_w_bytes,
-                                                    scales_eff.data(), zps_eff.data(), Y.data(), bias_eff.data(),
-                                                    gran, group_size, /*acc=*/false, wtype, &kernel_name);
                             }
                         } else {
                             run_gemmv_q_fp32_ex(X.data(), K, W, M, ld_w_bytes,

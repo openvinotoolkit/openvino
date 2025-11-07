@@ -19,6 +19,9 @@
 
 namespace ov::intel_cpu::x64::gemmv_jit {
 
+// Forward decl: vectorized per-tensor u8 quantization helper (defined later in this file)
+static inline void quantize_u8_symmetric(const float* x, int K, uint8_t* xq, float* s_x_out, int32_t* zp_out);
+
 void run_gemmv_i8_fp32(const float* x, int K,
                        const uint8_t* wq_packed, int M, int ld_w_bytes,
                        const float* scales, const int32_t* zps,
@@ -147,219 +150,63 @@ void run_gemmv_q_fp32_ex(const float* x, int K,
     };
     // Fast path 0: AMX INT8 (tile GEMV) with on-the-fly repack to K64 per M-block
     if (!accumulate && wtype == w_dtype_t::i8) {
-        // Try AMX by default when supported; allow opt-out via GEMMV_DISABLE_AMX=1
+        // Try AMX automatically when supported (no env flags required)
         bool diag = false; if (const char* d = std::getenv("GEMMV_AMX_DIAG")) diag = (std::string(d) == "1");
-        bool disable_amx = false; if (const char* ev = std::getenv("GEMMV_DISABLE_AMX")) disable_amx = (std::string(ev) == "1");
-        if (!disable_amx) {
+        {
             if (diag) std::fprintf(stderr, "[GEMMV-AMX-DIAG] AMX route requested\n");
             // Repack via cache + try AMX intrinsics
             const int M_blk = 16; const int K_blk = 64; const int K_grp = (K + K_blk - 1)/K_blk;
             auto &wk64_amx = get_or_make_k64_tile(wq_packed, M, K, ld_w_bytes);
-            // Optional AMX micro-autotune (KU,PFD) per (weights,M,K)
-            // Universal defaults: disable AMX autotune by default unless explicitly enabled
-            bool do_autotune = (std::getenv("GEMMV_AMX_AUTOTUNE") && std::string(std::getenv("GEMMV_AMX_AUTOTUNE")) == "1");
-            if (do_autotune) {
-                struct AutoKey { uintptr_t base; int M; int K; };
-                struct AutoHash { size_t operator()(const AutoKey& a) const noexcept { size_t h = std::hash<uintptr_t>{}(a.base); h ^= (std::hash<int>{}(a.M)*1315423911u); h ^= (std::hash<int>{}(a.K)*2654435761u); return h; } };
-                struct AutoEq { bool operator()(const AutoKey& a, const AutoKey& b) const noexcept { return a.base==b.base && a.M==b.M && a.K==b.K; } };
-                struct Tuning { int KU; int PFD; int PIPE; int PFL; };
-                static std::unordered_map<AutoKey, Tuning, AutoHash, AutoEq> g_amx_auto;
-                AutoKey ak{(uintptr_t)wq_packed, M, K};
-                if (g_amx_auto.find(ak) == g_amx_auto.end()) {
-                    // Pre-quantize X once and reuse across inner trials
-                    std::vector<uint8_t> xq(K);
-                    float s_x=1.f; int32_t zp_x=128;
-                    {
-                        float amax=0.f; for (int i=0;i<K;++i) amax = std::max(amax, std::fabs(x[i]));
-                        s_x = (amax>0.f)?(amax/127.f):1.f; zp_x = 128;
-                        for (int i=0;i<K;++i) { int v = (int)std::lrintf(x[i]/s_x) + zp_x; v = std::min(255,std::max(0,v)); xq[i]=(uint8_t)v; }
-                    }
-                    int32_t sumX=0; for (int i=0;i<K;++i) sumX += (int32_t)xq[i];
-                    std::vector<float> ytmp((size_t)((M + M_blk - 1)/M_blk)*M_blk, 0.f);
-                    // Try small set of candidates
-                    int KU_cands[2] = {2,4};
-                    int PFD_cands[3] = {2,3,4};
-                    int PIPE_cands[2] = {2,4};
-                    int PFL_cands[2] = {1,3};
-                    double best_us = 1e300; Tuning best{2,3,(M<=256?4:2),(M<=256?3:1)};
-                    // Save and force pipeline defaults during autotune
-                    std::string old_ku, old_pfd, old_p2, old_p4, old_pfl; bool had_ku=false, had_pfd=false, had_p2=false, had_p4=false, had_pfl=false;
-                    if (const char* v=getenv("GEMMV_AMX_KU")) { old_ku=v; had_ku=true; }
-                    if (const char* v=getenv("GEMMV_AMX_PFD")) { old_pfd=v; had_pfd=true; }
-                    if (const char* v=getenv("GEMMV_AMX_PIPE2")) { old_p2=v; had_p2=true; }
-                    if (const char* v=getenv("GEMMV_AMX_PIPE4")) { old_p4=v; had_p4=true; }
-                    if (const char* v=getenv("GEMMV_AMX_PFL")) { old_pfl=v; had_pfl=true; }
-                    // Prefer deeper pipe on small-M
-                    setenv("GEMMV_AMX_PIPE4", (M<=256?"1":"0"), 1);
-                    setenv("GEMMV_AMX_PIPE2", (M>256 && M<=512?"1":"0"), 1);
-                    setenv("GEMMV_AMX_DB", "1", 1);
-                    for (int ki=0; ki<2; ++ki) for (int pi=0; pi<3; ++pi) for (int ppe=0; ppe<2; ++ppe) for (int pfl=0; pfl<2; ++pfl) {
-                        setenv("GEMMV_AMX_KU", std::to_string(KU_cands[ki]).c_str(), 1);
-                        setenv("GEMMV_AMX_PFD", std::to_string(PFD_cands[pi]).c_str(), 1);
-                        // toggle PIPE2/PIPE4
-                        setenv("GEMMV_AMX_PIPE2", PIPE_cands[ppe]==2?"1":"0", 1);
-                        setenv("GEMMV_AMX_PIPE4", PIPE_cands[ppe]==4?"1":"0", 1);
-                        setenv("GEMMV_AMX_PFL", std::to_string(PFL_cands[pfl]).c_str(), 1);
-                        auto t0 = std::chrono::steady_clock::now();
-                        for (int it=0; it<3; ++it) {
-                            run_gemmv_amx_i8u8_fp32_xq(xq.data(), K, sumX,
-                                                       wk64_amx.buf.get(), M, /*ld_w_kbytes*/ K_grp*(K_blk*16),
-                                                       scales, zps, ytmp.data(), bias, gran, group_size,
-                                                       wk64_amx.sumW.data());
-                        }
-                        auto t1 = std::chrono::steady_clock::now();
-                        double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
-                        if (us < best_us) { best_us = us; best = Tuning{KU_cands[ki], PFD_cands[pi], PIPE_cands[ppe], PFL_cands[pfl]}; }
-                    }
-                    // Restore env if they were absent, then set best
-                    if (had_ku) setenv("GEMMV_AMX_KU", old_ku.c_str(), 1); else unsetenv("GEMMV_AMX_KU");
-                    if (had_pfd) setenv("GEMMV_AMX_PFD", old_pfd.c_str(), 1); else unsetenv("GEMMV_AMX_PFD");
-                    if (had_p2) setenv("GEMMV_AMX_PIPE2", old_p2.c_str(), 1); else unsetenv("GEMMV_AMX_PIPE2");
-                    if (had_p4) setenv("GEMMV_AMX_PIPE4", old_p4.c_str(), 1); else unsetenv("GEMMV_AMX_PIPE4");
-                    if (had_pfl) setenv("GEMMV_AMX_PFL", old_pfl.c_str(), 1); else unsetenv("GEMMV_AMX_PFL");
-                    g_amx_auto.emplace(ak, best);
-                }
-                // Apply cached best on this call
-                auto kp = g_amx_auto.at(ak);
-                setenv("GEMMV_AMX_KU", std::to_string(kp.KU).c_str(), 1);
-                setenv("GEMMV_AMX_PFD", std::to_string(kp.PFD).c_str(), 1);
-                // Apply tuned PIPE/PFL if env not explicitly set
-                if (!std::getenv("GEMMV_AMX_PIPE4") && !std::getenv("GEMMV_AMX_PIPE2")) {
-                    setenv("GEMMV_AMX_PIPE4", (kp.PIPE==4?"1":"0"), 1);
-                    setenv("GEMMV_AMX_PIPE2", (kp.PIPE==2?"1":"0"), 1);
-                }
-                if (!std::getenv("GEMMV_AMX_PFL")) setenv("GEMMV_AMX_PFL", std::to_string(kp.PFL).c_str(), 1);
-                setenv("GEMMV_AMX_DB", "1", 1);
-            }
-            // Apply universal ISA-based defaults when autotune is not enabled
-            if (!do_autotune) {
-                if (!std::getenv("GEMMV_AMX_KU"))   setenv("GEMMV_AMX_KU",   "4", 1);
-                if (!std::getenv("GEMMV_AMX_PFD"))  setenv("GEMMV_AMX_PFD",  "3", 1);
-                if (!std::getenv("GEMMV_AMX_PIPE4")) setenv("GEMMV_AMX_PIPE4","1", 1);
-                if (!std::getenv("GEMMV_AMX_PIPE2")) setenv("GEMMV_AMX_PIPE2","0", 1);
-                if (!std::getenv("GEMMV_AMX_PFL"))  setenv("GEMMV_AMX_PFL",  "3", 1);
-                setenv("GEMMV_AMX_DB", "1", 1);
-            }
             bool ok = run_gemmv_amx_i8u8_fp32(x, K, wk64_amx.buf.get(), M, /*ld_w_kbytes*/ K_grp * (K_blk * 16),
                                               scales, zps, y, bias, gran, group_size,
                                               wk64_amx.sumW.data());
             if (ok) { if (kernel_name) *kernel_name = "amx_int8"; return; }
-            if (diag) std::fprintf(stderr, "[GEMMV-AMX-DIAG] AMX route unavailable, fallback to VNNI/JIT\n");
+            if (diag) {
+                std::fprintf(stderr, "[GEMMV-AMX-DIAG] AMX route unavailable, fallback to VNNI/JIT\n");
+                std::fprintf(stderr, "[GEMMV-AMX-DIAG] hint: set GEMMV_AMX_DIAG=1 for reasons; quick check: GEMMV_DISABLE_VNNI=1 GEMMV_AMX_DIAG=1 OMP_NUM_THREADS=1 <gemmv_bench> 512 4096\n");
+            }
         }
     }
 
     // Fast path 1: AVX-512 VNNI and i8 weights (enabled by default; opt-out via GEMMV_DISABLE_VNNI=1)
     if (wtype == w_dtype_t::i8) {
-        bool disable_vnni = false; if (const char* dv = std::getenv("GEMMV_DISABLE_VNNI")) disable_vnni = (std::string(dv) == "1");
-        if (!disable_vnni) {
         Xbyak::util::Cpu cpu;
         if (cpu.has(Xbyak::util::Cpu::tAVX512_VNNI) && cpu.has(Xbyak::util::Cpu::tAVX512BW)) {
-            // Quantize X to u8 per-tensor symmetric
+            // Quantize X to u8 per-tensor, vectorized helper
             std::vector<uint8_t> xq(K);
             float s_x = 1.f; int32_t zp_x = 128; int32_t sum_x_q = 0;
-            {
-                float amax = 0.f; for (int k = 0; k < K; ++k) amax = std::max(amax, std::fabs(x[k]));
-                s_x = (amax > 0.f) ? (amax / 127.f) : 1.f; zp_x = 128;
-                for (int k = 0; k < K; ++k) { int v = (int)std::lrintf(x[k] / s_x) + zp_x; if (v < 0) v = 0; if (v > 255) v = 255; xq[k] = (uint8_t)v; sum_x_q += v; }
-            }
+            quantize_u8_symmetric(x, K, xq.data(), &s_x, &zp_x);
             const int M_blk = 16;
-            // Prefer k64 by default for large M; allow opt-out via GEMMV_DISABLE_VNNI_K64=1.
-            // If GEMMV_ENABLE_VNNI_K64 is set, honor it explicitly.
+            // Deterministic route:
+            // - k4 for small M (<=256)
+            // - k64 for larger M (>=512)
+            // - for 256<M<512 choose k64 only when K is 64-aligned
             bool prefer_k64 = false;
-            bool disable_k64 = (std::getenv("GEMMV_DISABLE_VNNI_K64") && std::string(std::getenv("GEMMV_DISABLE_VNNI_K64")) == "1");
-            if (gran == quant_granularity_t::per_tensor && !disable_k64) {
-                if (const char* ev = std::getenv("GEMMV_ENABLE_VNNI_K64")) {
-                    prefer_k64 = (std::string(ev) == "1");
-                } else {
-                    // Default closer to oneDNN policy: k64 on larger M
-                    prefer_k64 = (M >= 512);
-                }
-                // Optional autorouting for small-M (compare k4 vs k64 on a quick micro-run)
-                bool try_autoroute = (!std::getenv("GEMMV_VNNI_AUTOROUTE") || std::string(std::getenv("GEMMV_VNNI_AUTOROUTE")) == "1");
-                if (try_autoroute && M <= 256) {
-                    struct AutoKey { uintptr_t base; int M; int K; };
-                    struct AutoKeyHash { size_t operator()(const AutoKey& k) const noexcept { size_t h = std::hash<uintptr_t>{}(k.base); h ^= (std::hash<int>{}(k.M) * 1315423911u); h ^= (std::hash<int>{}(k.K) * 2654435761u); return h; } };
-                    struct AutoKeyEq { bool operator()(const AutoKey&a, const AutoKey&b) const noexcept { return a.base==b.base && a.M==b.M && a.K==b.K; } };
-                    static std::unordered_map<AutoKey, bool, AutoKeyHash, AutoKeyEq> g_autoroute_cache;
-                    AutoKey ak{(uintptr_t)wq_packed, M, K};
-                    auto itc = g_autoroute_cache.find(ak);
-                    if (itc != g_autoroute_cache.end()) {
-                        prefer_k64 = itc->second;
-                    } else {
-                    const int K_blk = 64; const int K_grp = (K + K_blk - 1)/K_blk; const int M_blk = 16;
-                    auto &wk64 = get_or_make_k64(wq_packed, M, K, ld_w_bytes);
-                    auto &wk4  = get_or_make_k4 (wq_packed, M, K, ld_w_bytes);
-                    std::vector<float> ytmp((size_t)((M + M_blk - 1)/M_blk)*M_blk, 0.f);
-                    // k64 vs k4 timing
-                    double t64=0.0, t4=0.0; int iters=3; if (const char* ei = std::getenv("GEMMV_VNNI_AUTOROUTE_ITERS")) { int v = std::atoi(ei); if (v >= 1 && v <= 10) iters = v; }
-                    // Ensure fair flags during micro‑run (pad X, enable PIPE for both)
-                    std::string old_pad, old_k4p, old_k64p, old_pfd;
-                    bool had_pad=false, had_k4p=false, had_k64p=false, had_pfd=false;
-                    if (const char* v = std::getenv("GEMMV_VNNI_PAD_X")) { old_pad=v; had_pad=true; }
-                    if (const char* v = std::getenv("GEMMV_VNNI_K4_PIPE")) { old_k4p=v; had_k4p=true; }
-                    if (const char* v = std::getenv("GEMMV_VNNI_K64_PIPE")) { old_k64p=v; had_k64p=true; }
-                    if (const char* v = std::getenv("GEMMV_VNNI_PFD")) { old_pfd=v; had_pfd=true; }
-                    setenv("GEMMV_VNNI_PAD_X", "1", 1);
-                    setenv("GEMMV_VNNI_K4_PIPE", "1", 1);
-                    setenv("GEMMV_VNNI_K64_PIPE", "1", 1);
-                    if (!had_pfd) { int P = (M <= 128) ? 12 : (M <= 256) ? 10 : 6; setenv("GEMMV_VNNI_PFD", std::to_string(P).c_str(), 1); }
-                    {
-                        auto t0 = std::chrono::steady_clock::now();
-                        for (int it=0; it<iters; ++it) {
-                            run_gemmv_vnni_intrin_i8u8_fp32_k64(xq.data(), K,
-                                                                wk64.buf.get(), M, K_grp * (M_blk*K_blk),
-                                                                scales ? scales[0] : 1.f, /*zp_w*/ 0,
-                                                                s_x, zp_x, ytmp.data(), bias ? bias[0] : 0.f,
-                                                                wk64.sumW.data());
-                        }
-                        auto t1 = std::chrono::steady_clock::now();
-                        t64 = std::chrono::duration<double, std::micro>(t1 - t0).count();
-                    }
-                    // k4 timing
-                    {
-                        const int K_grp4 = (K + 3)/4;
-                        auto t0 = std::chrono::steady_clock::now();
-                        for (int it=0; it<iters; ++it) {
-                            run_gemmv_vnni_intrin_i8u8_fp32(xq.data(), K,
-                                                            wk4.buf.get(), M, /*ld_w_gbytes*/ K_grp4 * 64,
-                                                            scales ? scales[0] : 1.f, /*zp_w*/ 0,
-                                                            s_x, zp_x, ytmp.data(), bias ? bias[0] : 0.f,
-                                                            wk4.sumW.data());
-                        }
-                        auto t1 = std::chrono::steady_clock::now();
-                        t4 = std::chrono::duration<double, std::micro>(t1 - t0).count();
-                    }
-                    // Restore env
-                    if (had_pad) setenv("GEMMV_VNNI_PAD_X", old_pad.c_str(), 1); else unsetenv("GEMMV_VNNI_PAD_X");
-                    if (had_k4p) setenv("GEMMV_VNNI_K4_PIPE", old_k4p.c_str(), 1); else unsetenv("GEMMV_VNNI_K4_PIPE");
-                    if (had_k64p) setenv("GEMMV_VNNI_K64_PIPE", old_k64p.c_str(), 1); else unsetenv("GEMMV_VNNI_K64_PIPE");
-                    if (had_pfd) setenv("GEMMV_VNNI_PFD", old_pfd.c_str(), 1); else unsetenv("GEMMV_VNNI_PFD");
-                    prefer_k64 = (t64 <= t4);
-                    g_autoroute_cache.emplace(ak, prefer_k64);
-                    }
-                }
-            }
+            if (M >= 512) prefer_k64 = true;
+            else if (M <= 256) prefer_k64 = false;
+            else prefer_k64 = ((K & 63) == 0);
             if (prefer_k64) {
                 const int K_blk = 64; const int K_grp = (K + K_blk - 1)/K_blk;
                 auto &wk64 = get_or_make_k64(wq_packed, M, K, ld_w_bytes);
-                bool used = run_gemmv_vnni_intrin_i8u8_fp32_k64(xq.data(), K,
-                                                                wk64.buf.get(), M, /*ld_w_kbytes*/ K_grp * (M_blk*K_blk),
-                                                                scales ? scales[0] : 1.f, /*zp_w*/ 0,
-                                                                s_x, zp_x, y, bias ? bias[0] : 0.f,
-                                                                wk64.sumW.data());
-                if (used) { if (kernel_name) *kernel_name = "vnni_k64_repack_intrin"; return; }
+                run_gemmv_vnni_intrin_i8u8_fp32_k64(xq.data(), K,
+                                                    wk64.buf.get(), M, /*ld_w_kbytes*/ K_grp * (M_blk*K_blk),
+                                                    scales ? scales[0] : 1.f, /*zp_w*/ 0,
+                                                    s_x, zp_x, y, bias ? bias[0] : 0.f,
+                                                    wk64.sumW.data());
+                if (kernel_name) *kernel_name = "vnni_k64_repack_intrin";
+                return;
             }
-            // k4 path: use by default for per-tensor
+            // k4 path: per-tensor
             if (gran == quant_granularity_t::per_tensor) {
                 const int K_grp = (K + 3) / 4;
                 auto &wk4 = get_or_make_k4(wq_packed, M, K, ld_w_bytes);
-                // Call VNNI intrinsics kernel (per-tensor only, k4 layout)
-                bool used = run_gemmv_vnni_intrin_i8u8_fp32(xq.data(), K,
-                                                           wk4.buf.get(), M, /*ld_w_gbytes*/ K_grp * 64,
-                                                           scales ? scales[0] : 1.f, /*zp_w*/ 0,
-                                                           s_x, zp_x, y, bias ? bias[0] : 0.f,
-                                                           wk4.sumW.data());
-                if (used) { if (kernel_name) *kernel_name = "vnni_k4_repack_intrin"; return; }
+                run_gemmv_vnni_intrin_i8u8_fp32(xq.data(), K,
+                                                wk4.buf.get(), M, /*ld_w_gbytes*/ K_grp * 64,
+                                                scales ? scales[0] : 1.f, /*zp_w*/ 0,
+                                                s_x, zp_x, y, bias ? bias[0] : 0.f,
+                                                wk4.sumW.data());
+                if (kernel_name) *kernel_name = "vnni_k4_repack_intrin";
+                return;
             }
             // Fallback: no-repack intrinsics for other granularities
             {
@@ -387,7 +234,6 @@ void run_gemmv_q_fp32_ex(const float* x, int K,
                 if (kernel_name) *kernel_name = "vnni_norepack_intrin";
                 return;
             }
-        }
         }
     }
 

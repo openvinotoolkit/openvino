@@ -13,6 +13,7 @@ REPO_ROOT=$(cd "$THIS_DIR/../../../.." && pwd)
 # Locate gemmv_bench
 BIN_GEMMV_DEFAULTS=(
   "$THIS_DIR/build/bin/gemmv_bench"
+  "$THIS_DIR/build_rel/bin/gemmv_bench"
   "$REPO_ROOT/build/bin/Release/gemmv_bench"
   "$REPO_ROOT/build/bin/gemmv_bench"
   "$REPO_ROOT/build/gemmv_bench/bin/gemmv_bench"
@@ -95,6 +96,7 @@ run_ours_agg() {
   fi
   # Skip accuracy compare section for stability/speed; not needed for throughput CSV
   export GEMMV_SKIP_ACCURACY=1
+  # Use router defaults inside bench; do not force specific kernels
   # keep per-run log local to tmp, independent of repo layout
   local tmp_log
   tmp_log=$(mktemp /tmp/gemmv_log.XXXX.md)

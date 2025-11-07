@@ -8,29 +8,12 @@
 #include <cstdlib>
 #include <chrono>
 #include <cstring>
-#include <unordered_map>
-#include <mutex>
+// no runtime caches or env tuning needed here
 
 namespace ov::intel_cpu::x64::gemmv_jit {
 
-// Fixed defaults (ISA/shape-based); no env runtime toggles
-static int g_k4_U_override = -1;
-static int g_k4_P_override = -1;
+// Fixed defaults (ISA/shape-based); no env or runtime autotune
 static constexpr bool g_k4_doublebuf = true;
-
-// Per-weights per-shape cache for small-M k4 autotune (U,P), keyed by (wq_base,M,K)
-struct K4AutoKey { uintptr_t base; int M; int K; };
-static inline bool operator==(const K4AutoKey& a, const K4AutoKey& b) noexcept {
-    return a.base==b.base && a.M==b.M && a.K==b.K;
-}
-struct K4AutoHash { size_t operator()(const K4AutoKey& k) const noexcept {
-    size_t h = std::hash<uintptr_t>{}(k.base);
-    h ^= (std::hash<int>{}(k.M) * 1315423911u) + 0x9e3779b97f4a7c15ULL + (h<<6) + (h>>2);
-    h ^= (std::hash<int>{}(k.K) * 2654435761u) + 0x9e3779b97f4a7c15ULL + (h<<6) + (h>>2);
-    return h;
-} };
-static std::unordered_map<K4AutoKey, std::pair<int,int>, K4AutoHash> g_k4_auto_cache;
-static std::mutex g_k4_auto_mtx;
 
 #if defined(__GNUC__)
 __attribute__((target("avx512vnni,avx512bw,avx512f")))
@@ -48,12 +31,10 @@ static void kern_block_u8s8(const uint8_t* xq, int K_actual, int K_groups,
     __m512i sumw1 = _mm512_setzero_si512();
     const __m512i ones = _mm512_set1_epi8(1);
     int U = (K_actual >= 4096 ? 8 : (K_actual >= 2048 ? 4 : 2));
-    if (const char* ev = std::getenv("GEMMV_VNNI_KU")) { int uv = std::atoi(ev); if (uv >= 1 && uv <= 8) U = uv; }
-    if (g_k4_U_override > 0) U = g_k4_U_override;
     const bool w_aligned = (((uintptr_t)wq & 63u) == 0u);
-    int P = (M_total <= 128) ? 12 : (M_total <= 256) ? 10 : (M_total <= 512) ? 6 : 4;
-    if (g_k4_P_override >= 0) P = g_k4_P_override;
-    const bool pipe4 = (M_total <= 256);
+    // Slightly deeper prefetch on small-M to hide latency, match tail-heavy forms
+    int P = (M_total <= 256) ? 12 : (M_total <= 512) ? 6 : 4;
+    const bool pipe4 = (M_total <= 320);
     for (int g = 0; g < K_groups; g += U) {
         if (pipe4) {
             #pragma unroll(2)
@@ -202,20 +183,11 @@ static void kern_block_u8s8_smallM(const uint8_t* xq, int K_actual, int K_groups
     __m512i sumw0 = _mm512_setzero_si512();
     __m512i sumw1 = _mm512_setzero_si512();
     const __m512i ones = _mm512_set1_epi8(1);
-    int U = 8;
-    if (const char* eu = std::getenv("GEMMV_VNNI_KU")) {
-        int uv = std::atoi(eu);
-        if (uv >= 1 && uv <= 8) U = uv;
-    } else {
-        // Prefer deeper unroll on tiny M to maximize ILP
-        if (M_total <= 128) U = 8;
-    }
-    if (g_k4_U_override > 0) U = g_k4_U_override;
+    int U = 8; // fixed deeper unroll on tiny M to maximize ILP
     const bool w_aligned = (((uintptr_t)wq & 63u) == 0u);
-    int P = (M_total <= 128) ? 12 : (M_total <= 256) ? 10 : (M_total <= 512) ? 6 : 4;
-    if (g_k4_P_override >= 0) P = g_k4_P_override;
+    int P = (M_total <= 256) ? 12 : (M_total <= 512) ? 6 : 4;
 
-    const bool pipe4 = (M_total <= 256);
+    const bool pipe4 = (M_total <= 320);
     for (int g = 0; g < K_groups; g += U) {
         // Optionally process 4-pack per step for better ILP
         if (pipe4) {
@@ -375,10 +347,8 @@ bool run_gemmv_vnni_intrin_i8u8_fp32(const uint8_t* xq, int K,
     const int M_blk = 16;
     const int M_full = M / M_blk;
     const int M_tail = M % M_blk;
-    // Optional: pad X to 64 for k4 path to eliminate K tails in inner loop
-    // Default to pad X to K64 (matches oneDNN copy_b behavior); allow explicit opt-out via GEMMV_VNNI_PAD_X=0
+    // Pad X to K64 for k4 path to eliminate K tails in inner loop (matches oneDNN copy_b behavior)
     bool pad_x = true;
-    if (const char* ex = std::getenv("GEMMV_VNNI_PAD_X")) pad_x = (std::string(ex) == "1");
     const uint8_t* xptr = xq;
     std::vector<uint8_t> xpad;
     int K_use = K;
@@ -409,54 +379,7 @@ bool run_gemmv_vnni_intrin_i8u8_fp32(const uint8_t* xq, int K,
         for (; i < K_use; ++i) sum_x_q += (int)xptr[i];
     }
     const float s_ws_x = s_w * s_x;
-    int smallm_thr = 256;
-    if (const char* et = std::getenv("GEMMV_VNNI_SMALLM_THR")) { int tv = std::atoi(et); if (tv >= 16 && tv <= 2048) smallm_thr = tv; }
-    const bool smallm = (M <= smallm_thr) || (std::getenv("GEMMV_VNNI_SMALLM") && std::string(std::getenv("GEMMV_VNNI_SMALLM")) == "1");
-
-    // Lightweight autotune for small-M k4: choose U,P from a grid once per (weights,M,K)
-    if (smallm &&
-        g_k4_U_override < 0 && g_k4_P_override < 0 &&
-        !std::getenv("GEMMV_VNNI_KU") && !std::getenv("GEMMV_VNNI_PFD") &&
-        !(std::getenv("GEMMV_VNNI_AUTOTUNE") && std::string(std::getenv("GEMMV_VNNI_AUTOTUNE")) == "0")) {
-        // Check cache first
-        K4AutoKey key{(uintptr_t)wq_k4, M, K_use};
-        {
-            std::lock_guard<std::mutex> lk(g_k4_auto_mtx);
-            auto it = g_k4_auto_cache.find(key);
-            if (it != g_k4_auto_cache.end()) {
-                g_k4_U_override = it->second.first;
-                g_k4_P_override = it->second.second;
-            }
-        }
-        if (g_k4_U_override < 0 || g_k4_P_override < 0) {
-            const int K_groups = (K_use + 3) / 4;
-            const uint8_t* wblk0 = wq_k4; // first M-block
-            alignas(64) float ytmp[16];
-            const int Ucands[3] = {8, 6, 4};
-            // Prefer higher P for small-M first
-            const int Pcands[5] = {12, 10, 8, 6, 4};
-            double best_us = 1e99; int bestU = 8, bestP = 12;
-            for (int ui = 0; ui < 3; ++ui) {
-                for (int pi = 0; pi < 5; ++pi) {
-                    g_k4_U_override = Ucands[ui];
-                    g_k4_P_override = Pcands[pi];
-                    for (int w = 0; w < 1; ++w)
-                        kern_block_u8s8_smallM(xptr, K_use, K_groups, wblk0, ld_w_gbytes, s_ws_x, bias, zp_w, zp_x, sum_x_q, ytmp, 0, sumW_precomp, M);
-                    auto t0 = std::chrono::steady_clock::now();
-                    for (int it = 0; it < 3; ++it) {
-                        kern_block_u8s8_smallM(xptr, K_use, K_groups, wblk0, ld_w_gbytes, s_ws_x, bias, zp_w, zp_x, sum_x_q, ytmp, 0, sumW_precomp, M);
-                    }
-                    auto t1 = std::chrono::steady_clock::now();
-                    double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
-                    if (us < best_us) { best_us = us; bestU = Ucands[ui]; bestP = Pcands[pi]; }
-                }
-            }
-            g_k4_U_override = bestU;
-            g_k4_P_override = bestP;
-            std::lock_guard<std::mutex> lk2(g_k4_auto_mtx);
-            g_k4_auto_cache.emplace(key, std::make_pair(bestU, bestP));
-        }
-    }
+    const bool smallm = (M <= 256);
     for (int bi = 0; bi < M_full; ++bi) {
         const uint8_t* wblk = wq_k4 + (size_t)bi * (size_t)ld_w_gbytes;
         const int32_t* sumW_block = sumW_precomp ? (sumW_precomp + bi * M_blk) : nullptr;
@@ -476,9 +399,6 @@ bool run_gemmv_vnni_intrin_i8u8_fp32(const uint8_t* xq, int K,
             kern_block_u8s8(xptr, K_use, K_groups, wblk, ld_w_gbytes, s_ws_x, bias, zp_w, zp_x, sum_x_q, y + bi*M_blk, M_tail, sumW_block, M);
         }
     }
-    // Reset overrides to avoid affecting other (weights,M,K)
-    g_k4_U_override = -1;
-    g_k4_P_override = -1;
     return true;
 }
 
@@ -535,7 +455,8 @@ bool run_gemmv_vnni_intrin_i8u8_fp32_norepack(const uint8_t* xq, int K,
             uint8_t x2 = (k + 2 < K) ? xq[k + 2] : 0;
             uint8_t x3 = (k + 3 < K) ? xq[k + 3] : 0;
             xb = (uint32_t)x0 | ((uint32_t)x1 << 8) | ((uint32_t)x2 << 16) | ((uint32_t)x3 << 24);
-            __m512i Ab = _mm512_set1_epi32((int)xb);
+            const __m128i x128b = _mm_cvtsi32_si128((int)xb);
+            __m512i Ab = _mm512_broadcastd_epi32(x128b);
             // acc += dpbusd(Ab, Bgrp)
             acc = _mm512_dpbusd_epi32(acc, Ab, Bgrp);
         }
@@ -582,7 +503,8 @@ bool run_gemmv_vnni_intrin_i8u8_fp32_norepack(const uint8_t* xq, int K,
             uint8_t x2 = (k + 2 < K) ? xq[k + 2] : 0;
             uint8_t x3 = (k + 3 < K) ? xq[k + 3] : 0;
             xb = (uint32_t)x0 | ((uint32_t)x1 << 8) | ((uint32_t)x2 << 16) | ((uint32_t)x3 << 24);
-            __m512i Ab = _mm512_set1_epi32((int)xb);
+            const __m128i x128b2 = _mm_cvtsi32_si128((int)xb);
+            __m512i Ab = _mm512_broadcastd_epi32(x128b2);
             acc = _mm512_dpbusd_epi32(acc, Ab, Bgrp);
         }
         if (zp_x != 0) { __m512i negx = _mm512_set1_epi32(-zp_x); acc = _mm512_add_epi32(acc, _mm512_mullo_epi32(negx, sumw)); }
@@ -635,9 +557,9 @@ bool run_gemmv_vnni_intrin_i8u8_fp32_k64(const uint8_t* xq, int K,
         for (; i < K_use; ++i) sum_x_q += (int)xptr[i];
     }
     const float s_ws_x = s_w * s_x;
-    const bool smallM_k64 = (M <= 256);
+    const bool smallM_k64 = (M <= 512);
     const bool do_nt = true;
-    int P =  smallM_k64 ? 3 : 2;
+    int P =  smallM_k64 ? 4 : 2;
     const bool k64_pipe = smallM_k64;
 
     for (int bi = 0; bi < M_full; ++bi) {
@@ -689,10 +611,14 @@ bool run_gemmv_vnni_intrin_i8u8_fp32_k64(const uint8_t* xq, int K,
                 uint32_t xb3 = (kbase3 + 4 <= K_use) ? *(const uint32_t*)(xptr + kbase3)
                     : ((uint32_t)((kbase3 + 0 < K_use) ? xptr[kbase3 + 0] : 0) | ((uint32_t)((kbase3 + 1 < K_use) ? xptr[kbase3 + 1] : 0) << 8)
                      | ((uint32_t)((kbase3 + 2 < K_use) ? xptr[kbase3 + 2] : 0) << 16) | ((uint32_t)((kbase3 + 3 < K_use) ? xptr[kbase3 + 3] : 0) << 24));
-                __m512i A0 = _mm512_set1_epi32((int)xb0);
-                __m512i A1 = _mm512_set1_epi32((int)xb1);
-                __m512i A2 = _mm512_set1_epi32((int)xb2);
-                __m512i A3 = _mm512_set1_epi32((int)xb3);
+                const __m128i x128_0 = _mm_cvtsi32_si128((int)xb0);
+                const __m128i x128_1 = _mm_cvtsi32_si128((int)xb1);
+                const __m128i x128_2 = _mm_cvtsi32_si128((int)xb2);
+                const __m128i x128_3 = _mm_cvtsi32_si128((int)xb3);
+                __m512i A0 = _mm512_broadcastd_epi32(x128_0);
+                __m512i A1 = _mm512_broadcastd_epi32(x128_1);
+                __m512i A2 = _mm512_broadcastd_epi32(x128_2);
+                __m512i A3 = _mm512_broadcastd_epi32(x128_3);
                 acc0 = _mm512_dpbusd_epi32(acc0, A0, B0);
                 acc1 = _mm512_dpbusd_epi32(acc1, A1, B1);
                 acc2 = _mm512_dpbusd_epi32(acc2, A2, B2);
@@ -730,8 +656,10 @@ bool run_gemmv_vnni_intrin_i8u8_fp32_k64(const uint8_t* xq, int K,
                 uint32_t xb1 = (kbase1 + 4 <= K_use) ? *(const uint32_t*)(xptr + kbase1)
                     : ((uint32_t)((kbase1 + 0 < K_use) ? xptr[kbase1 + 0] : 0) | ((uint32_t)((kbase1 + 1 < K_use) ? xptr[kbase1 + 1] : 0) << 8)
                      | ((uint32_t)((kbase1 + 2 < K_use) ? xptr[kbase1 + 2] : 0) << 16) | ((uint32_t)((kbase1 + 3 < K_use) ? xptr[kbase1 + 3] : 0) << 24));
-                __m512i A0 = _mm512_set1_epi32((int)xb0);
-                __m512i A1 = _mm512_set1_epi32((int)xb1);
+                const __m128i x128_0 = _mm_cvtsi32_si128((int)xb0);
+                const __m128i x128_1 = _mm_cvtsi32_si128((int)xb1);
+                __m512i A0 = _mm512_broadcastd_epi32(x128_0);
+                __m512i A1 = _mm512_broadcastd_epi32(x128_1);
                 acc0 = _mm512_dpbusd_epi32(acc0, A0, B0);
                 acc1 = _mm512_dpbusd_epi32(acc1, A1, B1);
                 if (kg + P < kg_max) {
@@ -754,7 +682,8 @@ bool run_gemmv_vnni_intrin_i8u8_fp32_k64(const uint8_t* xq, int K,
                 uint32_t xb4 = (kbase + 4 <= K_use) ? *(const uint32_t*)(xptr + kbase)
                     : ((uint32_t)((kbase + 0 < K_use) ? xptr[kbase + 0] : 0) | ((uint32_t)((kbase + 1 < K_use) ? xptr[kbase + 1] : 0) << 8)
                      | ((uint32_t)((kbase + 2 < K_use) ? xptr[kbase + 2] : 0) << 16) | ((uint32_t)((kbase + 3 < K_use) ? xptr[kbase + 3] : 0) << 24));
-                __m512i A = _mm512_set1_epi32((int)xb4);
+                const __m128i x128 = _mm_cvtsi32_si128((int)xb4);
+                __m512i A = _mm512_broadcastd_epi32(x128);
                 acc0 = _mm512_dpbusd_epi32(acc0, A, B);
             }
             if (g + P < K_grp) {

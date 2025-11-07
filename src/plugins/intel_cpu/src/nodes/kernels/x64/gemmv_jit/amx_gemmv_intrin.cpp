@@ -5,6 +5,8 @@
 #include "amx_gemmv_intrin.hpp"
 #include "xbyak/xbyak_util.h"
 #include <immintrin.h>
+#include <cstdio>
+#include <string>
 #include <errno.h>
 #if defined(__x86_64__)
 #include <sys/syscall.h>
@@ -49,13 +51,46 @@ static bool enable_amx_for_thread() {
 #if defined(__x86_64__)
     static thread_local bool init = false;
     static thread_local bool ok = false;
+    static thread_local long last_r1 = 0;
+    static thread_local long last_r2 = 0;
+    static thread_local int last_errno1 = 0;
+    static thread_local int last_errno2 = 0;
     if (init) return ok;
     init = true;
     // Request permission for XTILECFG (17) and XTILEDATA (18)
+    errno = 0;
     long r1 = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, 17);
-    if (r1 != 0) return ok = false;
+    last_errno1 = errno; last_r1 = r1;
+    if (r1 != 0) {
+        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
+            if (std::string(d) == "1") std::fprintf(stderr,
+                "[GEMMV-AMX-DIAG] arch_prctl(ARCH_REQ_XCOMP_PERM,17) failed: ret=%ld errno=%d (%s)\n",
+                r1, last_errno1, std::strerror(last_errno1));
+        }
+        return ok = false;
+    }
+    errno = 0;
     long r2 = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, 18);
-    if (r2 != 0) return ok = false;
+    last_errno2 = errno; last_r2 = r2;
+    if (r2 != 0) {
+        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
+            if (std::string(d) == "1") std::fprintf(stderr,
+                "[GEMMV-AMX-DIAG] arch_prctl(ARCH_REQ_XCOMP_PERM,18) failed: ret=%ld errno=%d (%s)\n",
+                r2, last_errno2, std::strerror(last_errno2));
+        }
+        return ok = false;
+    }
+    if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
+        if (std::string(d) == "1") {
+            unsigned long long xcr0 = _xgetbv(0);
+            int b17 = (xcr0 & (1ull<<17)) ? 1 : 0;
+            int b18 = (xcr0 & (1ull<<18)) ? 1 : 0;
+            Xbyak::util::Cpu cpu;
+            std::fprintf(stderr,
+                         "[GEMMV-AMX-DIAG] arch_prctl ok; XCR0.TILECFG(bit17)=%d XTILEDATA(bit18)=%d; ISA: AMX_TILE=%d AMX_INT8=%d\n",
+                         b17, b18, cpu.has(Xbyak::util::Cpu::tAMX_TILE)?1:0, cpu.has(Xbyak::util::Cpu::tAMX_INT8)?1:0);
+        }
+    }
     return ok = true;
 #else
     return false;
@@ -190,8 +225,9 @@ static bool amx_kernel_u8s8_fp32_impl_xq(const uint8_t* xq, int K, int32_t sum_x
     std::memset(A_ones_row, 0x01, sizeof(A_ones_row));
 
     bool dbg = false;
-    int KU = (K >= 1536) ? 4 : (K >= 512) ? 2 : 1;
-    int PFD = (M <= 256) ? 3 : 2;
+    // Deterministic small-M friendly defaults
+    int KU = (K >= 1024) ? 4 : (K >= 512) ? 2 : 1;
+    int PFD = (M <= 512) ? 4 : 2;
     const bool do_db = true;
     auto run_block = [&](int bi, int valid){
         const uint8_t* wblk = wq_k64 + (size_t)bi * (size_t)ld_w_kbytes;
@@ -207,10 +243,10 @@ static bool amx_kernel_u8s8_fp32_impl_xq(const uint8_t* xq, int K, int32_t sum_x
         // Iterate K-groups with optional 2/4-stage pipeline
         const int K_grp = (K + K_blk - 1) / K_blk;
         const bool dblA = !need_sumW; // reuse tmm6 as A when sumW is precomputed
-        bool pipe4 = (M <= 256);
-        bool pipe2 = (!pipe4 && (M <= 512));
-        // Prefetch locality hint (0..3); default: high for small-M, low for larger M
-        int PFL = (M <= 256 ? 3 : 1);
+        bool pipe4 = (M <= 512);
+        bool pipe2 = (!pipe4 && (M <= 1024));
+        // Prefetch locality hint (0..3); default: high for small/medium M, low for large M
+        int PFL = (M <= 512 ? 3 : 1);
         auto pf_lvl = [](const void* p, int lvl){
             switch (lvl) {
                 default: __builtin_prefetch(p, 0, 0); break;
@@ -415,11 +451,31 @@ bool run_gemmv_amx_i8u8_fp32(const float* x_fp32, int K,
                              quant_granularity_t gran, int group_size,
                              const int32_t* sumW_precomp) {
     Xbyak::util::Cpu cpu;
-    if (!cpu.has(Xbyak::util::Cpu::tAMX_TILE) || !cpu.has(Xbyak::util::Cpu::tAMX_INT8)) return false;
+    if (!cpu.has(Xbyak::util::Cpu::tAMX_TILE) || !cpu.has(Xbyak::util::Cpu::tAMX_INT8)) {
+        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
+            if (std::string(d) == "1") std::fprintf(stderr,
+                "[GEMMV-AMX-DIAG] CPU lacks AMX support: AMX_TILE=%d AMX_INT8=%d\n",
+                cpu.has(Xbyak::util::Cpu::tAMX_TILE)?1:0, cpu.has(Xbyak::util::Cpu::tAMX_INT8)?1:0);
+        }
+        return false;
+    }
     // Request AMX permission first, then verify XCR0 state
-    if (!enable_amx_for_thread()) return false;
+    if (!enable_amx_for_thread()) {
+        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
+            if (std::string(d) == "1") std::fprintf(stderr,
+                "[GEMMV-AMX-DIAG] enable_amx_for_thread() failed; see previous messages.\n");
+        }
+        return false;
+    }
     unsigned long long xcr0 = _xgetbv(0);
-    if (((xcr0 & (1ull<<17)) == 0ull) || ((xcr0 & (1ull<<18)) == 0ull)) return false;
+    if (((xcr0 & (1ull<<17)) == 0ull) || ((xcr0 & (1ull<<18)) == 0ull)) {
+        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
+            if (std::string(d) == "1") std::fprintf(stderr,
+                "[GEMMV-AMX-DIAG] XCR0 missing bits: TILECFG=%d XTILEDATA=%d (xcr0=0x%llx)\n",
+                (int)((xcr0>>17)&1ull), (int)((xcr0>>18)&1ull), xcr0);
+        }
+        return false;
+    }
     return amx_kernel_u8s8_fp32_impl(x_fp32, K, wq_k64, M, ld_w_kbytes,
                                      scales, zps, y, bias, gran, group_size,
                                      sumW_precomp);
@@ -465,10 +521,30 @@ bool run_gemmv_amx_i8u8_fp32_xq(const uint8_t* xq, int K, int32_t sum_x_q,
                                 quant_granularity_t gran, int group_size,
                                 const int32_t* sumW_precomp) {
     Xbyak::util::Cpu cpu;
-    if (!cpu.has(Xbyak::util::Cpu::tAMX_TILE) || !cpu.has(Xbyak::util::Cpu::tAMX_INT8)) return false;
-    if (!enable_amx_for_thread()) return false;
+    if (!cpu.has(Xbyak::util::Cpu::tAMX_TILE) || !cpu.has(Xbyak::util::Cpu::tAMX_INT8)) {
+        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
+            if (std::string(d) == "1") std::fprintf(stderr,
+                "[GEMMV-AMX-DIAG] CPU lacks AMX support: AMX_TILE=%d AMX_INT8=%d\n",
+                cpu.has(Xbyak::util::Cpu::tAMX_TILE)?1:0, cpu.has(Xbyak::util::Cpu::tAMX_INT8)?1:0);
+        }
+        return false;
+    }
+    if (!enable_amx_for_thread()) {
+        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
+            if (std::string(d) == "1") std::fprintf(stderr,
+                "[GEMMV-AMX-DIAG] enable_amx_for_thread() failed; see previous messages.\n");
+        }
+        return false;
+    }
     unsigned long long xcr0 = _xgetbv(0);
-    if (((xcr0 & (1ull<<17)) == 0ull) || ((xcr0 & (1ull<<18)) == 0ull)) return false;
+    if (((xcr0 & (1ull<<17)) == 0ull) || ((xcr0 & (1ull<<18)) == 0ull)) {
+        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
+            if (std::string(d) == "1") std::fprintf(stderr,
+                "[GEMMV-AMX-DIAG] XCR0 missing bits: TILECFG=%d XTILEDATA=%d (xcr0=0x%llx)\n",
+                (int)((xcr0>>17)&1ull), (int)((xcr0>>18)&1ull), xcr0);
+        }
+        return false;
+    }
     // We need s_x and zp_x to scale and compensate; use per-tensor path with zp_x=128 and infer s_x from max(xq)
     // For reuse path, expect caller provides effective s_x via scales[0] (w scale)×s_x in epilogue; we pass s_x=1 and zp_x=128.
     float s_x = 1.f; int32_t zp_x = 128;

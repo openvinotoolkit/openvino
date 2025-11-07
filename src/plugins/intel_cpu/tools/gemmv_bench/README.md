@@ -66,9 +66,17 @@ The script:
 
 Notes
 -----
-- Our kernels auto-select AMX when available (otherwise VNNI). No environment toggles are needed.
+- Kernels auto-select AMX when available, otherwise AVX-512 VNNI. No environment flags are required for peak performance.
 - The CSV includes both benchdnn and our results so you can diff GFLOPS quickly.
 - All numbers are single-thread (OMP_NUM_THREADS=1) compute-only runs for reproducibility.
+
+Analyze CSV
+-----------
+From this folder:
+```
+python3 analyze_csv.py gemmv_vs_benchdnn_ext.csv
+```
+Prints ours/bench ratios per shape and averages for benchdnn VNNI and AMX.
 
 Modes (stability vs speed)
 --------------------------
