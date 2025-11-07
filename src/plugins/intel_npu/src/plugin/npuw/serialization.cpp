@@ -15,6 +15,7 @@
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
 
@@ -103,6 +104,27 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::Atten
 
     write(stream, var.mask_idx);
     write(stream, var.attend_all);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::PyramidAttention& var) {
+    using ov::npuw::s11n::write;
+
+    write(stream, var.query_size);
+    write(stream, var.full_context_size);
+    write(stream, var._context_lengths);
+
+    // Serialize attention infos
+    write(stream, var._attention_infos.size());
+    for (const auto& info : var._attention_infos) {
+        write(stream, info.params.size());
+        for (const auto& p : info.params) {
+            write(stream, p.idx);
+            write(stream, p.dim);
+        }
+        write(stream, info.mask_idx);
+        write(stream, info.query_size);
+        write(stream, info.context_length);
+    }
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
@@ -225,6 +247,32 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::Attention& v
 
     read(stream, var.mask_idx);
     read(stream, var.attend_all);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::PyramidAttention& var) {
+    using ov::npuw::s11n::read;
+
+    read(stream, var.query_size);
+    read(stream, var.full_context_size);
+    read(stream, var._context_lengths);
+
+    // Deserialize attention infos
+    std::size_t attention_infos_size = 0;
+    read(stream, attention_infos_size);
+    var._attention_infos.resize(attention_infos_size);
+
+    for (auto& info : var._attention_infos) {
+        std::size_t params_size = 0;
+        read(stream, params_size);
+        info.params.resize(params_size);
+        for (auto& p : info.params) {
+            read(stream, p.idx);
+            read(stream, p.dim);
+        }
+        read(stream, info.mask_idx);
+        read(stream, info.query_size);
+        read(stream, info.context_length);
+    }
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {

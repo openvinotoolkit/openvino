@@ -91,6 +91,7 @@ private:
         ov::intel_npu::npuw::partitioning::online::min_size.name(),
         ov::intel_npu::npuw::partitioning::online::keep_blocks.name(),
         ov::intel_npu::npuw::partitioning::online::keep_block_size.name(),
+        ov::intel_npu::npuw::partitioning::attn.name(),
         ov::intel_npu::npuw::partitioning::fold.name(),
         ov::intel_npu::npuw::partitioning::cwai.name(),
         ov::intel_npu::npuw::partitioning::dyn_quant.name(),
