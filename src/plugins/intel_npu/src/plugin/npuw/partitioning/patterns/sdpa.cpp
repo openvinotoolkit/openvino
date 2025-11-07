@@ -130,7 +130,7 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
-        LOG_INFO("Decomposed SDPA pattern matched!");
+        LOG_DEBUG("Decomposed SDPA pattern matched!");
 
         auto& node_to_output = m.get_pattern_value_map();
 

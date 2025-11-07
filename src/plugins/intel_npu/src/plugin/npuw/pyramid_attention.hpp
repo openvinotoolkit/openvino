@@ -139,7 +139,7 @@ struct PyramidAttention {
     // Store models temporarily for compilation - cleared after compilation completes in set_compiled_models()
     std::vector<std::shared_ptr<ov::Model>> _models_to_compile;
 
-    PyramidAttention() = delete;
+    PyramidAttention() = default;
 
     // Constructor that extracts metadata and stores models for compilation
     // Compiled models are set later via set_compiled_models()

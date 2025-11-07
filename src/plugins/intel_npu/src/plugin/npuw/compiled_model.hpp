@@ -222,7 +222,11 @@ private:
         execution_stats stat;
 
         void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
-        void deserialize(std::istream& stream, const ov::npuw::s11n::WeightsContext& ctx);
+        void deserialize(std::istream& stream,
+                         const ov::npuw::s11n::WeightsContext& ctx,
+                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                         const std::string& device,
+                         const ov::SoPtr<ov::ICompiledModel>& compiled_model);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

@@ -34,7 +34,7 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
 const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
     {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.13";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.14";
 
 // Forward declaration
 namespace intel_npu {
@@ -74,6 +74,7 @@ namespace npuw {
 namespace compiled {
 struct Spatial;
 struct Attention;
+struct PyramidAttention;
 }  // namespace compiled
 namespace weights {
 class LazyTensor;
@@ -152,6 +153,7 @@ void write(std::ostream& stream, const bool& var);
 void write(std::ostream& stream, const float& var);
 void write(std::ostream& stream, const ov::npuw::compiled::Spatial& var);
 void write(std::ostream& stream, const ov::npuw::compiled::Attention& var);
+void write(std::ostream& stream, const ov::npuw::compiled::PyramidAttention& var);
 void write(std::ostream& stream, const ov::Tensor& var);
 void write(std::ostream& stream, const ::intel_npu::Config& var);
 void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
@@ -168,6 +170,7 @@ void read(std::istream& stream, bool& var);
 void read(std::istream& stream, float& var);
 void read(std::istream& stream, ov::npuw::compiled::Spatial& var);
 void read(std::istream& stream, ov::npuw::compiled::Attention& var);
+void read(std::istream& stream, ov::npuw::compiled::PyramidAttention& var);
 void read(std::istream& stream, ov::Tensor& var);
 void read(std::istream& stream, ::intel_npu::Config& var);
 void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);

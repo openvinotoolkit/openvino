@@ -685,6 +685,20 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, spatial);
     write(stream, attention);
 
+    // Serialize compiled submodels for pyramid attention, except the last one
+    write(stream, pyramid_attention);
+    if (pyramid_attention.has_value()) {
+        size_t num_models = pyramid_attention.value()._compiled_models.size();
+        write(stream, num_models);
+
+        for (size_t i = 0; i < num_models - 1; ++i) {
+            std::stringstream ss;
+            auto compiled_model = pyramid_attention.value()._compiled_models[i];
+            compiled_model->export_model(ss);
+            write(stream, ss.str());
+        }
+    }
+
     auto& closure_desc = closure.get();
 
     write(stream, closure_desc.is_remote);
@@ -738,7 +752,10 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
 }
 
 void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& stream,
-                                                             const ov::npuw::s11n::WeightsContext& ctx) {
+                                                             const ov::npuw::s11n::WeightsContext& ctx,
+                                                             const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                             const std::string& device,
+                                                             const ov::SoPtr<ov::ICompiledModel>& compiled_model) {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Deserializing CompiledModelDesc...");
@@ -761,6 +778,29 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
 
     read(stream, spatial);
     read(stream, attention);
+
+    read(stream, pyramid_attention);
+    if (pyramid_attention.has_value()) {
+        size_t num_models = 0;
+        read(stream, num_models);
+        pyramid_attention.value()._compiled_models.resize(num_models);
+
+        if (num_models > 0) {
+            // Import all pyramid models except the last one
+            for (size_t i = 0; i < num_models - 1; ++i) {
+                std::string model_str;
+                read(stream, model_str);
+                std::stringstream ss(model_str);
+                pyramid_attention->_compiled_models[i] = plugin->get_core()->import_model(ss, device);
+            }
+
+            // Reuse the already compiled model for the last pyramid attention model
+            if (compiled_model) {
+                pyramid_attention->_compiled_models[num_models - 1] = compiled_model;
+                LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
+            }
+        }
+    }
 
     auto& closure_desc = closure.get();
 
@@ -1246,7 +1286,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                     plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
             }
             compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
-            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx);
+            compiled->m_compiled_submodels[i].deserialize(stream,
+                                                          compiled->m_import_weights_ctx,
+                                                          plugin,
+                                                          compiled->m_dev_list[device_idx],
+                                                          compiled->m_compiled_submodels[i].compiled_model);
         }
 
         compiled->implement_properties();
