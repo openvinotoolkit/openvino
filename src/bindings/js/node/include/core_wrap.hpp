@@ -98,6 +98,9 @@ protected:
 
     /** @brief Returns devices available for inference. */
     Napi::Value get_available_devices(const Napi::CallbackInfo& info);
+    
+    /** @brief Returns list of available frontends (IR, ONNX, etc.). */
+    Napi::Value get_available_front_ends(const Napi::CallbackInfo& info);
 
     /** @brief Returns versions of the specified device. */
     Napi::Value get_versions(const Napi::CallbackInfo& info);
@@ -145,6 +148,9 @@ struct ImportModelContext {
     std::map<std::string, ov::Any> _config = {};
     ov::Core& _core;
     ov::CompiledModel _compiled_model;
+    // When importing from a tensor, this will be set and _use_tensor will be true.
+    ov::Tensor _tensor;
+    bool _use_tensor = false;
 };
 
 void FinalizerCallbackModel(Napi::Env env, void* finalizeData, TsfnContextModel* context);
