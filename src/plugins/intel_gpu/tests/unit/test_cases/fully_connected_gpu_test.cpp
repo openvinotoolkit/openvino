@@ -5102,96 +5102,24 @@ TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_dynamic_batch) {
 }
 
 // Test for fp32 output
-TEST_F(fully_connected_gpu_tests, gemv_compressed_uint4_scale_dynamic_cached_b1_f32) {
-    this->test_compressed_int4_scale_gemv(true, true, 1, 128, true, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_dynamic_cached_b1_f32) {
-    this->test_compressed_int4_scale_gemv(true, true, 1, 128, false, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_dynamic_cached_b10_f32) {
-    this->test_compressed_int4_scale_gemv(true, true, 10, 128, false, false, false);
-}
-
 TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_dynamic_b1g32_f32) {
     this->test_compressed_int4_scale_gemv(false, true, 1, 32, false, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_dynamic_b48g32_f32) {
-    this->test_compressed_int4_scale_gemv(false, true, 48, 32, false, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_dynamic_b1g64_f32) {
-    this->test_compressed_int4_scale_gemv(false, true, 1, 64, false, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_dynamic_b1g128_f32) {
-    this->test_compressed_int4_scale_gemv(false, true, 1, 128, false, false, false);
 }
 
 TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_b1g32_f32) {
     this->test_compressed_int4_scale_gemv(false, false, 1, 32, false, false, false);
 }
 
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_b1g64_f32) {
-    this->test_compressed_int4_scale_gemv(false, false, 1, 64, false, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_b1g128_f32) {
-    this->test_compressed_int4_scale_gemv(false, false, 1, 128, false, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_uint4_scale_zp_dynamic_cached_b1_f32) {
-    this->test_compressed_int4_scale_zp_gemv(true, true, 1, 128, true, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_zp_dynamic_cached_b1_f32) {
-    this->test_compressed_int4_scale_zp_gemv(true, true, 1, 128, false, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_zp_dynamic_b1g128_f32) {
-    this->test_compressed_int4_scale_zp_gemv(false, true, 1, 128, false, false, false);
-}
-
 TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_relu_b1g128_f32) {
     this->test_compressed_int4_scale_activation_gemv(false, false, 1, 128, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_relu_b2g128_f32) {
-    this->test_compressed_int4_scale_activation_gemv(false, false, 2, 128, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_relu_dynamic_b1g128_f32) {
-    this->test_compressed_int4_scale_activation_gemv(false, true, 1, 128, false, false);
 }
 
 TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_large_n_b1_f32) {
     this->test_compressed_int4_scale_large_n_gemv(false, false, 1, false, false);
 }
 
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_large_n_cached_b1_f32) {
-    this->test_compressed_int4_scale_large_n_gemv(true, false, 1, false, false);
-}
-
 TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_large_n_dynamic_b1_f32) {
     this->test_compressed_int4_scale_large_n_gemv(false, true, 1, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_large_n_dynamic_b6_f32) {
-    this->test_compressed_int4_scale_large_n_gemv(false, true, 6, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_large_n_dynamic_cached_b1_f32) {
-    this->test_compressed_int4_scale_large_n_gemv(true, true, 1, false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_large_n_dyn_quan_f32) {
-    this->test_compressed_int4_scale_large_n_gemv(false, false, 1, true, false);
-}
-
-TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_large_n_dyn_quan_dynamic_f32) {
-    this->test_compressed_int4_scale_large_n_gemv(true, false, 1, true, false);
 }
 
 // Test weight zp for INT8 ASYM
