@@ -38,7 +38,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
@@ -323,6 +322,7 @@ void FullyConnected::initTensorParallelSync() {
 
 void FullyConnected::execTensorParallelSync() {
     if (tp_cfg.enable_tensor_parallel) {
+        const auto& cpu_parallel = context->getCpuParallel();
         // dst
         auto dst = getDstMemoryAtPort(0);
         auto* dst_ptr = static_cast<uint8_t*>(dst->getData());
@@ -364,7 +364,7 @@ void FullyConnected::execTensorParallelSync() {
                     const auto copySize = splited_dim_vec[idx] * prec.size();  // bytes of half selected dim.
                     const size_t unloop = 8;
                     size_t step = count / unloop;
-                    parallel_for(step, [&](size_t i) {
+                    cpu_parallel->parallel_for(step, [&](size_t i) {
                         cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop) * channel_size,
                                    new_ptr + (i * unloop) * copySize,
                                    copySize);
