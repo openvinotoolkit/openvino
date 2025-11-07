@@ -831,9 +831,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     const auto model = apply_auto_batching(model_, patched_device_name, config_with_batch);
 
     auto parsed = parse_device_name_into_config(patched_device_name,
-                                            m_core_config,
-                                            config_with_batch,
-                                            is_proxy_device(patched_device_name));
+                                                m_core_config,
+                                                config_with_batch,
+                                                is_proxy_device(patched_device_name));
     auto plugin = get_plugin(parsed.m_device_name);
     const auto cache_manager =
         parsed.m_core_config.get_cache_config_for_device(plugin, parsed.m_config).m_cache_manager;
@@ -1686,7 +1686,8 @@ void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_nam
         set(config);
     } else if (const auto cache_dir_entry = config.find(ov::cache_dir.name()); cache_dir_entry != config.end()) {
         std::lock_guard<std::mutex> lock(m_cache_config_mutex);
-        m_devices_cache_config[device_name] = CoreConfig::CacheConfig::create(cache_dir_entry->second.as<std::string>());
+        m_devices_cache_config[device_name] =
+            CoreConfig::CacheConfig::create(cache_dir_entry->second.as<std::string>());
     }
 }
 
