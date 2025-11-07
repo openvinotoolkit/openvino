@@ -7,6 +7,10 @@
 #include "lir_test_utils.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "snippets/lowered/pass/normalize_loop_ids.hpp"
+#include "snippets/lowered/pass/serialize_control_flow.hpp"
+#include "snippets/lowered/pass/serialize_data_flow.hpp"
+#include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/loop.hpp"
@@ -35,6 +39,8 @@ public:
 
     void SetUp() override {
         pipeline.register_pass<InsertSpecificIterations>();
+        pipeline.register_pass<SerializeControlFlow>("target.xml");
+        pipeline.register_pass<SerializeDataFlow>("target_data.xml");
     }
 
     size_t vector_size = 16;
@@ -504,6 +510,252 @@ TEST_F(InsertSpecificIterationsTest, OuterSplitLoopOutsideClonedLoop_InputPortOu
                                                           {n_loop_tail_id, 6},
                                                           {m_split_loop_cloned_id, 9}};
         assign_loop_ids(expr_to_loop_ids, loop_ids_mapper);
+    }
+}
+
+/*
+ * Control Flow Graph before transformation:
+ * LoopBegin (m_outer_loop)
+ * |  LoopBegin (n_loop)
+ * |  |  LoopBegin (m_split_loop)
+ * |  |  |  Load
+ * |  |  LoopEnd (m_split_loop)
+ * |  LoopEnd (n_loop) - last iteration should be inserted
+ * |  Store
+ * LoopEnd (m_outer_loop)
+ */
+TEST_F(InsertSpecificIterationsTest, OuterSplitLoopOutsideClonedLoop_OutputPortOutside) {
+    const size_t m = 64;
+    const size_t n = 70;
+    const ov::Shape input_shape{1, 1, m, n};
+
+    {
+        auto param = linear_ir->push_node<ov::op::v0::Parameter>(input_precision, input_shape);
+
+        auto m_outer_loop_begin = linear_ir->push_node<LoopBegin>(false);
+        auto n_loop_begin = linear_ir->push_node<LoopBegin>(false);
+        auto m_split_loop_begin = linear_ir->push_node<LoopBegin>(false);
+
+        auto load = linear_ir->push_node<ov::snippets::op::Load>(param.second);
+
+        // Create store temporarily to get its ports for loop info creation
+        auto store_temp = linear_ir->push_node<ov::snippets::op::Store>(load.second);
+        // Store the expression locally and erase it from LIR
+        auto store_expr = *store_temp.first;
+        linear_ir->erase(store_temp.first);
+
+        const auto& loop_manager = linear_ir->get_loop_manager();
+
+        const auto n_loop = std::make_shared<UnifiedLoopInfo>(
+            n,
+            n_block,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load.first)->get_input_port(0), 0)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load.first)->get_output_port(0), 0)},
+            std::vector<LoopPortDesc>{LoopPortDesc(1, -70, 4)},
+            std::vector<LoopPortDesc>{LoopPortDesc(1, -70, 4)},
+            false);
+        const auto n_loop_id = loop_manager->add_loop_info(n_loop);
+
+        const auto m_outer_loop = std::make_shared<UnifiedLoopInfo>(
+            m,
+            m_block,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load.first)->get_input_port(0), 1)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(store_expr->get_output_port(0), 1)},
+            std::vector<LoopPortDesc>{LoopPortDesc(70, -4480, 4)},
+            std::vector<LoopPortDesc>{LoopPortDesc(70, -4480, 4)},
+            false);
+        const auto m_outer_loop_id = loop_manager->add_loop_info(m_outer_loop);
+
+        IOLoopPortDescs m_split_loop_descs{{LoopPortDesc(70, -2240, 4)}, {LoopPortDesc(70, -2240, 4)}};
+        const auto load_convert_store_m_split_loop = make_inner_split_loop_info(
+            m,
+            1,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load.first)->get_input_port(0), 1)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load.first)->get_output_port(0), 1)},
+            m_outer_loop,
+            m_split_loop_descs);
+        const auto m_split_loop_id = loop_manager->add_loop_info(load_convert_store_m_split_loop);
+
+        auto m_split_loop_end = push_loop_end(linear_ir, *m_split_loop_begin.first, m_split_loop_id);
+        auto n_loop_end = push_loop_end(linear_ir, *n_loop_begin.first, n_loop_id);
+
+        // Now re-insert the store at the correct position
+        linear_ir->insert(linear_ir->cend(), store_expr);
+        load.first->get()->get_output_port_connector(0)->add_consumer(store_expr->get_input_port(0));
+
+        auto m_outer_loop_end = push_loop_end(linear_ir, *m_outer_loop_begin.first, m_outer_loop_id);
+        auto result = linear_ir->push_node<ov::op::v0::Result>(store_expr->get_node()->output(0));
+
+        (*n_loop_begin.first)->set_loop_ids({m_outer_loop_id});
+        (*m_split_loop_begin.first)->set_loop_ids({m_outer_loop_id, n_loop_id});
+        (*load.first)->set_loop_ids({m_outer_loop_id, n_loop_id, m_split_loop_id});
+        (*m_split_loop_end.first)->set_loop_ids({m_outer_loop_id, n_loop_id});
+        (*n_loop_end.first)->set_loop_ids({m_outer_loop_id});
+        store_expr->set_loop_ids({m_outer_loop_id});
+    }
+
+    {
+        const size_t n_tail_work_amount = n % n_block;
+        const size_t n_main_work_amount = n - n_tail_work_amount;
+        auto param = linear_ir_ref->push_node<ov::op::v0::Parameter>(input_precision, input_shape);
+
+        auto m_outer_loop_begin = linear_ir_ref->push_node<LoopBegin>(false);
+
+        // n_loop main iteration
+        auto n_loop_main_begin = linear_ir_ref->push_node<LoopBegin>(false);
+        auto m_split_loop_main_begin = linear_ir_ref->push_node<LoopBegin>(false);
+        auto load_main = linear_ir_ref->push_node<ov::snippets::op::Load>(param.second);
+
+        const auto& loop_manager = linear_ir_ref->get_loop_manager();
+
+        // Unified loop infos for connection
+        const auto n_loop_unified = std::make_shared<UnifiedLoopInfo>(
+            n,
+            n_block,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_main.first)->get_input_port(0), 0)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_main.first)->get_output_port(0), 0)},
+            std::vector<LoopPortDesc>{LoopPortDesc(1, -70, 4)},
+            std::vector<LoopPortDesc>{LoopPortDesc(1, -70, 4)},
+            false);
+
+        // Create store temporarily to get its ports for unified loop info creation
+        auto store_temp = linear_ir_ref->push_node<ov::snippets::op::Store>(load_main.second);
+        auto store_temp_expr = *store_temp.first;
+        linear_ir_ref->erase(store_temp.first);
+
+        const auto m_outer_loop_unified = std::make_shared<UnifiedLoopInfo>(
+            m,
+            m_block,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_main.first)->get_input_port(0), 1)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(store_temp_expr->get_output_port(0), 1)},
+            std::vector<LoopPortDesc>{LoopPortDesc(70, -4480, 4)},
+            std::vector<LoopPortDesc>{LoopPortDesc(70, -4480, 4)},
+            false);
+
+        // n_loop main expanded info
+        const auto n_loop_main = std::make_shared<ExpandedLoopInfo>(
+            n_main_work_amount,
+            n_block,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_main.first)->get_input_port(0), 0)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_main.first)->get_output_port(0), 0)},
+            std::vector<int64_t>{1, 1},
+            std::vector<int64_t>{0, 0},
+            std::vector<int64_t>{4, 4},
+            SpecificLoopIterType::MAIN_BODY,
+            n_loop_unified);
+        const auto n_loop_main_id = loop_manager->add_loop_info(n_loop_main);
+
+        // m_outer_loop main (only main since m=64 is divisible by m_block=32)
+        const auto m_outer_loop_main = std::make_shared<ExpandedLoopInfo>(
+            m,
+            m_block,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_main.first)->get_input_port(0), 1)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(store_temp_expr->get_output_port(0), 1)},
+            std::vector<int64_t>{70, 70},
+            std::vector<int64_t>{-4480, -4480},
+            std::vector<int64_t>{4, 4},
+            SpecificLoopIterType::MAIN_BODY,
+            m_outer_loop_unified);
+        const auto m_outer_loop_main_id = loop_manager->add_loop_info(m_outer_loop_main);
+
+        // m_split_loop for main n_loop
+        IOLoopPortDescs m_split_loop_main_descs{{LoopPortDesc(70, -2240, 4)}, {LoopPortDesc(70, -2240, 4)}};
+        const auto m_split_loop_main_unified = make_inner_split_loop_info(
+            m,
+            1,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_main.first)->get_input_port(0), 1)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_main.first)->get_output_port(0), 1)},
+            m_outer_loop_unified,
+            m_split_loop_main_descs);
+        const auto m_split_loop_main_expanded = std::make_shared<ExpandedLoopInfo>(
+            m_block,
+            1,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_main.first)->get_input_port(0), 1)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_main.first)->get_output_port(0), 1)},
+            std::vector<int64_t>{70, 70},
+            std::vector<int64_t>{-2240, -2240},
+            std::vector<int64_t>{4, 4},
+            SpecificLoopIterType::MAIN_BODY,
+            m_split_loop_main_unified);
+        const auto m_split_loop_main_id = loop_manager->add_loop_info(m_split_loop_main_expanded);
+
+        auto m_split_loop_main_end = push_loop_end(linear_ir_ref, *m_split_loop_main_begin.first, m_split_loop_main_id);
+        auto n_loop_main_end = push_loop_end(linear_ir_ref, *n_loop_main_begin.first, n_loop_main_id);
+
+        // n_loop tail iteration
+        auto n_loop_tail_begin = linear_ir_ref->push_node<LoopBegin>(false);
+        auto m_split_loop_tail_begin = linear_ir_ref->push_node<LoopBegin>(false);
+        auto load_tail = linear_ir_ref->push_node<ov::snippets::op::Load>(param.second);
+
+        // n_loop tail expanded info
+        const auto n_loop_tail = std::make_shared<ExpandedLoopInfo>(
+            n_tail_work_amount,
+            n_tail_work_amount,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_tail.first)->get_input_port(0), 0)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_tail.first)->get_output_port(0), 0)},
+            std::vector<int64_t>{1, 1},
+            std::vector<int64_t>{-70, -70},
+            std::vector<int64_t>{4, 4},
+            SpecificLoopIterType::LAST_ITER,
+            n_loop_unified,
+            true);
+        const auto n_loop_tail_id = loop_manager->add_loop_info(n_loop_tail);
+
+        // m_split_loop for tail n_loop
+        IOLoopPortDescs m_split_loop_tail_descs{{LoopPortDesc(70, -2240, 4)}, {LoopPortDesc(70, -2240, 4)}};
+        const auto m_split_loop_tail_unified = make_inner_split_loop_info(
+            m,
+            1,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_tail.first)->get_input_port(0), 1)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_tail.first)->get_output_port(0), 1)},
+            m_outer_loop_unified,
+            m_split_loop_tail_descs);
+        const auto m_split_loop_cloned_expanded = std::make_shared<ExpandedLoopInfo>(
+            m_block,
+            1,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_tail.first)->get_input_port(0), 1)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_tail.first)->get_output_port(0), 1)},
+            std::vector<int64_t>{70, 70},
+            std::vector<int64_t>{-2240, -2240},
+            std::vector<int64_t>{4, 4},
+            SpecificLoopIterType::MAIN_BODY,
+            m_split_loop_tail_unified,
+            true);
+        const auto m_split_loop_cloned_id = loop_manager->add_loop_info(m_split_loop_cloned_expanded);
+
+        auto m_split_loop_tail_end = push_loop_end(linear_ir_ref, *m_split_loop_tail_begin.first, m_split_loop_cloned_id);
+        auto n_loop_tail_end = push_loop_end(linear_ir_ref, *n_loop_tail_begin.first, n_loop_tail_id);
+
+        // Store operation placed after the loops (key difference from InputPortOutside test)
+        auto store = linear_ir_ref->push_node<ov::snippets::op::Store>(load_tail.second);
+
+        // Note: outer loop is connected to the store's output
+        m_outer_loop_main->replace_with_new_ports(store_temp_expr->get_output_port(0),
+                                                  {(*store.first)->get_output_port(0)});
+        m_outer_loop_unified->replace_with_new_ports(store_temp_expr->get_output_port(0),
+                                                     {(*store.first)->get_output_port(0)});
+        auto m_outer_loop_end = push_loop_end(linear_ir_ref, *m_outer_loop_begin.first, m_outer_loop_main_id);
+        auto result = linear_ir_ref->push_node<ov::op::v0::Result>(store.second);
+
+        const std::map<ExpressionPtr, std::vector<size_t>> expr_to_loop_ids = {
+            {*n_loop_main_begin.first, {m_outer_loop_main_id}},
+            {*m_split_loop_main_begin.first, {m_outer_loop_main_id, n_loop_main_id}},
+            {*load_main.first, {m_outer_loop_main_id, n_loop_main_id, m_split_loop_main_id}},
+            {*m_split_loop_main_end.first, {m_outer_loop_main_id, n_loop_main_id}},
+            {*n_loop_main_end.first, {m_outer_loop_main_id}},
+            {*n_loop_tail_begin.first, {m_outer_loop_main_id}},
+            {*m_split_loop_tail_begin.first, {m_outer_loop_main_id, n_loop_tail_id}},
+            {*load_tail.first, {m_outer_loop_main_id, n_loop_tail_id, m_split_loop_cloned_id}},
+            {*m_split_loop_tail_end.first, {m_outer_loop_main_id, n_loop_tail_id}},
+            {*n_loop_tail_end.first, {m_outer_loop_main_id}},
+            {*store.first, {m_outer_loop_main_id}}};
+        const std::map<size_t, size_t> loop_ids_mapper = {{n_loop_main_id, 5},
+                                                          {m_outer_loop_main_id, 7},
+                                                          {m_split_loop_main_id, 8},
+                                                          {n_loop_tail_id, 6},
+                                                          {m_split_loop_cloned_id, 9}};
+        assign_loop_ids(expr_to_loop_ids, loop_ids_mapper);
+        ov::snippets::lowered::pass::SerializeControlFlow("reference.xml").run(*linear_ir_ref);
     }
 }
 
