@@ -319,14 +319,14 @@ const std::vector<ov::element::Type> model_types = {
 };
 
 const std::vector<std::vector<ov::test::utils::InputLayerType>> rest_input_types = {
-    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::CONSTANT},
-    {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER},
-    {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::CONSTANT},
-    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT},
-    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::PARAMETER},
-    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER},
-    {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::PARAMETER},
+    {ov::test::utils::InputLayerType::CONSTANT,  ov::test::utils::InputLayerType::CONSTANT,  ov::test::utils::InputLayerType::CONSTANT},
+    {ov::test::utils::InputLayerType::CONSTANT,  ov::test::utils::InputLayerType::CONSTANT,  ov::test::utils::InputLayerType::PARAMETER},
+    {ov::test::utils::InputLayerType::CONSTANT,  ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT},
+    {ov::test::utils::InputLayerType::CONSTANT,  ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER},
+    {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT,  ov::test::utils::InputLayerType::CONSTANT},
+    {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT,  ov::test::utils::InputLayerType::PARAMETER},
     {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT},
+    {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER},
 };
 
 const std::vector<InputShape> inputShapesDynamic2D = {

@@ -10,36 +10,20 @@ inline void FUNC(get_slice_step)(OPTIONAL_SHAPE_INFO_ARG
                                  int* step_batch, int* step_feature,
                                  int* step_w, int* step_z, int* step_y, int* step_x)
 {
-    const uint batch_index = DIM_IDX_BATCH;
-    const uint feature_index = DIM_IDX_FEATURE;
+    *step_batch = DIM_IDX_BATCH < STRIDE_DIMS ? stride[DIM_IDX_BATCH] : 1;
+    *step_feature = DIM_IDX_FEATURE < STRIDE_DIMS ? stride[DIM_IDX_FEATURE] : 1;
 #ifdef OUTPUT_LAYOUT_BFYX
-    const uint y_index = DIM_IDX_Y;
-    const uint x_index = DIM_IDX_X;
+    *step_w = 1;
+    *step_z = 1;
 #elif OUTPUT_LAYOUT_BFZYX
-    const uint z_index = DIM_IDX_Z;
-    const uint y_index = DIM_IDX_Y;
-    const uint x_index = DIM_IDX_X;
+    *step_w = 1;
+    *step_z = DIM_IDX_Z < STRIDE_DIMS ? stride[DIM_IDX_Z] : 1;
 #elif OUTPUT_LAYOUT_BFWZYX
-    const uint w_index = DIM_IDX_W;
-    const uint z_index = DIM_IDX_Z;
-    const uint y_index = DIM_IDX_Y;
-    const uint x_index = DIM_IDX_X;
+    *step_w = DIM_IDX_W < STRIDE_DIMS ? stride[DIM_IDX_W] : 1;
+    *step_z = DIM_IDX_Z < STRIDE_DIMS ? stride[DIM_IDX_Z] : 1;
 #endif
-
-    *step_batch = batch_index < STRIDE_DIMS ? stride[batch_index] : 1;
-    *step_feature = feature_index < STRIDE_DIMS ? stride[feature_index] : 1;
-#ifdef OUTPUT_LAYOUT_BFYX
-    *step_w = 0;
-    *step_z = 0;
-#elif OUTPUT_LAYOUT_BFZYX
-    *step_w = 0;
-    *step_z = z_index < STRIDE_DIMS ? stride[z_index] : 1;
-#elif OUTPUT_LAYOUT_BFWZYX
-    *step_w = w_index < STRIDE_DIMS ? stride[w_index] : 1;
-    *step_z = z_index < STRIDE_DIMS ? stride[z_index] : 1;
-#endif
-    *step_y = y_index < STRIDE_DIMS ? stride[y_index] : 1;
-    *step_x = x_index < STRIDE_DIMS ? stride[x_index] : 1;
+    *step_y = DIM_IDX_Y < STRIDE_DIMS ? stride[DIM_IDX_Y] : 1;
+    *step_x = DIM_IDX_X < STRIDE_DIMS ? stride[DIM_IDX_X] : 1;
 }
 #endif // STRIDE_TYPE
 

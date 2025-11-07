@@ -97,51 +97,22 @@ public:
         std::vector<int32_t> end(prim->end.begin(), prim->end.end());
         std::vector<int32_t> strides(prim->strides.begin(), prim->strides.end());
 
-        // Getting data from constant inputs. There are 3 args: Begin, End, Stride
-        if (!begin.empty() && !params.has_dynamic_tensors()) {
-            pad_vector_to_size(begin, dims_num, 0, prim->ellipsis_mask);
-            params.begin_type = kernel_selector::base_params::ArgType::Constant;
-            params.striding_params.push_back(begin);
-        } else {
-            params.begin_type = kernel_selector::base_params::ArgType::Input;
-            auto begin_layout = impl_param.get_input_layout(1);
-            params.inputs.push_back(convert_data_tensor(begin_layout));
-            params.begin_dims = begin_layout.count();
-        }
-
-        auto get_index_end = [&]() {
-            size_t offset = 1;
-            if ((begin.empty() || params.has_dynamic_tensors()) && params.begin_type == kernel_selector::base_params::ArgType::Input)
-                offset++;
-            return offset;
+        auto handle_args = [&dims_num, &prim, &params, &impl_param](std::vector<int32_t>& arg_data, kernel_selector::base_params::ArgType& arg_type, size_t& arg_dims, size_t layout_offset, int init_value) {
+            if (!arg_data.empty()) {
+                pad_vector_to_size(arg_data, dims_num, init_value, prim->ellipsis_mask);
+                arg_type = kernel_selector::base_params::ArgType::Constant;
+                params.striding_params.push_back(arg_data);
+            } else {
+                arg_type = kernel_selector::base_params::ArgType::Input;
+                auto in_layout = impl_param.get_input_layout(layout_offset);
+                params.inputs.push_back(convert_data_tensor(in_layout));
+                arg_dims = in_layout.count();
+            }
         };
-        if (!end.empty() && !params.has_dynamic_tensors()) {
-            pad_vector_to_size(end, dims_num, 1, prim->ellipsis_mask);
-            params.end_type = kernel_selector::base_params::ArgType::Constant;
-            params.striding_params.push_back(end);
-        } else {
-            params.end_type = kernel_selector::base_params::ArgType::Input;
-            auto end_layout = impl_param.get_input_layout(get_index_end());
-            params.inputs.push_back(convert_data_tensor(end_layout));
-            params.end_dims = end_layout.count();
-        }
 
-        auto get_index_stride = [&]() {
-            size_t offset = get_index_end();
-            if ((end.empty()) && params.end_type == kernel_selector::base_params::ArgType::Input)
-                offset++;
-            return offset;
-        };
-        if (!strides.empty()) {
-            pad_vector_to_size(strides, dims_num, 1, prim->ellipsis_mask);
-            params.stride_type = kernel_selector::base_params::ArgType::Constant;
-            params.striding_params.push_back(strides);
-        } else {
-            params.stride_type = kernel_selector::base_params::ArgType::Input;
-            auto stride_layout = impl_param.get_input_layout(get_index_stride());
-            params.inputs.push_back(convert_data_tensor(stride_layout));
-            params.stride_dims = stride_layout.count();
-        }
+        handle_args(begin, params.begin_type, params.begin_dims, 1, 0);
+        handle_args(end, params.end_type, params.end_dims, 2, 1);
+        handle_args(strides, params.stride_type, params.stride_dims, 3, 1);
 
         auto begin_mask_ = prim->begin_mask;
         auto end_mask_ = prim->end_mask;
@@ -170,62 +141,69 @@ public:
         for (const auto& dim : logical_dims)
             out_shape.push_back(static_cast<int32_t>(dim));
 
-        if (params.striding_params.size() == 3) {
+        size_t offset = 0;
+        if (!begin.empty()) {
             // If the ith bit of begin_mask is not set, begin[i] is ignored and the range of the appropriate dimension starts from 0.
-            vector_assign_if_not_mask(params.striding_params[0], 0, params.begin_mask);
-            // If the ith bit of end_mask is not set, end[i] is ignored and the fullest possible range in that dimension is used
-            // instead.
-            vector_assign_if_not_mask(params.striding_params[1], out_shape, params.end_mask);
-            for (size_t dim = 0; dim < params.striding_params[2].size(); dim++) {
-                auto begin = params.striding_params[0][dim];
-                auto end = params.striding_params[1][dim];
-                auto stride = params.striding_params[2][dim];
-
-                // Check out of bounds values for Clamping
-                auto check_out_of_bounds = [&](int32_t value) -> bool {
-                    auto size = out_shape[dim];
-                    if (value >= size || value < (size * -1))
-                        return true;
-                    else
-                        return false;
-                };
-                bool should_clamp_begin = check_out_of_bounds(begin);
-                bool should_clamp_end = check_out_of_bounds(end);
-
-                // Convert a negative value which means reverse indexing from the end
-                if (begin < 0)
-                    begin += out_shape[dim];  // converted value can be negative if the original one was out of bounds
-                if (end < 0)
-                    end += out_shape[dim];
-                bool is_stride_reverse = (stride < 0) ? true : false;
-
-                // Clamping
-                begin = std::min(std::max(begin, (int32_t)0), out_shape[dim]);
-                end = std::min(std::max(end, (int32_t)0), out_shape[dim]);
-
-                if (is_stride_reverse) {
-                    // If begin > end && is_reverse, then we don't need to adjust begin/end values, the kernel will process it correctly
-                    // However, in case of out-of-bounds begin/end values, it will be clamped, so we subtract 1 from each of them manually
-                    // E.g. out_shape[dim] = 100; begin=10000; end=-10000; stride=-1
-                    // clamp: begin=100; end=0;
-                    // sub: begin=99; end=-1;
-                    // If begin <= end, then we swap begin/end values and subtruct 1 from each of them
-                    // E.g. out_shape[dim] = 100; begin=-100; end=100; stride=-1
-                    // sub: begin=-1; end=100;
-                    // swap: begin=100; end=-1;
-                    // So the kernel will put the slices [99, 0] in reversed order as expected.
-                    if (should_clamp_begin)
-                        begin--;
-                    if (should_clamp_end)
-                        end--;
-                    if (begin <= end)
-                        std::swap(begin, end);
-                }
-
-                params.striding_params[0][dim] = begin;
-                params.striding_params[1][dim] = end;
-            }
+            vector_assign_if_not_mask(params.striding_params[offset++], 0, params.begin_mask);
         }
+
+        if (!end.empty()) {
+            // If the ith bit of begin_mask is not set, begin[i] is ignored and the range of the appropriate dimension starts from 0.
+            vector_assign_if_not_mask(params.striding_params[offset++], 0, params.begin_mask);
+        }
+
+        // if (params.striding_params.size() == 3) {
+        //     for (size_t dim = 0; dim < params.striding_params[2].size(); dim++) {
+        //         auto begin = params.striding_params[0][dim];
+        //         auto end = params.striding_params[1][dim];
+        //         auto stride = params.striding_params[2][dim];
+
+        //         // Check out of bounds values for Clamping
+        //         auto check_out_of_bounds = [&](int32_t value) -> bool {
+        //             auto size = out_shape[dim];
+        //             if (value >= size || value < (size * -1))
+        //                 return true;
+        //             else
+        //                 return false;
+        //         };
+        //         bool should_clamp_begin = check_out_of_bounds(begin);
+        //         bool should_clamp_end = check_out_of_bounds(end);
+
+        //         // Convert a negative value which means reverse indexing from the end
+        //         if (begin < 0)
+        //             begin += out_shape[dim];  // converted value can be negative if the original one was out of bounds
+        //         if (end < 0)
+        //             end += out_shape[dim];
+        //         bool is_stride_reverse = (stride < 0) ? true : false;
+
+        //         // Clamping
+        //         begin = std::min(std::max(begin, (int32_t)0), out_shape[dim]);
+        //         end = std::min(std::max(end, (int32_t)0), out_shape[dim]);
+
+        //         if (is_stride_reverse) {
+        //             // If begin > end && is_reverse, then we don't need to adjust begin/end values, the kernel will process it correctly
+        //             // However, in case of out-of-bounds begin/end values, it will be clamped, so we subtract 1 from each of them manually
+        //             // E.g. out_shape[dim] = 100; begin=10000; end=-10000; stride=-1
+        //             // clamp: begin=100; end=0;
+        //             // sub: begin=99; end=-1;
+        //             // If begin <= end, then we swap begin/end values and subtruct 1 from each of them
+        //             // E.g. out_shape[dim] = 100; begin=-100; end=100; stride=-1
+        //             // sub: begin=-1; end=100;
+        //             // swap: begin=100; end=-1;
+        //             // So the kernel will put the slices [99, 0] in reversed order as expected.
+        //             if (should_clamp_begin)
+        //                 begin--;
+        //             if (should_clamp_end)
+        //                 end--;
+        //             if (begin <= end)
+        //                 std::swap(begin, end);
+        //         }
+
+        //         params.striding_params[0][dim] = begin;
+        //         params.striding_params[1][dim] = end;
+        //     }
+        // }
+
         return params;
     }
 

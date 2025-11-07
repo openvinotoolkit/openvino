@@ -3,6 +3,7 @@
 //
 
 #include "strided_slice_kernel_ref.h"
+#include "kernel_selector_common.h"
 #include "kernel_selector_utils.h"
 #include <string>
 #include <vector>
@@ -134,33 +135,33 @@ inline std::string GetInputIndexStr(uint32_t idx) {
 }
 
 JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& params) const {
-    GPU_DEBUG_COUT << std::endl;
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    if (params.begin_type == base_params::ArgType::Input || params.has_dynamic_tensors()) {
+    size_t const_offset = 0;
+    if (params.begin_type == base_params::ArgType::Input) {
         jit.AddConstant(MakeJitConstant("BEGIN_TYPE", GetInputTypeStr(params.GetIndexBegin())));
         jit.AddConstant(MakeJitConstant("TO_BEGIN_TYPE", GetToInputTypeStr(params.GetIndexBegin())));
         jit.AddConstant(MakeJitConstant("BEGIN_GET_INDEX", GetInputIndexStr(params.GetIndexBegin())));
         jit.AddConstant(MakeJitConstant("BEGIN_DIMS", params.begin_dims));
         makeJitConstForParam(jit, "BEGIN", params.begin_mask);
     } else {
-        makeJitConstForParam(jit, "SLICE_BEGIN", params.striding_params[0]);
+        makeJitConstForParam(jit, "SLICE_BEGIN", params.striding_params[const_offset++]);
     }
-    if (params.end_type == base_params::ArgType::Input || params.has_dynamic_tensors()) {
+    if (params.end_type == base_params::ArgType::Input) {
         jit.AddConstant(MakeJitConstant("END_TYPE", GetInputTypeStr(params.GetIndexEnd())));
         jit.AddConstant(MakeJitConstant("TO_END_TYPE", GetToInputTypeStr(params.GetIndexEnd())));
         jit.AddConstant(MakeJitConstant("END_GET_INDEX", GetInputIndexStr(params.GetIndexEnd())));
         jit.AddConstant(MakeJitConstant("END_DIMS", params.end_dims));
         makeJitConstForParam(jit, "END", params.end_mask);
     } else {
-        makeJitConstForParam(jit, "SLICE_END", params.striding_params[1]);
+        makeJitConstForParam(jit, "SLICE_END", params.striding_params[const_offset++]);
     }
     if (params.stride_type == base_params::ArgType::Input) {
         jit.AddConstant(MakeJitConstant("STRIDE_TYPE", GetInputTypeStr(params.GetIndexStride())));
         jit.AddConstant(MakeJitConstant("STRIDE_GET_INDEX", GetInputIndexStr(params.GetIndexStride())));
         jit.AddConstant(MakeJitConstant("STRIDE_DIMS", params.stride_dims));
     } else {
-        makeJitConstForParam(jit, "SLICE_STEPS", params.striding_params[0]);
+        makeJitConstForParam(jit, "SLICE_STEPS", params.striding_params[const_offset++]);
     }
     jit.AddConstant(MakeJitConstant(
         "NEW_AXIS_MODE",
@@ -196,6 +197,8 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         dims_indexes.resize(params.outputs[0].Dimentions());
         std::iota(dims_indexes.begin(), dims_indexes.end(), 0);
     }
+    std::replace_if(dims_indexes.begin(), dims_indexes.end(), [](int val){ return val < 0; }, std::numeric_limits<int32_t>::max());
+
     makeJitConstForParam(jit, "DIM_IDX", dims_indexes);
 
     bool shrink_mode = std::find(params.shrink_axis_mask.begin(), params.shrink_axis_mask.end(), 1) != params.shrink_axis_mask.end();
@@ -235,7 +238,6 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         jit.AddConstant(MakeJitConstant("INPUT_INDICES_ORDER", get_input_idx_order(bfwzyx_in_order)));
     }
 
-    GPU_DEBUG_COUT << std::endl;
     return jit;
 }
 
@@ -284,9 +286,22 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params) const {
 
     GetUpdateDispatchDataFunc(kd);
 
+#if 1
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false, static_cast<int>(newParams.inputs.size()),
-                     0, 1, newParams.is_shape_agnostic);
+                     "", false, false, 0, 0, 0, newParams.is_shape_agnostic);
+
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+    if (newParams.begin_type == base_params::ArgType::Input)
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+    if (newParams.end_type == base_params::ArgType::Input)
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+    if (newParams.stride_type == base_params::ArgType::Input)
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+#else
+    // FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+    //                  "", false, false, static_cast<int>(newParams.inputs.size()), 0, 1, newParams.is_shape_agnostic);
+#endif
 
     return {kd};
 }
