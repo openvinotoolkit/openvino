@@ -692,8 +692,9 @@ public:
         internal_buffers.emplace_back(layout_topk_id, true);       // 0: topk_id
         internal_buffers.emplace_back(layout_topk_weights, true);  // 1: topk_weights
         // fast single batch: scratch.up = up(x) * silu(gate(x)); scratch.y = down(scratch.up) * weight[expert_no]
-        layout layout_gateup_out(ov::PartialShape{batch, static_cast<int>(config.inter_size)}, data_type, cldnn::format::bfyx);
-        layout layout_down_out(ov::PartialShape{batch, static_cast<int>(config.hidden_size)}, data_type, cldnn::format::bfyx);
+        auto max_batch = (batch == 1 ? max_topk : batch);
+        layout layout_gateup_out(ov::PartialShape{max_batch, static_cast<int>(config.inter_size)}, data_type, cldnn::format::bfyx);
+        layout layout_down_out(ov::PartialShape{max_batch, static_cast<int>(config.hidden_size)}, data_type, cldnn::format::bfyx);
         internal_buffers.emplace_back(layout_gateup_out, true);  // 2: up
         internal_buffers.emplace_back(layout_down_out, true);    // 3: y
         // onednn: scratch.x, scratch.routing_weights = gather(x, ...)
