@@ -10,7 +10,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/util/common_util.hpp"
