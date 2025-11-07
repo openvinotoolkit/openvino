@@ -134,6 +134,7 @@ inline std::string GetInputIndexStr(uint32_t idx) {
 }
 
 JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& params) const {
+    GPU_DEBUG_COUT << std::endl;
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     if (params.begin_type == base_params::ArgType::Input || params.has_dynamic_tensors()) {
@@ -154,12 +155,12 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
     } else {
         makeJitConstForParam(jit, "SLICE_END", params.striding_params[1]);
     }
-    if (params.stride_type == base_params::ArgType::Input || params.has_dynamic_tensors()) {
+    if (params.stride_type == base_params::ArgType::Input) {
         jit.AddConstant(MakeJitConstant("STRIDE_TYPE", GetInputTypeStr(params.GetIndexStride())));
         jit.AddConstant(MakeJitConstant("STRIDE_GET_INDEX", GetInputIndexStr(params.GetIndexStride())));
         jit.AddConstant(MakeJitConstant("STRIDE_DIMS", params.stride_dims));
     } else {
-        makeJitConstForParam(jit, "SLICE_STEPS", params.striding_params[2]);
+        makeJitConstForParam(jit, "SLICE_STEPS", params.striding_params[0]);
     }
     jit.AddConstant(MakeJitConstant(
         "NEW_AXIS_MODE",
@@ -234,6 +235,7 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         jit.AddConstant(MakeJitConstant("INPUT_INDICES_ORDER", get_input_idx_order(bfwzyx_in_order)));
     }
 
+    GPU_DEBUG_COUT << std::endl;
     return jit;
 }
 

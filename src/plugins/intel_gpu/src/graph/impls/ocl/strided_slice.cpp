@@ -128,11 +128,11 @@ public:
 
         auto get_index_stride = [&]() {
             size_t offset = get_index_end();
-            if ((end.empty() || params.has_dynamic_tensors()) && params.end_type == kernel_selector::base_params::ArgType::Input)
+            if ((end.empty()) && params.end_type == kernel_selector::base_params::ArgType::Input)
                 offset++;
             return offset;
         };
-        if (!strides.empty() && !params.has_dynamic_tensors()) {
+        if (!strides.empty()) {
             pad_vector_to_size(strides, dims_num, 1, prim->ellipsis_mask);
             params.stride_type = kernel_selector::base_params::ArgType::Constant;
             params.striding_params.push_back(strides);

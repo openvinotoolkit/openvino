@@ -202,9 +202,9 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
 {
     const uint batch = get_global_id(0);
     const uint feature = get_global_id(1);
-    int step_batch, step_feature, step_w, step_z, step_y, step_x;
-    int begin_batch, begin_feature, begin_w, begin_z, begin_y, begin_x;
-    int end_batch, end_feature, end_w, end_z, end_y, end_x;
+    int step_batch = 0, step_feature = 0, step_w = 0, step_z = 0, step_y = 0, step_x = 0;
+    int begin_batch = 0, begin_feature = 0, begin_w = 0, begin_z = 0, begin_y = 0, begin_x = 0;
+    int end_batch = 0, end_feature = 0, end_w = 0, end_z = 0, end_y = 0, end_x = 0;
 
 #ifdef STRIDE_TYPE
     FUNC_CALL(get_slice_step)(OPTIONAL_SHAPE_INFO_TENSOR stride, &step_batch, &step_feature, &step_w, &step_z, &step_y, &step_x);
@@ -273,20 +273,6 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
 #endif // OUTPUT_LAYOUT_BFYX
 #endif // SHRINK_MODE
 
-    const int slice_begin_batch = begin_batch;
-    const int slice_begin_feature = begin_feature;
-    const int slice_begin_w = begin_w;
-    const int slice_begin_z = begin_z;
-    const int slice_begin_y = begin_y;
-    const int slice_begin_x = begin_x;
-
-    const int slice_steps_batch = step_batch;
-    const int slice_steps_feature = step_feature;
-    const int slice_steps_w = step_w;
-    const int slice_steps_z = step_z;
-    const int slice_steps_y = step_y;
-    const int slice_steps_x = step_x;
-
 #if NEW_AXIS_MODE
     // If NEW_AXIS_MODE that just copy input to output
 #ifdef INPUT0_LAYOUT_BFYX
@@ -314,7 +300,7 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint y_input = yx_input / OUTPUT_SIZE_X;
     const uint x_input = yx_input % OUTPUT_SIZE_X;
 #endif
-    
+
     const uint input_index = INPUT0_OFFSET +
         batch * INPUT0_BATCH_PITCH +
         input_feature_id * INPUT0_FEATURE_PITCH +
@@ -342,7 +328,7 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint x = yx % OUTPUT_SIZE_X;
     const uint output_index = OUTPUT_GET_INDEX(batch, feature, w, z, y, x);
 #endif
-    
+
     output[output_index] = input[input_index];
 
 #else // NEW_AXIS_MODE
@@ -369,37 +355,37 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
 #if SHRINK_MODE
     const uint in_indices[] = {INPUT_INDICES_ORDER};
     const uint input_index = INPUT0_OFFSET +
-        (slice_begin_batch + in_indices[0] * slice_steps_batch) * INPUT0_BATCH_PITCH +
-        (slice_begin_feature + in_indices[1] * slice_steps_feature) * INPUT0_FEATURE_PITCH +
+        (begin_batch + in_indices[0] * step_batch) * INPUT0_BATCH_PITCH +
+        (begin_feature + in_indices[1] * step_feature) * INPUT0_FEATURE_PITCH +
     #if INPUT0_LAYOUT_BFWZYX
-        (slice_begin_w + in_indices[2] * slice_steps_w) * INPUT0_W_PITCH +
-        (slice_begin_z + in_indices[3] * slice_steps_z) * INPUT0_Z_PITCH +
-        (slice_begin_y + in_indices[4] * slice_steps_y) * INPUT0_Y_PITCH +
-        (slice_begin_x + in_indices[5] * slice_steps_x) * INPUT0_X_PITCH;
+        (begin_w + in_indices[2] * step_w) * INPUT0_W_PITCH +
+        (begin_z + in_indices[3] * step_z) * INPUT0_Z_PITCH +
+        (begin_y + in_indices[4] * step_y) * INPUT0_Y_PITCH +
+        (begin_x + in_indices[5] * step_x) * INPUT0_X_PITCH;
     #elif INPUT0_LAYOUT_BFZYX
-        (slice_begin_z + in_indices[2] * slice_steps_z) * INPUT0_Z_PITCH +
-        (slice_begin_y + in_indices[3] * slice_steps_y) * INPUT0_Y_PITCH +
-        (slice_begin_x + in_indices[4] * slice_steps_x) * INPUT0_X_PITCH;
+        (begin_z + in_indices[2] * step_z) * INPUT0_Z_PITCH +
+        (begin_y + in_indices[3] * step_y) * INPUT0_Y_PITCH +
+        (begin_x + in_indices[4] * step_x) * INPUT0_X_PITCH;
     #else
-        (slice_begin_y + in_indices[2] * slice_steps_y) * INPUT0_Y_PITCH +
-        (slice_begin_x + in_indices[3] * slice_steps_x) * INPUT0_X_PITCH;
+        (begin_y + in_indices[2] * step_y) * INPUT0_Y_PITCH +
+        (begin_x + in_indices[3] * step_x) * INPUT0_X_PITCH;
     #endif
 #else // SHRINK_MODE
     const uint input_index = INPUT0_OFFSET +
-            (slice_begin_batch + batch * slice_steps_batch) * INPUT0_BATCH_PITCH +
-            (slice_begin_feature + feature * slice_steps_feature) * INPUT0_FEATURE_PITCH +
+        (begin_batch + batch * step_batch) * INPUT0_BATCH_PITCH +
+        (begin_feature + feature * step_feature) * INPUT0_FEATURE_PITCH +
     #if INPUT0_LAYOUT_BFWZYX
-            (slice_begin_w + w * slice_steps_w) * INPUT0_W_PITCH +
-            (slice_begin_z + z * slice_steps_z) * INPUT0_Z_PITCH +
-            (slice_begin_y + y * slice_steps_y) * INPUT0_Y_PITCH +
-            (slice_begin_x + x * slice_steps_x) * INPUT0_X_PITCH;
+        (begin_w + w * step_w) * INPUT0_W_PITCH +
+        (begin_z + z * step_z) * INPUT0_Z_PITCH +
+        (begin_y + y * step_y) * INPUT0_Y_PITCH +
+        (begin_x + x * step_x) * INPUT0_X_PITCH;
     #elif INPUT0_LAYOUT_BFZYX
-            (slice_begin_z + z * slice_steps_z) * INPUT0_Z_PITCH +
-            (slice_begin_y + y * slice_steps_y) * INPUT0_Y_PITCH +
-            (slice_begin_x + x * slice_steps_x) * INPUT0_X_PITCH;
+        (begin_z + z * step_z) * INPUT0_Z_PITCH +
+        (begin_y + y * step_y) * INPUT0_Y_PITCH +
+        (begin_x + x * step_x) * INPUT0_X_PITCH;
     #else
-            (slice_begin_y + y * slice_steps_y) * INPUT0_Y_PITCH +
-            (slice_begin_x + x * slice_steps_x) * INPUT0_X_PITCH;
+        (begin_y + y * step_y) * INPUT0_Y_PITCH +
+        (begin_x + x * step_x) * INPUT0_X_PITCH;
     #endif
 #endif // SHRINK_MODE
 
