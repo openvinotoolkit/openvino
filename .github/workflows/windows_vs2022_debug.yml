@@ -61,8 +61,8 @@ jobs:
         variant:
           - name: baseline
             runner: aks-win-32-cores-128gb-build-st
-          - name: nvme
-            runner: aks-win-32-cores-128gb-nvme-st
+          # - name: nvme
+          #   runner: aks-win-32-cores-128gb-nvme-st
           - name: tempdisk
             runner: aks-win-32-cores-128gb-tdsk-st
           - name: amd
@@ -71,8 +71,10 @@ jobs:
             runner: aks-win-32-cores-64gb-ram-st
           - name: amd_nvme
             runner: aks-win-32-cores-64gb-amd-nvme-st
+          - name: more_cores_amd_nvme
+            runner: aks-win-64-cores-128gb-amd-nvme-st
         cache:
-          - False # cache doesn't work in Windows Debug builds
+          - True
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
     name: "Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"

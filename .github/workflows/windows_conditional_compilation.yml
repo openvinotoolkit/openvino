@@ -60,15 +60,17 @@ jobs:
         variant:
           - name: baseline
             runner: aks-win-32-cores-128gb-build-st
-          - name: nvme
-            runner: aks-win-32-cores-128gb-nvme-st
+          # - name: nvme
+          #   runner: aks-win-32-cores-128gb-nvme-st
           - name: tempdisk
             runner: aks-win-32-cores-128gb-tdsk-st
           - name: amd
             runner: aks-win-32-cores-128gb-amd-st
+          - name: more_cores_amd_nvme
+            runner: aks-win-64-cores-128gb-amd-nvme-st
         cache:
-        #  - True # Getting 0% cache hits, turn on after this will be fixed
-          - False
+          - True
+        #  - False
     name: "Build OpenVINO - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"
     needs: Smart_CI
     timeout-minutes: 300 # 5 hours without cache
@@ -82,8 +84,8 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config' # Visual Studio does not seem to work with `ccache`. Ninja is the generator supported by `ccache`
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_itt\\${{ github.base_ref || github.ref_name }}"
-      CCACHE_DIR: ${{ github.workspace }}\\ccache
+      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\staging\\windows2022_x86_64_itt\\${{ github.base_ref || github.ref_name }}"
+      CCACHE_DIR: ${{ github.workspace }}\\ccache\\staging
       CCACHE_MAXSIZE: 3G
       CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
@@ -170,8 +172,8 @@ jobs:
         uses: ./openvino/.github/actions/cache
         if: ${{ matrix.cache == true }}
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: true
+          cleanup-always: true
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}

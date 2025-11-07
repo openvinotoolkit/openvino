@@ -63,8 +63,8 @@ jobs:
         variant:
           - name: 'baseline'
             runner: 'aks-win-16-cores-32gb-build-st'
-          - name: 'nvme'
-            runner: 'aks-win-16-cores-32gb-nvme-st'
+          # - name: 'nvme'
+          #   runner: 'aks-win-16-cores-32gb-nvme-st'
           - name: 'managed-disk'
             runner: 'aks-win-16-cores-32gb-mdsk-st'
           - name: 'd-size'
@@ -72,8 +72,8 @@ jobs:
           - name: 'amd_nvme'
             runner: 'aks-win-16-cores-32gb-amd-nvme-st'
         cache:
-          # - True # Getting 0% cache hits, turn on after this will be fixed
-          - False
+          - True
+          # - False
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
     name: "Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"
