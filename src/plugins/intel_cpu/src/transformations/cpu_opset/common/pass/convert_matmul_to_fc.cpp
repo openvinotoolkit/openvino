@@ -48,7 +48,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     MATCHER_SCOPE(ConvertMatMulToFC);
     auto activations_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto weights_path = [](const ov::Output<ov::Node>& output) {
-        return ov::op::util::is_on_constant_path(output);
+        return ov::op::util::is_on_path<ov::op::v0::Constant>(output);
     };
     auto weights_m = ov::pass::pattern::any_input(weights_path);
     auto matmul_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m},

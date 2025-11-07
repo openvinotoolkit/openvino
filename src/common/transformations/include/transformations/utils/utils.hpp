@@ -17,6 +17,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/op.hpp"
 #include "openvino/util/pp.hpp"
@@ -287,7 +288,43 @@ TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>&
 
 TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v);
 
-TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output);
+template <typename... AllowedTypes>
+bool is_on_path(const ov::Output<ov::Node>& output) {
+    auto status = true;
+
+    auto root_node = output.get_node();
+    if (!root_node || root_node->get_output_size() == 0) {
+        return false;
+    }
+    std::deque<ov::Node*> nodes_to_calculate = {root_node};
+
+    std::unordered_set<ov::Node*> visited;
+    while (status && !nodes_to_calculate.empty()) {
+        auto current_node = nodes_to_calculate.front();
+        nodes_to_calculate.pop_front();
+        if (visited.count(current_node)) {
+            continue;
+        }
+        visited.insert(current_node);
+        // RandomUniform output changes during runtime, so we should not consider it as a constant
+        if (current_node->get_type_info() == ov::op::v8::RandomUniform::get_type_info_static()) {
+            return false;
+        }
+
+        if (current_node->get_input_size() == 0 && !(ov::is_type_any_of<AllowedTypes...>(current_node))) {
+            status = false;
+        } else {
+            // not a leaf - continue to search
+            for (const auto& input_value : current_node->input_values()) {
+                const auto& input_node = input_value.get_node();
+                if (!visited.count(input_node)) {
+                    nodes_to_calculate.push_front(input_node);
+                }
+            }
+        }
+    }
+    return status;
+}
 
 TRANSFORMATIONS_API bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node);
 

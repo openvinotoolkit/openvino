@@ -97,7 +97,7 @@ bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
     const auto rank_w = out_weights.get_partial_shape().rank();
     return out_weights.get_partial_shape().is_static() && rank_a.is_static() && rank_w.is_static() &&
            rank_a.get_length() != 1 && rank_w.get_length() != 1 && rank_w.get_length() <= 3 &&
-           ov::op::util::is_on_constant_path(out_weights);
+           ov::op::util::is_on_path<ov::op::v0::Constant>(out_weights);
 }
 
 bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node>& node) {
@@ -171,7 +171,8 @@ bool isSuitableChildForFusingBias(const std::shared_ptr<const Node>& node, int f
             }
             const auto bias_port = 1 - in.get_index();
             const auto bias_out = node->input_value(bias_port);
-            if ((bias_out.get_target_inputs().size() > 1) || !ov::op::util::is_on_constant_path(bias_out)) {
+            if ((bias_out.get_target_inputs().size() > 1) ||
+                !ov::op::util::is_on_path<ov::op::v0::Constant>(bias_out)) {
                 break;
             }
             const auto& bias_pshape = bias_out.get_partial_shape();
@@ -255,7 +256,7 @@ auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
     return ov::is_type<ov::op::v0::MatMul>(node) &&
            !ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1)) &&
-           ov::op::util::is_on_constant_path(node->input_value(1));
+           ov::op::util::is_on_path<ov::op::v0::Constant>(node->input_value(1));
 }
 
 }  // namespace

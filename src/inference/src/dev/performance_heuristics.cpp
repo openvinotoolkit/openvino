@@ -62,7 +62,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 output.get_partial_shape().is_static()) {
                 const auto& shapeInput0 = input0.get_shape();
                 const auto& shapeInput1 = input1.get_shape();
-                const auto non_const = !ov::op::util::is_on_constant_path(node->input_value(1));
+                const auto non_const = !ov::op::util::is_on_path<ov::op::v0::Constant>(node->input_value(1));
                 const auto& shapeOutput = output.get_shape();
                 const auto dataSizeInput0 =
                     std::accumulate(shapeInput0.begin(), shapeInput0.end(), size_t(1), std::multiplies<size_t>());

@@ -41,6 +41,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "shape_inference/custom/gathermatmul.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
@@ -253,7 +254,7 @@ bool GatherMatmul::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
         }
 
         // Check that weights input (port 1) is constant
-        if (!ov::op::util::is_on_constant_path(op->input_value(WEIGHTS))) {
+        if (!ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(WEIGHTS))) {
             errorMessage = "Only constant weights are supported for GatherMatmul operation";
             return false;
         }
@@ -261,14 +262,14 @@ bool GatherMatmul::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
         // For compressed variant, check that scales and zero points are constant
         if (isBatchGatherMatmulCompressed) {
             if (op->get_input_size() > WEIGHT_SCALES) {
-                if (!ov::op::util::is_on_constant_path(op->input_value(WEIGHT_SCALES))) {
+                if (!ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(WEIGHT_SCALES))) {
                     errorMessage = "Only constant weight scales are supported for GatherMatmul operation";
                     return false;
                 }
             }
 
             if (op->get_input_size() > WEIGHT_ZERO_POINTS) {
-                if (!ov::op::util::is_on_constant_path(op->input_value(WEIGHT_ZERO_POINTS))) {
+                if (!ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(WEIGHT_ZERO_POINTS))) {
                     errorMessage = "Only constant weight zero points are supported for GatherMatmul operation";
                     return false;
                 }
@@ -280,7 +281,7 @@ bool GatherMatmul::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
             const auto& biasInput = op->input_value(BIAS);
             // Skip validation if bias is dynamic (empty constant)
             if (biasInput.get_element_type() != ov::element::dynamic) {
-                if (!ov::op::util::is_on_constant_path(biasInput)) {
+                if (!ov::op::util::is_on_path<ov::op::v0::Constant>(biasInput)) {
                     errorMessage = "Only constant bias is supported for GatherMatmul operation";
                     return false;
                 }
