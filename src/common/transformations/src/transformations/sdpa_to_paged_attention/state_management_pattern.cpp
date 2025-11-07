@@ -39,6 +39,11 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+#define NUM_K_HEADS "num_k_heads"
+#define K_HEAD_SIZE "k_head_size"
+#define NUM_V_HEADS "num_v_heads"
+#define V_HEAD_SIZE "v_head_size"
+
 using namespace ov::op;
 using namespace ov::pass;
 using ov::OutputVector;
@@ -259,32 +264,30 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
     return node_tuple(kv_past_par, kv_current2, kv_current_reshaped, kv_concat);
 }
 
-static ov::Dimension extract_num_kv_heads(std::shared_ptr<ov::Node> unsqueeze,
+static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqueeze_pattern,
                                           const ov::Dimension& default_heads_num,
                                           const ov::pass::pattern::PatternValueMap& pattern_map) {
     // Deduce number of k/v heads from Unsqueeze-Broadcast-Reshape (UBR pattern, if present)
     // pattern that appears in case of MQA/GQA.
     // In case if UBR pattern doesn't appear, the default number of heads is used passed as default_heads_num.
-    if (pattern_map.find(unsqueeze) != pattern_map.end()) {
+    if (pattern_map.find(unsqueeze_pattern) != pattern_map.end()) {
         // based on unsqueeze index determine the dimension that will be broadcased
         // if there is no expected dimension for any reason, return dynamic dimension
-        unsqueeze = pattern_map.at(unsqueeze).get_node_shared_ptr();
+        auto unsqueeze = pattern_map.at(unsqueeze_pattern).get_node_shared_ptr();
         auto shape = unsqueeze->get_output_partial_shape(0);
         auto rank = shape.rank();
         if (rank.is_dynamic()) {
             return ov::Dimension();
         }
-        rank = rank.get_length();
-        auto axis = unsqueeze->input_value(1).get_node_shared_ptr();
-        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(axis);
+        auto axis = unsqueeze->get_input_node_ptr(1);
+        auto constant = ov::as_type<ov::op::v0::Constant>(axis);
         if (!constant) {
             return ov::Dimension();
         }
-        auto data = constant->cast_vector<int64_t>();
-        if (data.size() != 1) {  // it should be only one axis
+        if (ov::shape_size(constant->get_output_shape(0)) != 1) {  // it should be only one axis
             return ov::Dimension();
         }
-        auto first_element = data[0];
+        auto first_element = constant->cast_vector<int64_t>(1)[0];
         if (first_element == 0 ||
             first_element == -rank.get_length()) {  // there should be at least one dimension to the left
             return ov::Dimension();
@@ -699,10 +702,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         OPENVINO_ASSERT(pa_arguments.size() == 21);
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
-        paged_attention->get_rt_info()["num_k_heads"] = num_k_heads;
-        paged_attention->get_rt_info()["k_head_size"] = k_head_size;
-        paged_attention->get_rt_info()["num_v_heads"] = num_v_heads;
-        paged_attention->get_rt_info()["v_head_size"] = v_head_size;
+        paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
+        paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
+        paged_attention->get_rt_info()[NUM_V_HEADS] = num_v_heads;
+        paged_attention->get_rt_info()[V_HEAD_SIZE] = v_head_size;
 
         // The output shape of PagedAttention will be converted to [batch, 1, head_num, head_size_v], the head_size_v
         // may be different from head_size_q/head_size_k. The head_size_v could be got from the shape of value input
