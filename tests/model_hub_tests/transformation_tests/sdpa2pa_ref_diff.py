@@ -1019,6 +1019,27 @@ ref_diff_map = {
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},
+	"optimum-intel-internal-testing/tiny-marian-en-de" : {
+		"Assign" : -4,
+		"PagedAttentionExtension" : 2,
+		"Parameter" : 8,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+	},
+	"optimum-intel-internal-testing/tiny-random-bart" : {
+		"Assign" : -4,
+		"PagedAttentionExtension" : 2,
+		"Parameter" : 8,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+	},
+	"optimum-intel-internal-testing/tiny-random-mbart" : {
+		"Assign" : -4,
+		"PagedAttentionExtension" : 2,
+		"Parameter" : 8,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+	},
 }
 
 ref_diff_map_optimizations = {
@@ -2043,6 +2064,27 @@ ref_diff_map_optimizations = {
 		"Assign" : -4,
 		"PagedAttentionExtension" : 2,
 		"Parameter" : 18,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+	},
+	"optimum-intel-internal-testing/tiny-marian-en-de" : {
+		"Assign" : -4,
+		"PagedAttentionExtension" : 2,
+		"Parameter" : 19,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+	},
+	"optimum-intel-internal-testing/tiny-random-bart" : {
+		"Assign" : -4,
+		"PagedAttentionExtension" : 2,
+		"Parameter" : 19,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+	},
+	"optimum-intel-internal-testing/tiny-random-mbart" : {
+		"Assign" : -4,
+		"PagedAttentionExtension" : 2,
+		"Parameter" : 19,
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},

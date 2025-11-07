@@ -91,3 +91,6 @@ optimum-intel-internal-testing/tiny-random-qwen,https://huggingface.co/optimum-i
 optimum-intel-internal-testing/tiny-random-qwen1.5-moe,https://huggingface.co/optimum-intel-internal-testing/tiny-random-qwen1.5-moe
 optimum-intel-internal-testing/tiny-random-snowflake,https://huggingface.co/optimum-intel-internal-testing/tiny-random-snowflake
 optimum-intel-internal-testing/tiny-random-xverse,https://huggingface.co/optimum-intel-internal-testing/tiny-random-xverse
+optimum-intel-internal-testing/tiny-marian-en-de,https://huggingface.co/optimum-intel-internal-testing/tiny-marian-en-de
+optimum-intel-internal-testing/tiny-random-bart,https://huggingface.co/optimum-intel-internal-testing/tiny-random-bart
+optimum-intel-internal-testing/tiny-random-mbart,https://huggingface.co/optimum-intel-internal-testing/tiny-random-mbart
