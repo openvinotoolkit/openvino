@@ -23,7 +23,6 @@ struct ZeroInitStructsMock {
     ~ZeroInitStructsMock();
 
     void initNpuDriver();
-    void destroy_context();
 
     std::shared_ptr<intel_npu::ZeroApi> zero_api;
 

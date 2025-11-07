@@ -243,9 +243,4 @@ ze_context_handle_t ZeroRemoteTensor::get_zero_context_handle() const {
     return _init_structs->getContext();
 }
 
-ZeroRemoteTensor::~ZeroRemoteTensor() {
-    _host_memory = {};
-    _init_structs->destroy();
-}
-
 }  // namespace intel_npu

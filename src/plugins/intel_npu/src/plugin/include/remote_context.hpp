@@ -21,7 +21,7 @@ class RemoteContextImpl : public ov::IRemoteContext {
 public:
     RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBackend, const ov::AnyMap& remote_properties = {});
 
-    ~RemoteContextImpl();
+    ~RemoteContextImpl() override = default;
 
     /**
      * @brief Returns name of a device on which underlying object is allocated.

@@ -7,6 +7,7 @@
 #include <ze_command_queue_npu_ext.h>
 #include <ze_mem_import_system_memory_ext.h>
 
+#include <mutex>
 #include <regex>
 
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -365,40 +366,19 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
 }
 
 const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {
-    std::lock_guard<std::mutex> lock(getMutex());
-    auto instance = getInstanceStorage().lock();
+    static std::mutex mutex;
+    static std::weak_ptr<ZeroInitStructsHolder> weak_instance;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto instance = weak_instance.lock();
     if (!instance) {
         instance = std::make_shared<ZeroInitStructsHolder>();
-        getInstanceStorage() = instance;
+        weak_instance = instance;
     }
     return instance;
 }
 
-void ZeroInitStructsHolder::destroy() {
-    std::lock_guard<std::mutex> lock(getMutex());
-    auto instance = getInstanceStorage().lock();
-    if (instance && instance.use_count() == 2) {
-        instance->destroy_context();
-        // reset weak pointer
-        getInstanceStorage().reset();
-        // reset shared pointer
-        instance.reset();
-    }
-    // don't destroy if ref count is higher than 2.
-    // one is after getInstanceStorage().lock() and another one is hold by the caller
-}
-
-std::weak_ptr<ZeroInitStructsHolder>& ZeroInitStructsHolder::getInstanceStorage() {
-    static std::weak_ptr<ZeroInitStructsHolder> weak_instance;
-    return weak_instance;
-}
-
-std::mutex& ZeroInitStructsHolder::getMutex() {
-    static std::mutex mutex;
-    return mutex;
-}
-
-void ZeroInitStructsHolder::destroy_context() {
+ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     if (context) {
         if (context_npu_dditable_ext_decorator->version() >= ZE_MAKE_VERSION(1, 0)) {
             context_options &= ~(ZE_NPU_CONTEXT_OPTION_ENABLE_IDLE_OPTIMIZATIONS);
@@ -419,10 +399,6 @@ void ZeroInitStructsHolder::destroy_context() {
             }
         }
     }
-}
-
-ZeroInitStructsHolder::~ZeroInitStructsHolder() {
-    destroy_context();
 }
 
 }  // namespace intel_npu
