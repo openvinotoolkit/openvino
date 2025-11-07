@@ -753,9 +753,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
 
 void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& stream,
                                                              const ov::npuw::s11n::WeightsContext& ctx,
-                                                             const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                             const std::string& device,
-                                                             const ov::SoPtr<ov::ICompiledModel>& compiled_model) {
+                                                             const ov::npuw::s11n::PyramidCtx& pyramid_ctx) {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Deserializing CompiledModelDesc...");
@@ -791,12 +789,13 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
                 std::string model_str;
                 read(stream, model_str);
                 std::stringstream ss(model_str);
-                pyramid_attention->_compiled_models[i] = plugin->get_core()->import_model(ss, device);
+                pyramid_attention->_compiled_models[i] =
+                    pyramid_ctx.plugin->get_core()->import_model(ss, pyramid_ctx.device);
             }
 
             // Reuse the already compiled model for the last pyramid attention model
-            if (compiled_model) {
-                pyramid_attention->_compiled_models[num_models - 1] = compiled_model;
+            if (pyramid_ctx.compiled_model) {
+                pyramid_attention->_compiled_models[num_models - 1] = pyramid_ctx.compiled_model;
                 LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
             }
         }
@@ -1286,11 +1285,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                     plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
             }
             compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
-            compiled->m_compiled_submodels[i].deserialize(stream,
-                                                          compiled->m_import_weights_ctx,
-                                                          plugin,
-                                                          compiled->m_dev_list[device_idx],
-                                                          compiled->m_compiled_submodels[i].compiled_model);
+
+            ov::npuw::s11n::PyramidCtx pyramid_ctx(plugin,
+                                                   compiled->m_dev_list[device_idx],
+                                                   compiled->m_compiled_submodels[i].compiled_model);
+            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx, pyramid_ctx);
         }
 
         compiled->implement_properties();

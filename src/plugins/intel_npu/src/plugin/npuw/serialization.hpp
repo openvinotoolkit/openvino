@@ -47,10 +47,14 @@ namespace ov {
 class Any;
 class Node;
 class Tensor;
+class IPlugin;
+class ICompiledModel;
 template <class>
 class Output;
 template <class>
 class SharedBuffer;
+template <class>
+struct SoPtr;
 class MappedMemory;
 class Model;
 enum class CacheMode;
@@ -142,6 +146,19 @@ struct WeightsContext {
     std::string weights_path;
     ConstsCache consts_cache;
     BF16Cache bf16_consts;
+};
+
+struct PyramidCtx {
+    PyramidCtx(const std::shared_ptr<const ov::IPlugin>& _plugin,
+               const std::string& _device,
+               const ov::SoPtr<ov::ICompiledModel>& _compiled_model)
+        : plugin(_plugin),
+          device(_device),
+          compiled_model(_compiled_model) {}
+
+    std::shared_ptr<const ov::IPlugin> plugin;
+    std::string device;
+    const ov::SoPtr<ov::ICompiledModel>& compiled_model;
 };
 
 BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);

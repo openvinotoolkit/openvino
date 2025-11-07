@@ -224,9 +224,7 @@ private:
         void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
         void deserialize(std::istream& stream,
                          const ov::npuw::s11n::WeightsContext& ctx,
-                         const std::shared_ptr<const ov::IPlugin>& plugin,
-                         const std::string& device,
-                         const ov::SoPtr<ov::ICompiledModel>& compiled_model);
+                         const ov::npuw::s11n::PyramidCtx& pyramid_ctx);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
