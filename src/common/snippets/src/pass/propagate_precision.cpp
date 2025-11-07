@@ -142,6 +142,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
                     if (can_be_removed(actual_before, actual_after, required_after)) {
                         // remove existing convert
                         existing_convert->output(0).replace(parent_output);
+                        ov::op::util::disconnect_output_from_consumers(existing_convert->output(0), parent_output);
                         continue;
                     }
 
