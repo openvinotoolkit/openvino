@@ -10,7 +10,7 @@
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "ir_serializer.hpp"
+#include "vcl_serializer.hpp"
 
 namespace intel_npu {
 

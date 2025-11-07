@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
 
 namespace intel_npu {
@@ -11,7 +12,7 @@ namespace intel_npu {
 class ICompilerAdapter {
 public:
     virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
-                                            const Config& config) const = 0;
+                                            const FilteredConfig& config) const = 0;
 
     /**
      * @brief Compiles the model, weights separation enabled.
@@ -27,7 +28,8 @@ public:
      * "icompiler.hpp".
      * @return A "WeightlessGraph" type of object.
      */
-    virtual std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model, const Config& config) const = 0;
+    virtual std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model,
+                                              const FilteredConfig& config) const = 0;
 
     /**
      * @brief Parses the provided binary objects and returns a wrapper over the resulted L0 handles. The model may also
@@ -44,11 +46,12 @@ public:
      */
     virtual std::shared_ptr<IGraph> parse(
         ov::Tensor mainBlob,
-        const Config& config,
+        const FilteredConfig& config,
         std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
         const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt) const = 0;
 
-    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
+    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
+                                      const FilteredConfig& config) const = 0;
     virtual uint32_t get_version() const = 0;
     virtual std::vector<std::string> get_supported_options() const = 0;
     virtual bool is_option_supported(std::string optname) const = 0;
