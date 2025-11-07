@@ -2480,3 +2480,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_where_u8) {
     test_case.add_expected_output<uint8_t>(Shape{4, 5, 6}, expected_output);
     test_case.run();
 }
+
+/// @brief Testing default value assignment to the 'epsilon' attribute of the
+/// SkipLayerNormalization operation. Model and input were taken from a bug report.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_default_epsilon) {
+    const auto model = convert_model("skip_layer_normalization_with_default_epsilon.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2, 3},
+                               {-0.6251511f, -0.5969454f, 0.13909698f, -0.27613088f, 0.00713499f, -0.06079938f});
+
+    test_case.add_expected_output<float>(Shape{2, 3},
+                                         {-0.7465922f, -0.6668722f, 1.4134643f, -1.3764048f, 0.96950716f, 0.40689772f});
+
+    test_case.run();
+}
