@@ -8,8 +8,8 @@
 
 #include "compare.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape_util.hpp"
-#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -39,7 +39,7 @@ size_t ITensor::get_size() const {
 }
 
 size_t ITensor::get_byte_size() const {
-    return element::get_memory_size(get_element_type(), get_size());
+    return util::get_memory_size(get_element_type(), get_size());
 }
 
 bool ITensor::is_continuous() const {
@@ -60,6 +60,8 @@ bool ITensor::is_continuous() const {
     }
 
     const auto default_last = default_strides.rend();
+    // It assumed that `default_strides' and `strides' have the same size, thus `default_stride' iterator is valid
+    // coverity[deref_iterator:SUPPRESS]
     return (default_stride == default_last) || (*default_stride < *stride && (get_shape()[0] == 1) &&
                                                 std::all_of(default_stride, default_last, cmp::Equal(*default_stride)));
 }

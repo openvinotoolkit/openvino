@@ -40,7 +40,6 @@
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -924,6 +923,7 @@ void RNN::fillSequenceDesc() {
 template <element::Type_t ET>
 void RNN::fillWeights() {
     using DataType = typename element_type_traits<ET>::value_type;
+    const auto& cpu_parallel = context->getCpuParallel();
     CPU_NODE_ASSERT(getParentEdgeAt(wIdx)->getParent()->getType() == Type::Input, "expects Constant for port ", wIdx);
     auto w_const_blob = static_cast<Input*>(getParentEdgeAt(wIdx)->getParent().get())->getMemoryPtr();
     CPU_NODE_ASSERT(getParentEdgeAt(rIdx)->getParent()->getType() == Type::Input, "expects Constant for port ", rIdx);
@@ -956,7 +956,7 @@ void RNN::fillWeights() {
 
         const uint64_t step = SC * G;
         const uint64_t SC_DC = SC * DC;
-        parallel_for2d(G, SC, [&](size_t g, size_t out_i) {
+        cpu_parallel->parallel_for2d(G, SC, [&](size_t g, size_t out_i) {
             DataType* l_w_ptr = w_ptr + m_gate_map[g] * SC + out_i;
             DataType* s_w_ptr = ie_w_ptr + out_i * DC + g * SC_DC;
             for (size_t in_i = 0; in_i < DC; in_i++) {
@@ -992,7 +992,7 @@ void RNN::fillWeights() {
 
         const uint64_t step = SC * G;
         const uint64_t SC_2 = SC * SC;
-        parallel_for2d(G, SC, [&](size_t g, size_t out_i) {
+        cpu_parallel->parallel_for2d(G, SC, [&](size_t g, size_t out_i) {
             DataType* l_r_ptr = r_ptr + m_gate_map[g] * SC + out_i;
             DataType* s_r_ptr = ie_r_ptr + out_i * SC + g * SC_2;
             for (size_t in_i = 0; in_i < SC; in_i++) {
@@ -1024,6 +1024,7 @@ void RNN::fillWeights() {
 template <element::Type_t ET>
 void RNN::fillBiases() {
     using DataType = typename element_type_traits<ET>::value_type;
+    const auto& cpu_parallel = context->getCpuParallel();
 
     CPU_NODE_ASSERT(getParentEdgeAt(bIdx)->getParent()->getType() == Type::Input, "expects Constant for port ", bIdx);
     auto b_const_blob = static_cast<Input*>(getParentEdgeAt(bIdx)->getParent().get())->getMemoryPtr();
@@ -1062,7 +1063,7 @@ void RNN::fillBiases() {
         }
 
         const uint64_t step = SC * sizeof(DataType);
-        parallel_for(Gb, [&](size_t g) {
+        cpu_parallel->parallel_for(Gb, [&](size_t g) {
             DataType* l_b_ptr = b_ptr + m_gate_map[g] * SC;
             const DataType* l_ie_b_ptr = ie_b_ptr + g * SC;
             cpu_memcpy(l_b_ptr, l_ie_b_ptr, step);
@@ -1087,7 +1088,10 @@ void RNN::prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) {
     auto create = [&]() {
         Memory memory{getEngine(), m_initial_weights[idx]->getDescPtr(), m_initial_weights[idx]->getData()};
         MemoryPtr res_ptr = std::make_shared<Memory>(getEngine(), new_desc);
-        node::Reorder::reorderData(memory, *res_ptr, context->getParamsCache());
+        node::Reorder::reorderData(memory,
+                                   *res_ptr,
+                                   context->getParamsCache(),
+                                   context->getCpuParallel()->get_thread_pool());
         return res_ptr;
     };
 
@@ -1496,10 +1500,6 @@ void RNN::cleanup() {
     }
 
     for (const auto& it : fusedWith) {
-        it->cleanup();
-    }
-
-    for (const auto& it : mergedWith) {
         it->cleanup();
     }
 }

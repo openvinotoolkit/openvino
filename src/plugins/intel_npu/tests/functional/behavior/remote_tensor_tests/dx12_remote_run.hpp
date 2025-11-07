@@ -8,15 +8,14 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "openvino/core/any.hpp"
-#include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
-#include "overload/overload_test_utils_npu.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 #ifdef _WIN32
 #    ifdef ENABLE_DX12
@@ -59,7 +58,6 @@ protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> ov_model;
-    ov::CompiledModel compiled_model;
 
     Microsoft::WRL::ComPtr<IDXCoreAdapter> adapter;
     Microsoft::WRL::ComPtr<ID3D12Device9> device;
@@ -70,7 +68,7 @@ protected:
     HANDLE shared_mem = nullptr;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
@@ -261,13 +259,14 @@ public:
 TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
     auto tensor = inference_request.get_input_tensor();
 
-    const auto byte_size = ov::element::get_memory_size(ov::element::f32, shape_size(tensor.get_shape()));
+    const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(tensor.get_shape()));
 
     auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
 
@@ -286,13 +285,14 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
 TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
     auto tensor = inference_request.get_input_tensor();
 
-    const auto byte_size = ov::element::get_memory_size(ov::element::f32, shape_size(tensor.get_shape()));
+    const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(tensor.get_shape()));
 
     auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
 
@@ -317,7 +317,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
 
     // set random output tensor
     auto output_tensor = inference_request.get_output_tensor();
-    const auto output_byte_size = ov::element::get_memory_size(ov::element::f32, shape_size(output_tensor.get_shape()));
+    const auto output_byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(output_tensor.get_shape()));
 
     float* output_random_buffer_tensor = new float[output_byte_size / sizeof(float)];
     memset(output_random_buffer_tensor, 1, output_byte_size);
@@ -333,6 +333,7 @@ TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     float* data;
 
@@ -341,7 +342,7 @@ TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
     auto tensor = inference_request.get_input_tensor();
 
     auto shape = tensor.get_shape();
-    const auto byte_size = ov::element::get_memory_size(ov::element::f32, shape_size(shape));
+    const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(shape));
     tensor = {};
 
     createResources(byte_size);

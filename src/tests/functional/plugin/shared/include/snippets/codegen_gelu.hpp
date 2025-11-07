@@ -21,7 +21,7 @@ typedef std::tuple<
 class CodegenGelu : public testing::WithParamInterface<ov::test::snippets::CodegenGeluParams>,
                     virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::CodegenGeluParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::CodegenGeluParams>& obj);
 
 protected:
     void SetUp() override;

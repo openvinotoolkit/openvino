@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -56,6 +57,10 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
                    const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                    Config config)
     : LinearIR(std::move(config), factory) {
+    const auto total_nodes = model->get_ops().size();
+    const auto inputs_count = model->get_parameters().size();
+    const auto outputs_count = model->get_results().size();
+    OPENVINO_ASSERT(total_nodes > inputs_count + outputs_count, "LinearIR is empty (only Parameters/Results)");
     auto last_param = m_expressions.end();
     for (const auto& n : get_ordered_ops(model)) {
         auto insertion_pos = m_expressions.end();
@@ -437,7 +442,7 @@ LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& o
     for (size_t i = 0; i < new_node->get_output_size(); ++i) {
         snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
             new_node->output(i),
-            last_old_expr->get_output_port_descriptor(0)->clone());
+            last_old_expr->get_output_port_descriptor(i)->clone());
     }
 
     const auto new_expr = create_expression(new_node, new_inputs, loop_ids, false);
@@ -578,21 +583,19 @@ double LinearIR::get_inserted_expr_exec_num(constExprIt insertion_pos) const {
         if (right_pos->get()->get_exec_num() == -1 * std::numeric_limits<double>::max()) {
             enumerate_expressions();
         }
-        return right_pos->get()->get_exec_num() - 1;
+        return std::nextafter(right_pos->get()->get_exec_num(), -std::numeric_limits<double>::infinity());
     }
     if (right_pos == cend()) {  // On the list end
         if (left_pos->get()->get_exec_num() == std::numeric_limits<double>::max()) {
             enumerate_expressions();
         }
-        return left_pos->get()->get_exec_num() + 1;
+        return std::nextafter(left_pos->get()->get_exec_num(), std::numeric_limits<double>::infinity());
     }  // In the list middle
     left_order = left_pos->get()->get_exec_num();
     right_order = right_pos->get()->get_exec_num();
     OPENVINO_ASSERT(right_order > left_order, "Incorrect expression enumeration!");
 
-    // sync point to enumerate expressions
-    // 10 * eps - is to avoid meaningless result after (right_order + left_order) / 2 below
-    if (std::abs(1 - left_order / right_order) <= 10 * std::numeric_limits<double>::epsilon()) {
+    if (std::nextafter(left_order, right_order) >= right_order) {
         enumerate_expressions();
         left_order = left_pos->get()->get_exec_num();
         right_order = right_pos->get()->get_exec_num();

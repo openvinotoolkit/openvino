@@ -124,7 +124,7 @@ void ArgMaxMinKernelAxis::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
         const size_t elem_size = prim_params.inputs[0].ElementSize();
-        const size_t iav_type_size = elem_size + 4;
+        const size_t iav_type_size = Align(elem_size + 4, 4);
         const size_t sort_size = getSortSize(prim_params);
         const size_t ops_size = getOperationNumber(prim_params);
         const size_t group_size = prim_params.topK >= 8 ? prim_params.topK : 8;

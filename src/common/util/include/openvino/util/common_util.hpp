@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
 #include <cstring>
 #include <numeric>
 #include <sstream>
@@ -76,6 +77,21 @@ inline size_t hash_combine(std::initializer_list<size_t>&& list) {
         seed ^= hash_combine(v, seed);
     }
     return seed;
+}
+
+constexpr uint64_t u64_hash_combine(uint64_t h, uint64_t k) {
+    // Hash combine formula from boost for uint64_t.
+    constexpr uint64_t m = 0xc6a4a7935bd1e995;
+    constexpr int r = 47;
+
+    k *= m;
+    k ^= k >> r;
+    k *= m;
+
+    h ^= k;
+    h *= m;
+
+    return h + 0xe6546b64;
 }
 
 /**
@@ -247,6 +263,41 @@ protected:
         return seekoff(pos, std::ios_base::beg, which);
     }
 };
+
+/**
+ * @brief Multiplies two integral values
+ *
+ * The result value is not valid if overflow detected.
+ *
+ * @param T       Type of values to multiply. Must be an integral type.
+ * @param x       First value to multiply.
+ * @param y       Second value to multiply.
+ * @param result  Reference to store result value.
+ * @return True if overflow occurs, false otherwise
+ */
+template <class T>
+constexpr bool mul_overflow(T x, T y, T& result) {
+    static_assert(std::is_integral_v<T>, "T must be an integral type");
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_mul_overflow(x, y, &result);
+#else
+    constexpr auto max = std::numeric_limits<T>::max();
+
+    if constexpr (std::is_unsigned_v<T>) {
+        if (y > 0 && x > max / y) {
+            return true;
+        }
+    } else {
+        constexpr auto min = std::numeric_limits<T>::lowest();
+        if ((x > 0 && y > 0 && x > max / y) || (x > 0 && y < 0 && y < min / x) || (x < 0 && y > 0 && x < min / y) ||
+            (x < 0 && y < 0 && x < max / y)) {
+            return true;
+        }
+    }
+    result = x * y;
+    return false;
+#endif
+}
 
 }  // namespace util
 }  // namespace ov

@@ -1,5 +1,5 @@
 numpy>=1.16.6,<2.4.0
-attrs==25.3.0
+attrs==25.4.0
 distro==1.9.0
 h5py>=3.1.0,<3.15.0
 Jinja2>=2.11.2
@@ -10,7 +10,7 @@ scipy>=1.11.1; python_version >= "3.9"
 sympy>=1.10
 wheel>=0.38.1
 defusedxml>=0.7.1
-tensorflow>=2.5,<2.20.0
+tensorflow>=2.5,<2.21.0
 requests>=2.25.1
 opencv-python>=4.5
 paddlepaddle==2.6.2
@@ -23,4 +23,5 @@ pytest-timeout==2.4.0
 kornia==0.8.1
 
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch~=2.7.0
+torch~=2.8.0
+torchvision~=0.23.0

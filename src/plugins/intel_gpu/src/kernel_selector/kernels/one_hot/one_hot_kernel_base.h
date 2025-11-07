@@ -12,12 +12,12 @@ namespace kernel_selector {
 // one_hot_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct one_hot_params : public base_params {
-    one_hot_params() : base_params(KernelType::ONE_HOT),
-    one_hot_axis(0), one_hot_limit(0), on_value(1.0), off_value(1.0) {}
+    one_hot_params() : base_params(KernelType::ONE_HOT), one_hot_axis(0), one_hot_limit(0), on_value(1.0), off_value(1.0), indices_normalize_mode(false) {}
     uint16_t one_hot_axis;
     int32_t one_hot_limit;
     float on_value;
     float off_value;
+    bool indices_normalize_mode;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

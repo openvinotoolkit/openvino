@@ -11,9 +11,11 @@
 #include <limits>
 #include <type_traits>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -191,6 +193,10 @@ inline void scale_add2_reduce_max(float* a,
                                   size_t size,
                                   float alibi_slope,
                                   float& max) {
+    OPENVINO_ASSERT(ov::intel_cpu::implication(has_alibi, alibi_lookup), "CPU: alibi_lookup should not be nullptr.");
+    OPENVINO_ASSERT(ov::intel_cpu::implication(has_attn_mask, attn_mask), "CPU: attn_mask should not be nullptr.");
+    OPENVINO_ASSERT(ov::intel_cpu::implication(has_causal_mask, causal_mask),
+                    "CPU: causal_mask should not be nullptr.");
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto v_max0 = _mm512_set1_ps(std::numeric_limits<float>::lowest());
@@ -956,8 +962,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
     }
 }
 
-template <typename T,
-          typename = std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
+template <typename T, typename = std::enable_if_t<ov::intel_cpu::any_of_v<T, ov::bfloat16, ov::float16>>>
 inline void multiply_scalar(float* a, T* a_dst, const float val, const size_t size) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
@@ -1068,6 +1073,7 @@ inline void attn_softmax_kernel(T* a,
                                 size_t total_size,
                                 ov::element::Type attn_mask_prec,
                                 ov::element::Type dst_precision,
+                                const float* sink,
                                 float alibi_slope = 0);
 
 template <>
@@ -1082,6 +1088,7 @@ inline void attn_softmax_kernel<float>(float* a,
                                        size_t total_size,
                                        ov::element::Type attn_mask_prec,
                                        ov::element::Type dst_precision,
+                                       const float* sink,
                                        float alibi_slope) {
     using func_fp32_type =
         void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float, float&);
@@ -1148,8 +1155,14 @@ inline void attn_softmax_kernel<float>(float* a,
     }
 
     float sum = 0.0f;
+    if (sink != nullptr) {
+        max = max > (*sink) ? max : (*sink);
+    }
     // exp sum
     exp_reduce_sum(a, max, len, sum);
+    if (sink != nullptr) {
+        sum += std::exp(*sink - max);
+    }
     // divide sum
     float scalar = 1.0f / sum;
     if (dst_precision == ov::element::f32) {
@@ -1185,6 +1198,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                              size_t total_size,
                                              ov::element::Type attn_mask_prec,
                                              ov::element::Type dst_precision,
+                                             const float* sink,
                                              float alibi_slope) {
     using func_fp32_type = void (*)(ov::float16*,
                                     float,

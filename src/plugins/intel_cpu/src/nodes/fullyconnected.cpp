@@ -38,7 +38,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
@@ -72,13 +71,13 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
     }
 #if defined(OPENVINO_ARCH_X86_64)
     ov::element::TypeVector supportedDataTypes =
-        {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
+        {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1, Type_t::u2};
     if (apply_fp8) {
         supportedDataTypes.insert(supportedDataTypes.end(), {Type_t::f8e4m3, Type_t::f8e5m2});
     }
     return supportedDataTypes;
 #elif defined(OV_CPU_WITH_KLEIDIAI)
-    return {Type_t::i8};
+    return {Type_t::i8, Type_t::i4};
 #else
     return {};
 #endif
@@ -323,6 +322,7 @@ void FullyConnected::initTensorParallelSync() {
 
 void FullyConnected::execTensorParallelSync() {
     if (tp_cfg.enable_tensor_parallel) {
+        const auto& cpu_parallel = context->getCpuParallel();
         // dst
         auto dst = getDstMemoryAtPort(0);
         auto* dst_ptr = static_cast<uint8_t*>(dst->getData());
@@ -364,7 +364,7 @@ void FullyConnected::execTensorParallelSync() {
                     const auto copySize = splited_dim_vec[idx] * prec.size();  // bytes of half selected dim.
                     const size_t unloop = 8;
                     size_t step = count / unloop;
-                    parallel_for(step, [&](size_t i) {
+                    cpu_parallel->parallel_for(step, [&](size_t i) {
                         cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop) * channel_size,
                                    new_ptr + (i * unloop) * copySize,
                                    copySize);
@@ -686,6 +686,12 @@ void FullyConnected::needUpdateTensorParalelConfig() {
         const auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
         if (shape.isDynamic() || shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
             tp_cfg.enable_tensor_parallel = false;
+            return;
+        }
+        const bool is3DwithMultipleInputChannels = shape.getRank() == 3 && shape.getDims().back() > 1;
+        if (is3DwithMultipleInputChannels) {
+            tp_cfg.enable_tensor_parallel = false;
+            return;
         }
     }
 }

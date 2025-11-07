@@ -149,9 +149,9 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
     // TODO: SWIGLU support
     // if (is_swiglu_fused(params)) {
     //     auto split_length = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_length;
-    //     auto split_to_glu_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_to_glu_idx;
+    //     auto gate_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->gate_idx;
     //     jit.AddConstant(MakeJitConstant("SWIGLU_LENGTH", split_length));
-    //     jit.AddConstant(MakeJitConstant("SWIGLU_SPLIT_TO_GLU_IDX", split_to_glu_idx));
+    //     jit.AddConstant(MakeJitConstant("SWIGLU_SPLIT_TO_GLU_IDX", gate_idx));
     // }
 
     if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
@@ -177,6 +177,10 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
     jit.AddConstant(MakeJitConstant("WEIGHTS_N", params.weights.OFM().v));
 
     auto activation_dt = GetActivationType(params);
+    // Activation is computed in F32, so we need to convert it to F32
+    if (activation_dt == Datatype::F16) {
+        activation_dt = Datatype::F32;
+    }
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
 

@@ -6,7 +6,7 @@ import typing
 """
 openvino.properties.intel_gpu submodule that simulates ov::intel_gpu
 """
-__all__ = ['CapabilityGPU', 'MemoryType', 'device_total_mem_size', 'disable_winograd_convolution', 'enable_loop_unrolling', 'execution_units_count', 'hint', 'memory_statistics', 'uarch_version']
+__all__: list[str] = ['CapabilityGPU', 'MemoryType', 'device_max_alloc_mem_size', 'device_total_mem_size', 'disable_winograd_convolution', 'enable_loop_unrolling', 'execution_units_count', 'hint', 'memory_statistics', 'uarch_version']
 class CapabilityGPU:
     """
     openvino.properties.intel_gpu.CapabilityGPU submodule that simulates ov::intel_gpu::capability
@@ -19,6 +19,8 @@ class MemoryType:
     """
     buffer: typing.ClassVar[str] = 'GPU_BUFFER'
     surface: typing.ClassVar[str] = 'GPU_SURFACE'
+def device_max_alloc_mem_size() -> str:
+    ...
 def device_total_mem_size() -> str:
     ...
 @typing.overload

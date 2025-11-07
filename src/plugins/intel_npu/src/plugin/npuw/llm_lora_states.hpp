@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <regex>
-
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 
@@ -47,25 +45,6 @@ struct LoRANames {
     static constexpr const char* MatMul_B = "MatMul\\.B";
     static constexpr const char* MatMul_alpha = "MatMul\\.alpha";
 };
-
-static bool matchStringWithLoRAPattern(const std::string& input, const std::string& pattern_suffix) {
-    std::string pattern = "^lora_state.*" + pattern_suffix + "$";
-    std::regex regex_pattern(pattern);
-
-    return std::regex_match(input, regex_pattern);
-}
-
-static bool matchLoRAMatMulAString(const std::string& input) {
-    return matchStringWithLoRAPattern(input, LoRANames::MatMul_A);
-}
-
-static bool matchLoRAMatMulBString(const std::string& input) {
-    return matchStringWithLoRAPattern(input, LoRANames::MatMul_B);
-}
-
-static bool matchLoRAMatMulAlphaString(const std::string& input) {
-    return matchStringWithLoRAPattern(input, LoRANames::MatMul_alpha);
-}
 
 }  // namespace npuw
 }  // namespace ov

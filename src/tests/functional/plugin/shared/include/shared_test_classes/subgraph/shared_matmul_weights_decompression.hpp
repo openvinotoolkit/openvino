@@ -46,7 +46,7 @@ using MatmulSharedWeightsDecompressionParams =
 class SharedMatmulWeightsDecompression : public testing::WithParamInterface<MatmulSharedWeightsDecompressionParams>,
                                          virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatmulSharedWeightsDecompressionParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulSharedWeightsDecompressionParams>& obj);
 
 protected:
     std::shared_ptr<ov::Model> initSubgraph(const ov::PartialShape& data_shape,

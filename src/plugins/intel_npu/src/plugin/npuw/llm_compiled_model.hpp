@@ -12,6 +12,8 @@ namespace ov {
 namespace npuw {
 
 class LLMInferRequest;
+class WhisperInferRequest;
+struct PrefixCacheRestorationContext;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -19,12 +21,19 @@ class LLMCompiledModel : public ov::npuw::ICompiledModel {
 public:
     static constexpr const char* output_embeds = "npuw_output_embed";
 
+    static constexpr uint32_t whisper_batch_dim = 0u;
+    static constexpr uint32_t whisper_seq_len_dim = 2u;
+    static constexpr uint32_t whisper_max_prompt_size = 4u;
+    static constexpr uint32_t whisper_kvcache_size = 448u;
+
     struct KVCacheDesc {
         uint32_t max_prompt_size = 0u;
         uint32_t total_size = 0u;
         uint32_t num_stored_tokens = 0u;
         uint32_t dim = 0u;
-        bool v_tensors_transposed = false;
+        uint32_t max_generation_token_len = 0u;
+        bool v_tensors_transposed_pre = false;  // prefill
+        bool v_tensors_transposed_gen = false;  // generate
     };
 
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -47,8 +56,10 @@ public:
 
 private:
     friend class LLMInferRequest;
+    friend class WhisperInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
+    std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
@@ -78,6 +89,19 @@ private:
     // Support LoRA
     void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
     uint32_t m_max_lora_rank = 32;
+
+    // Support prefix caching
+    bool m_enable_prefix_caching = false;
+    uint64_t m_prefix_caching_block_size = 0;
+    uint64_t m_prefix_caching_max_num_blocks = 0;
+
+    // Friend declarations for PrefixCachingHelper to access protected members
+    friend class PrefixCachingHelper;
+
+    void gemma_transformations(const std::shared_ptr<ov::Model>& model);
+    int32_t m_gemma_sliding_window_size = 0;
+
+    bool m_is_whisper = false;
 };
 
 }  // namespace npuw

@@ -41,16 +41,6 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 
-// Return true if `type` can be castable to at least one of `type`
-bool NetworkHelper::is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types) {
-    for (auto another : types) {
-        if (type.is_castable(another)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 // Collect and return a vector with all nodes that consumes any of the `node` output
 std::vector<Input<Node>> NetworkHelper::consumer_inputs(std::shared_ptr<Node> node) {
     std::vector<Input<Node>> result;
@@ -159,28 +149,6 @@ size_t NetworkHelper::getOutputChannelsCount(std::shared_ptr<const Node> layer, 
     }
 }
 
-std::vector<std::shared_ptr<Node>> NetworkHelper::getParentsRecursivelyExceptTypes(
-        std::shared_ptr<Node> layer,
-        const std::unordered_set<NodeTypeInfo>& exceptionLayerTypes,
-        const int portIndex) {
-    std::vector<std::shared_ptr<Node>> parents;
-    int i = 0;
-    for (auto input : layer->inputs()) {
-        if ((portIndex == -1) || (portIndex == i)) {
-            auto parent = input.get_source_output().get_node_shared_ptr();
-            if (is_castable_to_one_of(parent->get_type_info(), exceptionLayerTypes)) {
-                const std::vector<std::shared_ptr<Node>> tmpParents = getParentsRecursivelyExceptTypes(parent, exceptionLayerTypes);
-                parents.insert(parents.end(), tmpParents.begin(), tmpParents.end());
-            } else {
-                parents.push_back(parent);
-            }
-        }
-
-        i++;
-    }
-    return parents;
-}
-
 size_t NetworkHelper::getInputChannelsCount(std::shared_ptr<Node> layer) {
     if (layer->get_input_size() == 0) {
         THROW_TRANSFORMATION_EXCEPTION << "There are no input layers";
@@ -202,10 +170,6 @@ size_t NetworkHelper::getGroupsCount(std::shared_ptr<Node> layer) {
     } else {
         THROW_TRANSFORMATION_EXCEPTION << "Invalid layer type of " << layer->get_friendly_name() << "; expected Convolution or GroupConvolution";
     }
-}
-
-void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
-    ov::replace_output_update_name(layer->output(0), layer->input_value(0));
 }
 
 std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<ov::opset1::Add> addAfterMultiply, const int multiplyBranch) {
@@ -523,13 +487,13 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
     const size_t branchIndex,
     const std::vector<ov::element::Type>& defaultPrecisions,
     const bool inPlace) {
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, branchIndex, inPlace);
+    auto dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, branchIndex, inPlace);
     if (dequantization.empty() || (dequantization.multiply == nullptr)) {
         return dequantization;
     }
 
     if (dequantization.convert != nullptr) {
-        const std::shared_ptr<Node> result = foldConvert(dequantization.data, dequantization.convert->get_element_type());
+        const auto result = foldConvert(dequantization.data, dequantization.convert->get_element_type());
         if (ov::is_type<ov::opset1::Constant>(result)) {
             if (inPlace) {
                 copyInfo(dequantization.convert, result);
@@ -551,12 +515,13 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
             if (ov::is_type<ov::opset1::Constant>(convertionResult)) {
                 replace_node(dequantization.subtractConvert, convertionResult);
                 dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, branchIndex, inPlace);
+                OPENVINO_ASSERT(dequantization.subtract != nullptr,
+                                "dequantization subtract is missed after convert folding");
             }
         }
 
-        const std::shared_ptr<Node> result = fold<ov::opset1::Subtract>(
-            dequantization.subtract->input_value(0),
-            dequantization.subtract->input_value(1));
+        const auto result = fold<ov::opset1::Subtract>(dequantization.subtract->input_value(0),
+                                                       dequantization.subtract->input_value(1));
         if (ov::is_type<ov::opset1::Constant>(result)) {
             if (inPlace) {
                 copyInfo(dequantization.subtract, result);
@@ -573,9 +538,8 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
             return dequantization;
         }
 
-        std::shared_ptr<Node> result = fold<ov::opset1::Multiply>(
-                dequantization.multiply->input_value(0),
-                dequantization.multiply->input_value(1));
+        auto result = fold<ov::opset1::Multiply>(dequantization.multiply->input_value(0),
+                                                 dequantization.multiply->input_value(1));
         if (!ov::is_type<ov::opset1::Constant>(result)) {
             return dequantization;
         }
@@ -588,7 +552,6 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
         replace_node(dequantization.multiply, result);
         dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, branchIndex, inPlace);
     }
-
 
     return dequantization;
 }

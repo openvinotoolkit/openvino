@@ -70,7 +70,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize PluginCompilerAdapter start");
 
-    _logger.info("MLIR compiler will be used.");
+    _logger.info("PLUGIN compiler will be used.");
     std::string baseName = "npu_mlir_compiler";
     auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
     _compiler = load_compiler(libPath);
@@ -143,16 +143,22 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         return starts_with(name, "main");
     };
 
-    _logger.info("SEPARATE_WEIGHTS_VERSION: ", config.get<SEPARATE_WEIGHTS_VERSION>());
+    Config localConfig = config;
+    if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
+        localConfig.update({{ov::intel_npu::separate_weights_version.name(), "ONE_SHOT"}});
+    }
+
+    _logger.info("SEPARATE_WEIGHTS_VERSION: %s",
+                 SEPARATE_WEIGHTS_VERSION::toString(localConfig.get<SEPARATE_WEIGHTS_VERSION>()).c_str());
 
     int64_t compile_model_mem_start = 0;
     if (_logger.level() >= ov::log::Level::INFO) {
         compile_model_mem_start = get_peak_memory_usage();
     }
-    switch (config.get<SEPARATE_WEIGHTS_VERSION>()) {
+    switch (localConfig.get<SEPARATE_WEIGHTS_VERSION>()) {
     case ov::intel_npu::WSVersion::ONE_SHOT: {
         std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
-            _compiler->compileWsOneShot(model, config);
+            _compiler->compileWsOneShot(model, localConfig);
 
 #if 0  // TODO: it is not clear whether we should change the name
             OPENVINO_ASSERT(isMain(initMainNetworkDescriptions.back()->metadata.name),
@@ -170,7 +176,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         size_t i = 0;
 
         while (auto networkDescription =
-                   std::make_shared<NetworkDescription>(_compiler->compileWsIterative(targetModel, config, i++))) {
+                   std::make_shared<NetworkDescription>(_compiler->compileWsIterative(targetModel, localConfig, i++))) {
             if (isInit(networkDescription->metadata.name)) {
                 initNetworkDescriptions.push_back(networkDescription);
                 targetModel = originalModel->clone();
@@ -185,8 +191,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         }
     } break;
     default:
-        OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call:",
-                       config.get<SEPARATE_WEIGHTS_VERSION>());
+        OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call: ",
+                       localConfig.get<SEPARATE_WEIGHTS_VERSION>());
         break;
     }
 
@@ -244,7 +250,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         std::move(initNetworkMetadata),
         tensorsInits,
         model,
-        config,
+        localConfig,
         /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
         _compiler);
 }

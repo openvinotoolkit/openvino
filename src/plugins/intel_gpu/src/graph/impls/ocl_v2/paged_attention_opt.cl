@@ -62,6 +62,9 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_ALIBI
     const __global ALIBI_INPUT_TYPE* alibi_slopes,
 #endif
+#if HAS_SINK_INPUT
+    const __global SINK_DATA_T* sink_ptr,
+#endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
     __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
@@ -223,8 +226,8 @@ KERNEL(pa_sdpa_opt)(
             const uint hidden_stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
     #else
             const uint block_offset = block_indice * ADJUSTED_K_HEAD_SIZE * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * ADJUSTED_K_HEAD_SIZE * SUBGROUP_SIZE;
-            const key_block_offset = block_offset;
-            const hidden_stride = SUBGROUP_SIZE;
+            const uint key_block_offset = block_offset;
+            const uint hidden_stride = SUBGROUP_SIZE;
             const uint key_comp_offset = key_block_offset + K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
             INPUT0_TYPE comp_scale = key_comp_ptr[0 + sglid];
@@ -341,7 +344,13 @@ KERNEL(pa_sdpa_opt)(
 
         // Final max value after reduction across of all SG and WI
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
+            #ifdef HAS_SINK_INPUT
+            const uint head_idx = get_global_id(1);
+            const SOFTMAX_ACCUMULATOR_TYPE qk_max_tmp = sub_group_reduce_max(GET_VECTOR_ELEMENT(qk_max, q_idx));
+            GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp > sink_ptr[head_idx] ? qk_max_tmp : sink_ptr[head_idx];
+            #else
             GET_VECTOR_ELEMENT(qk_max, q_idx) = sub_group_reduce_max(GET_VECTOR_ELEMENT(qk_max, q_idx));
+            #endif
         }
 
         SOFTMAX_ACCUMULATOR_VEC_TYPE exp_sum = SOFTMAX_ACCUMULATOR_VAL_ZERO;
@@ -388,6 +397,10 @@ KERNEL(pa_sdpa_opt)(
         // Final sum of all exp_sum values
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
             GET_VECTOR_ELEMENT(exp_sum, q_idx) = sub_group_reduce_add(GET_VECTOR_ELEMENT(exp_sum, q_idx));
+            #ifdef HAS_SINK_INPUT
+            const uint head_idx = get_global_id(1);
+            GET_VECTOR_ELEMENT(exp_sum, head_idx) += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[head_idx] - GET_VECTOR_ELEMENT(qk_max, q_idx))));
+            #endif
         }
 
         for (uint qk_idx = 0; qk_idx < qk_iters_num; qk_idx++) {

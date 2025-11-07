@@ -120,6 +120,7 @@ jobs:
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: ${{ github.workspace }}/manifest.yml
       PRODUCT_TYPE: public_manylinux_2_28_x86_64_release
+      NODE_VERSION: 22
       
     steps:
       - name: Clone OpenVINO
@@ -128,6 +129,11 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: System info
         uses: ./src/.github/actions/system_info
@@ -163,9 +169,9 @@ jobs:
         env:
           CXXFLAGS: "-Wno-dangling-reference" # bug in gcc-14: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107532
             
-      - name: Build Python API (Python 3.9-3.13)
+      - name: Build Python API (Python 3.10-3.13)
         run: |
-          SUPPORTED_PYTHON_VERSIONS=("3.9" "3.10" "3.11" "3.12" "3.13")
+          SUPPORTED_PYTHON_VERSIONS=("3.10" "3.11" "3.12" "3.13")
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
 
             py_build_dir=${{ github.workspace }}/build_py${PY_VER}
@@ -181,6 +187,15 @@ jobs:
           
           done
 
+      - name: Build OpenVINO JS API
+        run: |
+          /usr/bin/cmake -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} \
+                -DCPACK_GENERATOR=NPM \
+                -DENABLE_SYSTEM_TBB=OFF \
+                -DENABLE_WHEEL=OFF
+          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc)
+          /usr/bin/cmake --install ${{ env.BUILD_DIR }} --prefix ${{ env.OPENVINO_REPO }}/src/bindings/js/node/bin
+
       - name: Pack Artifacts
         run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
@@ -189,12 +204,19 @@ jobs:
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
         working-directory: ${{ env.INSTALL_TEST_DIR }}
 
+      - name: Pack openvino_node_npm_package
+        run: |
+          npm i
+          npm pack
+          tar -czvf ${BUILD_DIR}/openvino_node_npm_package.tar.gz bin openvino-node-*
+        working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
+
       #
       # Upload build artifacts
       #
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -202,7 +224,7 @@ jobs:
       
       - name: Upload OpenVINO wheels
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
@@ -210,20 +232,29 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
+      - name: Upload openvino-node NPM package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: openvino_node_npm_package
+          path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
+          if-no-files-found: 'error'
+
       - name: Store artifacts to a shared drive
         id: store_artifacts
-        if: ${{ always() }}
+        if: ${{ github.event_name != 'merge_group' }}
         uses: ./src/.github/actions/store_artifacts
         with:
           artifacts: |
             ${{ env.BUILD_DIR }}/openvino_package.tar.gz
             ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
             ${{ env.MANIFEST_PATH }}
             ${{ env.INSTALL_WHEELS_DIR }}/wheels
           storage_dir: ${{ env.PRODUCT_TYPE }}
@@ -238,8 +269,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - python-version: "3.9"
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.fedora_33 }}
           - python-version: "3.10"
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_10_py310 }}
           - python-version: "3.11"
@@ -254,9 +283,26 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: ${{ matrix.python-version }}
 
+  NodeJS_API_Tests:
+    name: NodeJS API tests
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_openvino_js.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nodejs-version: 20
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+          - nodejs-version: 22
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      image: ${{ matrix.image }}
+      nodejs-version: ${{ matrix.nodejs-version }}
+
   Overall_Status:
     name: ci/gha_overall_status_manylinux_2_28
-    needs: [Smart_CI, Build, Python_API_Tests]
+    needs: [Smart_CI, Build, Python_API_Tests, NodeJS_API_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

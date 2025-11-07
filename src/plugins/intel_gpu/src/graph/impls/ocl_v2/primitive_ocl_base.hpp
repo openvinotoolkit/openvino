@@ -46,6 +46,9 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     std::vector<size_t> _order;
     std::unique_ptr<ImplRuntimeParams> m_rt_params = nullptr;
 
+    // a pair of batch program hash and kernel entry hash of each ocl impl.
+    std::pair<std::string, std::string> kernel_dump_info;
+
     template <typename CodeGenType, typename... Args>
     Stage::Ptr make_stage(Args&&... args) {
         auto stage = std::make_unique<Stage>(std::make_shared<CodeGenType>(std::forward<Args>(args)...));
@@ -131,8 +134,14 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
 
     void init_kernels(const cldnn::kernels_cache& kernels_cache, const RuntimeParams& params) override {
         auto compiled_kernels = kernels_cache.get_kernels(params);
+        kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)), "");
         for (size_t i = 0; i < _order.size(); i++) {
             _stages[_order[i]]->kernel = compiled_kernels[i];
+            if (i == 0) {
+                kernel_dump_info.second += _stages[_order[i]]->kd.code->entry_point;
+            } else {
+                kernel_dump_info.second += " " + _stages[_order[i]]->kd.code->entry_point;
+            }
         }
     }
 
@@ -235,6 +244,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         if (kd.need_args_update) {
             auto args = get_arguments(instance);
             args.scalars = &params.scalars;
+            args.local_memory_args = &params.local_memory_args;
 
             GPU_DEBUG_TRACE_DETAIL << "\nExecute stage = " << stage.kernel->get_id() << '\n';
             GPU_DEBUG_TRACE_DETAIL << "Configured kernel arguments:" << params.arguments.size() << '\n';
@@ -242,13 +252,9 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
                 GPU_DEBUG_TRACE_DETAIL << "\t" << i << ": type = " << static_cast<size_t>(params.arguments[i].t) << ", index = " << params.arguments[i].index
                                        << '\n';
             }
-            GPU_DEBUG_TRACE_DETAIL << "Memory buffers:"
-                                   << "shape_info=" << args.shape_info << " "
-                                   << "inputs=" << args.inputs.size() << " "
-                                   << "outputs=" << args.outputs.size() << " "
-                                   << "intermediates=" << args.intermediates.size() << " "
-                                   << "weights=" << args.weights << " "
-                                   << "scalars=" << (args.scalars ? args.scalars->size() : 0) << "\n";
+            GPU_DEBUG_TRACE_DETAIL << "Memory buffers:" << "shape_info=" << args.shape_info << " " << "inputs=" << args.inputs.size() << " "
+                                   << "outputs=" << args.outputs.size() << " " << "intermediates=" << args.intermediates.size() << " "
+                                   << "weights=" << args.weights << " " << "scalars=" << (args.scalars ? args.scalars->size() : 0) << "\n";
             stream.set_arguments(*stage.kernel, params, args);
             kd.need_args_update = false;
         }
@@ -315,8 +321,8 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         }
     }
 
-    [[nodiscard]] std::pair<std::string, std::string> get_kernels_dump_info() const override {
-        return {};
+    std::pair<std::string, std::string> get_kernels_dump_info() const override {
+        return kernel_dump_info;
     }
 };
 

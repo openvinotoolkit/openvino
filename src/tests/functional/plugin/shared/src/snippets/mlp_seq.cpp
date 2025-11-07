@@ -37,18 +37,18 @@ void MLPSeqBase::SetUp() {
     setInferenceType(prc);
 }
 
-std::string MLPSeq::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPSeqParams> obj) {
-    auto [input_shapes,
-          elem_types,
-          prc,
-          thread_count,
-          target_device,
-          additional_config,
-          num_hidden_layers_with_expectations,
-          hidden_matmul_size] = obj.param;
+std::string MLPSeq::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MLPSeqParams>& obj) {
+    const auto& [input_shapes,
+                 elem_types,
+                 prc,
+                 thread_count,
+                 target_device,
+                 additional_config,
+                 num_hidden_layers_with_expectations,
+                 hidden_matmul_size] = obj.param;
 
-    auto [num_hidden_layers, num_subgraphs_and_nodes] = num_hidden_layers_with_expectations;
-    auto [num_subgraphs, num_nodes] = num_subgraphs_and_nodes;
+    const auto& [num_hidden_layers, num_subgraphs_and_nodes] = num_hidden_layers_with_expectations;
+    const auto& [num_subgraphs, num_nodes] = num_subgraphs_and_nodes;
 
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)

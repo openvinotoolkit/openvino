@@ -261,10 +261,11 @@ void RuntimeConfigurator::update_expanded_loop_info(const lowered::ExpandedLoopI
 
 void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_ir) {
     LoopInfoRuntimeParamsMap initialized_info;
+    const auto& loop_manager = linear_ir->get_loop_manager();
     auto updater = [&](const lowered::LoopInfoPtr& loop_info) {
         if (const auto unified_loop_info = ov::as_type_ptr<lowered::UnifiedLoopInfo>(loop_info)) {
             if (initialized_info.count(unified_loop_info) == 0) {
-                utils::update_runtime_parameters(unified_loop_info);
+                utils::update_runtime_parameters(loop_manager, unified_loop_info);
                 initialized_info[unified_loop_info] = get_loop_runtime_params(unified_loop_info);
             }
         } else if (const auto expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(loop_info)) {
@@ -347,7 +348,7 @@ void RuntimeConfigurator::update_data_offsets() const {
             continue;
         }
         if (utils::is_dynamic_vdims(shape)) {
-            return;
+            continue;
         }
 
         const auto idx_stride = m_config->tensor_rank - shape.size();
@@ -356,7 +357,7 @@ void RuntimeConfigurator::update_data_offsets() const {
         auto& offsets = m_config->io_data_offsets[i];
         const auto& layout = layouts[i];
         if (!layout.empty()) {
-            std::vector<size_t> reordered_offsets(offsets.size());
+            VectorDims reordered_offsets(offsets.size());
             const auto is_input = i < m_in_num;
             for (size_t i = 0; i < layout.size(); i++) {
                 const auto& src_idx = is_input ? layout[i] : i;
@@ -376,8 +377,8 @@ std::vector<VectorDims> RuntimeConfigurator::extract_shapes() const {
     return shapes;
 }
 
-std::vector<std::vector<size_t>> RuntimeConfigurator::extract_layouts() const {
-    std::vector<std::vector<size_t>> layouts(m_io_num);
+std::vector<VectorDims> RuntimeConfigurator::extract_layouts() const {
+    std::vector<VectorDims> layouts(m_io_num);
     for (size_t i = 0; i < m_io_num; ++i) {
         layouts[i] = m_io_descs[i]->get_layout();
     }

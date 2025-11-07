@@ -116,6 +116,18 @@ protected:
             for (size_t i = 0; i < size; ++i) {
                 rawBlobDataPtr[i] = static_cast<float>(data[i]);
             }
+        } else if (model_type == ov::element::f16) {
+            std::vector<int> data(size);
+
+            int start = - static_cast<int>(size / 2);
+            std::iota(data.begin(), data.end(), start);
+            std::mt19937 gen(0);
+            std::shuffle(data.begin(), data.end(), gen);
+
+            auto *rawBlobDataPtr = static_cast<ov::float16 *>(tensor.data());
+            for (size_t i = 0; i < size; ++i) {
+                rawBlobDataPtr[i] = static_cast<ov::float16>(data[i]);
+            }
         } else {
             FAIL() << "generate_inputs for " << model_type << " precision isn't supported";
         }
@@ -148,6 +160,7 @@ TEST_P(TopKLayerGPUTest, Inference) {
 
 const std::vector<ov::element::Type> model_types = {
     ov::element::f32,
+    ov::element::f16,
 };
 
 const std::vector<int64_t> axes = {0, 3};

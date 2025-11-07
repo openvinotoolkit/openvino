@@ -42,6 +42,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::value_cache_precision, "value_cache_precision");
     wrap_property_RW(m_properties, ov::key_cache_group_size, "key_cache_group_size");
     wrap_property_RW(m_properties, ov::value_cache_group_size, "value_cache_group_size");
+    wrap_property_RW(m_properties, ov::enable_weightless, "enable_weightless");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
     wrap_property_RO(m_properties, ov::available_devices, "available_devices");
@@ -107,17 +108,23 @@ void regmodule_properties(py::module m) {
     py::module m_intel_cpu =
         m_properties.def_submodule("intel_cpu", "openvino.properties.intel_cpu submodule that simulates ov::intel_cpu");
 
+    py::enum_<ov::intel_cpu::TbbPartitioner>(m_intel_cpu, "TbbPartitioner", py::arithmetic())
+        .value("STATIC", ov::intel_cpu::TbbPartitioner::STATIC)
+        .value("AUTO", ov::intel_cpu::TbbPartitioner::AUTO);
+
     // Submodule intel_cpu property
     wrap_property_RW(m_intel_cpu, ov::intel_cpu::denormals_optimization, "denormals_optimization");
     wrap_property_RW(m_intel_cpu,
                      ov::intel_cpu::sparse_weights_decompression_rate,
                      "sparse_weights_decompression_rate");
+    wrap_property_RW(m_intel_cpu, ov::intel_cpu::tbb_partitioner, "tbb_partitioner");
 
     // Submodule intel_gpu
     py::module m_intel_gpu =
         m_properties.def_submodule("intel_gpu", "openvino.properties.intel_gpu submodule that simulates ov::intel_gpu");
 
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::device_total_mem_size, "device_total_mem_size");
+    wrap_property_RO(m_intel_gpu, ov::intel_gpu::device_max_alloc_mem_size, "device_max_alloc_mem_size");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::uarch_version, "uarch_version");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::execution_units_count, "execution_units_count");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::memory_statistics, "memory_statistics");

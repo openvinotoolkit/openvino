@@ -20,6 +20,7 @@
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
+#include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu {
 
@@ -40,8 +41,8 @@ class DnnlConvolutionPrimitive {
 
         dnnl::primitive_attr attr;
 
-        bool fcSemantic;
-        bool nonConstantWeights;
+        bool fcSemantic = false;
+        bool constantWeights = true;
 
         [[nodiscard]] size_t hash() const;
         bool operator==(const Key& rhs) const;
@@ -65,6 +66,7 @@ class DnnlConvolutionPrimitive {
 public:
     DnnlConvolutionPrimitive(const Key& key,
                              const dnnl::engine& engine,
+                             const std::shared_ptr<ThreadPool>& threadPool,
                              const std::vector<impl_desc_type>& implPriorities,
                              impl_desc_type defaultImplType);
 
@@ -92,7 +94,11 @@ public:
 
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,
-                                                            bool weightsNonTransposed);
+                                                            const ConvAttrs& attrs);
+
+    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                            const DnnlMemoryDescPtr& dstDesc,
+                                                            const FCAttrs& attrs);
 
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const ConvAttrs& attrs,
                                                             const MemoryArgs& memory,

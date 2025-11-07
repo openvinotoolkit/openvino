@@ -194,13 +194,14 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         }
 
         if (pred.first->get_preferred_impl_type() == impl_types::onednn) {
+            // No implicit concat for spatial axes
+            if (concat_axis > 1)
+                return false;
+
             // Onednn requires memory pointers to be aligned at least at 64-bytes to avoid potential correctness issues.
             if (!concat_node.is_dynamic() || is_runtime) {
                 if (onednn_byte_offset % 64 != 0)
                     return false;
-
-                // The assumption here is that onednn will support batch 1 case.
-                onednn_byte_offset += pred_l.bytes_count();
             }
 
             for (const auto& fused_op : pred_params[idx].fused_desc) {
@@ -215,15 +216,6 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             if (!pred.first->can_be_optimized())
                 is_onednn_impl = true;
         }
-        // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
-        // Onednn impls can process implicit concat'ed buffer only through buffer pointer manipulation.
-        if ((!concat_node.is_dynamic() || is_runtime) && (concat_params.get_output_layout().batch() > 1)) {
-            for (auto& sib : pred.first->get_users()) {
-                if (sib->get_preferred_impl_type() == impl_types::onednn) {
-                    return false;
-                }
-            }
-        }
         const auto& input_padd = pred.first->get_output_layout().data_padding;
 
         // Check that there isn't already some padding between inputs in concat axis.
@@ -234,8 +226,12 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             if (idx != 0 && input_padd._lower_size[concat_axis] != 0)
                 return false;
         }
-        if (!concat_node.is_dynamic() || is_runtime)
+        if (!concat_node.is_dynamic() || is_runtime) {
             lower_padd_in_axis += pred_params[idx].get_output_layout().get_tensor().sizes(def_fmt)[concat_axis];
+            // Accumulates byte offset for onednn 64-byte alignment. The assumption here is that onednn will support batch 1 case.
+            onednn_byte_offset += pred_l.bytes_count();
+        }
+
         idx++;
     }
 
@@ -761,10 +757,10 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
                 user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
             } else {
-                auto reshape_ps = user_info.second.get_partial_shape();
+                const auto reshape_ps = user_info.second.get_partial_shape();
                 auto output_pattern = reshape_desc->output_pattern;
 
-                auto reshape_axis = crop_axis;
+                int64_t reshape_axis = static_cast<int64_t>(crop_axis);
                 for (size_t i = 0; i < output_pattern.size(); i++) {
                     if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
                         reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
@@ -775,6 +771,8 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 std::vector<ov::Dimension::value_type> reshape_lower_sizes(output_rank, 0);
                 std::vector<ov::Dimension::value_type> reshape_upper_sizes(output_rank, 0);
                 padding::DynamicDimsMask reshape_dyn_pad_mask;
+
+                OPENVINO_ASSERT(reshape_axis >= 0 && static_cast<size_t>(reshape_axis) < output_rank, "[GPU] Calculated reshape_axis is out of range.");
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
                 reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
@@ -1026,6 +1024,9 @@ void prepare_buffer_fusing::run(program& p) {
                 return;
             }
             auto &permute_node = users.front()->as<permute>();
+            if (!permute_node.get_fused_primitives().empty()) {
+                return;
+            }
 
             auto &input_layout = node.get_input_layout(0);
             auto &output_layout = node.get_output_layout(0);

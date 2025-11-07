@@ -323,58 +323,6 @@ void SyncInferRequest::check_tensors() const {
     }
 }
 
-std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
-                                                               const size_t index,
-                                                               const bool isInput,
-                                                               const ov::Allocator& allocator,
-                                                               const std::optional<std::size_t> batchSize) const {
-    check_network_precision(descriptor.precision);
-
-    std::shared_ptr<ov::ITensor> tensor;
-    ov::Shape allocatedTensorShape = descriptor.shapeFromCompiler.get_max_shape();
-
-    if (batchSize.has_value()) {
-        allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
-    }
-
-    if (descriptor.isStateOutput) {
-        // Only one buffer is required for each (state input, state output) pair, acting as an input before running the
-        // inference and as an output after performing it. Thus both the "state input" and "state output" entries shall
-        // point to the same buffer.
-        OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
-                        "The link between state descriptors is missing, state name: ",
-                        descriptor.nameFromCompiler);
-        tensor = get_user_input(*descriptor.relatedDescriptorIndex)._ptr;
-    } else {
-        tensor = create_tensor(descriptor.precision, allocatedTensorShape, allocator);
-    }
-
-    if (isInput) {
-        if (get_user_input(index) == nullptr) {
-            get_user_input(index) = tensor;
-        }
-
-        if (descriptor.isStateInput) {
-            add_state(descriptor, index);
-        }
-    } else if (_userOutputTensors.at(index) == nullptr) {
-        _userOutputTensors.at(index) = tensor;
-    }
-
-    return tensor;
-}
-
-std::shared_ptr<ov::ITensor> SyncInferRequest::create_tensor(ov::element::Type type,
-                                                             const ov::Shape& shape,
-                                                             const ov::Allocator& allocator) const {
-    return ov::make_tensor(type, shape, allocator);
-}
-
-void SyncInferRequest::add_state(const IODescriptor& descriptor, const size_t tensorIndex) const {
-    _variableStates.push_back(
-        std::make_shared<VariableState>(descriptor.nameFromCompiler, get_user_input(tensorIndex)));
-}
-
 bool SyncInferRequest::is_batched_input(size_t idx) const {
     return _userInputTensors.at(idx).size() > 1;
 }

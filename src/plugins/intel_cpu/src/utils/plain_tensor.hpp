@@ -405,6 +405,9 @@ struct PlainTensor {
         if (any_of(m_dt, ov::element::i4, ov::element::u4)) {
             return 2;
         }
+        if (m_dt == ov::element::u2) {
+            return 4;
+        }
         return 1;
     }
 
@@ -420,25 +423,20 @@ struct PlainTensor {
     [[nodiscard]] int64_t offset(I i, Is... indices) const {
         return i * m_strides[dim] + offset<dim + 1>(indices...);
     }
-    template <typename DT, typename... Is>
+
+    template <typename DT, ov::element::Type_t SRC_PREC = ov::element::u8, typename... Is>
     [[nodiscard]] DT* ptr(Is... indices) const {
-        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
-    }
-
-    template <typename DT,
-              ov::element::Type_t SRC_PREC,
-              std::enable_if_t<SRC_PREC != ov::element::u4, bool> = true,
-              typename... Is>
-    DT* ptr(Is... indices) const {
-        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
-    }
-
-    template <typename DT,
-              ov::element::Type_t SRC_PREC,
-              std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true,
-              typename... Is>
-    DT* ptr(Is... indices) const {
-        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...) / 2;
+        constexpr size_t stride_div = [] {
+            if (SRC_PREC == ov::element::u2) {
+                return 4;
+            }
+            if (SRC_PREC == ov::element::u4) {
+                return 2;
+            }
+            return 1;
+        }();
+        const size_t off = offset<0>(indices...) / stride_div;
+        return reinterpret_cast<DT*>(m_ptr.get()) + off;
     }
 
     template <typename... Is>
