@@ -29,7 +29,7 @@ public:
         for (auto& thread : threads) {
             thread = std::thread([&]() {
                 for (unsigned int i = 0; i < iterations; ++i) {
-                    func();
+                    OV_ASSERT_NO_THROW(func());
                 }
             });
         }
@@ -499,8 +499,7 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_SingleCore) {
                 return output_tensor;
             };
 
-            ov::Tensor outputActual;
-            OV_ASSERT_NO_THROW(outputActual = getOutputBlob(core));
+            auto outputActual = getOutputBlob(core);
 
             // compare actual value using the same Core
             auto outputRef = getOutputBlob(core);
@@ -544,8 +543,7 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_MultipleCores) {
                 return output_tensor;
             };
 
-            ov::Tensor outputActual;
-            OV_ASSERT_NO_THROW(outputActual = getOutputBlob(core));
+            auto outputActual = getOutputBlob(core);
 
             // compare actual value using the second Core
             {
