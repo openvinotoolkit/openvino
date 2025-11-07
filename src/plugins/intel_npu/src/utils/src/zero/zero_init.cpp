@@ -379,6 +379,10 @@ void ZeroInitStructsHolder::destroy() {
     auto instance = getInstanceStorage().lock();
     if (instance && instance.use_count() == 2) {
         instance->destroy_context();
+        // reset weak pointer
+        getInstanceStorage().reset();
+        // reset shared pointer
+        instance.reset();
     }
     // don't destroy if ref count is higher than 2.
     // one is after getInstanceStorage().lock() and another one is hold by the caller
