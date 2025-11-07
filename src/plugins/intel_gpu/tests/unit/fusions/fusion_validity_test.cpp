@@ -116,6 +116,8 @@ TEST_P(format_mismatch_multiple_fusing, multiple_fused_node) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
+    ov::intel_gpu::ImplementationDesc resample_impl = { p.input_format, "resample_opt" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_prim", resample_impl } }));
     ov::intel_gpu::ImplementationDesc ref_resample_impl = { p.input_format, "resample_ref" };
     cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_prim", ref_resample_impl } }));
     ov::intel_gpu::ImplementationDesc ref_eltwise = { p.input_format, "" };
@@ -126,8 +128,8 @@ TEST_P(format_mismatch_multiple_fusing, multiple_fused_node) {
 }
 
 INSTANTIATE_TEST_SUITE_P(validate_fusings_gpu, format_mismatch_multiple_fusing, ::testing::ValuesIn(std::vector<fusing_test_params>{
-    fusing_test_params{ CASE_RESAMPLE_FSV16_1, 4, 4 },
-    fusing_test_params{ CASE_RESAMPLE_FSV16_2, 4, 4 }
+    fusing_test_params{ CASE_RESAMPLE_FSV16_1, 3, 4 },
+    fusing_test_params{ CASE_RESAMPLE_FSV16_2, 3, 4 }
 }));
 
 #define CASE_RESAMPLE_ONNX_4D_FSV16_1 { 1, 16, 64, 64 }, { 1, 16, 128, 128 }, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, data_types::f16, format::bfyx
