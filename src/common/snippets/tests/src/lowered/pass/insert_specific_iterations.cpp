@@ -469,7 +469,8 @@ TEST_F(InsertSpecificIterationsTest, OuterSplitLoopOutsideClonedLoop_InputPortOu
             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*store_tail.first)->get_input_port(0), 1)},
             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*store_tail.first)->get_output_port(0), 1)},
             m_outer_loop_unified,
-            m_split_loop_tail_descs);
+            m_split_loop_tail_descs,
+            false);
         const auto m_split_loop_cloned_expanded = std::make_shared<ExpandedLoopInfo>(
             m_block,
             1,
@@ -709,7 +710,8 @@ TEST_F(InsertSpecificIterationsTest, OuterSplitLoopOutsideClonedLoop_OutputPortO
             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_tail.first)->get_input_port(0), 1)},
             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_tail.first)->get_output_port(0), 1)},
             m_outer_loop_unified,
-            m_split_loop_tail_descs);
+            m_split_loop_tail_descs,
+            false);
         const auto m_split_loop_cloned_expanded = std::make_shared<ExpandedLoopInfo>(
             m_block,
             1,
