@@ -14,6 +14,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "exceptions.hpp"
 #include "utils/common.hpp"
 #include "utils/split.hpp"
 
@@ -39,6 +40,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto do_rotary = node.get_attribute_value<int64_t>("do_rotary", 0);
     const auto rotary_interleaved = node.get_attribute_value<int64_t>("rotary_interleaved", 0);
 
+    CHECK_VALID_NODE(node, onnx_op_inputs.size() >= 9, "Expected at least 9 inputs, but got: ", onnx_op_inputs.size());
     // In ONNX, the format of input QKV is [B, S, N*H] and of past_kv is [B, N, S, H]
     // In OV, we always use [B, N, S, H]
     auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
@@ -89,7 +91,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(V);
     }
 
-    for (int i = 3; i < onnx_op_inputs.size(); ++i) {
+    for (std::size_t i = 3; i < onnx_op_inputs.size(); ++i) {
         // skip total_sequence_length
         if (i == 6)
             continue;

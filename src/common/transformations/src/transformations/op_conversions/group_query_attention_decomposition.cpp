@@ -93,6 +93,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto seqlens_1d = register_new_node<v1::Reshape>(real_seqlens, one, false);
     const auto past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);
     const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
+    
+    past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
+    past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two); 
 
     if (do_rotary) {
         ov::Output<ov::Node> position_ids =
@@ -129,8 +132,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         past_value = register_new_node<v8::Slice>(past_value, current_kv_len_const, past_kv_len_const, one, two);
     }
 
-    past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
-    past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);    
     K = construct_kv_cache(past_key, K);
     V = construct_kv_cache(past_value, V);
 
@@ -161,13 +162,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // Make attention mask
     std::shared_ptr<ov::Node> mask;
     if (node->get_input_size() > 9) {
-        mask = node->input_value(9).get_node_shared_ptr();
-        // Extract last two dimensions from 4D mask [1, 1, curr_seqlen, max_kv_len]
-        // Squeeze out the first two singleton dimensions
-        auto axes_to_squeeze = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1}));
-        mask = register_new_node<v0::Squeeze>(mask, axes_to_squeeze);
-        // Slice the mask to get [curr_seqlen, concat_kv_len]
-        mask = register_new_node<v8::Slice>(mask, zero, concat_kv_len, one, one);
+        auto original_mask = node->input_value(9).get_node_shared_ptr();
+        // Extract mask [num_heads, curr_seqlen, concat_kv_len] from 4D mask [1, num_heads, curr_seqlen, max_kv_len]
+        auto axes_to_squeeze = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+        auto mask_squeezed = register_new_node<v0::Squeeze>(original_mask, axes_to_squeeze);
+        mask = register_new_node<v8::Slice>(mask_squeezed, zero, concat_kv_len, one, two);
     } else {
         std::shared_ptr<ov::Node> hori_range =
             register_new_node<v4::Range>(zero_without_shape, concat_kv_len_scalar, one_without_shape, ov::element::i64);
