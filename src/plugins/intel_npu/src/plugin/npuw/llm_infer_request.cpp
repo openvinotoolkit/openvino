@@ -300,8 +300,10 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
         auto data = kvcache_past_kv_in_tensor->data();
 
         auto origTensor = m_prefill_request->get_tensor(input_port);
-        auto new_tensor = ov::get_tensor_impl(
-            ov::Tensor(origTensor->get_element_type(), origTensor->get_shape(), data, origTensor->get_strides()));
+        auto new_tensor = ov::get_tensor_impl(ov::Tensor(origTensor->get_element_type(),
+                                                         origTensor->get_shape(),
+                                                         data,
+                                                         kvcache_past_kv_in_tensor->get_strides()));
         m_prefill_request->set_tensor(input_port, new_tensor);
 
         // Record that we have already bind past_kv, will need data copy when update past kv in infer requests to
