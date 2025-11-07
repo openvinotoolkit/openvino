@@ -4,6 +4,7 @@
 
 #include "primitive_base.hpp"
 
+#include "mvn.hpp"
 #include "mvn_inst.h"
 #include "mvn/mvn_kernel_selector.h"
 #include "mvn/mvn_kernel_base.h"
@@ -108,6 +109,11 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
+
+std::unique_ptr<primitive_impl> MVNImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<mvn>());
+    return typed_primitive_impl_ocl<mvn>::create<mvn_impl>(static_cast<const mvn_node&>(node), params);
+}
 
 namespace detail {
 

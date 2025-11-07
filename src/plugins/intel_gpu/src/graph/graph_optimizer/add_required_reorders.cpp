@@ -272,13 +272,9 @@ void add_required_reorders::run(program& p) {
             auto input_pshape = input_layout.get_partial_shape();
             auto prim = usr->as<mvn>().get_primitive();
 
-            if (!cldnn::format::is_default_format(input_layout.format) && prim->requires_alignment(input_pshape)) {
+            if (!cldnn::format::is_default_format(input_layout.format)) {
                 auto block_sizes = format::block_sizes(input_layout.format);
-                auto axes = prim->reduction_axes;
-                if (input_layout.is_dynamic() || block_sizes.size() > 1
-                    || (block_sizes.size() == 1 &&
-                        input_pshape[block_sizes[0].first].get_length() % block_sizes[0].second != 0 &&
-                        std::count(axes.begin(), axes.end(), block_sizes[0].first) == 0)) {
+                if (input_layout.is_dynamic() || block_sizes.size() > 1) {
                     auto rank = input_pshape.size();
                     input_layout.format = format::get_default_format(rank);
                     auto& dep = usr->as<mvn>().input();

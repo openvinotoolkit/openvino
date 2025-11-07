@@ -34,7 +34,6 @@
 #include "intel_gpu/primitives/lrn.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/multinomial.hpp"
-#include "intel_gpu/primitives/mvn.hpp"
 #include "intel_gpu/primitives/normalize.hpp"
 #include "intel_gpu/primitives/one_hot.hpp"
 #include "intel_gpu/primitives/permute.hpp"

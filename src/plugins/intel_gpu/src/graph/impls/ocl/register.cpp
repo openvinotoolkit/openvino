@@ -39,7 +39,6 @@ void register_implementations() {
     REGISTER_OCL(multiclass_nms);
     REGISTER_OCL(multinomial);
     REGISTER_OCL(mutable_data);
-    REGISTER_OCL(mvn);
     REGISTER_OCL(matrix_nms);
     REGISTER_OCL(normalize);
     REGISTER_OCL(one_hot);
