@@ -67,6 +67,20 @@ using namespace ov::threading;
 
 namespace ov::intel_cpu {
 
+namespace {
+
+std::shared_ptr<ov::threading::ITaskExecutor> try_get_executor(
+    const std::shared_ptr<ov::threading::ExecutorManager>& manager,
+    const std::string& id) {
+    try {
+        return manager->get_executor(id);
+    } catch (const std::exception&) {
+        return {};
+    }
+}
+
+}  // namespace
+
 static std::string getDeviceFullName() {
     std::string brand_string;
 #if defined(__EMSCRIPTEN__)
@@ -233,19 +247,25 @@ static std::string getDeviceFullName() {
 Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
     // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
-    get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
-        dnnl::impl::cpu::x64::cpu();
-    });
+    auto exec_mgr = get_executor_manager();
+    if (auto init_executor = try_get_executor(exec_mgr, "CPUPluginInit")) {
+        init_executor->run([] {
+            dnnl::impl::cpu::x64::cpu();
+        });
+        exec_mgr->clear("CPUPluginInit");
+    }
     const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
     m_msg_manager = ov::threading::message_manager();
 }
 
 Plugin::~Plugin() {
-    executor_manager()->clear("CPU");
-    executor_manager()->clear("CPUStreamsExecutor");
-    executor_manager()->clear("CPUMainStreamExecutor");
+    // Clear executors in reverse order to handle dependencies (issue #32684)
     executor_manager()->clear("CPUCallbackExecutor");
+    executor_manager()->clear("CPUMainStreamExecutor");
+    executor_manager()->clear("CPUStreamsExecutor");
+    executor_manager()->clear("CPU");
+    executor_manager()->clear("CPUPluginInit");
 }
 
 static bool streamsSet(const ov::AnyMap& config) {

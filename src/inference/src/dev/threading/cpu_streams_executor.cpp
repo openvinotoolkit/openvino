@@ -374,7 +374,15 @@ struct CPUStreamsExecutor::Impl {
         for (auto streamId = 0; streamId < streams_num; ++streamId) {
             if (_config.get_cpu_reservation()) {
                 std::lock_guard<std::mutex> lock(_cpu_ids_mutex);
-                _cpu_ids_all.insert(_cpu_ids_all.end(), processor_ids[streamId].begin(), processor_ids[streamId].end());
+                // validate bounds to handle CPU masking scenarios
+                if (streamId < static_cast<int>(processor_ids.size())) {
+                    const auto& stream_cpu_ids = processor_ids[streamId];
+                    if (!stream_cpu_ids.empty()) {
+                        _cpu_ids_all.insert(_cpu_ids_all.end(), 
+                                            stream_cpu_ids.begin(), 
+                                            stream_cpu_ids.end());
+                    }
+                }
             }
             _threads.emplace_back([this, streamId] {
                 openvino::itt::threadName(_config.get_name() + "_" + std::to_string(streamId));
@@ -540,6 +548,8 @@ CPUStreamsExecutor::~CPUStreamsExecutor() {
             thread.join();
         }
     }
+    //release CPU reservation resources
+    cpu_reset();
 }
 
 void CPUStreamsExecutor::execute(Task task) {
