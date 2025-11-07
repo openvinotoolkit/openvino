@@ -23,6 +23,13 @@ public:
     IncreasePositionIdsPrecisionForLtxVideo();
 };
 
+class IncreasePositionIdsPrecisionForGPTOSS : public IncreasePositionIdsPrecisionForRoPE {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForGPTOSS");
+    IncreasePositionIdsPrecisionForGPTOSS();
+};
+
+
 /**
  * @brief This pass adds additional convert nodes on the position_ids input branch (around MatMul or Multiply operation),
  *        targeting to improve runtime rotary position embeddings calculation for FP16 models.
