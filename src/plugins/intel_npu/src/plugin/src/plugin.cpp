@@ -605,8 +605,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
-        if (compilerType == ov::intel_npu::CompilerType::MLIR) {
-            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with MLIR compiler type");
+        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
         }
     }
 
@@ -701,14 +701,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
+    auto compileWithConfig = [&](const auto& modelToCompile, const auto& config) {
+        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
+            return compiler->compile(modelToCompile, config);
+        } else {
+            check_weightless_cache_attribute_occurrence(model);
+            return compiler->compileWS(modelToCompile, config);
+        }
+    };
+
     try {
         _logger.debug("performing compile");
 
-        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
-            graph = compiler->compile(successfullyDebatched ? batchedModel : model->clone(), localConfig);
+        // Determine which model to use
+        auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
+
+        if (successfullyDebatched && localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
+            _logger.info("Override performance mode to THROUGHPUT for compilation");
+
+            auto modifiedConfig = localConfig;  // Copy only when needed
+            std::stringstream strStream;
+            strStream << ov::hint::PerformanceMode::THROUGHPUT;
+            modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+
+            graph = compileWithConfig(modelToCompile, modifiedConfig);
         } else {
-            check_weightless_cache_attribute_occurrence(model);
-            graph = compiler->compileWS(successfullyDebatched ? batchedModel : model->clone(), localConfig);
+            graph = compileWithConfig(modelToCompile, localConfig);  // No copy
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
