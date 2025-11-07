@@ -443,6 +443,16 @@ TEST_P(UnpackWithScaleTests, i4_scale) {
     }
 }
 
+using UnpackF8WithScaleTests = UnpackTestsTmpl<UnpackF8WithScaleTestsBase>;
+
+
+TEST_P(UnpackF8WithScaleTests, f8_scale) {
+    ASSERT_NO_THROW_IF(!isNegative(),
+                       ov::npuw::util::unpack(from, scale, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
+    if (!isNegative()) {
+        ASSERT_TRUE(details::fp16ArraysMatch(output, ref_output, input));
+    }
+}
 
 class UnpackTestsWithScaleAndZeroPointBase : public UnpackTestsBase {
 protected:
