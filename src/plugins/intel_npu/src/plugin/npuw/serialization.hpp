@@ -14,6 +14,8 @@
 #include <string>
 #include <tuple>
 #include <unordered_map>
+
+#include "intel_npu/npuw_private_properties.hpp"
 #include <unordered_set>
 #include <vector>
 
@@ -129,7 +131,7 @@ struct WeightsContext {
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
                    const BF16Cache& _bf16_consts,
-                   const ov::FdGetterType& _fd_getter = nullptr);
+                   const ov::intel_npu::FdGetterType& _fd_getter = nullptr);
 
     WeightsContext& operator=(const WeightsContext& other) = default;
 
@@ -144,7 +146,7 @@ struct WeightsContext {
     std::string weights_path;
     ConstsCache consts_cache;
     BF16Cache bf16_consts;
-    ov::FdGetterType fd_getter = nullptr;
+    ov::intel_npu::FdGetterType fd_getter = nullptr;
 };
 
 BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);

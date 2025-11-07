@@ -242,14 +242,6 @@ static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_in
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
 
 /**
- * @brief Type definition for file descriptor getter callback.
- * Function that takes a file path string and returns a file descriptor as int.
- * This is useful for scenarios where file access needs to be controlled externally.
- * @ingroup ov_runtime_cpp_prop_api
- */
-using FdGetterType = std::function<int(const std::string&)>;
-
-/**
  * @brief Namespace with hint properties
  */
 namespace hint {
@@ -539,14 +531,6 @@ static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::shared_ptr<const ov::Model>> model{"MODEL_PTR"};
-
-/**
- * @brief This key identifies callback function to get file descriptor for a given file path.
- * The callback takes a file path string and returns a file descriptor as int.
- * This is useful for scenarios where file access needs to be controlled externally.
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<FdGetterType> fd_getter{"FD_GETTER"};
 
 /**
  * @brief Special key for auto batching feature configuration. Enabled by default

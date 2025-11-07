@@ -9,6 +9,7 @@
 
 #include "accuracy/comparator.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
@@ -1141,7 +1142,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         std::shared_ptr<ov::Model> model_ptr;
         // Cache model's constants
         WeightsContext::ConstsCache consts_cache;
-        ov::FdGetterType fd_getter = nullptr;
+        ov::intel_npu::FdGetterType fd_getter = nullptr;
         if (is_weightless) {
             if (properties.find(ov::weights_path.name()) != properties.end()) {
                 weights_path = properties.at(ov::weights_path.name()).as<std::string>();
@@ -1149,9 +1150,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                             "Empty weights_path. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
 
                 // Check if fd_getter function is provided
-                if (const auto fd_it = properties.find(ov::hint::fd_getter.name()); fd_it != properties.end()) {
-                    if (fd_it->second.is<ov::FdGetterType>()) {
-                        fd_getter = fd_it->second.as<ov::FdGetterType>();
+                if (const auto fd_it = properties.find(ov::intel_npu::npuw::fd_getter.name()); fd_it != properties.end()) {
+                    if (fd_it->second.is<ov::intel_npu::FdGetterType>()) {
+                        fd_getter = fd_it->second.as<ov::intel_npu::FdGetterType>();
                     }
                 }
             } else if (properties.find(ov::hint::model.name()) != properties.end()) {

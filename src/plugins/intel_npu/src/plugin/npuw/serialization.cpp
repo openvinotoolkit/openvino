@@ -29,7 +29,7 @@ ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::WeightsPtr&
                                                const std::string& _weights_path,
                                                const s11n::WeightsContext::ConstsCache& _consts_cache,
                                                const BF16Cache& _bf16_consts,
-                                               const ov::FdGetterType& _fd_getter)
+                                               const ov::intel_npu::FdGetterType& _fd_getter)
     : weights(_weights),
       weights_path(_weights_path),
       consts_cache(_consts_cache),
