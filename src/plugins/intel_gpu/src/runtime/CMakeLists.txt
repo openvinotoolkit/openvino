@@ -27,7 +27,11 @@ if(NOT OV_COMPILER_IS_INTEL_LLVM)
     list(REMOVE_ITEM LIBRARY_SOURCES_OCL ${SYCL_SOURCES})
 endif()
 
-set(LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_MAIN} ${LIBRARY_SOURCES_OCL})
+set(LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_MAIN})
+
+if(GPU_RT_TYPE STREQUAL "OCL")
+    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
+endif()
 
 if(GPU_RT_TYPE STREQUAL "L0")
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_ZE})
@@ -69,7 +73,6 @@ ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE
-    OpenCL::OpenCL
     openvino::itt
     openvino::runtime::dev
   )

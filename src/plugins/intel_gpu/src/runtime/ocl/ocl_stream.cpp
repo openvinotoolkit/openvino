@@ -11,6 +11,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "ocl_kernel.hpp"
 #include "ocl_common.hpp"
+#include "ocl_memory.hpp"
 
 #include <cassert>
 #include <string>
@@ -364,6 +365,10 @@ event::ptr ocl_stream::create_user_event(bool set) {
 event::ptr ocl_stream::create_base_event() {
     cl::Event ret_ev;
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
+}
+
+std::unique_ptr<surfaces_lock> ocl_stream::create_surfaces_lock(const std::vector<memory::ptr> &mem) const {
+    return std::unique_ptr<ocl::ocl_surfaces_lock>(new ocl::ocl_surfaces_lock(mem, *this));
 }
 
 void ocl_stream::flush() const {

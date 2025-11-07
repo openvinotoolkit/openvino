@@ -223,8 +223,6 @@ struct surfaces_lock {
 
     surfaces_lock(const surfaces_lock& other) = delete;
     surfaces_lock& operator=(const surfaces_lock& other) = delete;
-
-    static std::unique_ptr<surfaces_lock> create(engine_types engine_type, std::vector<memory::ptr> mem, const stream& stream);
 };
 
 template<typename T>

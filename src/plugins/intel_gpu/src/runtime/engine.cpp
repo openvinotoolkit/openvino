@@ -263,9 +263,11 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
         ret = ocl::create_sycl_engine(device, runtime_type);
         break;
 #endif  // OV_GPU_WITH_SYCL
+#ifdef OV_GPU_WITH_OCL_RT
     case engine_types::ocl:
         ret = ocl::create_ocl_engine(device, runtime_type);
         break;
+#endif
 #ifdef OV_GPU_WITH_ZE_RT
     case engine_types::ze:
         ret = ze::create_ze_engine(device, runtime_type);

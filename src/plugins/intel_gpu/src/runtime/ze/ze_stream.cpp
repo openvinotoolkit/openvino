@@ -334,8 +334,13 @@ event::ptr ze_stream::create_base_event() {
     return m_ev_factory->create_event(++m_queue_counter);
 }
 
+std::unique_ptr<surfaces_lock> ze_stream::create_surfaces_lock(const std::vector<memory::ptr> &mem) const {
+    // Level Zero egnine currently does not support surfaces lock
+    return nullptr;
+}
+
 void ze_stream::flush() const {
-    //Immediate Command List submits commands immediately - no flush impl
+    // Immediate Command List submits commands immediately - no flush impl
 }
 
 void ze_stream::finish() const {
