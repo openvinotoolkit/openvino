@@ -37,10 +37,35 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
     }
 
     OutputVector outputs;
+    Output<Node> prepared_input;
+    Output<Node> axis_const;
 
-    // Choose the axis
+    // Choose the axis and prepare input
+    if (dim_is_none) {
+        // If dim is None, flatten the input tensor first
+        auto shape = std::make_shared<v0::ShapeOf>(input);
+        auto flatten_shape = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
+        prepared_input = context.mark_node(std::make_shared<v1::Reshape>(input, flatten_shape));
+        // Use axis 0 for flattened tensor
+        axis_const = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}))
+    } else {
+        // Use input as-is with specified dimension
+        prepared_input = input;
+        // Handle negative axis value
+        if (dim < 0) {
+            auto rank = context.mark_node(std::make_shared<v0::ShapeOf>(input));
+            auto rank_scalar = context.mark_node(std::make_shared<v1::ReduceProd>(rank, v0::Constant::create(element::i64, Shape{}, {0})));
+            auto dim_const = context.mark_node(v0::Constant::create(element::i64, Shape{}, {dim}));
+            axis_const = context.mark_node(std::make_shared<v1::Add>(dim_const, rank_scalar));
+        } else {
+            axis_const = context.mark_node(v0::Constant::create(element::i64, Shape{}, {dim}));
+        }
+    }
 
     // Compare the neighbors along axis a
+    auto head = context.mark_node(std::make_shared<v8::Slice>(prepared_input, axis_const, axis_const, axis_const, 1));
+    // auto tail = context.mark_node(std::make_shared<v8::Slice>(input, axis_const, axis_const, axis_const, 1, -1));
+    // auto equal = context.mark_node(std::make_shared<v1::Equal>(head, tail));
 
     // Build a keep mask of run starts
 
