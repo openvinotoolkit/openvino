@@ -411,10 +411,10 @@ ref_diff_map = {
 		"ScaledDotProductAttention" : -2,
 	},
 	"optimum-intel-internal-testing/tiny-random-GPTBigCodeModel" : {
-		"Assign" : -10,
+		"Assign" : -5,
 		"PagedAttentionExtension" : 5,
 		"Parameter" : 13,
-		"ReadValue" : -10,
+		"ReadValue" : -5,
 		"ScaledDotProductAttention" : -5,
 	},
 	"optimum-intel-internal-testing/tiny-random-GPTJModel" : {
@@ -1450,10 +1450,10 @@ ref_diff_map_optimizations = {
 		"ScaledDotProductAttention" : -2,
 	},
 	"optimum-intel-internal-testing/tiny-random-GPTBigCodeModel" : {
-		"Assign" : -10,
+		"Assign" : -5,
 		"PagedAttentionExtension" : 5,
 		"Parameter" : 36,
-		"ReadValue" : -10,
+		"ReadValue" : -5,
 		"ScaledDotProductAttention" : -5,
 	},
 	"optimum-intel-internal-testing/tiny-random-GPTJModel" : {

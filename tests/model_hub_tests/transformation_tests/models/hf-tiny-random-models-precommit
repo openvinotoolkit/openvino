@@ -50,6 +50,7 @@ optimum-intel-internal-testing/tiny-mixtral-AWQ-4bit,https://huggingface.co/opti
 optimum-intel-internal-testing/tiny-random-BloomModel,https://huggingface.co/optimum-intel-internal-testing/tiny-random-BloomModel
 optimum-intel-internal-testing/tiny-random-CodeGenForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-CodeGenForCausalLM
 optimum-intel-internal-testing/tiny-random-CohereForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-CohereForCausalLM
+optimum-intel-internal-testing/tiny-random-GPTBigCodeModel,https://huggingface.co/optimum-intel-internal-testing/tiny-random-GPTBigCodeModel
 optimum-intel-internal-testing/tiny-random-GPTJModel,https://huggingface.co/optimum-intel-internal-testing/tiny-random-GPTJModel
 optimum-intel-internal-testing/tiny-random-GPTNeoModel,https://huggingface.co/optimum-intel-internal-testing/tiny-random-GPTNeoModel
 optimum-intel-internal-testing/tiny-random-GPTNeoXForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-GPTNeoXForCausalLM
