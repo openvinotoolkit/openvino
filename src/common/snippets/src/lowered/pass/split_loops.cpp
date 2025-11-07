@@ -23,6 +23,7 @@
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/loop_utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
 
