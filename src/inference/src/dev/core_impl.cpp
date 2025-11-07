@@ -273,6 +273,13 @@ std::filesystem::path get_cache_model_path(const ov::AnyMap& config) {
     return it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
 }
 
+std::vector<ov::Extension::Ptr> try_get_extensions(const std::filesystem::path& path) {
+    try {
+        return ov::detail::load_extensions(path.native());
+    } catch (const std::runtime_error&) {
+        return {};
+    }
+}
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -625,9 +632,8 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
         if (extensionsNode) {
             FOREACH_CHILD (extensionNode, extensionsNode, "extension") {
-                ov::util::FilePath extensionLocation =
-                    ov::util::to_file_path(pugixml::get_str_attr(extensionNode, "location").c_str());
-                listOfExtentions.push_back(extensionLocation);
+                const auto extension_location = pugixml::get_str_attr(extensionNode, "location");
+                listOfExtentions.push_back(ov::util::make_path(extension_location));
             }
         }
 
@@ -789,17 +795,17 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         // add plugin as extension itself
         std::lock_guard<std::mutex> g_lock(get_mutex());
 
+        std::vector<ov::Extension::Ptr> ext;
         if (desc.extensionCreateFunc) {  // static OpenVINO case
             try {
-                std::vector<ov::Extension::Ptr> ext;
                 desc.extensionCreateFunc(ext);
-                add_extensions_unsafe(ext, deviceName);
             } catch (const ov::Exception&) {
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
-            try_to_register_plugin_extensions(desc.libraryLocation, deviceName);
+            ext = try_get_extensions(desc.libraryLocation);
         }
+        std::move(ext.begin(), ext.end(), std::back_inserter(pluginRegistry.at(deviceName).extensions));
 
         return plugins.emplace(deviceName, plugin).first->second;
     } catch (const ov::Exception& ex) {
@@ -1285,9 +1291,7 @@ void ov::CoreImpl::unload_plugin(const std::string& deviceName) {
     if (it == plugins.end()) {
         OPENVINO_THROW("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
     }
-
-    remove_extensions_for_device_unsafe(deviceName);
-
+    pluginRegistry[deviceName].extensions.clear();
     plugins.erase(deviceName);
 }
 
@@ -1397,43 +1401,33 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         });
     }
 }
-void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& exts,
-                                         const std::string& device_name) const {
+void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& exts) const {
     for (const auto& ext : exts) {
-        extensions.emplace_back(ext, device_name);
+        extensions.emplace_back(ext);
         auto ext_obj = ext;
         if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext_obj))
             ext_obj = so_ext->extension();
         if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext_obj)) {
             for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
-                extensions.emplace_back(attached_ext, device_name);
+                extensions.emplace_back(attached_ext);
             }
         }
     }
 }
 
-void ov::CoreImpl::remove_extensions_for_device_unsafe(const std::string& device_name) const {
-    extensions.erase(std::remove_if(extensions.begin(),
-                                    extensions.end(),
-                                    [&device_name](const auto& item) {
-                                        return item.second == device_name;
-                                    }),
-                     extensions.end());
-}
-
 std::vector<ov::Extension::Ptr> ov::CoreImpl::get_extensions_copy() const {
     std::lock_guard<std::mutex> lock(get_mutex());
-    std::vector<ov::Extension::Ptr> only_extensions;
-    only_extensions.reserve(extensions.size());
-    for (const auto& item : extensions) {
-        only_extensions.push_back(item.first);
+    auto only_extensions = extensions;
+    auto ext_it = std::back_inserter(only_extensions);
+    for (const auto& [_, plugin_desc] : pluginRegistry) {
+        std::copy(plugin_desc.extensions.begin(), plugin_desc.extensions.end(), ext_it);
     }
     return only_extensions;
 };
 
-void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions, const std::string& device_name) {
+void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
     std::lock_guard<std::mutex> lock(get_mutex());
-    add_extensions_unsafe(extensions, device_name);
+    add_extensions_unsafe(extensions);
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const std::string& device_name) const {
