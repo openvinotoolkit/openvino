@@ -8,6 +8,7 @@
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
+#include "node/include/type_validation.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -203,11 +204,11 @@ Napi::Value TensorWrap::copy_to(const Napi::CallbackInfo& info) {
 
     OPENVINO_ASSERT(info.Length() == 1, "copyTo() must receive one argument, which is the destination Tensor.");
 
-    OPENVINO_ASSERT(info[0].IsObject(), "Invalid argument");
-
     try {
-        ov::Tensor dst_tensor = cast_to_tensor(info, 0);
-        _tensor.copy_to(dst_tensor);
+        OPENVINO_ASSERT(ov::js::validate_value<TensorWrap>(env, info[0]), "The argument must be a Tensor object.");
+        auto dst_tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
+
+        _tensor.copy_to(dst_tensor_wrap->_tensor);
     } catch (const std::exception& e) {
         reportError(env, e.what());
     }
