@@ -9,6 +9,8 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/core/shape.hpp"
+
 namespace ov::snippets {
 /*
  * This header file contain declarations of shape-relevant classes used cross several snippets subsystems.
@@ -16,7 +18,7 @@ namespace ov::snippets {
  * both PortDescriptor and IShapeInferSnippets use VectorDims, but these two classes are completely independent
  * semantically.
  */
-using VectorDims = std::vector<size_t>;
+using VectorDims = ov::Shape;
 using VectorDimsPtr = std::shared_ptr<VectorDims>;
 using VectorDimsCPtr = std::shared_ptr<const VectorDims>;
 using VectorDimsRef = std::reference_wrapper<const VectorDims>;

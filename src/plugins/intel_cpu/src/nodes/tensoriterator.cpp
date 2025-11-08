@@ -811,6 +811,9 @@ void TensorIterator::prepareLoopBodyCurrentIteration() {
 
 void TensorIterator::prepareContinueCond() {
     if (loopBodyConditionOutputIdx != -1 || !continue_cond_check) {
+        CPU_NODE_ASSERT(
+            loopBodyConditionOutputIdx >= 0 && loopBodyConditionOutputIdx < static_cast<int>(output_mem.size()),
+            "has invalid loopBodyConditionOutputIdx.");
         auto mem = output_mem[loopBodyConditionOutputIdx];
         continue_cond_check = std::make_shared<asBoolCheck>(mem);
     }

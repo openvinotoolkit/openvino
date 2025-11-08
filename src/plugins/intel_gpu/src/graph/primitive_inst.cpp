@@ -542,7 +542,13 @@ void primitive_inst::update_shape() {
     }
 }
 
-kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
+kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(program_node const& node, kernel_impl_params const& orig_impl_param) {
+    // disable if fake alignment is not necessary
+    if (node.is_output()) {
+        GPU_DEBUG_TRACE_DETAIL << " Disable fake alignment : " << node.id() << " is output node" << std::endl;
+        return orig_impl_param;
+    }
+
     auto updated_params = get_node().type()->get_fake_aligned_params(orig_impl_param);
 
     const auto &dev_info = get_node().get_program().get_engine().get_device_info();
@@ -583,6 +589,54 @@ bool primitive_inst::all_dependencies_cpu_impl() const {
     return check_all_deps_cpu(this);
 }
 
+bool primitive_inst::need_reset_output_memory() const {
+    for (const auto& user_inst : get_user_insts()) {
+        // Check users of optimized_out inst, as the optimized out inst will not be able to
+        // reset it's memory
+        if (user_inst->can_be_optimized()) {
+            if (user_inst->need_reset_output_memory())
+                return true;
+            continue;
+        }
+
+        if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
+            return true;
+
+        // OneDNN requires zero-filled input for padded area
+        const bool is_user_onednn_impl = user_inst->get_node().get_preferred_impl_type() == impl_types::onednn;
+        const bool is_user_conv = user_inst->get_node().is_type<convolution>();
+        if (is_user_conv && is_user_onednn_impl) {
+            auto& conv_node = user_inst->get_node().as<convolution>();
+            auto& output_layout = _impl_params->get_output_layout(0);
+            auto in_channel_count = get_convolution_channel_count(conv_node, output_layout, true);
+            // If the channel count is dynamic, we cannot verify feature alignment,
+            // so we conservatively do the reset and return true for this condition.
+            if (in_channel_count == -1)
+                return true;
+
+            auto get_feature_block_size = [](format fmt) {
+                        int feature_block_size = 1;
+                        for (auto &e : fmt.block_sizes()) {
+                            if (e.first == 1) {
+                                OPENVINO_ASSERT(feature_block_size == 1, "UNSUPPORTED: multi-blocking for feature axis is not considered");
+                                feature_block_size = e.second;
+                            }
+                        }
+                        return feature_block_size;
+                    };
+
+            const auto fmt = output_layout.format;
+            auto feature_block_size = get_feature_block_size(fmt);
+            // if layout is single blocked and feature size is not aligned with the blocking size, need to reset output so that we can guarantee zero-filling
+            // NOTE: We may improve this logic to avoid reset if we are sure that it is not "corrupted" by other layers.
+            if (in_channel_count % feature_block_size != 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void primitive_inst::clear_output_memory() {
     _outputs[0] = nullptr;
     _max_output_layout_count[0] = 0;
@@ -607,7 +661,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     }
 
     // Update param if fake_alignment is available
-    auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
+    auto updated_params = get_fake_aligned_params_if_possible(get_node(), *_impl_params);
 
     const auto& actual_layouts = updated_params.output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
@@ -966,7 +1020,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
         } else {
             GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. " << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " outputs[" << i << "] "
+            GPU_DEBUG_TRACE_DETAIL << " outputs[" << i << "] " << get_node().id()
                                    << " Current buffer_size=" << _max_output_layout_count[i]
                                    << " Requested buffer_size=" << updated_layouts[i].get_linear_size()
                                    << std::endl;
@@ -1146,6 +1200,14 @@ bool primitive_inst::use_async_compilation() {
 
             // Disable async compilation for all int4 FC, except in the case of batch_size == 1
             if (one_of(weights_dt, {data_types::i4, data_types::u4}) && batch_size != 1)
+                compile_fc_impls = false;
+        } else {
+            auto input_dt = fc_node.input().get_output_layout().data_type;
+            auto weights_dt = fc_node.weights().get_output_layout().data_type;
+            auto output_dt = fc_node.input().get_output_layout().data_type;
+            // Disable async compilation for int8 quantize FC
+            if (one_of(weights_dt, {data_types::i8, data_types::u8})
+                && (one_of(input_dt, {data_types::i8, data_types::u8}) || one_of(output_dt, {data_types::i8, data_types::u8})))
                 compile_fc_impls = false;
         }
     }
@@ -2375,7 +2437,10 @@ void primitive_inst::update_weights() {
             reorder_kernel_params->get_output_layout().clone_with_other_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);
 
-        if (_reordered_weights_cache.has(expected_layout)) {
+        if (_reordered_weights_cache.has(expected_layout) &&
+            // WA: for custom format, we need to check traits to know what it really represents
+            (expected_layout.format != cldnn::format::custom ||
+            expected_layout.format.traits() == _reordered_weights_cache.get(expected_layout)->get_layout().format.traits())) {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights for " << expected_layout.to_short_string() << std::endl;
             return;
@@ -2931,7 +2996,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     auto& kernels_cache = prog.get_kernels_cache();
 
     // Update param if fake_alignment is available
-    auto updated_params = inst.get_fake_aligned_params_if_possible(params);
+    auto updated_params = inst.get_fake_aligned_params_if_possible(inst.get_node(), params);
     // Change weights layout of `updated_params` to original one to have valid information
     // in _impl->_weights_reorder_params about required weights format after impl selection
     if (inst.get_node().is_type<fully_connected>() || inst.get_node().is_type<convolution>() || inst.get_node().is_type<deconvolution>()) {

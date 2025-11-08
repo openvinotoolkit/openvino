@@ -8,15 +8,15 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
+#include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_load_store.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
-#include "snippets/lowered/pass/split_loops.hpp"
-#include "snippets/lowered/pass/insert_buffers.hpp"
-#include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
-#include "snippets/lowered/pass/validate_unified_loops.hpp"
-#include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
+#include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
+#include "snippets/lowered/pass/split_loops.hpp"
+#include "snippets/lowered/pass/validate_expanded_loops.hpp"
+#include "snippets/lowered/pass/validate_unified_loops.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
@@ -155,8 +155,12 @@ TEST(Snippets_TailProcessingTransformation, BlockedTail_OriginalPtrShifts) {
     reference[2] = { std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -80)}; // Inner Vector Blocked
     reference[3] = { {16, 0, 20, 20}, std::vector<int64_t>(4, 0)}; // Outer Vector Blocked
 
-    reference[4] = { std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -40)}; // Inner Tail Blocked
-    reference[5] = { std::vector<int64_t>(4, 0), {-192, 0, -240, -240}}; // Outer Tail Blocked
+    // Inner cloned in outer blocked loop
+    reference[4] = reference[0];
+    reference[5] = reference[1];
+
+    reference[6] = { std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -40)}; // Inner Tail Blocked
+    reference[7] = { std::vector<int64_t>(4, 0), {-192, 0, -240, -240}}; // Outer Tail Blocked
 
     validate(linear_ir, reference);
 }
@@ -178,8 +182,12 @@ TEST(Snippets_TailProcessingTransformation, BlockedTail_CleanUpPtrShifts) {
     reference[2] = { std::vector<int64_t>(3, 0), {0, -80, 0}}; // Inner Vector Blocked (-80 - finalization offset for Buffer ptr)
     reference[3] = { {16, 0, 0, 0}, std::vector<int64_t>(4, 0)}; // Outer Vector Blocked
 
-    reference[4] = { std::vector<int64_t>(3, 0), {0, -40, 0}}; // Inner Tail Blocked (-40 - finalization offset for Buffer ptr)
-    reference[5] = { std::vector<int64_t>(4, 0), {32, 0, 0, 0}}; // Outer Tail Blocked
+    // Inner cloned in outer blocked loop
+    reference[4] = reference[0];
+    reference[5] = reference[1];
+
+    reference[6] = { std::vector<int64_t>(3, 0), {0, -40, 0}}; // Inner Tail Blocked (-40 - finalization offset for Buffer ptr)
+    reference[7] = { std::vector<int64_t>(4, 0), {32, 0, 0, 0}}; // Outer Tail Blocked
 
     validate(linear_ir, reference);
 }

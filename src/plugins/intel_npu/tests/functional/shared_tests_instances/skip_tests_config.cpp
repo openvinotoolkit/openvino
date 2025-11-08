@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "common/functions.h"
+#include "common/functions.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -65,6 +65,11 @@ public:
             })) {
             _availableDevices.push_back(standardizedEnvironmentDevice);
         }
+
+        auto driverVersionPropetry =
+            corePtr->get_property(ov::test::utils::DEVICE_NPU, ov::intel_npu::driver_version.name());
+        _driverVersion = driverVersionPropetry.as<std::string>();
+
     }
 
     const auto& getAvailableDevices() const {
@@ -75,6 +80,10 @@ public:
         return _availableDevices.size();
     }
 
+    const std::string& getDriverVersion() const {
+        return _driverVersion;
+    }
+
     bool has3720() const {
         return std::any_of(_availableDevices.begin(), _availableDevices.end(), [](const std::string& deviceName) {
             return deviceName.find("3720") != std::string::npos;
@@ -83,6 +92,7 @@ public:
 
 private:
     std::vector<std::string> _availableDevices;
+    std::string _driverVersion;
     intel_npu::Logger _log = intel_npu::Logger("AvailableDevices", ov::log::Level::INFO);
 };
 
@@ -188,6 +198,7 @@ bool isRuleInverted(std::string& rule) {
 /** Reads multiple rules from specified categories:
  *      - "Backend" rule category
  *      - "Device" rule category
+ *      - "Driver Version" rule category
  *      - "Operating System" rule category
  *
  *  When a rule is found it will get inverted if it starts with "!"
@@ -273,6 +284,7 @@ std::vector<std::string> disabledTestPatterns() {
                     // Accumulate rule for each category
                     ruleFlag &= categoryRuleEnabler("backend", {backendName.getName()}, enableRules);
                     ruleFlag &= categoryRuleEnabler("device", devices.getAvailableDevices(), enableRules);
+                    ruleFlag &= categoryRuleEnabler("driver_version", {devices.getDriverVersion()}, enableRules);
                     ruleFlag &= categoryRuleEnabler("operating_system", {currentOS.getName()}, enableRules);
                 }
 
