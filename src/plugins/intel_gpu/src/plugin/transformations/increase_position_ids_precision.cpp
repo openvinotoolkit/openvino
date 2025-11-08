@@ -176,41 +176,8 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
     using namespace ov::pass::pattern;
     using ov::pass::pattern::op::Or;
 
-    // for gpt-oss pattern
-    // freq const
-    #if 0
-    // before keep precision
-//    auto convert_freq = wrap_type<ov::op::v0::Convert>({any_input()});
-    // const f32
-    auto broadcast_freq = wrap_type<ov::op::v3::Broadcast>({convert_freq, any_input()});
-
-    // position_id
-//    auto convert_pos_id_to_i32 = wrap_type<ov::op::v0::Convert>({any_input()});
-    auto unsqueeze_pos_id = wrap_type<ov::op::v0::Unsqueeze>({any_input(), any_input()});
-    auto convert_pos_id_to_f16 = wrap_type<ov::op::v0::Convert>({unsqueeze_pos_id});
-
-    auto matmul_freq_pos_id = wrap_type<ov::op::v0::MatMul>({broadcast_freq, convert_pos_id_to_f16});
-//    auto transpose = wrap_type<ov::op::v1::Transpose>({matmul_freq_pos_id, any_input()});
-//
-//    auto sin = wrap_type<ov::op::v0::Sin>({transpose});
-//    auto cos = wrap_type<ov::op::v0::Cos>({transpose});
-//
-//    auto mul_sin_scale = wrap_type<ov::op::v1::Multiply>({sin, any_input()});
-//
-//    auto unsqueeze_mul_sin_scale = wrap_type<ov::op::v0::Unsqueeze>({mul_sin_scale, any_input()});
-//    auto mul_q_sin = wrap_type<ov::op::v1::Multiply>({any_input()/* q_second_half*/, unsqueeze_mul_sin_scale});
-//
-//    auto q_half  = wrap_type<ov::op::v1::Add>({mul_q_sin, any_input()});
-//
-//    auto concat_q_1 = wrap_type<ov::op::v0::Concat>({q_half, any_input()});
-//    auto concat_q_2 = wrap_type<ov::op::v0::Concat>({any_input(), q_half});
-//    auto concat_q = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat_q_1, concat_q_2});
-
-    #else
-    // original pass order
     auto broadcast_freq = wrap_type<ov::op::v3::Broadcast>({any_input(), any_input()});
 
-    // position_id
     auto convert_pos_id_to_i32 = wrap_type<ov::op::v0::Convert>({any_input()});
     auto unsqueeze_pos_id = wrap_type<ov::op::v0::Unsqueeze>({convert_pos_id_to_i32, any_input()});
     auto convert_pos_id_to_f16 = wrap_type<ov::op::v0::Convert>({unsqueeze_pos_id});
@@ -250,14 +217,12 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
     auto q_half_mul2 = wrap_type<ov::op::v1::Multiply>({q_half_mul1, any_input()});
     auto q_half_first  = wrap_type<ov::op::v1::Add>({mul_q_cos, q_half_mul2});
 
-    // thi has problem
     auto q_half_mul4 = wrap_type<ov::op::v1::Multiply>({any_input(), any_input()});
     auto q_half_second  = wrap_type<ov::op::v1::Add>({mul_q_sin, q_half_mul4});
 
     auto concat_q_1 = wrap_type<ov::op::v0::Concat>({q_half_second, q_half_first});
     auto concat_q_2 = wrap_type<ov::op::v0::Concat>({q_half_first, q_half_second});
     auto concat_q = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat_q_1, concat_q_2});
-    #endif
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
