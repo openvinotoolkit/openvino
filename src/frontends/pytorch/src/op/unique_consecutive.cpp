@@ -40,7 +40,7 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
     Output<Node> prepared_input;
     Output<Node> axis_const;
 
-    // Choose the axis and prepare input
+    // Step 1: Choose the axis and prepare input
     if (dim_is_none) {
         // If dim is None, flatten the input tensor first
         auto shape = std::make_shared<v0::ShapeOf>(input);
@@ -62,10 +62,30 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
         }
     }
 
-    // Compare the neighbors along axis a
-    auto head = context.mark_node(std::make_shared<v8::Slice>(prepared_input, axis_const, axis_const, axis_const, 1));
-    // auto tail = context.mark_node(std::make_shared<v8::Slice>(input, axis_const, axis_const, axis_const, 1, -1));
-    // auto equal = context.mark_node(std::make_shared<v1::Equal>(head, tail));
+    // Step 2: Compare the neighbors along axis a
+    // build per-axis start/stop/step vectors (same length as input rank)
+    auto shape = context.mark_node(std::make_shared<v0::ShapeOf>(prepared_input));
+    auto zero_scalar = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
+    auto one_scalar = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
+
+    // broadcast scalars to shape-of-input to produce length-rank vectors
+    auto zeros = context.mark_node(std::make_shared<v3::Broadcast>(zero_scalar, shape));
+    auto ones = context.mark_node(std::make_shared<v3::Broadcast>(one_scalar, shape));
+    
+    // head: start = [0, ...], stop = shape - 1 (exclusive)
+    auto head_start = zeros;
+    auto head_stop = context.mark_node(std::make_shared<v1::Subtract>(shape, ones));
+    auto step = ones;
+
+    // tail: start = [1, ...], stop = shape (exclusive -> equals shape)
+    auto tail_start = ones;
+    auto tail_stop = shape;
+
+    // slice along all axes; only the axis of interest changes values in the vectors above
+    auto head = context.mark_node(std::make_shared<v8::Slice>(prepared_input, head_start, head_stop, step));
+    auto tail = context.mark_node(std::make_shared<v8::Slice>(prepared_input, tail_start, tail_stop, step));
+
+    auto equal = context.mark_node(std::make_shared<v1::Equal>(head, tail));
 
     // Build a keep mask of run starts
 
