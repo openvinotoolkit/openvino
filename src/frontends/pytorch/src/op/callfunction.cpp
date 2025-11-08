@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/relu.hpp"
+#include "translate_session.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -14,43 +12,58 @@ namespace pytorch {
 namespace op {
 
 using namespace ov::op;
-using namespace std;
-
 
 OutputVector translate_prim_CallFunction(const NodeContext& context) {
     num_inputs_check(context, 2, context.get_input_size());
 
-    auto function_input = context.get_input(0);
+    auto decoder = context.get_decoder();
+    
+    // Check if the function is defined as a subgraph
+    if (decoder->get_subgraph_size() > 0) {
+        // Convert the subgraph (use first subgraph as the function body)
+        auto body = context.convert_subgraph(0);
 
-    // Get function arguments
-    OutputVector args;
-    for (size_t i = 1; i < context.get_input_size(); i++) {
-        args.push_back(context.get_input(i));
-    }
-
-    Output<Node> result;
-
-    if (auto const_op = std::dynamic_pointer_cast<v0::Constant>(function_input.get_node_shared_ptr())) {
-        if (args.size() == 1) {
-            auto arg_type = args[0].get_element_type();
-            if (arg_type.is_signed()) {
-                result = context.mark_node(std::make_shared<v0::Abs>(args[0]));
-            } else {
-                result = context.mark_node(std::make_shared<v0::Relu>(args[0]));
+        // Map function arguments to subgraph parameters
+        // In CallFunction, input 0 is the function reference, arguments start from input 1
+        auto params = body->get_parameters();
+        PYTORCH_OP_CONVERSION_CHECK(params.size() + 1 <= context.get_input_size(),
+                                    "prim::CallFunction: Not enough arguments provided for subgraph parameters.");
+        
+        // Map parameters in order to function arguments (inputs 1, 2, 3, ...)
+        for (size_t i = 0; i < params.size(); i++) {
+            auto param = params[i];
+            // Map parameter i to input i+1 (since input 0 is the function reference)
+            auto external_output = context.get_input(static_cast<int>(i + 1));
+            if (external_output.get_node()) {
+                param->output(0).replace(external_output);
             }
         }
 
-        else if (args.size() == 2) {
-            result = args[0];
+        // Return subgraph results
+        OutputVector outputs;
+        for (auto& result : body->get_results()) {
+            auto output = result->get_input_source_output(0);
+            outputs.push_back(context.mark_output(output));
         }
 
-        else {
-            result = args[0];
+        // Handle output type conversion if needed
+        if (outputs.size() > 0) {
+            auto out_type = context.get_output_type(0);
+            if (out_type.is<element::Type>()) {
+                auto dtype = out_type.as<element::Type>();
+                if (dtype.is_static() && dtype != outputs[0].get_element_type()) {
+                    outputs[0] = context.mark_node(std::make_shared<v0::Convert>(outputs[0], dtype));
+                }
+            }
         }
-    } else {
-        PYTORCH_OP_CONVERSION_CHECK(args.size() > 0, "prim::CallFunction: No arguments provided");
-        result = args[0];
+
+        return outputs;
     }
+
+    // Fallback: if no subgraph, return first argument (backward compatibility)
+    PYTORCH_OP_CONVERSION_CHECK(context.get_input_size() > 1, 
+                                "prim::CallFunction: No arguments provided");
+    auto result = context.get_input(1);
 
     auto out_type = context.get_output_type(0);
     if (out_type.is<element::Type>()) {
