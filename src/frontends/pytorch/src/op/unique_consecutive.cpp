@@ -155,13 +155,33 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
     auto counts = context.mark_node(std::make_shared<v1::Subtract>(tail_indices, head_indices));
 
     // Step 6 - Compute inverse indices
-    
-    outputs.push_back(unique_consecutive->output(0));
     if (return_inverse) {
-        outputs.push_back(unique_consecutive->output(1));
+        // convert keep (bool) -> integer so we can CumSum
+        auto keep_int = context.mark_node(std::make_shared<v1::Convert>(keep, element::i64));
+
+        // CumSum along the chosen axis (inclusive). This produces per-position run labels:
+        // e.g. keep = [1,0,1,0,...] -> sumsum = [1,1,2,2,...]
+        auto cumsum = context.mark_node(std::make_shared<v3::CumSum>(keep_int, axis_const, /*exclusive*/ false, /*reverse*/ false));
+
+        // Subtract 1 to make run ids 0-based: [1,1,2,2,...] -> [0,0,1,1,...]
+        auto inverse_pre = context.mark_node(std::make_shared<v1::Subtract>(cumsum, one_scalar));
+
+        // If we flattened the input (dim_is_none), reshape inverse back to original input shape
+        Output<Node> inverse;
+        if (dim_is_none) {
+            auto orig_shape = context.mark_node(std::make_shared<v0::ShapeOf>(input)); // original input shape
+            inverse = context.mark_node(std::make_shared<v1::Reshape>(inverse_pre, orig_shape));
+        } else {
+            // inverse already has same shape as prepared_input (same as input)
+            inverse = inverse_pre;
+        }
+
+        // push inverse in the expected output order (values already pushed earlier)
+        outputs.push_back(inverse);
     }
+    
     if (return_counts) {
-        outputs.push_back(unique_consecutive->output(return_inverse ? 2 : 1));
+        outputs.push_back(counts);
     }
 
     return outputs;
