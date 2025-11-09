@@ -40,9 +40,6 @@ KERNEL(moe_scatter_reduction_ref)(
        }
    }
 
-   if (threads_index == 0)
-       input_offset = 0;
-
    barrier(CLK_LOCAL_MEM_FENCE);
 
 #if UNALIGNED_ELEMENTS > 0
@@ -68,10 +65,12 @@ KERNEL(moe_scatter_reduction_ref)(
         INPUT5_TYPE token_len = tokens_len_per_expert[start_offset_index[i]];
         INPUT4_TYPE expert_offset = experts_start_offset[start_offset_index[i]];
 
-        for (uint tid = threads_index; tid < token_len; tid += get_local_size(0)) {
-            if (tokens_per_expert[expert_offset + tid] == token_group_id) {
-                input_offset = expert_offset + tid;
-                break;
+        if (threads_index == 0) {
+            for (uint ti = 0; ti < token_len; ++ti) {
+                if (tokens_per_expert[expert_offset + ti] == token_group_id) {
+                    input_offset = expert_offset + ti;
+                    break;
+                }
             }
         }
         barrier(CLK_LOCAL_MEM_FENCE);
