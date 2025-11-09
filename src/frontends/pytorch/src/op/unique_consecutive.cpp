@@ -100,7 +100,20 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
 
     auto keep = context.mark_node(std::make_shared<v0::Concat>(OutputVector{true_one, change}, axis_index));
 
-    // Get run start indices and the values output
+    // Step 4 - Get run start indices and the values output
+    // NonZero(keep) -> indices tensor with shape [rank, N] (each column is a coordinate)
+    auto nonzero = context.mark_node(std::make_shared<v3::NonZero>(keep));
+
+    // Extract the row that corresponds to the slicing axis (row index == axis_index)
+    auto axis_row_idx = context.mark_node(v0::Constant::create(element::i64, Shape{}, {axis_index}));
+    auto nonzero_axis = context.mark_node(std::make_shared<v8::Gather>(nonzero, axis_row_idx, context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}))));
+
+    // nonzero_axis is a 1-D i64 tensor with the start indices along the chosen axis
+    // Gather values from prepared_input along axis_const at positions nonzero_axis
+    auto values = context.mark_node(std::make_shared<v8::Gather>(prepared_input, nonzero_axis, axis_const));
+
+    // push the values (unique_consecutive output)
+    outputs.push_back(values);
 
     // Compute counts
 
