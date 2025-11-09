@@ -160,9 +160,11 @@ JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_eleme
 
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetScatterElementsUpdateChannelIndex(params)));
 
-    const auto& output = params.outputs[0];
-    if (output.PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize) {
-        jit.AddConstant(MakeJitConstant("NO_LOCAL_MEMORY", 1));
+    if (!params.is_shape_agnostic) {
+        const auto& output = params.outputs[0];
+        if (output.PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize) {
+            jit.AddConstant(MakeJitConstant("NO_LOCAL_MEMORY", 1));
+        }
     }
 
     if (params.mode != ScatterUpdateReduction::NONE) {
@@ -210,7 +212,7 @@ void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) c
         if (prim_params.mode == ScatterUpdateReduction::NONE) {
             OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
         } else {
-            OPENVINO_ASSERT(kd.kernels.size() == 3, "[GPU] Invalid kernels size for update dispatch data func");
+            OPENVINO_ASSERT(kd.kernels.size() == 5, "[GPU] Invalid kernels size for update dispatch data func");
         }
 
         const auto& output = prim_params.outputs[0];
@@ -230,10 +232,11 @@ void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) c
         }
 
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
-            auto dispatchData = SetDefault(prim_params, i == 1);
+            auto dispatchData = SetDefault(prim_params, i == 1 || i == 2);
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
-            kd.kernels[i].skip_execution = SkipKernelExecution(prim_params, i);
+            bool is_skip = ((use_local_memory && ((i == 2) || (i == 4))) || (!use_local_memory && ((i == 1) || (i == 3))));
+            kd.kernels[i].skip_execution = is_skip ? true : SkipKernelExecution(prim_params, i);
 
             if (i >= 1 && prim_params.mode != ScatterUpdateReduction::NONE && use_local_memory) {
                 const auto& output = prim_params.outputs[0];
@@ -254,7 +257,7 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
     int kernel_size = 2;
 
     if (prim_params.mode != ScatterUpdateReduction::NONE) {
-        kernel_size += 1;
+        kernel_size += (params.is_shape_agnostic) ? 3 : 1;
     }
 
     KernelData kd = KernelData::Default<scatter_elements_update_params>(params, kernel_size);
@@ -264,9 +267,11 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
     GetUpdateDispatchDataFunc(kd);
 
     const auto& output = newParams.outputs[0];
-    const bool use_local_memory = (output.PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize) ? false : true;
+    bool use_local_memory = (output.PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize) ? false : true;
+
     kd.internalBuffers.clear();
     kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // fixed point output
+
     if (!use_local_memory) {
         kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // reduction value output
         kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // reduction_thread_count output
@@ -277,20 +282,30 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
     }
 
     for (int i = 0; i < kernel_size; i++) {
-        auto dispatchData = SetDefault(newParams, (i == 1));
+        auto dispatchData = SetDefault(newParams, params.is_shape_agnostic ? (i == 1 || i == 2) : (i == 1));
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
         clKernelData& kernel = kd.kernels[i];
 
+        int iter = i;
+        if (params.is_shape_agnostic) {
+            cldnn_jit.RemoveConstant("NO_LOCAL_MEMORY");
+            if (i == 2 || i == 4) {
+                cldnn_jit.AddConstant(MakeJitConstant("NO_LOCAL_MEMORY", 1));
+            }
+            if (i >= 2) iter--;
+            if (i == 4) iter--;
+        } else {
+            if (i >= 1 && newParams.mode != ScatterUpdateReduction::NONE && use_local_memory) {
+                const auto buffer_size = output.PhysicalSizeInBytes() * 2;
+                kd.kernels[i].params.local_memory_args.clear();
+                kd.kernels[i].params.local_memory_args.push_back(buffer_size);
+            }
+        }
+
         cldnn_jit.RemoveConstant("ITER");
-        cldnn_jit.AddConstant(MakeJitConstant("ITER", i));
+        cldnn_jit.AddConstant(MakeJitConstant("ITER", iter));
 
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
-
-        if (i >= 1 && newParams.mode != ScatterUpdateReduction::NONE && use_local_memory) {
-            const auto buffer_size = output.PhysicalSizeInBytes() * 2;
-            kd.kernels[i].params.local_memory_args.clear();
-            kd.kernels[i].params.local_memory_args.push_back(buffer_size);
-        }
 
         FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 3, GetFusedPrimitiveInputsCount(params), 1,
             params.is_shape_agnostic);
@@ -300,20 +315,22 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
         if (newParams.mode != ScatterUpdateReduction::NONE) {
             // store output in fixed point
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, buf_idx++});
-        }
 
+            if (params.is_shape_agnostic)
+                use_local_memory = ((i == 1) || (i == 3));
 
-        if (i >= 1 && newParams.mode != ScatterUpdateReduction::NONE) {
-            if (use_local_memory) {
-                // data reduction
-                kernel.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
-                kernel.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
-            } else {
-                // identify thread for perform write
-                kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, buf_idx++});
-            }
-            if (newParams.mode == ScatterUpdateReduction::MEAN) {
-                kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, buf_idx++});
+            if (i >= 1) {
+                if (use_local_memory) {
+                    // data reduction
+                    kernel.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
+                    kernel.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
+                } else {
+                    // identify thread for perform write
+                    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, buf_idx++});
+                }
+                if (newParams.mode == ScatterUpdateReduction::MEAN) {
+                    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, buf_idx++});
+                }
             }
         }
     }
