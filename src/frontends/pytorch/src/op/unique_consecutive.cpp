@@ -115,9 +115,46 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
     // push the values (unique_consecutive output)
     outputs.push_back(values);
 
-    // Compute counts
+    // Step 5 - Compute counts (optional)
+    // append sentinel = axis length to the list of start indices, then diff successive elements
+    // axis_len_scalar = ShapeOf(prepared_input)[axis_const]
+    auto concat_axis0 = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
 
-    // Compute inverse indices
+    // get axis length (scalar)
+    auto prepared_shape = context.mark_node(std::make_shared<v0::ShapeOf>(prepared_input)); // [rank]
+    auto axis_len_scalar = context.mark_node(std::make_shared<v8::Gather>(prepared_shape, 
+                                                                        context.mark_node(v0::Constant::create(element::i64, Shape{}, {axis_index})), 
+                                                                        context.mark_node(v0::Constant::create(element::i64, Shape{}, {0})) ));
+
+    // make axis_len 1-D so we can concat with nonzero axis
+    auto axis_len_1d = context.mark_node(std::make_shared<v3::Unsqueeze>(axis_len_scalar, concat_axis0)); // shape{1}
+
+    // concat starts + sentinel
+    auto starts_with_sentinel = context.mark_node(std::make_shared<v0::Concat>(OutputVector{nonzero_axis, axis_len_1d}, 0)); // 1-D
+
+    // compute size of concat (L = num_start + 1)
+    auto starts_shape = context.mark_node(std::make_shared<v0::ShapeOf>(starts_with_sentinel)); // [1]
+    auto size_scalar = context.mark_node(std::make_shared<v8::Gather>(starts_shape,
+                                                                       context.mark_node(v0::Constant::create(element::i64, Shape{}, {0})),
+                                                                       context.mark_node(v0::Constant::create(element::i64, Shape{}, {0})))); // scalar
+    
+    // build slice indices for head = starts_with_sentinel[0 : L-1] and tail = starts_with_sentinel[1 : L]
+    auto zero_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto one_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    auto one_scalar = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
+
+    auto size_minus_one = context.mark_node(std::make_shared<v1::Subtract>(size_scalar, one_scalar)); // scalar
+
+    auto head_stop_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(size_minus_one, concat_axis0)); // {L-1}
+    auto tail_stop_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(size_scalar, concat_axis0));       // {L}
+
+    auto head_indices = context.mark_node(std::make_shared<v8::Slice>(starts_with_sentinel, zero_1d, head_stop_1d, one_1d));
+    auto tail_indices = context.mark_node(std::make_shared<v8::Slice>(starts_with_sentinel, one_1d, tail_stop_1d, one_1d));
+
+    // counts = tail_indices - head_indices
+    auto counts = context.mark_node(std::make_shared<v1::Subtract>(tail_indices, head_indices));
+
+    // Step 6 - Compute inverse indices
     
     outputs.push_back(unique_consecutive->output(0));
     if (return_inverse) {
