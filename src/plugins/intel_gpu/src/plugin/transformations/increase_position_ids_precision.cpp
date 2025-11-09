@@ -226,7 +226,6 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-
         bool matched = false;
         if (pattern_map.count(concat_q_1) > 0) {
             matched = true;
@@ -330,5 +329,36 @@ bool IncreasePositionIdsPrecision::run_on_model(const std::shared_ptr<ov::Model>
     symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForLtxVideo>();
     symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForGPTOSS>();
     return symbolic_optimizations.run_on_model(model);
+}
+
+DisableFP16ComForGPTOSSROPEPattern::DisableFP16ComForGPTOSSROPEPattern() {
+    using namespace ov::pass::pattern;
+    using ov::pass::pattern::op::Or;
+
+    // for gpt-oss pattern
+    auto freq_const = wrap_type<ov::op::v0::Constant>();
+    auto broadcast_freq = wrap_type<ov::op::v3::Broadcast>({freq_const, any_input()});
+
+    // position_id
+    auto unsqueeze_pos_id = wrap_type<ov::op::v0::Unsqueeze>({any_input(), any_input()});
+    auto convert_pos_id_to_f16 = wrap_type<ov::op::v0::Convert>({unsqueeze_pos_id});
+
+    auto matmul_freq_pos_id = wrap_type<ov::op::v0::MatMul>({broadcast_freq, convert_pos_id_to_f16});
+    auto transpose = wrap_type<ov::op::v1::Transpose>({matmul_freq_pos_id, any_input()});
+    auto sin = wrap_type<ov::op::v0::Sin>({transpose});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());
+        if (!sin_node || transformation_callback(sin_node))
+            return false;
+        auto freq_const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(freq_const).get_node_shared_ptr());
+        ov::disable_fp16_compression(freq_const_node);
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sin, "DisableFP16ComForGPTOSSROPEPattern");
+    this->register_matcher(m, callback);
 }
 }  // namespace ov::intel_gpu
