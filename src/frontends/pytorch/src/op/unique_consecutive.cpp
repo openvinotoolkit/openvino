@@ -2,10 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/unique_consecutive.hpp"
+// #include "openvino/op/unique_consecutive.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "utils.hpp"
+
+// Add missing op headers
+#include "openvino/op/constant.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/cum_sum.hpp"
+// #include "openvino/op/shapeof.hpp" // sometimes duplicate; harmless if present
+#include "openvino/op/reduce_prod.hpp"
 
 namespace ov {
 namespace frontend {
@@ -45,7 +64,7 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
         // If dim is None, flatten the input tensor first
         auto shape = std::make_shared<v0::ShapeOf>(input);
         auto flatten_shape = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
-        prepared_input = context.mark_node(std::make_shared<v1::Reshape>(input, flatten_shape));
+        prepared_input = context.mark_node(std::make_shared<v1::Reshape>(input, flatten_shape, false));
         // Use axis 0 for flattened tensor
         axis_const = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
     } else {
@@ -127,7 +146,7 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
                                                                         context.mark_node(v0::Constant::create(element::i64, Shape{}, {0})) ));
 
     // make axis_len 1-D so we can concat with nonzero axis
-    auto axis_len_1d = context.mark_node(std::make_shared<v3::Unsqueeze>(axis_len_scalar, concat_axis0)); // shape{1}
+    auto axis_len_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(axis_len_scalar, concat_axis0)); // shape{1}
 
     // concat starts + sentinel
     auto starts_with_sentinel = context.mark_node(std::make_shared<v0::Concat>(OutputVector{nonzero_axis, axis_len_1d}, 0)); // 1-D
@@ -141,7 +160,7 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
     // build slice indices for head = starts_with_sentinel[0 : L-1] and tail = starts_with_sentinel[1 : L]
     auto zero_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
     auto one_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
-    auto one_scalar = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
+    // auto one_scalar = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
 
     auto size_minus_one = context.mark_node(std::make_shared<v1::Subtract>(size_scalar, one_scalar)); // scalar
 
@@ -157,11 +176,11 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
     // Step 6 - Compute inverse indices
     if (return_inverse) {
         // convert keep (bool) -> integer so we can CumSum
-        auto keep_int = context.mark_node(std::make_shared<v1::Convert>(keep, element::i64));
+        auto keep_int = context.mark_node(std::make_shared<v0::Convert>(keep, element::i64));
 
         // CumSum along the chosen axis (inclusive). This produces per-position run labels:
         // e.g. keep = [1,0,1,0,...] -> sumsum = [1,1,2,2,...]
-        auto cumsum = context.mark_node(std::make_shared<v3::CumSum>(keep_int, axis_const, /*exclusive*/ false, /*reverse*/ false));
+        auto cumsum = context.mark_node(std::make_shared<v0::CumSum>(keep_int, axis_const, /*exclusive*/ false, /*reverse*/ false));
 
         // Subtract 1 to make run ids 0-based: [1,1,2,2,...] -> [0,0,1,1,...]
         auto inverse_pre = context.mark_node(std::make_shared<v1::Subtract>(cumsum, one_scalar));
@@ -170,7 +189,7 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
         Output<Node> inverse;
         if (dim_is_none) {
             auto orig_shape = context.mark_node(std::make_shared<v0::ShapeOf>(input)); // original input shape
-            inverse = context.mark_node(std::make_shared<v1::Reshape>(inverse_pre, orig_shape));
+            inverse = context.mark_node(std::make_shared<v1::Reshape>(inverse_pre, orig_shape, false));
         } else {
             // inverse already has same shape as prepared_input (same as input)
             inverse = inverse_pre;
