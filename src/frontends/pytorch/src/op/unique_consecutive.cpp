@@ -87,7 +87,18 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
 
     auto equal = context.mark_node(std::make_shared<v1::Equal>(head, tail));
 
-    // Build a keep mask of run starts
+    // Step 3 - Build a keep mask of run starts
+    // change = not(equal) -> True where element i != i + 1 (i.e new run starts at i+1)
+    auto change = context.mark_node(std::make_shared<v1::LogicalNot>(equal));
+
+    // Prepend 'True' for the first element (first element always starts a run)
+    // For the simple (flattened/1-D) case we can create a scalar/1-D true and concat
+    auto true_one = context.mark_node(v0::Constant::create(element::boolean, Shape{1}, {true}));
+
+    // axis index is known at conversion time in 'dim' (dim_is_none -> axis 0)
+    int64_t axis_index = dim_is_none ? 0 : dim; // dim was read earlier from const input
+
+    auto keep = context.mark_node(std::make_shared<v0::Concat>(OutputVector{true_one, change}, axis_index));
 
     // Get run start indices and the values output
 
