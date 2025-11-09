@@ -47,7 +47,7 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
         auto flatten_shape = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
         prepared_input = context.mark_node(std::make_shared<v1::Reshape>(input, flatten_shape));
         // Use axis 0 for flattened tensor
-        axis_const = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}))
+        axis_const = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
     } else {
         // Use input as-is with specified dimension
         prepared_input = input;
@@ -179,7 +179,7 @@ OutputVector translate_unique_consecutive(const NodeContext& context) {
         // push inverse in the expected output order (values already pushed earlier)
         outputs.push_back(inverse);
     }
-    
+
     if (return_counts) {
         outputs.push_back(counts);
     }
