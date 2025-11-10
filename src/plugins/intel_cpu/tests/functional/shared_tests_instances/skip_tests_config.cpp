@@ -308,6 +308,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
         // This transformation is disabled on CPU
         R"(.*smoke_LPT.*MultiplyToGroupConvolutionTransformation.*)",
+        // Disabled due to sporadic failures in CI, Issue: 157267
+        R"(.*smoke_Conv_1D_GEMM_FP32/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\[]_TS=\(\(2\.12\.7\)_\)_K\(3\)_S\(2\)_PB\(1\)_PE\(0\)_D=\(1\)_O=6_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=ncw_outFmts=ncw_primitive=jit_gemm_Fused=Relu.*)",
+        R"(.*smoke_CompareWithRefs_4D_Blocked_Blocked_Fusing/EltwiseLayerCPUTest\.CompareWithRefs/IS=\(\[]_\)_TS=\(\(2\.4\.4\.1\)_\)_eltwise_op_type=Sum_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nChw16c\.nChw16c_outFmts=nChw16c_Fused=FakeQuantize\(PerChannel\)\.Sigmoid\.FakeQuantize\(PerTensor\)_enforceSnippets=0.*)",
+        R"(.*smoke_CompareWithRefs_4D_Fusing_Blocked_Blocked/EltwiseLayerCPUTest\.CompareWithRefs/IS=\(\[]_\)_TS=\(\(2\.4\.4\.1\)_\)_eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nChw16c\.nChw16c_outFmts=nChw16c_Fused=FakeQuantize\(PerChannel\)\.Sigmoid\.FakeQuantize\(PerTensor\)_enforceSnippets=0.*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
