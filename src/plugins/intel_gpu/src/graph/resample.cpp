@@ -215,7 +215,6 @@ std::string resample_inst::to_string(resample_node const& node) {
 }
 
 resample_inst::typed_primitive_inst(network& network, resample_node const& node) : parent(network, node) {
-    update_output_memory();
 }
 
 void resample_inst::on_execute() {

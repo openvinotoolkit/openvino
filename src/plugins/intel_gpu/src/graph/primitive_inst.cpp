@@ -1911,8 +1911,8 @@ void primitive_inst::do_runtime_skip_resample() {
         GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_resample] " << id() << " can be optimized due to same input/output" << std::endl;
     } else {
         set_can_be_optimized(false);
-        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_resample] " << id() << " cannot be optimized " << input_layout.to_short_string()
-                               << " , outpt: " << output_layout.to_short_string() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_resample] " << id() << " cannot be optimized, input: " << input_layout.to_short_string()
+                               << " , output: " << output_layout.to_short_string() << std::endl;
     }
 }
 
