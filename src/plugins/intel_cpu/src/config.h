@@ -16,6 +16,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "utils/debug_caps_config.h"
@@ -100,6 +101,7 @@ struct Config {
     bool changedCpuPinning = false;
     bool enableCpuReservation = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    ov::intel_cpu::TbbPartitioner tbbPartitioner = ov::intel_cpu::TbbPartitioner::NONE;
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy;
     bool enableTensorParallel = false;
     int streamsRankLevel = 1;
@@ -134,6 +136,8 @@ struct Config {
     std::map<std::string, std::string> _config;
 
     int modelPreferThreads = -1;
+    int modelPreferThreadsLatency = 0;
+    int modelPreferThreadsThroughput = 0;
     ModelType modelType = ModelType::Unknown;
     std::function<std::string(const std::string&)> cacheEncrypt;
     std::function<std::string(const std::string&)> cacheDecrypt;
