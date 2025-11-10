@@ -208,9 +208,21 @@ bool ScatterElementsUpdateKernelRef::SkipKernelExecution(const scatter_elements_
 void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const scatter_elements_update_params&>(params);
-
+        /*
+        * Dynamic Kernels Map
+        * The actual kernel executed for ITER 1 and ITER 2 is determined at runtime
+        * based on the calculated output size (use_local_memory flag).
+        *
+        * | Kernel Index (i) | OpenCL ITER | Execution Mode   | Purpose             |
+        * |------------------|-------------|------------------|---------------------|
+        * | 0                | 0           | N/A              | Initialization      |
+        * | 1                | 1           | Local Memory     | Update              |
+        * | 2                | 1           | Global Memory    | Update              |
+        * | 3                | 2           | Local Memory     | Finalize            |
+        * | 4                | 2           | Global Memory    | Finalize            |
+        */
         if (prim_params.mode == ScatterUpdateReduction::NONE) {
-            OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
+            OPENVINO_ASSERT(kd.kernels.size() == 3, "[GPU] Invalid kernels size for update dispatch data func");
         } else {
             OPENVINO_ASSERT(kd.kernels.size() == 5, "[GPU] Invalid kernels size for update dispatch data func");
         }
@@ -254,10 +266,10 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
     }
 
     const auto& prim_params = static_cast<const scatter_elements_update_params&>(params);
-    int kernel_size = 2;
+    int kernel_size = 3;
 
     if (prim_params.mode != ScatterUpdateReduction::NONE) {
-        kernel_size += (params.is_shape_agnostic) ? 3 : 1;
+        kernel_size += (params.is_shape_agnostic) ? 2 : 1;
     }
 
     KernelData kd = KernelData::Default<scatter_elements_update_params>(params, kernel_size);
