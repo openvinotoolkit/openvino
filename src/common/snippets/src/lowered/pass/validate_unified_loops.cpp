@@ -60,9 +60,6 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
                 auto it = std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx);
                 // loop by the same dim means that the original loop was split
                 if (it != dim_indexes.cend()) {
-                    OPENVINO_ASSERT(*it == dim_idx,
-                                    "Incorrect Loop ID configuration: the Loops with splitted dimension should be "
-                                    "successively nested");
                     const size_t loop_ids_idx = std::distance(dim_indexes.cbegin(), it);
                     OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[loop_ids_idx])->get_increment() ==
                                         loop_manager->get_loop_info(id)->get_work_amount(),
