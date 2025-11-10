@@ -11,6 +11,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/constant.hpp"
@@ -53,15 +54,21 @@ public:
         if (node->get_rt_info().count("postponed_constant")) {
             OPENVINO_ASSERT(node->get_output_size() == 1);
             ov::OutputVector outputs(1);
+            std::shared_ptr<ov::Node> node_clone;
             if (ov::pass::constant_folding_is_disabled(node)) {
-                node->get_rt_info().erase(ov::pass::DisableConstantFolding::get_type_info_static());
+                // clone to keep original node unchanged
+                node_clone = node->clone_with_new_inputs(node->input_values());
+                node_clone->get_rt_info().erase(ov::pass::DisableConstantFolding::get_type_info_static());
             }
+            auto node_to_fold = node_clone ? node_clone : node->shared_from_this();
             OPENVINO_ASSERT(
-                node->constant_fold(outputs, node->input_values()),
+                node_to_fold->constant_fold(outputs, node_to_fold->input_values()),
                 "Node with set `postponed_constant` attribute cannot be fold to constant when saving model to IR file");
             m_constant = outputs[0].get_node_shared_ptr();
             m_node = m_constant.get();
             m_node->set_friendly_name(node->get_friendly_name());
+            ov::copy_runtime_info(node->shared_from_this(), m_constant);
+            ov::copy_output_runtime_info(node->outputs(), m_constant->outputs());
         }
     }
 };
@@ -916,8 +923,6 @@ void find_postponed_constants_and_exclude_nodes(const std::vector<std::shared_pt
         // If all outputs are excluded, mark this node and continue DFS
         if (all_outputs_excluded && node->get_output_size() > 0) {
             nodes_to_exclude.insert(node);
-            node->get_rt_info()["disabled_for_serialization"] = true;
-
             // Recursively process all input nodes
             for (const auto& input : node->inputs()) {
                 reverse_dfs(input.get_source_output().get_node());

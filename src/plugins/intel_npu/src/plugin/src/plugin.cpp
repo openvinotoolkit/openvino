@@ -322,6 +322,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(USE_BASE_MODEL_SERIALIZER);
+    REGISTER_OPTION(SERIALIZATION_WEIGHTS_SIZE_THRESHOLD);
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
@@ -351,6 +352,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_ONLINE_MIN_SIZE);
     REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCKS);
     REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCK_SIZE);
+    REGISTER_OPTION(NPUW_ATTN);
     REGISTER_OPTION(NPUW_FOLD);
     REGISTER_OPTION(NPUW_CWAI);
     REGISTER_OPTION(NPUW_DQ);
@@ -605,8 +607,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
-        if (compilerType == ov::intel_npu::CompilerType::MLIR) {
-            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with MLIR compiler type");
+        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
         }
     }
 
@@ -701,14 +703,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
+    auto compileWithConfig = [&](const auto& modelToCompile, const auto& config) {
+        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
+            return compiler->compile(modelToCompile, config);
+        } else {
+            check_weightless_cache_attribute_occurrence(model);
+            return compiler->compileWS(modelToCompile, config);
+        }
+    };
+
     try {
         _logger.debug("performing compile");
 
-        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
-            graph = compiler->compile(successfullyDebatched ? batchedModel : model->clone(), localConfig);
+        // Determine which model to use
+        auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
+
+        if (successfullyDebatched && localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
+            _logger.info("Override performance mode to THROUGHPUT for compilation");
+
+            auto modifiedConfig = localConfig;  // Copy only when needed
+            std::stringstream strStream;
+            strStream << ov::hint::PerformanceMode::THROUGHPUT;
+            modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+
+            graph = compileWithConfig(modelToCompile, modifiedConfig);
         } else {
-            check_weightless_cache_attribute_occurrence(model);
-            graph = compiler->compileWS(successfullyDebatched ? batchedModel : model->clone(), localConfig);
+            graph = compileWithConfig(modelToCompile, localConfig);  // No copy
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -824,7 +844,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
     // Need to create intermediate istream for NPUW
-    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
+    ov::SharedStreamBuffer buffer{compiled_blob.data(), compiled_blob.get_byte_size()};
     std::istream stream{&buffer};
 
     auto npu_plugin_properties = properties;
