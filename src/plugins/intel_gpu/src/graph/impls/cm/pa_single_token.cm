@@ -360,8 +360,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         #pragma unroll
         for(int kv_pos = 0; kv_pos < kv_pos_end; kv_pos += REG_K, ki++) {
             #if KV_CACHE_COMPRESSION
-            vector<half, REG_N> temp_scale = scale_vec.select<REG_N,1>(kv_pos);
-            vector<half, REG_N> temp_zp = zp_vec.select<REG_N,1>(kv_pos);
+            vector<half, REG_K> temp_scale = scale_vec.select<REG_K, 1>(kv_pos);
+            vector<half, REG_K> temp_zp = zp_vec.select<REG_K, 1>(kv_pos);
             #endif
             #pragma unroll
             for(int k = 0, ri = 0; k < HEAD_SIZE; k += REG_N, ri ++ ) {
