@@ -80,7 +80,7 @@ using IOLoopPortDescs = std::pair<std::vector<ov::snippets::lowered::UnifiedLoop
  * @param exits Vector of LoopPort objects representing loop exit points (output ports)
  * @param outer_split_loop_info Pointer to the outer split loop info that will contain this inner loop
  * @param io_descs Optional parameter containing input and output port descriptors
- * @param io_descs Optional parameter indicating if the TransformInnerSplitLoop handler should be registered
+ * @param register_specific_iter_handlers Optional indicating if the TransformInnerSplitLoop handler should be registered
  * @return Shared pointer to the created InnerSplittedUnifiedLoopInfo
  */
 ov::snippets::lowered::InnerSplittedUnifiedLoopInfoPtr make_inner_split_loop_info(

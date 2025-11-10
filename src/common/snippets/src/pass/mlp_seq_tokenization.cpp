@@ -139,9 +139,9 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
             std::shared_ptr<ov::Node> prev_op = matmul0;
             auto interm_op = prev_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             bool postops_fusion_possible = true;
-            // Non fused postops between MatMuls increase number of GPRs needed
+            // Non fused postops between MatMuls increase number of GPRs for Snippets kernel execution
             bool non_fused_postops_between_matmuls = false;
-            std::shared_ptr<ov::op::v0::MatMul> matmul = matmul0;
+            auto cur_matmul = matmul0;
             while (has_one_consumer(prev_op)) {
                 auto current_io_count = io_count;
 
@@ -153,12 +153,12 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
                     current_io_count++;
                     // If MatMul is the first in the sequence, postops fusion status is reset
                     postops_fusion_possible = true;
-                    matmul = ov::as_type_ptr<ov::op::v0::MatMul>(interm_op);
-                    OPENVINO_ASSERT(matmul, "MatMul is expected");
+                    cur_matmul = ov::as_type_ptr<ov::op::v0::MatMul>(interm_op);
+                    OPENVINO_ASSERT(cur_matmul, "MatMul is expected");
                 } else if (is_supported_intermediate_op(interm_op)) {
                     // Intermediate op contributes to the body params count only if can't be fused as post-op
                     // or if a previous node between MatMul and this op is not supported by post-op fusion
-                    if (!postops_fusion_possible || !config.get_can_be_fused_as_postop()(matmul, interm_op)) {
+                    if (!postops_fusion_possible || !config.get_can_be_fused_as_postop()(cur_matmul, interm_op)) {
                         postops_fusion_possible = false;
                         current_io_count += get_potential_body_params(interm_op);
                     }
@@ -168,18 +168,21 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
                 }
 
                 auto compute_gpr_params = [non_fused_postops_between_matmuls]() {
-                    if (!non_fused_postops_between_matmuls) {
-                        const size_t loop_depth = 3;
-                        const size_t reg_groups = 1;
+                    if (non_fused_postops_between_matmuls) {
+                        // Loop depth could reach 4 because of SplitLoops optimization (M and N loops are split).
+                        constexpr size_t loop_depth = 4;
+                        // In case of SplitLoops, 3 register groups are needed:
+                        // 1. Buffer before intermediate matmul
+                        // 2. Buffer inside N block right after intermediate matmul before postops
+                        // 3. Buffer outside of N block after postops
+                        constexpr size_t reg_groups = 3;
                         return std::make_pair(loop_depth, reg_groups);
                     }
-                    // Loop depth could reach 4 because of SplitLoops optimization (M and N loops are split).
-                    const size_t loop_depth = 4;
-                    // In case of SplitLoops, 3 register groups are needed:
-                    // 1. Buffer before intermediate matmul
-                    // 2. Buffer inside N block right after intermediate matmul before postops
-                    // 3. Buffer outside of N block after postops
-                    const size_t reg_groups = 3;
+                    // If all postops between matmuls are fused, there will be no split loop by N dimension
+                    // In this case, maximal loop depth is less, and GPRs, used for common buffer pointer,
+                    // can be more efficiently reused
+                    constexpr size_t loop_depth = 3;
+                    constexpr size_t reg_groups = 1;
                     return std::make_pair(loop_depth, reg_groups);
                 };
 
