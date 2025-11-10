@@ -45,6 +45,10 @@ namespace ov::intel_cpu {
 using namespace ov::element;
 using namespace executor;
 
+static bool is64BitsPrecision(const EltwiseConfig& config) {
+    return ov::element::i64 == config.descs.at(ARG_DST)->getPrecision();
+}
+
 static bool isBitwiseAlgorithm(const EltwiseConfig& config) {
     const auto algorithm = config.attrs.data.algo;
     return any_of(algorithm,
@@ -413,7 +417,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                 return true;
             },
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping : eltwiseReferenceTypeMapping;
+                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping : (is64BitsPrecision(config) ? eltwiseTypeMapping : eltwiseReferenceTypeMapping);
                 return createOptimalConfigCommon(config,
                                                  typeMapping,
                                                  LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
@@ -433,7 +437,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             // createOptimalConfig
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping : eltwiseReferenceTypeMapping;
+                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping : (is64BitsPrecision(config) ? eltwiseTypeMapping : eltwiseReferenceTypeMapping);
                 return createOptimalConfigCommon(config,
                                                  typeMapping,
                                                  LayoutConfig{LayoutType::nspc, LayoutType::nspc},

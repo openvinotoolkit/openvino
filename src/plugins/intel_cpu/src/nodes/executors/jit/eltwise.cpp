@@ -401,7 +401,13 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
-    return true;
+    std::vector<ov::element::Type> supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16,
+                                                                                               ov::element::f32,
+                                                                                               ov::element::u32,
+                                                                                               ov::element::i32,
+                                                                                               ov::element::i8,
+                                                                                               ov::element::u8};
+    const auto& supported_output_precisions = supported_input_precisions;
 
 #elif defined(OPENVINO_ARCH_ARM64)
     if (any_of(algorithm,
@@ -495,7 +501,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     const auto& supported_output_precisions = supported_input_precisions;
 #endif
 
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64) || defined(OPENVINO_ARCH_X86_64)
     const auto check_precisions = [&](const std::vector<ov::element::Type>& input_precisions,
                                       const std::vector<ov::element::Type>& output_precisions) {
         if (!std::all_of(input_precisions.begin(),
