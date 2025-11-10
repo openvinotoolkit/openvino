@@ -150,4 +150,12 @@ size_t repack_interleave_m16_to_k4_m16(uint8_t* dst,
                                        int M_blk = 16,
                                        int32_t* sumW_out = nullptr);
 
+// Convert interleave_m16 int8 weights to BF16 and repack into AMX tile-friendly K64x16 layout.
+// dst_bf16 holds rows of 16 bf16 lanes for each k in K64 group: size = M_pad * K_grp * K_blk * 16 * 2 bytes.
+// Only per-tensor (scale, zp) supported by this helper.
+size_t repack_interleave_m16_to_k64_m16_bf16(uint16_t* dst_bf16,
+                                             const uint8_t* src_interleave_i8, int M, int K, int ld_w_bytes_interleave,
+                                             float scale, int32_t zp,
+                                             int M_blk = 16, int K_blk = 64);
+
 } // namespace ov::intel_cpu::x64::gemmv_jit

@@ -66,8 +66,18 @@ The script:
 
 Notes
 -----
-- Kernels auto-select AMX when available, otherwise AVX-512 VNNI. No environment flags are required for peak performance.
-- The CSV includes both benchdnn and our results so you can diff GFLOPS quickly.
+- Kernels auto-select AMX when available, otherwise AVX-512 VNNI. No environment flags are required for normal runs.
+- ISA toggles are allowed for measurement only and honored by helper scripts:
+  - `GEMMV_DISABLE_AMX=1` — skip AMX path (measure VNNI/JIT only).
+  - `GEMMV_DISABLE_VNNI=1` — skip VNNI path (measure AMX or JIT only).
+
+Sweep (per-ISA)
+---------------
+Use the helper to generate a CSV across all target shapes per ISA (AMX, VNNI, FP32 fallback):
+```
+src/plugins/intel_cpu/tools/gemmv_bench/sweep_isa_perf.sh > /tmp/gemmv_isa_sweep.csv
+```
+The CSV has columns: `suite,mode,kernel,M,K,time_ms,gflops`.
 - All numbers are single-thread (OMP_NUM_THREADS=1) compute-only runs for reproducibility.
 
 Analyze CSV

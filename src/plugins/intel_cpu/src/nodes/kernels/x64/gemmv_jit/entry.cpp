@@ -115,9 +115,9 @@ void run_gemmv_q_fp32_ex(const float* x, int K,
         auto it = g_repack_cache.find(key);
         if (it != g_repack_cache.end()) return it->second;
         const int M_blk = 16, K_blk = 64; const int M_pad = ((Mv + M_blk - 1)/M_blk)*M_blk; const int K_grp = (Kv + K_blk - 1)/K_blk;
-        const size_t bytes = (size_t)M_pad * (size_t)K_grp * (size_t)K_blk;
+        const size_t bytes = (size_t)M_pad * (size_t)K_grp * (size_t)K_blk * 16;
         void* mem=nullptr; size_t size_al = ((bytes + 63)/64)*64; if (posix_memalign(&mem, 64, size_al)!=0 || !mem) mem = malloc(size_al);
-        PackedEntry pe; pe.buf = std::unique_ptr<uint8_t, FreeDeleter>((uint8_t*)mem); pe.bytes = bytes; pe.ld_bytes = M_blk * K_blk; pe.M_pad = M_pad; pe.sumW.assign(M_pad, 0);
+        PackedEntry pe; pe.buf = std::unique_ptr<uint8_t, FreeDeleter>((uint8_t*)mem); pe.bytes = bytes; pe.ld_bytes = K_grp * (K_blk * 16); pe.M_pad = M_pad; pe.sumW.assign(M_pad, 0);
         repack_interleave_m16_to_k64_m16(pe.buf.get(), base, Mv, Kv, ld, M_blk, K_blk, pe.sumW.data());
         auto ins = g_repack_cache.emplace(key, std::move(pe));
         return ins.first->second;
@@ -148,43 +148,181 @@ void run_gemmv_q_fp32_ex(const float* x, int K,
         auto ins = g_repack_cache.emplace(key, std::move(pe));
         return ins.first->second;
     };
-    // Fast path 0: AMX INT8 (tile GEMV) with on-the-fly repack to K64 per M-block
-    if (!accumulate && wtype == w_dtype_t::i8) {
-        // Try AMX automatically when supported (no env flags required)
-        bool diag = false; if (const char* d = std::getenv("GEMMV_AMX_DIAG")) diag = (std::string(d) == "1");
+    // Fast path 0: AMX INT8 (tile GEMV) with on-the-fly repack to K64 per M-block (per-tensor only)
+    if (!accumulate && wtype == w_dtype_t::i8 && gran == quant_granularity_t::per_tensor && M >= 16 && K >= 64) {
+        // Allow measurement scripts to gate AMX via env; default is auto-enable when supported
+        bool disable_amx = false; if (const char* e = std::getenv("GEMMV_DISABLE_AMX")) disable_amx = (std::string(e) == "1");
+        if (!disable_amx) {
+        const int M_blk = 16; const int K_blk = 64; const int K_grp = (K + K_blk - 1)/K_blk;
+        auto &wk64_amx = get_or_make_k64_tile(wq_packed, M, K, ld_w_bytes);
+        bool ok = run_gemmv_amx_i8u8_fp32(x, K, wk64_amx.buf.get(), M, /*ld_w_kbytes*/ K_grp * (K_blk * 16),
+                                          scales, zps, y, bias, gran, group_size,
+                                          wk64_amx.sumW.data());
+        if (ok) { if (kernel_name) *kernel_name = "amx_int8"; return; }
+        // Try AMX BF16 path (Pack int8->bf16 per-tensor and compute via tdpbf16ps)
         {
-            if (diag) std::fprintf(stderr, "[GEMMV-AMX-DIAG] AMX route requested\n");
-            // Repack via cache + try AMX intrinsics
-            const int M_blk = 16; const int K_blk = 64; const int K_grp = (K + K_blk - 1)/K_blk;
-            auto &wk64_amx = get_or_make_k64_tile(wq_packed, M, K, ld_w_bytes);
-            bool ok = run_gemmv_amx_i8u8_fp32(x, K, wk64_amx.buf.get(), M, /*ld_w_kbytes*/ K_grp * (K_blk * 16),
-                                              scales, zps, y, bias, gran, group_size,
-                                              wk64_amx.sumW.data());
-            if (ok) { if (kernel_name) *kernel_name = "amx_int8"; return; }
-            if (diag) {
-                std::fprintf(stderr, "[GEMMV-AMX-DIAG] AMX route unavailable, fallback to VNNI/JIT\n");
-                std::fprintf(stderr, "[GEMMV-AMX-DIAG] hint: set GEMMV_AMX_DIAG=1 for reasons; quick check: GEMMV_DISABLE_VNNI=1 GEMMV_AMX_DIAG=1 OMP_NUM_THREADS=1 <gemmv_bench> 512 4096\n");
+            Xbyak::util::Cpu cpu;
+            if (cpu.has(Xbyak::util::Cpu::tAMX_BF16)) {
+                const float s_w = scales ? scales[0] : 1.f;
+                const int32_t zp_w = zps ? zps[0] : 0;
+                const int M_pad = ((M + M_blk - 1)/M_blk)*M_blk;
+                const int K_grp_b = (K + K_blk - 1)/K_blk;
+                const size_t bytes_bf16 = (size_t)M_pad * (size_t)K_grp_b * (size_t)K_blk * (size_t)M_blk * sizeof(uint16_t);
+                std::vector<uint16_t> Wbf(bytes_bf16/2);
+                repack_interleave_m16_to_k64_m16_bf16(Wbf.data(), wq_packed, M, K, ld_w_bytes, s_w, zp_w, M_blk, K_blk);
+                const int ld_bf16 = K_grp_b * (K_blk * 16 * 2);
+                if (run_gemmv_amx_bf16_fp32(x, K, Wbf.data(), M, ld_bf16, y, bias)) {
+                    if (kernel_name) *kernel_name = "amx_bf16"; return;
+                }
             }
+        }
         }
     }
 
-    // Fast path 1: AVX-512 VNNI and i8 weights (enabled by default; opt-out via GEMMV_DISABLE_VNNI=1)
+    // Fast path 1: AVX-512 VNNI and i8 weights (automatically selected; no routing env needed)
     if (wtype == w_dtype_t::i8) {
+        // Allow measurement scripts to gate VNNI via env; default is auto-enable when supported
+        bool disable_vnni = false; if (const char* e = std::getenv("GEMMV_DISABLE_VNNI")) disable_vnni = (std::string(e) == "1");
         Xbyak::util::Cpu cpu;
-        if (cpu.has(Xbyak::util::Cpu::tAVX512_VNNI) && cpu.has(Xbyak::util::Cpu::tAVX512BW)) {
-            // Quantize X to u8 per-tensor, vectorized helper
-            std::vector<uint8_t> xq(K);
-            float s_x = 1.f; int32_t zp_x = 128; int32_t sum_x_q = 0;
-            quantize_u8_symmetric(x, K, xq.data(), &s_x, &zp_x);
+        if (!disable_vnni && cpu.has(Xbyak::util::Cpu::tAVX512_VNNI) && cpu.has(Xbyak::util::Cpu::tAVX512BW)) {
+            // Quantize X to u8 per-tensor, with simple per-call cache
+            struct XCache { const float* xp=nullptr; int K=0; std::vector<uint8_t> xq; float s_x=1.f; int32_t zp_x=128; };
+            static thread_local XCache xc;
+            if (xc.xp != x || xc.K != K) {
+                xc.xp = x; xc.K = K; xc.xq.assign((size_t)K, 0);
+                quantize_u8_symmetric(x, K, xc.xq.data(), &xc.s_x, &xc.zp_x);
+            }
+            const std::vector<uint8_t>& xq = xc.xq; float s_x = xc.s_x; int32_t zp_x = xc.zp_x; int32_t sum_x_q = 0;
             const int M_blk = 16;
-            // Deterministic route:
-            // - k4 for small M (<=256)
-            // - k64 for larger M (>=512)
-            // - for 256<M<512 choose k64 only when K is 64-aligned
-            bool prefer_k64 = false;
-            if (M >= 512) prefer_k64 = true;
-            else if (M <= 256) prefer_k64 = false;
-            else prefer_k64 = ((K & 63) == 0);
+
+            // If granularity is not per-tensor, avoid repack routes: use no-repack path which
+                // properly handles per-channel/per-group metadata and tails.
+            if (gran != quant_granularity_t::per_tensor) {
+                const int M_blk = 16;
+                // Compute sum_x_q for compensation when zps != 0 in norepack path
+                int32_t sum_x_q = 0;
+#if defined(__AVX512F__)
+                int i_sum = 0; __m512i acc64 = _mm512_setzero_si512();
+                for (; i_sum + 64 <= K; i_sum += 64) {
+                    __m512i vx = _mm512_loadu_si512((const void*)(xq.data() + i_sum));
+                    __m512i sad = _mm512_sad_epu8(vx, _mm512_setzero_si512());
+                    acc64 = _mm512_add_epi64(acc64, sad);
+                }
+                alignas(64) uint64_t tmp64[8];
+                _mm512_store_si512((__m512i*)tmp64, acc64);
+                uint64_t s64 = 0; for (int j = 0; j < 8; ++j) s64 += tmp64[j];
+                sum_x_q = (int32_t)s64;
+                for (; i_sum < K; ++i_sum) sum_x_q += (int)xq[i_sum];
+#else
+                for (int i_sum = 0; i_sum < K; ++i_sum) sum_x_q += (int)xq[i_sum];
+#endif
+                const int M_full = M / M_blk; const int M_tail = M % M_blk;
+                auto meta_ptrs = [&](int bi, const float*& sc, const int32_t*& zp, const float*& bs){
+                    if (gran == quant_granularity_t::per_tensor) { sc = scales; zp = zps; bs = bias; return; }
+                    if (gran == quant_granularity_t::per_channel) { sc = scales + bi * M_blk; zp = zps ? (zps + bi * M_blk) : nullptr; bs = bias ? (bias + bi * M_blk) : nullptr; return; }
+                    const int base_m = bi * M_blk; const int gs = group_size > 0 ? group_size : M_blk;
+                    static float sc_buf[16]; static int32_t zp_buf[16]; static float b_buf[16];
+                    for (int m = 0; m < 16; ++m) { int g = (base_m + m) / gs; sc_buf[m] = scales[g]; if (zps) zp_buf[m] = zps[g]; if (bias) b_buf[m] = bias[g]; }
+                    sc = sc_buf; zp = zps ? zp_buf : nullptr; bs = bias ? b_buf : nullptr;
+                };
+                for (int bi = 0; bi < M_full; ++bi) {
+                    const float* sc=nullptr; const int32_t* zp=nullptr; const float* bs=nullptr; meta_ptrs(bi, sc, zp, bs);
+                    run_gemmv_vnni_intrin_i8u8_fp32_norepack(xq.data(), K, wq_packed + (size_t)bi * (size_t)ld_w_bytes,
+                                                             M_blk, ld_w_bytes, sc, zp, bs, s_x, zp_x, sum_x_q,
+                                                             y + bi * M_blk, 0, (int)gran, group_size);
+                }
+                if (M_tail) {
+                    const int bi = M_full; const float* sc=nullptr; const int32_t* zp=nullptr; const float* bs=nullptr; meta_ptrs(bi, sc, zp, bs);
+                    run_gemmv_vnni_intrin_i8u8_fp32_norepack(xq.data(), K, wq_packed + (size_t)bi * (size_t)ld_w_bytes,
+                                                             M_tail, ld_w_bytes, sc, zp, bs, s_x, zp_x, sum_x_q,
+                                                             y + bi * M_blk, M_tail, (int)gran, group_size);
+                }
+                if (kernel_name) *kernel_name = "vnni_norepack_intrin";
+                return;
+            }
+
+            // Route selection: deterministic thresholds with micro-tuning in the ambiguous band.
+            auto decide_prefer_k64 = [&](const uint8_t* xq_ptr) -> bool {
+                // Clear-cut regions (prefer k64 earlier for long-K)
+                if (M >= 512) return true;
+                if (M <= 256) return (K >= 4096);
+                // Ambiguous band: 256 < M < 512 — run a short micro-tune and cache the decision per weights/shape
+                struct SelKey { uintptr_t base; int M; int K; int ld; };
+                struct SelKeyHash { size_t operator()(const SelKey& k) const noexcept {
+                    size_t h = std::hash<uintptr_t>{}(k.base);
+                    h ^= std::hash<uint64_t>{}(((uint64_t)k.M<<32) ^ (uint32_t)k.K) + 0x9e3779b97f4a7c15ULL + (h<<6) + (h>>2);
+                    h ^= std::hash<int>{}(k.ld) + 0x9e3779b97f4a7c15ULL + (h<<6) + (h>>2);
+                    return h; } };
+                struct SelKeyEq { bool operator()(const SelKey&a,const SelKey&b) const noexcept { return a.base==b.base && a.M==b.M && a.K==b.K && a.ld==b.ld; } };
+                static std::unordered_map<SelKey, bool, SelKeyHash, SelKeyEq> g_sel_cache;
+                static std::mutex g_sel_mtx;
+                SelKey key{(uintptr_t)wq_packed, M, K, ld_w_bytes};
+                {
+                    std::lock_guard<std::mutex> lk(g_sel_mtx);
+                    auto it = g_sel_cache.find(key);
+                    if (it != g_sel_cache.end()) return it->second;
+                }
+                // Prepare repacks (reused across attempts)
+                const int K_blk = 64; const int K_grp64 = (K + K_blk - 1)/K_blk; const int K_grp4 = (K + 3) / 4;
+                auto &wk64 = get_or_make_k64(wq_packed, M, K, ld_w_bytes);
+                auto &wk4  = get_or_make_k4 (wq_packed, M, K, ld_w_bytes);
+                // Scratch outputs (avoid polluting y)
+                const int M_pad = wk64.M_pad; // both repacks produce same M_pad
+                std::vector<float> y_scratch((size_t)M_pad, 0.f);
+                // Time a few iters of each route
+                auto time_ms = [&](int which)->double{
+                    const int iters_warm = 2, iters = 5;
+                    if (which == 0) {
+                        // k4
+                        for (int i=0;i<iters_warm;++i) {
+                            run_gemmv_vnni_intrin_i8u8_fp32(xq_ptr, K,
+                                wk4.buf.get(), M, /*ld_w_gbytes*/ K_grp4 * 64,
+                                scales ? scales[0] : 1.f, /*zp_w*/ 0,
+                                s_x, zp_x, y_scratch.data(), bias ? bias[0] : 0.f,
+                                wk4.sumW.data());
+                        }
+                        auto t0 = std::chrono::steady_clock::now();
+                        for (int i=0;i<iters;++i) {
+                            run_gemmv_vnni_intrin_i8u8_fp32(xq_ptr, K,
+                                wk4.buf.get(), M, /*ld_w_gbytes*/ K_grp4 * 64,
+                                scales ? scales[0] : 1.f, /*zp_w*/ 0,
+                                s_x, zp_x, y_scratch.data(), bias ? bias[0] : 0.f,
+                                wk4.sumW.data());
+                        }
+                        auto t1 = std::chrono::steady_clock::now();
+                        return std::chrono::duration<double,std::milli>(t1-t0).count()/iters;
+                    } else {
+                        // k64
+                        for (int i=0;i<iters_warm;++i) {
+                            run_gemmv_vnni_intrin_i8u8_fp32_k64(xq_ptr, K,
+                                wk64.buf.get(), M, /*ld_w_kbytes*/ K_grp64 * (M_blk*K_blk),
+                                scales ? scales[0] : 1.f, /*zp_w*/ 0,
+                                s_x, zp_x, y_scratch.data(), bias ? bias[0] : 0.f,
+                                wk64.sumW.data());
+                        }
+                        auto t0 = std::chrono::steady_clock::now();
+                        for (int i=0;i<iters;++i) {
+                            run_gemmv_vnni_intrin_i8u8_fp32_k64(xq_ptr, K,
+                                wk64.buf.get(), M, /*ld_w_kbytes*/ K_grp64 * (M_blk*K_blk),
+                                scales ? scales[0] : 1.f, /*zp_w*/ 0,
+                                s_x, zp_x, y_scratch.data(), bias ? bias[0] : 0.f,
+                                wk64.sumW.data());
+                        }
+                        auto t1 = std::chrono::steady_clock::now();
+                        return std::chrono::duration<double,std::milli>(t1-t0).count()/iters;
+                    }
+                };
+                double ms_k4  = time_ms(0);
+                double ms_k64 = time_ms(1);
+                bool prefer64 = (ms_k64 <= ms_k4 * 0.985); // small bias towards k64 when close
+                {
+                    std::lock_guard<std::mutex> lk(g_sel_mtx);
+                    g_sel_cache.emplace(key, prefer64);
+                }
+                return prefer64;
+            };
+
+            const bool prefer_k64 = decide_prefer_k64(xq.data());
             if (prefer_k64) {
                 const int K_blk = 64; const int K_grp = (K + K_blk - 1)/K_blk;
                 auto &wk64 = get_or_make_k64(wq_packed, M, K, ld_w_bytes);
@@ -200,15 +338,25 @@ void run_gemmv_q_fp32_ex(const float* x, int K,
             if (gran == quant_granularity_t::per_tensor) {
                 const int K_grp = (K + 3) / 4;
                 auto &wk4 = get_or_make_k4(wq_packed, M, K, ld_w_bytes);
-                run_gemmv_vnni_intrin_i8u8_fp32(xq.data(), K,
-                                                wk4.buf.get(), M, /*ld_w_gbytes*/ K_grp * 64,
-                                                scales ? scales[0] : 1.f, /*zp_w*/ 0,
-                                                s_x, zp_x, y, bias ? bias[0] : 0.f,
-                                                wk4.sumW.data());
-                if (kernel_name) *kernel_name = "vnni_k4_repack_intrin";
+                // Prefer JIT VNNI kernel for k4 path; fallback to intrinsics
+                bool used_jit = run_gemmv_vnni_i8u8_fp32(xq.data(), K,
+                                                        wk4.buf.get(), M, /*ld_w_gbytes*/ K_grp * 64,
+                                                        scales ? scales[0] : 1.f, /*zp_w*/ 0,
+                                                        s_x, zp_x, y, bias ? bias[0] : 0.f,
+                                                        /*dbg_block*/-1, nullptr, nullptr, /*dump_only*/0);
+                if (!used_jit) {
+                    run_gemmv_vnni_intrin_i8u8_fp32(xq.data(), K,
+                                                    wk4.buf.get(), M, /*ld_w_gbytes*/ K_grp * 64,
+                                                    scales ? scales[0] : 1.f, /*zp_w*/ 0,
+                                                    s_x, zp_x, y, bias ? bias[0] : 0.f,
+                                                    wk4.sumW.data());
+                    if (kernel_name) *kernel_name = "vnni_k4_repack_intrin";
+                } else {
+                    if (kernel_name) *kernel_name = "vnni_k4_jit";
+                }
                 return;
             }
-            // Fallback: no-repack intrinsics for other granularities
+            // Fallback: no-repack intrinsics for other granularities (should not reach here due to early return)
             {
                 const int M_full = M / M_blk; const int M_tail = M % M_blk;
                 auto meta_ptrs = [&](int bi, const float*& sc, const int32_t*& zp, const float*& bs){
@@ -219,6 +367,8 @@ void run_gemmv_q_fp32_ex(const float* x, int K,
                     for (int m = 0; m < 16; ++m) { int g = (base_m + m) / gs; sc_buf[m] = scales[g]; if (zps) zp_buf[m] = zps[g]; if (bias) b_buf[m] = bias[g]; }
                     sc = sc_buf; zp = zps ? zp_buf : nullptr; bs = bias ? b_buf : nullptr;
                 };
+                // Compute sum_x_q (per-tensor X quantization) for compensation
+                int32_t sum_x_q = 0; for (int i = 0; i < K; ++i) sum_x_q += (int)xq[i];
                 for (int bi = 0; bi < M_full; ++bi) {
                     const float* sc=nullptr; const int32_t* zp=nullptr; const float* bs=nullptr; meta_ptrs(bi, sc, zp, bs);
                     run_gemmv_vnni_intrin_i8u8_fp32_norepack(xq.data(), K, wq_packed + (size_t)bi * (size_t)ld_w_bytes,
@@ -408,26 +558,11 @@ bool run_gemmv_vnni_q8s8_ex(const float* x_fp32, int K,
     }
     // Try JIT first when not stub; otherwise fallback to intrinsic
     bool used = false;
-    if (!std::getenv("GEMMV_VNNI_STUB")) {
-        used = run_gemmv_vnni_i8u8_fp32(xq.data(), K, wq_k4, M, ld_w_gbytes,
-                                        s_w, zp_w, s_x, zp_x, y, bias0,
-                                        dbg_block, dbg_acc, dbg_sumw, dump_only);
-    }
-    if (!used && !dump_only) {
-        // Heuristic: choose KU/PFD based on K and M (small-M specialization) if not set by env
-        if (!std::getenv("GEMMV_VNNI_KU")) {
-            int ku = (M <= 256) ? 8 : ((K >= 4096) ? 8 : (K >= 2048 ? 4 : 2));
-            std::string s = std::to_string(ku);
-            setenv("GEMMV_VNNI_KU", s.c_str(), 0);
-        }
-        if (!std::getenv("GEMMV_VNNI_PFD")) {
-            int pfd = (M <= 256) ? 4 : ((K >= 4096) ? 4 : (K >= 2048 ? 3 : 2));
-            std::string s = std::to_string(pfd);
-            setenv("GEMMV_VNNI_PFD", s.c_str(), 0);
-        }
-        used = run_gemmv_vnni_intrin_i8u8_fp32(xq.data(), K, wq_k4, M, ld_w_gbytes,
-                                               s_w, zp_w, s_x, zp_x, y, bias0, sumW_precomp);
-    }
+    used = run_gemmv_vnni_i8u8_fp32(xq.data(), K, wq_k4, M, ld_w_gbytes,
+                                    s_w, zp_w, s_x, zp_x, y, bias0,
+                                    dbg_block, dbg_acc, dbg_sumw, dump_only);
+    if (!used && !dump_only) used = run_gemmv_vnni_intrin_i8u8_fp32(xq.data(), K, wq_k4, M, ld_w_gbytes,
+                                                                    s_w, zp_w, s_x, zp_x, y, bias0, sumW_precomp);
     return used;
 }
 

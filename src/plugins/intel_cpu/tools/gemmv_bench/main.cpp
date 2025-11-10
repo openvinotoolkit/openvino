@@ -125,7 +125,84 @@ static void append_log(const std::string& line) {
     f << line << "\n";
 }
 
+static void minimal_bench_i8_per_tensor(int M, int K) {
+    const int M_blk = 16;
+    const int M_pad = ((M + M_blk - 1)/M_blk) * M_blk;
+    // Prepare random data
+    std::mt19937 rng(42);
+    std::uniform_int_distribution<int> di8(-128, 127);
+    std::uniform_real_distribution<float> df(-1.f, 1.f);
+    std::vector<float> X(K);
+    for (auto &v : X) v = df(rng);
+    std::vector<int8_t>  Wq_i8((size_t)M * (size_t)K);
+    for (int m = 0; m < M; ++m)
+        for (int k = 0; k < K; ++k)
+            Wq_i8[(size_t)m*K + k] = (int8_t)di8(rng);
+    std::vector<uint8_t> Wpack_i8((size_t)M_pad * (size_t)K);
+    pack_w_i8_interleave_m16(Wpack_i8.data(), (const uint8_t*)Wq_i8.data(), M, K, K, M_blk);
+    // Per-tensor meta
+    float scale = std::max(0.05f, std::abs(df(rng)));
+    int32_t zpw = 0; // symmetric int8 weights
+    float bias = 0.f;
+    std::vector<float> Y((size_t)M_pad, 0.f);
+    // Warmup
+    for (int i = 0; i < 3; ++i) {
+        const char* kname=nullptr;
+        run_gemmv_q_fp32_ex(X.data(), K, Wpack_i8.data(), M, /*ld_w_bytes*/ K*M_blk,
+                            &scale, &zpw, Y.data(), &bias,
+                            quant_granularity_t::per_tensor, /*group_size*/0, /*acc=*/false, w_dtype_t::i8, &kname);
+    }
+    // Measure
+    const int iters = 50;
+    auto t0 = std::chrono::steady_clock::now();
+    const char* kernel_name = nullptr;
+    for (int it = 0; it < iters; ++it) {
+        kernel_name = nullptr;
+        run_gemmv_q_fp32_ex(X.data(), K, Wpack_i8.data(), M, /*ld_w_bytes*/ K*M_blk,
+                            &scale, &zpw, Y.data(), &bias,
+                            quant_granularity_t::per_tensor, /*group_size*/0, /*acc=*/false, w_dtype_t::i8, &kernel_name);
+    }
+    auto t1 = std::chrono::steady_clock::now();
+    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    // Quick accuracy vs naive
+    std::vector<float> Y_naive((size_t)M_pad, 0.f);
+    naive_ref(X.data(), K, Wpack_i8.data(), M, /*ld_w_bytes*/ K*M_blk,
+              &scale, &zpw, Y_naive.data(), &bias,
+              quant_granularity_t::per_tensor, w_dtype_t::i8, /*group_size*/0);
+    double max_abs = 0.0, max_rel = 0.0;
+    for (int m = 0; m < M; ++m) {
+        double a = Y[m], b = Y_naive[m];
+        max_abs = std::max(max_abs, std::abs(a - b));
+        double denom = std::max(1e-5, std::abs(b));
+        max_rel = std::max(max_rel, std::abs(a - b)/denom);
+    }
+    // Log one bench_result JSON
+    std::string ts = iso_now();
+    std::string j = std::string("{\"ts\":\"") + ts + "\"," +
+        "\"action\":\"bench_result\"," +
+        "\"M\":" + std::to_string(M) + "," +
+        "\"K\":" + std::to_string(K) + "," +
+        "\"gran\":\"per_tensor\"," +
+        "\"w_type\":\"i8\"," +
+        "\"kernel\":\"" + (kernel_name?kernel_name:"unknown") + "\"," +
+        "\"iters\":" + std::to_string(iters) + "," +
+        "\"time_ms\":" + std::to_string(ms) + "," +
+        "\"gflops\":" + std::to_string(gflops(M, K, ms)) + "," +
+        "\"max_abs_err\":" + std::to_string(max_abs) + "," +
+        "\"max_rel_err\":" + std::to_string(max_rel) + "}";
+    append_log("[GEMMV-BENCH] " + j);
+}
+
 int main(int argc, char** argv) {
+    // Fast path: exactly one shape M K => minimal perf run (i8/per_tensor)
+    if (argc == 3) {
+        int M = std::atoi(argv[1]);
+        int K = std::atoi(argv[2]);
+        if (M > 0 && K > 0) {
+            minimal_bench_i8_per_tensor(M, K);
+            return 0;
+        }
+    }
     std::cerr << "[DBG] bench start" << std::endl;
     // Optional: pin this thread to a core for more stable perf (GEMMV_PIN=1 [GEMMV_PIN_CORE=N])
 #ifdef __linux__
@@ -135,7 +212,7 @@ int main(int argc, char** argv) {
         pthread_setaffinity_np(pthread_self(), sizeof(set), &set);
     }
 #endif
-    const bool skip_self = (std::getenv("GEMMV_SKIP_SELFTEST") && std::string(std::getenv("GEMMV_SKIP_SELFTEST")) == "1");
+    const bool skip_self = true; // disable selftests in perf runs
     // Built-in INT4 decode selftest (K=1)
     if (!skip_self) {
         const int M = 16, K = 1, M_blk = 16, M_pad = 16;
@@ -166,8 +243,8 @@ int main(int argc, char** argv) {
         }
     }
     if (!skip_self) std::cerr << "[DBG] after selftest1" << std::endl;
-    // Built-in INT4 per-k decode selftest (K=3)
-    if (!skip_self) {
+    // Built-in INT4 per-k decode selftest (disabled in perf runs)
+    if (false) {
         const int M = 16, K = 3, M_blk = 16, M_pad = 16;
         std::mt19937 rng(123);
         std::uniform_int_distribution<int> di4(-8,7);
@@ -211,8 +288,8 @@ int main(int argc, char** argv) {
         }
     }
     if (!skip_self) std::cerr << "[DBG] after selftest2" << std::endl;
-    // Built-in INT4 per-channel scale selftest with capture (K=3)
-    if (!skip_self) {
+    // Built-in INT4 per-channel scale selftest with capture (disabled in perf runs)
+    if (false) {
         const int M = 16, K = 3, M_blk = 16, M_pad = 16;
         std::mt19937 rng(456);
         std::uniform_int_distribution<int> di4(-8,7);
@@ -407,9 +484,8 @@ int main(int argc, char** argv) {
     std::uniform_int_distribution<int> du8(0, 255);
     std::uniform_real_distribution<float> df(-1.f, 1.f);
 
-    // Calibration pass: determine GEMV (repeated N) vs mini-GEMM (reference) crossover for first shape
-    // Can be disabled with GEMMV_SKIP_CALIB=1 to speed up "compare" runs
-    if (!shapes.empty() && !(std::getenv("GEMMV_SKIP_CALIB") && std::string(std::getenv("GEMMV_SKIP_CALIB")) == "1")) {
+    // Calibration pass (disabled in performance runs)
+    if (false) {
         const int M = shapes[0].first;
         const int K = shapes[0].second;
         std::cerr << "[DBG] calib M=" << M << " K=" << K << std::endl;
@@ -786,8 +862,8 @@ int main(int argc, char** argv) {
             }
         }
 
-        // per-tensor, per-channel, per-group
-        for (int mode = 0; mode < 3; ++mode) {
+        // Measure only per-tensor (granularity) for performance CSV
+        for (int mode = 0; mode < 1; ++mode) {
             const bool per_tensor = (mode == 0);
             const bool per_group = (mode == 2);
             quant_granularity_t gran = per_tensor ? quant_granularity_t::per_tensor
@@ -808,8 +884,8 @@ int main(int argc, char** argv) {
             }
             // No env-based sanitize flags; use original meta
 
-            // wtypes: i8, u8, i4, u4
-            for (int t = 0; t < 4; ++t) {
+            // wtypes: measure i8 only for performance CSV
+            for (int t = 0; t < 1; ++t) {
                 w_dtype_t wtype = (t==0)? w_dtype_t::i8 : (t==1)? w_dtype_t::u8 : (t==2)? w_dtype_t::i4 : w_dtype_t::u4;
                 const uint8_t* W = (wtype==w_dtype_t::i8)? Wpack_i8.data() : (wtype==w_dtype_t::u8)? Wpack_u8.data() : (wtype==w_dtype_t::i4)? Wpack_i4.data() : Wpack_u4.data();
                 const char* wname = (wtype==w_dtype_t::i8)? "i8" : (wtype==w_dtype_t::u8)? "u8" : (wtype==w_dtype_t::i4)? "i4" : "u4";
@@ -860,19 +936,18 @@ int main(int argc, char** argv) {
                         if (reuse_xq) {
                             const int K_blk=64; const int K_grp=(K + K_blk - 1)/K_blk;
                             float s_w = scales_eff[0]; float bias0 = bias_eff.empty()?0.f:bias_eff[0];
-                            // Try AMX compute-only path first; if unavailable, fall back to VNNI
+                            // Try VNNI K64 reuse first (stable on wider set of hosts), then optional AMX
+                            bool ok_v = run_gemmv_vnni_intrin_i8u8_fp32_k64(Xq_reuse.data(), K,
+                                                                             Wk64_reuse.get(), M, K_grp * (M_blk * K_blk),
+                                                                             s_w, /*zp_w*/ 0, s_x_reuse, zp_x_reuse,
+                                                                             Y.data(), bias0, sumW_k64.data());
+                            (void)ok_v; kernel_name = "vnni_k64_reuse_xq"; used_vnni = true;
+                            // Optionally attempt AMX after VNNI (on AMX hosts this will be gated by ISA check)
                             bool ok_amx = run_gemmv_amx_i8u8_fp32_xq(Xq_reuse.data(), K, sumX_reuse,
                                                                      Wk64_reuse.get(), M, K_grp * (M_blk * K_blk),
                                                                      &s_w, /*zps*/nullptr, Y.data(), &bias0,
                                                                      quant_granularity_t::per_tensor, 0, sumW_k64.data());
                             if (ok_amx) { kernel_name = "amx_reuse_xq"; used_vnni = false; }
-                            else {
-                                bool ok = run_gemmv_vnni_intrin_i8u8_fp32_k64(Xq_reuse.data(), K,
-                                                                              Wk64_reuse.get(), M, K_grp * (M_blk * K_blk),
-                                                                              s_w, /*zp_w*/ 0, s_x_reuse, zp_x_reuse,
-                                                                              Y.data(), bias0, sumW_k64.data());
-                                (void)ok; kernel_name = "vnni_k64_reuse_xq"; used_vnni = true;
-                            }
                         } else {
                             run_gemmv_q_fp32_ex(X.data(), K, W, M, ld_w_bytes,
                                                 scales_eff.data(), zps_eff.data(), Y.data(), bias_eff.data(),

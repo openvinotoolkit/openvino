@@ -26,4 +26,9 @@ bool run_gemmv_amx_i8u8_fp32_xq(const uint8_t* xq, int K, int32_t sum_x_q,
                                 quant_granularity_t gran, int group_size,
                                 const int32_t* sumW_precomp = nullptr);
 
+// AMX BF16 GEMV: W (bf16 prepacked K64x16), X fp32 -> bf16 panel; accum fp32; per-tensor bias only
+bool run_gemmv_amx_bf16_fp32(const float* x_fp32, int K,
+                             const uint16_t* w_bf16_k64, int M, int ld_w_kbytes,
+                             float* y, const float* bias);
+
 } // namespace ov::intel_cpu::x64::gemmv_jit

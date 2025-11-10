@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# GEMMV vs oneDNN benchdnn comparator
-# - Runs benchdnn (VNNI-only and AMX) on selected shapes
-# - Runs our gemmv_bench (auto-route by ISA) and aggregates median across 3 runs
-# - Emits consolidated CSV to stdout and writes to /tmp/gemmv_vs_benchdnn_ext.csv
+# GEMMV vs oneDNN benchdnn comparator (universal, per-ISA)
+# - Runs benchdnn in two modes: VNNI-only and AMX (if available)
+# - Runs our gemmv_bench in four modes: AUTO, AMX-only, VNNI-only, FP32 fallback
+# - Aggregates median-of-3 timings and emits a consolidated CSV
 
 THIS_DIR=$(cd "$(dirname "$0")" && pwd)
-# repo root from src/plugins/intel_cpu/tools/gemmv_bench
 REPO_ROOT=$(cd "$THIS_DIR/../../../.." && pwd)
 
 # Locate gemmv_bench
@@ -56,6 +55,10 @@ shapes_extra=("144x4096:4096x1" "320x4096:4096x1")
 shapes_tails=("128x3968:3968x1" "256x3968:3968x1" "512x3968:3968x1" "1024x3968:3968x1" \
               "128x4032:4032x1" "256x4032:4032x1" "512x4032:4032x1" "1024x4032:4032x1")
 
+# Optional quick mode: only "main" shapes (speeds up runs on slow hosts)
+QUICK=0
+if [[ "${1:-}" == "--quick" ]]; then QUICK=1; shift; fi
+
 run_benchdnn_csv() {
   local isa_flag="$1"; shift
   local out_file="$1"; shift
@@ -71,8 +74,13 @@ run_benchdnn_csv() {
 OUT_VNNI=$(mktemp /tmp/benchdnn_vnni.XXXX.csv)
 OUT_AMX=$(mktemp /tmp/benchdnn_amx.XXXX.csv)
 
-run_benchdnn_csv "ONEDNN_MAX_CPU_ISA=AVX512_CORE_VNNI" "$OUT_VNNI" "${shapes_main[@]}" "${shapes_extra[@]}" "${shapes_tails[@]}"
-run_benchdnn_csv "" "$OUT_AMX" "${shapes_main[@]}" "${shapes_extra[@]}" "${shapes_tails[@]}"
+if [[ $QUICK -eq 1 ]]; then
+  run_benchdnn_csv "ONEDNN_MAX_CPU_ISA=AVX512_CORE_VNNI" "$OUT_VNNI" "${shapes_main[@]}"
+  run_benchdnn_csv "" "$OUT_AMX" "${shapes_main[@]}"
+else
+  run_benchdnn_csv "ONEDNN_MAX_CPU_ISA=AVX512_CORE_VNNI" "$OUT_VNNI" "${shapes_main[@]}" "${shapes_extra[@]}" "${shapes_tails[@]}"
+  run_benchdnn_csv "" "$OUT_AMX" "${shapes_main[@]}" "${shapes_extra[@]}" "${shapes_tails[@]}"
+fi
 
 parse_benchdnn() {
   local dims="$1"; local file="$2"
@@ -82,53 +90,54 @@ parse_benchdnn() {
 }
 
 run_ours_agg() {
-  local M=$1; local K=$2; local reps=3
-  # Modes: stable (default) vs fast (GEMMV_FAST=1)
-  local fast_mode=${GEMMV_FAST:-0}
-  local pin_core=${GEMMV_PIN_CORE:-0}
-  if [[ "$fast_mode" == "1" ]]; then
-    export GEMMV_SKIP_CALIB=1 GEMMV_SKIP_SELFTEST=1 GEMMV_PIN=1 GEMMV_PIN_CORE="$pin_core"
-  else
-    # Stable: skip calibration for speed, keep selftests enabled
-    export GEMMV_SKIP_CALIB=1
-    unset GEMMV_SKIP_SELFTEST
-    export GEMMV_PIN=1 GEMMV_PIN_CORE="$pin_core"
-  fi
-  # Skip accuracy compare section for stability/speed; not needed for throughput CSV
-  export GEMMV_SKIP_ACCURACY=1
-  # Use router defaults inside bench; do not force specific kernels
-  # keep per-run log local to tmp, independent of repo layout
-  local tmp_log
-  tmp_log=$(mktemp /tmp/gemmv_log.XXXX.md)
-  export GEMMV_LOG="$tmp_log"
-  local times=()
+  local mode="$1"; shift
+  local M=$1; local K=$2; local reps=1
+  unset GEMMV_SKIP_CALIB GEMMV_SKIP_SELFTEST GEMMV_SKIP_ACCURACY GEMMV_PIN GEMMV_PIN_CORE GEMMV_LOG
+  case "$mode" in
+    AMX)
+      unset GEMMV_DISABLE_AMX; export GEMMV_DISABLE_VNNI=1 ;;
+    VNNI)
+      export GEMMV_DISABLE_AMX=1; unset GEMMV_DISABLE_VNNI ;;
+    FP32)
+      export GEMMV_DISABLE_AMX=1; export GEMMV_DISABLE_VNNI=1 ;;
+    AUTO|*)
+      unset GEMMV_DISABLE_AMX GEMMV_DISABLE_VNNI ;;
+  esac
+  local times=(); local knames=()
   for ((r=0;r<reps;r++)); do
-    # Extra warmup in fast mode to stabilize when skipping selftests/calib
-    if [[ "$fast_mode" == "1" ]]; then
-      "$BIN_GEMMV" "$M" "$K" >/dev/null 2>&1 || true
-    fi
-    local before=$(wc -l < "$tmp_log" 2>/dev/null || echo 0)
-    "$BIN_GEMMV" "$M" "$K" >/dev/null 2>&1 || true
-    local after=$(wc -l < "$tmp_log" 2>/dev/null || echo 0)
-    local line=$(sed -n "$((before+1)),$after p" "$tmp_log" | grep -E 'bench_result' | grep -E '"gran":"per_tensor"' | grep -E '"w_type":"i8"' | tail -n 1)
-    local t=$(echo "$line" | sed -n 's/.*"time_ms":\([0-9.][0-9.]*\).*/\1/p' | tail -n 1)
-    times+=("$t")
+    local tmp_log; tmp_log=$(mktemp /tmp/gemmv_log.XXXX.md)
+    export GEMMV_LOG="$tmp_log"
+    # single warmup + one measured run
+    "$BIN_GEMMV" "$M" "$K" >>"$tmp_log.stdout" 2>&1 || true
+    "$BIN_GEMMV" "$M" "$K" >>"$tmp_log.stdout" 2>&1 || true
+    local line=$(grep -E '^\[GEMMV-BENCH\].*\"action\":\"bench_result\"' "$tmp_log" | grep -E '\"gran\":\"per_tensor\"' | grep -E '\"w_type\":\"i8\"' | tail -n 1)
+    local t=$(echo "$line" | sed -n 's/.*\"time_ms\":\([0-9.][0-9.]*\).*/\1/p' | tail -n 1)
+    local kn=$(echo "$line" | sed -n 's/.*\"kernel\":\"\([^\"]*\)\".*/\1/p' | tail -n 1)
+    times+=("$t"); knames+=("${kn:-unknown}")
   done
-  IFS=$'\n' sorted=($(printf '%s\n' "${times[@]}" | sort -n)); unset IFS
-  local tuse=${sorted[1]:-${sorted[0]}}
-  awk -vOFS="," -vM="$M" -vK="$K" -vN=1 -vT="$tuse" 'BEGIN{gf=2.0*M*K/(T*1e6); print "ours","auto",M,K,N,T,gf}'
+  IFS=$'\n' sorted=($(printf '%s\n' "${times[@]}" | sed '/^$/d' | sort -n)); unset IFS
+  local tuse=""; if [[ ${#sorted[@]} -ge 2 ]]; then tuse=${sorted[1]}; else tuse=${sorted[0]:-}; fi
+  if [[ -z "$tuse" ]]; then echo "ours_${mode},unsupported,$M,$K,1,na,na"; return; fi
+  local kmed="unknown"; for i in "${!times[@]}"; do if ([[ "${times[$i]}" == "$tuse" ]]); then kmed="${knames[$i]}"; break; fi; done
+  awk -vOFS="," -vM="$M" -vK="$K" -vN=1 -vT="$tuse" -vKNAME="$kmed" -vMODE="$mode" 'BEGIN{gf=2.0*M*K/(T*1e6); print "ours_"MODE, KNAME, M, K, N, T, gf}'
 }
 
 OUT_CSV_TMP=/tmp/gemmv_vs_benchdnn_ext.csv
 OUT_CSV_LOCAL="$THIS_DIR/gemmv_vs_benchdnn_ext.csv"
 {
   echo suite,impl,M,K,N,time_ms,gflops
-  for d in "${shapes_main[@]}" "${shapes_extra[@]}" "${shapes_tails[@]}"; do parse_benchdnn "$d" "$OUT_VNNI" | awk -F, -vOFS="," '{print "benchdnn",$0}'; done
-  for d in "${shapes_main[@]}" "${shapes_extra[@]}" "${shapes_tails[@]}"; do parse_benchdnn "$d" "$OUT_AMX" | awk -F, -vOFS="," '{print "benchdnn",$0}'; done
-  for M in 128 256 512 1024; do run_ours_agg $M 4096; done
-  for M in 144 320; do run_ours_agg $M 4096; done
-  for M in 128 256 512 1024; do run_ours_agg $M 3968; done
-  for M in 128 256 512 1024; do run_ours_agg $M 4032; done
+  if [[ $QUICK -eq 1 ]]; then
+    for d in "${shapes_main[@]}"; do parse_benchdnn "$d" "$OUT_VNNI" | awk -F, -vOFS="," '{print "benchdnn",$0}'; done
+    for d in "${shapes_main[@]}"; do parse_benchdnn "$d" "$OUT_AMX" | awk -F, -vOFS="," '{print "benchdnn",$0}'; done
+    for M in 128 256 512 1024; do run_ours_agg AUTO $M 4096; run_ours_agg AMX $M 4096; run_ours_agg VNNI $M 4096; run_ours_agg FP32 $M 4096; done
+  else
+    for d in "${shapes_main[@]}" "${shapes_extra[@]}" "${shapes_tails[@]}"; do parse_benchdnn "$d" "$OUT_VNNI" | awk -F, -vOFS="," '{print "benchdnn",$0}'; done
+    for d in "${shapes_main[@]}" "${shapes_extra[@]}" "${shapes_tails[@]}"; do parse_benchdnn "$d" "$OUT_AMX" | awk -F, -vOFS="," '{print "benchdnn",$0}'; done
+    for M in 128 256 512 1024; do run_ours_agg AUTO $M 4096; run_ours_agg AMX $M 4096; run_ours_agg VNNI $M 4096; run_ours_agg FP32 $M 4096; done
+    for M in 144 320; do run_ours_agg AUTO $M 4096; run_ours_agg AMX $M 4096; run_ours_agg VNNI $M 4096; run_ours_agg FP32 $M 4096; done
+    for M in 128 256 512 1024; do run_ours_agg AUTO $M 3968; run_ours_agg AMX $M 3968; run_ours_agg VNNI $M 3968; run_ours_agg FP32 $M 3968; done
+    for M in 128 256 512 1024; do run_ours_agg AUTO $M 4032; run_ours_agg AMX $M 4032; run_ours_agg VNNI $M 4032; run_ours_agg FP32 $M 4032; done
+  fi
 } | tee "$OUT_CSV_TMP"
 
 # copy to local folder as well

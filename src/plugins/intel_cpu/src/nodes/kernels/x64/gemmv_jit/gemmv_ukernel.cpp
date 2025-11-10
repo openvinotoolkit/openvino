@@ -136,7 +136,7 @@ size_t pack_w_i8_k64_m16(uint8_t* dst,
     // emit 64 rows, each row holds 16 bytes (one per M-lane)
     const int M_pad = ((M + M_blk - 1) / M_blk) * M_blk;
     const int K_grp = (K + K_blk - 1) / K_blk;
-    size_t bytes_written = static_cast<size_t>(M_pad) * static_cast<size_t>(K_grp) * K_blk;
+    size_t bytes_written = static_cast<size_t>(M_pad) * static_cast<size_t>(K_grp) * (size_t)K_blk * (size_t)M_blk;
     uint8_t* out = dst;
     for (int m0 = 0; m0 < M_pad; m0 += M_blk) {
         for (int g = 0; g < K_grp; ++g) {
@@ -167,7 +167,7 @@ size_t repack_interleave_m16_to_k64_m16(uint8_t* dst,
     // matching dpbusd expected layout. That eliminates runtime shuffles.
     const int M_pad = ((M + M_blk - 1) / M_blk) * M_blk;
     const int K_grp = (K + K_blk - 1) / K_blk;
-    size_t bytes_written = static_cast<size_t>(M_pad) * static_cast<size_t>(K_grp) * K_blk;
+    size_t bytes_written = static_cast<size_t>(M_pad) * static_cast<size_t>(K_grp) * (size_t)K_blk * (size_t)M_blk;
     uint8_t* out = dst;
     for (int m0 = 0; m0 < M_pad; m0 += M_blk) {
         const uint8_t* wblk = src_interleave + (size_t)(m0 / M_blk) * (size_t)ld_w_bytes_interleave;
@@ -264,6 +264,44 @@ size_t repack_interleave_m16_to_k4_m16(uint8_t* dst,
         }
     }
     return bytes_written;
+}
+
+static inline uint16_t f32_to_bf16(float v) {
+    union { uint32_t u32; float f; } u; u.f = v;
+    // round-to-nearest-even: add 0x7FFF + LSB of truncated part
+    uint32_t x = u.u32;
+    uint32_t lsb = (x >> 16) & 1U;
+    x += 0x7FFF + lsb;
+    return (uint16_t)(x >> 16);
+}
+
+size_t repack_interleave_m16_to_k64_m16_bf16(uint16_t* dst_bf16,
+                                             const uint8_t* src_interleave_i8, int M, int K, int ld_w_bytes_interleave,
+                                             float scale, int32_t zp,
+                                             int M_blk, int K_blk) {
+    const int M_pad = ((M + M_blk - 1) / M_blk) * M_blk;
+    const int K_grp = (K + K_blk - 1) / K_blk;
+    size_t elems = (size_t)M_pad * (size_t)K_grp * (size_t)K_blk * (size_t)M_blk;
+    uint16_t* out = dst_bf16;
+    for (int m0 = 0; m0 < M_pad; m0 += M_blk) {
+        const uint8_t* wblk = src_interleave_i8 + (size_t)(m0 / M_blk) * (size_t)ld_w_bytes_interleave;
+        for (int g = 0; g < K_grp; ++g) {
+            const int k0 = g * K_blk;
+            for (int kb = 0; kb < K_blk; ++kb) {
+                const int k = k0 + kb;
+                for (int im = 0; im < M_blk; ++im) {
+                    float wr = 0.f;
+                    if (im + m0 < M && k < K) {
+                        const uint8_t* wk = wblk + (size_t)k * M_blk;
+                        int8_t q = (int8_t)wk[im];
+                        wr = scale * ((float)q - (float)zp);
+                    }
+                    *out++ = f32_to_bf16(wr);
+                }
+            }
+        }
+    }
+    return elems * sizeof(uint16_t);
 }
 
 // Helpers mirroring REF path accessors

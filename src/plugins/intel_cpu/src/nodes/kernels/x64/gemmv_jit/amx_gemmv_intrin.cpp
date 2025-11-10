@@ -11,13 +11,17 @@
 #if defined(__x86_64__)
 #include <sys/syscall.h>
 #include <asm/prctl.h>
+#include <sys/prctl.h>
 #include <unistd.h>
+extern "C" int arch_prctl(int code, unsigned long addr);
 #endif
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <cstdlib>
 #include <immintrin.h>
+#include <csignal>
+#include <setjmp.h>
 
 namespace ov::intel_cpu::x64::gemmv_jit {
 
@@ -47,6 +51,39 @@ static inline float get_bias_lane(const float* b, int idx, quant_granularity_t g
 // Forward decl for smoke test
 static bool amx_smoke_test();
 
+// Safe runtime probe to prevent process crash on systems reporting AMX but not allowing tile ops
+static bool amx_runtime_safe_probe() {
+    static thread_local bool probed = false;
+    static thread_local bool ok = false;
+    if (probed) return ok;
+    probed = true;
+    struct sigaction old_segv{}, old_ill{}, sa{};
+    sa.sa_handler = +[](int){ };
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    // We'll use sigsetjmp/longjmp to detect faults
+    static thread_local sigjmp_buf jmpbuf;
+    auto handler = +[](int){ siglongjmp(jmpbuf, 1); };
+    struct sigaction sa_jmp{}; sa_jmp.sa_handler = handler; sigemptyset(&sa_jmp.sa_mask); sa_jmp.sa_flags = 0;
+    sigaction(SIGSEGV, &sa_jmp, &old_segv);
+    sigaction(SIGILL,  &sa_jmp, &old_ill);
+    if (sigsetjmp(jmpbuf, 1) == 0) {
+        // Attempt minimal tile sequence; if it faults, we'll longjmp
+        struct alignas(64) tilecfg_t { uint8_t palette_id, start_row; uint8_t rsvd[14]; uint16_t colsb[16]; uint8_t rows[16]; } cfg{};
+        cfg.palette_id = 1; cfg.colsb[0] = 64; cfg.rows[0] = 16; cfg.colsb[1] = 64; cfg.rows[1] = 16; cfg.colsb[2] = 16; cfg.rows[2] = 64;
+        _tile_loadconfig(&cfg);
+        _tile_zero(0);
+        _tile_release();
+        ok = true;
+    } else {
+        ok = false;
+    }
+    // Restore handlers
+    sigaction(SIGSEGV, &old_segv, nullptr);
+    sigaction(SIGILL,  &old_ill,  nullptr);
+    return ok;
+}
+
 static bool enable_amx_for_thread() {
 #if defined(__x86_64__)
     static thread_local bool init = false;
@@ -58,38 +95,37 @@ static bool enable_amx_for_thread() {
     if (init) return ok;
     init = true;
     // Request permission for XTILECFG (17) and XTILEDATA (18)
+    // Prefer glibc arch_prctl if available; fallback to raw syscall
     errno = 0;
-    long r1 = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, 17);
+    long r1 = 0, r2 = 0;
+#if defined(ARCH_REQ_XCOMP_PERM)
+    // Try glibc arch_prctl first
+    r1 = arch_prctl(ARCH_REQ_XCOMP_PERM, 17);
+    if (r1 != 0 && errno == ENOSYS) {
+        errno = 0;
+        r1 = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, 17);
+    }
+#else
+    r1 = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, 17);
+#endif
     last_errno1 = errno; last_r1 = r1;
     if (r1 != 0) {
-        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
-            if (std::string(d) == "1") std::fprintf(stderr,
-                "[GEMMV-AMX-DIAG] arch_prctl(ARCH_REQ_XCOMP_PERM,17) failed: ret=%ld errno=%d (%s)\n",
-                r1, last_errno1, std::strerror(last_errno1));
-        }
-        return ok = false;
+        // Some kernels don't require or don't support ARCH_REQ_XCOMP_PERM; allow using AMX in that case.
+        if (!(last_errno1 == ENOSYS || last_errno1 == EOPNOTSUPP)) return ok = false;
     }
     errno = 0;
-    long r2 = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, 18);
+#if defined(ARCH_REQ_XCOMP_PERM)
+    r2 = arch_prctl(ARCH_REQ_XCOMP_PERM, 18);
+    if (r2 != 0 && errno == ENOSYS) {
+        errno = 0;
+        r2 = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, 18);
+    }
+#else
+    r2 = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, 18);
+#endif
     last_errno2 = errno; last_r2 = r2;
     if (r2 != 0) {
-        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
-            if (std::string(d) == "1") std::fprintf(stderr,
-                "[GEMMV-AMX-DIAG] arch_prctl(ARCH_REQ_XCOMP_PERM,18) failed: ret=%ld errno=%d (%s)\n",
-                r2, last_errno2, std::strerror(last_errno2));
-        }
-        return ok = false;
-    }
-    if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
-        if (std::string(d) == "1") {
-            unsigned long long xcr0 = _xgetbv(0);
-            int b17 = (xcr0 & (1ull<<17)) ? 1 : 0;
-            int b18 = (xcr0 & (1ull<<18)) ? 1 : 0;
-            Xbyak::util::Cpu cpu;
-            std::fprintf(stderr,
-                         "[GEMMV-AMX-DIAG] arch_prctl ok; XCR0.TILECFG(bit17)=%d XTILEDATA(bit18)=%d; ISA: AMX_TILE=%d AMX_INT8=%d\n",
-                         b17, b18, cpu.has(Xbyak::util::Cpu::tAMX_TILE)?1:0, cpu.has(Xbyak::util::Cpu::tAMX_INT8)?1:0);
-        }
+        if (!(last_errno2 == ENOSYS || last_errno2 == EOPNOTSUPP)) return ok = false;
     }
     return ok = true;
 #else
@@ -223,11 +259,13 @@ static bool amx_kernel_u8s8_fp32_impl_xq(const uint8_t* xq, int K, int32_t sum_x
     alignas(64) uint8_t A_row[64];
     alignas(64) uint8_t A_ones_row[64];
     std::memset(A_ones_row, 0x01, sizeof(A_ones_row));
+    alignas(64) uint8_t A_ones_tile[16*64];
+    for (int r = 0; r < 16; ++r) std::memcpy(A_ones_tile + r*64, A_ones_row, 64);
 
     bool dbg = false;
-    // Deterministic small-M friendly defaults
+    // Deterministic defaults with light pipelining
     int KU = (K >= 1024) ? 4 : (K >= 512) ? 2 : 1;
-    int PFD = (M <= 512) ? 4 : 2;
+    int PFD = (M <= 512) ? 6 : 4;
     const bool do_db = true;
     auto run_block = [&](int bi, int valid){
         const uint8_t* wblk = wq_k64 + (size_t)bi * (size_t)ld_w_kbytes;
@@ -237,14 +275,15 @@ static bool amx_kernel_u8s8_fp32_impl_xq(const uint8_t* xq, int K, int32_t sum_x
         const bool need_sumW = (sumW_precomp == nullptr);
         if (need_sumW) {
             _tile_zero(6); // SumW
-            // Load a tile of ones by broadcasting a single 64B row (stride=0)
-            _tile_loadd(7, A_ones_row, 0);
+            // Load a tile of ones with proper row stride (avoid stride=0 undefined behavior)
+            _tile_loadd(7, A_ones_tile, 64);
         }
         // Iterate K-groups with optional 2/4-stage pipeline
         const int K_grp = (K + K_blk - 1) / K_blk;
         const bool dblA = !need_sumW; // reuse tmm6 as A when sumW is precomputed
-        bool pipe4 = (M <= 512);
-        bool pipe2 = (!pipe4 && (M <= 1024));
+        // Enable mild pipelining by default: PIPE2 for medium/large K, PIPE4 for small M
+        bool pipe4 = (M <= 256) && (K >= 256);
+        bool pipe2 = !pipe4 && (K >= 128);
         // Prefetch locality hint (0..3); default: high for small/medium M, low for large M
         int PFL = (M <= 512 ? 3 : 1);
         auto pf_lvl = [](const void* p, int lvl){
@@ -255,6 +294,22 @@ static bool amx_kernel_u8s8_fp32_impl_xq(const uint8_t* xq, int K, int32_t sum_x
                 case 3:  __builtin_prefetch(p, 0, 3); break;
             }
         };
+        // Safe loader for B tile (handles K_tail and bounds); specialized per tile id
+        auto need_tmp = [&](const uint8_t* Bptr, int rows_valid){
+            return (rows_valid < 64) || (Bptr < wblk) || (Bptr + (size_t)B_group_bytes > wend);
+        };
+        auto copy_tmp = [&](uint8_t* buf, const uint8_t* Bptr, int rows_valid){
+            std::memset(buf, 0, 64*16);
+            if (rows_valid > 0 && Bptr >= wblk && Bptr < wend) {
+                const size_t to_copy = std::min((size_t)rows_valid * 16, (size_t)(wend - Bptr));
+                if (to_copy > 0) std::memcpy(buf, Bptr, to_copy);
+            }
+        };
+        auto safe_load_B2 = [&](const uint8_t* Bptr, int rows_valid){ alignas(64) uint8_t buf[64*16]; if (need_tmp(Bptr, rows_valid)) { copy_tmp(buf, Bptr, rows_valid); _tile_loadd(2, buf, 16); } else { _tile_loadd(2, Bptr, 16); } };
+        auto safe_load_B3 = [&](const uint8_t* Bptr, int rows_valid){ alignas(64) uint8_t buf[64*16]; if (need_tmp(Bptr, rows_valid)) { copy_tmp(buf, Bptr, rows_valid); _tile_loadd(3, buf, 16); } else { _tile_loadd(3, Bptr, 16); } };
+        auto safe_load_B4 = [&](const uint8_t* Bptr, int rows_valid){ alignas(64) uint8_t buf[64*16]; if (need_tmp(Bptr, rows_valid)) { copy_tmp(buf, Bptr, rows_valid); _tile_loadd(4, buf, 16); } else { _tile_loadd(4, Bptr, 16); } };
+        auto safe_load_B5 = [&](const uint8_t* Bptr, int rows_valid){ alignas(64) uint8_t buf[64*16]; if (need_tmp(Bptr, rows_valid)) { copy_tmp(buf, Bptr, rows_valid); _tile_loadd(5, buf, 16); } else { _tile_loadd(5, Bptr, 16); } };
+
         if (pipe4) {
             for (int g = 0; g < K_grp; g += 4) {
                 for (int t = 0; t < 4 && (g + t) < K_grp; ++t) {
@@ -266,31 +321,32 @@ static bool amx_kernel_u8s8_fp32_impl_xq(const uint8_t* xq, int K, int32_t sum_x
                         const uint8_t* Xpf = xq + (size_t)(gi + PFD) * (size_t)K_blk;
                         pf_lvl((const void*)Xpf, (PFL>=1?1:0));
                     }
-                    // Prepare a single 64B row and broadcast into A tile via stride=0
+                    // Build a full 16x64 A tile with row stride 64 (avoid stride=0)
                     std::memset(A_row, (uint8_t)zp_x, sizeof(A_row));
                     if (kkx > 0) std::memcpy(A_row, xq + kx, (size_t)kkx);
+                    alignas(64) uint8_t A_tile_loc[16*64];
+                    for (int r = 0; r < 16; ++r) std::memcpy(A_tile_loc + r*64, A_row, 64);
                     bool useA6 = (dblA && ((gi & 1) != 0));
-                    if (useA6) _tile_loadd(6, A_row, 0); else _tile_loadd(1, A_row, 0);
+                    if (useA6) _tile_loadd(6, A_tile_loc, 64); else _tile_loadd(1, A_tile_loc, 64);
                     const uint8_t* Bi = wblk + (size_t)gi * (size_t)B_group_bytes;
-                    if (dbg && (Bi < wblk || Bi + (size_t)(K_blk* M_blk) > wend)) return;
                     switch (t) {
                         case 0:
-                            _tile_loadd(2, Bi, 16);
+                            safe_load_B2(Bi, kkx);
                             if (useA6) _tile_dpbusd(0, 6, 2); else _tile_dpbusd(0, 1, 2);
                             if (need_sumW) _tile_dpbusd(6, 7, 2);
                             break;
                         case 1:
-                            _tile_loadd(3, Bi, 16);
+                            safe_load_B3(Bi, kkx);
                             if (useA6) _tile_dpbusd(0, 6, 3); else _tile_dpbusd(0, 1, 3);
                             if (need_sumW) _tile_dpbusd(6, 7, 3);
                             break;
                         case 2:
-                            _tile_loadd(4, Bi, 16);
+                            safe_load_B4(Bi, kkx);
                             if (useA6) _tile_dpbusd(0, 6, 4); else _tile_dpbusd(0, 1, 4);
                             if (need_sumW) _tile_dpbusd(6, 7, 4);
                             break;
                         default:
-                            _tile_loadd(5, Bi, 16);
+                            safe_load_B5(Bi, kkx);
                             if (useA6) _tile_dpbusd(0, 6, 5); else _tile_dpbusd(0, 1, 5);
                             if (need_sumW) _tile_dpbusd(6, 7, 5);
                             break;
@@ -310,11 +366,11 @@ static bool amx_kernel_u8s8_fp32_impl_xq(const uint8_t* xq, int K, int32_t sum_x
                 }
                 std::memset(A_row, (uint8_t)zp_x, sizeof(A_row));
                 if (kk0 > 0) std::memcpy(A_row, xq + k0, (size_t)kk0);
+                alignas(64) uint8_t A_tile0[16*64]; for (int r=0;r<16;++r) std::memcpy(A_tile0 + r*64, A_row, 64);
                 bool useA6_0 = (dblA && (g & 1));
-                if (useA6_0) _tile_loadd(6, A_row, 0); else _tile_loadd(1, A_row, 0);
+                if (useA6_0) _tile_loadd(6, A_tile0, 64); else _tile_loadd(1, A_tile0, 64);
                 const uint8_t* B0 = wblk + (size_t)g * (size_t)B_group_bytes;
-                if (dbg && (B0 < wblk || B0 + (size_t)(K_blk* M_blk) > wend)) return;
-                _tile_loadd(2, B0, 16);
+                safe_load_B2(B0, kk0);
                 if (useA6_0) _tile_dpbusd(0, 6, 2); else _tile_dpbusd(0, 1, 2);
                 if (need_sumW) _tile_dpbusd(6, 7, 2);
                 // Group g+1
@@ -327,11 +383,11 @@ static bool amx_kernel_u8s8_fp32_impl_xq(const uint8_t* xq, int K, int32_t sum_x
                 }
                 std::memset(A_row, (uint8_t)zp_x, sizeof(A_row));
                 if (kk1 > 0) std::memcpy(A_row, xq + k1, (size_t)kk1);
+                alignas(64) uint8_t A_tile1[16*64]; for (int r=0;r<16;++r) std::memcpy(A_tile1 + r*64, A_row, 64);
                 bool useA6_1 = (dblA && ((g + 1) & 1));
-                if (useA6_1) _tile_loadd(6, A_row, 0); else _tile_loadd(1, A_row, 0);
+                if (useA6_1) _tile_loadd(6, A_tile1, 64); else _tile_loadd(1, A_tile1, 64);
                 const uint8_t* B1 = wblk + (size_t)(g + 1) * (size_t)B_group_bytes;
-                if (dbg && (B1 < wblk || B1 + (size_t)(K_blk* M_blk) > wend)) return;
-                _tile_loadd(3, B1, 16);
+                safe_load_B3(B1, kk1);
                 if (useA6_1) _tile_dpbusd(0, 6, 3); else _tile_dpbusd(0, 1, 3);
                 if (need_sumW) _tile_dpbusd(6, 7, 3);
             }
@@ -340,11 +396,11 @@ static bool amx_kernel_u8s8_fp32_impl_xq(const uint8_t* xq, int K, int32_t sum_x
                 int k0 = g * K_blk; int kk0 = std::min(K_blk, K - k0);
                 std::memset(A_row, (uint8_t)zp_x, sizeof(A_row));
                 if (kk0 > 0) std::memcpy(A_row, xq + k0, (size_t)kk0);
+                alignas(64) uint8_t A_tile_tail[16*64]; for (int r=0;r<16;++r) std::memcpy(A_tile_tail + r*64, A_row, 64);
                 bool useA6_0 = (dblA && (g & 1));
-                if (useA6_0) _tile_loadd(6, A_row, 0); else _tile_loadd(1, A_row, 0);
+                if (useA6_0) _tile_loadd(6, A_tile_tail, 64); else _tile_loadd(1, A_tile_tail, 64);
                 const uint8_t* B0 = wblk + (size_t)g * (size_t)B_group_bytes;
-                if (dbg && (B0 < wblk || B0 + (size_t)(K_blk* M_blk) > wend)) return;
-                _tile_loadd(2, B0, 16);
+                safe_load_B2(B0, kk0);
                 if (useA6_0) _tile_dpbusd(0, 6, 2); else _tile_dpbusd(0, 1, 2);
                 if (need_sumW) _tile_dpbusd(6, 7, 2);
             }
@@ -367,37 +423,25 @@ static bool amx_kernel_u8s8_fp32_impl_xq(const uint8_t* xq, int K, int32_t sum_x
                     pf_lvl((const void*)Xpf2, (PFL>=1?1:0));
                 }
             }
-            // Build and load A tile (alternate 1 and 6 if available). Broadcast single 64B row via stride=0.
+            // Build and load A tile into a full 16x64 buffer; load with row stride=64 (safer than stride=0 broadcast)
+            alignas(64) uint8_t A_tile[16*64];
             std::memset(A_row, (uint8_t)zp_x, sizeof(A_row));
             if (kk0 > 0) std::memcpy(A_row, xq + k0, (size_t)kk0);
-            const bool useA6 = (dblA && (g & 1));
-            if (useA6) _tile_loadd(6, A_row, 0); else _tile_loadd(1, A_row, 0);
-            // Load B and compute
+            for (int r = 0; r < 16; ++r) std::memcpy(A_tile + r*64, A_row, 64);
+            _tile_loadd(1, A_tile, 64);
+            // Load B group safely into tmm2 and compute
             const uint8_t* Bptr = wblk + (size_t)g * (size_t)B_group_bytes;
-            if (dbg && (Bptr < wblk || Bptr + (size_t)(K_blk* M_blk) > wend)) return;
-            int bsel = g % KU;
-            switch (bsel) {
-                case 0:
-                    _tile_loadd(2, Bptr, 16);
-                    if (useA6) _tile_dpbusd(0, 6, 2); else _tile_dpbusd(0, 1, 2);
-                    if (need_sumW) _tile_dpbusd(6, 7, 2);
-                    break;
-                case 1:
-                    _tile_loadd(3, Bptr, 16);
-                    if (useA6) _tile_dpbusd(0, 6, 3); else _tile_dpbusd(0, 1, 3);
-                    if (need_sumW) _tile_dpbusd(6, 7, 3);
-                    break;
-                case 2:
-                    _tile_loadd(4, Bptr, 16);
-                    if (useA6) _tile_dpbusd(0, 6, 4); else _tile_dpbusd(0, 1, 4);
-                    if (need_sumW) _tile_dpbusd(6, 7, 4);
-                    break;
-                default:
-                    _tile_loadd(5, Bptr, 16);
-                    if (useA6) _tile_dpbusd(0, 6, 5); else _tile_dpbusd(0, 1, 5);
-                    if (need_sumW) _tile_dpbusd(6, 7, 5);
-                    break;
+            if (Bptr < wblk || Bptr + (size_t)B_group_bytes > wend) {
+                alignas(64) uint8_t Btmp[64*16];
+                std::memset(Btmp, 0, sizeof(Btmp));
+                const int rows = std::min(64, K - g*K_blk);
+                if (rows > 0) std::memcpy(Btmp, Bptr, (size_t)rows * 16);
+                _tile_loadd(2, Btmp, 16);
+            } else {
+                _tile_loadd(2, Bptr, 16);
             }
+            _tile_dpbusd(0, 1, 2);
+            if (need_sumW) _tile_dpbusd(6, 7, 2);
         }
         }
         // store C and SumW tiles
@@ -451,34 +495,15 @@ bool run_gemmv_amx_i8u8_fp32(const float* x_fp32, int K,
                              quant_granularity_t gran, int group_size,
                              const int32_t* sumW_precomp) {
     Xbyak::util::Cpu cpu;
-    if (!cpu.has(Xbyak::util::Cpu::tAMX_TILE) || !cpu.has(Xbyak::util::Cpu::tAMX_INT8)) {
-        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
-            if (std::string(d) == "1") std::fprintf(stderr,
-                "[GEMMV-AMX-DIAG] CPU lacks AMX support: AMX_TILE=%d AMX_INT8=%d\n",
-                cpu.has(Xbyak::util::Cpu::tAMX_TILE)?1:0, cpu.has(Xbyak::util::Cpu::tAMX_INT8)?1:0);
-        }
-        return false;
-    }
-    // Request AMX permission first, then verify XCR0 state
-    if (!enable_amx_for_thread()) {
-        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
-            if (std::string(d) == "1") std::fprintf(stderr,
-                "[GEMMV-AMX-DIAG] enable_amx_for_thread() failed; see previous messages.\n");
-        }
-        return false;
-    }
-    unsigned long long xcr0 = _xgetbv(0);
-    if (((xcr0 & (1ull<<17)) == 0ull) || ((xcr0 & (1ull<<18)) == 0ull)) {
-        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
-            if (std::string(d) == "1") std::fprintf(stderr,
-                "[GEMMV-AMX-DIAG] XCR0 missing bits: TILECFG=%d XTILEDATA=%d (xcr0=0x%llx)\n",
-                (int)((xcr0>>17)&1ull), (int)((xcr0>>18)&1ull), xcr0);
-        }
-        return false;
-    }
-    return amx_kernel_u8s8_fp32_impl(x_fp32, K, wq_k64, M, ld_w_kbytes,
-                                     scales, zps, y, bias, gran, group_size,
-                                     sumW_precomp);
+    if (!cpu.has(Xbyak::util::Cpu::tAMX_TILE) || !cpu.has(Xbyak::util::Cpu::tAMX_INT8)) return false;
+    // Try to request permission, but don't hard-fail — rely on runtime probe
+    (void)enable_amx_for_thread();
+    bool ok = amx_safe_invoke([&](){
+        (void)amx_kernel_u8s8_fp32_impl(x_fp32, K, wq_k64, M, ld_w_kbytes,
+                                        scales, zps, y, bias, gran, group_size,
+                                        sumW_precomp);
+    });
+    return ok;
 }
 
 #if defined(__GNUC__)
@@ -513,6 +538,25 @@ static bool amx_smoke_test() {
 } // namespace ov::intel_cpu::x64::gemmv_jit
 
 namespace ov::intel_cpu::x64::gemmv_jit {
+// Run a callable that uses AMX inside a SIGILL/SIGSEGV guard; return false on fault
+template <typename Fn>
+static bool amx_safe_invoke(Fn&& fn) {
+    struct sigaction old_segv{}, old_ill{};
+    static thread_local sigjmp_buf buf;
+    auto handler = +[](int){ siglongjmp(buf, 1); };
+    struct sigaction sa{}; sa.sa_handler = handler; sigemptyset(&sa.sa_mask); sa.sa_flags = 0;
+    sigaction(SIGSEGV, &sa, &old_segv);
+    sigaction(SIGILL,  &sa, &old_ill);
+    bool ok = true;
+    if (sigsetjmp(buf, 1) == 0) {
+        fn();
+    } else {
+        ok = false;
+    }
+    sigaction(SIGSEGV, &old_segv, nullptr);
+    sigaction(SIGILL,  &old_ill,  nullptr);
+    return ok;
+}
 
 bool run_gemmv_amx_i8u8_fp32_xq(const uint8_t* xq, int K, int32_t sum_x_q,
                                 const uint8_t* wq_k64, int M, int ld_w_kbytes,
@@ -521,37 +565,71 @@ bool run_gemmv_amx_i8u8_fp32_xq(const uint8_t* xq, int K, int32_t sum_x_q,
                                 quant_granularity_t gran, int group_size,
                                 const int32_t* sumW_precomp) {
     Xbyak::util::Cpu cpu;
-    if (!cpu.has(Xbyak::util::Cpu::tAMX_TILE) || !cpu.has(Xbyak::util::Cpu::tAMX_INT8)) {
-        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
-            if (std::string(d) == "1") std::fprintf(stderr,
-                "[GEMMV-AMX-DIAG] CPU lacks AMX support: AMX_TILE=%d AMX_INT8=%d\n",
-                cpu.has(Xbyak::util::Cpu::tAMX_TILE)?1:0, cpu.has(Xbyak::util::Cpu::tAMX_INT8)?1:0);
-        }
-        return false;
-    }
-    if (!enable_amx_for_thread()) {
-        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
-            if (std::string(d) == "1") std::fprintf(stderr,
-                "[GEMMV-AMX-DIAG] enable_amx_for_thread() failed; see previous messages.\n");
-        }
-        return false;
-    }
-    unsigned long long xcr0 = _xgetbv(0);
-    if (((xcr0 & (1ull<<17)) == 0ull) || ((xcr0 & (1ull<<18)) == 0ull)) {
-        if (const char* d = std::getenv("GEMMV_AMX_DIAG")) {
-            if (std::string(d) == "1") std::fprintf(stderr,
-                "[GEMMV-AMX-DIAG] XCR0 missing bits: TILECFG=%d XTILEDATA=%d (xcr0=0x%llx)\n",
-                (int)((xcr0>>17)&1ull), (int)((xcr0>>18)&1ull), xcr0);
-        }
-        return false;
-    }
-    // We need s_x and zp_x to scale and compensate; use per-tensor path with zp_x=128 and infer s_x from max(xq)
-    // For reuse path, expect caller provides effective s_x via scales[0] (w scale)×s_x in epilogue; we pass s_x=1 and zp_x=128.
-    float s_x = 1.f; int32_t zp_x = 128;
-    return amx_kernel_u8s8_fp32_impl_xq(xq, K, sum_x_q, s_x, zp_x,
-                                        wq_k64, M, ld_w_kbytes,
-                                        scales, zps, y, bias, gran, group_size,
-                                        sumW_precomp);
+    if (!cpu.has(Xbyak::util::Cpu::tAMX_TILE) || !cpu.has(Xbyak::util::Cpu::tAMX_INT8)) return false;
+    (void)enable_amx_for_thread();
+    // Guarded execution of the kernel: if it faults, return false.
+    bool ok = amx_safe_invoke([&](){
+        float s_x = 1.f; int32_t zp_x = 128;
+        (void)amx_kernel_u8s8_fp32_impl_xq(xq, K, sum_x_q, s_x, zp_x,
+                                           wq_k64, M, ld_w_kbytes,
+                                           scales, zps, y, bias, gran, group_size,
+                                           sumW_precomp);
+    });
+    return ok;
+}
+
+} // namespace ov::intel_cpu::x64::gemmv_jit
+
+namespace ov::intel_cpu::x64::gemmv_jit {
+
+#if defined(__GNUC__)
+__attribute__((target("amx-bf16,amx-tile,avx512f")))
+#endif
+bool run_gemmv_amx_bf16_fp32(const float* x_fp32, int K,
+                             const uint16_t* w_bf16_k64, int M, int ld_w_kbytes,
+                             float* y, const float* bias) {
+    Xbyak::util::Cpu cpu; if (!cpu.has(Xbyak::util::Cpu::tAMX_TILE)) return false;
+    auto kernel = [&](){
+        const int M_blk=16, K_blk=64; const int M_full=M/M_blk, M_tail=M%M_blk;
+        struct alignas(64) tilecfg_t { uint8_t palette_id; uint8_t start_row; uint8_t rsvd[14]; uint16_t colsb[16]; uint8_t rows[16]; } cfg{};
+        cfg.palette_id=1; cfg.colsb[0]=64; cfg.rows[0]=16; // C fp32 16x16
+        cfg.colsb[1]=128; cfg.rows[1]=16; // A bf16 16x64
+        cfg.colsb[2]=32; cfg.rows[2]=64;  // B bf16 64x16
+        _tile_loadconfig(&cfg);
+        auto run_blk = [&](int bi,int valid){
+            _tile_zero(0);
+            const uint16_t* wblk = w_bf16_k64 + (size_t)bi * (size_t)(ld_w_kbytes/2);
+            const int K_grp=(K+K_blk-1)/K_blk;
+            for (int g=0; g<K_grp; ++g){
+                const int k0=g*K_blk; const int kk=std::min(K_blk, K-k0);
+                alignas(64) uint16_t A_bf16[16*64];
+                // X panel bf16 broadcast by rows
+                for (int k=0;k<64;++k){
+                    uint16_t v = (k<kk)?({ union{uint32_t u; float f;} u; u.f=x_fp32[k0+k]; uint32_t x=u.u; uint32_t lsb=(x>>16)&1U; x+=0x7FFF+lsb; (uint16_t)(x>>16); }):0;
+                    for(int r=0;r<16;++r) A_bf16[r*64 + k]=v;
+                }
+                _tile_loadd(1, A_bf16, 128);
+                const uint16_t* Bgrp = wblk + (size_t)g * (size_t)(K_blk*16);
+                _tile_loadd(2, Bgrp, 32);
+                _tile_dpbf16ps(0, 1, 2);
+            }
+            alignas(64) float Cbuf[16*16]; _tile_stored(0, Cbuf, 64);
+            __mmask16 km = valid>=16 ? (__mmask16)0xFFFF : (__mmask16)((1u<<valid)-1u);
+            __m512 cv = _mm512_maskz_loadu_ps(km, Cbuf);
+            if (bias) {
+                __m512 b = _mm512_set1_ps(bias[0]);
+                b = _mm512_maskz_mov_ps(km, b);
+                cv = _mm512_add_ps(cv, b);
+            }
+            if (valid>=16 && ((((uintptr_t)(y+bi*M_blk))&63u)==0u)) _mm512_stream_ps(y+bi*M_blk, cv);
+            else _mm512_mask_storeu_ps(y+bi*M_blk, km, cv);
+        };
+        for (int bi=0; bi<M_full; ++bi) run_blk(bi,16);
+        if (M_tail) run_blk(M_full, M_tail);
+        _tile_release();
+    };
+    bool ok = amx_safe_invoke(kernel);
+    return ok;
 }
 
 } // namespace ov::intel_cpu::x64::gemmv_jit

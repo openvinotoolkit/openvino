@@ -30,11 +30,14 @@ static void kern_block_u8s8(const uint8_t* xq, int K_actual, int K_groups,
     __m512i sumw0 = _mm512_setzero_si512();
     __m512i sumw1 = _mm512_setzero_si512();
     const __m512i ones = _mm512_set1_epi8(1);
-    int U = (K_actual >= 4096 ? 8 : (K_actual >= 2048 ? 4 : 2));
+    // Deeper unroll for small-M to improve ILP
+    int U = (M_total <= 128) ? 12 : (M_total <= 256) ? 8 : (K_actual >= 4096 ? 8 : (K_actual >= 2048 ? 4 : 2));
     const bool w_aligned = (((uintptr_t)wq & 63u) == 0u);
     // Slightly deeper prefetch on small-M to hide latency, match tail-heavy forms
-    int P = (M_total <= 256) ? 12 : (M_total <= 512) ? 6 : 4;
-    const bool pipe4 = (M_total <= 320);
+    // Tuned ladder: 12/10/6/4 for M<=128/<=256/<=512/>512
+    int P = (M_total <= 128) ? 12 : (M_total <= 256) ? 12 : (M_total <= 512) ? 8 : 6;
+    // PIPE4 only for genuinely small M to avoid frontend pressure for larger M
+    const bool pipe4 = (M_total <= 256);
     for (int g = 0; g < K_groups; g += U) {
         if (pipe4) {
             #pragma unroll(2)
@@ -183,11 +186,11 @@ static void kern_block_u8s8_smallM(const uint8_t* xq, int K_actual, int K_groups
     __m512i sumw0 = _mm512_setzero_si512();
     __m512i sumw1 = _mm512_setzero_si512();
     const __m512i ones = _mm512_set1_epi8(1);
-    int U = 8; // fixed deeper unroll on tiny M to maximize ILP
+    int U = 12; // deeper unroll on tiny M to maximize ILP
     const bool w_aligned = (((uintptr_t)wq & 63u) == 0u);
-    int P = (M_total <= 256) ? 12 : (M_total <= 512) ? 6 : 4;
-
-    const bool pipe4 = (M_total <= 320);
+    // Prefetch ladder aligned with small-M focus: 12/10/6/4
+    int P = (M_total <= 128) ? 12 : (M_total <= 256) ? 12 : (M_total <= 512) ? 8 : 6;
+    const bool pipe4 = (M_total <= 256);
     for (int g = 0; g < K_groups; g += U) {
         // Optionally process 4-pack per step for better ILP
         if (pipe4) {

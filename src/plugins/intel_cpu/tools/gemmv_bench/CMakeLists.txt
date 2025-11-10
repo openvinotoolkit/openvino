@@ -20,7 +20,7 @@ add_executable(gemmv_bench
 # Enable AMX intrinsics for this translation unit (if compiler supports)
 set_source_files_properties(
     ${SRC_DIR}/nodes/kernels/x64/gemmv_jit/amx_gemmv_intrin.cpp
-    PROPERTIES COMPILE_OPTIONS "-mamx-int8;-mamx-tile"
+    PROPERTIES COMPILE_OPTIONS "-mamx-int8;-mamx-bf16;-mamx-tile;-mavx512f"
 )
 
 target_include_directories(gemmv_bench PRIVATE ${SRC_DIR})
