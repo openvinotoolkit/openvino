@@ -4,15 +4,12 @@
 #include "pyramid_attention.hpp"
 
 #include <algorithm>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <string>
 #include <utility>
-#include <vector>
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/softmax.hpp"
@@ -22,7 +19,6 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/validate.hpp"
-#include "util.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -356,60 +352,55 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
     std::map<std::string, size_t> past_key_sequence_dims;
     std::map<std::string, size_t> past_value_sequence_dims;
 
-    // Helper function to find sequence dimension in parameter shape
-    auto find_context_dim = [](const std::shared_ptr<ov::op::v0::Parameter>& param,
-                               size_t target_length) -> std::optional<size_t> {
-        const auto& param_shape = param->get_shape();
-        auto dim_iter = std::find(param_shape.begin(), param_shape.end(), target_length);
-        if (dim_iter == param_shape.end()) {
-            return std::nullopt;  // No such dim found
+    // Helper lambda to extract sequence dimensions from Concat node and assign to parameters
+    auto extract_sequence_dims = [&](const std::shared_ptr<ov::Node>& concat_node,
+                                     bool is_key,
+                                     std::map<std::string, size_t>& sequence_dims) -> bool {
+        if (!concat_node) {
+            LOG_WARN("Could not find Concat node for past " << (is_key ? "key" : "value") << " in SDPA pattern");
+            return false;
         }
-        if (std::find(dim_iter + 1, param_shape.end(), target_length) != param_shape.end()) {
-            return std::nullopt;  // There must be no other such dim
+
+        auto concat_op = std::dynamic_pointer_cast<ov::op::v0::Concat>(concat_node);
+        const auto& concat_out_shape = concat_op->get_output_partial_shape(0);
+        const auto concat_axis =
+            ov::util::try_normalize_axis(concat_op->get_axis(), concat_out_shape.rank(), *concat_op);
+
+        LOG_DEBUG("Found past " << (is_key ? "key" : "value") << " Concat node, concat axis: " << concat_axis);
+
+        // Find all matching parameters and assign this dimension
+        const auto& original_params = model->get_parameters();
+        for (const auto& param : original_params) {
+            const std::string param_name = param->get_friendly_name();
+            bool is_target_param = is_key ? ov::npuw::util::isPastKeyValuesKey(param_name)
+                                          : ov::npuw::util::isPastKeyValuesValue(param_name);
+
+            if (is_target_param) {
+                sequence_dims[param_name] = concat_axis;
+                LOG_DEBUG("Assigned " << (is_key ? "key" : "value") << " concat axis " << concat_axis
+                                      << " to parameter: " << param_name);
+
+                auto curr_past_kv_length = param->get_shape()[concat_axis];
+                if (past_kv_length && past_kv_length != curr_past_kv_length) {
+                    LOG_WARN("Inconsistent past KV lengths found among " << (is_key ? "key" : "value")
+                                                                         << " parameters");
+                    return false;
+                }
+                past_kv_length = curr_past_kv_length;
+            }
         }
-        return std::distance(param_shape.begin(), dim_iter);
+        return true;
     };
 
-    // Analyze original model parameters to find sequence dimensions
-    const auto& original_params = model->get_parameters();
-    for (const auto& param : original_params) {
-        const std::string param_name = param->get_friendly_name();
+    // Extract sequence dimensions for past key and past value
+    if (!extract_sequence_dims(pattern_nodes.past_key_concat_node, true, past_key_sequence_dims) ||
+        !extract_sequence_dims(pattern_nodes.past_value_concat_node, false, past_value_sequence_dims)) {
+        return std::nullopt;
+    }
 
-        if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
-            auto sequence_dim_opt = find_context_dim(param, full_context_length - query_length);
-            if (sequence_dim_opt) {
-                past_key_sequence_dims[param_name] = *sequence_dim_opt;
-                LOG_DEBUG("Found past key sequence dimension for '" << param_name << "': " << *sequence_dim_opt);
-
-                auto curr_past_kv_length = param->get_shape()[*sequence_dim_opt];
-                if (past_kv_length && past_kv_length != curr_past_kv_length) {
-                    LOG_WARN("Inconsistent past KV lengths found among parameters");
-                    return std::nullopt;
-                } else {
-                    past_kv_length = curr_past_kv_length;
-                }
-            } else {
-                LOG_WARN("Could not find sequence dimension for past key param: " << param_name);
-                return std::nullopt;
-            }
-        } else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
-            auto sequence_dim_opt = find_context_dim(param, full_context_length - query_length);
-            if (sequence_dim_opt) {
-                past_value_sequence_dims[param_name] = *sequence_dim_opt;
-                LOG_DEBUG("Found past value sequence dimension for '" << param_name << "': " << *sequence_dim_opt);
-
-                auto curr_past_kv_length = param->get_shape()[*sequence_dim_opt];
-                if (past_kv_length && past_kv_length != curr_past_kv_length) {
-                    LOG_WARN("Inconsistent past KV lengths found among parameters");
-                    return std::nullopt;
-                } else {
-                    past_kv_length = curr_past_kv_length;
-                }
-            } else {
-                LOG_WARN("Could not find sequence dimension for past value param: " << param_name);
-                return std::nullopt;
-            }
-        }
+    if (past_key_sequence_dims.empty() || past_value_sequence_dims.empty()) {
+        LOG_WARN("Failed to find past KV parameters");
+        return std::nullopt;
     }
 
     return PyramidValidationResult{query_length,
@@ -434,6 +425,37 @@ SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model
         }
     }
 
+    // Helper lambda to trace from MatMul to find Concat node
+    auto find_concat_from_matmul = [](const std::shared_ptr<ov::Node>& matmul_node,
+                                      size_t input_idx) -> std::shared_ptr<ov::Node> {
+        if (!matmul_node)
+            return nullptr;
+
+        auto current_node = matmul_node->input(input_idx).get_source_output().get_node_shared_ptr();
+
+        // Traverse backwards through reshape/transpose operations to find Concat
+        while (current_node) {
+            if (ov::is_type<ov::op::v0::Concat>(current_node)) {
+                return current_node;
+            }
+
+            // Allow traversing through Reshape and Transpose
+            if (ov::is_type<ov::op::v1::Reshape>(current_node) || ov::is_type<ov::op::v3::Broadcast>(current_node) ||
+                ov::is_type<ov::op::v0::Unsqueeze>(current_node)) {
+                if (current_node->get_input_size() > 0) {
+                    current_node = current_node->input(0).get_source_output().get_node_shared_ptr();
+                } else {
+                    break;
+                }
+            } else {
+                // Stop at other operations
+                break;
+            }
+        }
+
+        return nullptr;
+    };
+
     // Search for the pattern: MatMul -> Add -> Softmax -> MatMul
     auto ops = model->get_ordered_ops();
     for (auto&& node : ops) {
@@ -449,6 +471,9 @@ SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model
                 auto add_input0 = pattern_nodes.add_node->input(0).get_source_output().get_node_shared_ptr();
                 if (ov::is_type<ov::op::v0::MatMul>(add_input0)) {
                     pattern_nodes.matmul1_node = add_input0;
+
+                    // Find Concat node for past key (input 1 of MatMul1)
+                    pattern_nodes.past_key_concat_node = find_concat_from_matmul(pattern_nodes.matmul1_node, 1);
                 }
             }
 
@@ -458,6 +483,9 @@ SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model
                     auto target_node = target_input.get_node()->shared_from_this();
                     if (ov::is_type<ov::op::v0::MatMul>(target_node)) {
                         pattern_nodes.matmul2_node = target_node;
+
+                        // Find Concat node for past value (input 1 of MatMul2)
+                        pattern_nodes.past_value_concat_node = find_concat_from_matmul(pattern_nodes.matmul2_node, 1);
                         break;
                     }
                 }
