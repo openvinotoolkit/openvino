@@ -298,7 +298,8 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
     }
 
     for (int i = 0; i < kernel_size; i++) {
-        auto dispatchData = SetDefault(newParams, params.is_shape_agnostic ? (i == 1 || i == 2) : (i == 1));
+        bool is_second = (params.is_shape_agnostic && prim_params.mode != ScatterUpdateReduction::NONE) ? ((i == 1) || (i == 2)) : (i == 1);
+        auto dispatchData = SetDefault(newParams, is_second);
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
         clKernelData& kernel = kd.kernels[i];
 
