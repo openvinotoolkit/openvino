@@ -8,8 +8,6 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
-#include "snippets/lowered/pass/serialize_control_flow.hpp"
-#include "snippets/lowered/pass/serialize_data_flow.hpp"
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/load.hpp"
@@ -39,8 +37,6 @@ public:
 
     void SetUp() override {
         pipeline.register_pass<InsertSpecificIterations>();
-        pipeline.register_pass<SerializeControlFlow>("target.xml");
-        pipeline.register_pass<SerializeDataFlow>("target_data.xml");
     }
 
     size_t vector_size = 16;
@@ -757,7 +753,6 @@ TEST_F(InsertSpecificIterationsTest, OuterSplitLoopOutsideClonedLoop_OutputPortO
                                                           {n_loop_tail_id, 6},
                                                           {m_split_loop_cloned_id, 9}};
         assign_loop_ids(expr_to_loop_ids, loop_ids_mapper);
-        ov::snippets::lowered::pass::SerializeControlFlow("reference.xml").run(*linear_ir_ref);
     }
 }
 
