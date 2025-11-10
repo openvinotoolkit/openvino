@@ -408,7 +408,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                         return true;
                     })
-                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(any_of(weiType(config), f32, bf16, f16), UNSUPPORTED_WEI_PRECISIONS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
                 VERIFY(weiDims(config)[0] > 1, UNSUPPORTED_WEI_RANK);
