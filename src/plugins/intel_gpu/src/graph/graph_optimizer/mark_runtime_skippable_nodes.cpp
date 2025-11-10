@@ -294,8 +294,13 @@ void mark_runtime_skippable_nodes::run(program& p) {
             // try to skip resample when inpu/ouput are same
             auto impl_params = node.get_kernel_impl_params();
             auto prim = impl_params->typed_desc<resample>();
-            bool no_padding = all_zeroes(prim->pads_begin) && all_zeroes(prim->pads_end);
-            if (!node.has_fused_primitives() && no_padding) {
+            bool can_be_optimized = all_zeroes(prim->pads_begin) && all_zeroes(prim->pads_end);
+            // for dynamic case, postpone the judgement to runtime
+            // for static case, judge if input/output are same here.
+            if (!node.is_dynamic()) {
+                can_be_optimized = node.get_input_layout(0) == node.get_output_layout(0);
+            }
+            if (!node.has_fused_primitives() && can_be_optimized) {
                 node.can_be_optimized(true);
                 node.set_runtime_skippable(true);
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
