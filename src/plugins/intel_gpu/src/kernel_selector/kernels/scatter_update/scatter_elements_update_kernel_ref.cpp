@@ -209,7 +209,7 @@ void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) c
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const scatter_elements_update_params&>(params);
         /*
-        * Dynamic Kernels Map
+        * Dynamic Kernels Map With Reduce Mode
         * The actual kernel executed for ITER 1 and ITER 2 is determined at runtime
         * based on the calculated output size (use_local_memory flag).
         *
@@ -222,7 +222,7 @@ void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) c
         * | 4                | 2           | Global Memory    | Finalize            |
         */
         if (prim_params.mode == ScatterUpdateReduction::NONE) {
-            OPENVINO_ASSERT(kd.kernels.size() == 3, "[GPU] Invalid kernels size for update dispatch data func");
+            OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
         } else {
             OPENVINO_ASSERT(kd.kernels.size() == 5, "[GPU] Invalid kernels size for update dispatch data func");
         }
@@ -244,10 +244,12 @@ void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) c
         }
 
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
-            auto dispatchData = SetDefault(prim_params, i == 1 || i == 2);
+            bool is_second = (prim_params.mode != ScatterUpdateReduction::NONE) ? ((i == 1) || (i == 2)) : (i == 1);
+            auto dispatchData = SetDefault(prim_params, is_second);
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
-            bool is_skip = ((use_local_memory && ((i == 2) || (i == 4))) || (!use_local_memory && ((i == 1) || (i == 3))));
+            bool is_skip = (prim_params.mode != ScatterUpdateReduction::NONE) ?
+                            ((use_local_memory && ((i == 2) || (i == 4))) || (!use_local_memory && ((i == 1) || (i == 3)))) : false;
             kd.kernels[i].skip_execution = is_skip ? true : SkipKernelExecution(prim_params, i);
 
             if (i >= 1 && prim_params.mode != ScatterUpdateReduction::NONE && use_local_memory) {
@@ -265,11 +267,11 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
         return {};
     }
 
-    const auto& prim_params = static_cast<const scatter_elements_update_params&>(params);
-    int kernel_size = 3;
+    int kernel_size = 2;
 
+    const auto& prim_params = static_cast<const scatter_elements_update_params&>(params);
     if (prim_params.mode != ScatterUpdateReduction::NONE) {
-        kernel_size += (params.is_shape_agnostic) ? 2 : 1;
+        kernel_size += (params.is_shape_agnostic) ? 3 : 1;
     }
 
     KernelData kd = KernelData::Default<scatter_elements_update_params>(params, kernel_size);
@@ -281,16 +283,18 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
     const auto& output = newParams.outputs[0];
     bool use_local_memory = (output.PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize) ? false : true;
 
-    kd.internalBuffers.clear();
-    kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // fixed point output
+    if (newParams.mode != ScatterUpdateReduction::NONE) {
+        kd.internalBuffers.clear();
+        kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // fixed point output
 
-    if (!use_local_memory) {
-        kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // reduction value output
-        kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // reduction_thread_count output
-    }
-    kd.internalBufferDataType = Datatype::INT32;
-    if (newParams.mode == ScatterUpdateReduction::MEAN) {
-        kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // calculate mean
+        if (!use_local_memory) {
+            kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // reduction value output
+            kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // reduction_thread_count output
+        }
+        kd.internalBufferDataType = Datatype::INT32;
+        if (newParams.mode == ScatterUpdateReduction::MEAN) {
+            kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // calculate mean
+        }
     }
 
     for (int i = 0; i < kernel_size; i++) {
@@ -300,12 +304,14 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
 
         int iter = i;
         if (params.is_shape_agnostic) {
-            cldnn_jit.RemoveConstant("NO_LOCAL_MEMORY");
-            if (i == 2 || i == 4) {
-                cldnn_jit.AddConstant(MakeJitConstant("NO_LOCAL_MEMORY", 1));
+            if (newParams.mode != ScatterUpdateReduction::NONE) {
+                cldnn_jit.RemoveConstant("NO_LOCAL_MEMORY");
+                if (i == 2 || i == 4) {
+                    cldnn_jit.AddConstant(MakeJitConstant("NO_LOCAL_MEMORY", 1));
+                }
+                if (i >= 2) iter--;
+                if (i == 4) iter--;
             }
-            if (i >= 2) iter--;
-            if (i == 4) iter--;
         } else {
             if (i >= 1 && newParams.mode != ScatterUpdateReduction::NONE && use_local_memory) {
                 const auto buffer_size = output.PhysicalSizeInBytes() * 2;
