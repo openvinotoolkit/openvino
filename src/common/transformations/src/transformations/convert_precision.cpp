@@ -628,7 +628,8 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
     if (is_keep_const_precision(node))
         return false;
 
-    auto it = precisions.find(node->get_output_element_type(0));
+    auto output_type = node->get_output_element_type(0);
+    auto it = precisions.find(output_type);
     if (it == precisions.end())
         return false;
     bool changed = false;
@@ -640,10 +641,45 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
             changed = true;
         } else {
             auto param_consumers = param->output(0).get_target_inputs();
-            auto convert = std::make_shared<v0::Convert>(param, to);
+            ov::Output<ov::Node> new_out = param;
+            if (output_type.is_integral() && to.is_integral() && output_type.size() > to.size()) {
+                auto [lbound, ubound] = [](const ov::element::Type& prec) {
+                    switch (prec) {
+                    case ov::element::boolean:
+                        return std::make_tuple(static_cast<double>(std::numeric_limits<bool>::lowest()),
+                                               static_cast<double>(std::numeric_limits<bool>::max()));
+                    case ov::element::u8:
+                        return std::make_tuple(static_cast<double>(std::numeric_limits<uint8_t>::lowest()),
+                                               static_cast<double>(std::numeric_limits<uint8_t>::max()));
+                    case ov::element::i8:
+                        return std::make_tuple(static_cast<double>(std::numeric_limits<int8_t>::lowest()),
+                                               static_cast<double>(std::numeric_limits<int8_t>::max()));
+                    case ov::element::u16:
+                        return std::make_tuple(static_cast<double>(std::numeric_limits<uint16_t>::lowest()),
+                                               static_cast<double>(std::numeric_limits<uint16_t>::max()));
+                    case ov::element::i16:
+                        return std::make_tuple(static_cast<double>(std::numeric_limits<int16_t>::lowest()),
+                                               static_cast<double>(std::numeric_limits<int16_t>::max()));
+                    case ov::element::u32:
+                        return std::make_tuple(static_cast<double>(std::numeric_limits<uint32_t>::lowest()),
+                                               static_cast<double>(std::numeric_limits<uint32_t>::max()));
+                    case ov::element::i32:
+                        return std::make_tuple(static_cast<double>(std::numeric_limits<int32_t>::lowest()),
+                                               static_cast<double>(std::numeric_limits<int32_t>::max()));
+                    default:
+                        OPENVINO_THROW("Unsupported precision");
+                    }
+                }(to);
+                new_out = std::make_shared<v0::Clamp>(param, lbound, ubound);
+            }
+            auto convert = std::make_shared<v0::Convert>(new_out, to);
             for (auto& input : param_consumers) {
                 const auto consumer = input.get_node();
                 if (ov::is_type<v0::Result>(consumer) || ov::is_type<v0::Convert>(consumer) ||
+                    // Param -> Clamp -> Convert pattern is added to limit the input range before Convert
+                    // So we should not replace the Convert input to avoid extra Convert operations
+                    (ov::is_type<v0::Clamp>(consumer) && consumer->output(0).get_target_inputs().size() == 1 &&
+                     ov::is_type<v0::Convert>(consumer->output(0).get_target_inputs().begin()->get_node())) ||
                     // TODO: refactor after ngraph op defined
                     // The fourth and fifth inputs are kvcache and should be directly connected to parameters
                     (consumer->get_type_name() == std::string("PagedAttentionExtension") &&
