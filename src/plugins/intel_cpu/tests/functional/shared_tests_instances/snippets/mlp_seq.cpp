@@ -21,7 +21,7 @@ std::vector<std::vector<InputShape>> inputShape_2D() {
 // Returns a vector of pairs where:
 //   - The first element is the number of hidden layers in the MLP
 //   - The second element is a pair: {expected number of subgraphs, expected number of nodes}
-std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectations(bool is_dynamic) {
+std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectations() {
 #if defined(OPENVINO_ARCH_ARM64)
     return {
         {1, {1, 1}},
@@ -40,10 +40,10 @@ std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExp
 
 std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectationsBf16() {
     return {
-        {1, {3, 3}}, // In Convert + MLP + Out Convert
-        {3, {3, 3}}, // In Convert + MLP + Out Convert
-        {5, {3, 3}}, // In Convert + MLP + Out Convert
-        {7, {4, 4}}, // In Convert + MLP_1 + MLP_2 + Out Convert
+        {1, {2, 2}}, // In Convert + MLP
+        {3, {2, 2}}, // In Convert + MLP
+        {5, {2, 2}}, // In Convert + MLP
+        {7, {3, 3}}, // In Convert + MLP_1 + MLP_2
     };
 }
 
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32,
                                             ::testing::Values(MLPSeq::default_thread_count),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config),
-                                            ::testing::ValuesIn(numHiddenLayersWithExpectations(false)),
+                                            ::testing::ValuesIn(numHiddenLayersWithExpectations()),
                                             ::testing::ValuesIn(hiddenMatmulSizes())),
                          MLPSeq::getTestCaseName);
 

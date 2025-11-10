@@ -4,7 +4,6 @@
 
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -12,13 +11,13 @@
 #include <vector>
 
 #include "openvino/core/descriptor/tensor.hpp"
-#include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
@@ -78,7 +77,8 @@ bool TokenizeMLPSeqSnippets::is_supported_intermediate_op(const std::shared_ptr<
     }
     return is_supported_softmax(node) || ov::is_type_any_of<ov::op::util::UnaryElementwiseArithmetic,
                                                             ov::op::util::BinaryElementwiseArithmetic,
-                                                            ov::op::v0::FakeQuantize>(node);
+                                                            ov::op::v0::FakeQuantize,
+                                                            ov::op::v0::Convert>(node);
 }
 
 TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
@@ -141,7 +141,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
             bool postops_fusion_possible = true;
             // Non fused postops between MatMuls increase number of GPRs needed
             bool non_fused_postops_between_matmuls = false;
-            std::vector<std::shared_ptr<ov::op::v0::MatMul>> matmuls = {matmul0};
+            std::shared_ptr<ov::op::v0::MatMul> matmul = matmul0;
             while (has_one_consumer(prev_op)) {
                 auto current_io_count = io_count;
 
@@ -153,13 +153,12 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
                     current_io_count++;
                     // If MatMul is the first in the sequence, postops fusion status is reset
                     postops_fusion_possible = true;
-                    auto cur_matmul = ov::as_type_ptr<ov::op::v0::MatMul>(interm_op);
-                    OPENVINO_ASSERT(cur_matmul, "MatMul is expected");
-                    matmuls.push_back(cur_matmul);
+                    matmul = ov::as_type_ptr<ov::op::v0::MatMul>(interm_op);
+                    OPENVINO_ASSERT(matmul, "MatMul is expected");
                 } else if (is_supported_intermediate_op(interm_op)) {
                     // Intermediate op contributes to the body params count only if can't be fused as post-op
                     // or if a previous node between MatMul and this op is not supported by post-op fusion
-                    if (!postops_fusion_possible || !config.get_can_be_fused_as_postop()(matmuls.back(), interm_op)) {
+                    if (!postops_fusion_possible || !config.get_can_be_fused_as_postop()(matmul, interm_op)) {
                         postops_fusion_possible = false;
                         current_io_count += get_potential_body_params(interm_op);
                     }
@@ -168,24 +167,23 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
                     break;
                 }
 
-                auto compute_gpr_params =
-                    [non_fused_postops_between_matmuls](const std::vector<std::shared_ptr<ov::op::v0::MatMul>>& matmuls) {
-                        if (!non_fused_postops_between_matmuls) {
-                            const size_t loop_depth = 3;
-                            const size_t reg_groups = 1;
-                            return std::make_pair(loop_depth, reg_groups);
-                        }
-                        // Loop depth could reach 4 because of SplitLoops optimization (M and N loops are split).
-                        const size_t loop_depth = 4;
-                        // In case of SplitLoops, 3 register groups are needed:
-                        // 1. Buffer before intermediate matmul
-                        // 2. Buffer inside N block right after intermediate matmul before postops
-                        // 3. Buffer outside of N block after postops
-                        const size_t reg_groups = 3;
+                auto compute_gpr_params = [non_fused_postops_between_matmuls]() {
+                    if (!non_fused_postops_between_matmuls) {
+                        const size_t loop_depth = 3;
+                        const size_t reg_groups = 1;
                         return std::make_pair(loop_depth, reg_groups);
-                    };
+                    }
+                    // Loop depth could reach 4 because of SplitLoops optimization (M and N loops are split).
+                    const size_t loop_depth = 4;
+                    // In case of SplitLoops, 3 register groups are needed:
+                    // 1. Buffer before intermediate matmul
+                    // 2. Buffer inside N block right after intermediate matmul before postops
+                    // 3. Buffer outside of N block after postops
+                    const size_t reg_groups = 3;
+                    return std::make_pair(loop_depth, reg_groups);
+                };
 
-                const auto& [loops_depth, n_buffer_reg_groups] = compute_gpr_params(matmuls);
+                const auto& [loops_depth, n_buffer_reg_groups] = compute_gpr_params();
                 is_dynamic = is_dynamic || interm_op->is_dynamic();
                 if (!config.is_gprs_count_sufficient(current_io_count, n_buffer_reg_groups, loops_depth, is_dynamic)) {
                     break;
