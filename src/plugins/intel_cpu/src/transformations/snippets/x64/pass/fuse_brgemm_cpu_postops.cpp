@@ -96,8 +96,10 @@ bool pass::FuseBrgemmCPUPostops::run_on_model(const std::shared_ptr<ov::Model>& 
 }
 
 bool pass::FuseBrgemmCPUPostops::can_be_fused_as_postop(const std::shared_ptr<const ov::Node>& node) {
+    // Note: FQ is checked separately since it is decomposed at the later pipeline stages
+    const bool is_fq = ov::is_type<ov::op::v0::FakeQuantize>(node);
     return pass::FuseUnaryEltwise::can_be_fused(node) || pass::FuseScalarEltwise::can_be_fused(node) ||
-           pass::FuseBinaryEltwise::can_be_fused(node);
+           pass::FuseBinaryEltwise::can_be_fused(node) || is_fq;
 }
 
 pass::FuseConvert::FuseConvert() {
