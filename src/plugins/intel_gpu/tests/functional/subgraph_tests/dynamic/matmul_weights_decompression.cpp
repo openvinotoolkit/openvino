@@ -322,10 +322,7 @@ class MatmulWeightsDecompressionScalarWeightZp : public MatmulWeightsDecompressi
 protected:
     ov::Shape get_weight_zero_point_shape(const ov::Shape& scaleshift_const_shape,
                                           bool per_tensor_zp) const override {
-        if (!per_tensor_zp) {
-            return MatmulWeightsDecompression::get_weight_zero_point_shape(scaleshift_const_shape, per_tensor_zp);
-        }
-        return {};
+        return per_tensor_zp ? ov::Shape{} : scaleshift_const_shape;
     }
 };
 
