@@ -3,11 +3,9 @@
 //
 
 #include "transformation_pipeline.h"
-#if defined(ANDROID) || defined(__ANDROID__)
-#    include "transformations/snippets/normalize_convert_pre_lower.hpp"
-#endif
 
 #include "defs.hpp"
+#include "transformations/snippets/normalize_convert_pre_lower.hpp"
 
 // Operations
 #include <algorithm>

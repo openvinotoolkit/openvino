@@ -3,9 +3,6 @@
 
 #pragma once
 
-// Android-only integration
-#if defined(ANDROID) || defined(__ANDROID__)
-
 #include <openvino/pass/graph_rewrite.hpp>
 
 namespace ov {
@@ -24,5 +21,3 @@ public:
 }  // namespace pass
 }  // namespace intel_cpu
 }  // namespace ov
-
-#endif  // defined(ANDROID) || defined(__ANDROID__)

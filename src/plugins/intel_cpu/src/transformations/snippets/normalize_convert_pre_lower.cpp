@@ -1,19 +1,16 @@
 // Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-// Android-only integration
-#if defined(ANDROID) || defined(__ANDROID__)
-
 #include "transformations/snippets/normalize_convert_pre_lower.hpp"
 
+#include <openvino/op/convert.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <openvino/pass/manager.hpp>
 #include <openvino/pass/pattern/matcher.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/op/convert.hpp>
-#include <openvino/opsets/opset1.hpp>
 
-#include "snippets/op/subgraph.hpp"
 #include "snippets/op/convert_truncation.hpp"
+#include "snippets/op/subgraph.hpp"
 
 namespace ov::intel_cpu::pass {
 
@@ -66,5 +63,3 @@ NormalizeConvertPreLower::NormalizeConvertPreLower() {
 }
 
 }  // namespace ov::intel_cpu::pass
-
-#endif  // defined(ANDROID) || defined(__ANDROID__)
