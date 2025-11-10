@@ -1599,6 +1599,18 @@ public:
         GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
     }
 
+    template <typename T>
+    void compare_outputs(memory::ptr output_mem,
+                         memory::ptr ref_output_mem,
+                         float tolerance = 9.0f) {
+        cldnn::mem_lock<T> output_ptr (output_mem, get_test_stream());
+        cldnn::mem_lock<T> output_ptr_ref (ref_output_mem, get_test_stream());
+
+        for (size_t i = 0; i < output_ptr_ref.size(); i++) {
+            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], tolerance) << "i = " << i;
+        }
+    }
+
     void test_compressed_int4_scale(bool is_caching_test, bool is_dynamic, long int batch_num, long int scales_group_size = 128, bool is_wei_dyn = false) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
@@ -1695,13 +1707,8 @@ public:
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
-
         auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
-
-        for (size_t i = 0; i < output_ptr_ref.size(); i++)
-            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+        compare_outputs<ov::float16>(output_mem, ref_output_mem, 9.0f);
     }
 
     void test_compressed_int4_scale_large_n(bool is_caching_test, bool is_dynamic, long int batch_num, bool is_dyn_quan = false) {
@@ -1809,13 +1816,8 @@ public:
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
-
         auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
-
-        for (size_t i = 0; i < output_ptr_ref.size(); i++)
-            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 12.0) << "i = " << i;
+        compare_outputs<ov::float16>(output_mem, ref_output_mem, 12.0f);
     }
 
     void test_compressed_int4_accumulation(bool is_caching_test, bool is_dynamic, long int batch_num) {
@@ -1983,11 +1985,7 @@ public:
         auto ref_output_mem = get_ref_results();
 
         for (size_t i = 0; i < 2; i++) {
-            cldnn::mem_lock<ov::float16> output_ptr (output_mem[i], get_test_stream());
-            cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem[i], get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size(); i++)
-                ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+            compare_outputs<ov::float16>(output_mem[i], ref_output_mem[i], 9.0f);
         }
     }
 
@@ -2128,26 +2126,12 @@ public:
             ASSERT_TRUE(false);
         }
 
+        auto output_mem = outputs.begin()->second.get_memory();
+        auto ref_output_mem = get_ref_results();
         if (is_output_fp16) {
-            auto output_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
-
-            auto ref_output_mem = get_ref_results();
-            cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size() / batch_num; i++) {
-                EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 30.0) << "i = " << i;
-            }
+            compare_outputs<ov::float16>(output_mem, ref_output_mem, 30.0f);
         } else {
-            auto output_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
-
-            auto ref_output_mem = get_ref_results();
-            cldnn::mem_lock<float> output_ptr_ref(ref_output_mem, get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size() / batch_num; i++) {
-                EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 30.0) << "i = " << i;
-            }
+            compare_outputs<float>(output_mem, ref_output_mem, 30.0f);
         }
     }
 
@@ -2286,26 +2270,12 @@ public:
             ASSERT_TRUE(false);
         }
 
+        auto output_mem = outputs.begin()->second.get_memory();
+        auto ref_output_mem = get_ref_results();
         if (is_output_fp16) {
-            auto output_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
-
-            auto ref_output_mem = get_ref_results();
-            cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size() / batch_num; i++) {
-                EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 10.0) << "i = " << i;
-            }
+            compare_outputs<ov::float16>(output_mem, ref_output_mem, 10.0f);
         } else {
-            auto output_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
-
-            auto ref_output_mem = get_ref_results();
-            cldnn::mem_lock<float> output_ptr_ref(ref_output_mem, get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size() / batch_num; i++) {
-                EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 10.0) << "i = " << i;
-            }
+            compare_outputs<float>(output_mem, ref_output_mem, 10.0f);
         }
     }
 
@@ -2438,24 +2408,12 @@ public:
             }
         }
 
+        auto output_mem = outputs.begin()->second.get_memory();
+        auto ref_output_mem = get_ref_results();
         if (is_output_fp16) {
-            auto output_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
-
-            auto ref_output_mem = get_ref_results();
-            cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size(); i++)
-                ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+            compare_outputs<ov::float16>(output_mem, ref_output_mem, 9.0f);
         } else {
-            auto output_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
-
-            auto ref_output_mem = get_ref_results();
-            cldnn::mem_lock<float> output_ptr_ref(ref_output_mem, get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size(); i++)
-                ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+            compare_outputs<float>(output_mem, ref_output_mem, 9.0f);
         }
     }
 
@@ -2595,26 +2553,12 @@ public:
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
+        auto output_mem = outputs.begin()->second.get_memory();
+        auto ref_output_mem = get_ref_results();
         if (is_output_fp16) {
-            auto output_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
-
-            auto ref_output_mem = get_ref_results();
-            cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size(); i++) {
-                EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
-            }
+            compare_outputs<ov::float16>(output_mem, ref_output_mem, 9.0f);
         } else {
-            auto output_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
-
-            auto ref_output_mem = get_ref_results();
-            cldnn::mem_lock<float> output_ptr_ref(ref_output_mem, get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size(); i++) {
-                EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
-            }
+            compare_outputs<float>(output_mem, ref_output_mem, 9.0f);
         }
     }
 
@@ -2761,11 +2705,7 @@ public:
         auto ref_output_mem = get_ref_results();
 
         for (size_t i = 0; i < 2; i++) {
-            cldnn::mem_lock<ov::float16> output_ptr(output_mem[i], get_test_stream());
-            cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem[i], get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size(); i++)
-                ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+            compare_outputs<ov::float16>(output_mem[i], ref_output_mem[i], 9.0f);
         }
     }
 
@@ -2898,13 +2838,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             }
 
             auto output_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
-
             auto ref_output_mem = get_ref_results();
-            cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size(); i++)
-                ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+            compare_outputs<ov::float16>(output_mem, ref_output_mem, 9.0f);
         }
     }
 
@@ -3075,15 +3010,9 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
-
         auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
-
         const float threshold_fp16 = 1e-1;
-        for (size_t i = 0; i < output_ptr_ref.size(); i++) {
-            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], threshold_fp16) << "i = " << i;
-        }
+        compare_outputs<ov::float16>(output_mem, ref_output_mem, threshold_fp16);
     }
 
     void test_compressed_scale_bias(bool is_caching_test) {
