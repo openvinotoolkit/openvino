@@ -651,8 +651,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     size_t quantize_grp_size = get_dynamic_quantize_group_size(params);
 
     if (is_swiglu_fused(params)) {
-        auto split_length = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_length;
-        auto split_to_glu_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_to_glu_idx;
+        auto split_length = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->glu_stride;
+        auto split_to_glu_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->gate_idx;
         jit.AddConstant(MakeJitConstant("SWIGLU_LENGTH", split_length));
         jit.AddConstant(MakeJitConstant("SWIGLU_SPLIT_TO_GLU_IDX", split_to_glu_idx));
     }
