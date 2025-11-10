@@ -775,23 +775,7 @@ ref_diff_map = {
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-"optimum-intel-internal-testing/opt-125m-gptq-4bit" : {
+	"optimum-intel-internal-testing/opt-125m-gptq-4bit" : {
 		"ScaledDotProductAttention" : -12,
 		"PagedAttentionExtension" : 12,
 		"Parameter" : 27,
@@ -1685,23 +1669,7 @@ ref_diff_map_optimizations = {
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-"optimum-intel-internal-testing/opt-125m-gptq-4bit" : {
+	"optimum-intel-internal-testing/opt-125m-gptq-4bit" : {
 		"ScaledDotProductAttention" : -12,
 		"PagedAttentionExtension" : 12,
 		"Parameter" : 78,
