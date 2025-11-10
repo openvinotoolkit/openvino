@@ -5,10 +5,10 @@
 #include "include/batch_headers/common.cl"
 #include "include/fetch_utils.cl"
 
-#define VLOAD CAT(vload, VEC_BLK_SIZE)
-#define VSTORE CAT(vstore, VEC_BLK_SIZE)
-#define INPUT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLK_SIZE)
-#define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_BLK_SIZE)
+//#define VLOAD CAT(vload, VEC_BLK_SIZE)
+//#define VSTORE CAT(vstore, VEC_BLK_SIZE)
+//#define INPUT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLK_SIZE)
+//#define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_BLK_SIZE)
 
 KERNEL(moe_scatter_reduction_ref)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -34,22 +34,22 @@ KERNEL(moe_scatter_reduction_ref)(
                 break;
             }
         }
-        int exp_offset_start = experts_start_offset[idx];
-        int input_len = tokens_len_per_expert[idx];
-        int input_offset = 0;
-        for (int t = 0; t < input_len; ++t) {
+        uint exp_offset_start = experts_start_offset[idx];
+        uint input_len = tokens_len_per_expert[idx];
+        uint input_offset = 0;
+        for (uint t = 0; t < input_len; ++t) {
             if (tokens_per_expert[exp_offset_start + t] == token_id) {
                 input_offset = exp_offset_start + t;
                 break;
             }
         }
-        for (int h = 0; h < HIDDEN_SIZE; ++h) {
-            half h_tmp = input[input_offset * HIDDEN_SIZE + h] * weight;
-            if (e_iter == 0) {
-                output[output_base_idx + h] = h_tmp;
-            } else {
-                output[output_base_idx + h] += h_tmp;
-            }
+        uint in_pos = input_offset * HIDDEN_SIZE;
+        uint out_pos = token_id * HIDDEN_SIZE;
+        for (uint h = 0; h < HIDDEN_SIZE; h++) {
+            if (e_iter == 0)
+                output[out_pos + h] = input[in_pos + h] * weight;
+            else
+                output[out_pos + h] += input[in_pos + h] * weight;
         }
     }
 }
