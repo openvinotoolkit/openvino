@@ -155,23 +155,24 @@ public:
 
         ov::Core core;
         float alpha = 1.0, beta = 0.1;
+        size_t output_num = 2; // dynamic model has 2 outputs.
         auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape{-1, dim1, -1}, "dynamic");
 
         ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}};
         auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
 
-        check_custom_op_num(compiled_model);
+        check_custom_op_num(compiled_model, output_num);
 
         auto ireq = compiled_model.create_infer_request();
         for (size_t i = 0; i < input_datas.size(); i++) {
             auto input = ov::Tensor({ov::element::f32}, input_shapes[i], input_datas[i].data());
             ireq.set_input_tensor(0, input);
             ireq.infer();
-            check_output(ireq, input, alpha, beta);
+            check_output(ireq, input, alpha, beta, output_num);
         }
     }
 
-    void check_custom_op_num(ov::CompiledModel& compiled_model) {
+    void check_custom_op_num(ov::CompiledModel& compiled_model, int expected_output_num) {
         auto runtime_graph = compiled_model.get_runtime_model();
         auto ops = runtime_graph->get_ordered_ops();
 
@@ -181,11 +182,11 @@ public:
                 found_custom_op_num++;
             }
         }
-        ASSERT_EQ(found_custom_op_num, 2);
+        ASSERT_EQ(found_custom_op_num, expected_output_num);
     }
 
-    void check_output(ov::InferRequest ireq, ov::Tensor& input, float alpha, float beta) {
-        for (size_t j = 0; j < 2; j++) {
+    void check_output(ov::InferRequest ireq, ov::Tensor& input, float alpha, float beta, size_t ouput_num) {
+        for (size_t j = 0; j < ouput_num; j++) {
             auto output = ireq.get_output_tensor(j);
             std::vector<float> actual(output.data<float>(), output.data<float>() + output.get_size());
 
@@ -193,7 +194,7 @@ public:
 
             float* inp_data = input.data<float>();
             for (size_t i = 0; i < output.get_size(); i++) {
-                ASSERT_FLOAT_EQ(actual[i], inp_data[i] * alpha + beta + CONST_BIAS[j]);
+                ASSERT_FLOAT_EQ(actual[i], inp_data[i] * alpha + beta + (ouput_num == 1u ? 0 : CONST_BIAS[j]));
             }
         }
     }
@@ -281,6 +282,11 @@ protected:
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inp_shape);
         auto op_custom_1 = std::make_shared<CustomAddOp>(input, alpha, beta);
 
+        if (model_name_suffix == "static") {
+            auto result = std::make_shared<ov::op::v0::Result>(op_custom_1->output(0));
+            return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "model_with_custom_op_" + model_name_suffix);
+        }
+
         auto const1 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<size_t>{1});
         const1->set_friendly_name("Const_1");
         const1->fill_data(ov::element::f32, CONST_BIAS[0]);
@@ -307,19 +313,20 @@ public:
 
         ov::Core core;
         float alpha = 1.0, beta = 0.1;
+        size_t output_num = 1; // static model has 1 outputs.
         auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape(input_shapes[0]), "static");
 
         ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}};
         auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
 
-        check_custom_op_num(compiled_model);
+        check_custom_op_num(compiled_model, output_num);
 
         auto ireq = compiled_model.create_infer_request();
         auto input = ov::Tensor({ov::element::f32}, input_shapes[0], input_datas[0].data());
         ireq.set_input_tensor(0, input);
         ireq.infer();
 
-        check_output(ireq, input, alpha, beta);
+        check_output(ireq, input, alpha, beta, output_num);
     }
 };
 

@@ -100,6 +100,9 @@ protected:
 };
 
 void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, CustomLayerPtr customLayer) {
+    if (p.use_new_shape_infer() == false) {
+        OPENVINO_ASSERT(op->get_output_size() == 1u, "Custom OP limitation: static model only support one output.");
+    }
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 

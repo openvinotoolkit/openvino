@@ -389,9 +389,12 @@ layout program_node::calc_output_layout() const {
 }
 
 std::vector<layout> program_node::calc_output_layouts() const {
-    auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
-    if (!out_layouts.empty())
-        return out_layouts;
+    bool allow_new_shape_infer = get_program().is_new_shape_infer();
+    if (allow_new_shape_infer) {
+        auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
+        if (!out_layouts.empty())
+            return out_layouts;
+    }
 
     return {type()->calc_output_layout(*this, *get_kernel_impl_params())};
 }
