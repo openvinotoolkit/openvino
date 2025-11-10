@@ -834,7 +834,7 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
             LOG_BLOCK();
 
             // Optimization for the last chunk: Direct tensor reuse when shapes match
-            if (static_cast<int64_t>(input_shape[param.dim]) == past_len) {
+            if (static_cast<int64_t>(input_shape[param.dim]) == past_len && input->is_continuous()) {
                 request->set_tensor(iport, input);
                 continue;
             }
