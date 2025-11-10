@@ -112,6 +112,21 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
     }
 }
 
+int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, const layout& layout, bool is_input) {
+    auto channel_count = layout.get_partial_shape()[1].is_static() ? layout.get_partial_shape()[1].get_length() : -1;
+    if (channel_count == -1) {
+        auto weights_layout = conv_node.weights().get_output_layout();
+        if (weights_layout.is_static()) {
+            const auto& shape = weights_layout.get_partial_shape();
+            if (is_input)
+                channel_count = shape[conv_node.get_groups() > 1 ? 2 : 1].get_length();
+            else
+                channel_count = shape[conv_node.get_groups() > 1 ? 1 : 0].get_length();
+        }
+    }
+    return channel_count;
+}
+
 bool layout_optimizer::is_format_supported(program_node& node, format::type fmt) {
     if (node.is_type<fully_connected>() && fmt == format::byxf)
         return false;
@@ -250,24 +265,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             return false;
         };
 
-        auto get_conv_channel_count = [](const convolution_node& conv_node, const layout& layout, bool is_input) -> int64_t {
-            auto channel_count = layout.get_partial_shape()[1].is_static() ? layout.get_partial_shape()[1].get_length() : -1;
-            if (channel_count == -1) {
-                auto weights_layout = conv_node.weights().get_output_layout();
-                if (weights_layout.is_static()) {
-                    const auto& shape = weights_layout.get_partial_shape();
-                    if (is_input)
-                        channel_count = shape[conv_node.get_groups() > 1 ? 2 : 1].get_length();
-                    else
-                        channel_count = shape[conv_node.get_groups() > 1 ? 1 : 0].get_length();
-                }
-            }
-            return channel_count;
-        };
-
         auto& conv_node = next.as<convolution>();
-        auto in_channel_count = get_conv_channel_count(conv_node, prev_output_layout, true);
-        auto out_channel_count = get_conv_channel_count(conv_node, next_output_layout, false);
+        auto in_channel_count = get_convolution_channel_count(conv_node, prev_output_layout, true);
+        auto out_channel_count = get_convolution_channel_count(conv_node, next_output_layout, false);
 
         if ((prev.is_dynamic() || next.is_dynamic()) && (in_channel_count == -1 || out_channel_count == -1))
             return false;
@@ -276,7 +276,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         if (next.get_preferred_impl_type() == impl_types::onednn &&
             ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
              (fmt_prev == format::bfyx && fmt_next == format::byxf &&
-                (prev_dt == data_types::f16 && get_conv_channel_count(conv_node, next.get_input_layout(0), false) <= 8))) &&
+                (prev_dt == data_types::f16 && get_convolution_channel_count(conv_node, next.get_input_layout(0), false) <= 8))) &&
             is_input_reorder(prev, next))
             return true;
 
@@ -989,22 +989,9 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
         return (rank <= 4) ? cldnn::format::byxf : cldnn::format::bzyxf;
     };
 
-    // Helper function to get channel count safely
-    auto get_channel_count = [](const layout& layout) -> int64_t {
-        return layout.get_partial_shape()[1].is_static() ? layout.get_partial_shape()[1].get_length() : -1;
-    };
-
     // Get channel counts once
-    int64_t input_channels = get_channel_count(input_layout);
-    int64_t output_channels = get_channel_count(output_layout);
-    auto weights_layout = node.weights().get_output_layout();
-    // Try to get channel counts from weight layout
-    if (input_channels == -1 && weights_layout.is_static()) {
-        input_channels = weights_layout.get_partial_shape()[node.get_groups() > 1 ? 2 : 1].get_length();
-    }
-    if (output_channels == -1 && weights_layout.is_static()) {
-        output_channels = weights_layout.get_partial_shape()[node.get_groups() > 1 ? 1 : 0].get_length();
-    }
+    auto input_channels = get_convolution_channel_count(node, input_layout, true);
+    auto output_channels = get_convolution_channel_count(node, output_layout, false);
 
     if (i8_u8_input) {
         // Set default input format for i8/u8 input
