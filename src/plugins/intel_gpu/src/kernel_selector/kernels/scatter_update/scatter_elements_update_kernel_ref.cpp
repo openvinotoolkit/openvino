@@ -281,13 +281,13 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
     GetUpdateDispatchDataFunc(kd);
 
     const auto& output = newParams.outputs[0];
-    bool use_local_memory = (output.PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize) ? false : true;
+    bool use_local_memory_for_static = (output.PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize) ? false : true;
 
-    if (newParams.mode != ScatterUpdateReduction::NONE) {
+    if (!params.is_shape_agnostic && newParams.mode != ScatterUpdateReduction::NONE) {
         kd.internalBuffers.clear();
         kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // fixed point output
 
-        if (!use_local_memory) {
+        if (!use_local_memory_for_static) {
             kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // reduction value output
             kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // reduction_thread_count output
         }
@@ -314,7 +314,7 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
                 if (i == 4) iter--;
             }
         } else {
-            if (i >= 1 && newParams.mode != ScatterUpdateReduction::NONE && use_local_memory) {
+            if (i >= 1 && newParams.mode != ScatterUpdateReduction::NONE && use_local_memory_for_static) {
                 const auto buffer_size = output.PhysicalSizeInBytes() * 2;
                 kd.kernels[i].params.local_memory_args.clear();
                 kd.kernels[i].params.local_memory_args.push_back(buffer_size);
@@ -335,10 +335,8 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
             // store output in fixed point
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, buf_idx++});
 
-            if (params.is_shape_agnostic)
-                use_local_memory = ((i == 1) || (i == 3));
-
             if (i >= 1) {
+                bool use_local_memory = (params.is_shape_agnostic) ? ((i == 1) || (i == 3)) : use_local_memory_for_static;
                 if (use_local_memory) {
                     // data reduction
                     kernel.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
