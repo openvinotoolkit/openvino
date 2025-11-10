@@ -17,12 +17,11 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
-#define USE_SINGLE_THREADED_RUN_INIT 0
-
 namespace intel_npu {
 
 namespace {
 
+constexpr bool USE_SINGLE_THREADED_RUN_INIT = false;
 constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
 
 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
@@ -360,12 +359,16 @@ void WeightlessGraph::initialize(const Config& config) {
         }
     }
 
-#if USE_SINGLE_THREADED_RUN_INIT
-    run_init_single_threaded();
+    if (USE_SINGLE_THREADED_RUN_INIT) {
+        run_init_single_threaded();
+    } else {
+#if defined(_WIN32) || defined(__CYGWIN__)
+        // Most drivers before this version are unable to consistently run the multi-threaded pipeline
+        _zeroInitStruct->getDriverVersion() > 2020458 ? run_init_multi_threaded() : run_init_single_threaded();
 #else
-    run_init_multi_threaded();
+        run_init_multi_threaded();
 #endif
-
+    }
     if (_initBlobs != std::nullopt) {  // Do not release the graph when compiling a model on the CiD path, and we don't
                                        // have a blob. We may need it to export later.
         release_graphs();
