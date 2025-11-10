@@ -16,6 +16,7 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
+#include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
 
@@ -160,6 +161,9 @@ protected:
     // Same thing about this one
     runtime::attention::Selector::Ptr m_attention_selector;
 
+    // Separate selector for pyramid attention
+    runtime::pyramid_attention::Selector::Ptr m_pyramid_selector;
+
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters
     // and results. Again, is managed by subclasses
@@ -192,6 +196,7 @@ protected:
     void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
     void bind_attention_inputs(std::size_t idx, RqPtr request);
+    void bind_pyramid_attention_inputs(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);

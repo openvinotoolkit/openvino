@@ -322,6 +322,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(USE_BASE_MODEL_SERIALIZER);
+    REGISTER_OPTION(SERIALIZATION_WEIGHTS_SIZE_THRESHOLD);
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
@@ -351,6 +352,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_ONLINE_MIN_SIZE);
     REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCKS);
     REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCK_SIZE);
+    REGISTER_OPTION(NPUW_ATTN);
     REGISTER_OPTION(NPUW_FOLD);
     REGISTER_OPTION(NPUW_CWAI);
     REGISTER_OPTION(NPUW_DQ);
@@ -605,8 +607,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
-        if (compilerType == ov::intel_npu::CompilerType::MLIR) {
-            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with MLIR compiler type");
+        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
         }
     }
 
