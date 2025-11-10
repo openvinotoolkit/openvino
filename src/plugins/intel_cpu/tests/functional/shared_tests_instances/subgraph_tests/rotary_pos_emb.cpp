@@ -81,9 +81,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestQwenVL,
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
                          RoPETestChatGLMHF,
-                         ::testing::Combine(
-                            ::testing::Values(ov::element::f32),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ::testing::Combine(::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(true, false)),
                          RoPETestChatGLMHF::getTestCaseName);
 
 }  // namespace test

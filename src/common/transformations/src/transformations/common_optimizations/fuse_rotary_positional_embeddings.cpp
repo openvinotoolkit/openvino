@@ -38,6 +38,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
@@ -786,7 +787,11 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
 
     auto qkv_proj = pattern::wrap_type<v1::VariadicSplit>({reshape, 3, {"ndims", "ndims"}});
     qkv_proj->set_output_size(2);
-    auto slice_1 = NewGenSlice(reshape, 0, "ndims", 1, 3) | qkv_proj->output(0);
+    auto vsplit_out0 =
+        pattern::wrap_type<op::v1::VariadicSplit>({reshape, 3, {"ndims", "ndims"}}, pattern::output_index_matches(0));
+    auto vsplit_out1 =
+        pattern::wrap_type<op::v1::VariadicSplit>({reshape, 3, {"ndims", "ndims"}}, pattern::output_index_matches(1));
+    auto slice_1 = NewGenSlice(reshape, 0, "ndims", 1, 3) | vsplit_out0;
 
     auto const_idx =
         pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches(ov::element::i32) && const_idx_predicate);
@@ -810,7 +815,7 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     auto multiply_1 = pattern::wrap_type<v1::Multiply>({flatten, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
     auto add = pattern::wrap_type<v1::Add>({multiply, multiply_1}, {{"auto_broadcast", "numpy"}});
 
-    auto slice_5 = NewGenSlice(reshape, "ndims", INT_MAX, 1, 3) | qkv_proj->output(1);
+    auto slice_5 = NewGenSlice(reshape, "ndims", INT_MAX, 1, 3) | vsplit_out1;
     auto result = pattern::wrap_type<v0::Concat>({add, slice_5}, {{"axis", -1}});
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
