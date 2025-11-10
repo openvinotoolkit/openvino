@@ -8,8 +8,6 @@
 #include <opencv2/core/mat.hpp>
 
 #include "scenario/accuracy_metrics.hpp"
-#include "result.hpp"
-
 
 class LayerValidator {
 public:

@@ -9,21 +9,18 @@
 #include "simulation/executor.hpp"
 #include "simulation/layers_data.hpp"
 #include "simulation/layer_validator.hpp"
+#include "simulation/failed_iter.hpp"
 #include "scenario/inference.hpp"
 #include "utils/logger.hpp"
 #include "utils/utils.hpp"
 
 #include <opencv2/gapi/gproto.hpp>  // cv::GCompileArgs
 
-struct FailedIter {
-    size_t iter_idx;
-    std::vector<std::string> reasons;
-};
+Result reportValidationResult(const std::vector<FailedIter>& failed_iters, const size_t total_iters);
 
 static std::vector<std::string> compareOutputs(
     const std::vector<cv::Mat>& ref_mats,
     const std::vector<cv::Mat>& tgt_mats,
-    const std::vector<Meta>& out_meta,
     const InferDesc& infer,
     const AccuracySimulation::Options& opts) {
 
@@ -48,34 +45,11 @@ static std::vector<std::string> compareOutputs(
     return failed_list;
 }
 
-static Result reportValidationResult(const std::vector<FailedIter>& failed_iters, const size_t total_iters) {
-    std::stringstream ss;
-    if (!failed_iters.empty()) {
-        const auto kItersToShow = 10u;
-        const auto kLimit = failed_iters.size() < kItersToShow ? failed_iters.size() : kItersToShow;
-        ss << "Accuraccy check failed on " << failed_iters.size() << " iteration(s)"
-           << " (first " << kLimit << "):";
-        ss << "\n";
-        for (uint32_t i = 0; i < kLimit; ++i) {
-            ss << "Iteration " << failed_iters[i].iter_idx << ":\n";
-            for (const auto& reason : failed_iters[i].reasons) {
-                ss << "  " << reason << "\n";
-            }
-        }
-        return Error{ss.str()};
-    }
-    ss << "Validation has passed for " << total_iters << " iteration(s)";
-    return Success{ss.str()};
-}
-
 static Result performValidation(
     const std::vector<std::vector<cv::Mat>>& ref_outputs,
     const std::vector<std::vector<cv::Mat>>& tgt_outputs,
-    const std::vector<Meta>& out_meta,
     const InferDesc& infer,
     const AccuracySimulation::Options& opts) {
-
-    std::cout << "Performing validation\n";
 
     std::vector<FailedIter> failed_iters;
     size_t num_iters = std::min(ref_outputs[0].size(), tgt_outputs[0].size());
@@ -89,7 +63,7 @@ static Result performValidation(
             tgt_iter_mats.push_back(tgt_outputs[layer][iter]);
         }
 
-        auto failed_list = compareOutputs(ref_iter_mats, tgt_iter_mats, out_meta, infer, opts);
+        auto failed_list = compareOutputs(ref_iter_mats, tgt_iter_mats, infer, opts);
         if (!failed_list.empty()) {
             failed_iters.push_back(FailedIter{iter, std::move(failed_list)});
         }
@@ -120,14 +94,21 @@ struct InputDataVisitor {
 };
 
 void InputDataVisitor::operator()(std::monostate) {
-    // TODO: if the path is not passed for the input data, the input data will be kept in memory
+    const auto input_names = extractLayerNames(infer.input_layers);
+    const auto& initializers = opts.initializers_map.at(infer.tag);
+
+    auto default_initialzer =
+        opts.global_initializer ? opts.global_initializer : std::make_shared<UniformGenerator>(0.0, 255.0);
+    auto layer_initializers = unpackWithDefault(initializers, input_names, default_initialzer);
+    providers = createRandomProviders(infer.input_layers, std::move(layer_initializers));
 };
 
 void InputDataVisitor::operator()(const LayerVariantAttr<std::string>&) {
-    THROW_ERROR("Reference mode requires output data path to be provided"
+    THROW_ERROR("Accuracy mode requires input data path to be provided"
                 " in form of either directory or single file!");
 };
 
+// TODO: look into this
 void InputDataVisitor::operator()(const std::string& path_str) {
     // NB: Single path provided - either single file or directory.
     const auto input_names = extractLayerNames(infer.input_layers);
@@ -420,7 +401,6 @@ Result SyncSimulation::run(ITermCriterion::Ptr criterion) {
     auto validation_result = performValidation(
         m_ref_outputs,
         m_tgt_outputs,
-        m_ref_out_meta,
         m_infer,
         m_opts
     );

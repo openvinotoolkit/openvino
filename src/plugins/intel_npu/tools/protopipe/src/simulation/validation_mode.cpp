@@ -10,6 +10,7 @@
 #include "simulation/executor.hpp"
 #include "simulation/layers_data.hpp"
 #include "simulation/layer_validator.hpp"
+#include "simulation/failed_iter.hpp"
 #include "utils/logger.hpp"
 #include "utils/utils.hpp"
 
@@ -125,12 +126,7 @@ public:
     const ValSimulation::Options& opts;
 };
 
-struct FailedIter {
-    size_t iter_idx;
-    std::vector<std::string> reasons;
-};
-
-static Result reportValidationResult(const std::vector<FailedIter>& failed_iters, const size_t total_iters) {
+Result reportValidationResult(const std::vector<FailedIter>& failed_iters, const size_t total_iters) {
     std::stringstream ss;
     if (!failed_iters.empty()) {
         const auto kItersToShow = 10u;
