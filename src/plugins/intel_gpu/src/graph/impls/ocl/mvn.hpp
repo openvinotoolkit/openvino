@@ -24,7 +24,6 @@ struct MVNImplementationManager : public ImplementationManager {
         auto input_pshape = input_layout.get_partial_shape();
         auto prim = node.as<mvn>().get_primitive();
         if (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) {
-            in_fmts[0] = format::get_default_format(input_layout.get_rank());
             out_fmts[0] = format::get_default_format(node.get_output_layout(0).get_rank());
         } else if (prim->requires_alignment(input_pshape)) {
             auto block_sizes = format::block_sizes(format::b_fs_yx_fsv16);
@@ -39,7 +38,6 @@ struct MVNImplementationManager : public ImplementationManager {
                                 (input_pshape[blocked_axis].get_length() % block_size != 0);
             bool axis_not_reduced = std::count(reduction_axes.begin(), reduction_axes.end(), blocked_axis) == 0;
             if (input_layout.is_dynamic() || (is_unaligned && axis_not_reduced)) {
-                in_fmts[0] = format::get_default_format(input_layout.get_rank());
                 out_fmts[0] = format::get_default_format(node.get_output_layout(0).get_rank());
             }
         }
