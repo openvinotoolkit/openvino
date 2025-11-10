@@ -171,6 +171,10 @@ static const TypeMapping dnnlMatMulTypeMapping {
     return config.attrs.postOps.empty();
 }
 
+[[maybe_unused]] static inline bool noFullyConnectedCompressed(const FCConfig& config) {
+    return config.attrs.algo != ov::intel_cpu::Algorithm::FullyConnectedCompressed;
+}
+
 struct CreateOptimalConfigDefault {
     std::optional<ConvConfig> operator()(const ConvConfig& config) const {
         return createOptimalConfigCommon(config, dnnlMatMulTypeMapping, dnnlFCLayoutConfig, fcMappingNotation);
@@ -408,7 +412,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                         return true;
                     })
-                VERIFY(any_of(weiType(config), f32, bf16, f16), UNSUPPORTED_WEI_PRECISIONS);
+                VERIFY(noFullyConnectedCompressed(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
                 VERIFY(weiDims(config)[0] > 1, UNSUPPORTED_WEI_RANK);
