@@ -760,7 +760,7 @@ TEST(scatter_elements_update_gpu_fp32, smoke_multiple_indices_sum_big_1d_dynamic
     std::vector<int32_t> indices(num, 0);
     std::vector<float> updates(num, 0);
 
-    const std::vector<size_t> target_update_positions = { 0, 100, 200, 1000, 5000, 6000, 6001 };
+    const std::vector<int32_t> target_update_positions = { 0, 100, 200, 1000, 5000, 6000, 6001 };
     for (auto pos : target_update_positions) {
         updates[pos] = num;
         indices[pos] = pos;
