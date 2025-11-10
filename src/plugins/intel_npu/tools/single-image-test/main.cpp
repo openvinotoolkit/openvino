@@ -19,12 +19,17 @@
 
 #include <gflags/gflags.h>
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
+#include <map>
+#include <numeric>
 #include <optional>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -143,7 +148,8 @@ DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
 DEFINE_double(cosim_threshold, 0.90, "Threshold for 'cosim' mode");
 DEFINE_double(rrmse_loss_threshold, std::numeric_limits<double>::max(), "Threshold for 'rrmse' mode");
 DEFINE_double(nrmse_loss_threshold, 1.0, "Threshold for 'nrmse' mode");
-DEFINE_double(map_threshold, 0.90, "Threshold for 'map' mode");
+DEFINE_double(overlap_threshold, 0.50, "IoU threshold for 'map' mode (detection matching)");
+DEFINE_double(map_threshold, 0.50, "mAP score threshold for 'map' mode validation");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
 DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
 DEFINE_bool(apply_soft_max, false, "Apply SoftMax for 'nrmse' mode");
@@ -282,7 +288,8 @@ void parseCommandLine(int argc, char* argv[]) {
         } else if (strEq(FLAGS_mode, "rrmse")) {
             std::cout << "    Threshold:        " << FLAGS_rrmse_loss_threshold << std::endl;
         } else if (strEq(FLAGS_mode, "map")) {
-            std::cout << "    Threshold:        " << FLAGS_map_threshold << std::endl;
+            std::cout << "    Overlap Threshold: " << FLAGS_overlap_threshold << std::endl;
+            std::cout << "    mAP Threshold:     " << FLAGS_map_threshold << std::endl;
         } else if (strEq(FLAGS_mode, "nrmse")) {
             std::cout << "    Threshold:        " << FLAGS_nrmse_loss_threshold << std::endl;
         }
@@ -1702,49 +1709,422 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
-
 //
 // Mean Average Precision mode
-// (using 'map_threshold' flag, with expected value in range [0.0 -> infinity))
-// e.g. '--mode map --map_threshold 0.01'
+// (using 'overlap_threshold' for IoU matching and 'map_threshold' for validation)
+// e.g. '--mode map --overlap_threshold 0.5 --map_threshold 0.5'
+//
+// Full implementation based on Python reference from accuracy_checker/metrics/detection.py
 //
 
-bool computeMAP(const ov::Tensor& output, const ov::Tensor& reference) {
-    if (output.get_shape() != reference.get_shape()) {
-        std::cout << "Output and reference tensors have different shapes" << std::endl;
-        return false;
+// Structure to represent a detection bounding box
+// For single-image inference, image_id is always 0
+struct Detection {
+    float x_min;
+    float y_min;
+    float x_max;
+    float y_max;
+    float confidence;
+    int class_id;
+
+    Detection(float xmin, float ymin, float xmax, float ymax, float conf, int cls)
+        : x_min(xmin), y_min(ymin), x_max(xmax), y_max(ymax),
+          confidence(conf), class_id(cls) {}
+
+    void print()
+    {
+        std::cout << "Class: " << class_id << " Confidence: " << confidence
+                  << " Box: [" << x_min << ", " << y_min << ", " << x_max << ", " << y_max << "]" << std::endl;
+    }
+};
+
+// Matches Python's overlap_evaluator (Overlap class with IOU method)
+float calculateIoU(const Detection& detection1, const Detection& detection2, bool include_boundaries = true) {
+    float adjustment = include_boundaries ? 1.0f : 0.0f;
+
+    float x_min_inter = std::max(detection1.x_min, detection2.x_min);
+    float y_min_inter = std::max(detection1.y_min, detection2.y_min);
+    float x_max_inter = std::min(detection1.x_max, detection2.x_max);
+    float y_max_inter = std::min(detection1.y_max, detection2.y_max);
+
+    float inter_width = std::max(0.0f, x_max_inter - x_min_inter + adjustment);
+    float inter_height = std::max(0.0f, y_max_inter - y_min_inter + adjustment);
+    float intersection = inter_width * inter_height;
+
+    float area1 = (detection1.x_max - detection1.x_min + adjustment) * (detection1.y_max - detection1.y_min + adjustment);
+    float area2 = (detection2.x_max - detection2.x_min + adjustment) * (detection2.y_max - detection2.y_min + adjustment);
+
+    float union_area = area1 + area2 - intersection;
+
+    return union_area > 0.0f ? intersection / union_area : 0.0f;
+}
+
+// Parse detections from model outputs (single image)
+// Expected outputs: pred_boxes, logits, encoder_hidden_state, last_hidden_state
+// pred_boxes: [batch, num_queries, 4] with format [x_center, y_center, width, height] (normalized)
+// logits: [batch, num_queries, num_classes] with class probabilities/logits
+std::vector<Detection> parseDetectionsFromOutputs(const TensorMap& outputs, float confidence_threshold = 0.0f) {
+    std::vector<Detection> detections;
+
+    // Find the pred_boxes and logits tensors
+    auto pred_boxes_it = outputs.find("pred_boxes");
+    auto logits_it = outputs.find("logits");
+
+    if (pred_boxes_it == outputs.end()) {
+        std::cout << "Warning: 'pred_boxes' output not found" << std::endl;
+        return detections;
     }
 
-    const ov::Tensor outputFP32 = npu::utils::toFP32(output);
-    const ov::Tensor referenceFP32 = npu::utils::toFP32(reference);
-
-    const auto outputBuffer = outputFP32.data<const float>();
-    const auto referenceBuffer = referenceFP32.data<const float>();
-
-    const auto size = referenceFP32.get_size();
-
-    double error = 0, sum = 0, diff;
-    for (size_t i = 0; i < size; ++i) {
-        diff = (outputBuffer[i] - referenceBuffer[i]);
-        sum += (outputBuffer[i] * outputBuffer[i]);
-        error += (diff * diff);
+    if (logits_it == outputs.end()) {
+        std::cout << "Warning: 'logits' output not found" << std::endl;
+        return detections;
     }
 
-    if (sum == 0) {
-        if (error <= std::numeric_limits<double>::epsilon()) {
-            std::cout << "The results perfectly match (error = 0). MAP loss could not be computed" << std::endl;
-            return true;
+    const ov::Tensor& pred_boxes_tensor = pred_boxes_it->second;
+    const ov::Tensor& logits_tensor = logits_it->second;
+
+    const ov::Tensor boxes_fp32 = npu::utils::toFP32(pred_boxes_tensor);
+    const ov::Tensor logits_fp32 = npu::utils::toFP32(logits_tensor);
+
+    const auto boxes_buffer = boxes_fp32.data<const float>();
+    const auto logits_buffer = logits_fp32.data<const float>();
+
+    const auto boxes_shape = pred_boxes_tensor.get_shape();
+    const auto logits_shape = logits_tensor.get_shape();
+
+    // Expected shapes: pred_boxes [batch, num_queries, 4], logits [batch, num_queries, num_classes]
+    if (boxes_shape.size() != 3 || logits_shape.size() != 3) {
+        std::cout << "Unexpected tensor shapes - pred_boxes: " << boxes_shape
+                  << ", logits: " << logits_shape << std::endl;
+        return detections;
+    }
+
+    size_t batch_size = boxes_shape[0];
+    size_t num_queries = boxes_shape[1];
+    size_t box_dim = boxes_shape[2];  // Should be 4
+    size_t num_classes = logits_shape[2];
+
+    if (batch_size != 1) {
+        std::cout << "Warning: batch_size = " << batch_size << ", expected 1 for single-image inference" << std::endl;
+    }
+
+    if (box_dim != 4) {
+        std::cout << "Error: Expected 4 box coordinates, got " << box_dim << std::endl;
+        return detections;
+    }
+
+    if (num_queries != logits_shape[1]) {
+        std::cout << "Error: Mismatch between pred_boxes queries (" << num_queries
+                  << ") and logits queries (" << logits_shape[1] << ")" << std::endl;
+        return detections;
+    }
+
+    std::cout << "Parsing detections: " << num_queries << " queries, "
+              << num_classes << " classes" << std::endl;
+
+    for (size_t queryIdx = 0; queryIdx < num_queries; ++queryIdx) {
+        size_t box_offset = queryIdx * 4;
+        float x_center = boxes_buffer[box_offset + 0];
+        float y_center = boxes_buffer[box_offset + 1];
+        float width = boxes_buffer[box_offset + 2];
+        float height = boxes_buffer[box_offset + 3];
+
+        // Convert from [x_center, y_center, w, h] to [x_min, y_min, x_max, y_max]
+        float x_min = x_center - width / 2.0f;
+        float y_min = y_center - height / 2.0f;
+        float x_max = x_center + width / 2.0f;
+        float y_max = y_center + height / 2.0f;
+
+        // Get class logits/probabilities
+        size_t logits_offset = queryIdx * num_classes;
+
+        // Find class with highest confidence and compute proper softmax
+        float max_logit = -std::numeric_limits<float>::infinity();
+        int best_class = -1;
+
+        // First pass: find max logit for numerical stability
+        for (size_t c = 0; c < num_classes; ++c) {
+            float logit = logits_buffer[logits_offset + c];
+            if (logit > max_logit) {
+                max_logit = logit;
+                best_class = static_cast<int>(c);
+            }
         }
 
-        std::cout << "Div by ZERO (Output is the Zero Tensor). Cannot compute MAP loss" << std::endl;
+        // Second pass: compute softmax with numerical stability
+        // softmax(x_i) = exp(x_i - max) / sum(exp(x_j - max))
+        float exp_sum = 0.0f;
+        for (size_t c = 0; c < num_classes; ++c) {
+            float logit = logits_buffer[logits_offset + c];
+            exp_sum += std::exp(logit - max_logit);
+        }
+
+        // Confidence is the softmax probability of the best class
+        float confidence = 1.0f / exp_sum;
+
+        // Debug: Print first few detections to understand the data
+        if (queryIdx < 5) {
+            std::cout << "  Query " << queryIdx << ": class=" << best_class
+                      << ", max_logit=" << std::fixed << std::setprecision(4) << max_logit
+                      << ", confidence=" << confidence
+                      << ", box=[" << x_min << ", " << y_min << ", " << x_max << ", " << y_max << "]"
+                      << std::endl;
+        }
+
+        // Filter by confidence threshold
+        if (confidence > confidence_threshold && best_class >= 0) {
+            detections.emplace_back(x_min, y_min, x_max, y_max, confidence, best_class);
+        }
+    }
+
+    std::cout << "Found " << detections.size() << " detections above threshold "
+              << confidence_threshold << std::endl;
+
+    return detections;
+}
+
+// Match predictions to ground truth boxes for a specific class
+// Implements Python's bbox_match() function
+struct MatchResult {
+    std::vector<int> tp;           // True positives
+    std::vector<int> fp;           // False positives
+    std::vector<float> confidences; // Confidence scores
+    size_t num_ground_truth;       // Total number of GT boxes for this class
+};
+
+MatchResult matchDetectionsForClass(
+    const std::vector<Detection>& predictions,
+    const std::vector<Detection>& ground_truth,
+    int class_id,
+    float iou_threshold,
+    bool include_boundaries = true
+) {
+    MatchResult result;
+
+    // Filter predictions and GT for this class
+    std::vector<Detection> class_predictions;
+    std::vector<Detection> class_gt;
+
+    for (const auto& pred : predictions) {
+        if (pred.class_id == class_id) {
+            class_predictions.push_back(pred);
+        }
+    }
+
+    for (const auto& gt : ground_truth) {
+        if (gt.class_id == class_id) {
+            class_gt.push_back(gt);
+        }
+    }
+
+    result.num_ground_truth = class_gt.size();
+
+    if (class_predictions.empty()) {
+        return result;
+    }
+
+    // Sort predictions by confidence (descending)
+    std::sort(class_predictions.begin(), class_predictions.end(),
+              [](const Detection& a, const Detection& b) {
+                  return a.confidence > b.confidence;
+              });
+
+    // Track which GT boxes have been matched
+    std::vector<bool> gt_matched(class_gt.size(), false);
+
+    // For each prediction, find best matching GT box
+    for (const auto& pred : class_predictions) {
+        result.confidences.push_back(pred.confidence);
+
+        float best_iou = 0.0f;
+        int best_gt_idx = -1;
+
+        // Find GT box with highest IoU
+        for (size_t gt_idx = 0; gt_idx < class_gt.size(); ++gt_idx) {
+            if (gt_matched[gt_idx]) {
+                continue;  // Already matched
+            }
+
+            float iou = calculateIoU(pred, class_gt[gt_idx], include_boundaries);
+
+            if (iou > best_iou) {
+                best_iou = iou;
+                best_gt_idx = static_cast<int>(gt_idx);
+            }
+        }
+
+        // Check if match is good enough
+        if (best_gt_idx >= 0 && best_iou >= iou_threshold) {
+            gt_matched[best_gt_idx] = true;
+            result.tp.push_back(1);
+            result.fp.push_back(0);
+        } else {
+            result.tp.push_back(0);
+            result.fp.push_back(1);
+        }
+    }
+
+    return result;
+}
+
+// Helper function to calculate Average Precision using VOC max interpolation
+// This matches the Python implementation's average_precision() function with APIntegralType.voc_max
+double calculateAveragePrecision(const std::vector<float>& precision, const std::vector<float>& recall) {
+    if (precision.empty() || recall.empty()) {
+        return 0.0;
+    }
+
+    // Append sentinel values at the end (matching Python: recall = np.concatenate(([0.], recall, [1.])))
+    std::vector<double> recall_with_sentinel;
+    std::vector<double> precision_with_sentinel;
+
+    recall_with_sentinel.push_back(0.0);
+    precision_with_sentinel.push_back(0.0);
+
+    for (size_t i = 0; i < recall.size(); ++i) {
+        recall_with_sentinel.push_back(recall[i]);
+        precision_with_sentinel.push_back(precision[i]);
+    }
+
+    recall_with_sentinel.push_back(1.0);
+    precision_with_sentinel.push_back(0.0);
+
+    // Compute the precision envelope (make precision monotonically decreasing)
+    // Python: for i in range(precision.size - 1, 0, -1): precision[i - 1] = np.maximum(precision[i - 1], precision[i])
+    for (int i = static_cast<int>(precision_with_sentinel.size()) - 1; i > 0; --i) {
+        precision_with_sentinel[i - 1] = std::max(precision_with_sentinel[i - 1], precision_with_sentinel[i]);
+    }
+
+    // Find points where X axis (recall) changes value
+    // Python: change_point = np.where(recall[1:] != recall[:-1])[0]
+    std::vector<size_t> change_points;
+    for (size_t i = 0; i < recall_with_sentinel.size() - 1; ++i) {
+        if (recall_with_sentinel[i + 1] != recall_with_sentinel[i]) {
+            change_points.push_back(i);
+        }
+    }
+
+    // Sum (\Delta recall) * precision
+    // Python: np.sum((recall[change_point + 1] - recall[change_point]) * precision[change_point + 1])
+    double ap = 0.0;
+    for (size_t cp : change_points) {
+        ap += (recall_with_sentinel[cp + 1] - recall_with_sentinel[cp]) * precision_with_sentinel[cp + 1];
+    }
+
+    return ap;
+}
+
+bool computeMAP(const TensorMap& outputs, const TensorMap& references) {
+    std::vector<Detection> predictions = parseDetectionsFromOutputs(outputs, FLAGS_confidence_threshold);
+    std::vector<Detection> ground_truth = parseDetectionsFromOutputs(references, FLAGS_confidence_threshold);
+
+    if (predictions.empty()) {
+        std::cout << "No predictions found in output tensors" << std::endl;
         return false;
     }
 
-    double mapLoss = sqrt(error / sum);
+    if (ground_truth.empty()) {
+        std::cout << "No ground truth detections found in reference tensors" << std::endl;
+        return false;
+    }    // Find all unique class IDs
 
-    std::cout << "MAP loss : " << std::fixed << std::setprecision(4) << mapLoss
-              << "   MAP threshold : " << FLAGS_map_threshold << std::endl;
-    return mapLoss <= FLAGS_map_threshold;
+    std::cout << "Predictions and ground truths: " << std::endl;
+    for (size_t i = 0; i < predictions.size(); ++i) {
+        std::cout << "  Prediction " << i << ": ";
+        predictions[i].print();
+
+        std::cout << "  Ground Truth " << i << ": ";
+        ground_truth[i].print();
+    }
+
+    std::set<int> class_ids;
+    for (const auto& det : predictions) {
+        class_ids.insert(det.class_id);
+    }
+    for (const auto& det : ground_truth) {
+        class_ids.insert(det.class_id);
+    }
+
+    std::cout << "Computing mAP for " << class_ids.size() << " classes" << std::endl;
+    std::cout << "Predictions: " << predictions.size() << ", Ground Truth: " << ground_truth.size() << std::endl;
+
+    // Calculate AP for each class
+    std::vector<double> average_precisions;
+    std::map<int, double> per_class_ap;
+
+    for (int class_id : class_ids) {
+        // Match detections for this class
+        MatchResult match_result = matchDetectionsForClass(
+            predictions, ground_truth, class_id,
+            FLAGS_overlap_threshold, true
+        );
+
+        if (match_result.confidences.empty()) {
+            std::cout << "  Class " << class_id << ": No predictions" << std::endl;
+            per_class_ap[class_id] = 0.0;
+            continue;
+        }
+
+        if (match_result.num_ground_truth == 0) {
+            std::cout << "  Class " << class_id << ": No ground truth" << std::endl;
+            per_class_ap[class_id] = 0.0;
+            continue;
+        }
+
+        // Compute cumulative TP and FP
+        std::vector<float> cum_tp(match_result.tp.size());
+        std::vector<float> cum_fp(match_result.fp.size());
+
+        cum_tp[0] = static_cast<float>(match_result.tp[0]);
+        cum_fp[0] = static_cast<float>(match_result.fp[0]);
+
+        for (size_t i = 1; i < match_result.tp.size(); ++i) {
+            cum_tp[i] = cum_tp[i - 1] + match_result.tp[i];
+            cum_fp[i] = cum_fp[i - 1] + match_result.fp[i];
+        }
+
+        // Calculate precision and recall
+        std::vector<float> precisions;
+        std::vector<float> recalls;
+
+        for (size_t i = 0; i < match_result.tp.size(); ++i) {
+            float denom = cum_tp[i] + cum_fp[i];
+            float precision = denom > 0 ? cum_tp[i] / denom : 0.0f;
+            float recall = cum_tp[i] / static_cast<float>(match_result.num_ground_truth);
+
+            precisions.push_back(precision);
+            recalls.push_back(recall);
+        }
+
+        // Calculate AP for this class
+        double ap = calculateAveragePrecision(precisions, recalls);
+        average_precisions.push_back(ap);
+        per_class_ap[class_id] = ap;
+
+        std::cout << "  Class " << class_id << ": AP = " << std::fixed << std::setprecision(4)
+                  << (ap * 100.0) << "% "
+                  << "(P: " << precisions.back() << ", R: " << recalls.back()
+                  << ", TP: " << cum_tp.back() << ", FP: " << cum_fp.back()
+                  << ", GT: " << match_result.num_ground_truth << ")" << std::endl;
+    }
+
+    // Calculate mean AP across all classes
+    double mean_ap = 0.0;
+    if (!average_precisions.empty()) {
+        for (double ap : average_precisions) {
+            mean_ap += ap;
+        }
+        mean_ap /= average_precisions.size();
+    }
+
+    std::cout << "\n=== Mean Average Precision (mAP) ===" << std::endl;
+    std::cout << "  mAP@" << FLAGS_overlap_threshold << " = " << std::fixed << std::setprecision(4)
+              << (mean_ap * 100.0) << "%" << std::endl;
+    std::cout << "  Number of classes: " << class_ids.size() << std::endl;
+    std::cout << "  mAP threshold: " << (FLAGS_map_threshold * 100.0) << "%" << std::endl;
+    std::cout << "  Result: " << (mean_ap >= FLAGS_map_threshold ? "PASS" : "FAIL") << std::endl;
+
+    return mean_ap >= FLAGS_map_threshold;
 }
 
 bool testMAP(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
@@ -1756,24 +2136,24 @@ bool testMAP(const TensorMap& outputs, const TensorMap& references, const Layout
     std::vector<std::string> skipped_layers;
     skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
 
-    for (const auto& [tensorName, output] : outputs) {
+    TensorMap remainingOutput;
+
+    // For single-image detection models with pred_boxes and logits outputs,
+    // compute mAP directly from all outputs rather than per-layer
+    std::cout << "Computing mAP for single-image detection model" << std::endl;
+    std::cout << "Output layers:" << std::endl;
+    for (const auto& [tensorName, tensor] : outputs) {
         if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
-            std::cout << "Skip MAP test for layers: " << tensorName << std::endl;
+            std::cout << "Skip layer: " << tensorName << std::endl;
             continue;
         }
 
-        auto referencesIterator = references.find(tensorName);
-        OPENVINO_ASSERT(referencesIterator != references.end());
+        remainingOutput[tensorName] = tensor;
 
-        if (!test_blobs_in_batch(tensorName,
-                                 splitBatchedTensor(output, tensorName, outputLayouts),
-                                 splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
-                                 computeMAP)) {
-            return false;
-        }
+        std::cout << " - " << tensorName << " : " << tensor.get_shape() << std::endl;
     }
 
-    return true;
+    return computeMAP(remainingOutput, references);
 }
 
 std::vector<float> softmax(std::vector<float>& tensor) {
@@ -2494,6 +2874,7 @@ static int runSingleImageTest() {
         // Parse input files string (matching of node names - if given)
         std::string processedFileInputs = parseInputFiles(inputInfo, FLAGS_input);
         inputFilesPerCase = splitStringList(processedFileInputs, ';');
+
         for (const auto& images : inputFilesPerCase) {
             std::vector<std::string> filesPerModel = splitStringList(images, ',');
             FilesForModelInputs entireModelFiles;
