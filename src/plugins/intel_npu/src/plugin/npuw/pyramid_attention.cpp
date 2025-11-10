@@ -487,7 +487,6 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     pyramid_attention._models = pyramid_models;
     pyramid_attention._attentions = pyramid_attentions;
 
-    // Early return with pyramid attention result
     LOG_INFO("Returning pyramid attention with " << pyramid_models.size() << " models");
     LOG_INFO("  Query length: " << pyramid_attention._query_length);
     LOG_INFO("  Full context length: " << pyramid_attention._full_context_length);
