@@ -579,7 +579,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
             // Input parameter is non-spatial, do normal handling
-            if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
+            if ((m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) || !g_tnsr->is_continuous()) {
                 LOG_DEBUG("Will be copied");
                 copy_list.emplace_back(g_tnsr, s_port);
             } else {
