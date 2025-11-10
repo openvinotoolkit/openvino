@@ -72,8 +72,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     //# batch=1, seq_num=1 or >1
     //# query [seq_idx, seq_num, head_num, head_size]
     //# output[seq_idx, seq_num, head_num, head_size]
-    //#   key [block_num, head_num, block_size, head_size] + [block_num, head_num, block_size, 4] (scale/zp)
-    //# value [block_num, head_num, block_size, head_size] + [block_num, head_num, block_size, 4] (scale/zp)
+    //#   key [block_num, kv_head_num, block_size, head_size] + [block_num, kv_head_num, block_size, 4] (scale/zp)
+    //# value [block_num, kv_head_num, block_size, head_size] + [block_num, kv_head_num, block_size, 4] (scale/zp)
 
     //# KV_PARTITION_SIZE should be multiple of kv_block_size(KV_BLOCK_SIZE)
     //# kv_len dimision will be split into multiple partitions, each WG process a partition
