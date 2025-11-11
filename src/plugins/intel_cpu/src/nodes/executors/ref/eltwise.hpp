@@ -71,12 +71,25 @@ template <typename T, typename... Ts>
 constexpr bool one_of_v = (std::is_same_v<T, Ts> || ...);
 
 template <typename T>
-constexpr bool supported_eltwise_ref_types_v = one_of_v<T, float, dnnl::impl::float16_t, int64_t>;
+constexpr bool supported_eltwise_ref_types_v = one_of_v<T, float, dnnl::impl::float16_t>;
 
 template <typename T, typename Enable = std::enable_if_t<supported_eltwise_ref_types_v<T>>>
 class EltwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
 public:
     EltwiseRefExecutor(const EltwiseRefKey& key);
+
+    void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) override;
+
+    static bool supports([[maybe_unused]] const EltwiseConfig& config);
+};
+
+template <typename T>
+constexpr bool supported_eltwise_ref_64bit_types_v = one_of_v<T, int64_t, uint64_t>;
+
+template <typename T, typename Enable = std::enable_if_t<supported_eltwise_ref_64bit_types_v<T>>>
+class EltwiseRef64bExecutor : public EltwiseRefBaseExecutor<T> {
+public:
+    EltwiseRef64bExecutor(const EltwiseRefKey& key);
 
     void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) override;
 

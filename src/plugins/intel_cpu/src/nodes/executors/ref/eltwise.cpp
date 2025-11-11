@@ -87,7 +87,9 @@ static EltwiseExecutorPtr createRefExecutorByPrecision(const EltwiseRefKey& key)
     case ov::element::i32:
         return std::make_shared<BitwiseRefExecutor<int32_t>>(key);
     case ov::element::i64:
-        return std::make_shared<EltwiseRefExecutor<int64_t>>(key);
+    case ov::element::u64:
+        // Tips: The convert precision pass convert u64/i64 to i32, so u64 eltwise should not be needed.
+        return std::make_shared<EltwiseRef64bExecutor<int64_t>>(key);
     case ov::element::f16:
         return std::make_shared<EltwiseRefExecutor<dnnl::impl::float16_t>>(key);
     default:
@@ -403,35 +405,36 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
     });
 }
 
-template <>
-void EltwiseRefExecutor<int64_t>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
-                                       [[maybe_unused]] const VectorDims& dims_out) {
-    // Only supported Clamp Operator
-    if (this->m_opData.algo == Algorithm::EltwiseClamp) {
-        const auto* src_ptr_i = reinterpret_cast<const int64_t*>(args_ptrs.src_ptr[0]);
-        auto* dst_ptr_i = reinterpret_cast<int64_t*>(args_ptrs.dst_ptr);
-        auto lower = static_cast<int64_t>(this->m_opData.alpha);
-        auto upper = static_cast<int64_t>(this->m_opData.beta);
-
-        parallel_for(this->m_fullWorkAmount, [&](size_t i) {
-            dst_ptr_i[i] = [](int64_t value) {
-                if (value < lower) {
-                    return lower;
-                } else if (value > upper) {
-                    return upper;
-                } else {
-                    return value;
-                }
-            }(src_ptr_i[i]);
-        });
-        return;
-    }
-    OPENVINO_THROW("Unsupported operation type for i64 Eltwise executor");
-}
-
 template <typename T, typename Enable>
 bool EltwiseRefExecutor<T, Enable>::supports([[maybe_unused]] const EltwiseConfig& config) {
     return true;
+}
+
+// EltwiseRef64bExecutor implementation
+template <typename T, typename Enable>
+EltwiseRef64bExecutor<T, Enable>::EltwiseRef64bExecutor(const EltwiseRefKey& key) : EltwiseRefBaseExecutor<T>(key) {}
+
+template <typename T, typename Enable>
+bool EltwiseRef64bExecutor<T, Enable>::supports([[maybe_unused]] const EltwiseConfig& config) {
+    return true;
+}
+
+template <typename T, typename Enable>
+void EltwiseRef64bExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                                            [[maybe_unused]] const VectorDims& dims_out) {
+    // Only supported Clamp Operator
+    if (this->m_opData.algo == Algorithm::EltwiseClamp) {
+        const auto* src_ptr_i = reinterpret_cast<const T*>(args_ptrs.src_ptr[0]);
+        auto* dst_ptr_i = reinterpret_cast<T*>(args_ptrs.dst_ptr);
+        auto lower = static_cast<T>(this->m_opData.alpha);
+        auto upper = static_cast<T>(this->m_opData.beta);
+
+        parallel_for(this->m_fullWorkAmount, [&](size_t i) {
+            dst_ptr_i[i] = std::min(std::max(src_ptr_i[i], lower), upper);
+        });
+        return;
+    }
+    OPENVINO_THROW("Unsupported operation type for Eltwise executor");
 }
 
 // BitwiseRefExecutor implementation
@@ -502,7 +505,7 @@ template class EltwiseRefBaseExecutor<int32_t>;
 
 template class EltwiseRefExecutor<float>;
 template class EltwiseRefExecutor<dnnl::impl::float16_t>;
-template class EltwiseRefExecutor<int64_t>;
+template class EltwiseRef64bExecutor<int64_t>;
 
 template class BitwiseRefExecutor<int8_t>;
 template class BitwiseRefExecutor<uint8_t>;

@@ -46,7 +46,8 @@ using namespace ov::element;
 using namespace executor;
 
 static bool is64BitsPrecision(const EltwiseConfig& config) {
-    return ov::element::i64 == config.descs.at(ARG_DST)->getPrecision();
+    return ov::element::i64 == config.descs.at(ARG_DST)->getPrecision() ||
+           ov::element::u64 == config.descs.at(ARG_DST)->getPrecision();
 }
 
 static bool isBitwiseAlgorithm(const EltwiseConfig& config) {
