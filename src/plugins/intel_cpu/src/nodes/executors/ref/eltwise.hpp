@@ -91,7 +91,7 @@ class EltwiseRef64bExecutor : public EltwiseRefBaseExecutor<T> {
 public:
     EltwiseRef64bExecutor(const EltwiseRefKey& key);
 
-    void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) override;
+    void exec(const jit_eltwise_call_args_ptrs& args_ptrs, [[maybe_unused]] const VectorDims& dims_out) override;
 
     static bool supports([[maybe_unused]] const EltwiseConfig& config);
 };
