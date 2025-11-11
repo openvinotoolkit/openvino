@@ -55,14 +55,15 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             adj_group_size = 128;
         }
 
-        auto weight_zp_shape = m_fc->get_input_partial_shape(4);
-        if (has_static_wzp && weight_zp_shape.size() == 0) {
+        const bool zp_shape_zero = has_static_wzp && m_fc->get_input_partial_shape(4).size() == 0;
+        if (zp_shape_zero) {
             GPU_DEBUG_TRACE << "Dynamic quantization: weight_zp_shape is 0 " << std::endl;
             return false;
         }
 
         // Add precomputed_reduction connection, if possible
         if (precomputed_reduction && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_static_wzp) {
+            auto weight_zp_shape = m_fc->get_input_partial_shape(4);
             auto weight_scale_shape = m_fc->get_input_partial_shape(3);
             const size_t wei_zp_group_size = innermost_size / weight_zp_shape[weight_zp_shape.size() - 1].get_length();
             const size_t wei_scale_group_size = innermost_size / weight_scale_shape[weight_scale_shape.size() - 1].get_length();
