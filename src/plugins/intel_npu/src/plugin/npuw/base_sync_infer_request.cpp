@@ -157,15 +157,8 @@ void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx,
     }
 }
 
-void ov::npuw::IBaseInferRequest::reserve_for_lazy_io() {
-    // We need to reserve m_input_allocated storage during infer request creation.
-    // Otherwise in parallel loops (e.g. copy_kv_cache) iterators to such structures might invalidate in
-    // get_tensor() during parallel execution leading to unpredictable behavior.
-    m_input_allocated.reserve(m_npuw_model->inputs().size());
-}
-
 ov::SoPtr<ov::ITensor> ov::npuw::IBaseInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    std::unique_lock lock(m_get_tensor_mutex);
+    std::unique_lock lock(m_io_storages_mutex);
 
     if (is_stored(port)) {
         return m_port_to_tensor.at(port).tensor;
@@ -197,6 +190,8 @@ ov::SoPtr<ov::ITensor> ov::npuw::IBaseInferRequest::get_tensor(const ov::Output<
 
 void ov::npuw::IBaseInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                              const ov::SoPtr<ov::ITensor>& tensor) {
+    std::unique_lock lock(m_io_storages_mutex);
+
     if (!is_stored(port)) {
         // TODO: might be useful to check if the tensor is allocated on the device
         m_port_to_tensor[port] = TensorStorage{tensor, false};
@@ -267,6 +262,8 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
                         static_cast<ze_context_handle_t>(zrh.as<void*>()),
                         tensor->data()) > 0) {
                     if (tensor->is_continuous()) {
+                        // Note: no need for locking as it's internal method that should
+                        // only be called from set_tensor()
                         m_input_allocated.insert(tensor->data());
                     } else {
                         LOG_WARN("Strided remote tensor is not supported on the device! Expect worse performance due "
@@ -592,6 +589,8 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             // Register for future use
             m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
+            // Lock mutex just in case. m_input_allocated might be altered in parallel in get_tensor()
+            std::unique_lock lock(m_io_storages_mutex);
             // Input parameter is non-spatial, do normal handling
             if ((m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) || !g_tnsr->is_continuous()) {
                 LOG_DEBUG("Will be copied");

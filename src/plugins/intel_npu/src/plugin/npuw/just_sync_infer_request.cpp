@@ -169,6 +169,8 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
             oshape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
         }
         const auto& device = m_model->funcall_mem_device(real_idx);
+        // FIXME: handle the lazy way (see BaseSyncInferRequest::get_tensor())
+        // and share between submodels to reduce memory consumption
         TensorPtr new_tensor = m_alloc(oport.get_element_type(), oshape, device);
         NPUW_ASSERT(new_tensor);
 
@@ -351,7 +353,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
     }  // if(function_pipelining)
 
-    reserve_for_lazy_io();
     alloc_quant_gather();
     connect_subrequests();
     init_gio();

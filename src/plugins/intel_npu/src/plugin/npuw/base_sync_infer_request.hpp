@@ -110,16 +110,11 @@ protected:
                                        // reset to 0 before every new execution
     };
     // FROM(Every subrequests' output port) TO(Its output tensor)
-    mutable std::map<ov::Output<const ov::Node>, TensorStorage>
-        m_port_to_tensor;  // mutable due to lazy I/O allocation in get_tensor()
+    // mutable due to lazy I/O allocation in get_tensor()
+    mutable std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
 
-    // Have to reserve size of all structures modified by get_tensor(),
-    // otherwise iterators get invalid during parallel loops.
-    // FIXME: too much details we have to keep in mind - consider a better solution
-    void reserve_for_lazy_io();
-
-    // FIXME: need to lock during get_tensor() as it changes internal storages and be called in parallel
-    mutable std::mutex m_get_tensor_mutex;
+    // FIXME: need to lock internal storages (e.g. accessed within get_tensor())
+    mutable std::mutex m_io_storages_mutex;
 
     // Check that m_port_to_tensor does have a tensor stored at the port
     bool is_stored(const ov::Output<const ov::Node>& port) const;
