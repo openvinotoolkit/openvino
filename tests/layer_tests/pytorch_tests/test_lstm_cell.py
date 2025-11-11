@@ -1,102 +1,3 @@
-
-# import numpy as np
-# import pytest
-# import torch
-# import torch.nn as nn
-# from pytorch_layer_test_class import PytorchLayerTest
-
-
-# class aten_lstm_cell(torch.nn.Module):
-#     def __init__(self, input_size, hidden_size, has_bias):
-#         super().__init__()
-#         self.cell = nn.LSTMCell(input_size, hidden_size, bias=has_bias)
-
-#     # Forward signature must match what TorchScript expects:
-#     # (x, (h0, c0))  -->  returns (h1, c1)
-#     def forward(self, x, hc):
-#         h0, c0 = hc
-#         return self.cell(x, (h0, c0))
-
-
-# class TestLSTMCell(PytorchLayerTest):
-
-#     # ----------------------------------------------------------------------
-#     # Utility to generate random tensors
-#     # ----------------------------------------------------------------------
-#     def _prepare_input(self, batch=3, input_size=10, hidden_size=20):
-#         np.random.seed(42)
-#         x = np.random.randn(batch, input_size).astype(np.float32)
-#         h0 = np.random.randn(batch, hidden_size).astype(np.float32)
-#         c0 = np.random.randn(batch, hidden_size).astype(np.float32)
-#         # Important: return (x, (h0, c0)) to match the model’s forward() signature
-#         return (x, (h0, c0))
-
-#     # ----------------------------------------------------------------------
-#     # 1. Multi-step forward "smoke" test (based on PyTorch test_LSTM_cell)
-#     # ----------------------------------------------------------------------
-#     @pytest.mark.parametrize("has_bias", [True, False])
-#     def test_lstm_cell_multistep_forward(self, ie_device, precision, ir_version, has_bias):
-#         if ie_device == "GPU":
-#             pytest.skip("GPU LSTMCell not supported yet")
-
-#         input_size, hidden_size = 10, 20
-#         self.input_size, self.hidden_size = input_size, hidden_size
-#         model = aten_lstm_cell(input_size, hidden_size, has_bias)
-
-#         # Prepare initial tensors
-#         x, (h, c) = self._prepare_input()
-#         x, h, c = map(torch.tensor, (x, h, c))
-
-#         # Run multiple steps (to check forward stability)
-#         for _ in range(6):
-#             h, c = model(x, (h.clone(), c.clone()))
-
-#         # Now test conversion/export with correct example input structure
-#         example_input = self._prepare_input()
-#         self._test(
-#             model,
-#             None,
-#             None,
-#             ie_device,
-#             precision,
-#             ir_version,
-#             trace_model=True,
-#             example_input=example_input,
-#         )
-
-#     # ----------------------------------------------------------------------
-#     # 2. Wrong input size should raise error (test_LSTM_cell_forward_input_size)
-#     # ----------------------------------------------------------------------
-#     def test_lstm_cell_bad_input_size(self, ie_device, precision, ir_version):
-#         x = torch.randn(3, 11)
-#         hx = torch.randn(3, 20)
-#         cx = torch.randn(3, 20)
-#         lstm = nn.LSTMCell(10, 20)
-#         with pytest.raises(RuntimeError):
-#             _ = lstm(x, (hx, cx))
-
-#     # ----------------------------------------------------------------------
-#     # 3. Wrong hidden size should raise error (test_LSTM_cell_forward_hidden_size)
-#     # ----------------------------------------------------------------------
-#     def test_lstm_cell_bad_hidden_size(self, ie_device, precision, ir_version):
-#         x = torch.randn(3, 10)
-#         hx = torch.randn(3, 21)
-#         cx = torch.randn(3, 20)
-#         lstm = nn.LSTMCell(10, 20)
-#         with pytest.raises(RuntimeError):
-#             _ = lstm(x, (hx, cx))
-#         with pytest.raises(RuntimeError):
-#             _ = lstm(x, (cx, hx))
-
-
-
-# Copyright (C) 2018-2025 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-#
-# LSTMCell tests for OpenVINO PyTorch frontend
-# Covers both core functional correctness and error handling
-# Mirrors PyTorch test_nn.py behavior
-
 import numpy as np
 import pytest
 import torch
@@ -120,7 +21,7 @@ class TestLSTMCell(PytorchLayerTest):
         x = np.random.randn(batch, input_size).astype(np.float32)
         h0 = np.random.randn(batch, hidden_size).astype(np.float32)
         c0 = np.random.randn(batch, hidden_size).astype(np.float32)
-        # ✅ Wrap hidden and cell states into a tuple
+        #  Wrap hidden and cell states into a tuple
         return (x, (h0, c0))
 
     # ----------------------------------------------------------------------
@@ -163,7 +64,7 @@ class TestLSTMCell(PytorchLayerTest):
             _ = lstm(input, (cx, hx))
 
     # ======================================================================
-    # 🔹 ADDITIONAL COVERAGE TESTS (from PyTorch test_nn.py + extra)
+    #  ADDITIONAL COVERAGE TESTS (from PyTorch test_nn.py + extra)
     # ======================================================================
 
     # ----------------------------------------------------------------------
@@ -173,7 +74,7 @@ class TestLSTMCell(PytorchLayerTest):
     def test_lstm_cell_dtype_consistency(self, ie_device, precision, ir_version, dtype):
         if ie_device == "GPU":
             pytest.skip("Skip GPU for dtype consistency")
-        model = nn.LSTMCell(10, 20).to(dtype)  # ✅ Match model weight dtype
+        model = nn.LSTMCell(10, 20).to(dtype)  #  Match model weight dtype
         x = torch.randn(3, 10, dtype=dtype)
         h = torch.randn(3, 20, dtype=dtype)
         c = torch.randn(3, 20, dtype=dtype)

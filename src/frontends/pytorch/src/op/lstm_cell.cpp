@@ -15,11 +15,6 @@ namespace op {
 
 using namespace ov::op;
 
-// bracha leah
-// Translation for aten::lstm_cell
-// Supports both variants:
-//   aten::lstm_cell(input, h0, c0, w_ih, w_hh, b_ih, b_hh)
-//   aten::lstm_cell(input, h0, c0, w_ih, w_hh)
 OutputVector translate_lstm_cell(const NodeContext& context) {
     const size_t num_inputs = context.get_input_size();
     PYTORCH_OP_CONVERSION_CHECK(num_inputs == 5 || num_inputs == 7,
