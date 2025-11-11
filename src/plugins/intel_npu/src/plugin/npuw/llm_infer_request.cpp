@@ -283,6 +283,7 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
         // FIXME: disable kv cache sharing when one of the models is transposed for now
         return;
     }
+    const bool v_transposed = kvcache_desc.v_tensors_transposed_pre;
 
     // Only reuse KV cache related tensors (past_key_values)
     for (const auto& [input_name, prefill_in_port] : m_prefill_in_ports) {
@@ -296,15 +297,15 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
             continue;
         }
 
-        auto kvcache_in_port = m_kvcache_in_ports.at(input_name);
-        auto kvcache_past_kv_in_tensor = m_kvcache_request->get_tensor(kvcache_in_port);
-        auto prefill_past_kv_in_shape = prefill_in_port.get_shape();
+        const auto& kvcache_in_port = m_kvcache_in_ports.at(input_name);
+        const auto& kvcache_past_kv_in_tensor = m_kvcache_request->get_tensor(kvcache_in_port);
+        const auto& prefill_past_kv_in_shape = prefill_in_port.get_shape();
+        // FIXME: need to search ".value" instead of "value" since it's already layer_names::past_key_values
+        const auto& kv_dim = (input_name.find(".value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
 
-        m_prefill_request->set_tensor(prefill_in_port,
-                                      ov::npuw::util::view(kvcache_past_kv_in_tensor,
-                                                           kvcache_desc.dim,
-                                                           0,
-                                                           prefill_past_kv_in_shape[kvcache_desc.dim]));
+        m_prefill_request->set_tensor(
+            prefill_in_port,
+            ov::npuw::util::view(kvcache_past_kv_in_tensor, kv_dim, 0, prefill_past_kv_in_shape[kv_dim]));
 
         // Record that we have already bind past_kv, will need data copy when update past kv in infer requests to
         // ensure correct data layout
