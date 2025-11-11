@@ -30,6 +30,7 @@ public:
 
         return params;
     }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using moe_node = typed_program_node<moe_3gemm_fused_compressed>;
