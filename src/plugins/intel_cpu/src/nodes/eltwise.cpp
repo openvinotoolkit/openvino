@@ -825,8 +825,7 @@ ov::element::Type Eltwise::getRuntimePrecision() const {
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(
-                DnnlExtensionUtils::DataTypeToElementType((parentEdge->getMemoryPtr()->getDataType())));
+            inputPrecisions.emplace_back(parentEdge->getMemoryPtr()->getPrecision());
         }
     }
 
