@@ -159,7 +159,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         return starts_with(name, "main");
     };
 
-    Config localConfig = config;
+    FilteredConfig localConfig = config;
     if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
         localConfig.update({{ov::intel_npu::separate_weights_version.name(), "ONE_SHOT"}});
     }
