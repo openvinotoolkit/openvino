@@ -45,7 +45,7 @@ class TestQuantile(PytorchLayerTest):
         1.0,
         [0.0, 0.25, 0.5, 0.75, 1.0],
     ])
-    @pytest.mark.parametrize("dim", [None, -1, 0,2,-1])
+    @pytest.mark.parametrize("dim", [None, -1, 0,1,2])
     @pytest.mark.parametrize("keepdim", [False, True])
     @pytest.mark.parametrize("interpolation", ["linear", "nearest", "lower", "higher", "midpoint"])
     @pytest.mark.nightly
