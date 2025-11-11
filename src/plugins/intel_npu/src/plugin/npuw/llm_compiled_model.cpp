@@ -820,7 +820,10 @@ void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
 
 void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
     // FIXME: Don't do these transformations for gemma3 which has token_type_ids input.
-    if (!ov::npuw::util::has_input(model, "token_type_ids")) {
+    // FIXME: Don't do these transformations for VLMs identified by inputs_embeds input.
+    //        Qwen2.5 VL/Omni uses 3D position_ids, which can't be directly used
+    //        in creation of sliding window mask.
+    if (!ov::npuw::util::has_input(model, "token_type_ids") && !ov::npuw::util::has_input(model, "inputs_embeds")) {
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<Phi3SlidingMask2>();
         rewr.add_matcher<Phi3SlidingMask>();
