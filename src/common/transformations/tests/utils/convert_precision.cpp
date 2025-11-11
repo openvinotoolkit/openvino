@@ -17,6 +17,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/bucketize.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -2490,7 +2491,10 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
         auto param_3 = make_shared<opset10::Parameter>(element::f64, Shape{3});
         auto convert_3 = make_shared<opset10::Convert>(param_3, element::f32);
         auto param_4 = make_shared<opset10::Parameter>(element::i64, Shape{3});
-        auto convert_4 = make_shared<opset10::Convert>(param_4, element::i32);
+        auto clamp_4 = make_shared<opset10::Clamp>(param_4,
+                                                   static_cast<double>(std::numeric_limits<int32_t>::min()),
+                                                   static_cast<double>(std::numeric_limits<int32_t>::max()));
+        auto convert_4 = make_shared<opset10::Convert>(clamp_4, element::i32);
 
         auto add = make_shared<opset10::Add>(convert_2, convert_4);
         auto converted_add = make_shared<opset10::Convert>(add, element::i64);
