@@ -1,5 +1,5 @@
 <div align="center">
-<img src="docs/dev/assets/openvino-logo-purple-black.svg" width="400px">
+<img src="https://github.com/openvinotoolkit/openvino/blob/releases/2025/4/docs/dev/assets/openvino-logo-purple-black.svg" width="400px">
 
 <h3 align="center">
 Open-source software toolkit for optimizing and deploying deep learning models.
