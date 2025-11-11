@@ -404,7 +404,8 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
 }
 
 template <>
-void EltwiseRefExecutor<int64_t>::exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& ) {
+void EltwiseRefExecutor<int64_t>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                                       [[maybe_unused]] const VectorDims& dims_out) {
     // Only supported Clamp Operator
     if (this->m_opData.algo == Algorithm::EltwiseClamp) {
         const auto* src_ptr_i = reinterpret_cast<const int64_t*>(args_ptrs.src_ptr[0]);
@@ -413,7 +414,15 @@ void EltwiseRefExecutor<int64_t>::exec(const jit_eltwise_call_args_ptrs& args_pt
         auto upper = static_cast<int64_t>(this->m_opData.beta);
 
         parallel_for(this->m_fullWorkAmount, [&](size_t i) {
-            dst_ptr_i[i] = (src_ptr_i[i] < lower) ? lower : (src_ptr_i[i] > upper) ? upper : src_ptr_i[i];
+            dst_ptr_i[i] = [](int64_t value) {
+                if (value < lower) {
+                    return lower;
+                } else if (value > upper) {
+                    return upper;
+                } else {
+                    return value;
+                }
+            }(src_ptr_i[i]);
         });
         return;
     }
