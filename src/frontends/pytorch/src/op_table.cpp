@@ -290,6 +290,7 @@ OP_CONVERTER(translate_quantized_convnd);
 OP_CONVERTER(translate_quantized_convnd_relu);
 OP_CONVERTER(translate_quantized_linear);
 OP_CONVERTER(translate_xor);
+OP_CONVERTER(translate_quantile);
 // Torch FX Translations
 OP_CONVERTER(translate_adaptive_max_pool1d_fx);
 OP_CONVERTER(translate_adaptive_max_pool2d_fx);
@@ -775,6 +776,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::zero", op::translate_zeros_like},
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
+        {"aten::quantile", op::translate_quantile},
         {"ov_ext::awq_gemm", op::translate_linear_awq},
         {"ov_ext::bit_linear", op::translate_linear_bitnet},
         {"ov_ext::embedding", op::translate_embedding_ext},
