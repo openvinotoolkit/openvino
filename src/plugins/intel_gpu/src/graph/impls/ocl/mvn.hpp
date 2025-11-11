@@ -16,6 +16,23 @@ struct MVNImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::mvn")
     MVNImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
+    bool validate_impl(const program_node& node) const override {
+        assert(node.is_type<mvn>());
+
+        // check mvn opt kernel selection from given layout
+        const auto& output_layout = node.get_output_layout(0);
+        auto output_fmt = output_layout.format;
+        if (output_fmt == format::b_fs_yx_fsv16 || output_fmt == format::b_fs_zyx_fsv16 ||
+            output_fmt == format::bs_fs_yx_bsv32_fsv16 || output_fmt == format::bs_fs_yx_bsv32_fsv32) {
+            if (output_layout.data_type == data_types::i8 || output_layout.data_type == data_types::u8) {
+                return true;
+            }
+        } else if (output_fmt == format::bfyx || output_fmt == format::bfzyx) {
+            return true;
+        }
+
+        return false;
+    }
     in_out_fmts_t query_formats(const program_node& node) const override {
         std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
