@@ -13,29 +13,25 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-// ---------- helper functions ----------
+// ---------- helpers ----------
 
-// Normalize dimension index (handle negative dims)
 static inline int64_t normalize_dim(int64_t dim, int64_t rank) {
     return dim < 0 ? dim + rank : dim;
 }
 
-// Create constant node of int64 scalar value
 static std::shared_ptr<ov::Node> axis_const_i64(int64_t v) {
     return Constant::create(element::i64, Shape{}, {v});
 }
 
-// Gather along axis 0 (used to extract shape info)
 static std::shared_ptr<ov::Node> gather_axis0(const Output<Node>& data, const Output<Node>& indices) {
     return std::make_shared<Gather>(data, indices, axis_const_i64(0), 0);
 }
 
-// Gather elements along arbitrary dimension
 static std::shared_ptr<ov::Node> gather_dim(const Output<Node>& data, const Output<Node>& indices, int64_t dim) {
     return std::make_shared<Gather>(data, indices, axis_const_i64(dim), 0);
 }
 
-// Reshape q (rank==1) to full-rank tensor [1, ..., len(q), ..., 1] with len(q) at `axis`
+// reshape q (rank==1) to [1, ..., len(q), ..., 1] with len(q) at `axis`
 static std::shared_ptr<ov::Node>
 make_q_fullrank_1d(const ov::Output<ov::Node>& q_f, int64_t self_rank, int64_t axis) {
     auto q_shape    = std::make_shared<ShapeOf>(q_f);
@@ -63,7 +59,6 @@ make_q_fullrank_1d(const ov::Output<ov::Node>& q_f, int64_t self_rank, int64_t a
     return std::make_shared<Reshape>(q_f, pattern, false);
 }
 
-// Move dimension `src` to the front (axis=0)
 static Output<Node> move_dim_to_front(const Output<Node>& node, int64_t src) {
     auto r_ps = node.get_partial_shape().rank();
     FRONT_END_GENERAL_CHECK(r_ps.is_static(), "translate_quantile: rank must be static for transpose.");
@@ -80,25 +75,26 @@ static Output<Node> move_dim_to_front(const Output<Node>& node, int64_t src) {
     return std::make_shared<Transpose>(node, perm);
 }
 
-// ---------- main translation ----------
+// ---------- main ----------
 
 OutputVector translate_quantile(const NodeContext& context) {
+    
     auto self = context.get_input(0);
     auto q    = context.get_input(1);
 
-    // Original rank before potential flatten (used later for restoring shape)
+    // rank BEFORE possible flatten (needed for dim=None + keepdim=True final shape)
     int64_t orig_rank = self.get_partial_shape().rank().is_static()
                         ? self.get_partial_shape().rank().get_length()
                         : 1;
 
-    // PyTorch: dim=None → flatten the tensor, then use dim=0
+    // PyTorch: dim=None -> flatten, then use dim=0
     bool dim_is_none = context.input_is_none(2);
+
     int64_t self_rank = self.get_partial_shape().rank().is_static()
                         ? self.get_partial_shape().rank().get_length()
                         : 1;
 
     if (dim_is_none) {
-        // Flatten input when dim=None
         auto flat_shape = Constant::create(element::i64, Shape{1}, {-1});
         self = context.mark_node(std::make_shared<Reshape>(self, flat_shape, false));
         self_rank = 1;
@@ -108,23 +104,22 @@ OutputVector translate_quantile(const NodeContext& context) {
     dim = normalize_dim(dim, self_rank);
 
     bool keepdim_req = context.input_is_none(3) ? false : context.const_input<bool>(3);
-    bool keepdim_eff = keepdim_req;  // effective keepdim (applies even after flatten)
+    bool keepdim_eff = keepdim_req;  // applies even when dim=None (after flatten)
 
     std::string interpolation = context.input_is_none(4) ? "linear" : context.const_input<std::string>(4);
 
-    // Frequently used float constants
+    // constants
     auto one_f   = Constant::create(element::f32, Shape{}, {1.0f});
     auto zero_f  = Constant::create(element::f32, Shape{}, {0.0f});
     auto half_f  = Constant::create(element::f32, Shape{}, {0.5f});
     auto nan_f   = Constant::create(element::f32, Shape{}, {std::numeric_limits<float>::quiet_NaN()});
 
-    // ---------- NaN detection mask (along reduction dimension) ----------
-    // Keepdim=true simplifies later broadcasting
+    // ---------- NaN mask along reduction dim (keepdim=true semantics for ease of shaping later) ----------
     Output<Node> has_nan_keepdim_true;
     {
-        auto isnan = context.mark_node(std::make_shared<IsNaN>(self)); // boolean tensor, same shape as input
+        auto isnan = context.mark_node(std::make_shared<IsNaN>(self)); // bool same shape
         if (dim_is_none) {
-            // After flattening, rank=1 → reduce to scalar
+            // after flatten rank=1 → reduce to scalar
             has_nan_keepdim_true = context.mark_node(
                 std::make_shared<ReduceLogicalOr>(isnan, Constant::create(element::i64, Shape{1}, {0}), false));
         } else {
@@ -133,8 +128,7 @@ OutputVector translate_quantile(const NodeContext& context) {
         }
     }
 
-    // ---------- Sort input along `dim` using TopK ----------
-    // (K = size of that dimension)
+    // ---------- sort on `dim` using TopK (K=size(dim)) ----------
     auto self_shape = context.mark_node(std::make_shared<ShapeOf>(self));
     auto k_raw      = context.mark_node(gather_axis0(self_shape, Constant::create(element::i64, Shape{1}, {dim})));
     auto k          = context.mark_node(std::make_shared<Squeeze>(k_raw));
@@ -143,7 +137,7 @@ OutputVector translate_quantile(const NodeContext& context) {
         self, k, dim, TopK::Mode::MIN, TopK::SortType::SORT_VALUES, element::i64));
     auto sorted = topk->output(0);
 
-    // Compute n-1 (as float scalar)
+    // n-1 (float scalar)
     auto sorted_shape = context.mark_node(std::make_shared<ShapeOf>(sorted));
     auto n_raw   = context.mark_node(gather_axis0(sorted_shape, Constant::create(element::i64, Shape{1}, {dim})));
     auto n_f32   = context.mark_node(std::make_shared<Convert>(n_raw, element::f32));
@@ -156,7 +150,7 @@ OutputVector translate_quantile(const NodeContext& context) {
     FRONT_END_GENERAL_CHECK(!q_rank_ps.is_static() || q_rank_ps.get_length() <= 1,
         "aten::quantile: only scalar or 1D q is supported");
 
-    // helper lambda: clip indices to [0, n-1]
+    // helper: clip indices to [0, n-1]
     auto clip_to_bounds = [&](const Output<Node>& x, const Output<Node>& last_scalar_f) -> Output<Node> {
         auto t1 = context.mark_node(std::make_shared<Minimum>(x, last_scalar_f));
         return context.mark_node(std::make_shared<Maximum>(t1, zero_f));
@@ -165,9 +159,9 @@ OutputVector translate_quantile(const NodeContext& context) {
     bool q_is_scalar = (q_rank_ps.is_static() && q_rank_ps.get_length() == 0);
 
     if (!q_is_scalar) {
-        // ---------- Case: q is 1D ----------
-        auto q_fr   = context.mark_node(make_q_fullrank_1d(q_f, self_rank, dim));     // Expand to full rank
-        auto q_rank = context.mark_node(std::make_shared<Multiply>(q_fr, last_f));    // Scale by n-1
+        // ---------- q is 1D ----------
+        auto q_fr   = context.mark_node(make_q_fullrank_1d(q_f, self_rank, dim));     // [1,...,M,...,1]
+        auto q_rank = context.mark_node(std::make_shared<Multiply>(q_fr, last_f));    // full-rank
 
         auto floor_f = context.mark_node(std::make_shared<Floor>(q_rank));
         auto ceil_f  = context.mark_node(std::make_shared<Ceiling>(q_rank));
@@ -175,13 +169,11 @@ OutputVector translate_quantile(const NodeContext& context) {
         auto floor_clip_full = clip_to_bounds(floor_f, last_f);
         auto ceil_clip_full  = clip_to_bounds(ceil_f,  last_f);
 
-        // Extract length of q
         auto q_shape2   = std::make_shared<ShapeOf>(q_f);
         auto q_len_raw  = gather_axis0(q_shape2, Constant::create(element::i64, Shape{1}, {0}));
         auto q_len      = std::make_shared<Squeeze>(q_len_raw);
         auto q_len_vec  = std::make_shared<Unsqueeze>(q_len, Constant::create(element::i64, Shape{1}, {0}));
 
-        // Reshape clipped indices to match q length
         auto floor_clip = context.mark_node(std::make_shared<Reshape>(floor_clip_full, q_len_vec, false)); // [M]
         auto ceil_clip  = context.mark_node(std::make_shared<Reshape>(ceil_clip_full,  q_len_vec, false)); // [M]
 
@@ -201,8 +193,8 @@ OutputVector translate_quantile(const NodeContext& context) {
         } else if (interpolation == "nearest") {
             res = context.mark_node(gather_dim(sorted, idx_near,  dim));
         } else if (interpolation == "midpoint" || interpolation == "linear") {
-            auto below = context.mark_node(gather_dim(sorted, idx_floor, dim)); // lower bound
-            auto above = context.mark_node(gather_dim(sorted, idx_ceil,  dim)); // upper bound
+            auto below = context.mark_node(gather_dim(sorted, idx_floor, dim)); // pre+[M]+post
+            auto above = context.mark_node(gather_dim(sorted, idx_ceil,  dim)); // pre+[M]+post
             Output<Node> weight_full = (interpolation == "midpoint")
                 ? half_f
                 : context.mark_node(std::make_shared<Subtract>(q_rank, floor_f));
@@ -214,7 +206,7 @@ OutputVector translate_quantile(const NodeContext& context) {
             FRONT_END_THROW("aten::quantile: unsupported interpolation mode: " + interpolation);
         }
 
-        // Adjust final output shape before NaN handling
+        // arrange final output shape before NaN handling
         if (keepdim_eff && !dim_is_none) {
             auto dim_c = Constant::create(element::i64, Shape{1}, {dim});
             res = context.mark_node(std::make_shared<Unsqueeze>(res, dim_c)); // pre+[1]+[M]+post
@@ -224,14 +216,13 @@ OutputVector translate_quantile(const NodeContext& context) {
         }
 
         if (dim_is_none && keepdim_req) {
-            // Restore original rank if needed
             auto ones_vec = std::vector<int64_t>(static_cast<size_t>(orig_rank), 1);
             auto ones = Constant::create(element::i64, Shape{ones_vec.size()}, ones_vec);
 
             auto q_shape3   = std::make_shared<ShapeOf>(q_f);
             auto q_len_raw3 = gather_axis0(q_shape3, Constant::create(element::i64, Shape{1}, {0}));
-            auto q_len3     = std::make_shared<Squeeze>(q_len_raw3);
-            auto q_len1     = std::make_shared<Unsqueeze>(q_len3, Constant::create(element::i64, Shape{1}, {0}));
+            auto q_len3     = std::make_shared<Squeeze>(q_len_raw3); // scalar
+            auto q_len1     = std::make_shared<Unsqueeze>(q_len3, Constant::create(element::i64, Shape{1}, {0})); // [1]
 
             std::vector<Output<Node>> parts;
             parts.push_back(q_len1); // [M]
@@ -240,30 +231,36 @@ OutputVector translate_quantile(const NodeContext& context) {
             res = context.mark_node(std::make_shared<Reshape>(res, tgt, false));
         }
 
-        // ---------- Build NaN mask (final shape) and apply ----------
-        Output<Node> mask_final;
-        if (dim_is_none) {
-            // result is [M] or [M,1,1,...]; mask must match rank
-            mask_final = has_nan_keepdim_true;
-        } else {
-            if (keepdim_eff) {
-                auto mask_remain = has_nan_keepdim_true;
-                // prepend [1] for M dimension
-                mask_final = context.mark_node(std::make_shared<Unsqueeze>(
-                    mask_remain, Constant::create(element::i64, Shape{1}, {0})));
+        // ---------- build final-shaped NaN mask and apply ----------
+            Output<Node> mask_final;
+
+            if (dim_is_none) {
+                
+                mask_final = has_nan_keepdim_true;
             } else {
-                auto mask_sq = context.mark_node(std::make_shared<Squeeze>(
-                    has_nan_keepdim_true, Constant::create(element::i64, Shape{1}, {dim})));
-                mask_final = context.mark_node(std::make_shared<Unsqueeze>(
-                    mask_sq, Constant::create(element::i64, Shape{1}, {0})));
+                
+                if (keepdim_eff) {
+                    
+                    auto mask_remain = has_nan_keepdim_true;
+                    mask_final = context.mark_node(std::make_shared<Unsqueeze>(
+                        mask_remain, Constant::create(element::i64, Shape{1}, {0})));
+                } else {
+                   
+                    auto mask_sq = context.mark_node(std::make_shared<Squeeze>(
+                        has_nan_keepdim_true, Constant::create(element::i64, Shape{1}, {dim})));
+                    mask_final = context.mark_node(std::make_shared<Unsqueeze>(
+                        mask_sq, Constant::create(element::i64, Shape{1}, {0})));
+                }
             }
-        }
+
+            
         res = context.mark_node(std::make_shared<Select>(mask_final, nan_f, res));
 
         return {res};
+
     } else {
-        // ---------- Case: q is scalar ----------
-        auto q_rank = context.mark_node(std::make_shared<Multiply>(q_f, last_f)); // scalar index scaled to n-1
+        // ---------- q is scalar ----------
+        auto q_rank = context.mark_node(std::make_shared<Multiply>(q_f, last_f)); // scalar
 
         auto floor_f = context.mark_node(std::make_shared<Floor>(q_rank));
         auto ceil_f  = context.mark_node(std::make_shared<Ceiling>(q_rank));
@@ -271,10 +268,10 @@ OutputVector translate_quantile(const NodeContext& context) {
         auto floor_clip = clip_to_bounds(floor_f, last_f);
         auto ceil_clip  = clip_to_bounds(ceil_f,  last_f);
 
-        auto idx_floor = context.mark_node(std::make_shared<Convert>(floor_clip, element::i64));
-        auto idx_ceil  = context.mark_node(std::make_shared<Convert>(ceil_clip,  element::i64));
+        auto idx_floor = context.mark_node(std::make_shared<Convert>(floor_clip, element::i64)); // scalar idx
+        auto idx_ceil  = context.mark_node(std::make_shared<Convert>(ceil_clip,  element::i64)); // scalar idx
 
-        // nearest = round(q_rank) with HALF_TO_EVEN, then clip
+        // nearest = round(q_rank) with HALF_TO_EVEN, clipped
         auto nearest     = context.mark_node(std::make_shared<Round>(q_rank, Round::RoundMode::HALF_TO_EVEN));
         auto nearest_clip= clip_to_bounds(nearest, last_f);
         auto idx_near    = context.mark_node(std::make_shared<Convert>(nearest_clip, element::i64));
@@ -300,7 +297,7 @@ OutputVector translate_quantile(const NodeContext& context) {
             FRONT_END_THROW("aten::quantile: unsupported interpolation mode: " + interpolation);
         }
 
-        // Restore final output shape
+        // arrange final output shape first
         if (keepdim_eff && !dim_is_none) {
             auto dim_c = Constant::create(element::i64, Shape{1}, {dim});
             result = context.mark_node(std::make_shared<Unsqueeze>(result, dim_c));
@@ -311,26 +308,27 @@ OutputVector translate_quantile(const NodeContext& context) {
             result = context.mark_node(std::make_shared<Reshape>(result, tgt, false));
         }
 
-        // ---------- Build NaN mask (matching final shape) ----------
+        // ---------- build mask EXACTLY matching final result shape ----------
         Output<Node> mask_final;
         if (dim_is_none) {
+            // final result is scalar (keepdim=False) or [1]*orig_rank (keepdim=True)
             if (keepdim_req) {
                 auto ones_vec = std::vector<int64_t>(static_cast<size_t>(orig_rank), 1);
                 auto tgt = Constant::create(element::i64, Shape{ones_vec.size()}, ones_vec);
-                mask_final = context.mark_node(std::make_shared<Reshape>(has_nan_keepdim_true, tgt, false));
+                mask_final = context.mark_node(std::make_shared<Reshape>(has_nan_keepdim_true, tgt, false)); // [1]*orig_rank
             } else {
-                mask_final = has_nan_keepdim_true;
+                mask_final = has_nan_keepdim_true; // scalar
             }
         } else {
             if (keepdim_eff) {
-                mask_final = has_nan_keepdim_true;
+                mask_final = has_nan_keepdim_true; // has 1 at reduced axis → matches result
             } else {
                 mask_final = context.mark_node(std::make_shared<Squeeze>(
                     has_nan_keepdim_true, Constant::create(element::i64, Shape{1}, {dim})));
             }
         }
 
-        // Apply NaN mask
+        // apply NaN mask now (no rank change)
         result = context.mark_node(std::make_shared<Select>(mask_final, nan_f, result));
 
         return {result};
