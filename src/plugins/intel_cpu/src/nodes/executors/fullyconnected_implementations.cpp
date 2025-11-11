@@ -176,6 +176,10 @@ static const TypeMapping dnnlMatMulTypeMapping {
     if (any_of(srcType(config), f32, f16, bf16) && any_of(weiType(config), f32, f16, bf16)) {
         return true;
     }
+    // i32 can be up converted to f32
+    if (any_of(srcType(config), i32) && any_of(weiType(config), i32)) {
+        return true;
+    }
     // support integer type quantization matmul
     return any_of(srcType(config), u8, i8) && any_of(weiType(config), u8, i8);
 }
