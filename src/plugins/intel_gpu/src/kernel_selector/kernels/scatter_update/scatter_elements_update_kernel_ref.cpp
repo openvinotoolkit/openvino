@@ -281,7 +281,7 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
     GetUpdateDispatchDataFunc(kd);
 
     const auto& output = newParams.outputs[0];
-    bool use_local_memory_for_static = (output.PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize) ? false : true;
+    const bool use_local_memory_for_static = (output.PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize) ? false : true;
 
     if (!params.is_shape_agnostic && newParams.mode != ScatterUpdateReduction::NONE) {
         kd.internalBuffers.clear();
