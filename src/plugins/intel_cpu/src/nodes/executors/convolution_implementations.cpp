@@ -74,6 +74,7 @@ static const TypeMapping dnnlConvTypeMapping {
 
 static const TypeMapping aclLowpConvTypeMapping {
     // {src, wei, bia, dst}                            pt<src, wei, bias, dst>
+    {{_i8, _i8, _f16 | _f32 | _dynamic, _f16 | _f32},             {bypass(), bypass(), just<f32>(), just<f32>()}},
     {{_u8, _u8 | _i8, _i32 | _dynamic, _u8},                      {bypass(), bypass(), bypass(), bypass()}},
     {{_i8, _i8, _i32 | _dynamic, _i8},                            {bypass(), bypass(), bypass(), bypass()}},
 };
@@ -252,6 +253,8 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_acl_lowp", ExecutorType::Acl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                std::cout << "convolution_acl_lowp: src: " << srcType(config).to_string() << " wei: " << weiType(config).to_string() <<
+                " bia: " << biaType(config).to_string() << " dst: " << dstType(config).to_string() << std::endl;
                 VERIFY(ACLConvolutionExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
                 return true;
             },
@@ -263,6 +266,8 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_nspc_nspc_unconditional_acl", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                std::cout << "convolution_dnnl_nspc_nspc_unconditional_acl: src: " << srcType(config).to_string() << " wei: " << weiType(config).to_string() <<
+                " bia: " << biaType(config).to_string() << " dst: " << dstType(config).to_string() << std::endl;
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
                 return true;
