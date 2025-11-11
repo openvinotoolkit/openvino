@@ -172,13 +172,12 @@ static const TypeMapping dnnlMatMulTypeMapping {
 }
 
 [[maybe_unused]] static inline bool is3DMatMulSupportedPrecision(const FCConfig& config) {
+    // support regular float type matmul
     if (any_of(srcType(config), f32, f16, bf16) && any_of(weiType(config), f32, f16, bf16)) {
         return true;
     }
-    if (any_of(srcType(config), u8, i8) && any_of(weiType(config), u8, i8)) {
-        return true;
-    }
-    return false;
+    // support integer type quantization matmul
+    return any_of(srcType(config), u8, i8) && any_of(weiType(config), u8, i8);
 }
 
 struct CreateOptimalConfigDefault {
