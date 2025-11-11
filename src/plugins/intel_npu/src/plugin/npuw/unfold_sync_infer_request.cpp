@@ -43,7 +43,6 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         LOG_INFO("DONE");
     }  // for(submodels)
 
-    reserve_for_lazy_io();
     alloc_quant_gather();
 
     LOG_INFO("Connecting subrequests...");
