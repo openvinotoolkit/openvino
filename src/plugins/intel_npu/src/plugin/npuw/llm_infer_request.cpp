@@ -206,6 +206,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
+        // FIXME: enable w/o chunking as well. Although need to align the paddings beforehand
         bind_past_kv();
         clear_chunk_prefill_kv_cache();
     }
@@ -264,11 +265,11 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 }
 
 std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
-    bool pre_alloc_on_npu = false;
+    bool pre_alloc_on_npu = true;
     const auto& kvcache_compiled = m_npuw_llm_compiled_model->m_kvcache_compiled;
     for (std::size_t idx = 0; idx < kvcache_compiled->m_compiled_submodels.size(); ++idx) {
-        if (kvcache_compiled->submodel_device(idx) == "NPU") {
-            pre_alloc_on_npu = true;
+        if (kvcache_compiled->submodel_device(idx) != "NPU") {
+            pre_alloc_on_npu = false;
             break;
         }
     }
@@ -284,7 +285,7 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
     }
 
     // Only reuse KV cache related tensors (past_key_values)
-    for (const auto& [input_name, input_port] : m_prefill_in_ports) {
+    for (const auto& [input_name, prefill_in_port] : m_prefill_in_ports) {
         // Only process KV cache inputs (past_key_values)
         if (input_name.find(layer_names::past_key_values) == std::string::npos) {
             continue;
@@ -297,14 +298,13 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
 
         auto kvcache_in_port = m_kvcache_in_ports.at(input_name);
         auto kvcache_past_kv_in_tensor = m_kvcache_request->get_tensor(kvcache_in_port);
-        auto data = kvcache_past_kv_in_tensor->data();
+        auto prefill_past_kv_in_shape = prefill_in_port.get_shape();
 
-        auto origTensor = m_prefill_request->get_tensor(input_port);
-        auto new_tensor = ov::get_tensor_impl(ov::Tensor(origTensor->get_element_type(),
-                                                         origTensor->get_shape(),
-                                                         data,
-                                                         kvcache_past_kv_in_tensor->get_strides()));
-        m_prefill_request->set_tensor(input_port, new_tensor);
+        m_prefill_request->set_tensor(prefill_in_port,
+                                      ov::npuw::util::view(kvcache_past_kv_in_tensor,
+                                                           kvcache_desc.dim,
+                                                           0,
+                                                           prefill_past_kv_in_shape[kvcache_desc.dim]));
 
         // Record that we have already bind past_kv, will need data copy when update past kv in infer requests to
         // ensure correct data layout
