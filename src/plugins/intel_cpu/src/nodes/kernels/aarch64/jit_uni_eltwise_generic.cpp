@@ -365,16 +365,31 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
         }
         break;
     }
-    case ov::element::i8: {
-        utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
-        sshll(data.h8, data.b8, 0);
-        sshll(data.s4, data.h4, 0);
-        break;
-    }
+    case ov::element::i8:
     case ov::element::u8: {
-        utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
-        ushll(data.h8, data.b8, 0);
-        ushll(data.s4, data.h4, 0);
+        if (broadcast) {
+            utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
+        } else {
+            const size_t lane_count = cpu_isa_traits<isa>::vlen / dst_prc.size();
+            auto data_bytes = data;
+            for (size_t lane = 0; lane < lane_count; ++lane) {
+                const auto offset = ptr_offset + static_cast<int32_t>(lane);
+                if (offset == 0) {
+                    ld1(data_bytes.b[static_cast<int>(lane)], ptr(ptr_reg));
+                } else {
+                    add_imm(X_DEFAULT_ADDR, ptr_reg, offset, X_TMP_0);
+                    ld1(data_bytes.b[static_cast<int>(lane)], ptr(X_DEFAULT_ADDR));
+                }
+            }
+        }
+
+        if (src_prc == ov::element::i8) {
+            sshll(data.h8, data.b8, 0);
+            sshll(data.s4, data.h4, 0);
+        } else {
+            ushll(data.h8, data.b8, 0);
+            ushll(data.s4, data.h4, 0);
+        }
         break;
     }
     default: {
