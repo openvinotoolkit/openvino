@@ -231,10 +231,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_vlsdpa_gpu_test,
     vlsdpa_gpu_test,
     ::testing::Values(
         vlsdpa_test_params{64 /*head_size*/, 1 /*num_head*/, {0, 16} /*cu_seqlens*/},
+        vlsdpa_test_params{72 /*head_size*/, 1 /*num_head*/, {0, 16} /*cu_seqlens*/},
         vlsdpa_test_params{128 /*head_size*/, 1 /*num_head*/, {0, 16} /*cu_seqlens*/},
         vlsdpa_test_params{64 /*head_size*/, 2 /*num_head*/, {0, 16} /*cu_seqlens*/},
+        vlsdpa_test_params{72 /*head_size*/, 2 /*num_head*/, {0, 16} /*cu_seqlens*/},
         vlsdpa_test_params{64 /*head_size*/, 1 /*num_head*/, {0, 16, 32} /*cu_seqlens*/},
-        vlsdpa_test_params{64 /*head_size*/, 2 /*num_head*/, {0, 16, 32} /*cu_seqlens*/}
+        vlsdpa_test_params{64 /*head_size*/, 2 /*num_head*/, {0, 16, 32} /*cu_seqlens*/},
+        vlsdpa_test_params{72 /*head_size*/, 2 /*num_head*/, {0, 16, 32} /*cu_seqlens*/}
     ),
     vlsdpa_gpu_test::PrintToStringParamName
 );

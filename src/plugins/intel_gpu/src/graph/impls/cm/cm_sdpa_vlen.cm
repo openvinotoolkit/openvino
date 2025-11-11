@@ -48,10 +48,10 @@ _GENX_MAIN_ void KERNEL_NAME(
     //# query [q_len, num_heads, S]
     //#   key [kv_len, num_heads, S]
     //# value [kv_len, num_heads, S]
-
-    constexpr uint K_SLM_SIZE = (4*kv_step * head_size * sizeof(half));
-    constexpr uint V_SLM_SIZE = (4*kv_step * head_size * sizeof(half));
-    constexpr uint Q_SLM_SIZE = 0;//(q_step * head_size * sizeof(half)) * local_size;
+    constexpr int padded_head_size = (head_size + 16 - 1) / 16 *16;
+    constexpr uint K_SLM_SIZE = (4*kv_step * padded_head_size * sizeof(half));
+    constexpr uint V_SLM_SIZE = (4*kv_step * padded_head_size * sizeof(half));
+    constexpr uint Q_SLM_SIZE = 0;//(q_step * padded_head_size * sizeof(half)) * local_size;
 
     cm_slm_init(K_SLM_SIZE + V_SLM_SIZE + Q_SLM_SIZE);
 
