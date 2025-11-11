@@ -19,19 +19,39 @@ struct MVNImplementationManager : public ImplementationManager {
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<mvn>());
 
-        // check mvn opt kernel selection from given layout
+        const auto& input_layout = node.get_input_layout(0);
         const auto& output_layout = node.get_output_layout(0);
-        auto output_fmt = output_layout.format;
-        if (output_fmt == format::b_fs_yx_fsv16 || output_fmt == format::b_fs_zyx_fsv16 ||
-            output_fmt == format::bs_fs_yx_bsv32_fsv16 || output_fmt == format::bs_fs_yx_bsv32_fsv32) {
-            if (output_layout.data_type == data_types::i8 || output_layout.data_type == data_types::u8) {
-                return true;
-            }
-        } else if (output_fmt == format::bfyx || output_fmt == format::bfzyx) {
-            return true;
-        }
 
-        return false;
+        static const std::vector<format> supported_fmts = {
+            format::bfyx,
+            format::b_fs_yx_fsv16,
+            format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_yx_bsv32_fsv32,
+            format::bfzyx,
+            format::b_fs_zyx_fsv16,
+        };
+
+        static const std::vector<ov::element::Type_t> supported_in_types = {
+            ov::element::f32,
+            ov::element::f16,
+            ov::element::i8,
+            ov::element::u8,
+        };
+
+        static const std::vector<ov::element::Type_t> supported_out_types = {
+            ov::element::f32,
+            ov::element::f16,
+            ov::element::i8,
+            ov::element::u8,
+        };
+
+        if (!one_of(input_layout.format, supported_fmts) || !one_of(output_layout.format, supported_fmts))
+            return false;
+
+        if (!one_of(input_layout.data_type, supported_in_types) || !one_of(output_layout.data_type, supported_out_types))
+            return false;
+
+        return true;
     }
     in_out_fmts_t query_formats(const program_node& node) const override {
         std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
