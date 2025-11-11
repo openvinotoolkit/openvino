@@ -249,7 +249,6 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
     } else {
         algorithm = Algorithm::FullyConnectedCommon;
     }
-    attrs.algo = algorithm;
 }
 
 bool FullyConnected::canBeExecutedInInt8() const {

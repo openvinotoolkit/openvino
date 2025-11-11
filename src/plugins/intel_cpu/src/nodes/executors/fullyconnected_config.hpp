@@ -21,7 +21,6 @@ struct FCAttrs {
     bool sparseWeights = false;
     uint64_t dynamicQuantizationGroupSize = 0;
     bool constantWeights = true;
-    ov::intel_cpu::Algorithm algo = ov::intel_cpu::Algorithm::Default;
 
     ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
 

@@ -171,8 +171,14 @@ static const TypeMapping dnnlMatMulTypeMapping {
     return config.attrs.postOps.empty();
 }
 
-[[maybe_unused]] static inline bool noFullyConnectedCompressed(const FCConfig& config) {
-    return config.attrs.algo != ov::intel_cpu::Algorithm::FullyConnectedCompressed;
+[[maybe_unused]] static inline bool is3DMatMulSupportedPrecision(const FCConfig& config) {
+    if (any_of(srcType(config), f32, f16, bf16) && any_of(weiType(config), f32, f16, bf16)) {
+        return true;
+    }
+    if (any_of(srcType(config), u8, i8) && any_of(weiType(config), u8, i8)) {
+        return true;
+    }
+    return false;
 }
 
 struct CreateOptimalConfigDefault {
@@ -412,7 +418,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                         return true;
                     })
-                VERIFY(noFullyConnectedCompressed(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(is3DMatMulSupportedPrecision(config), UNSUPPORTED_SRC_WEI_PRECISIONS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
                 VERIFY(weiDims(config)[0] > 1, UNSUPPORTED_WEI_RANK);
