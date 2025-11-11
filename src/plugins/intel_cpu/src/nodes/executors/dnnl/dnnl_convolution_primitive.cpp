@@ -47,6 +47,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -450,7 +451,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
 
     const auto& originalOutputDims = dstDesc->getShape().getMinDims();
-    const auto& outputDims = attrs.fcSemantic ? normalizeDims(originalOutputDims) : originalOutputDims;
+    const auto& outputDims = attrs.fcSemantic ? VectorDims(normalizeDims(originalOutputDims)) : originalOutputDims;
 
     auto isINT8 =
         any_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
@@ -864,6 +865,7 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     auto builder = [&context, defaultImplType](const Key& dnnlKey) {
         return std::make_shared<DnnlConvolutionPrimitive>(dnnlKey,
                                                           context->getEngine(),
+                                                          context->getThreadPool(),
                                                           context->getImplPriorities(),
                                                           defaultImplType);
     };
@@ -1013,9 +1015,10 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
 
 DnnlConvolutionPrimitive::DnnlConvolutionPrimitive(const Key& key,
                                                    const dnnl::engine& engine,
+                                                   const std::shared_ptr<ThreadPool>& threadPool,
                                                    const std::vector<impl_desc_type>& implPriorities,
                                                    const impl_desc_type defaultImplType)
-    : m_stream(dnnl::stream(engine)),
+    : m_stream(make_stream(engine, threadPool)),
       m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
                                      key.wei->getDnnlDesc(),
                                      key.bias->getDnnlDesc(),

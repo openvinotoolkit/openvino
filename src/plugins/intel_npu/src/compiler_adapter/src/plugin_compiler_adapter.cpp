@@ -70,7 +70,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize PluginCompilerAdapter start");
 
-    _logger.info("MLIR compiler will be used.");
+    _logger.info("PLUGIN compiler will be used.");
     std::string baseName = "npu_mlir_compiler";
     auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
     _compiler = load_compiler(libPath);
@@ -91,7 +91,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const Config& config) const {
+                                                       const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
@@ -124,7 +124,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
-                                                         const Config& config) const {
+                                                         const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
 
     std::vector<std::shared_ptr<NetworkDescription>> initNetworkDescriptions;
@@ -257,7 +257,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     ov::Tensor mainBlob,
-    const Config& config,
+    const FilteredConfig& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
@@ -331,7 +331,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
-                                                 const Config& config) const {
+                                                 const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(QUERY_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "query");
 
     return _compiler->query(model, config);
