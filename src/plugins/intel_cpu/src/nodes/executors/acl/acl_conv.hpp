@@ -35,6 +35,8 @@ private:
     std::vector<float> fqInputShift;
     std::vector<float> fqOutputShift;
     std::vector<float> weightScale;
+    // FIXME: temporary solution for arm activation shifts
+    std::vector<int8_t> activationShifts;
 };
 
 using ACLConvolutionExecutorPtr = std::shared_ptr<ACLConvolutionExecutor>;

@@ -765,6 +765,7 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
                     {0},
                     {0},
                     AutoPaddingType::None,
+                    {},
                     fcAttrs.withBias,
                     fcAttrs.weightsNonTransposed,
                     false,

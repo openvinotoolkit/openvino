@@ -913,7 +913,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>(
         {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0})});
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
-        PrecisionsRestriction::create<ov::opset1::Convolution>({{{0, 1}, {ov::element::u8, ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::Convolution>({{{0}, {ov::element::i8}}, {{1}, {ov::element::u8, ov::element::i8}}}),
         PrecisionsRestriction::create<ov::op::v0::MatMul>(
             {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
     });
