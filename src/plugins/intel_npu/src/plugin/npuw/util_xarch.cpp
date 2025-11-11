@@ -39,6 +39,96 @@ inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
+// f8e4m3 -> f16 (16x float8_e4m3 packed in __m128i -> 16x f16 packed in __m256i)
+inline __m256i f8e4m3tof16(__m128i vf8) {
+    // 1. Extend to 16 uint16_t elements
+    __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8);  // 16 x uint16_t
+
+    // 2. Extract each part
+    const __m256i sign_mask = _mm256_set1_epi16(0x80);
+    const __m256i exp_mask = _mm256_set1_epi16(0x78);
+    const __m256i man_mask = _mm256_set1_epi16(0x07);
+
+    __m256i sign = _mm256_and_si256(vf8_16, sign_mask);
+    __m256i exp = _mm256_and_si256(vf8_16, exp_mask);
+    __m256i man = _mm256_and_si256(vf8_16, man_mask);
+
+    // 3. Calculate f16 exponent and mantissa
+    // f8 bias = 7, f16 bias = 15, so f16_exp = f8_exp - 7 + 15 = f8_exp + 8
+    __m256i exp16 = _mm256_srli_epi16(exp, 3);              // shift right 3 bits to get raw exponent
+    exp16 = _mm256_add_epi16(exp16, _mm256_set1_epi16(8));  // add 8
+
+    // f16 format: |S|EEEEE|MMMMMMMMMM| (1|5|10)
+    // shift f8's 3-bit mantissa left by 7 to align with f16's high bits
+    __m256i man16 = _mm256_slli_epi16(man, 7);
+
+    // Compose f16: sign(1) << 15 | exp16(5) << 10 | man16(10)
+    __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15);  // move sign to bit 15
+    __m256i exp16w = _mm256_slli_epi16(exp16, 10);                       // move exponent to bits 10~14
+
+    __m256i f16 = _mm256_or_si256(sign16, _mm256_or_si256(exp16w, man16));
+
+    return f16;
+}
+
+// f8e5m2 -> f16 (16x float8_e5m2 packed in __m128i -> 16x f16 packed in __m256i)
+inline __m256i f8e5m2tof16(__m128i vf8) {
+    // 1. Extend to 16 uint16_t elements
+    __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8);
+
+    // 2. Extract each part
+    const __m256i sign_mask = _mm256_set1_epi16(0x80);  // 1000 0000
+    const __m256i exp_mask = _mm256_set1_epi16(0x7C);   // 0111 1100
+    const __m256i man_mask = _mm256_set1_epi16(0x03);   // 0000 0011
+
+    __m256i sign = _mm256_and_si256(vf8_16, sign_mask);
+    __m256i exp = _mm256_and_si256(vf8_16, exp_mask);
+    __m256i man = _mm256_and_si256(vf8_16, man_mask);
+
+    // 3. Calculate f16 exponent and mantissa
+    // f8 bias = 15, f16 bias = 15, so f16_exp = f8_exp - 15 + 15 = f8_exp
+    __m256i exp16 = _mm256_srli_epi16(exp, 2);  // shift right 2 bits to get raw exponent
+
+    // f16: |S|EEEEE|MMMMMMMMMM| (1|5|10)
+    // shift f8's 2-bit mantissa left by 8 to align with f16's high bits
+    __m256i man16 = _mm256_slli_epi16(man, 8);
+
+    // Compose f16: sign(1) << 15 | exp16(5) << 10 | man16(10)
+    __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15);
+    __m256i exp16w = _mm256_slli_epi16(exp16, 10);
+
+    __m256i f16 = _mm256_or_si256(sign16, _mm256_or_si256(exp16w, man16));
+    return f16;
+}
+
+// f8e8m0 -> f16 (16x float8_e8m0 packed in __m128i -> 16x f16 packed in __m256i)
+inline __m256i f8e8m0tof16(__m128i vf8) {
+    // 1. Extend to 16 uint16_t elements
+    __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8);
+
+    // 2. Extract each part
+    const __m256i sign_mask = _mm256_set1_epi16(0x80);  // 1000 0000
+    const __m256i exp_mask = _mm256_set1_epi16(0x7F);   // 0111 1111
+    // No mantissa
+
+    __m256i sign = _mm256_and_si256(vf8_16, sign_mask);
+    __m256i exp = _mm256_and_si256(vf8_16, exp_mask);
+
+    // 3. Calculate f16 exponent
+    // f8 bias = 127, f16 bias = 15, so f16_exp = f8_exp - 127 + 15 = f8_exp - 112
+    __m256i exp16 = _mm256_sub_epi16(exp, _mm256_set1_epi16(112));  // exp - 112
+
+    // No mantissa, so man16 = 0
+    // __m256i man16 = _mm256_setzero_si256();
+
+    // Compose f16: sign(1) << 15 | exp16(5) << 10 | man16(10)
+    __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15);
+    __m256i exp16w = _mm256_slli_epi16(exp16, 10);
+
+    __m256i f16 = _mm256_or_si256(sign16, exp16w);
+    return f16;
+}
+
 inline int32_t pack_4bit_avx2_reduction(__m256i ymm) {
     __m256i mask = _mm256_set1_epi32(0xF);
     ymm = _mm256_and_si256(ymm, mask);
@@ -1621,7 +1711,7 @@ void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t r
     OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
-
+/*
 // f8e4m3 -> f16 (16x float8_e4m3 packed in __m128i -> 16x f16 packed in __m256i)
 inline __m256i f8e4m3tof16(__m128i vf8) {
     // 1. Extend to 16 uint16_t elements
@@ -1711,43 +1801,7 @@ inline __m256i f8e8m0tof16(__m128i vf8) {
     __m256i f16 = _mm256_or_si256(sign16, exp16w);
     return f16;
 }
-
-/*
-void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& from,
-                                         const ov::SoPtr<ov::ITensor>& scale,
-                                         const ov::SoPtr<ov::ITensor>& to,
-                                         const ov::npuw::util::UnpackOptions& _options) {
-    NPUW_ASSERT(from->is_continuous());
-    NPUW_ASSERT(to->is_continuous());
-    NPUW_ASSERT(scale->is_continuous());
-
-    auto from_shape = from->get_shape();
-    auto scale_shape = scale->get_shape();
-
-    NPUW_ASSERT(from->get_size() == to->get_size());
-    NPUW_ASSERT(from_shape[0] == scale_shape[0]);
-    NPUW_ASSERT(scale_shape[1] == 1);
-
-    NPUW_ASSERT(from->get_element_type() == ov::element::f8e4m3 || from->get_element_type() == ov::element::f8e5m2 ||
-                from->get_element_type() == ov::element::f8e8m0);
-    NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
-    NPUW_ASSERT(to->get_element_type() == ov::element::f16);
-
-    const uint8_t* from_ptr = from->data<uint8_t>();
-    const float* scale_ptr = scale->data<float>();
-    uint16_t* to_ptr = to->data<uint16_t>();
-
-    const auto size = from->get_size();
-
-#if defined(HAVE_AVX2)
-
-    if(from->get_element_type() == ov::element::f8e4m3)
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
-}
 */
-
 void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& from,
                                                const ov::SoPtr<ov::ITensor>& scale,
                                                const ov::SoPtr<ov::ITensor>& to,
@@ -1773,11 +1827,11 @@ void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& fro
     const float* scl = scale->data<float>();
     uint16_t* dst = to->data<uint16_t>();
 
-    const size_t total    = from->get_size();      // total number of f8 elements
-    const size_t stotal   = scale->get_size();     // number of scale factors
+    const size_t total = from->get_size();    // total number of f8 elements
+    const size_t stotal = scale->get_size();  // number of scale factors
     NPUW_ASSERT(total % stotal == 0);
-    const size_t elemsPerScale = total / stotal;   // elements governed by one scale
-    const size_t VEC = 16;                         // vector width (16 x f8 -> 16 x f16)
+    const size_t elemsPerScale = total / stotal;  // elements governed by one scale
+    const size_t VEC = 16;                        // vector width (16 x f8 -> 16 x f16)
     NPUW_ASSERT(elemsPerScale > 0);
 
 #if defined(HAVE_AVX2)
@@ -1786,10 +1840,18 @@ void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& fro
         __m128i vf8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(bsrc));
         __m256i vf16_bits;
         switch (ftype) {
-            case ov::element::f8e4m3: vf16_bits = f8e4m3tof16(vf8); break;
-            case ov::element::f8e5m2: vf16_bits = f8e5m2tof16(vf8); break;
-            case ov::element::f8e8m0: vf16_bits = f8e8m0tof16(vf8); break;
-            default: NPUW_ASSERT(false); return;
+        case ov::element::f8e4m3:
+            vf16_bits = f8e4m3tof16(vf8);
+            break;
+        case ov::element::f8e5m2:
+            vf16_bits = f8e5m2tof16(vf8);
+            break;
+        case ov::element::f8e8m0:
+            vf16_bits = f8e8m0tof16(vf8);
+            break;
+        default:
+            NPUW_ASSERT(false);
+            return;
         }
 
         // Split into two 128-bit halves (each holds 8 f16)
@@ -1809,7 +1871,7 @@ void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& fro
         __m128i out_lo = _mm256_cvtps_ph(f_lo, _MM_FROUND_TO_NEAREST_INT);
         __m128i out_hi = _mm256_cvtps_ph(f_hi, _MM_FROUND_TO_NEAREST_INT);
 
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(bdst),      out_lo);
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(bdst), out_lo);
         _mm_storeu_si128(reinterpret_cast<__m128i*>(bdst + 8), out_hi);
     };
 
@@ -1822,34 +1884,36 @@ void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& fro
             // Heuristic: ensure minimum intrinsic workload per thread.
             // Require at least 2048 vector blocks per thread (if possible).
             size_t vecBlocksPerScale = elemsPerScale / VEC;
-            if (vecBlocksPerScale == 0) vecBlocksPerScale = 1;
+            if (vecBlocksPerScale == 0)
+                vecBlocksPerScale = 1;
             size_t minScaleStride = 2048 / vecBlocksPerScale;
-            if (minScaleStride == 0) minScaleStride = 1;
+            if (minScaleStride == 0)
+                minScaleStride = 1;
             size_t minPartitions = stotal / minScaleStride;
-            if (minPartitions == 0) minPartitions = 1;
+            if (minPartitions == 0)
+                minPartitions = 1;
             minPartitions = std::min(minPartitions, unpack_options.nPartitions);
             stride = stotal / minPartitions;
-            if (stride == 0) stride = 1;
+            if (stride == 0)
+                stride = 1;
         }
     }
     const size_t numWork = (stotal + stride - 1) / stride;
 
     auto unpack_body = [&](size_t workIndex) {
         size_t start = workIndex * stride;
-        size_t end   = std::min(stotal, start + stride);
+        size_t end = std::min(stotal, start + stride);
         for (size_t s = start; s < end; ++s) {
             const float scale_val = scl[s];
             const uint8_t* src_scale_base = src + s * elemsPerScale;
-            uint16_t* dst_scale_base      = dst + s * elemsPerScale;
+            uint16_t* dst_scale_base = dst + s * elemsPerScale;
 
             size_t vecBlocks = elemsPerScale / VEC;
-            size_t tail      = elemsPerScale % VEC;
+            size_t tail = elemsPerScale % VEC;
 
             // Vector path
             for (size_t b = 0; b < vecBlocks; ++b) {
-                convert_block(src_scale_base + b * VEC,
-                              dst_scale_base + b * VEC,
-                              scale_val);
+                convert_block(src_scale_base + b * VEC, dst_scale_base + b * VEC, scale_val);
             }
 
             // Tail (scalar fallback)
@@ -1861,25 +1925,25 @@ void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& fro
                     // Lossy direct mapping for tail (no special cases like NaN/Inf)
                     if (ftype == ov::element::f8e4m3) {
                         uint8_t sign = (v & 0x80) >> 7;
-                        uint8_t exp  = (v & 0x78) >> 3;
-                        uint8_t man  = (v & 0x07);
+                        uint8_t exp = (v & 0x78) >> 3;
+                        uint8_t man = (v & 0x07);
                         int16_t exp16 = exp + 8;
                         h = static_cast<uint16_t>((sign << 15) | (exp16 << 10) | (man << 7));
                     } else if (ftype == ov::element::f8e5m2) {
                         uint8_t sign = (v & 0x80) >> 7;
-                        uint8_t exp  = (v & 0x7C) >> 2;
-                        uint8_t man  = (v & 0x03);
+                        uint8_t exp = (v & 0x7C) >> 2;
+                        uint8_t man = (v & 0x03);
                         h = static_cast<uint16_t>((sign << 15) | (exp << 10) | (man << 8));
-                    } else { // f8e8m0
+                    } else {  // f8e8m0
                         uint8_t sign = (v & 0x80) >> 7;
-                        uint8_t exp  = (v & 0x7F);
+                        uint8_t exp = (v & 0x7F);
                         int16_t exp16 = static_cast<int16_t>(exp) - 112;
                         h = static_cast<uint16_t>((sign << 15) | ((exp16 & 0x1F) << 10));
                     }
                     // Convert single f16 -> f32 -> scale -> f16
                     __m128i hvec = _mm_cvtsi32_si128(h);
-                    __m256 f32v  = _mm256_cvtph_ps(hvec);
-                    float fval   = _mm_cvtss_f32(_mm256_castps256_ps128(f32v)) * scale_val;
+                    __m256 f32v = _mm256_cvtph_ps(hvec);
+                    float fval = _mm_cvtss_f32(_mm256_castps256_ps128(f32v)) * scale_val;
                     __m256 scaled = _mm256_set1_ps(fval);
                     __m128i out_h = _mm256_cvtps_ph(scaled, _MM_FROUND_TO_NEAREST_INT);
                     dst_scale_base[offset + t] = static_cast<uint16_t>(_mm_cvtsi128_si32(out_h));
@@ -1889,7 +1953,9 @@ void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& fro
     };
 
     if (unpack_options.bUseOvParallelFor) {
-        ov::parallel_for(numWork, [&](size_t wi) { unpack_body(wi); });
+        ov::parallel_for(numWork, [&](size_t wi) {
+            unpack_body(wi);
+        });
     } else {
         for (size_t wi = 0; wi < numWork; ++wi) {
             unpack_body(wi);
