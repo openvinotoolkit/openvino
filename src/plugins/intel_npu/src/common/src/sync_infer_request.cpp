@@ -306,7 +306,8 @@ void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
     }
 }
 
-void print_tensor_raw(const std::shared_ptr<ov::ITensor>& tensor) {
+// 声明和定义都改为 SoPtr
+void print_tensor_raw(const ov::SoPtr<ov::ITensor>& tensor) {
     auto element_type = tensor->get_element_type();
     size_t byte_size = tensor->get_byte_size();
     size_t element_size = element_type.size();
@@ -346,7 +347,7 @@ void SyncInferRequest::check_tensors() const {
         }
         if (get_user_input(i)) {
             std::cout << " --------- SyncInferRequest: index: 22"<< std::endl;
-            print_tensor_raw(*(get_user_input(i)));
+            print_tensor_raw(get_user_input(i));
             check_tensor(inputs[i], get_user_input(i));
         }
     }
