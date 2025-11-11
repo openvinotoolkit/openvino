@@ -1216,6 +1216,112 @@ const auto testParams_IS_x64_small = ::testing::Combine(matMulParams_x64_small,
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_IS_x64_small, SmallMatMulLayerCPUTest, testParams_IS_x64_small, SmallMatMulLayerCPUTest::getTestCaseName);
 
+class MatMul3DWeightLayerCPUTest : public MatMulLayerCPUTest {
+    void SetUp() override {
+        const auto& [basicParamsSet, nodeType, fusingParams, cpuParams] = this->GetParam();
+        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        const auto& [shapeRelatedParams, _netType, _inType, _outType, secondaryInputType, _targetDevice, additionalConfig] =
+            basicParamsSet;
+        inType = _inType;
+        outType = _outType;
+        targetDevice = _targetDevice;
+        init_input_shapes(shapeRelatedParams.inputShapes);
+
+        bool transpA = shapeRelatedParams.transpose.first;
+        bool transpB = shapeRelatedParams.transpose.second;
+
+        const auto& inShapeA = inputDynamicShapes[0];
+        const auto& inShapeB = inputDynamicShapes[1];
+
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
+
+        auto it = additionalConfig.find(ov::hint::inference_precision.name());
+        ov::element::Type inference_precision =
+            (it != additionalConfig.end()) ? it->second.as<ov::element::Type>() : ov::element::dynamic;
+        auto netType = _netType;
+        if (inference_precision == ov::element::bf16) {
+            inType = outType = netType = ElementType::bf16;
+            rel_threshold = abs_threshold = 1e-2f;
+        } else if (inference_precision == ov::element::f16) {
+            inType = outType = netType = ElementType::f16;
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+            // rel_threshold = abs_threshold = 1e-2f;
+            // Temporarily created the following rel_threshold because of this bug CVS-144523 and
+            // https://github.com/ARM-software/ComputeLibrary/issues/1112
+            rel_threshold = abs_threshold = 3e-1f;
+#else
+            rel_threshold = abs_threshold = 1e-4f;
+#endif
+        } else {
+            inType = outType = netType;
+            rel_threshold = 1e-4f;
+            abs_threshold = 5e-4f;
+        }
+
+        cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
+        selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(outType, configuration));
+
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netType, inShapeA)};
+
+        std::shared_ptr<ov::Node> matrixB;
+        if (secondaryInputType == utils::InputLayerType::PARAMETER) {
+            auto param = std::make_shared<ov::op::v0::Parameter>(netType, inShapeB);
+            matrixB = param;
+            params.push_back(param);
+        } else {
+            ASSERT_TRUE(inShapeB.is_static());
+            auto tensor = ov::test::utils::create_and_fill_tensor(netType, inShapeB.to_shape());
+            matrixB = std::make_shared<ov::op::v0::Constant>(tensor);
+        }
+
+        ov::OutputVector paramOuts;
+        for (auto&& node : params) {
+            for (auto&& param : node->outputs())
+                paramOuts.push_back(param);
+        }
+
+        auto matMul = std::make_shared<ov::op::v0::MatMul>(paramOuts[0], matrixB, transpA, transpB);
+        function = makeNgraphFunction(netType, params, matMul, cpuNodeType);
+        checkFusingPosition = false;
+    }
+};
+
+TEST_P(MatMul3DWeightLayerCPUTest, CompareWithRefs) {
+    run();
+}
+
+const std::vector<ShapeRelatedParams> IS_3D_weight = {
+    {
+        {
+            {{32, -1, 28}, {{32, 4, 28}}},
+            {{32, 56, 28}, {{32, 56, 28}}}
+        },
+        {false, true}
+    },
+    {
+        {
+            {{32, -1, 28}, {{32, 4, 28}}},
+            {{32, 28, 56}, {{32, 28, 56}}}
+        },
+        {false, false}
+    }
+};
+
+const auto matMulParams_3D_weight = ::testing::Combine(::testing::ValuesIn(IS_3D_weight),
+                                                       ::testing::Values(element::f32),
+                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::Values(utils::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                       ::testing::Values(ov::AnyMap{}));
+
+const auto testParams_IS_3D_weight = ::testing::Combine(matMulParams_3D_weight,
+                                     ::testing::Values(MatMulNodeType::MatMul),
+                                     ::testing::ValuesIn(matmulFusingParams()),
+                                     ::testing::Values(CPUSpecificParams()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_IS_3D_weight, MatMul3DWeightLayerCPUTest, testParams_IS_3D_weight, MatMul3DWeightLayerCPUTest::getTestCaseName);
+
 }  // namespace
 }  // namespace MatMul
 }  // namespace test
