@@ -180,6 +180,7 @@ std::vector<ov::SoPtr<ov::ITensor>> ov::npuw::IBaseInferRequest::get_tensors(
 
 void ov::npuw::IBaseInferRequest::set_tensors(const ov::Output<const ov::Node>&,
                                               const std::vector<ov::SoPtr<ov::ITensor>>&) {
+    std::cout << "===== ov::npuw::IBaseInferRequest::set_tensor ====>" << std::endl;
     OPENVINO_NOT_IMPLEMENTED;
 }
 

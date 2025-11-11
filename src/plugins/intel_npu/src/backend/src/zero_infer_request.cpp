@@ -433,6 +433,8 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
 void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                                    const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
+    std::cout << " =====npu ZeroInferRequest===> port is " << port << std::endl;
+    std::cout << "  ==npu ZeroInferRequest==> ZeroInferRequest::set_tensors ====>, tensors.size() is " << tensors.size() << std::endl;
     OV_ITT_TASK_CHAIN(ZERO_SET_TENSORS, itt::domains::LevelZeroBackend, "set_tensors", "set_tensors");
     if (tensors.size() == 1) {
         set_tensor(port, tensors[0]);

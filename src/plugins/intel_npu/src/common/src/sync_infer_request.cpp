@@ -20,6 +20,7 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& 
       _logger("SyncInferRequest", config.get<LOG_LEVEL>()),
       _userInputTensors(_metadata.inputs.size(), std::vector<ov::SoPtr<ov::ITensor>>(1, {nullptr})),
       _userOutputTensors(_metadata.outputs.size(), {nullptr}) {
+
     OPENVINO_ASSERT(_compiledModel);
 
     if (get_outputs().empty()) {
@@ -155,6 +156,8 @@ std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Outp
 
 void SyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                                    const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
+    std::cout << " =====npu===> port is " << port << std::endl;
+    std::cout << "  ==npu==> SyncInferRequest::set_tensors ====>, tensors.size() is " << tensors.size() << std::endl;
     OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "set_tensors");
     if (tensors.size() == 1) {
         set_tensor(port, tensors[0]);
@@ -303,14 +306,49 @@ void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
     }
 }
 
+void print_tensor_raw(const std::shared_ptr<ov::ITensor>& tensor) {
+    auto element_type = tensor->get_element_type();
+    size_t byte_size = tensor->get_byte_size();
+    size_t element_size = element_type.size();
+    size_t num_elements = tensor->get_size();
+    
+    // 获取原始指针
+    const void* raw_data = tensor->data();
+    
+    std::cout << "Raw Tensor Data:" << std::endl;
+    std::cout << "  Element Size: " << element_size << " bytes" << std::endl;
+    std::cout << "  Total Size: " << byte_size << " bytes" << std::endl;
+    
+    // 转换为 uint8_t* 逐字节打印
+    const uint8_t* bytes = static_cast<const uint8_t*>(raw_data);
+    std::cout << "  First 32 bytes (hex): ";
+    for (size_t i = 0; i < std::min(byte_size, size_t(32)); ++i) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0') 
+                  << static_cast<int>(bytes[i]) << " ";
+    }
+    std::cout << std::dec << std::endl;
+}
+
 void SyncInferRequest::check_tensors() const {
+    std::cout << "--------- SyncInferRequest::check_tensors()------------" << std::endl;
     const auto& inputs = _compiledModel->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
+        std::cout << " --------- SyncInferRequest: index: " << i << "  inputs: " << inputs[i] << std::endl;
         if (is_batched_input(i)) {
+            std::cout << " --------- SyncInferRequest: index: 11"<< std::endl;
+            auto get_user_inputs_all = get_user_inputs(i);
+            for(auto it : get_user_inputs_all) {
+                if (it) {
+                    std::cout << "i : " << i << " ";
+                    print_tensor_raw(it);
+                }
+            }
             check_batched_tensors(inputs[i], get_user_inputs(i));
             continue;
         }
         if (get_user_input(i)) {
+            std::cout << " --------- SyncInferRequest: index: 22"<< std::endl;
+            print_tensor_raw(*(get_user_input(i)));
             check_tensor(inputs[i], get_user_input(i));
         }
     }
@@ -318,6 +356,7 @@ void SyncInferRequest::check_tensors() const {
     const auto& outputs = _compiledModel->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
         if (_userOutputTensors.at(i)) {
+            std::cout << " --------- SyncInferRequest: index: 33"<< std::endl;
             check_tensor(outputs[i], _userOutputTensors.at(i));
         }
     }

@@ -161,7 +161,9 @@ TEST_P(BatchedTensorsRunTests, SetInputRemoteTensorsMultipleInfer) {
             auto* f = tensors[i].data<float>();
             for (size_t j = 0; j < one_shape_size; ++j) {
                 f[j] = static_cast<float>(testNum + 20);
+                std::cout << "  " << f[j]  << " ";
             }
+            std::cout << std::endl;
         }
         req.infer();  // Adds '1' to each element
         for (size_t j = 0; j < one_shape_size * batch; ++j) {
@@ -509,7 +511,7 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsMultipleInfer)
         auto tensor = context.create_host_tensor(ov::element::f32, one_shape);
         tensors.push_back(std::move(tensor));
     }
-    req.set_tensors("tensor_input0", tensors);
+    req.set_tensors("tensor_input0", tensors);/// get issue?
 
     auto actual_tensor = req.get_tensor("tensor_output0");
     auto* actual = actual_tensor.data<float>();

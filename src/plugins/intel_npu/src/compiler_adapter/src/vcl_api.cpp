@@ -110,7 +110,7 @@ const std::shared_ptr<VCLApi>& VCLApi::getInstance() {
     return instance;
 }
 
-VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", ov::log::Level::DEBUG) {
+VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", ov::log::Level::INFO) {
     _logger.debug("VCLCompilerImpl constructor start");
     // Initialize the VCL API
     THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
