@@ -1266,25 +1266,28 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
     std::shared_future<void> weights_bank_evaluation = std::async(std::launch::async, [&]() {
         // Register lazy tensors
-        for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
-            auto& comp_model_desc = m_compiled_submodels[idx];
 
-            // Skip optimized out and non-functions
-            if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
-                continue;
-            }
+        m_profile["register lazy tensor"].record([&]() {
+            for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+                auto& comp_model_desc = m_compiled_submodels[idx];
 
-            const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-            auto& func_desc = m_compiled_submodels[real_idx];
-
-            for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
-                if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
-                    continue;  // host-side closure
+                // Skip optimized out and non-functions
+                if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+                    continue;
                 }
-                comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
-                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
+
+                const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+                auto& func_desc = m_compiled_submodels[real_idx];
+
+                for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
+                    if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
+                        continue;  // host-side closure
+                    }
+                    comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
+                        m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
+                }
             }
-        }
+        });
 
         // Evaluate and allocate all LazyTensors inside the bank
         m_profile["weights bank"].record([&]() {
