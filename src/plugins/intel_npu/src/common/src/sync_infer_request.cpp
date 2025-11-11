@@ -338,10 +338,8 @@ void SyncInferRequest::check_tensors() const {
             std::cout << " --------- SyncInferRequest: index: 11"<< std::endl;
             auto get_user_inputs_all = get_user_inputs(i);
             for(auto it : get_user_inputs_all) {
-                if (it) {
                     std::cout << "i : " << i << " ";
                     print_tensor_raw(it);
-                }
             }
             check_batched_tensors(inputs[i], get_user_inputs(i));
             continue;
