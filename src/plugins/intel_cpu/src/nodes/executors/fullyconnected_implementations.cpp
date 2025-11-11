@@ -171,7 +171,7 @@ static const TypeMapping dnnlMatMulTypeMapping {
     return config.attrs.postOps.empty();
 }
 
-[[maybe_unused]] static inline bool is3DMatMulSupportedPrecision(const FCConfig& config) {
+[[maybe_unused]] static inline bool dnnlMatMulSupportedPrecision(const FCConfig& config) {
     // support regular float type matmul
     if (any_of(srcType(config), f32, f16, bf16) && any_of(weiType(config), f32, f16, bf16)) {
         return true;
@@ -421,7 +421,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                         return true;
                     })
-                VERIFY(is3DMatMulSupportedPrecision(config), UNSUPPORTED_SRC_WEI_PRECISIONS);
+                VERIFY(dnnlMatMulSupportedPrecision(config), UNSUPPORTED_SRC_WEI_PRECISIONS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
                 VERIFY(weiDims(config)[0] > 1, UNSUPPORTED_WEI_RANK);
