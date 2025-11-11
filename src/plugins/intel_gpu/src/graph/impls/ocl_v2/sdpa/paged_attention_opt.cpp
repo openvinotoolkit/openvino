@@ -909,7 +909,6 @@ protected:
         jit.make("KV_HEADS_NUM", desc->kv_heads_num);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         jit.make("SUBGROUP_SIZE", subgroup_size);
-        
         const bool is_kv_compressed = get_kv_compressed(params);
         jit.make("IS_KV_COMPRESSED", is_kv_compressed ? 1 : 0);
 
