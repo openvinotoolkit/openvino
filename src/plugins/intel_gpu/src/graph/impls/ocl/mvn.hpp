@@ -22,7 +22,12 @@ struct MVNImplementationManager : public ImplementationManager {
         const auto& input_layout = node.get_input_layout(0);
         const auto& output_layout = node.get_output_layout(0);
 
-        static const std::vector<format> supported_fmts = {
+        static const std::vector<format> supported_dynamic_fmts = {
+            format::bfyx,
+            format::bfzyx,
+        };
+
+        static const std::vector<format> supported_static_fmts = {
             format::bfyx,
             format::b_fs_yx_fsv16,
             format::bs_fs_yx_bsv32_fsv16,
@@ -45,8 +50,13 @@ struct MVNImplementationManager : public ImplementationManager {
             ov::element::u8,
         };
 
-        if (!one_of(input_layout.format, supported_fmts) || !one_of(output_layout.format, supported_fmts))
-            return false;
+        if (m_shape_type == shape_types::dynamic_shape) {
+            if (!one_of(input_layout.format, supported_dynamic_fmts) || !one_of(output_layout.format, supported_dynamic_fmts))
+                return false;
+        } else {
+            if (!one_of(input_layout.format, supported_static_fmts) || !one_of(output_layout.format, supported_static_fmts))
+                return false;
+        }
 
         if (!one_of(input_layout.data_type, supported_in_types) || !one_of(output_layout.data_type, supported_out_types))
             return false;
