@@ -402,6 +402,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
 
 #if defined(OPENVINO_ARCH_X86_64)
     std::vector<ov::element::Type> supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16,
+                                                                                               ov::element::bf16,
                                                                                                ov::element::f32,
                                                                                                ov::element::u32,
                                                                                                ov::element::i32,
