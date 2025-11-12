@@ -483,7 +483,6 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     if (_backend && _backend->isCommandQueueExtSupported()) {
         cfg.enable(ov::intel_npu::turbo.name(), true);
     }
-    cfg.setFiltered();
 }
 
 void Plugin::filter_global_config_safe(const std::map<std::string, std::string>& additionalConfig) const {
@@ -496,6 +495,8 @@ void Plugin::filter_global_config_safe(const std::map<std::string, std::string>&
         filter_config_by_compiler_support(_globalConfig);
         // reset properties for the new options
         _properties->registerProperties();
+        // set globalConfig as filtered
+        _globalConfig.setFiltered();
     }
 }
 
@@ -523,6 +524,8 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
             // enable/disable config keys based on what the new compiler supports
             filter_config_by_compiler_support(*localConfigPtr);
             compiler_changed = true;
+            // set localConfig as filtered
+            localConfigPtr->setFiltered();
         }
     }
 
