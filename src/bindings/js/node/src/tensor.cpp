@@ -202,9 +202,8 @@ Napi::Value TensorWrap::set_shape(const Napi::CallbackInfo& info) {
 Napi::Value TensorWrap::copy_to(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
 
-    OPENVINO_ASSERT(info.Length() == 1, "copyTo() must receive one argument, which is the destination Tensor.");
-
     try {
+        OPENVINO_ASSERT(info.Length() == 1, "copyTo() must receive one argument, which is the destination Tensor.");
         OPENVINO_ASSERT(ov::js::validate_value<TensorWrap>(env, info[0]), "The argument must be a Tensor object.");
         auto dst_tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
 
