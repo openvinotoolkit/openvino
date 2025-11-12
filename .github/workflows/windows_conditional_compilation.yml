@@ -200,9 +200,9 @@ jobs:
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCMAKE_JOB_POOLS:STRING="build_pool=32\;link_pool=1" `
-            -DCMAKE_JOB_POOL_COMPILE:STRING="build_pool" `
-            -DCMAKE_JOB_POOL_LINK:STRING="link_pool" `
+            -DCMAKE_JOB_POOLS:STRING="build=32\;link=1" `
+            -DCMAKE_JOB_POOL_COMPILE:STRING="build" `
+            -DCMAKE_JOB_POOL_LINK:STRING="link" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
