@@ -69,6 +69,7 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_MAX_LORA_RANK>();
     desc.add<NPUW_LLM_OPTIMIZE_V_TENSORS>();
     desc.add<NPUW_LLM_CACHE_ROPE>();
+    desc.add<NPUW_LLM_KVCACHE_VARIANTS>();
     desc.add<NPUW_LLM_PREFILL_CHUNK_SIZE>();
     desc.add<NPUW_LLM_ENABLE_PREFIX_CACHING>();
     desc.add<NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE>();
