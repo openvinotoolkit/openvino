@@ -16,6 +16,7 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
+#include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
 
@@ -69,7 +70,17 @@ public:
     virtual std::size_t total_subrequests() const;
     virtual bool supports_async_pipeline() const = 0;
 
+    void update_history_size(int64_t history_size) {
+        m_history_size = history_size;
+    }
+
+    int64_t get_history_size() const {
+        return m_history_size;
+    }
+
 protected:
+    int64_t m_history_size = 0;
+
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
     using RqPtrs = std::vector<RqPtr>;
 
@@ -136,6 +147,9 @@ protected:
     // Same thing about this one
     runtime::attention::Selector::Ptr m_attention_selector;
 
+    // Separate selector for pyramid attention
+    runtime::pyramid_attention::Selector::Ptr m_pyramid_selector;
+
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters
     // and results. Again, is managed by subclasses
@@ -168,6 +182,7 @@ protected:
     void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
     void bind_attention_inputs(std::size_t idx, RqPtr request);
+    void bind_pyramid_attention_inputs(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);

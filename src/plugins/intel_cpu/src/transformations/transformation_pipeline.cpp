@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <ov_ops/gather_compressed.hpp>
 #include <set>
 #include <vector>
 
@@ -50,6 +49,7 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "ov_ops/gather_compressed.hpp"
 
 // Common transformations
 #include "openvino/pass/constant_folding.hpp"
@@ -233,6 +233,7 @@
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
 #    include "snippets/pass/split_dimension_m.hpp"
+#    include "snippets/utils/tokenization_utils.hpp"
 #    include "transformations/common_optimizations/rms_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
@@ -266,6 +267,7 @@
 #    include "low_precision/reduce_min.hpp"
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
+#    include "snippets/utils/tokenization_utils.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -514,8 +516,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                               {ov::element::u32, ov::element::i32},
                               {ov::element::f64, ov::element::f32},
                               {ov::element::boolean, ov::element::u8},
-                              {ov::element::i4, ov::element::i8},
-                              {ov::element::u4, ov::element::u8}};
+                              {ov::element::u4, ov::element::u8},
+                              {ov::element::i4, ov::element::i8}};
 
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!hasHardwareSupport(ov::element::bf16)) {
@@ -557,7 +559,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             });
         },
         ov::pass::KeepConstAndDecompression);
-
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
@@ -602,8 +603,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     };
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
-    CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
-    CPU_SET_CALLBACK_X64(
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
+    CPU_SET_CALLBACK_COMMON(
         manager,
         [&](const_node_ptr& node) -> bool {
             return !is_decompression_multiply(node);
@@ -653,6 +654,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                              convert_input_output_precision);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateIdentityConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
@@ -1045,7 +1047,7 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Lpt);
 
     CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "LowPrecisionTransformations");
 
     runLptPasses(defaultPrecisions);
 }
@@ -1226,6 +1228,17 @@ void Transformations::MainSnippets() {
     // Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
     CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
+#if defined(OPENVINO_ARCH_X86_64)
+    common_optimizations_config.set_transpose_support_callback(
+        ov::snippets::utils::make_transpose_support_callback(true));
+#elif defined(OPENVINO_ARCH_ARM64)
+    common_optimizations_config.set_transpose_support_callback(
+        ov::snippets::utils::make_transpose_support_callback(false));
+#else
+    common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>&) -> bool {
+        return false;
+    });
+#endif
 
     // [111813]: At the moment Snippets supports Transpose on output of MHA pattern only if it is an one node between
     // MatMul and Result. However there may be Convert [f32->bf16] before Result since:
@@ -1642,6 +1655,10 @@ void Transformations::PostSnippets() {
 }
 
 void Transformations::Snippets() {
+#if defined(ANDROID) || defined(__ANDROID__)
+    // On Android builds, disable CPU Snippets transformations entirely
+    return;
+#endif
     const bool useSnippets = config.snippetsMode != Config::SnippetsMode::Disable &&
                              CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
     if (!useSnippets) {

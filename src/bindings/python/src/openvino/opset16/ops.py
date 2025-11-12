@@ -9,7 +9,7 @@ from typing import Optional, Literal
 from openvino import Node
 from openvino.utils.decorators import nameable_op
 from openvino.utils.node_factory import _get_node_factory
-from openvino.utils.types import NodeInput, as_nodes
+from openvino.utils.types import NodeInput, as_nodes, as_node, TensorShape
 
 _get_node_factory_opset16 = partial(_get_node_factory, "opset16")
 
@@ -121,4 +121,96 @@ def sparse_fill_empty_rows(
         "SparseFillEmptyRows",
         as_nodes(values, dense_shape, indices, default_value, name=name),
         {},
+    )
+
+
+@nameable_op
+def avg_pool(
+    data_batch: NodeInput,
+    strides: list[int],
+    pads_begin: TensorShape,
+    pads_end: TensorShape,
+    kernel_shape: TensorShape,
+    exclude_pad: bool,
+    rounding_type: str = "floor",
+    auto_pad: Optional[str] = None,
+    dilations: Optional[list[int]] = None,
+    name: Optional[str] = None,
+) -> Node:
+    """Return average pooling node.
+
+    :param data_batch:      The input node providing data.
+    :param strides:         The window movement strides.
+    :param pads_begin:      The number of pixels to add at the beginning along each axis.
+    :param pads_end:        The number of pixels to add at the end along each axis.
+    :param kernel_shape:    The pooling window shape.
+    :param exclude_pad:     Whether or not to include zero padding in average computations.
+    :param rounding_type:   Determines used rounding schema when computing output shape. Acceptable
+                            values are: ['floor', 'ceil', 'ceil_torch']. Defaults to 'floor'.
+    :param auto_pad:        Determines how the padding is calculated. Acceptable values:
+                            [None, 'same_upper', 'same_lower', 'valid']. Defaults to None.
+    :param dilations:       The index of the next pixel to select when pooling. If not provided,
+                            defaults to [1, 1, ...] (no dilation).
+    :param name:            Optional name for the new output node.
+
+    :return: New node with AvgPool operation applied on its data.
+    """
+    if auto_pad is None:
+        auto_pad = "explicit"
+
+    attributes = {
+        "strides": strides,
+        "pads_begin": pads_begin,
+        "pads_end": pads_end,
+        "kernel": kernel_shape,
+        "exclude-pad": exclude_pad,
+        "rounding_type": rounding_type.upper(),
+        "auto_pad": auto_pad.upper(),
+    }
+
+    if dilations is not None:
+        attributes["dilations"] = dilations
+
+    return _get_node_factory_opset16().create(
+        "AvgPool",
+        [as_node(data_batch, name=name)],
+        attributes,
+    )
+
+
+@nameable_op
+def one_hot(
+    indices: NodeInput,
+    depth: NodeInput,
+    on_value: NodeInput,
+    off_value: NodeInput,
+    axis: int,
+    negative_indices_mode: Optional[str] = None,
+    name: Optional[str] = None,
+) -> Node:
+    """Create node performing one-hot encoding on input data.
+
+    :param indices: Input tensor of rank N with indices of any supported integer data type.
+    :param depth: Scalar of any supported integer type that specifies number of classes and
+                  the size of one-hot dimension.
+    :param on_value: Scalar of any type that is the value that the locations
+                     in output tensor represented by indices in input take.
+    :param off_value: Scalar of any type that is the value that the locations not represented
+                      by indices in input take.
+    :param axis: New axis position in the output shape to fill with one-hot values.
+    :param negative_indices_mode: Controls how negative indices are handled. Can be 'ignore_negative'
+                                  (negative indices are ignored and filled with off_value) or
+                                  'normalize' (negative indices in range [-depth, -1] are normalized).
+                                  If not provided, defaults to 'ignore_negative'.
+    :param name: The optional name for new output node.
+    :return: New node performing one-hot operation.
+    """
+    attributes = {"axis": axis}
+    if negative_indices_mode is not None:
+        attributes["negative_indices_mode"] = negative_indices_mode
+
+    return _get_node_factory_opset16().create(
+        "OneHot",
+        as_nodes(indices, depth, on_value, off_value, name=name),
+        attributes,
     )

@@ -178,7 +178,7 @@ void Snapshot::splitMixedPrecision() {
         // Otherwise need to split repeated block based on consts precisions
         for (const auto& elem : prec_to_new_gset) {
             // Assign new reptags - basically create a new repeated block
-            std::shared_ptr<Repeated> rep = std::make_shared<Repeated>();
+            std::shared_ptr<Repeated> rep = std::make_shared<Repeated>(getNextRepId());
 
             LOG_VERB("Identified mixed precision, splitting a new repeated block of " << elem.second.size()
                                                                                       << " groups.");
@@ -531,7 +531,8 @@ void Snapshot::earlyRegroup() {
             HNDL_FAKE(FakeConvert);
             HNDL_FAKE(FakeQuantize);
             HNDL_ATTN(SDPA);
-#undef HNDL_SPDA
+            HNDL_ATTN(SDPADecomposed);
+#undef HNDL_ATTN
 #undef HNDL_FAKE
 #undef HNDL
         }
@@ -600,7 +601,7 @@ void Snapshot::identifyUniques() {
 
     for (const auto& elem : uniques) {
         if (elem.second.size() > 1) {
-            std::shared_ptr<Repeated> rep = std::make_shared<Repeated>();
+            std::shared_ptr<Repeated> rep = std::make_shared<Repeated>(getNextRepId());
 
             for (const auto& gptr : elem.second) {
                 gptr->setRepeated(rep);
@@ -837,7 +838,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
     // Fuse bases step by step into apexes
     std::shared_ptr<Repeated> new_rep = nullptr;
     for (const auto& mic : mic2) {
-        new_rep = std::make_shared<Repeated>();
+        new_rep = std::make_shared<Repeated>(getNextRepId());
         for (const auto& same_cons : mic.second) {
             auto prod = cons_prod_cache[same_cons];
             prod->fuseWith(same_cons);
@@ -1040,7 +1041,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeRepeating(const std::vector<Group::G
         return {};
     }
 
-    std::shared_ptr<Repeated> new_rep = std::make_shared<Repeated>();
+    std::shared_ptr<Repeated> new_rep = std::make_shared<Repeated>(getNextRepId());
 
     for (size_t i = 0; i < conss.size(); ++i) {
         conss.at(i)->fuse(prods.at(i));
@@ -1190,7 +1191,7 @@ void Snapshot::completeRepeating(const std::shared_ptr<Repeated>& reptag, const 
         }
     }
 
-    std::string tag = ov::npuw::online::util::repeated_id(reptag);
+    std::string tag = reptag->id();
     m_layer_matches.insert({tag, layer_matches});
 }
 
@@ -1267,4 +1268,8 @@ void Snapshot::stripTag(const std::string& tag) {
             gptr->dontIsolate();
         }
     }
+}
+
+size_t Snapshot::getNextRepId() {
+    return m_current_rep_count++;
 }

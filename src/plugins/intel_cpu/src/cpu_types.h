@@ -9,12 +9,13 @@
 #include <string>
 #include <vector>
 
+#include "openvino/core/shape.hpp"
 #include "utils/caseless.hpp"
 
 namespace ov::intel_cpu {
 
-using Dim = std::size_t;
-using VectorDims = std::vector<Dim>;
+using VectorDims = ov::Shape;
+using Dim = typename VectorDims::value_type;
 
 std::string dim2str(Dim dim);
 std::string dims2str(const VectorDims& dims);
@@ -114,6 +115,7 @@ enum class Type : uint8_t {
     ExperimentalDetectronGenerateProposalsSingleImage,
     ExtractImagePatches,
     GenerateProposals,
+    Identity,
     Inverse,
     NonMaxSuppression,
     MatrixNms,
@@ -136,7 +138,8 @@ enum class Type : uint8_t {
     RMS,
     SearchSorted,
     SegmentMax,
-    LoRA
+    LoRA,
+    GatherMatmul
 };
 
 enum class Algorithm : uint8_t {

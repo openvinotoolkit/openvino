@@ -452,9 +452,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_quantize_u8_input_range, ::testing
 
 class fc_int8_quantize_u8 : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_quantize_u8, basic) {
-    // TODO: Fix me, refer PR(#15873)
-    if (engine.get_device_info().supports_immad)
-        return;
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -485,9 +482,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_quantize_u8, ::testing::ValuesIn(s
 
 class fc_int8_eltwise_quantize_i8 : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_eltwise_quantize_i8, basic) {
-    // TODO: Fix me, refer PR(#15873)
-    if (engine.get_device_info().supports_immad)
-        return;
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -517,6 +511,44 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise_quantize_i8, ::testing::Va
     fully_connected_test_params{ CASE_FC_U8S8_3D_2, 2, 4 },
     fully_connected_test_params{ CASE_FC_U8S8_3D_3, 2, 4 },
 }));
+
+class fc_int8_eltwise_quantize_i8_dynamic : public FullyConnectedFusingTest {};
+
+TEST_P(fc_int8_eltwise_quantize_i8_dynamic, basic) {
+    auto p = GetParam();
+
+    auto test_input_layout = get_input_layout(p);
+    auto input_layout_dyn = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()), test_input_layout.data_type, test_input_layout.format};
+
+    create_topologies(
+        input_layout("input", input_layout_dyn),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f / get_weights_layout(p).count() / 255)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, get_output_dim_size(p), get_input_weights_rank(p)),
+        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
+        quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
+    );
+
+    bool is_dynamic = true;
+    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    tolerance = 1e-5f;
+    execute(p, is_dynamic);
+}
+
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise_quantize_i8_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_U8S8_1, 2, 4 },
+    fully_connected_test_params{ CASE_FC_U8S8_3D_2, 2, 4 },
+}));
+
 
 class fc_int8_eltwise_activation_quantize_i8 : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_eltwise_activation_quantize_i8, basic) {
@@ -772,7 +804,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_int8_bias_eltwise_quantize_u
     fully_connected_test_params{ CASE_FC_FP16_3D_INT8_COMP_1, 2, 5 },
 }));
 
-// Check whether dyn_quan_fc can create quantized output. Currently, OneDNN cannot.
 class fc_compressed_dyn_quan_and_quantized : public FullyConnectedFusingTestOneDNN {};
 TEST_P(fc_compressed_dyn_quan_and_quantized, basic) {
     auto p = GetParam();
@@ -781,7 +812,7 @@ TEST_P(fc_compressed_dyn_quan_and_quantized, basic) {
     if (!engine.get_device_info().supports_immad)
         return;
 
-    auto fc_prim_fused = fully_connected("fc_prim", input_info("dyn_quan", 0), "weights", "", "scale", "", input_info("dyn_quan", 1), input_info("", 0), data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
+    auto fc_prim_fused = fully_connected("fc_prim", input_info("dyn_quan", 0), "weights", "", "scale", "", input_info("dyn_quan", 1), input_info("", 0), input_info("", 0), data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
     auto fc_prim_unfused = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
     auto weights = data("weights", get_mem(get_weights_layout(p)));
     auto scale = data("scale", get_mem(get_scale_layout(p, 128), 0.05f));
@@ -799,7 +830,6 @@ TEST_P(fc_compressed_dyn_quan_and_quantized, basic) {
     dyn_quan_attr.scale_dt = ov::element::f16;
     dyn_quan_attr.quantization_dt = ov::element::i8;
 
-    // OneDNN does not support quantized output of dyn_quan_fc
     topology_fused.add(
         input_layout("input", get_input_layout(p)),
         weights, scale, in_lo, in_hi, out_lo, out_hi,
@@ -829,7 +859,7 @@ TEST_P(fc_compressed_dyn_quan_and_quantized, basic) {
 
 #define CASE_FC_FP16_INT8_COMP_DYN_QUAN { 64, 128 }, { 64, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_dyn_quan_and_quantized, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
-    fully_connected_test_params{ CASE_FC_FP16_INT8_COMP_DYN_QUAN, 4, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_INT8_COMP_DYN_QUAN, 3, 3 },
 }));
 
 class fc_compressed_int8_bias_dynamic_onednn : public FullyConnectedFusingTestOneDNN {};
@@ -884,11 +914,11 @@ TEST_P(fc_compressed_int8_bias_prod_unfused_dynamic_onednn, basic) {
 
     auto mul_data_shape = layout{ mul_data_partial_shape, p.default_type, p.default_format };
 
-    auto supports_immad = engine.get_device_info().supports_immad;
-    auto dcomp_zp_name = supports_immad ? "" : "";
+    auto dcomp_zp_name = "";
+    auto dyn_quan_precompute = input_info("", 0);
 
     auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
-    auto fc_prim_dyn_quan = fully_connected("fc_prim", input_info("dyn_quan", 0), "weights", "", "scale", dcomp_zp_name, input_info("dyn_quan", 1), input_info(""), data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
+    auto fc_prim_dyn_quan = fully_connected("fc_prim", input_info("dyn_quan", 0), "weights", "", "scale", dcomp_zp_name, input_info("dyn_quan", 1), input_info(""), dyn_quan_precompute, data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
 
     auto dcomp_zp_layout = layout{ {1, 1}, data_types::u8, format::bfyx };
 

@@ -26,7 +26,7 @@ typedef _crt_signal_t sighandler;
 typedef sighandler_t sighandler;
 #endif
 
-// enviroment to restore in case of crash
+// environment to restore in case of crash
 jmp_buf env;
 unsigned int CrashHandler::MAX_TEST_WORK_TIME = UINT_MAX;
 bool CrashHandler::IGNORE_CRASH = false;
@@ -40,7 +40,7 @@ CrashHandler::CrashHandler(CONFORMANCE_TYPE type) {
     sighandler crashHandler = [](int errCode) {
         std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
 
-        // reset custom signal handler to avoid infinit loop
+        // reset custom signal handler to avoid infinite loop
         // if for some reasons sigsetjmp will not be available
         signal(SIGABRT, SIG_DFL);
         signal(SIGSEGV, SIG_DFL);
@@ -77,7 +77,7 @@ CrashHandler::CrashHandler(CONFORMANCE_TYPE type) {
             std::cerr << "Unexpected application crash with code: " << errCode << ". Program will aborted."
                       << std::endl;
 
-            // reset custom signal handler to avoid infinit loop
+            // reset custom signal handler to avoid infinite loop
             // if for some reasons sigsetjmp will not be available
             signal(SIGABRT, SIG_DFL);
             signal(SIGSEGV, SIG_DFL);
@@ -105,7 +105,7 @@ CrashHandler::CrashHandler(CONFORMANCE_TYPE type) {
 }
 
 CrashHandler::~CrashHandler() {
-    // reset custom signal handler to avoid infinit loop
+    // reset custom signal handler to avoid infinite loop
     signal(SIGABRT, SIG_DFL);
     signal(SIGSEGV, SIG_DFL);
     signal(SIGILL, SIG_DFL);
