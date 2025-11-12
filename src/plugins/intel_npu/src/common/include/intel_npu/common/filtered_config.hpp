@@ -121,21 +121,21 @@ public:
     std::string toStringForCompiler() const;
 
     /**
-     * @brief Marks config as filtered
+     * @brief Marks config as initialized
      */
-    void setFiltered();
+    void markAsInitialized();
 
     /**
-     * @brief Checks whether config was filtered
+     * @brief Checks whether config was initialized
      */
-    bool wasFiltered() const;
+    bool wasInitialized() const;
 
 private:
     EnableMap _enabled;  ///< Map to track whether specific configuration keys are enabled or disabled.
 
     ConfigMap _internal_compiler_configs;  ///< Map to store internal (hidden) configurations used for compiler.
 
-    bool _filtered = false;  ///< Boolean to check whether config was filtered with compiler supported properties
+    bool _initialized = false;  ///< Boolean to check whether config was filtered with compiler supported properties
 };
 
 }  // namespace intel_npu

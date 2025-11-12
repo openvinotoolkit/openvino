@@ -14,7 +14,6 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/npuw.hpp"
-#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "npuw/compiled_model.hpp"
@@ -485,18 +484,18 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     }
 }
 
-void Plugin::filter_global_config_safe(const std::map<std::string, std::string>& additionalConfig) const {
+void Plugin::filter_global_config_safe(const std::optional<ov::intel_npu::CompilerType>& compilerChange) const {
     std::lock_guard<std::mutex> lock(_mutex);
-    if (additionalConfig.size() > 0) {
-        _globalConfig.update(additionalConfig);
+    if (compilerChange.has_value()) {
+        _globalConfig.update({{std::string(COMPILER_TYPE::key()), COMPILER_TYPE::toString(compilerChange.value())}});
     }
-    if (!_globalConfig.wasFiltered()) {
+    if (!_globalConfig.wasInitialized() || compilerChange.has_value()) {
         // filter out unsupported options
         filter_config_by_compiler_support(_globalConfig);
         // reset properties for the new options
         _properties->registerProperties();
         // set globalConfig as filtered
-        _globalConfig.setFiltered();
+        _globalConfig.markAsInitialized();
     }
 }
 
@@ -525,12 +524,13 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
             filter_config_by_compiler_support(*localConfigPtr);
             compiler_changed = true;
             // set localConfig as filtered
-            localConfigPtr->setFiltered();
+            localConfigPtr->markAsInitialized();
         }
     }
 
-    // If localConfig was not filtered not even by compiler type change, then _globalConfig needs also initialization
-    if (!localConfigPtr->wasFiltered()) {
+    // If localConfig was not initialized not even by compiler type change, then both localConfig and _globalConfig need
+    // to be initialized
+    if (!localConfigPtr->wasInitialized()) {
         filter_global_config_safe();
         {
             std::lock_guard<std::mutex> lock(_mutex);
@@ -580,11 +580,11 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         auto it = properties.find(std::string(COMPILER_TYPE::key()));
         if (it != properties.end()) {
             // enable/disable config keys based on what the new compiler supports
-            filter_global_config_safe({{std::string(COMPILER_TYPE::key()), it->second.as<std::string>()}});
+            filter_global_config_safe(COMPILER_TYPE::parse(it->second.as<std::string>()));
         }
     }
 
-    // 2. Check if configs have been filtered
+    // 2. Check if configs have been initialized
     for (const auto& prop : properties) {
         if (!_properties->isPropertyRegistered(prop.first)) {
             filter_global_config_safe();

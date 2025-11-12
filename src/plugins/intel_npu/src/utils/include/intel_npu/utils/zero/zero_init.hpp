@@ -52,13 +52,13 @@ public:
     inline uint32_t getDriverVersion() const {
         return driver_properties.driverVersion;
     }
-    inline uint32_t getCompilerVersion() const {
+    uint32_t getCompilerVersion() {
         if (!compiler_properties) {
             (void)getCompilerProperties();
         }
         return ZE_MAKE_VERSION(compiler_properties->compilerVersion.major, compiler_properties->compilerVersion.minor);
     }
-    inline ze_device_graph_properties_t getCompilerProperties() const {
+    ze_device_graph_properties_t getCompilerProperties() {
         std::lock_guard<std::mutex> lock(_mutex);
         if (!compiler_properties) {
             // Obtain compiler-in-driver properties
@@ -118,12 +118,12 @@ private:
 
     ze_api_version_t ze_drv_api_version = {};
 
-    mutable std::unique_ptr<ze_device_graph_properties_t> compiler_properties = nullptr;
+    std::unique_ptr<ze_device_graph_properties_t> compiler_properties = nullptr;
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
 
-    mutable std::mutex _mutex;
+    std::mutex _mutex;
 };
 
 }  // namespace intel_npu

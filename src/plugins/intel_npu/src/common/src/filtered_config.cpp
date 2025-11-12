@@ -135,12 +135,12 @@ std::string FilteredConfig::toStringForCompiler() const {
     return resultStream.str();
 }
 
-void FilteredConfig::setFiltered() {
-    _filtered = true;
+void FilteredConfig::markAsInitialized() {
+    _initialized = true;
 }
 
-bool FilteredConfig::wasFiltered() const {
-    return _filtered;
+bool FilteredConfig::wasInitialized() const {
+    return _initialized;
 }
 
 }  // namespace intel_npu
