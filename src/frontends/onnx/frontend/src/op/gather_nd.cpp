@@ -65,13 +65,16 @@ ov::OutputVector gather_nd(const ov::frontend::onnx::Node& node) {
         auto data_rank_node = std::make_shared<v3::ShapeOf>(data_shape, ov::element::i64);
         auto indices_rank_node = std::make_shared<v3::ShapeOf>(indices_shape, ov::element::i64);
 
-        auto data_remaining = std::make_shared<v8::Slice>(data_shape, batch_dims_const, data_rank_node, one_step, zero_const);
-        auto indices_remaining = std::make_shared<v8::Slice>(indices_shape, batch_dims_const, indices_rank_node, one_step, zero_const);
+        auto data_remaining =
+            std::make_shared<v8::Slice>(data_shape, batch_dims_const, data_rank_node, one_step, zero_const);
+        auto indices_remaining =
+            std::make_shared<v8::Slice>(indices_shape, batch_dims_const, indices_rank_node, one_step, zero_const);
 
         // Construct target shapes
         auto target_batch_shape = std::make_shared<v0::Concat>(batch_dims_vec, 0);
         auto target_data_shape = std::make_shared<v0::Concat>(ov::OutputVector{target_batch_shape, data_remaining}, 0);
-        auto target_indices_shape = std::make_shared<v0::Concat>(ov::OutputVector{target_batch_shape, indices_remaining}, 0);
+        auto target_indices_shape =
+            std::make_shared<v0::Concat>(ov::OutputVector{target_batch_shape, indices_remaining}, 0);
 
         // Broadcast data and indices to target shapes
         data = std::make_shared<v3::Broadcast>(data, target_data_shape);

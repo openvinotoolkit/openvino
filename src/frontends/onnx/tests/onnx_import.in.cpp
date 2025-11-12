@@ -3581,19 +3581,36 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gatherND_batch_dims_1_broadcast) {
     // indices: [2, 2, 2] - batch_dims=1 means first dim is batch
     // Each batch has 2 indices of length 2 (indexing into data dimensions 1 and 2)
     test_case.add_input<int64_t>({
-        0, 0,  // batch 0, index (0, 0) -> data[0, 0, 0, :]
-        1, 1,  // batch 0, index (1, 1) -> data[0, 1, 1, :]
-        0, 1,  // batch 1, index (0, 1) -> data[0, 0, 1, :] (same data due to broadcast)
-        2, 3   // batch 1, index (2, 3) -> data[0, 2, 3, :]
+        0,
+        0,  // batch 0, index (0, 0) -> data[0, 0, 0, :]
+        1,
+        1,  // batch 0, index (1, 1) -> data[0, 1, 1, :]
+        0,
+        1,  // batch 1, index (0, 1) -> data[0, 0, 1, :] (same data due to broadcast)
+        2,
+        3  // batch 1, index (2, 3) -> data[0, 2, 3, :]
     });
 
     // Expected output: [2, 2, 4]
-    test_case.add_expected_output<float>(Shape{2, 2, 4}, {
-        0.f, 1.f, 2.f, 3.f,           // batch 0: data[0, 0, 0, :]
-        20.f, 21.f, 22.f, 23.f,       // batch 0: data[0, 1, 1, :]
-        4.f, 5.f, 6.f, 7.f,           // batch 1: data[0, 0, 1, :] (broadcasted from batch 0)
-        44.f, 45.f, 46.f, 47.f        // batch 1: data[0, 2, 3, :]
-    });
+    test_case.add_expected_output<float>(Shape{2, 2, 4},
+                                         {
+                                             0.f,
+                                             1.f,
+                                             2.f,
+                                             3.f,  // batch 0: data[0, 0, 0, :]
+                                             20.f,
+                                             21.f,
+                                             22.f,
+                                             23.f,  // batch 0: data[0, 1, 1, :]
+                                             4.f,
+                                             5.f,
+                                             6.f,
+                                             7.f,  // batch 1: data[0, 0, 1, :] (broadcasted from batch 0)
+                                             44.f,
+                                             45.f,
+                                             46.f,
+                                             47.f  // batch 1: data[0, 2, 3, :]
+                                         });
 
     test_case.run();
 }
