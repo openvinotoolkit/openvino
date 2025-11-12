@@ -82,6 +82,9 @@ jobs:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
       CMAKE_GENERATOR: 'Ninja Multi-Config' # Visual Studio does not seem to work with `ccache`. Ninja is the generator supported by `ccache`
+      CMAKE_JOB_POOLS: 'build_pool=32 link_pool=16' # workaround for LINK : fatal error LNK1102: out of memory
+      CMAKE_JOB_POOL_COMPILE: 'build_pool'
+      CMAKE_JOB_POOL_LINK: 'link_pool'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
       CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\staging\\windows2022_x86_64_itt\\${{ matrix.variant.runner }}"
@@ -207,11 +210,10 @@ jobs:
         if: ${{ matrix.cache == true }}
         run: '& ccache --zero-stats'
 
-      # If the build fails due to running out of RAM, please decrease the number of parallel jobs (--parallel n)
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel 16 --config ${{ env.CMAKE_BUILD_TYPE }} && `
-          cmake --build ${{ env.BUILD_DIR }} --parallel 16 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+          cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} && `
+          cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
       - name: Show ccache stats
         if: ${{ matrix.cache == true }}
