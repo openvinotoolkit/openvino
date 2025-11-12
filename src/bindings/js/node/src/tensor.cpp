@@ -229,8 +229,7 @@ Napi::Value TensorWrap::get_external_tensor(const Napi::CallbackInfo& info) {
     // Return a pointer to the ov::Tensor object wrapped in Napi::External
     // This is a service method for cross-addon interoperability
     // Since ov::Tensor already contains shared_ptr internally, we don't need an extra shared_ptr wrapper
-    return Napi::External<ov::Tensor>::New(env, new ov::Tensor(_tensor),
-        [](Napi::Env /*env*/, ov::Tensor* data) {
-            delete data;
-        });
+    return Napi::External<ov::Tensor>::New(env, new ov::Tensor(_tensor), [](Napi::Env /*env*/, ov::Tensor* ov_tensor) {
+        delete ov_tensor;
+    });
 }
