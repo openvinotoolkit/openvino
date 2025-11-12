@@ -62,36 +62,45 @@ ov::intel_cpu::MoE2GeMMFusion::MoE2GeMMFusion() {
 
     auto data_input = pattern::any_input(pattern::rank_equals(3) && pattern::has_static_rank());
     auto experts_input = pattern::wrap_type<ov::op::v1::Reshape>({data_input, pattern::any_input()});
-    auto tile = pattern::wrap_type<ov::op::v0::Tile>({experts_input, pattern::any_input()});
-    auto after_tile_reshape = pattern::wrap_type<ov::op::v1::Reshape>({tile, pattern::any_input()});
+    auto tile =
+        pattern::wrap_type<ov::op::v0::Tile>({experts_input, pattern::any_input()}, pattern::consumers_count(1));
+    auto after_tile_reshape =
+        pattern::wrap_type<ov::op::v1::Reshape>({tile, pattern::any_input()}, pattern::consumers_count(1));
     auto gate_up_matmul = pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, pattern::any_input()},
+                                                                 pattern::consumers_count(1),
                                                                  {{"transpose_a", false}, {"transpose_b", true}});
     auto gate_up_bias = pattern::wrap_const();
-    auto gate_up_add = pattern::wrap_type<ov::op::v1::Add>({gate_up_matmul, gate_up_bias});
+    auto gate_up_add = pattern::wrap_type<ov::op::v1::Add>({gate_up_matmul, gate_up_bias}, pattern::consumers_count(2));
 
     // Branch 1: Slice_1 -> Clamp -> Add_1
     auto slice1 = pattern::wrap_type<ov::op::v8::Slice>(
-        {gate_up_add, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto clamp = pattern::wrap_type<ov::op::v0::Clamp>({slice1});
-    auto add1 = pattern::wrap_type<ov::op::v1::Add>({clamp, pattern::wrap_const()});
+        {gate_up_add, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()},
+        pattern::consumers_count(1));
+    auto clamp = pattern::wrap_type<ov::op::v0::Clamp>({slice1}, pattern::consumers_count(1));
+    auto add1 = pattern::wrap_type<ov::op::v1::Add>({clamp, pattern::wrap_const()}, pattern::consumers_count(1));
 
     // Branch 2: Slice_2 -> Minimum_1 -> Swish
     auto slice2 = pattern::wrap_type<ov::op::v8::Slice>(
-        {gate_up_add, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto minimum1 = pattern::wrap_type<ov::op::v1::Minimum>({slice2, pattern::wrap_const()});
+        {gate_up_add, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()},
+        pattern::consumers_count(1));
+    auto minimum1 =
+        pattern::wrap_type<ov::op::v1::Minimum>({slice2, pattern::wrap_const()}, pattern::consumers_count(1));
     auto swish_beta = pattern::wrap_const();
-    auto swish = pattern::wrap_type<ov::op::v4::Swish>({minimum1, swish_beta});
+    auto swish = pattern::wrap_type<ov::op::v4::Swish>({minimum1, swish_beta}, pattern::consumers_count(1));
 
     // Join: Multiply_2
-    auto multiply2 = pattern::wrap_type<ov::op::v1::Multiply>({add1, swish});
+    auto multiply2 = pattern::wrap_type<ov::op::v1::Multiply>({add1, swish}, pattern::consumers_count(1));
 
     // Down projection
     auto down_proj_matmul = pattern::wrap_type<ov::op::v0::MatMul>({multiply2, pattern::any_input()},
+                                                                   pattern::consumers_count(1),
                                                                    {{"transpose_a", false}, {"transpose_b", true}});
     auto down_proj_bias = pattern::wrap_const();
-    auto down_proj_add = pattern::wrap_type<ov::op::v1::Add>({down_proj_matmul, down_proj_bias});
+    auto down_proj_add =
+        pattern::wrap_type<ov::op::v1::Add>({down_proj_matmul, down_proj_bias}, pattern::consumers_count(1));
     auto end_reshape_target_shape = pattern::any_input();
-    auto end_reshape = pattern::wrap_type<ov::op::v1::Reshape>({down_proj_add, end_reshape_target_shape});
+    auto end_reshape =
+        pattern::wrap_type<ov::op::v1::Reshape>({down_proj_add, end_reshape_target_shape}, pattern::consumers_count(1));
 
     // Routing weights/mask
     auto zero_constant = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
@@ -123,8 +132,11 @@ ov::intel_cpu::MoE2GeMMFusion::MoE2GeMMFusion() {
     auto unsqueeze_routing_weights =
         pattern::optional<ov::op::v0::Unsqueeze>({router_reshape, unsqueeze_axis}, ov::pass::pattern::rank_equals(4));
 
-    auto mul3 = pattern::wrap_type<ov::op::v1::Multiply>({end_reshape, unsqueeze_routing_weights});
-    auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()}, {{"keep_dims", false}});
+    auto mul3 =
+        pattern::wrap_type<ov::op::v1::Multiply>({end_reshape, unsqueeze_routing_weights}, pattern::consumers_count(1));
+    auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()},
+                                                                pattern::consumers_count(1),
+                                                                {{"keep_dims", false}});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -214,24 +226,30 @@ ov::intel_cpu::MoE3GeMMFusion::MoE3GeMMFusion() {
     auto data_input = pattern::any_input(pattern::rank_equals(3) && pattern::has_static_rank());
     auto experts_input =
         pattern::wrap_type<ov::op::v1::Reshape>({data_input, pattern::any_input()}, pattern::rank_equals(2));
-    auto tile = pattern::wrap_type<ov::op::v0::Tile>({experts_input, pattern::any_input()});
-    auto after_tile_reshape = pattern::wrap_type<ov::op::v1::Reshape>({tile, pattern::any_input()});
+    auto tile =
+        pattern::wrap_type<ov::op::v0::Tile>({experts_input, pattern::any_input()}, pattern::consumers_count(1));
+    auto after_tile_reshape =
+        pattern::wrap_type<ov::op::v1::Reshape>({tile, pattern::any_input()}, pattern::consumers_count(2));
 
     // First GEMM (activation gate)
     auto gate_matmul = pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, pattern::any_input()},
+                                                              pattern::consumers_count(1),
                                                               {{"transpose_a", false}, {"transpose_b", true}});
-    auto swish = pattern::wrap_type<ov::op::v4::Swish>({gate_matmul});
+    auto swish = pattern::wrap_type<ov::op::v4::Swish>({gate_matmul}, pattern::consumers_count(1));
     // Second GEMM (up_projection)
     auto up_matmul = pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, pattern::any_input()},
+                                                            pattern::consumers_count(1),
                                                             {{"transpose_a", false}, {"transpose_b", true}});
     // Join: Multiply (SwiGLU)
-    auto swiglu = pattern::wrap_type<ov::op::v1::Multiply>({swish, up_matmul});
+    auto swiglu = pattern::wrap_type<ov::op::v1::Multiply>({swish, up_matmul}, pattern::consumers_count(1));
 
     // Third GEMM (down_projection)
     auto down_matmul = pattern::wrap_type<ov::op::v0::MatMul>({swiglu, pattern::any_input()},
+                                                              pattern::consumers_count(1),
                                                               {{"transpose_a", false}, {"transpose_b", true}});
     auto end_reshape_target_shape = pattern::any_input();
-    auto end_reshape = pattern::wrap_type<ov::op::v1::Reshape>({down_matmul, end_reshape_target_shape});
+    auto end_reshape =
+        pattern::wrap_type<ov::op::v1::Reshape>({down_matmul, end_reshape_target_shape}, pattern::consumers_count(1));
 
     auto zero_constant = pattern::wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
     auto broadcasted_const = pattern::wrap_type<ov::op::v3::Broadcast>({zero_constant, pattern::any_input()}) |
@@ -256,8 +274,11 @@ ov::intel_cpu::MoE3GeMMFusion::MoE3GeMMFusion() {
     auto unsqueeze_routing_weights =
         pattern::optional<ov::op::v0::Unsqueeze>({router_reshape, unsqueeze_axis}, ov::pass::pattern::rank_equals(4));
 
-    auto mul3 = pattern::wrap_type<ov::op::v1::Multiply>({end_reshape, unsqueeze_routing_weights});
-    auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()}, {{"keep_dims", false}});
+    auto mul3 =
+        pattern::wrap_type<ov::op::v1::Multiply>({end_reshape, unsqueeze_routing_weights}, pattern::consumers_count(1));
+    auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()},
+                                                                pattern::consumers_count(1),
+                                                                {{"keep_dims", false}});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
