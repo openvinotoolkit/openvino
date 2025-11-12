@@ -18,6 +18,8 @@ if(APPLE AND AARCH64 AND NOT OV_FORCE_ADHOC_SIGN)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_adhoc_codesign")
 endif()
 
+set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
+cmake_policy(SET CMP0141 NEW)
 
 include(cmake/install_tbb.cmake)
 

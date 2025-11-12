@@ -74,7 +74,8 @@ jobs:
           - name: more_cores_amd_nvme
             runner: aks-win-64-cores-128gb-amd-nvme-st
         cache:
-          - False # Cache doesn't work with MSVC and /Zi command-line argument
+        #  - False # Cache doesn't work with MSVC and /Zi command-line argument
+          - True # Trying to change CMakeLists.txt to make ccache work with Windows Debug
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
     name: "Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"
