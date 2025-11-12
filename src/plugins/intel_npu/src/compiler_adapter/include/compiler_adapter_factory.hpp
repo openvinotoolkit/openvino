@@ -27,6 +27,7 @@ public:
             if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
                 OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
             }
+
             return std::make_unique<DriverCompilerAdapter>(engineBackend->getInitStructs());
         }
         default:

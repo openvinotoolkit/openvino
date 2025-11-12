@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
@@ -54,7 +54,7 @@ public:
      *        including config options related to compilation
      * @return a shared pointer on an object implementing NetworkDescription interface
      */
-    virtual NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const = 0;
+    virtual NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
 
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
@@ -64,7 +64,7 @@ public:
      */
     virtual std::vector<std::shared_ptr<NetworkDescription>> compileWsOneShot(
         const std::shared_ptr<ov::Model>& /*model*/,
-        const FilteredConfig& /*config*/) const {
+        const Config& /*config*/) const {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
@@ -83,7 +83,7 @@ public:
      * Plugin does not know total numbers of Init schedules
      */
     virtual NetworkDescription compileWsIterative(const std::shared_ptr<ov::Model>& /*model*/,
-                                                  const FilteredConfig& /*config*/,
+                                                  const Config& /*config*/,
                                                   size_t /*callNumber*/) const {
         OPENVINO_NOT_IMPLEMENTED;
     }
@@ -95,7 +95,7 @@ public:
      *        including config options related to compilation
      * @returns SupportedOpsMap structure with information about supported layers
      */
-    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const = 0;
+    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
 
     /**
      * @brief Parses already compiled network to extract meta information:
@@ -106,7 +106,7 @@ public:
      *        since the network is already compiled
      * @return a shared pointer on an object implementing NetworkDescription interface
      */
-    virtual NetworkMetadata parse(const std::vector<uint8_t>& network, const FilteredConfig& config) const = 0;
+    virtual NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const = 0;
 
     /**
      * @brief Returns the compiler version

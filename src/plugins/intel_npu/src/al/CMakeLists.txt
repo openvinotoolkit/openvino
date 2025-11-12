@@ -14,7 +14,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME npu_al)
 target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../common/include>
 )
 
 if(ENABLE_MLIR_COMPILER)
@@ -25,7 +24,6 @@ target_link_libraries(${TARGET_NAME}
     PUBLIC
         openvino::npu_logger_utils
         openvino::runtime::dev
-        openvino::npu_common
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

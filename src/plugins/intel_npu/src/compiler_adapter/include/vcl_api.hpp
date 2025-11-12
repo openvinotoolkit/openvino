@@ -6,14 +6,9 @@
 
 #include <memory>
 
-#include "intel_npu/config/options.hpp"
-#include "intel_npu/config/config.hpp"
-#include "intel_npu/common/filtered_config.hpp"
-#include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/icompiler.hpp"
 #include "npu_driver_compiler.h"
 #include "openvino/core/except.hpp"
-#include "vcl_serializer.hpp"
 
 namespace intel_npu {
 
@@ -94,19 +89,17 @@ public:
         return compiler;
     }
 
-    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
-                               const FilteredConfig& config) const override;
+    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
-                              const FilteredConfig& config) const override;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    NetworkMetadata parse(const std::vector<uint8_t>& network, const FilteredConfig& config) const override;
+    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override;
+
     uint32_t get_version() const override;
 
-    std::vector<ov::ProfilingInfo> process_profiling_output(
-        const std::vector<uint8_t>& profData,
-        const std::vector<uint8_t>& network,
-        const Config& config) const final override;
+    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
+                                                            const std::vector<uint8_t>& network,
+                                                            const intel_npu::Config& config) const final override;
 
     bool get_supported_options(std::vector<char>& options) const;
 
