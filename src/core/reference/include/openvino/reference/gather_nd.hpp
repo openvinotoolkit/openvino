@@ -52,23 +52,12 @@ void gather_nd(const T* const params,
         return s.rbegin();
     };
 
-    // Check broadcastability and compute output batch shape
-    Shape batch_shape;
-    batch_shape.reserve(batch_dims);
-    for (int i = 0; i < batch_dims; ++i) {
-        const auto params_dim = params_shape[i];
-        const auto indices_dim = indices_shape[i];
-        if (params_dim == indices_dim) {
-            batch_shape.push_back(params_dim);
-        } else if (params_dim == 1) {
-            batch_shape.push_back(indices_dim);  // broadcast params dimension
-        } else if (indices_dim == 1) {
-            batch_shape.push_back(params_dim);  // broadcast indices dimension
-        } else {
-            throw std::domain_error{"dimensions in params and indices have to be broadcastable on batch dimensions"};
-        }
-    }
+    const Shape batch_shape(begin(params_shape), next(begin(params_shape), batch_dims));
     const auto batch_size = shape_size(batch_shape);
+
+    if (!std::equal(begin(params_shape), next(begin(params_shape), batch_dims), begin(indices_shape))) {
+        throw std::domain_error{"dimensions in params and indices have to be equal on batch dimensions"};
+    }
 
     const auto first_slice_index_in_params = batch_dims + indices_shape.back();
 
@@ -94,40 +83,10 @@ void gather_nd(const T* const params,
 
     const auto coordinates_size = indices_shape.back();
 
-    // Compute strides for params and indices batch dimensions
-    std::vector<size_t> params_batch_strides(batch_dims);
-    std::vector<size_t> indices_batch_strides(batch_dims);
-    if (batch_dims > 0) {
-        // Calculate strides from right to left (C-order)
-        params_batch_strides[batch_dims - 1] = batch_offset;
-        indices_batch_strides[batch_dims - 1] = number_of_slices_to_copy_in_one_batch * coordinates_size;
-
-        for (int i = batch_dims - 2; i >= 0; --i) {
-            params_batch_strides[i] = params_batch_strides[i + 1] * params_shape[i + 1];
-            indices_batch_strides[i] = indices_batch_strides[i + 1] * indices_shape[i + 1];
-        }
-    }
-
     for (size_t batch = 0; batch != batch_size; ++batch) {
-        // Compute actual offsets considering broadcasting
-        size_t input_batch_offset = 0;
-        size_t coordinates_batch_offset = 0;
-        size_t batch_idx = batch;
-
-        // Convert linear batch index to multi-dimensional and compute offsets
-        for (int i = batch_dims - 1; i >= 0; --i) {
-            const auto dim_idx = batch_idx % batch_shape[i];
-            batch_idx /= batch_shape[i];
-
-            // If dimension is 1 (broadcast), use index 0; otherwise use dim_idx
-            const auto params_idx = (params_shape[i] == 1) ? 0 : dim_idx;
-            const auto indices_idx = (indices_shape[i] == 1) ? 0 : dim_idx;
-
-            input_batch_offset += params_idx * params_batch_strides[i];
-            coordinates_batch_offset += indices_idx * indices_batch_strides[i];
-        }
-
+        const auto input_batch_offset = batch * batch_offset;
         const auto output_batch_offset = batch * number_of_slices_to_copy_in_one_batch * slice_size;
+        const auto coordinates_batch_offset = batch * number_of_slices_to_copy_in_one_batch * coordinates_size;
         for (size_t slice = 0; slice != number_of_slices_to_copy_in_one_batch; ++slice) {
             const auto slice_coordinates = next(indices, coordinates_batch_offset + slice * coordinates_size);
 

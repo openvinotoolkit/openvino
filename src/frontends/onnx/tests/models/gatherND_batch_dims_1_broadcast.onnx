@@ -1,0 +1,22 @@
+OpenVINO ONNX Frontend:¯
+/
+data
+indicesy"GatherND*
+
+batch_dims $test_gatherND_batch_dims_1_broadcastZ
+data
+
+
+
+
+Z
+indices
+
+
+
+b
+y
+
+
+
+B

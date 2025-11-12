@@ -3565,6 +3565,39 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gatherND_float) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gatherND_batch_dims_1_broadcast) {
+    // Test GatherND with batch_dims=1 and broadcasting
+    // data shape: [1, 3, 4, 4] -> broadcasts to [2, 3, 4, 4]
+    // indices shape: [2, 2, 2]
+    // output shape: [2, 2, 4]
+    const auto model = convert_model("gatherND_batch_dims_1_broadcast.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // data: [1, 3, 4, 4] - 48 elements (will be broadcasted to [2, 3, 4, 4])
+    std::vector<float> data(48);
+    std::iota(data.begin(), data.end(), 0.f);
+    test_case.add_input<float>(data);
+
+    // indices: [2, 2, 2] - batch_dims=1 means first dim is batch
+    // Each batch has 2 indices of length 2 (indexing into data dimensions 1 and 2)
+    test_case.add_input<int64_t>({
+        0, 0,  // batch 0, index (0, 0) -> data[0, 0, 0, :]
+        1, 1,  // batch 0, index (1, 1) -> data[0, 1, 1, :]
+        0, 1,  // batch 1, index (0, 1) -> data[0, 0, 1, :] (same data due to broadcast)
+        2, 3   // batch 1, index (2, 3) -> data[0, 2, 3, :]
+    });
+
+    // Expected output: [2, 2, 4]
+    test_case.add_expected_output<float>(Shape{2, 2, 4}, {
+        0.f, 1.f, 2.f, 3.f,           // batch 0: data[0, 0, 0, :]
+        20.f, 21.f, 22.f, 23.f,       // batch 0: data[0, 1, 1, :]
+        4.f, 5.f, 6.f, 7.f,           // batch 1: data[0, 0, 1, :] (broadcasted from batch 0)
+        44.f, 45.f, 46.f, 47.f        // batch 1: data[0, 2, 3, :]
+    });
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_pad_constant) {
     const auto model = convert_model("pad_constant.onnx");
     auto test_case = ov::test::TestCase(model, s_device);

@@ -41,7 +41,6 @@ private:
 
         VectorDims srcDims;
         VectorDims srcStrides;
-        VectorDims idxDims;  // indices dimensions for broadcasting support
     } attrs;
 
     struct GatherNDExecutor {
@@ -69,10 +68,6 @@ private:
 
         size_t batchDims = 0LU;
         VectorDims srcDims;
-        VectorDims idxDims;
-        VectorDims batchShape;       // output batch shape (broadcast result)
-        VectorDims srcBatchStrides;  // per-dimension strides for src (0 if dim=1)
-        VectorDims idxBatchStrides;  // per-dimension strides for indices (0 if dim=1)
 
         struct GatherNDContext {
             GatherNDExecutor* executor;

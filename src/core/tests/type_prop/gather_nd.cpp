@@ -256,57 +256,20 @@ TEST(type_prop, gather_nd_v5_fail_batch_dims_greater_indices_rank) {
 }
 
 TEST(type_prop, gather_nd_v5_fail_unequal_batch_dims) {
-    // Non-broadcastable batch dimensions: 3 and 5 cannot be broadcast
-    Shape data_shape{3, 2, 4, 5};
-    Shape indices_shape{5, 2, 2};
+    Shape data_shape{2, 3, 4, 5};
+    Shape indices_shape{2, 1, 2};
     auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
     auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
     try {
-        auto op = make_shared<v5::GatherND>(data_param, indices_param, 1);
+        auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
         // Should have thrown, so fail if it didn't
-        FAIL() << "Non-broadcastable batch dimensions should fail";
+        FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Batch dimensions of data and indices must be broadcastable."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Batch dimensions of data and indices must be the same."));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
-}
-
-TEST(type_prop, gather_nd_v5_batch_dims_broadcasting_forward) {
-    // Broadcasting with batch_dims=1, data batch=1, indices batch=2
-    Shape data_shape{1, 3, 4, 4};
-    Shape indices_shape{2, 2, 2};
-    Shape expected_shape{2, 2, 4};
-    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<v5::GatherND>(data_param, indices_param, 1);
-    EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
-}
-
-TEST(type_prop, gather_nd_v5_batch_dims_broadcasting_reverse) {
-    // Broadcasting with batch_dims=1, data batch=8, indices batch=1
-    Shape data_shape{8, 11, 12};
-    Shape indices_shape{1, 1};
-    Shape expected_shape{8, 12};
-    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<v5::GatherND>(data_param, indices_param, 1);
-    EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
-}
-
-TEST(type_prop, gather_nd_v5_batch_dims_broadcasting_multi_batch) {
-    // Broadcasting with batch_dims=2, both dimensions broadcast
-    Shape data_shape{1, 1, 11, 12, 13};
-    Shape indices_shape{6, 4, 2};
-    Shape expected_shape{24, 13};
-    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
-    EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_fail_indices_tuple_greater_data_rank_batch_dims2) {
@@ -683,57 +646,20 @@ TEST(type_prop, gather_nd_v8_fail_batch_dims_greater_indices_rank) {
 }
 
 TEST(type_prop, gather_nd_v8_fail_unequal_batch_dims) {
-    // Non-broadcastable batch dimensions: 3 and 5 cannot be broadcast
-    Shape data_shape{3, 2, 4, 5};
-    Shape indices_shape{5, 2, 2};
+    Shape data_shape{2, 3, 4, 5};
+    Shape indices_shape{2, 1, 2};
     auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
     auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
     try {
-        auto op = make_shared<v8::GatherND>(data_param, indices_param, 1);
+        auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
         // Should have thrown, so fail if it didn't
-        FAIL() << "Non-broadcastable batch dimensions should fail";
+        FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Batch dimensions of data and indices must be broadcastable."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Batch dimensions of data and indices must be the same."));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
-}
-
-TEST(type_prop, gather_nd_v8_batch_dims_broadcasting_forward) {
-    // Broadcasting with batch_dims=1, data batch=1, indices batch=2
-    Shape data_shape{1, 3, 4, 4};
-    Shape indices_shape{2, 2, 2};
-    Shape expected_shape{2, 2, 4};
-    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<v8::GatherND>(data_param, indices_param, 1);
-    EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
-}
-
-TEST(type_prop, gather_nd_v8_batch_dims_broadcasting_reverse) {
-    // Broadcasting with batch_dims=1, data batch=8, indices batch=1
-    Shape data_shape{8, 11, 12};
-    Shape indices_shape{1, 1};
-    Shape expected_shape{8, 12};
-    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<v8::GatherND>(data_param, indices_param, 1);
-    EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
-}
-
-TEST(type_prop, gather_nd_v8_batch_dims_broadcasting_multi_batch) {
-    // Broadcasting with batch_dims=2, both dimensions broadcast
-    Shape data_shape{1, 1, 11, 12, 13};
-    Shape indices_shape{6, 4, 2};
-    Shape expected_shape{6, 4, 13};
-    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
-    EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v8_fail_indices_tuple_greater_data_rank_batch_dims2) {

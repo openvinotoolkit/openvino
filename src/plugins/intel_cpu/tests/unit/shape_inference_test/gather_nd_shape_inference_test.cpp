@@ -152,28 +152,3 @@ INSTANTIATE_TEST_SUITE_P(
         GatherNDTestParams{StaticShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 2}}, StaticShape{6, 4, 1}, 3},
         GatherNDTestParams{StaticShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 5, 2}}, StaticShape{6, 4, 1, 5}, 3}),
     print_params);
-
-// Tests for broadcasting batch dimensions for ONNXRuntime compatibility
-class StaticShapeInferenceGatherNDBroadcastTest : public TestWithParam<GatherNDTestParams> {};
-
-TEST_P(StaticShapeInferenceGatherNDBroadcastTest, gather_nd_broadcast_test) {
-    run_gather_nd_test<op::v8::GatherND>(GetParam());
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    shape_infer,
-    StaticShapeInferenceGatherNDBroadcastTest,
-    ::testing::Values(
-        GatherNDTestParams{StaticShapeVector{{1, 3, 4, 4}, {2, 2, 2}}, StaticShape{2, 2, 4}, 1},
-        // Forward broadcasting: data[0]=1 broadcasts to indices[0]=N
-        GatherNDTestParams{StaticShapeVector{{1, 11, 12}, {8, 1}}, StaticShape{8, 12}, 1},
-        GatherNDTestParams{StaticShapeVector{{1, 3, 11, 12}, {5, 2, 1}}, StaticShape{5, 2, 11, 12}, 1},
-        GatherNDTestParams{StaticShapeVector{{1, 3, 11, 12}, {7, 5, 2}}, StaticShape{7, 5, 12}, 1},
-        // Reverse broadcasting: indices[0]=1 broadcasts to data[0]=N
-        GatherNDTestParams{StaticShapeVector{{8, 11, 12}, {1, 1}}, StaticShape{8, 12}, 1},
-        GatherNDTestParams{StaticShapeVector{{7, 3, 11, 12}, {1, 5, 2}}, StaticShape{7, 5, 12}, 1},
-        // Multi-dimensional broadcasting with batch_dims=2
-        GatherNDTestParams{StaticShapeVector{{1, 4, 11, 12, 13}, {6, 4, 2}}, StaticShape{6, 4, 13}, 2},
-        GatherNDTestParams{StaticShapeVector{{6, 1, 11, 12, 13}, {6, 4, 2}}, StaticShape{6, 4, 13}, 2},
-        GatherNDTestParams{StaticShapeVector{{1, 1, 11, 12, 13}, {6, 4, 2}}, StaticShape{6, 4, 13}, 2}),
-    print_params);
