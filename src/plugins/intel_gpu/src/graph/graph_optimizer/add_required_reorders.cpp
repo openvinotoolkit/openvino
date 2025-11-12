@@ -148,7 +148,7 @@ bool add_required_reorders::test_format(cldnn::program_node& node, format reques
 
         auto current_format = dep->get_output_layout(false, dep_with_port.second).format;
 
-        if (format::is_weights_format(current_format))
+        if (dep->is_constant() || format::is_weights_format(current_format))
             continue;
 
         if (dep->is_type<reorder>()) {
