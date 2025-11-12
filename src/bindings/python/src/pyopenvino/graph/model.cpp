@@ -492,15 +492,26 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "reshape",
         [](ov::Model& self, const py::object& shapes) {
-            std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
-            if (py::isinstance<py::dict>(shapes)) {
-                py::dict shapes_dict = shapes.cast<py::dict>();
-                for (auto& item : shapes_dict) {
-                    new_shapes.emplace(output_from_handle(self, item.first), partial_shape_from_handle(item.second));
+        std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+        if (py::isinstance<py::dict>(shapes)) {
+            py::dict shapes_dict = shapes.cast<py::dict>();
+            for (auto& item : shapes_dict) {
+                new_shapes.emplace(output_from_handle(self, item.first), partial_shape_from_handle(item.second));
+            }
+        } else if (py::isinstance<py::tuple>(shapes) || py::isinstance<py::list>(shapes)) {
+            py::list shapes_list =
+                py::isinstance<py::tuple>(shapes) ? py::cast<py::list>(shapes) : shapes.cast<py::list>();
+            bool is_flat_numeric = true;
+            for (auto& item : shapes_list) {
+                if (!(py::isinstance<py::int_>(item) || py::isinstance<py::float_>(item))) {
+                    is_flat_numeric = false;
+                    break;
                 }
-            } else if (py::isinstance<py::tuple>(shapes) || py::isinstance<py::list>(shapes)) {
-                py::list shapes_list =
-                    py::isinstance<py::tuple>(shapes) ? py::cast<py::list>(shapes) : shapes.cast<py::list>();
+            }
+
+            if (is_flat_numeric) {
+                // Treat as a single input shape
+                new_shapes[self.inputs()[0]] = Common::partial_shape_from_list(shapes_list);
                 if (!shapes_list.empty() &&
                     (py::isinstance<py::list>(shapes_list[0]) || py::isinstance<py::tuple>(shapes_list[0]) ||
                      py::isinstance<py::str>(shapes_list[0]) || py::isinstance<ov::Shape>(shapes_list[0]) ||
