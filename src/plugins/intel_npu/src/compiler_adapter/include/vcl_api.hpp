@@ -79,6 +79,9 @@ vcl_symbols_list();
 vcl_weak_symbols_list();
 #undef vcl_symbol_statement
 
+void setDeviceDesc(vcl_device_desc_t& device_desc, const std::string& device);
+std::string supportVclCompiler(int major, int minor);
+
 class VCLCompilerImpl final : public intel_npu::ICompiler {
 public:
     VCLCompilerImpl(const std::string& device);
