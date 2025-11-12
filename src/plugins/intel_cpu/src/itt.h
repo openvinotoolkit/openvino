@@ -29,13 +29,17 @@ namespace ov::intel_cpu::itt {
 
 class ScopedOpExecTask {
 public:
-    explicit ScopedOpExecTask(const char* name) noexcept : ScopedOpExecTask(openvino::itt::handle(name)) {}
-    explicit ScopedOpExecTask(const std::string& name) noexcept : ScopedOpExecTask(name.c_str()) {}
-    explicit ScopedOpExecTask(openvino::itt::handle_t handle) noexcept : m_handle(handle) {
-        openvino::itt::internal::taskBegin(::ov::itt::domains::ov_op_exec(), m_handle);
+    explicit ScopedOpExecTask(const char* name) noexcept {
+        if (openvino::itt::internal::is_initialized()) {
+            m_handle = openvino::itt::handle(name);
+            openvino::itt::internal::taskBegin(::ov::itt::domains::ov_op_exec(), m_handle);
+        }
     }
+    explicit ScopedOpExecTask(const std::string& name) noexcept : ScopedOpExecTask(name.c_str()) {}
     ~ScopedOpExecTask() noexcept {
-        openvino::itt::internal::taskEnd(::ov::itt::domains::ov_op_exec());
+        if (openvino::itt::internal::is_initialized()) {
+            openvino::itt::internal::taskEnd(::ov::itt::domains::ov_op_exec());
+        }
     }
 
     ScopedOpExecTask(const ScopedOpExecTask&) = delete;
