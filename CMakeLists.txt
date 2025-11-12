@@ -32,6 +32,13 @@ if(POLICY CMP0177)
     cmake_policy(SET CMP0177 NEW)
 endif()
 
+if(POLICY CMP0141)
+    cmake_policy(SET CMP0141 NEW)
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
+    message (STATUS "MSVC DEBUG INFORMATION FORMAT is set")
+endif()
+
+
 # set CMAKE_POLICY_VERSION_MINIMUM to avoid errors from 3rd party dependencies
 # after cmake is updated to 4.0
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
