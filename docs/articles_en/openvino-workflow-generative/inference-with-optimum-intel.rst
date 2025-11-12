@@ -269,10 +269,15 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
 
 * **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs.
   This helps reduce memory consumption during inference, improving latency and throughput.
-  KV-cache can be quantized into the following precisions: ``u8``, ``bf16``, ``f16``.
-  If ``u8`` is used, KV-cache quantization is also applied in a group-wise manner. Thus,
-  it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if defined. Otherwise, the group
-  size ``32`` is used by default. KV-cache quantization can be enabled as follows:
+  KV-cache can be quantized into the following precisions: ``u8``, ``u4``, ``bf16``, ``f16``.
+  If ``u8`` or ``u4`` is used, KV-cache quantization is also applied in a group-wise manner.
+  ``KEY_CACHE_GROUP_SIZE`` and ``VALUE_CACHE_GROUP_SIZE`` parameters define the group size
+  for Keys and Values respectively. It is also possible to assign different precisions for
+  Keys and Values using the options ``KEY_CACHE_PRECISION`` and ``VALUE_CACHE_PRECISION``.
+  The ``KEY_CACHE_QUANT_MODE`` parameter can be set to either ``BY_CHANNEL`` (more accurate)
+  or ``BY_TOKEN``. By default, U8 Keys are quantized by channel with group_size = 32 on CPU
+  and group_size = 16 on GPU, while U8 Values are quantized by token with group_size = hidden_dim.
+  These settings apply to both CPU and GPU plugins. KV-cache quantization can be enabled as follows:
 
 
   .. code-block:: python
