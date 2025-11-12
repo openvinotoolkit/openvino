@@ -15,13 +15,14 @@ namespace intel_npu {
 class CompilerAdapterFactory final {
 public:
     std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                                  const ov::intel_npu::CompilerType type) const {
+                                                  const ov::intel_npu::CompilerType type,
+                                                  std::string deviceID = "4000") const {
         switch (type) {
         case ov::intel_npu::CompilerType::PLUGIN: {
             if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
-                return std::make_unique<PluginCompilerAdapter>(nullptr);
+                return std::make_unique<PluginCompilerAdapter>(nullptr, deviceID);
             }
-            return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
+            return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs(), deviceID);
         }
         case ov::intel_npu::CompilerType::DRIVER: {
             if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {

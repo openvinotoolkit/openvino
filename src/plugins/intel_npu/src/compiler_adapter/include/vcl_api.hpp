@@ -79,13 +79,16 @@ vcl_symbols_list();
 vcl_weak_symbols_list();
 #undef vcl_symbol_statement
 
+void setDeviceDesc(vcl_device_desc_t& device_desc, const std::string& device);
+std::string supportVclCompiler(int major, int minor);
+
 class VCLCompilerImpl final : public intel_npu::ICompiler {
 public:
-    VCLCompilerImpl();
+    VCLCompilerImpl(const std::string& device);
     ~VCLCompilerImpl() override;
 
-    static std::shared_ptr<VCLCompilerImpl>& getInstance() {
-        static std::shared_ptr<VCLCompilerImpl> compiler = std::make_shared<VCLCompilerImpl>();
+    static std::shared_ptr<VCLCompilerImpl> getInstance(const std::string& device) {
+        std::shared_ptr<VCLCompilerImpl> compiler = std::make_shared<VCLCompilerImpl>(device);
         return compiler;
     }
 

@@ -4,15 +4,15 @@
 
 #include "vcl_api.hpp"
 
-#include "intel_npu/config/options.hpp"
 #include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/config/options.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "vcl_serializer.hpp"
 #include "ze_graph_ext_wrappers.hpp"
-#include "intel_npu/npu_private_properties.hpp"
 
 namespace intel_npu {
 
@@ -113,7 +113,24 @@ const std::shared_ptr<VCLApi>& VCLApi::getInstance() {
     return instance;
 }
 
-VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", ov::log::Level::DEBUG) {
+void setDeviceDesc(vcl_device_desc_t& device_desc, const std::string& device) {
+    std::unordered_map<std::string, vcl_device_desc_t> devicesDescsMap = {
+        {"3720", {sizeof(vcl_device_desc_t), 0xAD1D, static_cast<uint16_t>(-1), 2}},
+        {"4000", {sizeof(vcl_device_desc_t), 0x643E, static_cast<uint16_t>(-1), 5}},
+        // For other devices, the tile configuration needs to be provided by the user.
+    };
+
+    auto it = devicesDescsMap.find(device);
+    if (it != devicesDescsMap.end()) {
+        device_desc = it->second;
+    } else {
+        device_desc = devicesDescsMap["4000"];
+    }
+}
+
+VCLCompilerImpl::VCLCompilerImpl(const std::string& device)
+    : _logHandle(nullptr),
+      _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
     // Initialize the VCL API
     THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
@@ -127,7 +144,7 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
         (VCL_COMPILER_VERSION_MAJOR == _vclVersion.major && VCL_COMPILER_VERSION_MINOR < _vclVersion.minor)) {
         _logger.warning("inside supported VCL version is lower than used VCL api:\n plugin was built with VCL %d.%d, "
                         "\n      but loaded VCL is %d.%d.\n"
-                        "Will downwise to use the lastest plugin vcl compiler!!!",
+                        "Will downwise to use the latest plugin vcl compiler!!!",
                         VCL_COMPILER_VERSION_MAJOR,
                         VCL_COMPILER_VERSION_MINOR,
                         _vclVersion.major,
@@ -138,12 +155,9 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
     vcl_compiler_desc_t compilerDesc;
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) - 1);
-    vcl_device_desc_t device_desc;
-    device_desc.size = sizeof(vcl_device_desc_t);
 
-    device_desc.deviceID = 0x643E;  // Value from intel_npu/src/backend/src/zero_device.cpp
-    device_desc.revision = -1;      // -1 to skip the config
-    device_desc.tileCount = 5;      // 1 as init value
+    vcl_device_desc_t device_desc;
+    setDeviceDesc(device_desc, device);
 
     THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
                           vclCompilerCreate(&compilerDesc, &device_desc, &_compilerHandle, &_logHandle),
@@ -210,8 +224,7 @@ std::string supportVclCompiler(int major, int minor) {
     return "unsupported VCL version";
 }
 
-NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
-                                            const Config& config) const {
+NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
     _logger.debug("compile start");
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
@@ -227,13 +240,14 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         OPENVINO_THROW("config is not FilteredConfig");
     }
     FilteredConfig updatedConfig = *filteredConfig;
-    auto serializedIR = driver_compiler_utils::serializeIR(
-        model,
-        compilerVersion,
-        maxOpsetVersion,
-        updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? updatedConfig.get<USE_BASE_MODEL_SERIALIZER>()
-                                                                            : true,
-        updatedConfig.get<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
+    auto serializedIR =
+        driver_compiler_utils::serializeIR(model,
+                                           compilerVersion,
+                                           maxOpsetVersion,
+                                           updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())
+                                               ? updatedConfig.get<USE_BASE_MODEL_SERIALIZER>()
+                                               : true,
+                                           updatedConfig.get<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -251,25 +265,19 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
 
     /// Check the linked vcl version whether supported in plugin
-    int usedMajor = 0;
-    bool isDowngrade = false;
-    if (static_cast<uint16_t>(VCL_COMPILER_VERSION_MAJOR) < _vclVersion.major) {
-        usedMajor = VCL_COMPILER_VERSION_MAJOR;
-        isDowngrade = true;
+    uint16_t usedMajor = VCL_COMPILER_VERSION_MAJOR, usedMinor = VCL_COMPILER_VERSION_MINOR;
+    if (static_cast<uint16_t>(VCL_COMPILER_VERSION_MAJOR) == _vclVersion.major) {
+        usedMinor = std::min(static_cast<uint16_t>(VCL_COMPILER_VERSION_MINOR), _vclVersion.minor);
+    } else if (static_cast<uint16_t>(VCL_COMPILER_VERSION_MAJOR) > _vclVersion.major) {
+        usedMajor = _vclVersion.major;
+        usedMinor = _vclVersion.minor;
     }
-    int usedMinor = isDowngrade ? VCL_COMPILER_VERSION_MINOR : _vclVersion.minor;
-
-    _logger.info("[Debug] Used VCL API Version: %d.%d", usedMajor, usedMinor);
-    _logger.info("[Debug] compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
-    _logger.info("[Debug] embedding compiler vcl version: %d.%d",
-                 VCL_COMPILER_VERSION_MAJOR,
-                 VCL_COMPILER_VERSION_MINOR);
 
     if (usedMajor >= 7 && usedMinor >= 4) {
         if (VCL_COMPILER_VERSION_MAJOR < _vclVersion.major) {
             _logger.warning("inside supported VCL version is lower than used VCL api:\n plugin was built with VCL "
                             "%d.%d, \n      but loaded VCL is %d.%d.\n"
-                            "Will downwise to form %s to use vclAllocatedExecutableCreate2",
+                            "Will downgrade to form %s to use vclAllocatedExecutableCreate2",
                             VCL_COMPILER_VERSION_MAJOR,
                             VCL_COMPILER_VERSION_MINOR,
                             _vclVersion.major,
@@ -369,8 +377,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     }
 }
 
-intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network,
-                                                  const Config& config) const {
+intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
     _logger.debug("parse start");
     // VCL does not support parse, return empty metadata
     return intel_npu::NetworkMetadata();
@@ -415,29 +422,17 @@ std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const s
         std::memcpy(layerInfo.data(), profOutput.data, profOutput.size);
     }
 
-    // profOutput.data = NULL;
-    // THROW_ON_FAIL_FOR_VCL("vclGetDecodedProfilingBuffer", vclGetDecodedProfilingBuffer(profilingHandle,
-    // VCL_PROFILING_TASK_LEVEL, &profOutput), logHandle); if (profOutput.data == NULL) {
-    //     OPENVINO_THROW("Failed to get VCL profiling task level output");
-    // }
-
-    // profOutput.data = NULL;
-    // THROW_ON_FAIL_FOR_VCL("vclGetDecodedProfilingBuffer", vclGetDecodedProfilingBuffer(profilingHandle,
-    // VCL_PROFILING_RAW, &profOutput),logHandle); if (profOutput.data == NULL) {
-    //     OPENVINO_THROW("Failed to get VCL profiling raw output");
-    // }
-
     THROW_ON_FAIL_FOR_VCL("vclProfilingDestroy", vclProfilingDestroy(profilingHandle), logHandle);
 
-    return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);  // Return processed profiling info
+    // Return processed profiling info
+    return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
 }
 
 uint32_t VCLCompilerImpl::get_version() const {
     return ZE_MAKE_VERSION(_compilerProperties.version.major, _compilerProperties.version.minor);
 }
 
-ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model,
-                                           const Config& config) const {
+ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
     _logger.debug("query start");
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -452,13 +447,14 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     }
     FilteredConfig updatedConfig = *filteredConfig;
 
-    auto serializedIR = driver_compiler_utils::serializeIR(
-        model,
-        compilerVersion,
-        maxOpsetVersion,
-        updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? updatedConfig.get<USE_BASE_MODEL_SERIALIZER>()
-                                                                            : true,
-        updatedConfig.get<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
+    auto serializedIR =
+        driver_compiler_utils::serializeIR(model,
+                                           compilerVersion,
+                                           maxOpsetVersion,
+                                           updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())
+                                               ? updatedConfig.get<USE_BASE_MODEL_SERIALIZER>()
+                                               : true,
+                                           updatedConfig.get<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
 
     std::string buildFlags;
     buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
