@@ -2042,7 +2042,7 @@ void Graph::EnforceInferencePrecision() const {
         const size_t numberOfChildPorts = node->outputShapes.size();
         for (size_t port = 0; port < numberOfChildPorts; port++) {
             const auto& childEdgesAtPort = node->getChildEdgesAtPort(port);
-            for (auto& childEdge : childEdgesAtPort) {
+            for (const auto& childEdge : childEdgesAtPort) {
                 const auto& child = childEdge->getChild();
 
                 // Stop at mandatory BF16 nodes (don't add them to nodesToSkip)
