@@ -82,9 +82,6 @@ jobs:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
       CMAKE_GENERATOR: 'Ninja Multi-Config' # Visual Studio does not seem to work with `ccache`. Ninja is the generator supported by `ccache`
-      CMAKE_JOB_POOLS: 'build_pool=32;link_pool=1' # workaround for LINK : fatal error LNK1102: out of memory
-      CMAKE_JOB_POOL_COMPILE: 'build_pool'
-      CMAKE_JOB_POOL_LINK: 'link_pool'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
       CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\staging\\windows2022_x86_64_itt\\${{ matrix.variant.runner }}"
@@ -203,9 +200,9 @@ jobs:
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCMAKE_JOB_POOLS="${{ env.CMAKE_JOB_POOLS }}" `
-            -DCMAKE_JOB_POOL_COMPILE=${{ env.CMAKE_JOB_POOL_COMPILE }} `
-            -DCMAKE_JOB_POOL_LINK=${{ env.CMAKE_JOB_POOL_LINK }} `
+            -DCMAKE_JOB_POOLS="build_pool=32;link_pool=1" `
+            -DCMAKE_JOB_POOL_COMPILE="build_pool" `
+            -DCMAKE_JOB_POOL_LINK="link_pool" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
