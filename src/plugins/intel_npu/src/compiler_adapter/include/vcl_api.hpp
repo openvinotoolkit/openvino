@@ -81,11 +81,11 @@ vcl_weak_symbols_list();
 
 class VCLCompilerImpl final : public intel_npu::ICompiler {
 public:
-    VCLCompilerImpl();
+    VCLCompilerImpl(const std::string& device);
     ~VCLCompilerImpl() override;
 
-    static std::shared_ptr<VCLCompilerImpl>& getInstance() {
-        static std::shared_ptr<VCLCompilerImpl> compiler = std::make_shared<VCLCompilerImpl>();
+    static std::shared_ptr<VCLCompilerImpl> getInstance(const std::string& device) {
+        std::shared_ptr<VCLCompilerImpl> compiler = std::make_shared<VCLCompilerImpl>(device);
         return compiler;
     }
 

@@ -24,13 +24,13 @@
 #include "weightless_graph.hpp"
 
 namespace {
-#ifndef VCL_FOR_COMPILER
+
 std::shared_ptr<void> load_library(const std::string& libpath) {
-#    if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     return ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
-#    else
+#else
     return ov::util::load_shared_object(libpath.c_str());
-#    endif
+#endif
 }
 
 std::shared_ptr<intel_npu::ICompiler> get_compiler(std::shared_ptr<void> so) {
@@ -51,7 +51,7 @@ ov::SoPtr<intel_npu::ICompiler> load_compiler(const std::string& libpath) {
 
     return ov::SoPtr<intel_npu::ICompiler>(compiler, compilerSO);
 }
-#endif
+
 ov::Tensor make_tensor_from_vector(std::vector<uint8_t>& vector) {
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{vector.size()}, vector.data());
     auto impl = ov::get_tensor_impl(std::move(tensor));
@@ -65,20 +65,45 @@ ov::Tensor make_tensor_from_vector(std::vector<uint8_t>& vector) {
 
 namespace intel_npu {
 
-PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                             const std::string& deviceId)
     : _zeroInitStruct(zeroInitStruct),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize PluginCompilerAdapter start");
 
 #ifdef VCL_FOR_COMPILER
-    _logger.info("VCL driver compiler will be used.");
-    _compiler = ov::SoPtr<intel_npu::ICompiler>(VCLCompilerImpl::getInstance(), VCLApi::getInstance()->getLibrary());
+    _logger.info("PLUGIN VCL compiler will be used.");
+    try {
+        auto vclCompilerPtr = VCLCompilerImpl::getInstance(deviceId);
+        auto vclLib = VCLApi::getInstance()->getLibrary();
+        if (vclCompilerPtr && vclLib) {
+            _compiler = ov::SoPtr<intel_npu::ICompiler>(vclCompilerPtr, vclLib);
+        } else {
+            throw std::runtime_error("VCL compiler or library is nullptr");
+        }
+    } catch (const std::exception& vcl_exception) {
+        _logger.warning("VCL compiler load failed: %s. Trying to load MLIR compiler...", vcl_exception.what());
+        std::string baseName = "npu_mlir_compiler";
+        auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
+        try {
+            _compiler = load_compiler(libPath);
+            if (!_compiler) {
+                throw std::runtime_error("MLIR compiler load returned nullptr");
+            } else {
+                _logger.info("MLIR compiler loaded successfully. PLUGIN compiler will be used.");
+            }
+        } catch (const std::exception& mlir_exception) {
+            _logger.error("MLIR compiler load failed: %s", mlir_exception.what());
+            throw std::runtime_error("Both VCL and MLIR compiler load failed, aborting.");
+        }
+    }
 #else
     _logger.info("PLUGIN compiler will be used.");
     std::string baseName = "npu_mlir_compiler";
     auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
     _compiler = load_compiler(libPath);
 #endif
+
     if (_zeroInitStruct == nullptr) {
         return;
     }
@@ -125,18 +150,19 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         }
     }
 
-    return std::make_shared<Graph>(_zeGraphExt,
-                                   _zeroInitStruct,
-                                   graphDesc,
+    return std::make_shared<Graph>(
+        _zeGraphExt,
+        _zeroInitStruct,
+        graphDesc,
 #ifdef VCL_FOR_COMPILER
-                                   std::move(networkMeta),
+        std::move(networkMeta),
 #else
-                                   std::move(networkDesc.metadata),
+        std::move(networkDesc.metadata),
 #endif
-                                   std::move(tensor),
-                                   config,
-                                   /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
-                                   _compiler);
+        std::move(tensor),
+        config,
+        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
+        _compiler);
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
