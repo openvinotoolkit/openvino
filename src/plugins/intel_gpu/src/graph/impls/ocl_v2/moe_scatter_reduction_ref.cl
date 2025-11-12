@@ -5,11 +5,6 @@
 #include "include/batch_headers/common.cl"
 #include "include/fetch_utils.cl"
 
-//#define VLOAD CAT(vload, VEC_BLK_SIZE)
-//#define VSTORE CAT(vstore, VEC_BLK_SIZE)
-//#define INPUT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLK_SIZE)
-//#define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_BLK_SIZE)
-
 KERNEL(moe_scatter_reduction_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
