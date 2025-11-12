@@ -86,6 +86,7 @@
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
 #    include "snippets/lowered/pass/insert_loops.hpp"
+#    include "snippets/pass/fuse_transpose_brgemm.hpp"
 #    include "transformations/snippets/common/pass/enforce_precision.hpp"
 #    include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
@@ -552,19 +553,10 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 
     if (any_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
         subgraph_attrs->snippet->has_domain_sensitive_ops()) {
-        // enforce BF16 precisions to supported operations
-        // MatMul has to be decomposed to Brgemm operations before enforcement
-        // Notes:
-        //  - MatMul decomposition will be run later again for case if BF16 enforcement is not happened
-        //  - `MatMulToBrgemm` pass fuse `transpose_a` and `transpose_b` from MatMul to inputs of Brgemm as layouts.
-        //    These layouts are resized to ranks of input shapes. But since `Canonicalization` might
-        //    reshape shapes, the pass `MatMulToBrgemm` should be after the pass `Canonicalization` to
-        //    fuse layouts with ranks aligned with updated shapes after RankNormalization insertions.
+        // MatMul has to be decomposed to Brgemm operations,
+        // and transposes on inputs/outputs should be fused in the brgemm before enforcement
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                               ov::snippets::pass::Canonicalization,
-                                               ov::snippets::pass::MatMulToBrgemm);
-        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                               ov::snippets::pass::MatMulToBrgemm,
+                                               ov::snippets::pass::FuseTransposeBrgemm,
                                                pass::EnforcePrecision,
                                                element::f32,
                                                context->getConfig().inferencePrecision,
