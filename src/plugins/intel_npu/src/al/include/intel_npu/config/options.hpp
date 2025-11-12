@@ -419,6 +419,27 @@ struct CACHING_PROPERTIES final : OptionBase<CACHING_PROPERTIES, std::string> {
         return OptionMode::RunTime;
     }
 };
+struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPERTIES, std::string> {
+    static std::string_view key() {
+        return ov::internal::supported_properties.name();
+    }
+
+    static std::string defaultValue() {
+        return {};
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
+};
 
 // BATCH_MODE is required to maintain backward/forward compatibility
 struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
