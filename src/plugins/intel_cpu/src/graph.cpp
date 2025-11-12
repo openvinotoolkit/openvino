@@ -51,6 +51,7 @@
 #include "nodes/input.h"
 #include "nodes/memory.hpp"
 #include "nodes/reorder.h"
+#include "nodes/subgraph.h"
 #include "nodes/tensoriterator.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -1994,7 +1995,14 @@ void Graph::EnforceInferencePrecision() const {
 
     // These node types must be forced to be executed in BF16 precision for performance gains
     auto isMandatoryBF16Node = [](const NodePtr& node) -> bool {
-        return any_of(node->getType(),
+        const auto type = node->getType();
+        // Subgraph may contain ьandatory BF16 nodes inside (e.g. MatMuls),
+        if (type == Type::Subgraph) {
+            const auto subgraph = std::dynamic_pointer_cast<node::Subgraph>(node);
+            OPENVINO_ASSERT(subgraph, "Node with Subgraph type can't be casted to Subgraph node");
+            return subgraph->has_domain_sensitive_ops();
+        }
+        return any_of(type,
                       Type::Convolution,     // conv nets
                       Type::FullyConnected,  // conv / bert nets
                       Type::RNNCell,         // recurrent nets
