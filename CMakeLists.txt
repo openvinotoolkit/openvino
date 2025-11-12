@@ -67,6 +67,10 @@ if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET AND
     message(FATAL_ERROR "OpenVINO requires MACOSX_DEPLOYMENT_TARGET at least 10.15, specified ${CMAKE_OSX_DEPLOYMENT_TARGET}")
 endif()
 
+set_property(GLOBAL PROPERTY JOB_POOLS build=32 link=16)
+set_property(GLOBAL PROPERTY JOB_POOL_COMPILE build)
+set_property(GLOBAL PROPERTY JOB_POOL_LINK link)
+
 # resolving dependencies for the project
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
 message (STATUS "CMAKE_CROSSCOMPILING .................. " ${CMAKE_CROSSCOMPILING})
