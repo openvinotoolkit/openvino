@@ -34,6 +34,9 @@ static bool is_shape_of_subgraph_root(program_node& node) {
             const auto max_context_len_input_id = 12;
             if (user->is_type<paged_attention>() && user->get_dependency_index(node) == max_context_len_input_id) {
                 return true;
+            } else if (user->is_type<activation>() && ov::as_type_ptr<const activation>(user->get_primitive())->activation_function == activation_func::clamp &&
+                       user->get_input_layout().data_type == ov::element::i64) {
+                return true;
             }
         }
     }
