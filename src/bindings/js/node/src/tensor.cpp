@@ -207,12 +207,7 @@ Napi::Value TensorWrap::copy_to(const Napi::CallbackInfo& info) {
         auto dst_tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
         _tensor.copy_to(dst_tensor_wrap->_tensor);
     } catch (const std::exception& e) {
-        std::string msg(e.what());
-        auto pos = msg.find_last_of('\n');
-        std::string cleaned = (pos == std::string::npos) ? msg : msg.substr(pos + 1);
-        while (!cleaned.empty() && (cleaned.back() == '\n' || cleaned.back() == '\r'))
-            cleaned.pop_back();
-        reportError(env, cleaned);
+        reportError(env, e.what());
     }
     return env.Undefined();
 }

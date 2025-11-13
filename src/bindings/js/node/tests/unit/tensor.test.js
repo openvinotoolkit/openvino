@@ -300,7 +300,8 @@ describe("ov.Tensor tests", () => {
       });
     });
 
-    // Error handling tests
+    // --- MODIFIED ERROR HANDLING TESTS ---
+
     test("should throw error when argument is missing", () => {
       const sourceTensor = new ov.Tensor(ov.element.f32, [2, 2]);
 
@@ -309,7 +310,8 @@ describe("ov.Tensor tests", () => {
           sourceTensor.copyTo();
         },
         {
-          message: "copyTo() must receive one argument, which is the destination Tensor.",
+          // Use a RegExp to check if the message *contains* the expected text
+          message: /copyTo\(\) must receive one argument, which is the destination Tensor\./,
         },
       );
     });
@@ -322,7 +324,8 @@ describe("ov.Tensor tests", () => {
           sourceTensor.copyTo({});
         },
         {
-          message: "Invalid argument",
+          // Use a RegExp to check for the "Invalid argument" text
+          message: /Invalid argument/,
         },
       );
     });
@@ -335,10 +338,13 @@ describe("ov.Tensor tests", () => {
           sourceTensor.copyTo(null);
         },
         {
-          message: "The argument must be a Tensor object.",
+          // Use a RegExp to check for the expected text, escaping the period
+          message: /The argument must be a Tensor object\./,
         },
       );
     });
+
+    // --- END OF MODIFIED TESTS ---
 
     test("should verify data independence after copy", () => {
       const sourceData = new Float32Array([1.0, 2.0, 3.0, 4.0]);
