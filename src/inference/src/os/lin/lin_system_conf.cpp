@@ -609,7 +609,8 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
 
     for (size_t n = 0; n < offline_list.size(); n++) {
         _proc_type_table[0][ALL_PROC]--;
-        _proc_type_table[_cpu_mapping_table[offline_list[n] - n][CPU_MAP_NUMA_NODE_ID] + 1][ALL_PROC]--;
+        if (_proc_type_table.size() > 1)
+            _proc_type_table[_cpu_mapping_table[offline_list[n] - n][CPU_MAP_NUMA_NODE_ID] + 1][ALL_PROC]--;
         _cpu_mapping_table.erase(_cpu_mapping_table.begin() + offline_list[n] - n);
         _processors--;
     }
