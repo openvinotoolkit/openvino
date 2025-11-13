@@ -93,9 +93,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto seqlens_1d = register_new_node<v1::Reshape>(real_seqlens, one, false);
     const auto past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);
     const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
-    
-    past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
-    past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two); 
 
     if (do_rotary) {
         ov::Output<ov::Node> position_ids =
@@ -130,6 +127,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             v0::Constant::create(ov::element::i64, ov::Shape{1}, {past_key.get_partial_shape()[2].get_length()}));
         past_key = register_new_node<v8::Slice>(past_key, current_kv_len_const, past_kv_len_const, one, two);
         past_value = register_new_node<v8::Slice>(past_value, current_kv_len_const, past_kv_len_const, one, two);
+    } else {
+        past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
+        past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two); 
     }
 
     K = construct_kv_cache(past_key, K);
