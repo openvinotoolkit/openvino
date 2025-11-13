@@ -365,8 +365,9 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
 
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "update_graph_arguments");
-            _pipeline->update_graph_arguments(foundPort.is_input() ? _metadata.inputs.at(foundPort.idx).index
-                                                                   : _metadata.outputs.at(foundPort.idx).index,
+            _pipeline->update_graph_arguments(foundPort.is_input()
+                                                  ? _metadata.inputs.at(foundPort.idx).indexUsedByDriver
+                                                  : _metadata.outputs.at(foundPort.idx).indexUsedByDriver,
                                               levelZeroTensor->data(),
                                               levelZeroTensor->get_byte_size());
         }
@@ -444,7 +445,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                 OPENVINO_ASSERT(get_level_zero_input(foundPort.idx, i)->data(), "Empty buffer");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "updateCommandList");
 
-                _pipeline->update_graph_arguments_batching(_metadata.inputs.at(foundPort.idx).index,
+                _pipeline->update_graph_arguments_batching(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
                                                            get_level_zero_input(foundPort.idx, i)->data(),
                                                            i);
             }
@@ -567,7 +568,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
             _logger.debug("Update input graph descriptor with the new tensor");
             OPENVINO_ASSERT(levelZeroTensor.at(SINGLE_TENSOR)->data(), "Empty buffer");
 
-            _pipeline->update_graph_arguments(_metadata.inputs.at(ioIndex).index,
+            _pipeline->update_graph_arguments(_metadata.inputs.at(ioIndex).indexUsedByDriver,
                                               levelZeroTensor.at(SINGLE_TENSOR)->data(),
                                               levelZeroTensor.at(SINGLE_TENSOR)->get_byte_size());
 
@@ -599,7 +600,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
             _logger.debug("Update output graph descriptor with the new tensor");
             OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
 
-            _pipeline->update_graph_arguments(_metadata.outputs.at(ioIndex).index,
+            _pipeline->update_graph_arguments(_metadata.outputs.at(ioIndex).indexUsedByDriver,
                                               levelZeroTensor->data(),
                                               levelZeroTensor->get_byte_size());
 
@@ -630,12 +631,12 @@ void ZeroInferRequest::update_states_if_memory_changed() {
                 _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_zero_state();
                 zeroState->clear_zero_state_update_pending();
 
-                _pipeline->update_graph_arguments(_metadata.inputs.at(zeroState->get_tensor_index()).index,
+                _pipeline->update_graph_arguments(_metadata.inputs.at(zeroState->get_tensor_index()).indexUsedByDriver,
                                                   get_level_zero_input(zeroState->get_tensor_index())->data(),
                                                   get_level_zero_input(zeroState->get_tensor_index())->get_byte_size());
 
                 _pipeline->update_graph_arguments(
-                    _metadata.outputs.at(zeroState->get_related_tensor_index()).index,
+                    _metadata.outputs.at(zeroState->get_related_tensor_index()).indexUsedByDriver,
                     _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->data(),
                     _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->get_byte_size());
             }

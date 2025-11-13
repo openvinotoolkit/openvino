@@ -96,14 +96,14 @@ Pipeline::Pipeline(const Config& config,
             if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("Pipeline - set args for input index: %zu", io_index);
 
-                graph->set_argument_value(desc.index, input_tensors.at(io_index).at(i)->data());
+                graph->set_argument_value(desc.indexUsedByDriver, input_tensors.at(io_index).at(i)->data());
 
                 ++io_index;
                 continue;
             }
 
             graph->set_argument_value(
-                desc.index,
+                desc.indexUsedByDriver,
                 static_cast<unsigned char*>(input_tensors.at(io_index).at(0)->data()) +
                     (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists);
 
@@ -113,7 +113,7 @@ Pipeline::Pipeline(const Config& config,
         io_index = 0;
         for (const auto& desc : _graph->get_metadata().outputs) {
             graph->set_argument_value(
-                desc.index,
+                desc.indexUsedByDriver,
                 static_cast<unsigned char*>(output_tensors.at(io_index)->data()) +
                     (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists);
             ++io_index;

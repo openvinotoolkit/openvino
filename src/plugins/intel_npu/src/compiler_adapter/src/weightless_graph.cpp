@@ -523,7 +523,7 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
     for (const auto& desc : _initsMetadata.at(initIndex).inputs) {
         void* data = inputTensors.at(io_index++)->data();
         _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex),
-                                           desc.index,
+                                           desc.indexUsedByDriver,
                                            static_cast<unsigned char*>(data));
     }
 
@@ -531,7 +531,7 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
     for (const auto& desc : _initsMetadata.at(initIndex).outputs) {
         void* data = outputTensors.at(io_index++)->data();
         _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex),
-                                           desc.index,
+                                           desc.indexUsedByDriver,
                                            static_cast<unsigned char*>(data));
     }
 
@@ -565,7 +565,7 @@ void WeightlessGraph::set_weights_inputs() {
                         desc.nameFromCompiler,
                         "\" has no correspondent within the init outputs.");
         std::shared_ptr<ov::ITensor> weightsTensor = _mainInputsViewTensors.at(desc.nameFromCompiler);
-        set_argument_value(desc.index, static_cast<unsigned char*>(weightsTensor->data()));
+        set_argument_value(desc.indexUsedByDriver, static_cast<unsigned char*>(weightsTensor->data()));
     }
 }
 
