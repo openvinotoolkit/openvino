@@ -39,10 +39,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-#define NUM_K_HEADS "num_k_heads"
-#define K_HEAD_SIZE "k_head_size"
-#define NUM_V_HEADS "num_v_heads"
-#define V_HEAD_SIZE "v_head_size"
+constexpr const char* NUM_K_HEADS = "num_k_heads";
+constexpr const char* K_HEAD_SIZE = "k_head_size";
+constexpr const char* NUM_V_HEADS = "num_v_heads";
+constexpr const char* V_HEAD_SIZE = "v_head_size";
 
 using namespace ov::op;
 using namespace ov::pass;
