@@ -67,13 +67,6 @@ if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET AND
     message(FATAL_ERROR "OpenVINO requires MACOSX_DEPLOYMENT_TARGET at least 10.15, specified ${CMAKE_OSX_DEPLOYMENT_TARGET}")
 endif()
 
-set_property(GLOBAL PROPERTY JOB_POOLS link=16)
-# set_property(GLOBAL PROPERTY JOB_POOL_COMPILE build)
-# set_property(GLOBAL PROPERTY JOB_POOL_LINK link)
-get_property(POOLS GLOBAL PROPERTY JOB_POOLS)
-get_property(POOL_COMPILE GLOBAL PROPERTY JOB_POOL_COMPILE)
-get_property(POOL_LINK GLOBAL PROPERTY JOB_POOL_LINK)
-
 # resolving dependencies for the project
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
 message (STATUS "CMAKE_CROSSCOMPILING .................. " ${CMAKE_CROSSCOMPILING})
@@ -84,9 +77,7 @@ message (STATUS "CPACK_GENERATOR ....................... " ${CPACK_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
 message (STATUS "CMAKE_CXX_COMPILER_ID ................. " ${CMAKE_CXX_COMPILER_ID})
 message (STATUS "CMAKE_CXX_STANDARD .................... " ${CMAKE_CXX_STANDARD})
-message (STATUS "JOB_POOLS ....................... " ${POOLS})
-message (STATUS "JOB_POOL_COMPILE ................ " ${POOL_COMPILE})
-message (STATUS "JOB_POOL_LINK ...................." ${POOL_LINK})
+
 if(OV_GENERATOR_MULTI_CONFIG)
     string(REPLACE ";" " " config_types "${CMAKE_CONFIGURATION_TYPES}")
     message (STATUS "CMAKE_CONFIGURATION_TYPES ............. " ${config_types})
@@ -198,3 +189,6 @@ endif()
 include(cmake/packaging/packaging.cmake)
 
 ov_cpack(${OV_CPACK_COMPONENTS_ALL})
+
+set_property(GLOBAL PROPERTY JOB_POOLS build_jobs=32 link_jobs=16 four_jobs=4)
+
