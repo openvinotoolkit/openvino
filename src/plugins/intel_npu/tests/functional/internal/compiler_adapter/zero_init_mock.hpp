@@ -44,12 +44,12 @@ struct ZeroInitStructsMock {
 
     ze_api_version_t ze_drv_api_version = {};
 
-    mutable std::unique_ptr<ze_device_graph_properties_t> compiler_properties = nullptr;
+    std::unique_ptr<ze_device_graph_properties_t> compiler_properties = nullptr;
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
 
-    mutable std::mutex _mutex;
+    std::mutex _mutex;
 };
 
 }  // namespace intel_npu

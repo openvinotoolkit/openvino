@@ -52,24 +52,6 @@ public:
     inline uint32_t getDriverVersion() const {
         return driver_properties.driverVersion;
     }
-    uint32_t getCompilerVersion() {
-        if (!compiler_properties) {
-            (void)getCompilerProperties();
-        }
-        return ZE_MAKE_VERSION(compiler_properties->compilerVersion.major, compiler_properties->compilerVersion.minor);
-    }
-    ze_device_graph_properties_t getCompilerProperties() {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (!compiler_properties) {
-            // Obtain compiler-in-driver properties
-            compiler_properties = std::make_unique<ze_device_graph_properties_t>();
-            compiler_properties->stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-            auto result =
-                graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, compiler_properties.get());
-            THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
-        }
-        return *compiler_properties;
-    }
     inline uint32_t getMutableCommandListExtVersion() const {
         return mutable_command_list_ext_version;
     }
@@ -94,6 +76,10 @@ public:
     }
 
     static const std::shared_ptr<ZeroInitStructsHolder>& getInstance();
+
+    ze_device_graph_properties_t getCompilerProperties();
+
+    uint32_t getCompilerVersion();
 
 private:
     void initNpuDriver();

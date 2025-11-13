@@ -99,7 +99,7 @@ private:
     mutable FilteredConfig _globalConfig;
     mutable Logger _logger;
     std::shared_ptr<Metrics> _metrics;
-    mutable std::unique_ptr<Properties> _properties;
+    std::unique_ptr<Properties> _properties;
 
     static std::atomic<int> _compiledModelLoadCounter;
     mutable std::mutex _mutex;
