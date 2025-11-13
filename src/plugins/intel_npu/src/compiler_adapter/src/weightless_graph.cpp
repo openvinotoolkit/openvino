@@ -522,13 +522,17 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
     size_t io_index = 0;
     for (const auto& desc : _initsMetadata.at(initIndex).inputs) {
         void* data = inputTensors.at(io_index++)->data();
-        _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex), desc.index, static_cast<unsigned char*>(data));
+        _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex),
+                                           desc.index,
+                                           static_cast<unsigned char*>(data));
     }
 
     io_index = 0;
     for (const auto& desc : _initsMetadata.at(initIndex).outputs) {
         void* data = outputTensors.at(io_index++)->data();
-        _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex), desc.index, static_cast<unsigned char*>(data));
+        _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex),
+                                           desc.index,
+                                           static_cast<unsigned char*>(data));
     }
 
     _initsCommandLists.at(initIndex)->appendGraphExecute(
