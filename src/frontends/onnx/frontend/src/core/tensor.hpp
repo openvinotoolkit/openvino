@@ -347,7 +347,7 @@ private:
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
             return m_tensor_proto->double_data().data();
         }
-        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT64, DOUBLE");
+        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT32, UINT64, DOUBLE");
     }
 
     size_t get_data_size() const {
