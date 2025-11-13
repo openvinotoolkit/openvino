@@ -113,24 +113,7 @@ const std::shared_ptr<VCLApi>& VCLApi::getInstance() {
     return instance;
 }
 
-void setDeviceDesc(vcl_device_desc_t& device_desc, const std::string& device) {
-    std::unordered_map<std::string, vcl_device_desc_t> devicesDescsMap = {
-        {"3720", {sizeof(vcl_device_desc_t), 0xAD1D, static_cast<uint16_t>(-1), 2}},
-        {"4000", {sizeof(vcl_device_desc_t), 0x643E, static_cast<uint16_t>(-1), 6}},
-        // For other devices, the tile configuration needs to be provided by the user.
-    };
-
-    auto it = devicesDescsMap.find(device);
-    if (it != devicesDescsMap.end()) {
-        device_desc = it->second;
-    } else {
-        device_desc = devicesDescsMap["4000"];
-    }
-}
-
-VCLCompilerImpl::VCLCompilerImpl(const std::string& device)
-    : _logHandle(nullptr),
-      _logger("VCLCompilerImpl", Logger::global().level()) {
+VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
     // Initialize the VCL API
     THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
@@ -156,8 +139,8 @@ VCLCompilerImpl::VCLCompilerImpl(const std::string& device)
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) - 1);
 
-    vcl_device_desc_t device_desc;
-    setDeviceDesc(device_desc, device);
+    // Set device description as empty, the related info will be processed in compile phase if passed by user.
+    vcl_device_desc_t device_desc = {};
 
     THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
                           vclCompilerCreate(&compilerDesc, &device_desc, &_compilerHandle, &_logHandle),

@@ -65,15 +65,14 @@ ov::Tensor make_tensor_from_vector(std::vector<uint8_t>& vector) {
 
 namespace intel_npu {
 
-PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                             const std::string& deviceId)
+PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
     : _zeroInitStruct(zeroInitStruct),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize PluginCompilerAdapter start");
 
     _logger.info("PLUGIN VCL compiler will be used.");
     try {
-        auto vclCompilerPtr = VCLCompilerImpl::getInstance(deviceId);
+        auto vclCompilerPtr = VCLCompilerImpl::getInstance();
         auto vclLib = VCLApi::getInstance()->getLibrary();
         if (vclCompilerPtr && vclLib) {
             _compiler = ov::SoPtr<intel_npu::ICompiler>(vclCompilerPtr, vclLib);
@@ -178,7 +177,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         return starts_with(name, "main");
     };
 
-    FilteredConfig localConfig = config;
+    Config localConfig = config;
     if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
         localConfig.update({{ov::intel_npu::separate_weights_version.name(), "ONE_SHOT"}});
     }
@@ -313,7 +312,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
             _logger.info("Metadata is empty, trying to get it from the driver parser");
             networkMeta = _zeGraphExt->getNetworkMeta(mainGraphDesc);
             if (model) {
-                networkMeta.name = model->get_friendly_name();
+                networkMeta.name = model.value()->get_friendly_name();
             } else {
                 _logger.warning("networkMeta name is empty!");
             }

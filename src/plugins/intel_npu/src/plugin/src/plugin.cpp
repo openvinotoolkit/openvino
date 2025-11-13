@@ -636,8 +636,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // create compiler
     std::string device_id = getDeviceFromProperties(localPropertiesMap);
     CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler =
-        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties), device_id);
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
@@ -935,9 +934,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
     std::string device_id = getDeviceFromProperties(propertiesMap);
-    auto compiler = compilerAdapterFactory.getCompiler(_backend,
-                                                       resolveCompilerType(_globalConfig, npu_plugin_properties),
-                                                       device_id);
+    auto compiler =
+        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -973,9 +971,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     const auto propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
     std::string device_id = getDeviceFromProperties(propertiesMap);
-    auto compiler = compilerAdapterFactory.getCompiler(_backend,
-                                                       resolveCompilerType(_globalConfig, npu_plugin_properties),
-                                                       device_id);
+    auto compiler =
+        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
