@@ -51,7 +51,7 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: ccache
       CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\staging\\windows2022_x86_64_${{ inputs.build-type }}\\${{ inputs.runner }}
       CCACHE_DIR: ${{ github.workspace }}\\ccache
-      CCACHE_MAXSIZE: 3G
+      CCACHE_MAXSIZE: 10G
       CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
@@ -297,6 +297,7 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_pdb.zip"
           }
           Compress-Archive @compress
+          Get-ChildItem -Path "${{ env.BUILD_DIR }}\*" -Include *.zip  | Select-Object Name, @{Name="SizeMB";Expression={ "{0:N0}" -f ($_.Length / 1MB) }}
 
       # Setup Python 3.11 as the default one
       - name: Setup Python ${{ env.PYTHON_VERSION }}
