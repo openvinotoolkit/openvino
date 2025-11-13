@@ -71,7 +71,6 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize PluginCompilerAdapter start");
 
-#ifdef VCL_FOR_COMPILER
     _logger.info("PLUGIN VCL compiler will be used.");
     try {
         auto vclCompilerPtr = VCLCompilerImpl::getInstance(deviceId);
@@ -97,12 +96,6 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
             throw std::runtime_error("Both VCL and MLIR compiler load failed, aborting.");
         }
     }
-#else
-    _logger.info("PLUGIN compiler will be used.");
-    std::string baseName = "npu_mlir_compiler";
-    auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
-    _compiler = load_compiler(libPath);
-#endif
 
     if (_zeroInitStruct == nullptr) {
         return;
@@ -136,29 +129,29 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         // network
         try {
             graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
-#ifdef VCL_FOR_COMPILER
+
+            // if use vcl lib to compile, the metadata is empty and git the info from driver parser
             if (networkMeta.inputs.empty() && networkMeta.outputs.empty()) {
                 // If the metadata is empty, we can try to get it from the driver parser
                 _logger.info("Metadata is empty, trying to get it from the driver parser");
                 networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
                 networkMeta.name = model->get_friendly_name();
+                networkDesc.metadata = networkMeta;
             }
-#endif
+
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
         }
+    } else {
+        _logger.debug("no zeGraphExt, metadata is empty from vcl compiler");
     }
 
     return std::make_shared<Graph>(
         _zeGraphExt,
         _zeroInitStruct,
         graphDesc,
-#ifdef VCL_FOR_COMPILER
-        std::move(networkMeta),
-#else
         std::move(networkDesc.metadata),
-#endif
         std::move(tensor),
         config,
         /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
@@ -308,19 +301,26 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     std::vector<uint8_t> network(mainBlob.get_byte_size());
     GraphDescriptor mainGraphDesc;
 
-#ifdef VCL_FOR_COMPILER
-    _logger.debug("parse metadata from driver for vcl compiler");
-    if (_zeGraphExt) {
-        _logger.debug("parse start for vcl compiler");
-        mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
-        networkMeta = _zeGraphExt->getNetworkMeta(mainGraphDesc);
-    }
-    _logger.debug("parse end for vcl compiler");
-#else
     _logger.debug("parse start");
     network.assign(reinterpret_cast<const uint8_t*>(mainBlob.data()),
                    reinterpret_cast<const uint8_t*>(mainBlob.data()) + mainBlob.get_byte_size());
     networkMeta = _compiler->parse(network, config);
+
+    if (_zeGraphExt) {
+        // if use vcl lib to compile, the metadata is empty and get the info from driver parser
+        if (networkMeta.inputs.empty() && networkMeta.outputs.empty()) {
+            // If the metadata is empty, we can try to get it from the driver parser
+            _logger.info("Metadata is empty, trying to get it from the driver parser");
+            networkMeta = _zeGraphExt->getNetworkMeta(mainGraphDesc);
+            if (model) {
+                networkMeta.name = model->get_friendly_name();
+            } else {
+                _logger.warning("networkMeta name is empty!");
+            }
+        }
+    } else {
+        _logger.warning("no zeGraphExt, metadata is empty from vcl compiler.");
+    }
     network.clear();
     network.shrink_to_fit();
 
@@ -329,7 +329,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     }
 
     _logger.debug("main schedule parse end");
-#endif
 
     // exporting the blob when we get it from cache or ov::hint::compiled_blob property
     // shall be available
@@ -396,10 +395,12 @@ uint32_t PluginCompilerAdapter::get_version() const {
 }
 
 std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
-#ifdef VCL_FOR_COMPILER
     // For VCL, we can return the supported options from compiler
     VCLCompilerImpl* vclCompiler = dynamic_cast<VCLCompilerImpl*>(_compiler.operator->());
     if (vclCompiler == nullptr) {
+        // If _compiler  cannot cover to VCLCompilerImpl, it should use the mlir library.
+        // PluginCompiler has all the same options as plugin
+        // Returing empty string to let the plugin fallback to legacy registration
         _logger.warning("Failed to cast compiler to VCLCompilerImpl. Returning empty supported options.");
         return {};
     }
@@ -424,20 +425,18 @@ std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
         compilerOpts.push_back(option);
     }
     return compilerOpts;
-#else
-    // PluginCompiler has all the same options as plugin
-    // Returing empty string to let the plugin fallback to legacy registration
-    return {};
-#endif
 }
 
 bool PluginCompilerAdapter::is_option_supported(std::string optname) const {
-#ifdef VCL_FOR_COMPILER
     VCLCompilerImpl* vclCompiler = dynamic_cast<VCLCompilerImpl*>(_compiler.operator->());
     if (vclCompiler == nullptr) {
+        // If _compiler  cannot cover to VCLCompilerImpl, it should use the mlir library.
+        // This functions has no utility in PluginCompiler
+        // returning false for any request to avoid the option of spaming the plugin
         _logger.warning("Failed to cast compiler to VCLCompilerImpl. Returning false for check.");
         return false;
     }
+
     if (vclCompiler->is_option_supported(optname)) {
         _logger.debug("Option %s is supported by VCLCompilerImpl", optname.c_str());
         return true;
@@ -445,11 +444,6 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname) const {
         _logger.debug("Option %s is not supported by VCLCompilerImpl", optname.c_str());
         return false;
     }
-#else
-    // This functions has no utility in PluginCompiler
-    // returning false for any request to avoid the option of spaming the plugin
-    return false;
-#endif
 }
 
 }  // namespace intel_npu

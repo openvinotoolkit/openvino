@@ -116,7 +116,7 @@ const std::shared_ptr<VCLApi>& VCLApi::getInstance() {
 void setDeviceDesc(vcl_device_desc_t& device_desc, const std::string& device) {
     std::unordered_map<std::string, vcl_device_desc_t> devicesDescsMap = {
         {"3720", {sizeof(vcl_device_desc_t), 0xAD1D, static_cast<uint16_t>(-1), 2}},
-        {"4000", {sizeof(vcl_device_desc_t), 0x643E, static_cast<uint16_t>(-1), 5}},
+        {"4000", {sizeof(vcl_device_desc_t), 0x643E, static_cast<uint16_t>(-1), 6}},
         // For other devices, the tile configuration needs to be provided by the user.
     };
 
