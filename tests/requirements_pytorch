@@ -20,6 +20,8 @@ autoawq==0.2.7; platform_system == "Linux" and platform_machine == "x86_64"
 # triton is a dependency of autoawq, newer versions lead to TorchFX test failures
 triton==3.1.0; platform_system == "Linux" and platform_machine == "x86_64"
 auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+# peft is a dependency of auto-gptq, newer versions lead to gptq model loading failures
+peft==0.17.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
 av==13.0.0
 basicsr==1.4.2; python_version < "3.12"
 datasets==3.0.1
