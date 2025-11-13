@@ -663,6 +663,35 @@ void program::mark_if_data_flow(program_node& node) {
             }
         }
     }
+
+    // Legacy (non new-shape-infer) rank promotion for data_flow:
+    // - Only runs when node not already marked data_flow.
+    // - Collects rank requirements from Gemm users (ports 0 and 1 only; bias and others ignored).
+    // - If any Gemm user output rank > current node rank, set promote flag and track max_required_rank.
+    // - Promote to data_flow only when there is at least one higher rank and max_required_rank > current_rank.
+    if (!is_new_shape_infer() && !node.data_flow) {
+        const size_t current_rank = node.get_output_layout().get_rank();
+        size_t max_required_rank = current_rank;
+        bool promote = false;
+        for (auto* user : node.get_users()) {
+            if (!user->is_type<gemm>())
+                continue;
+            int port = user->get_port_from_deps(node.id());
+            if (port < 0 || port >= 2) // ignore bias or other ports
+                continue;
+            size_t user_rank = user->get_output_layout().get_rank();
+            if (user_rank > max_required_rank)
+                max_required_rank = user_rank;
+            if (user_rank > current_rank)
+                promote = true;
+        }
+        if (promote && current_rank < max_required_rank) {
+            GPU_DEBUG_TRACE_DETAIL << "[mark_if_data_flow] Promote node '" << node.id()
+                      << "' to data_flow: current_rank=" << current_rank
+                      << " max_required_rank=" << max_required_rank << std::endl;
+            node.data_flow = true;
+        }
+    }
 }
 
 void program::transfer_memory_to_device() {
