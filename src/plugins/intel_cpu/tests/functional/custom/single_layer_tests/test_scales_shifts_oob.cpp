@@ -1,0 +1,122 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <gtest/gtest.h>
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "utils/cpu_test_utils.hpp"
+
+using namespace ov::test;
+using namespace CPUTestUtils;
+
+namespace {
+
+// Checks that getScalesAndShifts no longer triggers out-of-bounds memory access 
+//tied to getPaddedElementsCount (regression for #32070).
+class ScalesShiftsOOBTest : public testing::WithParamInterface<std::string>,
+                            public SubgraphBaseStaticTest {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
+        return "Device=" + obj.param;
+    }
+
+protected:
+    void SetUp() override {
+        targetDevice = this->GetParam();
+
+        ov::ParameterVector params;
+        auto input = std::make_shared<ov::op::v0::Parameter>(
+            ov::element::f32, 
+            ov::Shape{1, 1, 240, 320});
+        params.push_back(input);
+
+        // Conv layer
+        auto weights1 = ov::test::utils::make_constant(
+            ov::element::f32,
+            ov::Shape{24, 1, 3, 3});
+        auto conv1 = std::make_shared<ov::op::v1::Convolution>(
+            input,
+            weights1,
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{1, 1},
+            ov::CoordinateDiff{1, 1},
+            ov::Strides{1, 1});
+
+        auto slope1 = ov::test::utils::make_constant(
+            ov::element::f32,
+            ov::Shape{24},
+            std::vector<float>(24, 0.1f));
+        auto prelu1 = std::make_shared<ov::op::v0::PRelu>(conv1, slope1);
+
+        auto weights2 = ov::test::utils::make_constant(
+            ov::element::f32,
+            ov::Shape{24, 1, 1, 3, 3});
+        auto group_conv = std::make_shared<ov::op::v1::GroupConvolution>(
+            prelu1,
+            weights2,
+            ov::Strides{2, 2},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
+
+        auto slope2 = ov::test::utils::make_constant(
+            ov::element::f32,
+            ov::Shape{24},
+            std::vector<float>(24, 0.1f));
+        auto prelu2 = std::make_shared<ov::op::v0::PRelu>(group_conv, slope2);
+
+        auto weights3 = ov::test::utils::make_constant(
+            ov::element::f32,
+            ov::Shape{40, 24, 1, 1});
+        auto conv3 = std::make_shared<ov::op::v1::Convolution>(
+            prelu2,
+            weights3,
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
+
+        auto slope3 = ov::test::utils::make_constant(
+            ov::element::f32,
+            ov::Shape{40},
+            std::vector<float>(40, 0.1f));
+        auto prelu3 = std::make_shared<ov::op::v0::PRelu>(conv3, slope3);
+
+        auto weights4 = ov::test::utils::make_constant(
+            ov::element::f32,
+            ov::Shape{40, 1, 1, 3, 3});
+        auto group_conv2 = std::make_shared<ov::op::v1::GroupConvolution>(
+            prelu3,
+            weights4,
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{1, 1},
+            ov::CoordinateDiff{1, 1},
+            ov::Strides{1, 1});
+
+        auto slope4 = ov::test::utils::make_constant(
+            ov::element::f32,
+            ov::Shape{40},
+            std::vector<float>(40, 0.1f));
+        auto prelu4 = std::make_shared<ov::op::v0::PRelu>(group_conv2, slope4);
+
+        function = std::make_shared<ov::Model>(
+            ov::NodeVector{prelu4},
+            params,
+            "ScalesShiftsOOBTest");
+    }
+};
+
+// Fix ensures model compiles and runs inference without memory errors or out-of-bounds 
+// in getScalesAndShifts, unlike before.
+TEST_P(ScalesShiftsOOBTest, CompileAndInfer) {
+    ASSERT_NO_THROW(run());
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ScalesShiftsOOB,
+    ScalesShiftsOOBTest,
+    ::testing::Values(ov::test::utils::DEVICE_CPU),
+    ScalesShiftsOOBTest::getTestCaseName);
+
+}  // namespace
