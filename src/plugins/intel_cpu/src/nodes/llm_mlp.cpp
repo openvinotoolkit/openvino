@@ -379,9 +379,9 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
         auto K = w_gate.size(1);
         auto N = w_gate.size(0);
         OPENVINO_ASSERT(w_gate.stride_bytes(0) == w_up.stride_bytes(0));
-        if (m_config.gate_up_combined) {
+        if (m_config.gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
             N = w_gate.size(0) / 2;
-            if (m_config.gate_up_swapped) {
+            if (m_config.gate_up_type == LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE) {
                 // When VariadicSplit output[1] connects to gate instead of up, swap the pointers
                 gate_up.setup(w_gate.ptr_v(N, 0), w_gate.ptr_v(), w_gate.stride_bytes(0), N * 2, K, config);
             } else {
@@ -398,19 +398,18 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
             auto* w_scale_gate = pnode->getSrcMemoryAtPort(4)->getDataAs<float>();
             auto* w_scale_up = pnode->getSrcMemoryAtPort(5)->getDataAs<float>();
             auto* dst = m_w_scale_gateup.ptr<float>();
-            if (m_config.gate_up_combined) {
+            if (m_config.gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
                 w_scale_up = w_scale_gate + N;
             }
 
-            // When gate_up_combined=true and gate_up_swapped=true, we need to swap the scales
+            // When gate_up_type is COMBINED_UP_GATE, we need to swap the scales
             // to match the swapped weight layout
             auto* scale_first = w_scale_gate;
             auto* scale_second = w_scale_up;
-            if (m_config.gate_up_combined && m_config.gate_up_swapped) {
+            if (m_config.gate_up_type == LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE) {
                 scale_first = w_scale_up;
                 scale_second = w_scale_gate;
             }
-
             for (size_t i = 0; i < N; i += 16) {
                 memcpy(dst, scale_first + i, 16 * sizeof(float));
                 dst += 16;

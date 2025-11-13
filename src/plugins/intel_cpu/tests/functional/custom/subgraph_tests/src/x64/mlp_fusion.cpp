@@ -97,7 +97,7 @@ protected:
         ov::Output<ov::Node> up_output;
 
         if (param.use_swapped_outputs) {
-            // Create pattern with swapped VariadicSplit outputs to test gate_up_swapped support
+            // Create pattern with swapped VariadicSplit outputs to test COMBINED_UP_GATE type
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = -0.5;
             in_data.range = 1.0;
@@ -120,7 +120,7 @@ protected:
             auto axis_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, -1);
             auto gate_up_split = std::make_shared<ov::op::v1::VariadicSplit>(gate_up_proj, axis_const, split_lengths);
 
-            // Swap outputs to test gate_up_swapped support
+            // Swap outputs to test COMBINED_UP_GATE type
             auto gate_part = gate_up_split->output(1);  // activation on output[1]
             if (param.act_type == "Swish")
                 gate_act = std::make_shared<ov::op::v4::Swish>(gate_part);
@@ -195,7 +195,7 @@ const std::vector<LLMMLPFusionParams> mlp_params = {
     {ishape, 4096 / 4, 11008 / 4, "Swish", false, false},
     {ishape, 4096 / 4, 11008 / 4, "Swish", true, false},
 
-    // Test case with swapped VariadicSplit outputs (should fuse with gate_up_swapped=true)
+    // Test case with swapped VariadicSplit outputs (should fuse with COMBINED_UP_GATE type)
     {ishape, 4096 / 4, 11008 / 4, "Gelu", false, true},
 };
 
