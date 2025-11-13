@@ -115,6 +115,9 @@ OpenVINO Node.js API
 * `Model.reshape` method has been exposed, including type conversion ability and type validation helpers, useful for reshaping LLMs.
 * Support for ov-node types in TypeScript part of bindings has been extended, enabling  direct integration with the JavaScript API. 
 * Wrapping of `compileModel()` method has been fixed to allow checking type of returned objects.  
+* The version of LLMPipeline.generate() that returns strings is now deprecated. 
+  Starting with 2026.0.0 LLMPipeline.generate() will return DecodedResults by default.
+  To use the new behavior with current release, set ``["return_decoded_results": true]`` in GenerationConfig.
 
 
 PyTorch Framework Support 
@@ -1122,7 +1125,7 @@ Deprecated and to be removed in the future
   `openvino.runtime` module. The old namespace is now considered deprecated and will be
   discontinued in 2026.0. A new namespace structure is available for immediate migration.
   Details will be provided through warnings and documentation.
-* Starting with the next release, manylinux2014 will be upgraded to manylinux_2_28. This aligns with modern toolchain requirements but also means that CentOS 7 will no longer be supported due to glibc incompatibility.
+* Starting with the 2026.0 release, manylinux2014 will be upgraded to manylinux_2_28. This aligns with modern toolchain requirements but also means that CentOS 7 will no longer be supported due to glibc incompatibility.
 * With the release of Node.js v22, updated Node.js bindings are now available and compatible with the latest LTS version. These bindings do not support CentOS 7, as they rely on newer system libraries unavailable on legacy systems.
 
 
