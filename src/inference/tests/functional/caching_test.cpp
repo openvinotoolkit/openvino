@@ -444,9 +444,7 @@ private:
                 return res;
             }));
 
-        EXPECT_CALL(plugin, set_property(_)).Times(AnyNumber()).WillRepeatedly(Invoke([](const ov::AnyMap&) {
-            OPENVINO_NOT_IMPLEMENTED;
-        }));
+        EXPECT_CALL(plugin, set_property(_)).Times(AnyNumber());
     }
 };
 
@@ -2962,6 +2960,7 @@ INSTANTIATE_TEST_SUITE_P(CachingTest,
                          getTestCaseName);
 #endif  // defined(ENABLE_OV_IR_FRONTEND)
 
+#ifdef PROXY_PLUGIN_ENABLED
 class CacheTestWithProxyEnabled : public CachingTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<TestParam, std::string>>& obj) {
@@ -2985,7 +2984,6 @@ protected:
     }
 };
 
-#ifdef PROXY_PLUGIN_ENABLED
 TEST_P(CacheTestWithProxyEnabled, TestLoad) {
     ON_CALL(*mockPlugin, get_property(ov::available_devices.name(), _))
         .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {

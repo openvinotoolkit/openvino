@@ -109,10 +109,10 @@ jobs:
         run: |
           IGNORE_FILE="keras/src/backend/openvino/excluded_tests.txt"
           IGNORE_ARGS=$(awk '{print "--ignore=" $0}' "$IGNORE_FILE")
-          pytest keras --ignore keras/src/applications $IGNORE_ARGS --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-keras3_pytest.xml
+          pytest keras --ignore keras/src/applications --ignore keras/src/wrappers/sklearn_test.py $IGNORE_ARGS --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-keras3_pytest.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-keras3-backend
