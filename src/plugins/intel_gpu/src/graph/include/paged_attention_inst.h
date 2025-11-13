@@ -22,6 +22,7 @@ public:
     std::set<size_t> get_lockable_input_ids() const override {
         std::set<size_t> input_ports = { PagedAttentionInputIdx::PAST_LENS,
                                          PagedAttentionInputIdx::SUBSEQUENCE_BEGINS,
+                                         PagedAttentionInputIdx::XATTENTION_THRESHOLD,
                                          PagedAttentionInputIdx::MAX_CONTEXT_LEN };
 
         if (typed_desc()->has_score_aggregation)
@@ -71,6 +72,7 @@ public:
     memory::ptr xattention_threshold_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::XATTENTION_THRESHOLD); }
     memory::ptr xattention_block_size_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE); }
     memory::ptr xattention_stride_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::XATTENTION_STRIDE); }
+    memory::ptr sinks_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::SINKS); }
 };
 
 using paged_attention_inst = typed_primitive_inst<paged_attention>;

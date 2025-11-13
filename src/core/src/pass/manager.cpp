@@ -23,7 +23,7 @@
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
-#ifdef ENABLE_PROFILING_ITT
+#ifdef ENABLE_PROFILING_ITT_FULL
 
 namespace ov {
 namespace pass {
@@ -36,7 +36,7 @@ PerfCounters& perf_counters() {
 }  // namespace pass
 }  // namespace ov
 
-#endif  // ENABLE_PROFILING_ITT
+#endif  // ENABLE_PROFILING_ITT_FULL
 
 namespace {
 
@@ -332,7 +332,7 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
 }
 
 bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "pass::Manager::run_passes");
     Profiler profiler(m_name);
 
     bool model_changed = false;

@@ -17,7 +17,7 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
-#define USE_SINGLE_THREADED_RUN_INIT 0
+#define USE_SINGLE_THREADED_RUN_INIT 1
 
 namespace intel_npu {
 
@@ -600,8 +600,8 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::release_init_blob(const size_t initIndex) {
-    if (_initsGraphDesc.at(initIndex)._memoryPersistent || _blobIsPersistent || _initBlobs == std::nullopt ||
-        _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8)) {
+    if ((_zeGraphExt != nullptr && _zeGraphExt->isBlobDataImported(_graphDesc)) || _blobIsPersistent ||
+        _initBlobs == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8)) {
         return;
     }
 
