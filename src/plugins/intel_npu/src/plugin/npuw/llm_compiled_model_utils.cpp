@@ -520,6 +520,59 @@ bool ov::npuw::util::optimize_value_tensors(std::shared_ptr<ov::Model> model, bo
     return ctx.bTransposed;
 }
 
+void ov::npuw::util::patch_broadcast_for_reshape(std::shared_ptr<ov::Model> model,
+                                                 const uint32_t old_kvcache_size,
+                                                 const uint32_t new_kvcache_size) {
+    // After reshape, some Broadcast operations may have constants referring to the old kvcache size.
+    // We need to update these constants to reflect the new kvcache size.
+    for (auto&& op : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v3::Broadcast>(op)) {
+            continue;
+        }
+
+        // Inspect the broadcast shape constant
+        auto shape_source = op->input(1).get_source_output().get_node_shared_ptr();
+        if (!ov::is_type<ov::op::v0::Constant>(shape_source)) {
+            continue;
+        }
+
+        auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
+        const auto elem_type = shape_const->get_element_type();
+        bool modified = false;
+
+        // Handle both int32 and int64 types
+        if (elem_type == ov::element::i64) {
+            auto shape_values = shape_const->cast_vector<int64_t>();
+            for (auto&& d : shape_values) {
+                if (static_cast<uint32_t>(d) == old_kvcache_size) {
+                    d = static_cast<int64_t>(new_kvcache_size);
+                    modified = true;
+                }
+            }
+            if (modified) {
+                auto old_values = shape_const->cast_vector<int64_t>();
+                auto new_const =
+                    std::make_shared<ov::op::v0::Constant>(elem_type, shape_const->get_shape(), shape_values);
+                op->input(1).replace_source_output(new_const);
+            }
+        } else if (elem_type == ov::element::i32) {
+            auto shape_values = shape_const->cast_vector<int32_t>();
+            for (auto&& d : shape_values) {
+                if (static_cast<uint32_t>(d) == old_kvcache_size) {
+                    d = static_cast<int32_t>(new_kvcache_size);
+                    modified = true;
+                }
+            }
+            if (modified) {
+                auto old_values = shape_const->cast_vector<int32_t>();
+                auto new_const =
+                    std::make_shared<ov::op::v0::Constant>(elem_type, shape_const->get_shape(), shape_values);
+                op->input(1).replace_source_output(new_const);
+            }
+        }
+    }
+}
+
 namespace {
 auto remove_encoder_attn_read_value(const std::shared_ptr<ov::Node>& rv_node,
                                     const ov::Output<ov::Node>& kv_out,

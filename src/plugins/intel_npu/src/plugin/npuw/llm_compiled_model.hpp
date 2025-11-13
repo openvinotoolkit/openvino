@@ -8,6 +8,13 @@
 
 #include "compiled_model.hpp"
 
+namespace {
+struct KVAxesPosition {
+    uint32_t batch;
+    uint32_t seq_len;
+};
+}  // anonymous namespace
+
 namespace ov {
 namespace npuw {
 
@@ -86,12 +93,9 @@ private:
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::CompiledModel> m_lm_head_compiled;
 
-    // Multiple KV cache models with different static shapes (1K, 2K, 4K, 8K stepping)
+    // Multiple KV cache models with different static KV cache shapes (1K, 2K, 4K, 8K stepping)
     std::vector<std::shared_ptr<ov::npuw::CompiledModel>> m_kvcache_compiled_variants;
     std::vector<uint32_t> m_kvcache_sizes;  // Corresponding KV cache sizes for each variant
-
-    // Helper function to select the appropriate KV cache model based on required size
-    std::shared_ptr<ov::npuw::CompiledModel> select_kvcache_model(uint32_t required_size) const;
 
     // Support LoRA
     void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
@@ -109,6 +113,17 @@ private:
     int32_t m_gemma_sliding_window_size = 0;
 
     bool m_is_whisper = false;
+
+    // Create KV cache model variants with different sizes
+    std::vector<std::shared_ptr<ov::Model>> create_kvcache_model_variants(
+        const std::shared_ptr<ov::Model>& kvcache_model,
+        const KVAxesPosition& axes,
+        const uint32_t whisper_lhs_seq_size);
+
+    // Create compiled KV cache model variants
+    void create_kvcache_compiled_model_variants(const std::vector<std::shared_ptr<ov::Model>>& kvcache_variant_models,
+                                                const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                const ov::AnyMap& generate_config);
 };
 
 }  // namespace npuw

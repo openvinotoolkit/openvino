@@ -178,71 +178,8 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_input_ids_name = layer_names::inputs_embeds;
     }
 
-    // Create multiple KV cache model variant requests
-    m_kvcache_sizes = compiled_model->m_kvcache_sizes;
-    m_kvcache_requests.reserve(compiled_model->m_kvcache_compiled_variants.size());
-
-    // First, create the largest variant request (last one in the list)
-    auto largest_kvcache_request = compiled_model->m_kvcache_compiled_variants.back()->create_infer_request();
-
-    // Store past KV tensors from the largest variant for sharing
-    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> largest_past_kv_tensors;
-    for (const auto& input_port : largest_kvcache_request->get_compiled_model()->inputs()) {
-        const auto& input_name = input_port.get_any_name();
-        if (input_name.find(layer_names::past_key_values) != std::string::npos) {
-            largest_past_kv_tensors[input_name] = largest_kvcache_request->get_tensor(input_port);
-        }
-    }
-
-    // Create all variant requests and share past KV tensors
-    for (size_t i = 0; i < compiled_model->m_kvcache_compiled_variants.size(); ++i) {
-        std::shared_ptr<ov::IAsyncInferRequest> kvcache_request;
-
-        if (i == compiled_model->m_kvcache_compiled_variants.size() - 1) {
-            // Use the already created largest variant
-            kvcache_request = largest_kvcache_request;
-        } else {
-            // Create smaller variant
-            kvcache_request = compiled_model->m_kvcache_compiled_variants[i]->create_infer_request();
-
-            // Share past KV tensors from the largest variant
-            for (const auto& input_port : kvcache_request->get_compiled_model()->inputs()) {
-                const auto& input_name = input_port.get_any_name();
-                if (input_name.find(layer_names::past_key_values) != std::string::npos) {
-                    if (largest_past_kv_tensors.find(input_name) != largest_past_kv_tensors.end()) {
-                        auto largest_tensor = largest_past_kv_tensors[input_name];
-                        auto small_shape = input_port.get_shape();
-
-                        // Wrap the largest tensor's data pointer with smaller shape
-                        auto shared_tensor = ov::SoPtr<ov::ITensor>(
-                            ov::make_tensor(input_port.get_element_type(), small_shape, largest_tensor->data()),
-                            nullptr);
-
-                        kvcache_request->set_tensor(input_port, shared_tensor);
-                    }
-                }
-            }
-        }
-
-        m_kvcache_requests.push_back(kvcache_request);
-
-        // Build input/output ports mapping for this variant
-        std::unordered_map<std::string, ov::Output<const ov::Node>> variant_in_ports;
-        std::unordered_map<std::string, ov::Output<const ov::Node>> variant_out_ports;
-
-        for (const auto& input_port : kvcache_request->get_compiled_model()->inputs()) {
-            variant_in_ports.emplace(input_port.get_any_name(), input_port);
-        }
-        for (const auto& output_port : kvcache_request->get_compiled_model()->outputs()) {
-            variant_out_ports.emplace(output_port.get_any_name(), output_port);
-        }
-
-        m_kvcache_variant_in_ports.emplace(kvcache_request, std::move(variant_in_ports));
-        m_kvcache_variant_out_ports.emplace(kvcache_request, std::move(variant_out_ports));
-    }
-
-    // Set default to the largest variant for backward compatibility
-    m_kvcache_request = m_kvcache_requests.back();
+    // Create and initialize KV cache variant requests with memory sharing
+    create_kvcache_variant_requests(compiled_model);
 
     m_prefill_base_request = compiled_model->m_prefill_compiled->create_base_infer_request();
     m_prefill_request = compiled_model->m_prefill_compiled->wrap_async_infer_request(m_prefill_base_request);
@@ -326,6 +263,75 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
     m_generate_initialized = false;
     m_gemma_sliding_window_size = compiled_model->m_gemma_sliding_window_size;
+}
+
+void ov::npuw::LLMInferRequest::create_kvcache_variant_requests(
+    const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model) {
+    // Create multiple KV cache model variant requests
+    m_kvcache_sizes = compiled_model->m_kvcache_sizes;
+    m_kvcache_requests.reserve(compiled_model->m_kvcache_compiled_variants.size());
+
+    // First, create the largest variant request (last one in the list)
+    auto largest_kvcache_request = compiled_model->m_kvcache_compiled_variants.back()->create_infer_request();
+
+    // Store past KV tensors from the largest variant for sharing
+    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> largest_past_kv_tensors;
+    for (const auto& input_port : largest_kvcache_request->get_compiled_model()->inputs()) {
+        const auto& input_name = input_port.get_any_name();
+        if (input_name.find(layer_names::past_key_values) != std::string::npos) {
+            largest_past_kv_tensors[input_name] = largest_kvcache_request->get_tensor(input_port);
+        }
+    }
+
+    // Create all variant requests and share past KV tensors
+    for (size_t i = 0; i < compiled_model->m_kvcache_compiled_variants.size(); ++i) {
+        std::shared_ptr<ov::IAsyncInferRequest> kvcache_request;
+
+        if (i == compiled_model->m_kvcache_compiled_variants.size() - 1) {
+            // Use the already created largest variant
+            kvcache_request = largest_kvcache_request;
+        } else {
+            // Create smaller variant
+            kvcache_request = compiled_model->m_kvcache_compiled_variants[i]->create_infer_request();
+
+            // Share past KV tensors from the largest variant
+            for (const auto& input_port : kvcache_request->get_compiled_model()->inputs()) {
+                const auto& input_name = input_port.get_any_name();
+                if (input_name.find(layer_names::past_key_values) != std::string::npos) {
+                    if (largest_past_kv_tensors.find(input_name) != largest_past_kv_tensors.end()) {
+                        auto largest_tensor = largest_past_kv_tensors[input_name];
+                        auto small_shape = input_port.get_shape();
+
+                        // Wrap the largest tensor's data pointer with smaller shape
+                        auto shared_tensor = ov::SoPtr<ov::ITensor>(
+                            ov::make_tensor(input_port.get_element_type(), small_shape, largest_tensor->data()),
+                            nullptr);
+
+                        kvcache_request->set_tensor(input_port, shared_tensor);
+                    }
+                }
+            }
+        }
+
+        m_kvcache_requests.push_back(kvcache_request);
+
+        // Build input/output ports mapping for this variant
+        std::unordered_map<std::string, ov::Output<const ov::Node>> variant_in_ports;
+        std::unordered_map<std::string, ov::Output<const ov::Node>> variant_out_ports;
+
+        for (const auto& input_port : kvcache_request->get_compiled_model()->inputs()) {
+            variant_in_ports.emplace(input_port.get_any_name(), input_port);
+        }
+        for (const auto& output_port : kvcache_request->get_compiled_model()->outputs()) {
+            variant_out_ports.emplace(output_port.get_any_name(), output_port);
+        }
+
+        m_kvcache_variant_in_ports.emplace(kvcache_request, std::move(variant_in_ports));
+        m_kvcache_variant_out_ports.emplace(kvcache_request, std::move(variant_out_ports));
+    }
+
+    // Set default to the largest variant for backward compatibility
+    m_kvcache_request = m_kvcache_requests.back();
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::LLMInferRequest::select_kvcache_request(int64_t num_tokens) {

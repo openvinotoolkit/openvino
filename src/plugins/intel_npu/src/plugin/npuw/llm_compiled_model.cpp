@@ -833,13 +833,6 @@ void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
 }
 }  // namespace
 
-namespace {
-struct KVAxesPosition {
-    uint32_t batch;
-    uint32_t seq_len;
-};
-}  // anonymous namespace
-
 class CutLMHead : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::CutLMHead");
@@ -993,59 +986,6 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
     model->reshape(new_shapes);
 }
 
-void patch_broadcast_after_reshape(std::shared_ptr<ov::Model> model,
-                                   const uint32_t old_kvcache_size,
-                                   const uint32_t new_kvcache_size) {
-    // After reshape, some Broadcast operations may have constants referring to the old kvcache size.
-    // We need to update these constants to reflect the new kvcache size.
-    for (auto&& op : model->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::v3::Broadcast>(op)) {
-            continue;
-        }
-
-        // Inspect the broadcast shape constant
-        auto shape_source = op->input(1).get_source_output().get_node_shared_ptr();
-        if (!ov::is_type<ov::op::v0::Constant>(shape_source)) {
-            continue;
-        }
-
-        auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
-        const auto elem_type = shape_const->get_element_type();
-        bool modified = false;
-
-        // Handle both int32 and int64 types
-        if (elem_type == ov::element::i64) {
-            auto shape_values = shape_const->cast_vector<int64_t>();
-            for (auto&& d : shape_values) {
-                if (static_cast<uint32_t>(d) == old_kvcache_size) {
-                    d = static_cast<int64_t>(new_kvcache_size);
-                    modified = true;
-                }
-            }
-            if (modified) {
-                auto old_values = shape_const->cast_vector<int64_t>();
-                auto new_const =
-                    std::make_shared<ov::op::v0::Constant>(elem_type, shape_const->get_shape(), shape_values);
-                op->input(1).replace_source_output(new_const);
-            }
-        } else if (elem_type == ov::element::i32) {
-            auto shape_values = shape_const->cast_vector<int32_t>();
-            for (auto&& d : shape_values) {
-                if (static_cast<uint32_t>(d) == old_kvcache_size) {
-                    d = static_cast<int32_t>(new_kvcache_size);
-                    modified = true;
-                }
-            }
-            if (modified) {
-                auto old_values = shape_const->cast_vector<int32_t>();
-                auto new_const =
-                    std::make_shared<ov::op::v0::Constant>(elem_type, shape_const->get_shape(), shape_values);
-                op->input(1).replace_source_output(new_const);
-            }
-        }
-    }
-}
-
 void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model,
                                    const uint32_t& batch_dim,
                                    std::size_t max_generation_token_len) {
@@ -1070,91 +1010,6 @@ void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model,
     }
 
     lm_head_model->reshape(new_shape);
-}
-
-std::vector<std::shared_ptr<ov::Model>> create_kvcache_model_variants(const std::shared_ptr<ov::Model>& kvcache_model,
-                                                                      const bool enable_kvcache_variants,
-                                                                      const uint32_t total_kv_size,
-                                                                      const uint32_t min_response_len,
-                                                                      const uint32_t max_generation_token_len,
-                                                                      const KVAxesPosition& axes,
-                                                                      const uint32_t lora_rank,
-                                                                      const uint32_t whisper_lhs_seq_size,
-                                                                      std::vector<uint32_t>& out_kvcache_sizes) {
-    // Check if KV cache variants feature is enabled
-    if (enable_kvcache_variants) {
-        LOG_INFO("KV cache variants feature is ENABLED");
-        LOG_INFO(
-            "Creating multiple KV cache model variants with stepping: 1K+min_response_len, 2K+min_response_len, etc.");
-
-        // Determine KV cache size steps: (1K + min_response_len), (2K + min_response_len), (4K + min_response_len), (8K
-        // + min_response_len), etc.
-        std::vector<uint32_t> kv_size_steps;
-        for (uint32_t base_size = 1024; base_size + min_response_len <= total_kv_size; base_size *= 2) {
-            kv_size_steps.push_back(base_size + min_response_len);
-        }
-        // Always include the total size if it's not already in the list
-        if (kv_size_steps.empty() || kv_size_steps.back() < total_kv_size) {
-            kv_size_steps.push_back(total_kv_size);
-        }
-
-        LOG_INFO("KV cache size variants: ");
-        std::cout << "KV cache size variants: " << std::endl;
-        for (const auto& size : kv_size_steps) {
-            LOG_INFO("  - " << size);
-            std::cout << "  - " << size << std::endl;
-        }
-
-        // Store the sizes for runtime selection
-        out_kvcache_sizes = kv_size_steps;
-    } else {
-        LOG_INFO("KV cache variants feature is DISABLED - using single model");
-        // Use only the total size (traditional single-model approach)
-        out_kvcache_sizes = {total_kv_size};
-    }
-
-    // Generate KV cache model variants
-    LOG_INFO("Generating " << out_kvcache_sizes.size() << " KV cache model variants...");
-    std::vector<std::shared_ptr<ov::Model>> kvcache_variant_models;
-    kvcache_variant_models.reserve(out_kvcache_sizes.size());
-
-    for (size_t i = 0; i < out_kvcache_sizes.size(); ++i) {
-        const uint32_t kv_size = out_kvcache_sizes[i];
-
-        if (kv_size == total_kv_size) {
-            // Last variant uses the main model directly - reshape it first
-            LOG_INFO("Variant " << (i + 1) << "/" << out_kvcache_sizes.size() << " (size=" << kv_size
-                                << "): using and reshaping main model");
-            reshape_to_static(kvcache_model,
-                              max_generation_token_len,
-                              total_kv_size,
-                              axes,
-                              lora_rank,
-                              whisper_lhs_seq_size);
-            kvcache_variant_models.push_back(kvcache_model);
-        } else {
-            // Clone and create smaller variants
-            LOG_INFO("Variant " << (i + 1) << "/" << out_kvcache_sizes.size() << " (size=" << kv_size
-                                << "): cloning and reshaping");
-            auto kvcache_variant = kvcache_model->clone();
-
-            // Patch broadcast constants: total_size -> kv_size
-            patch_broadcast_after_reshape(kvcache_variant, total_kv_size, kv_size);
-
-            // Reshape to target size
-            reshape_to_static(kvcache_variant,
-                              max_generation_token_len,
-                              kv_size,
-                              axes,
-                              lora_rank,
-                              whisper_lhs_seq_size);
-
-            kvcache_variant_models.push_back(kvcache_variant);
-        }
-    }
-    LOG_INFO("Generated all KV cache model variants");
-
-    return kvcache_variant_models;
 }
 
 void slice_out_embeds(std::shared_ptr<ov::Model> model,
@@ -1469,6 +1324,120 @@ void ov::npuw::LLMCompiledModel::gemma_transformations(const std::shared_ptr<ov:
     }
 }
 
+std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_kvcache_model_variants(
+    const std::shared_ptr<ov::Model>& kvcache_model,
+    const KVAxesPosition& axes,
+    const uint32_t whisper_lhs_seq_size) {
+    const uint32_t total_kv_size = m_kvcache_desc.total_size;
+    const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
+    const uint32_t max_generation_token_len = m_kvcache_desc.max_generation_token_len;
+    const bool enable_kvcache_variants = m_cfg.get<::intel_npu::NPUW_LLM_KVCACHE_VARIANTS>();
+
+    // Check if KV cache variants feature is enabled
+    if (enable_kvcache_variants) {
+        LOG_INFO("KV cache variants feature is ENABLED");
+        LOG_INFO(
+            "Creating multiple KV cache model variants with stepping: 1K+min_response_len, 2K+min_response_len, etc.");
+
+        // Determine KV cache size steps: (1K + min_response_len), (2K + min_response_len), (4K + min_response_len), (8K
+        // + min_response_len), etc.
+        std::vector<uint32_t> kv_size_steps;
+        for (uint32_t base_size = 1024; base_size + min_response_len <= total_kv_size; base_size *= 2) {
+            kv_size_steps.push_back(base_size + min_response_len);
+        }
+        // Always include the total size if it's not already in the list
+        if (kv_size_steps.empty() || kv_size_steps.back() < total_kv_size) {
+            kv_size_steps.push_back(total_kv_size);
+        }
+
+        LOG_INFO("KV cache size variants: ");
+        std::cout << "KV cache size variants: " << std::endl;
+        for (const auto& size : kv_size_steps) {
+            LOG_INFO("  - " << size);
+            std::cout << "  - " << size << std::endl;
+        }
+
+        // Store the sizes for runtime selection
+        m_kvcache_sizes = kv_size_steps;
+    } else {
+        LOG_INFO("KV cache variants feature is DISABLED - using single model");
+        // Use only the total size (traditional single-model approach)
+        m_kvcache_sizes = {total_kv_size};
+    }
+
+    // Generate KV cache model variants
+    LOG_INFO("Generating " << m_kvcache_sizes.size() << " KV cache model variants...");
+    std::vector<std::shared_ptr<ov::Model>> kvcache_variant_models;
+    kvcache_variant_models.reserve(m_kvcache_sizes.size());
+
+    for (size_t i = 0; i < m_kvcache_sizes.size(); ++i) {
+        const uint32_t kv_size = m_kvcache_sizes[i];
+
+        if (kv_size == total_kv_size) {
+            // Last variant uses the main model directly - reshape it first
+            LOG_INFO("Variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " (size=" << kv_size
+                                << "): using and reshaping main model");
+            reshape_to_static(kvcache_model,
+                              max_generation_token_len,
+                              total_kv_size,
+                              axes,
+                              m_max_lora_rank,
+                              whisper_lhs_seq_size);
+            kvcache_variant_models.push_back(kvcache_model);
+        } else {
+            // Clone and create smaller variants
+            LOG_INFO("Variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " (size=" << kv_size
+                                << "): cloning and reshaping");
+            auto kvcache_variant = kvcache_model->clone();
+
+            // Patch broadcast constants: total_size -> kv_size
+            ov::npuw::util::patch_broadcast_for_reshape(kvcache_variant, total_kv_size, kv_size);
+
+            // Reshape to target size
+            reshape_to_static(kvcache_variant,
+                              max_generation_token_len,
+                              kv_size,
+                              axes,
+                              m_max_lora_rank,
+                              whisper_lhs_seq_size);
+
+            kvcache_variant_models.push_back(kvcache_variant);
+        }
+    }
+    LOG_INFO("Generated all KV cache model variants");
+
+    return kvcache_variant_models;
+}
+
+void ov::npuw::LLMCompiledModel::create_kvcache_compiled_model_variants(
+    const std::vector<std::shared_ptr<ov::Model>>& kvcache_variant_models,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& generate_config) {
+    // Compile multiple KV cache model variants with different sizes
+    LOG_INFO("Compiling " << m_kvcache_sizes.size() << " KV cache model variants...");
+    m_kvcache_compiled_variants.reserve(m_kvcache_sizes.size());
+
+    for (size_t i = 0; i < m_kvcache_sizes.size(); ++i) {
+        const uint32_t kv_size = m_kvcache_sizes[i];
+        LOG_INFO("Compiling KV cache variant " << (i + 1) << "/" << m_kvcache_sizes.size()
+                                               << " with size: " << kv_size);
+
+        // Use the already prepared variant model
+        auto& kvcache_variant = kvcache_variant_models[i];
+
+        // Compile the variant
+        auto compiled_variant = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+            ov::npuw::ICompiledModel::create(kvcache_variant, plugin, generate_config));
+        NPUW_ASSERT(compiled_variant && "Can't create ov::npuw::CompiledModel for KV cache variant!");
+
+        m_kvcache_compiled_variants.push_back(compiled_variant);
+        LOG_INFO("Successfully compiled KV cache variant with size: " << kv_size);
+    }
+
+    // Keep the original compiled model for backward compatibility (using the largest size)
+    m_kvcache_compiled = m_kvcache_compiled_variants.back();
+}
+
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties)
@@ -1630,15 +1599,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Make kvcache model with static shapes");
 
     // Create KV cache model variants with different sizes
-    auto kvcache_variant_models = create_kvcache_model_variants(kvcache_model,
-                                                                m_cfg.get<::intel_npu::NPUW_LLM_KVCACHE_VARIANTS>(),
-                                                                m_kvcache_desc.total_size,
-                                                                min_response_len,
-                                                                m_kvcache_desc.max_generation_token_len,
-                                                                axes,
-                                                                m_max_lora_rank,
-                                                                whisper_lhs_seq_size,
-                                                                m_kvcache_sizes);
+    auto kvcache_variant_models = create_kvcache_model_variants(kvcache_model, axes, whisper_lhs_seq_size);
 
     // Apply transformations to all KV cache variants
     LOG_DEBUG("Try parametrize Gemma sliding window mask, if it exists.");
@@ -1675,25 +1636,29 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_BLOCK();
         // Only optimize V tensors for static attention types
         if (!generate_attn_dyn) {
-            // Apply to all variants and check if ALL were optimized
-            bool all_optimized = true;
-            bool any_optimized = false;
+            // Apply optimization to all variants and track results
+            size_t optimized_count = 0;
             for (auto& variant_model : kvcache_variant_models) {
                 if (ov::npuw::util::optimize_value_tensors(variant_model, false)) {
-                    any_optimized = true;
-                } else {
-                    all_optimized = false;
+                    ++optimized_count;
                 }
             }
-            if (all_optimized) {
+
+            // Check consistency: either all or none should be optimized
+            if (optimized_count == kvcache_variant_models.size()) {
                 LOG_DEBUG("V-tensors transposed in generate model variants");
                 m_kvcache_desc.v_tensors_transposed_gen = true;
-            } else if (any_optimized) {
-                // If some but not all were optimized, trigger an assertion
-                NPUW_ASSERT(false && "Partial optimization detected, which is not allowed.");
-            } else {
+            } else if (optimized_count == 0) {
                 LOG_DEBUG("No V-tensors were optimized");
                 m_kvcache_desc.v_tensors_transposed_gen = false;
+            } else {
+                // Partial optimization is not allowed
+                OPENVINO_ASSERT(false,
+                                "Partial optimization detected: ",
+                                optimized_count,
+                                " out of ",
+                                kvcache_variant_models.size(),
+                                " variants were optimized, which is not allowed.");
             }
         }
         if (!prefill_attn_dyn && ov::npuw::util::optimize_value_tensors(prefill_model, true)) {
@@ -1830,28 +1795,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     // Compile multiple KV cache model variants with different sizes
-    LOG_INFO("Compiling " << m_kvcache_sizes.size() << " KV cache model variants...");
-    m_kvcache_compiled_variants.reserve(m_kvcache_sizes.size());
-
-    for (size_t i = 0; i < m_kvcache_sizes.size(); ++i) {
-        const uint32_t kv_size = m_kvcache_sizes[i];
-        LOG_INFO("Compiling KV cache variant " << (i + 1) << "/" << m_kvcache_sizes.size()
-                                               << " with size: " << kv_size);
-
-        // Use the already prepared variant model
-        auto& kvcache_variant = kvcache_variant_models[i];
-
-        // Compile the variant
-        auto compiled_variant = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-            ov::npuw::ICompiledModel::create(kvcache_variant, plugin, generate_config));
-        NPUW_ASSERT(compiled_variant && "Can't create ov::npuw::CompiledModel for KV cache variant!");
-
-        m_kvcache_compiled_variants.push_back(compiled_variant);
-        LOG_INFO("Successfully compiled KV cache variant with size: " << kv_size);
-    }
-
-    // Keep the original compiled model for backward compatibility (using the largest size)
-    m_kvcache_compiled = m_kvcache_compiled_variants.back();
+    create_kvcache_compiled_model_variants(kvcache_variant_models, plugin, generate_config);
 
     m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
@@ -2255,23 +2199,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {
     OPENVINO_NOT_IMPLEMENTED;
-}
-
-std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::LLMCompiledModel::select_kvcache_model(
-    uint32_t required_size) const {
-    // Select the smallest KV cache model that can accommodate the required size
-    for (size_t i = 0; i < m_kvcache_sizes.size(); ++i) {
-        if (m_kvcache_sizes[i] >= required_size) {
-            LOG_VERB("Selected KV cache model variant with size: " << m_kvcache_sizes[i]
-                                                                   << " for required size: " << required_size);
-            return m_kvcache_compiled_variants[i];
-        }
-    }
-
-    // If required size exceeds all available sizes, use the largest one
-    LOG_WARN("Required KV cache size " << required_size
-                                       << " exceeds all available variants. Using largest: " << m_kvcache_sizes.back());
-    return m_kvcache_compiled_variants.back();
 }
 
 void ov::npuw::LLMCompiledModel::set_property(const ov::AnyMap& properties) {

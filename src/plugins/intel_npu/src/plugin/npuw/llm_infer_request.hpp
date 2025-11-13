@@ -58,7 +58,13 @@ protected:
 
     void init_tensor(const ov::Output<const ov::Node>& port);
     void copy_kvcache();
+
+    // Create and initialize KV cache variant requests with memory sharing
+    void create_kvcache_variant_requests(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
+
+    // Select appropriate kvcache request for inference
     std::shared_ptr<ov::IAsyncInferRequest> select_kvcache_request(int64_t num_tokens);
+
     void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
                             const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
                             const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
@@ -84,9 +90,6 @@ protected:
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> input_token_ids);
-
-    // Select appropriate kvcache request based on current cache size
-    std::shared_ptr<ov::IAsyncInferRequest> select_kvcache_request();
 
     // Multiple KV cache model variants with different sizes
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_kvcache_requests;
