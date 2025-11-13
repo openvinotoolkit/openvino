@@ -7,7 +7,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestApproximateEqual(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(43)
         assert 'tensor1:0' in inputs_info
         assert 'tensor2:0' in inputs_info
         tensor1_shape = inputs_info['tensor1:0']
