@@ -332,7 +332,7 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
         clKernelData& kernel = kd.kernels[i];
 
-        int iter = i;
+        int32_t iter = static_cast<int32_t>(i);
         if (params.is_shape_agnostic) {
             if (newParams.mode != ScatterUpdateReduction::NONE) {
                 cldnn_jit.RemoveConstant("NO_LOCAL_MEMORY");
