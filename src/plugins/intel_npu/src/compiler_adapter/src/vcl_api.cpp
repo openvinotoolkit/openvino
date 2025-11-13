@@ -144,7 +144,7 @@ VCLCompilerImpl::VCLCompilerImpl(const std::string& device)
         (VCL_COMPILER_VERSION_MAJOR == _vclVersion.major && VCL_COMPILER_VERSION_MINOR < _vclVersion.minor)) {
         _logger.warning("inside supported VCL version is lower than used VCL api:\n plugin was built with VCL %d.%d, "
                         "\n      but loaded VCL is %d.%d.\n"
-                        "Will downwise to use the lastest plugin vcl compiler!!!",
+                        "Will downwise to use the latest plugin vcl compiler!!!",
                         VCL_COMPILER_VERSION_MAJOR,
                         VCL_COMPILER_VERSION_MINOR,
                         _vclVersion.major,
@@ -277,7 +277,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         if (VCL_COMPILER_VERSION_MAJOR < _vclVersion.major) {
             _logger.warning("inside supported VCL version is lower than used VCL api:\n plugin was built with VCL "
                             "%d.%d, \n      but loaded VCL is %d.%d.\n"
-                            "Will downwise to form %s to use vclAllocatedExecutableCreate2",
+                            "Will downgrade to form %s to use vclAllocatedExecutableCreate2",
                             VCL_COMPILER_VERSION_MAJOR,
                             VCL_COMPILER_VERSION_MINOR,
                             _vclVersion.major,
