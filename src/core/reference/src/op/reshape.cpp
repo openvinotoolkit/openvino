@@ -29,7 +29,7 @@ return base_threshold;
 }
 
 static inline void copy_element(char* out, const char* in, size_t elem_size) {
-#define CASE(type)                                                          \
+#    define CASE(type)                                                      \
     case sizeof(type):                                                      \
         *reinterpret_cast<type*>(out) = *reinterpret_cast<const type*>(in); \
         break;
@@ -43,7 +43,7 @@ static inline void copy_element(char* out, const char* in, size_t elem_size) {
         std::memcpy(out, in, elem_size);
         break;
     }
-#undef CASE
+#    undef CASE
 }
 
 void reshape_2D(const char* in,
