@@ -51,6 +51,7 @@ ov_add_test_target(
   openvino::reference
   openvino::runtime
   openvino::npu_common
+  openvino::npu_capabilities
   openvino::npu_al)
 
 if(WIN32)
