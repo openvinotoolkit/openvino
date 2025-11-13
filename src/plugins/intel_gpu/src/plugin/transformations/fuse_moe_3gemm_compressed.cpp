@@ -55,7 +55,8 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto concat_m = wrap_type<ov::op::v0::Concat>({unsqueeze_m, unsqueeze_const_m}, consumers_count(1));
     auto concat1_m = wrap_type<ov::op::v0::Concat>({unsqueeze_const_m, unsqueeze_m, any_input()}, consumers_count(1));
     auto bc_m = wrap_type<ov::op::v3::Broadcast>({any_input(), concat_m}, consumers_count(1));
-    auto scatter_m = wrap_type<ov::op::v12::ScatterElementsUpdate>({bc_m->output(0), topk_m->output(1), norm_m->output(0), any_input()}, consumers_count(1));
+    auto topk_values = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{norm_m, topk_m});
+    auto scatter_m = wrap_type<ov::op::v12::ScatterElementsUpdate>({bc_m->output(0), topk_m->output(1), topk_values->output(0), any_input()}, consumers_count(1));
     auto transpose_m = wrap_type<ov::op::v1::Transpose>({scatter_m, any_input()}, consumers_count(1));
     auto reshape_m = wrap_type<ov::op::v1::Reshape>({transpose_m, concat1_m}, consumers_count(1));
     auto unsqueeze_moe_m = wrap_type<ov::op::v0::Unsqueeze>({reshape_m, any_input()}, consumers_count(1));
@@ -86,7 +87,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-
+        std::cout << "FuseMOE3GemmCompressed|Begin" << std::endl;
         auto moe_compressed = ov::as_type_ptr<ov::intel_gpu::op::MOECompressed>(pattern_map.at(moe_compressed_m).get_node_shared_ptr());
         if (!moe_compressed || transformation_callback(moe_compressed)) {
             return false;
@@ -108,7 +109,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
         moe_3gemm_fused_compressed->set_friendly_name(moe_compressed->get_friendly_name());
         ov::copy_runtime_info(moe_compressed, moe_3gemm_fused_compressed);
         ov::replace_node(moe_compressed, moe_3gemm_fused_compressed);
-
+        std::cout << "FuseMOE3GemmCompressed Successfully" << std::endl;
         return true;
     };
 

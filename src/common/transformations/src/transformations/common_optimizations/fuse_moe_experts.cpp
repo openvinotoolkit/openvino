@@ -104,7 +104,7 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto squeeze_Squeeze_1 =
         wrap_type<ov::op::v0::Squeeze>({select_Gather_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))});
     // NonZero output_type relaxed to accept both i32 and i64
-    auto ListUnpack_NonZero_1 = wrap_type<ov::op::v3::NonZero>({squeeze_Squeeze_1});
+    auto ListUnpack_NonZero_1 = wrap_type<ov::op::v3::NonZero>({squeeze_Squeeze_1 | select_Gather_1});
     auto ListUnpack_Split_1 = wrap_type<ov::op::v1::Split>(
         {ListUnpack_NonZero_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
         {{"num_splits", 2}});
@@ -141,11 +141,11 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto reshape_Reshape_1 =
         wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_2, shape_const}, {{"special_zero", true}});
     auto gate_proj_weight = pattern::any_input(pattern::rank_equals(2));
-    auto linear_MatMul_gate = wrap_type<ov::op::v0::MatMul>({reshape_Reshape_1, gate_proj_weight},
+    auto linear_MatMul_gate = wrap_type<ov::op::v0::MatMul>({reshape_Reshape_1 | reshape_Reshape_1_0, gate_proj_weight},
                                                             {{"transpose_a", false}, {"transpose_b", true}});
     auto silu_Swish = wrap_type<ov::op::v4::Swish>({linear_MatMul_gate});
     auto up_proj_weight = pattern::any_input(pattern::rank_equals(2));
-    auto linear_MatMul_up = wrap_type<ov::op::v0::MatMul>({reshape_Reshape_1, up_proj_weight},
+    auto linear_MatMul_up = wrap_type<ov::op::v0::MatMul>({reshape_Reshape_1 | reshape_Reshape_1_0, up_proj_weight},
                                                           {{"transpose_a", false}, {"transpose_b", true}});
     auto mul_Multiply = wrap_type<ov::op::v1::Multiply>({silu_Swish, linear_MatMul_up}, {{"auto_broadcast", "numpy"}});
     auto down_proj_weight = pattern::any_input(pattern::rank_equals(2));
@@ -216,10 +216,10 @@ std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>> create_router_pattern() 
     auto one_hot_off = wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
     auto transpose_perm = wrap_type<ov::op::v0::Constant>(pattern::value_matches("2, 1, 0"));
 
-    auto softmax = wrap_type<ov::op::v8::Softmax>({linear_MatMul}, {{"axis", 1}});
+    auto softmax = wrap_type<ov::op::v8::Softmax>({linear_MatMul}, {{"axis", -1}});
     auto topk = wrap_type<ov::op::v11::TopK>(
         {softmax, num_topk},
-        {{"axis", -1}, {"mode", "max"}, {"sort", "value"}, {"index_element_type", "i64"}, {"stable", false}});
+        {{"axis", -1}, {"mode", "max"}, {"sort", "none"}, {"index_element_type", "i64"}, {"stable", false}});
     topk->set_output_size(2);
     auto one_hot = wrap_type<ov::op::v1::OneHot>({topk->output(1), expert_num, one_hot_on, one_hot_off}, {{"axis", 2}});
     auto permute = wrap_type<ov::op::v1::Transpose>({one_hot, transpose_perm});
@@ -253,7 +253,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> create_routing_weights_
     auto sum_reduce = wrap_type<ov::op::v1::ReduceSum>({topk->output(0), reduce_neg1}, {{"keep_dims", true}});
     auto normalized = wrap_type<ov::op::v1::Divide>({topk->output(0), sum_reduce},
                                                     {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-    auto unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({normalized, axes.axis2});
+    auto unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({normalized | topk->output(0), axes.axis2});
     auto shape_of = wrap_type<ov::op::v3::ShapeOf>({unsqueeze}, {{"output_type", "i32"}});
     auto split = wrap_type<ov::op::v1::Split>({shape_of, axes.axis0}, {{"num_splits", 3}});
     split->set_output_size(3);
@@ -302,11 +302,13 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
         auto num_last_add = matches.at(last_add).size();
 
         // Collect expert data from all matched patterns
+        std::cout << "Fuse Moe Pattern For DeepSeek|" << num_last_add << std::endl;
         std::vector<expert_data> all_experts;
         all_experts.reserve(matches.at(expert_scatter).size());
         for (const auto& pm : matches.at(expert_scatter)) {
             auto slice_end_anchor = expert_scatter->get_anchor("slice_end_const", pm);
             if (!slice_end_anchor.has_value() || !is_slice_to_end(slice_end_anchor.value().get_node_shared_ptr())) {
+                std::cout << "Fuse Moe Pattern For DeepSeek|" << "311" << std::endl;
                 return false;
             }
             auto gate_proj_node = expert_scatter->get_anchor("gate_proj_weight", pm).value().get_node_shared_ptr();
@@ -328,7 +330,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
         for (const auto& expert : all_experts) {
             experts_by_permute[expert.permute_node.get()].push_back(expert);
         }
-
+        std::cout << "Fuse Moe Pattern For DeepSeek|" << "332" << std::endl;
         // Create shared constants (used across all MoE layers)
         auto const_0 = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
         auto const_1 = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
@@ -515,7 +517,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
 
             ov::replace_node(last_add_node, final_add);
         }
-
+        std::cout << "Fuse Moe Pattern For DeepSeek|" << "519" << std::endl;
         return true;
     };
 
