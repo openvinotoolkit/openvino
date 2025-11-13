@@ -36,6 +36,11 @@ struct IODescriptor {
      */
     std::string nameFromCompiler;
 
+    /**
+     * @brief The index of this descriptor in the inputs/outputs vector of the network metadata.
+     */
+    uint32_t index;
+
     ov::element::Type precision;
 
     ov::PartialShape shapeFromCompiler;

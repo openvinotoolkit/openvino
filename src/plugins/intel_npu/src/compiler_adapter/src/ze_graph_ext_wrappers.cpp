@@ -36,7 +36,8 @@ using namespace intel_npu;
  * the referenced attribute.
  * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
  */
-static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
+static IODescriptor getIODescriptor(const uint32_t index,
+                                    const ze_graph_argument_properties_3_t& arg,
                                     const std::optional<ze_graph_argument_metadata_t>& metadata) {
     auto logger = Logger::global().clone("getIODescriptor");
     ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
@@ -102,6 +103,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
     }
 
     return {std::move(nameFromCompiler),
+            index,
             precision,
             shapeFromCompiler,
             isStateInput,
@@ -425,10 +427,10 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            inputs.push_back(getIODescriptor(arg, std::nullopt));
+            inputs.push_back(getIODescriptor(index, arg, std::nullopt));
         } break;
         case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            outputs.push_back(getIODescriptor(arg, std::nullopt));
+            outputs.push_back(getIODescriptor(index, arg, std::nullopt));
         } break;
         default: {
             OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
@@ -456,10 +458,10 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            inputs.push_back(getIODescriptor(arg, optionalMetadata));
+            inputs.push_back(getIODescriptor(index, arg, optionalMetadata));
         } break;
         case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            outputs.push_back(getIODescriptor(arg, optionalMetadata));
+            outputs.push_back(getIODescriptor(index, arg, optionalMetadata));
         } break;
         default: {
             OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
