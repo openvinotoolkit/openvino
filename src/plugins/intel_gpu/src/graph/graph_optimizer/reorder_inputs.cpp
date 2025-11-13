@@ -34,6 +34,7 @@ reorder_inputs::reorder_inputs(reorder_factory& rf_ref) : base_pass("reorder_inp
 
 void reorder_inputs::run(program& p) { run(p, _rf); }
 
+
 namespace {
 
 std::map<program_node*, format::type> get_preferred_formats(program& p, layout_optimizer& lo) {
