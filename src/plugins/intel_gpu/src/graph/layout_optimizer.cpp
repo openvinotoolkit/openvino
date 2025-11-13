@@ -1363,32 +1363,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         auto input_layout = node.get_input_layout(0);
         if (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) {
             expected = format::get_default_format(input_layout.get_rank());
-        } else {
-            // For i8/u8: blocked format requires aligned shapes
-            // Check if we need to fall back to plain format for unaligned shapes
-            auto prim = node.as<mvn>().get_primitive();
-            auto input_pshape = input_layout.get_partial_shape();
-            
-            if (prim->requires_alignment(input_pshape)) {
-                // Get the block size info for the target blocked format
-                auto block_sizes = format::block_sizes(format::b_fs_yx_fsv16);
-                if (!block_sizes.empty()) {
-                    auto blocked_axis = block_sizes[0].first;
-                    auto block_size = block_sizes[0].second;
-                    auto& reduction_axes = prim->reduction_axes;
-                    
-                    // Use plain format if:
-                    // 1. Dynamic shape (can't verify alignment at compile time), OR
-                    // 2. Static shape that's unaligned and the blocked axis is NOT reduced
-                    bool is_unaligned = input_pshape[blocked_axis].is_dynamic() ||
-                                       (input_pshape[blocked_axis].get_length() % block_size != 0);
-                    bool axis_not_reduced = std::count(reduction_axes.begin(), reduction_axes.end(), blocked_axis) == 0;
-                    
-                    if (input_layout.is_dynamic() || (is_unaligned && axis_not_reduced)) {
-                        expected = format::get_default_format(input_layout.get_rank());
-                    }
-                }
-            }
         }
     } else if (node.is_type<resample>()) {
         // if the resample is in the last part of the network and there are no users using blocked format,
