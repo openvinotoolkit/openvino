@@ -7,17 +7,16 @@
 #include <memory>
 #include <utility>
 
+#include "moe_scatter_reduction_base.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
-
 namespace ov::intel_gpu::ocl {
-
-struct MoeScatterReductionRef : public ImplementationManager {
-    OV_GPU_PRIMITIVE_IMPL("ocl::moe_scatter_reduction")
-    explicit MoeScatterReductionRef(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
-    [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
+struct MoeScatterReductionRef : public MoeScatterReductionBase {
+    OV_GPU_PRIMITIVE_IMPL("ocl::moe_scatter_reduction::ref")
+    explicit MoeScatterReductionRef(shape_types shape_type, ValidateFunc vf = nullptr) : MoeScatterReductionBase(shape_type, std::move(vf)) {}
+    std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         static constexpr std::array supported_fmts = {
             format::bfyx,
@@ -51,5 +50,4 @@ struct MoeScatterReductionRef : public ImplementationManager {
         return true;
     }
 };
-
 }  // namespace ov::intel_gpu::ocl
