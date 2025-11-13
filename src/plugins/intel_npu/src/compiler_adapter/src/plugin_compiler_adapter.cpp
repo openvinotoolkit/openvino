@@ -65,8 +65,7 @@ ov::Tensor make_tensor_from_vector(std::vector<uint8_t>& vector) {
 
 namespace intel_npu {
 
-PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                             const std::string& deviceId)
+PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
     : _zeroInitStruct(zeroInitStruct),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize PluginCompilerAdapter start");
@@ -74,7 +73,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 #ifdef VCL_FOR_COMPILER
     _logger.info("PLUGIN VCL compiler will be used.");
     try {
-        auto vclCompilerPtr = VCLCompilerImpl::getInstance(deviceId);
+        auto vclCompilerPtr = VCLCompilerImpl::getInstance();
         auto vclLib = VCLApi::getInstance()->getLibrary();
         if (vclCompilerPtr && vclLib) {
             _compiler = ov::SoPtr<intel_npu::ICompiler>(vclCompilerPtr, vclLib);
