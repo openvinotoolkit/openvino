@@ -917,7 +917,10 @@ void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
 
 void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
     // FIXME: Don't do these transformations for gemma3 which has token_type_ids input.
-    if (!ov::npuw::util::has_input(model, "token_type_ids")) {
+    // FIXME: Don't do these transformations for VLMs identified by inputs_embeds input.
+    //        Qwen2.5 VL/Omni uses 3D position_ids, which can't be directly used
+    //        in creation of sliding window mask.
+    if (!ov::npuw::util::has_input(model, "token_type_ids") && !ov::npuw::util::has_input(model, "inputs_embeds")) {
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<Phi3SlidingMask2>();
         rewr.add_matcher<Phi3SlidingMask>();
@@ -1697,6 +1700,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const bool prefill_attn_dyn = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
     const bool generate_attn_dyn = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
 
+    const bool prefill_attn_pyramid = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
+    const bool generate_attn_pyramid = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
+
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
         LOG_DEBUG("Check and apply opt layout");
@@ -1768,10 +1774,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
         {"NPUW_UNFOLD_IREQS", "NO"},
     };
-    if (prefill_attn_dyn) {
+    if (prefill_attn_dyn || prefill_attn_pyramid) {
         merge_config_with(prefill_config, dyn_attn_opts);
     }
-    if (generate_attn_dyn) {
+    if (generate_attn_dyn || generate_attn_pyramid) {
         merge_config_with(generate_config, dyn_attn_opts);
     }
 
@@ -1814,10 +1820,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
-        if (generate_attn_dyn) {
+        if (generate_attn_dyn || generate_attn_pyramid) {
             rewr.run_on_model(kvcache_model);
         }
-        if (prefill_attn_dyn) {
+        if (prefill_attn_dyn || prefill_attn_pyramid) {
             rewr.run_on_model(prefill_model);
         }
 
