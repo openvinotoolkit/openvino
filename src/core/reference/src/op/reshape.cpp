@@ -17,19 +17,11 @@ namespace reference {
 namespace {
 static size_t get_threshold() {
     // TODO: find a better way, not hardcoded value
-    size_t base_threshold = (1 << 9) * parallel_get_num_threads();
-
-#ifdef __SANITIZE_THREAD__
-    // Under Thread Sanitizer, parallel execution is 5-15x slower due to
-    // instrumentation overhead. Increase threshold to prefer sequential
-    // execution for medium-sized tensors to avoid long test times.
-    base_threshold *= 100;
-#else
-return base_threshold;
+    return (1 << 9) * parallel_get_num_threads();
 }
 
 static inline void copy_element(char* out, const char* in, size_t elem_size) {
-#    define CASE(type)                                                      \
+#define CASE(type)                                                          \
     case sizeof(type):                                                      \
         *reinterpret_cast<type*>(out) = *reinterpret_cast<const type*>(in); \
         break;
@@ -43,7 +35,7 @@ static inline void copy_element(char* out, const char* in, size_t elem_size) {
         std::memcpy(out, in, elem_size);
         break;
     }
-#    undef CASE
+#undef CASE
 }
 
 void reshape_2D(const char* in,
