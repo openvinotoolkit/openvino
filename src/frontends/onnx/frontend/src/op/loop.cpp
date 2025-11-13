@@ -252,11 +252,20 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     }
 
     const auto& cond_in = body_inputs[1];
+    bool needs_condition_param = true;
+    ov::ParameterVector body_params;
     if (body_outputs.size() > 0) {
         const auto& cond_out = body_outputs[0];
         // optimization allow to improve nG Loop shape inference
         if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
             body_outputs[0] = v0::Constant::create(ov::element::boolean, {1}, {true});
+            // Construct body_params without the condition parameter (body_inputs[1])
+            body_params = ov::ParameterVector{body_inputs[0]};
+            body_params.insert(body_params.end(), body_inputs.begin() + 2, body_inputs.end());
+            needs_condition_param = false;
+        } else {
+            // Construct body_params with all body_inputs
+            body_params = ov::ParameterVector(body_inputs.begin(), body_inputs.end());
         }
     } else {
         body_outputs.push_back(v0::Constant::create(ov::element::boolean, {1}, {true}));
@@ -279,21 +288,29 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
                      ") is not greater than number of outputs. Required at least: ",
                      loop_carried_dependencies.size() + 1);
 
-    ov::ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
-    body_params.emplace(body_params.begin(),
-                        body_inputs[0]);  // current iteration body input
     const auto body = std::make_shared<ov::Model>(body_outputs, body_params);
+    std::cout << "creating Loop node with inputs: " << trip_count << " and " << termination_cond << std::endl;
     auto loop = std::make_shared<v5::Loop>(trip_count, termination_cond);
+    loop->validate_and_infer_types();
     v5::Loop::SpecialBodyPorts spec_ports{0, 0};
+    std::cout << "setting special body ports: " << spec_ports.current_iteration_input_idx << ", "
+              << spec_ports.body_condition_output_idx << std::endl;
     loop->set_special_body_ports(spec_ports);
+    std::cout << "setting body function: " << *body << std::endl;
     loop->set_function(body);
-
+    loop->validate_and_infer_types();
+    std::cout << "Loop node created: " << loop << std::endl;
+    // Add condition
+    if (needs_condition_param) {
+        loop->set_merged_input(*std::next(body_inputs.begin(), 1), ng_inputs.at(1), *body_outputs.begin());
+    }
     // Setting up other Loop body inputs.
     // body_inputs[0] is iteration number, body_inputs[1] is termination condition
     auto body_inputs_it = std::next(body_inputs.begin(), 2);
     // body_outputs[0] is termination condition output
     auto body_outputs_it = std::next(body_outputs.begin(), 1);
 
+    std::cout << "Connecting merged inputs" << std::endl;
     // Set-up loop carried dependencies and final output values
     ov::OutputVector final_values;
     for (const auto& dep : loop_carried_dependencies) {
@@ -301,6 +318,7 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
         final_values.push_back(loop->get_iter_value(*body_outputs_it++, -1));
     }
 
+    std::cout << "Connecting invariant inputs" << std::endl;
     auto translate_session = node.get_translate_session();
 
     for (; body_inputs_it != body_inputs.end(); ++body_inputs_it) {
@@ -312,10 +330,11 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
                 break;
             }
         }
+        std::cout << "connecting invariant input parameter: " << *body_inputs_it << " to " << known_input << std::endl;
         if (known_input.get_node() != nullptr) {
             loop->set_invariant_input(*body_inputs_it, known_input);
         } else {
-            FRONT_END_THROW("Non-existent connection in body-graph to " + body_inputs_it->get()->get_friendly_name());
+            FRONT_END_THROW("Non-existent connection in body-graph to " + (*body_inputs_it)->get_friendly_name());
         }
     }
 
@@ -334,6 +353,7 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     for (const auto& v : scan_outputs) {
         node_outputs.push_back(v);
     }
+    std::cout << "End of loop node translation" << std::endl;
     return node_outputs;
 }
 }  // namespace detail

@@ -48,7 +48,8 @@ void Loop::validate_and_infer_types() {
                                         .rank();
         NODE_VALIDATION_CHECK(this,
                               ov::util::is_rank_compatible_any_of(cur_iter_rank, {0, 1}),
-                              "Rank of CurrentIteration input must be equal to 0 or 1");
+                              "Rank of CurrentIteration input must be equal to 0 or 1, but got ",
+                              m_bodies[0]->get_parameters().at(m_special_body_ports.current_iteration_input_idx));
     }
     bool zero_number_of_iter = false;
     const auto& loop_execution_condition = input_value(1);
