@@ -28,9 +28,9 @@ std::string MultinomialLayerTest::getTestCaseName(const testing::TestParamInfo<M
     result << test_type << separator;
     result << "probs_shape=" << probs.get_shape().to_string() << separator;
     if (num_samples.get_element_type() == ov::test::ElementType::i32) {
-        result << "num_samples=" << static_cast<int*>(num_samples.data())[0] << separator;
+        result << "num_samples=" << static_cast<const int*>(num_samples.data())[0] << separator;
     } else {  // i64
-        result << "num_samples=" << static_cast<long*>(num_samples.data())[0] << separator;
+        result << "num_samples=" << static_cast<const long*>(num_samples.data())[0] << separator;
     }
     result << "inType=" << probs.get_element_type() << separator;
     result << "convert_type=" << convert_type << separator;

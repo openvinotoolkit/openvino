@@ -75,16 +75,16 @@ bool evaluate_bound(const Node* const node, ov::TensorVector& outputs, const boo
             const auto get_val = is_upper ? &Interval::get_max_val : &Interval::get_min_val;
             auto limit_val = is_upper ? max_et_val : static_cast<decltype(max_et_val)>(0);
 
-            const TensorVector inputs{
-                {element::boolean, Shape{in_shape_rank}},  // mask
-                {out_et, Shape{}, &limit_val},             // limit
-                outputs[0]                                 // output
-            };
-            auto& dynamic_mask = inputs[0];
+            auto dynamic_mask = Tensor{element::boolean, Shape{in_shape_rank}};
             std::transform(in_shape.begin(), in_shape.end(), dynamic_mask.data<char>(), [&](const Dimension& d) {
                 return static_cast<char>((d.get_interval().*get_val)() >= max_et_val);
             });
 
+            const TensorVector inputs{
+                dynamic_mask,                   // mask
+                {out_et, Shape{}, &limit_val},  // limit
+                outputs[0]                      // output
+            };
             eval_status = v1::Select().evaluate(outputs, inputs);
         }
         return eval_status;
