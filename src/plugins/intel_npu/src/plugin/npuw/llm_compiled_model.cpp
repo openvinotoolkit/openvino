@@ -1350,11 +1350,9 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_kvcac
             kv_size_steps.push_back(total_kv_size);
         }
 
-        LOG_INFO("KV cache size variants: ");
-        std::cout << "KV cache size variants: " << std::endl;
+        LOG_DEBUG("KV cache size variants: ");
         for (const auto& size : kv_size_steps) {
-            LOG_INFO("  - " << size);
-            std::cout << "  - " << size << std::endl;
+            LOG_DEBUG("  - " << size);
         }
 
         // Store the sizes for runtime selection
@@ -1375,8 +1373,8 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_kvcac
 
         if (kv_size == total_kv_size) {
             // Last variant uses the main model directly - reshape it first
-            LOG_INFO("Variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " (size=" << kv_size
-                                << "): using and reshaping main model");
+            LOG_DEBUG("Variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " (size=" << kv_size
+                                 << "): using and reshaping main model");
             reshape_to_static(kvcache_model,
                               max_generation_token_len,
                               total_kv_size,
@@ -1386,8 +1384,8 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_kvcac
             kvcache_variant_models.push_back(kvcache_model);
         } else {
             // Clone and create smaller variants
-            LOG_INFO("Variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " (size=" << kv_size
-                                << "): cloning and reshaping");
+            LOG_DEBUG("Variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " (size=" << kv_size
+                                 << "): cloning and reshaping");
             auto kvcache_variant = kvcache_model->clone();
 
             // Patch broadcast constants: total_size -> kv_size
@@ -1419,8 +1417,8 @@ void ov::npuw::LLMCompiledModel::create_kvcache_compiled_model_variants(
 
     for (size_t i = 0; i < m_kvcache_sizes.size(); ++i) {
         const uint32_t kv_size = m_kvcache_sizes[i];
-        LOG_INFO("Compiling KV cache variant " << (i + 1) << "/" << m_kvcache_sizes.size()
-                                               << " with size: " << kv_size);
+        LOG_DEBUG("Compiling KV cache variant " << (i + 1) << "/" << m_kvcache_sizes.size()
+                                                << " with size: " << kv_size);
 
         // Use the already prepared variant model
         auto& kvcache_variant = kvcache_variant_models[i];
@@ -1431,7 +1429,7 @@ void ov::npuw::LLMCompiledModel::create_kvcache_compiled_model_variants(
         NPUW_ASSERT(compiled_variant && "Can't create ov::npuw::CompiledModel for KV cache variant!");
 
         m_kvcache_compiled_variants.push_back(compiled_variant);
-        LOG_INFO("Successfully compiled KV cache variant with size: " << kv_size);
+        LOG_DEBUG("Successfully compiled KV cache variant with size: " << kv_size);
     }
 
     // Keep the original compiled model for backward compatibility (using the largest size)
