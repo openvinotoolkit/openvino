@@ -21,6 +21,8 @@ public:
 
     MOE() = default;
 
+    MOE(const OutputVector& args) : Op(args) {}
+
     enum class Expert_type { GEMM2_BIAS_SWIGLU_CLAMP, GEMM3_SWIGLU };
 
     struct Config {
