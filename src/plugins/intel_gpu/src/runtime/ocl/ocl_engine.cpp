@@ -4,7 +4,8 @@
 
 #include "ocl_engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
-#include "ocl/ocl_kernel.hpp"
+#include "ocl_kernel.hpp"
+#include "ocl_kernel_builder.hpp"
 #include "ocl_common.hpp"
 #include "ocl_memory.hpp"
 #include "ocl_stream.hpp"
@@ -63,8 +64,11 @@ void ocl_engine::create_onednn_engine(const ExecutionConfig& config) {
     if (!_onednn_engine) {
         auto casted = std::dynamic_pointer_cast<ocl_device>(_device);
         OPENVINO_ASSERT(casted, "[GPU] Invalid device type stored in ocl_engine");
-
+#ifdef OV_GPU_WITH_ZE_RT
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+#else
         _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+#endif
     }
 }
 
@@ -304,9 +308,10 @@ void* ocl_engine::get_user_context() const {
     return static_cast<void*>(cl_device.get_context().get());
 }
 
-kernel::ptr ocl_engine::prepare_kernel(const kernel::ptr kernel) const {
-    OPENVINO_ASSERT(downcast<const ocl::ocl_kernel>(kernel.get()) != nullptr);
-    return kernel;
+std::shared_ptr<kernel_builder> ocl_engine::create_kernel_builder() const {
+    auto cl_device = std::dynamic_pointer_cast<ocl_device>(_device);
+    OPENVINO_ASSERT(cl_device, "[GPU] Invalid device type for ocl_engine");
+    return std::make_shared<ocl_kernel_builder>(*cl_device);
 }
 
 bool ocl_engine::extension_supported(std::string extension) const {

@@ -10,6 +10,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_engine_factory.hpp"
+#include "ze/ze_engine_factory.hpp"
 
 #include <string>
 #include <vector>
@@ -262,9 +263,16 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
         ret = ocl::create_sycl_engine(device, runtime_type);
         break;
 #endif  // OV_GPU_WITH_SYCL
+#ifdef OV_GPU_WITH_OCL_RT
     case engine_types::ocl:
         ret = ocl::create_ocl_engine(device, runtime_type);
         break;
+#endif
+#ifdef OV_GPU_WITH_ZE_RT
+    case engine_types::ze:
+        ret = ze::create_ze_engine(device, runtime_type);
+        break;
+#endif
     default:
         throw std::runtime_error("Invalid engine type");
     }
