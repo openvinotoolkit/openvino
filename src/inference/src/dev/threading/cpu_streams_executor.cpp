@@ -142,9 +142,6 @@ struct CPUStreamsExecutor::Impl {
                 auto real_numa_node_id = _numaNodeId;
 #    else
                 auto real_numa_node_id = get_org_numa_id(_numaNodeId);
-                if (tbb_version >= 12040) {
-                    real_numa_node_id = _numaNodeId;
-                }
 #    endif
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_numa_id(real_numa_node_id)
