@@ -812,9 +812,9 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     }
     auto batch_size = get_input_bf_size(params).first;
     if (batch_size % (dispatchData.tile_m * dispatchData.tile_ms) != 0) {
-        jit.AddConstant(MakeJitConstant("LEFT_BATCH", 1));
+        jit.AddConstant(MakeJitConstant("BATCH_LEFTOVER", 1));
     } else {
-        jit.AddConstant(MakeJitConstant("LEFT_BATCH", 0));
+        jit.AddConstant(MakeJitConstant("BATCH_LEFTOVER", 0));
     }
 
     if (!params.fused_ops.empty() && !is_swiglu_fused(params)) {
