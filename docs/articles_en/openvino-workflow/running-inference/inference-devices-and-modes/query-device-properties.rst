@@ -34,6 +34,26 @@ of ``ov::available_devices``, the string name of ``AVAILABLE_DEVICES`` and the t
 Refer to the :doc:`Hello Query Device C++ Sample <../../../get-started/learn-openvino/openvino-samples/hello-query-device>`
 sources for an example of using the setting and getting properties in user applications.
 
+Required Imports for Python
+----------------------------
+
+When working with device properties in Python, you must import the necessary modules:
+
+.. code-block:: python
+
+   import openvino as ov
+   import openvino.properties as props           # For general properties
+   import openvino.properties.device as device   # For device-specific properties
+   
+   # Initialize Core
+   core = ov.Core()
+
+Common property modules:
+
+* ``openvino.properties`` - General OpenVINO properties
+* ``openvino.properties.device`` - Device-specific properties (full_name, type, capabilities, etc.)
+* ``openvino.properties.hint`` - Performance hints
+* ``openvino.properties.streams`` - Stream configuration
 
 Get a Set of Available Devices
 ###########################################################
@@ -122,8 +142,22 @@ The code below demonstrates how to query ``HETERO`` device priority of devices w
 
    All properties have a type, which is specified during property declaration. Based on this, actual type under ``auto`` is automatically deduced by C++ compiler.
 
-To extract device properties such as available devices (``ov::available_devices``), device name (``ov::device::full_name``),
-supported properties (``ov::supported_properties``), and others, use the ``ov::Core::get_property`` method:
+To extract device properties such as device name, use the ``core.get_property`` method:
+
+**Note:** You must first import the device properties module:
+
+.. code-block:: python
+
+   import openvino as ov
+   import openvino.properties.device as device
+   
+   core = ov.Core()
+   import openvino as ov
+   import openvino.properties.device as device
+
+   core = ov.Core()
+   cpu_device_name = core.get_property("CPU", device.full_name)
+   print(f"CPU Device Name: {cpu_device_name}")
 
 
 .. tab-set::
@@ -255,6 +289,39 @@ Or the number of threads that would be used for inference on ``CPU`` device:
          :language: cpp
          :fragment: [inference_num_threads]
 
+Available Device Properties
+----------------------------
 
+Python Properties Reference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+From ``openvino.properties.device``:
+
++---------------------------+-------------------------------------------+
+| Property                  | Description                                |
++===========================+===========================================+
+| ``device.full_name``      | Full name of the device                   |
++---------------------------+-------------------------------------------+
+| ``device.type``           | Device type (CPU, GPU, NPU, etc.)         |
++---------------------------+-------------------------------------------+
+| ``device.architecture``   | Device architecture information           |
++---------------------------+-------------------------------------------+
+| ``device.capabilities``   | Supported capabilities (FP32, FP16, etc.) |
++---------------------------+-------------------------------------------+
+| ``device.priorities``     | Device priorities for HETERO              |
++---------------------------+-------------------------------------------+
+
+From ``openvino.properties``:
+
++-------------------------------------+-------------------------------------------+
+| Property                            | Description                                |
++=====================================+===========================================+
+| ``props.supported_properties``      | List of supported properties              |
++-------------------------------------+-------------------------------------------+
+| ``props.optimal_number_of_         | Optimal number of inference requests      |
+| infer_requests``                    |                                           |
++-------------------------------------+-------------------------------------------+
+| ``props.inference_num_threads``     | Number of inference threads               |
++-------------------------------------+-------------------------------------------+
 
 
