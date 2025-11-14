@@ -4,10 +4,14 @@
 
 #include "openvino/op/paged_attention.hpp"
 
+#include <iostream>
+#include <sstream>
+
 #include "dimension_util.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
+#include "paged_attention_shape_inference.hpp"
 
 namespace {
 
@@ -26,13 +30,13 @@ inline void input_check(const ov::Node* node,
     const auto& rank = node->get_input_partial_shape(idx).rank();
     const auto& tp = node->get_input_element_type(idx);
 
-    auto rank_check = [&](const Rank& rank) {
-        return rank.is_dynamic() || empty(allowed_ranks) || is_rank_compatible_any_of(rank.get_length(), allowed_ranks);
+    auto rank_check = [&](const Rank& rnk) {
+        return rnk.is_dynamic() || empty(allowed_ranks) || is_rank_compatible_any_of(rnk.get_length(), allowed_ranks);
     };
 
-    auto type_check = [&](const Type& type) {
-        auto it = std::find(allowed_types.begin(), allowed_types.end(), tp);
-        return type.is_dynamic() || allowed_types.empty() || it != allowed_types.end();
+    auto type_check = [&](const Type& t) {
+        return t.is_dynamic() || allowed_types.empty() ||
+               std::find(allowed_types.begin(), allowed_types.end(), t) != allowed_types.end();
     };
 
     NODE_VALIDATION_CHECK(node,
@@ -70,8 +74,83 @@ std::vector<ov::element::Type> get_real_types() {
 
 namespace ov {
 namespace op {
-
 PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args) : ov::op::Op(args) {
+    constructor_validate_and_infer_types();
+}
+
+PagedAttentionExtension::PagedAttentionExtension(const Output<Node>& query,
+                                                 const Output<Node>& key,
+                                                 const Output<Node>& value,
+                                                 const Output<Node>& key_cache,
+                                                 const Output<Node>& value_cache,
+                                                 const Output<Node>& past_lens,
+                                                 const Output<Node>& subsequence_begins,
+                                                 const Output<Node>& block_indices,
+                                                 const Output<Node>& block_indices_begins,
+                                                 const Output<Node>& scale,
+                                                 const Output<Node>& sliding_window,
+                                                 const Output<Node>& alibi_slopes,
+                                                 const Output<Node>& max_context_len,
+                                                 const Output<Node>& xattention_threshold,
+                                                 const Output<Node>& xattention_block_size,
+                                                 const Output<Node>& xattention_stride)
+    : Op({query,
+          key,
+          value,
+          key_cache,
+          value_cache,
+          past_lens,
+          subsequence_begins,
+          block_indices,
+          block_indices_begins,
+          scale,
+          sliding_window,
+          alibi_slopes,
+          max_context_len,
+          xattention_threshold,
+          xattention_block_size,
+          xattention_stride}) {
+    constructor_validate_and_infer_types();
+}
+
+PagedAttentionExtension::PagedAttentionExtension(const Output<Node>& query,
+                                                 const Output<Node>& key,
+                                                 const Output<Node>& value,
+                                                 const Output<Node>& key_cache,
+                                                 const Output<Node>& value_cache,
+                                                 const Output<Node>& past_lens,
+                                                 const Output<Node>& subsequence_begins,
+                                                 const Output<Node>& block_indices,
+                                                 const Output<Node>& block_indices_begins,
+                                                 const Output<Node>& scale,
+                                                 const Output<Node>& sliding_window,
+                                                 const Output<Node>& alibi_slopes,
+                                                 const Output<Node>& max_context_len,
+                                                 const Output<Node>& rotated_block_indices,
+                                                 const Output<Node>& rotation_deltas,
+                                                 const Output<Node>& rotation_trig_lut,
+                                                 const Output<Node>& xattention_threshold,
+                                                 const Output<Node>& xattention_block_size,
+                                                 const Output<Node>& xattention_stride)
+    : Op({query,
+          key,
+          value,
+          key_cache,
+          value_cache,
+          past_lens,
+          subsequence_begins,
+          block_indices,
+          block_indices_begins,
+          scale,
+          sliding_window,
+          alibi_slopes,
+          max_context_len,
+          rotated_block_indices,
+          rotation_deltas,
+          rotation_trig_lut,
+          xattention_threshold,
+          xattention_block_size,
+          xattention_stride}) {
     constructor_validate_and_infer_types();
 }
 
@@ -93,7 +172,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 6, "subsequence_begins", {1}, {element::i32});
     input_check(this, 7, "block_indices", {1}, {element::i32});
     input_check(this, 8, "block_indices_begins", {1}, {element::i32});
-    input_check(this, 9, "scale", {0}, get_real_types());
+    input_check(this, 9, "scale", {0, 1}, get_real_types());
     input_check(this, 10, "sliding_window", {0}, {element::i32});
     input_check(this, 11, "alibi_slopes", {1}, get_real_types());
     input_check(this, 12, "max_context_len", {0}, {element::i32});
@@ -106,43 +185,22 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 19, "xattention_stride", {0}, {element::i32});
     input_check(this, 20, "sinks", {1, 4}, {});
 
-    // value head_size may be not same with key
-    auto out_ps = get_input_partial_shape(0);
-    const auto& key_ps = get_input_partial_shape(1);
-    const auto& value_ps = get_input_partial_shape(2);
-    if (out_ps.rank().is_static()) {
-        if (key_ps.rank().is_static() && value_ps.rank().is_static() && key_ps[1].is_static()) {
-            // The dim of out_ps[1] should be `num_heads * v_head_size`, it can be got from:
-            // because:
-            //   q: query_ps[1] = num_heads * head_size
-            //   k: key_ps[1] = num_kv_heads * head_size
-            //   v: value_ps[1] = num_kv_heads * v_head_size
-            // therefore:
-            //   q * v / k = (num_heads * head_size) * (num_kv_heads * v_head_size) /
-            //               (num_kv_heads * head_size) = num_heads * v_head_size
-            out_ps[1] = out_ps[1] * value_ps[1] / key_ps[1].get_length();
-            NODE_VALIDATION_CHECK(this,
-                                  !ov::util::dim::is_empty(out_ps[1]),
-                                  "The last dimension of output should not be empty.");
-        } else {
-            out_ps[1] = Dimension::dynamic();
-        }
-    }
-    if (m_output_type[0].is_dynamic()) {
-        set_output_type(0, get_input_element_type(0), out_ps);
-    } else {
-        set_output_type(0, m_output_type[0], out_ps);
-    }
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
-    if (m_output_type[1].is_dynamic()) {
-        set_output_type(1, get_input_element_type(0), {Dimension::dynamic()});
-    } else {
-        set_output_type(1, m_output_type[1], {Dimension::dynamic()});
-    }
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(1, get_input_element_type(0), output_shapes[1]);
 }
 
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    OV_OP_SCOPE(PagedAttentionExtension_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
     return std::make_shared<PagedAttentionExtension>(new_args);
+}
+
+const ov::element::Type PagedAttentionExtension::get_out_type(int index) const {
+    OPENVINO_ASSERT(index < 2, "Output index should be 0 or 1, but got " + std::to_string(index));
+    return m_output_type[index];
 }
 
 void PagedAttentionExtension::set_out_type(int index, const ov::element::Type& output_type) {
@@ -150,5 +208,12 @@ void PagedAttentionExtension::set_out_type(int index, const ov::element::Type& o
     m_output_type[index] = output_type;
 }
 
+const std::shared_ptr<ov::util::PagedCacheManager> PagedAttentionExtension::get_cache_manager() const {
+    return m_cache_manager;
+}
+
+void PagedAttentionExtension::set_cache_manager(const std::shared_ptr<ov::util::PagedCacheManager> cache_manager) {
+    m_cache_manager = cache_manager;
+}
 }  // namespace op
 }  // namespace ov
