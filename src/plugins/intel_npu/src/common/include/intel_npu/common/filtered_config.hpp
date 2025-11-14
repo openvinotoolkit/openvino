@@ -77,6 +77,11 @@ public:
     void enableAll();
 
     /**
+     * @brief Enables only runtime configuration options.
+     */
+    void enableRuntimeOptions();
+
+    /**
      * @brief Iterates over all enabled options and applies a callback function to each enabled key.
      * @param cb A callback function that takes a string (key) as input and performs an operation on it.
      */
@@ -115,10 +120,22 @@ public:
      */
     std::string toStringForCompiler() const;
 
+    /**
+     * @brief Marks config as initialized
+     */
+    void markAsInitialized();
+
+    /**
+     * @brief Checks whether config was initialized
+     */
+    bool wasInitialized() const;
+
 private:
     EnableMap _enabled;  ///< Map to track whether specific configuration keys are enabled or disabled.
 
     ConfigMap _internal_compiler_configs;  ///< Map to store internal (hidden) configurations used for compiler.
+
+    bool _initialized = false;  ///< Boolean to check whether config was filtered with compiler supported properties
 };
 
 }  // namespace intel_npu
