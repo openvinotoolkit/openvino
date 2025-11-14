@@ -55,7 +55,6 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/node_registry.hpp"
-#include "openvino/pass/validate.hpp"
 #include "selective_build.h"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
@@ -623,11 +622,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS4ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS5ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS9ToNMSIEInternal);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_ARM64(manager, ov::pass::HardSigmoidDecomposition);
@@ -636,7 +632,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part2);
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::low_precision::ConvertSubtractConstant, defaultPrecisions);
     }
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     // Common ConvertPrecision pass handles only a limited set of opevino operations to match the list of precisions
     // supported by the plugin. However, if the extension operation produces an output precision that is not natively
     // supported, this may lead to inconsistency during element type propagation. This transformation is called before
@@ -673,7 +668,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_X86(manager, DecomposeIntegerDivide);
 
     CPU_REGISTER_PASS_COMMON(manager, PermuteSliceAndInterpolation);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 
     // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
     CPU_SET_CALLBACK_COMMON(
@@ -1084,7 +1078,6 @@ void Transformations::PostLpt() {
             return false;
         },
         ov::pass::MoveEltwiseUpThroughDataMovScalar);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::Validate);
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConstantFolding);
 
