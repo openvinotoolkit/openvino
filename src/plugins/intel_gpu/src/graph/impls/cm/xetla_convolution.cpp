@@ -76,6 +76,8 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         switch (conv_desc.post_op) {
+        case PostOp::None:
+            break;
         case PostOp::Bias:
             args.push_back({ArgumentDescriptor::Types::BIAS, 0});
             break;
