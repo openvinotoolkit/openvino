@@ -8,7 +8,7 @@ import onnx.mapping
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
-from openvino.runtime.exceptions import OVTypeError
+from openvino.exceptions import OVTypeError
 from tests.runtime import get_runtime
 from tests.tests_python.utils import get_node_model, import_onnx_model, run_model, run_node
 

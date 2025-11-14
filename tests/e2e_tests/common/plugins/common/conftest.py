@@ -501,8 +501,8 @@ def upload_db(data, url):
 
 
 def get_ie_version():
-    import openvino.runtime as rt
-    version = rt.get_version()
+    from openvino import get_version
+    version = get_version()
     return version if version else "Not_found"
 
 
