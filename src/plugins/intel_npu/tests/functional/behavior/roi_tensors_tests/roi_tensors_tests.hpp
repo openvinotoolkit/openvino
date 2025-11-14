@@ -16,6 +16,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -90,7 +91,7 @@ public:
     }
 };
 
-TEST_P(RoiTensorsTestsRun, CompileAndRunRoiTensorsPropertyEnabled) {
+TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabled) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto shape = Shape{1, 2, 2, 2};
@@ -106,7 +107,7 @@ TEST_P(RoiTensorsTestsRun, CompileAndRunRoiTensorsPropertyEnabled) {
     OV_ASSERT_NO_THROW(req.infer());
 }
 
-TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
+TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto shape = Shape{1, 2, 2, 2};
@@ -131,6 +132,33 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
 
     ov::Tensor output_view_tensor = ov::Tensor(ov::element::f32, shape, output_host_tensor.data(), output_strides);
     OV_ASSERT_NO_THROW(req.set_output_tensor(output_view_tensor));
+
+    OV_ASSERT_NO_THROW(req.infer());
+}
+
+TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto shape = Shape{1, 2, 2, 2};
+    ov::CompiledModel compiled_model;
+    auto model = createModel(element::f32, shape, "N...");
+
+    auto zero_context = core->get_default_context(target_device);
+    auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 10, 10, 10});
+    auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
+
+    configuration[ov::intel_npu::inputs_with_dynamic_strides.name()] = {0};
+    configuration[ov::intel_npu::outputs_with_dynamic_strides.name()] = {0};
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+
+    ov::Tensor input_roi_tensor = ov::Tensor(input_host_tensor, {0, 4, 4, 4}, {1, 6, 6, 6});
+    OV_ASSERT_NO_THROW(req.set_input_tensor(input_roi_tensor));
+
+    ov::Tensor output_roi_tensor = ov::Tensor(output_host_tensor, {0, 15, 15, 15}, {1, 17, 17, 17});
+    OV_ASSERT_NO_THROW(req.set_output_tensor(output_roi_tensor));
 
     OV_ASSERT_NO_THROW(req.infer());
 }
