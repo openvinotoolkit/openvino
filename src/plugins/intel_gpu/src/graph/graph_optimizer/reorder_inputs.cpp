@@ -30,6 +30,9 @@ using namespace cldnn;
 
 // ToDo remove friendship relation from program
 
+
+
+
 reorder_inputs::reorder_inputs(reorder_factory& rf_ref) : base_pass("reorder_inputs"), _rf(rf_ref) {}
 
 void reorder_inputs::run(program& p) { run(p, _rf); }
