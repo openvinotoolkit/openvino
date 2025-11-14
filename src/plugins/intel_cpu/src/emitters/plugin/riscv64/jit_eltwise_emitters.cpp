@@ -2884,6 +2884,59 @@ std::set<std::vector<element::Type>> jit_sqrt_emitter::get_supported_precisions(
     return {{element::f32}};
 }
 
+/// SQUARED_DIFFERENCE ///
+jit_squared_difference_emitter::jit_squared_difference_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                                               ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                                               const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+
+jit_squared_difference_emitter::jit_squared_difference_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                                               ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                                               ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_squared_difference_emitter::get_inputs_num() const {
+    return 2;
+}
+
+size_t jit_squared_difference_emitter::aux_vecs_count() const {
+    // Need one auxiliary vector to hold (src0 - src1) so we don't overwrite inputs
+    return 1;
+}
+
+void jit_squared_difference_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                               const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_squared_difference_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                              const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
+    auto src0 = VReg(in_vec_idxs[0]);
+    auto src1 = VReg(in_vec_idxs[1]);
+    auto dst = VReg(out_vec_idxs[0]);
+    // Use an auxiliary vector to avoid clobbering inputs when dst aliases an input
+    // tmp = src0 - src1
+    // dst = tmp * tmp
+    auto aux0 = VReg(aux_vec_idxs[0]);
+
+    h->vfsub_vv(aux0, src0, src1);
+    h->vfmul_vv(dst, aux0, aux0);
+}
+
+
+
+std::set<std::vector<element::Type>> jit_squared_difference_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}};
+}
+
 /// SUB ///
 jit_subtract_emitter::jit_subtract_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                            ov::intel_cpu::riscv64::cpu_isa_t host_isa,
