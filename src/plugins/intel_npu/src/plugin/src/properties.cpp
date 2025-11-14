@@ -311,6 +311,7 @@ Properties::Properties(const PropertiesType pType,
 void Properties::registerProperties() {
     // Reset
     _properties.clear();
+    _supportedProperties.clear();
 
     switch (_pType) {
     case PropertiesType::PLUGIN:
@@ -517,7 +518,6 @@ void Properties::registerPluginProperties() {
                                _metrics->GetDeviceTotalMemSize(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::intel_npu::driver_version, true, _metrics->GetDriverVersion());
         REGISTER_SIMPLE_METRIC(ov::intel_npu::backend_name, false, _metrics->GetBackendName());
-        REGISTER_SIMPLE_METRIC(ov::intel_npu::batch_mode, false, _metrics->GetDriverVersion());
         REGISTER_CUSTOM_METRIC(ov::device::architecture,
                                !_metrics->GetAvailableDevicesNames().empty(),
                                [&](const Config& config) {
@@ -675,7 +675,12 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
         amends.emplace(value.first, value.second.as<std::string>());
     }
     FilteredConfig amendedConfig = _config;
-    amendedConfig.update(amends, OptionMode::Both);
+    try {
+        amendedConfig.update(amends, OptionMode::Both);
+    } catch (const ov::Exception& /* unusedOVException */) {
+        Logger("Properties", ov::log::Level::WARNING)
+            .warning("Amended config couldn't be updated with the given arguments");
+    }
 
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
@@ -691,22 +696,22 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
 void Properties::set_property(const ov::AnyMap& properties) {
     std::map<std::string, std::string> cfgs_to_set;
 
-    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-    if (_pType == PropertiesType::PLUGIN) {
-        try {
-            // Only accepting unknown config keys in plugin
-            CompilerAdapterFactory compilerAdapterFactory;
-            compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
-        } catch (...) {
-            // nothing to do here. we will just throw exception bellow in case unknown property check is called
-            // if its not called, nothing to do
-        }
-    }
-
     for (auto&& value : properties) {
         if (_properties.find(value.first) == _properties.end()) {
             // property doesn't exist
             // checking as internal now
+
+            std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+            if (_pType == PropertiesType::PLUGIN) {
+                try {
+                    // Only accepting unknown config keys in plugin
+                    CompilerAdapterFactory compilerAdapterFactory;
+                    compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
+                } catch (...) {
+                    // just throw the exception below in case unknown property check is called
+                }
+            }
+
             if (compiler != nullptr) {
                 if (compiler->is_option_supported(value.first)) {
                     // if compiler reports it supported > registering as internal
@@ -729,6 +734,10 @@ void Properties::set_property(const ov::AnyMap& properties) {
     if (!cfgs_to_set.empty()) {
         _config.update(cfgs_to_set);
     }
+}
+
+bool Properties::isPropertyRegistered(const std::string& propertyName) const {
+    return _properties.find(propertyName) != _properties.end();
 }
 
 }  // namespace intel_npu
