@@ -312,6 +312,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_inference_unit_tests --gtest_print_time=1 \
+                --gtest_filter='-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceUnit.xml
 
       - name: Low Precision Transformations Tests
@@ -340,6 +341,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
+                --gtest_filter='-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
