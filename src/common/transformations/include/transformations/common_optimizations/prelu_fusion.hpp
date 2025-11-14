@@ -20,6 +20,7 @@ class TRANSFORMATIONS_API PReluFusionMultiplyAdd;
 class TRANSFORMATIONS_API PReluFusionMultiplySub;
 class TRANSFORMATIONS_API PReluFusionAbsSubMulMulAdd;
 class TRANSFORMATIONS_API PReluFusionNegReluMulAdd;
+class TRANSFORMATIONS_API PReluFusionGreaterMultiplySelect;
 
 }  // namespace pass
 }  // namespace ov
@@ -144,6 +145,23 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
+ * @brief PReluFusionGreaterMultiplySelect transformation replaces a sub-graph
+ *             Op
+ *          /  |  \
+ *     Greater |   | 
+ *         |   |   |
+ *         |   | Multiply
+ *          \  |   /
+ *            Select
+ */
+class ov::pass::PReluFusionGreaterMultiplySelect : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PReluFusionGreaterMultiplySelect");
+    PReluFusionGreaterMultiplySelect();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
  * @brief PReluFusion transformation replaces various sub-graphs with a PRelu op.
  */
 class ov::pass::PReluFusion : public ov::pass::GraphRewrite {
@@ -156,5 +174,6 @@ public:
         add_matcher<ov::pass::PReluFusionMultiplySub>();
         add_matcher<ov::pass::PReluFusionAbsSubMulMulAdd>();
         add_matcher<ov::pass::PReluFusionNegReluMulAdd>();
+        add_matcher<ov::pass::PReluFusionGreaterMultiplySelect>();
     }
 };
