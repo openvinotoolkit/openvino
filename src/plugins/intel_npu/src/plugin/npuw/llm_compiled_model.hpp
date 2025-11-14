@@ -102,6 +102,8 @@ private:
     int32_t m_gemma_sliding_window_size = 0;
 
     bool m_is_whisper = false;
+
+    ov::AnyMap m_model_rt_info;
 };
 
 }  // namespace npuw
