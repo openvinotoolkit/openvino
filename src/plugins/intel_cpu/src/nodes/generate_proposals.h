@@ -18,7 +18,7 @@ class GenerateProposals : public Node {
 public:
     GenerateProposals(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     [[nodiscard]] bool created() const override;
@@ -47,11 +47,11 @@ private:
     const int OUTPUT_SCORES{1};
     const int OUTPUT_ROI_NUM{2};
 
-    float min_size_ = 0.f;
+    float min_size_ = 0.F;
     int pre_nms_topn_ = 0;
     int post_nms_topn_ = 0;
-    float nms_thresh_ = 0.f;
-    float coordinates_offset_ = 0.f;
+    float nms_thresh_ = 0.F;
+    float coordinates_offset_ = 0.F;
 
     std::vector<int> roi_indices_;
 };

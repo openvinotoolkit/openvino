@@ -44,7 +44,7 @@ CommonDispatchData LRNKernelWithinChannelOpt::SetDefault(const lrn_params& param
 
 bool LRNKernelWithinChannelOpt::Validate(const Params& p) const {
     if (!LRNKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     return true;
 }

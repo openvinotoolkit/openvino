@@ -65,6 +65,7 @@ private:
     std::optional<ov::intel_npu::MemType> _mem_type_object = std::nullopt;
     std::optional<ov::intel_npu::TensorType> _tensor_type_object = std::nullopt;
     std::optional<void*> _mem_handle_object = std::nullopt;
+    std::optional<ov::intel_npu::FileDescriptor> _file_descriptor_object = std::nullopt;
 };
 
 }  // namespace intel_npu

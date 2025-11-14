@@ -215,6 +215,7 @@ protected:
 
             auto args = get_arguments(instance);
             args.scalars = &_kernel_data.kernels[kd_idx].params.scalars;
+            args.local_memory_args = &_kernel_data.kernels[kd_idx].params.local_memory_args;
 
             for (const auto& m : instance.get_intermediates_memories()) {
                 args.intermediates.push_back(m);

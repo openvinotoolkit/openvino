@@ -38,6 +38,14 @@ std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, const
 
 }  // namespace
 
+const format& layout::get_format() const {
+    return format;
+}
+
+const padding& layout::get_padding() const {
+    return data_padding;
+}
+
 size_t layout::get_rank() const {
     return format.dimension();
 }
@@ -478,6 +486,11 @@ bool layout::compatible(const layout& other) const {
     if (blocks1 != blocks2 ||
         (!blocks1.empty() && l1.format.dims_order() != l2.format.dims_order()))
         return false;
+
+    // Since it is not possible to properly check compatibility for custom formats, return false
+    if (l1.format == cldnn::format::custom || l2.format == cldnn::format::custom) {
+        return false;
+    }
 
     if (check_format(format::b_fs_yx_fsv2) ||
         check_format(format::b_fs_yx_fsv4) ||

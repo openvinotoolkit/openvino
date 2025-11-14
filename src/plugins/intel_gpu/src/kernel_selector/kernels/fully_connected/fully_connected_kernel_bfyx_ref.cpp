@@ -108,14 +108,14 @@ KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params) const 
 
 bool FullyConnected_bfyx_Ref::Validate(const Params& params) const {
     if (!Parent::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     // int8 validation
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
     // We don't support 4d output
     if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx && fc_params.outputs[0].X().v > 1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

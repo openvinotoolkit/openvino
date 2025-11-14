@@ -20,6 +20,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/interval.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/core/log.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_input.hpp"

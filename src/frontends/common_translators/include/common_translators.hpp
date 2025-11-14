@@ -22,6 +22,8 @@ COMMON_OP_CONVERTER(translate_erfc);
 
 COMMON_OP_CONVERTER(translate_equal);
 
+COMMON_OP_CONVERTER(translate_unsqueeze);
+
 OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>& lhs, const Output<Node>& rhs);
 OutputVector translate_erfc_util(const NodeContext& context, const Output<Node>& data);
 

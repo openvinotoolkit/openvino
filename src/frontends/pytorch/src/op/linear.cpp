@@ -64,6 +64,26 @@ OutputVector translate_linear_ext(const NodeContext& context) {
 };
 
 namespace {
+
+Output<Node> low_precision_subgraph(const NodeContext& context,
+                                    const Output<Node>& x,
+                                    const Output<Node>& weights,
+                                    const Output<Node>& zero_points,
+                                    const Output<Node>& scales,
+                                    const Output<Node>& out_shape) {
+    auto new_qweight = context.mark_node(std::make_shared<v0::Convert>(weights, scales.get_element_type()));
+    auto new_qzeros = context.mark_node(std::make_shared<v0::Convert>(zero_points, scales.get_element_type()));
+
+    auto w_s = context.mark_node(std::make_shared<v1::Subtract>(new_qweight, new_qzeros));
+    auto weight = context.mark_node(std::make_shared<v1::Multiply>(w_s, scales));
+    auto weight_shape = weights.get_shape();
+    if (out_shape.get_node() != nullptr) {
+        weight = context.mark_node(std::make_shared<v1::Reshape>(weight, out_shape, false));
+    }
+    weight = context.mark_node(std::make_shared<v1::ConvertLike>(weight, x));
+    return weight;
+}
+
 uint32_t rearrange_awq_bits(uint32_t num) {
     uint32_t result = 0;
     uint32_t mask = 0xF;
@@ -93,6 +113,7 @@ Output<Node> rearrange_constant(const Output<Node>& c, uint32_t groups) {
     for (size_t i = 0; i < shape_size(constant->get_shape()); i++) {
         dst[i] = rearrange_awq_bits(src[i]);
     }
+    new_qweight->set_friendly_name(constant->get_friendly_name());
     return new_qweight;
 }
 }  // namespace
@@ -110,24 +131,79 @@ OutputVector translate_linear_awq(const NodeContext& context) {
 
     auto new_qweight = rearrange_constant(qweight, static_cast<uint32_t>(groups));
     auto new_qzeros = rearrange_constant(qzeros, 1);
-    new_qweight = context.mark_node(std::make_shared<v0::Convert>(new_qweight, scales.get_element_type()));
-    new_qzeros = context.mark_node(std::make_shared<v0::Convert>(new_qzeros, scales.get_element_type()));
-
-    auto w_s = context.mark_node(std::make_shared<v1::Subtract>(new_qweight, new_qzeros));
     FRONT_END_OP_CONVERSION_CHECK(scales.get_partial_shape().is_static(), "Scales must be constant.");
     auto scales_shape = scales.get_shape();
     auto new_scales_shape =
         v0::Constant::create(element::i32, {3}, std::vector<uint64_t>{scales_shape[0], 1, scales_shape[1]});
-    scales = context.mark_node(std::make_shared<v1::Reshape>(scales, new_scales_shape, false));
-    auto weight = context.mark_node(std::make_shared<v1::Multiply>(w_s, scales));
+    auto new_scales = context.mark_node(std::make_shared<v1::Reshape>(scales, new_scales_shape, false));
     auto out_shape =
         v0::Constant::create(element::i32, {2}, std::vector<int32_t>{static_cast<int32_t>(qweight.get_shape()[0]), -1});
-    weight = context.mark_node(std::make_shared<v1::Reshape>(weight, out_shape, false));
-    weight = context.mark_node(std::make_shared<v1::ConvertLike>(weight, x));
+    auto weight = low_precision_subgraph(context, x, new_qweight, new_qzeros, new_scales, out_shape);
 
     auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, false));
     if (!context.input_is_none(6)) {
         auto bias = context.get_input(6);
+
+        if (bias.get_element_type() == element::f16 || bias.get_element_type() == element::bf16) {
+            bias = context.mark_node(std::make_shared<v1::ConvertLike>(bias, x));
+        }
+        matmul = context.mark_node(std::make_shared<v1::Add>(matmul, bias));
+    }
+    return {matmul};
+};
+
+OutputVector translate_linear_bitnet(const NodeContext& context) {
+    num_inputs_check(context, 3, 4);
+    const auto x = context.get_input(0);
+    const auto weight = context.get_input(1);
+    const auto scales = context.get_input(2);
+
+    const auto constant = ov::as_type_ptr<v0::Constant>(weight.get_node_shared_ptr());
+    FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
+    const auto src = reinterpret_cast<const uint8_t*>(constant->get_data_ptr());
+    const auto initial_shape = constant->get_shape();
+    FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D constants are supported.");
+    const uint8_t values_per_pack = 4;  // Number of 2-bit values packed into a byte
+    const size_t rows = initial_shape[0];
+    const size_t cols = initial_shape[1];
+    FRONT_END_OP_CONVERSION_CHECK(cols % values_per_pack == 0,
+                                  "The second dimension of weight must be divisible by 4.");
+    const auto new_shape = Shape{rows * values_per_pack, cols};
+    auto new_weight = std::make_shared<v0::Constant>(element::u2, new_shape, 0);
+    auto dst = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_weight->get_data_ptr()));
+    const size_t row_len = cols / values_per_pack;
+    // This lambda extracts 2 bits from each of 4 consecutive bytes at a given bit position,
+    // then packs them into a single byte, placing each 2-bit value in its respective position (6, 4, 2, 0).
+    const auto reorder_bitnet_2bit_values =
+        [](const uint8_t* const src, const size_t src_idx, const size_t pos) -> uint8_t {
+        const uint8_t values_per_byte = 4;
+        const uint8_t value_mask = 0x3;
+        const uint8_t value_size = 2;  // Size of each value is 2 bits
+        uint8_t value{};               // Should be zeroed
+
+        for (size_t value_idx = 0; value_idx != values_per_byte; ++value_idx) {
+            value |= ((src[src_idx + value_idx] >> pos) & value_mask) << value_idx * value_size;
+        }
+        return value;
+    };
+    // In each 8bit value we have 4 2-bit values, first value contains first element, second value first element of a
+    // next row. We need to repack them in contiguous way.
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < row_len; ++j) {
+            const size_t src_idx = values_per_pack * j + i * cols;
+            dst[j + (i + 0 * rows) * row_len] = reorder_bitnet_2bit_values(src, src_idx, 0);
+            dst[j + (i + 1 * rows) * row_len] = reorder_bitnet_2bit_values(src, src_idx, 2);
+            dst[j + (i + 2 * rows) * row_len] = reorder_bitnet_2bit_values(src, src_idx, 4);
+            dst[j + (i + 3 * rows) * row_len] = reorder_bitnet_2bit_values(src, src_idx, 6);
+        }
+    }
+    new_weight->set_friendly_name(constant->get_friendly_name());
+    const auto zero_point = context.mark_node(std::make_shared<v0::Constant>(element::u2, Shape{}, 1));
+    auto mm_weight = low_precision_subgraph(context, x, new_weight, zero_point, scales, {});
+
+    auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, mm_weight, false, true));
+    if (!context.input_is_none(3)) {
+        auto bias = context.get_input(3);
 
         if (bias.get_element_type() == element::f16 || bias.get_element_type() == element::bf16) {
             bias = context.mark_node(std::make_shared<v1::ConvertLike>(bias, x));

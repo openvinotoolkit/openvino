@@ -31,6 +31,13 @@ TEST_P(RoPETestFlux, CompareWithRefs) {
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
 };
 
+TEST_P(RoPETestQwenVL, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
 TEST_P(RoPETestLlama2StridedSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
@@ -95,6 +102,13 @@ TEST_P(RoPETestGPTJSlice, CompareWithRefs) {
 };
 
 TEST_P(RoPETestChatGLM2DRoPEStridedSlice, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
+TEST_P(RoPETestChatGLMHF, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();

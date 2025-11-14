@@ -7,7 +7,7 @@ import os
 import pathlib
 import re
 from collections import OrderedDict, namedtuple
-from typing import List, Union
+from typing import Union
 
 import openvino
 from openvino import PartialShape, Dimension, Type  # pylint: disable=no-name-in-module,import-error
@@ -202,8 +202,8 @@ def get_mo_convert_params():
     return mo_convert_params
 
 
-def canonicalize_and_check_paths(values: Union[str, List[str], None], param_name,
-                                 try_mo_root=False, check_existence=True) -> List[str]:
+def canonicalize_and_check_paths(values: Union[str, list[str], None], param_name,
+                                 try_mo_root=False, check_existence=True) -> list[str]:
     if values is not None:
         list_of_values = list()
         if isinstance(values, str):

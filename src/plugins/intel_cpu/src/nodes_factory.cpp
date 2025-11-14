@@ -36,22 +36,20 @@
 #include "nodes/experimental_detectron_topkrois.h"
 #include "nodes/extract_image_patches.h"
 #include "nodes/eye.h"
-#include "nodes/fake_quantize.h"
 #include "nodes/fullyconnected.h"
 #include "nodes/gather.h"
 #include "nodes/gather_elements.h"
 #include "nodes/gather_nd.h"
 #include "nodes/gather_tree.h"
+#include "nodes/gathermatmul.h"
 #include "nodes/generate_proposals.h"
-#include "nodes/grid_sample.hpp"
 #include "nodes/grn.h"
+#include "nodes/identity.hpp"
 #include "nodes/if.h"
 #include "nodes/input.h"
-#include "nodes/interaction.h"
 #include "nodes/interpolate.h"
 #include "nodes/inverse.hpp"
 #include "nodes/istft.h"
-#include "nodes/llm_mlp.h"
 #include "nodes/log_softmax.h"
 #include "nodes/lora.h"
 #include "nodes/lrn.h"
@@ -68,13 +66,11 @@
 #include "nodes/normalize.h"
 #include "nodes/one_hot.h"
 #include "nodes/pad.h"
-#include "nodes/paged_attn.h"
 #include "nodes/pooling.h"
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
 #include "nodes/proposal.h"
 #include "nodes/psroi_pooling.h"
-#include "nodes/qkv_proj.h"
 #include "nodes/random_uniform.hpp"
 #include "nodes/range.h"
 #include "nodes/rdft.h"
@@ -84,7 +80,6 @@
 #include "nodes/reorg_yolo.h"
 #include "nodes/reshape.h"
 #include "nodes/reverse_sequence.h"
-#include "nodes/rms_norm.h"
 #include "nodes/rnn.h"
 #include "nodes/roi_align.h"
 #include "nodes/roi_align_rotated.h"
@@ -114,6 +109,21 @@
 #include "nodes/unique.hpp"
 #include "openvino/cc/factory.h"
 #include "selective_build.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/fake_quantize.h"
+#    include "nodes/grid_sample.hpp"
+#    include "nodes/interaction.h"
+#    include "nodes/llm_mlp.h"
+#    include "nodes/paged_attn.h"
+#    include "nodes/qkv_proj.h"
+#    include "nodes/rms_norm.h"
+#endif
+
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/fake_quantize.h"
+#    include "nodes/paged_attn.h"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -207,6 +217,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Ngram, Type::Ngram);
     INTEL_CPU_NODE(RoPE, Type::RoPE);
     INTEL_CPU_NODE(CausalMaskPreprocess, Type::CausalMaskPreprocess);
+    INTEL_CPU_NODE(Identity, Type::Identity);
     INTEL_CPU_NODE(Interpolate, Type::Interpolate);
     INTEL_CPU_NODE(Inverse, Type::Inverse);
     INTEL_CPU_NODE(RandomUniform, Type::RandomUniform);
@@ -230,6 +241,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
     INTEL_CPU_NODE(SegmentMax, Type::SegmentMax);
     INTEL_CPU_NODE(LoRA, Type::LoRA);
+    INTEL_CPU_NODE(GatherMatmul, Type::GatherMatmul);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);
@@ -239,6 +251,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
 #elif defined(OPENVINO_ARCH_ARM64)
+    INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
 #endif
 }

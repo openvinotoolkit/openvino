@@ -26,9 +26,7 @@ using matmul_test_params_t = std::tuple<StaticShape,  // Input A shape
 class CPUMatMulTest : public TestWithParam<matmul_test_params_t> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<matmul_test_params_t>& obj) {
-        StaticShape tmp_input_shape_A;
-        StaticShape tmp_input_shape_B;
-        std::tie(tmp_input_shape_A, tmp_input_shape_B) = obj.param;
+        const auto& [tmp_input_shape_A, tmp_input_shape_B] = obj.param;
         std::ostringstream result;
         result << "IA" << tmp_input_shape_A << "_";
         result << "IB" << tmp_input_shape_B;

@@ -100,12 +100,8 @@ public:
         result << "updates_shape=" << param.m_updates.shape << "_";
         result << "ind_type=" << param.m_start.type << "_";
         if (param.m_default_axes) {
-            result << "axes_shape="
-                   << "default"
-                   << "_";
-            result << "axes_type="
-                   << "default"
-                   << "_";
+            result << "axes_shape=" << "default" << "_";
+            result << "axes_type=" << "default" << "_";
         } else {
             result << "axes_shape=" << param.m_axes.shape << "_";
             result << "axes_type=" << param.m_axes.type << "_";

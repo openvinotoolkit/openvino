@@ -232,5 +232,5 @@ inline void rotate_kv_cache_block([[maybe_unused]] uint8_t* cache_block_ptr,
                                   [[maybe_unused]] size_t num_heads,
                                   [[maybe_unused]] size_t block_size,
                                   [[maybe_unused]] size_t embedding_size) {
-    OPENVINO_THROW("cache rotation is not implemented for quantized u8/u4 key cache");
+    OPENVINO_THROW("cache rotation is not implemented for quantized u8/u4 kv cache");
 }

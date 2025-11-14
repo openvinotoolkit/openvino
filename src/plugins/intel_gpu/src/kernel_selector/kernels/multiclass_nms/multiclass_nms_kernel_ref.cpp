@@ -36,7 +36,7 @@ KernelsPriority MulticlassNmsKernelRef::GetKernelsPriority(const Params&) const 
 
 bool MulticlassNmsKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::MULTICLASS_NMS) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -152,7 +152,7 @@ KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params) const {
         cldnn_jit.AddConstant(MakeJitConstant("MULTICLASSNMS_STAGE_" + std::to_string(i), "true"));
 
         const auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
-        KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo.maxWorkGroupSize);
+        KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo);
         auto& kernel = kd.kernels[i];
 
         kernel.params.workGroups.global = dispatch_data.gws;

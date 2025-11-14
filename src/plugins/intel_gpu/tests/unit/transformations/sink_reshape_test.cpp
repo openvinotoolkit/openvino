@@ -33,11 +33,8 @@ class SinkReshapeTests : public TransformationTestsF, public WithParamInterface<
 public:
     static std::string get_test_case_name(testing::TestParamInfo<SinkReshapeParams> obj) {
         std::pair<ov::PartialShape, ov::Shape> input_shapes;
-        bool add_eltwise;
-        bool add_activation;
-        bool eligible_rotataion;
-        bool eligible_reshape;
-        std::tie(add_eltwise, add_activation, eligible_rotataion, eligible_reshape) = obj.param;
+
+        const auto& [add_eltwise, add_activation, eligible_rotataion, eligible_reshape] = obj.param;
 
         std::ostringstream result;
         result << ")_add_eltwise=" << add_eltwise << "_add_activationt=" << add_activation << "_eligible_rotation=" << eligible_rotataion << "_eligible_reshape=" << eligible_reshape;
@@ -101,11 +98,8 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        bool add_eltwise;
-        bool add_activation;
-        bool eligible_rotation;
-        bool eligible_reshape;
-        std::tie(add_eltwise, add_activation, eligible_rotation, eligible_reshape) = this->GetParam();
+
+        const auto& [add_eltwise, add_activation, eligible_rotation, eligible_reshape] = this->GetParam();
 
         model = init_model(add_eltwise, add_activation, eligible_rotation, eligible_reshape, true);
         if (!eligible_rotation || !eligible_reshape)

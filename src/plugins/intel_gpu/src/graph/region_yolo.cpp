@@ -28,7 +28,9 @@ layout region_yolo_inst::calc_output_layout(region_yolo_node const& node, kernel
                    1,
                    1));
     } else {
-        tensor::value_type features = (desc->classes + desc->coords + 1) * desc->mask_size;
+        tensor::value_type features = static_cast<tensor::value_type>(desc->mask_size) *
+                                     (static_cast<tensor::value_type>(desc->classes) +
+                                      static_cast<tensor::value_type>(desc->coords) + 1);
         return cldnn::layout(
             input_layout.data_type,
             input_layout.format,

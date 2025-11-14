@@ -4,28 +4,46 @@
 
 #include "snippets/lowered/pass/mark_invariant_shape_path.hpp"
 
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/expressions/buffer_expression.hpp"
-#include "snippets/op/memory_access.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/reshape.hpp"
+#include "snippets/op/scalar.hpp"
+#include "snippets/op/vector_buffer.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 namespace {
 
 // Specific value to mark ports which doesn't affect output shape of broadcastable ops.
 // For example, ops with output scalar shape or Horizon ops.
-static const size_t NOT_AFFECTING_PATH = SIZE_MAX;
+const size_t NOT_AFFECTING_PATH = SIZE_MAX;
 
-static bool is_shape_broadcastable_op(const ExpressionPtr& expr) {
+bool is_shape_broadcastable_op(const ExpressionPtr& expr) {
     return expr->get_node()->get_autob() != ov::op::AutoBroadcastType::NONE;
 }
 
-static bool is_not_affecting_op(const ExpressionPtr& expr) {
+bool is_not_affecting_op(const ExpressionPtr& expr) {
     const auto& node = expr->get_node();
     return ov::is_type_any_of<ov::snippets::op::HorizonMax,
                               ov::snippets::op::HorizonSum,
@@ -36,7 +54,7 @@ static bool is_not_affecting_op(const ExpressionPtr& expr) {
                               ov::snippets::op::Scalar>(node);
 }
 
-static bool is_affecting_op(const ExpressionPtr& expr) {
+bool is_affecting_op(const ExpressionPtr& expr) {
     const auto& node = expr->get_node();
     return ov::is_type_any_of<ov::snippets::op::Brgemm, ov::snippets::op::Reshape, ov::snippets::op::LoadReorder>(node);
 }
@@ -65,7 +83,7 @@ ov::RTMap& MarkInvariantShapePath::get_rt_info(const ExpressionPort& port) {
     return node->output(port_idx).get_rt_info();
 }
 
-bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir,
+bool MarkInvariantShapePath::run(lowered::LinearIR& /*linear_ir*/,
                                  lowered::LinearIR::constExprIt begin,
                                  lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MarkInvariantShapePath");
@@ -78,21 +96,24 @@ bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir,
     size_t color_path = 0;
 
     auto merge_paths = [&color_path](size_t lhs, size_t rhs) {
-        if (lhs == rhs || rhs == NOT_AFFECTING_PATH)
+        if (utils::any_of(rhs, lhs, NOT_AFFECTING_PATH)) {
             return lhs;
-        if (lhs == NOT_AFFECTING_PATH)
+        }
+        if (lhs == NOT_AFFECTING_PATH) {
             return rhs;
+        }
         return ++color_path;
     };
 
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& expr = *expr_it;
-        if (ov::is_type<ov::snippets::op::LoopBase>(expr->get_node()))
+        if (ov::is_type<ov::snippets::op::LoopBase>(expr->get_node())) {
             continue;
+        }
 
         for (size_t out_idx = 0; out_idx < expr->get_output_count(); ++out_idx) {
             const auto& out_shape = expr->get_output_port_descriptor(out_idx)->get_shape();
-            size_t current_color_path;
+            size_t current_color_path = 0;
             if (colored_shapes.count(out_shape)) {
                 current_color_path = colored_shapes.at(out_shape);
             } else if (!utils::is_dynamic_vdims(out_shape) && ov::shape_size(out_shape) == 1) {
@@ -113,8 +134,9 @@ bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir,
                         expr->get_input_count() > 0 ? getInvariantPortShapePath(expr->get_input_port(0)) : ++color_path;
                 }
 
-                if (!utils::is_dynamic_vdims(out_shape))
+                if (!utils::is_dynamic_vdims(out_shape)) {
                     colored_shapes[out_shape] = current_color_path;
+                }
             }
 
             SetInvariantPortShapePath(expr->get_output_port(out_idx), current_color_path);
@@ -125,7 +147,4 @@ bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir,
     return modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

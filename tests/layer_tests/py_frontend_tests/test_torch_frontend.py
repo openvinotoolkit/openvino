@@ -7,6 +7,7 @@ import itertools
 import math
 import os
 import re
+import sys
 import logging
 import platform
 from pathlib import Path
@@ -18,8 +19,13 @@ import pytest
 from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
 from openvino import PartialShape, Type
 import openvino.opset10 as ops
+import openvino.properties.hint as hints
 
 logging.basicConfig(level=logging.DEBUG)
+
+orig_compile = torch.compile
+torch.compile = lambda func: func
+default_cfg = {hints.inference_precision: Type.f32}
 
 
 class aten_relu(torch.nn.Module):
@@ -471,7 +477,7 @@ def verify_model(model, example_input, expected_ops):
     # Convert and compile the model
     converted_model = ov.convert_model(model, example_input=(example_input,))
     assert converted_model, "Model conversion failed."
-    compiled_model = ov.compile_model(converted_model, "CPU")
+    compiled_model = ov.compile_model(converted_model, "CPU", default_cfg)
     assert compiled_model, "Model compilation failed."
 
     # Verify model operations
@@ -890,7 +896,7 @@ def test_patched_16bit_model_converts():
     with torch.no_grad():
         converted_model = convert_model(model_fp16, example_input=example)
     assert converted_model
-    cm_fp16 = compile_model(converted_model, "CPU")
+    cm_fp16 = compile_model(converted_model, "CPU", default_cfg)
     res_fp16 = cm_fp16([x.numpy() for x in example])
     np.testing.assert_allclose(res_fp16[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_fp16[1], res_ref[1].numpy(), atol=1e-2)
@@ -901,7 +907,7 @@ def test_patched_16bit_model_converts():
     with torch.no_grad():
         converted_model = convert_model(model_bf16, example_input=example)
     assert converted_model
-    cm_bf16 = compile_model(converted_model, "CPU")
+    cm_bf16 = compile_model(converted_model, "CPU", default_cfg)
     res_bf16 = cm_bf16([x.numpy() for x in example])
     np.testing.assert_allclose(res_bf16[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_bf16[1], res_ref[1].numpy(), atol=1e-2)
@@ -944,6 +950,7 @@ def test_patched_8bit_model_converts():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
     from transformers.pytorch_utils import Conv1D
+    import gc
 
     class ModelWithLinear(torch.nn.Module):
         def __init__(self):
@@ -976,10 +983,16 @@ def test_patched_8bit_model_converts():
     with torch.no_grad():
         converted_model = convert_model(model_f8_e4m3, example_input=example)
     assert converted_model
-    cm_f8_e4m3 = compile_model(converted_model, "CPU")
+    cm_f8_e4m3 = compile_model(converted_model, "CPU", default_cfg)
     res_f8_e4m3 = cm_f8_e4m3([x.numpy() for x in example])
     np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
+    
+    # Force cleanup before next test to avoid mutex deadlock on macOS ARM64
+    del model_f8_e4m3, model_ref, converted_model, cm_f8_e4m3, res_f8_e4m3, res_ref
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     model_ref = ModelWithLinear().to(torch.float8_e5m2).float()
     with torch.no_grad():
@@ -990,10 +1003,53 @@ def test_patched_8bit_model_converts():
     with torch.no_grad():
         converted_model = convert_model(model_f8_e5m2, example_input=example)
     assert converted_model
-    cm_f8_e5m2 = compile_model(converted_model, "CPU")
+    cm_f8_e5m2 = compile_model(converted_model, "CPU", default_cfg)
     res_f8_e5m2 = cm_f8_e5m2([x.numpy() for x in example])
     np.testing.assert_allclose(res_f8_e5m2[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
+    
+    # Force final cleanup to prevent deadlock during test teardown
+    del model_f8_e5m2, model_ref, converted_model, cm_f8_e5m2, res_f8_e5m2, res_ref
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_patched_bitnet_model_converts():
+    from openvino import convert_model, compile_model
+    from transformers.integrations.bitnet import AutoBitLinear, pack_weights
+    from transformers import PretrainedConfig, BitNetQuantConfig
+    
+    rng = torch.Generator().manual_seed(42)
+
+    class TestModel(torch.nn.Module):
+        def __init__(self, size):
+            super().__init__()
+            self.config = PretrainedConfig(quantization_config=BitNetQuantConfig(linear_class="autobitlinear"))
+            self.linear = AutoBitLinear(size[0], size[1], bias=True, use_rms_norm=True)
+            w = torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32, generator=rng)
+            self.linear.weight = torch.nn.Parameter(w)
+            self.linear.original_weight = pack_weights(self.linear.weight.data.clone())
+
+        def forward(self, x):
+            return self.linear(x)
+
+    size = (32, 64)
+    x = torch.randn(1, size[0], generator=rng)
+    model = TestModel(size)
+    with torch.no_grad():
+        res_ref = model(x)
+
+    with torch.no_grad():
+        converted_model = convert_model(model, example_input=(torch.randn(1, size[0], generator=rng),))
+    assert converted_model
+    cm = compile_model(converted_model, "CPU", default_cfg)
+    res = cm([x.numpy()])
+    rtol, atol = 1e-4, 1e-4
+    if platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'):
+        rtol, atol = 0.5, 0.1
+    np.testing.assert_allclose(res[0], res_ref.numpy(), rtol=rtol, atol=atol)
 
 
 class InlinedInputsModel(torch.nn.Module):
@@ -1007,5 +1063,5 @@ class InlinedInputsModel(torch.nn.Module):
 def test_inlined_inputs():
     model = InlinedInputsModel()
     model.eval()
-    model = torch.compile(model, backend="openvino", options={"testing": 1})
+    model = orig_compile(model, backend="openvino", options={"testing": 1})
     model()

@@ -4,11 +4,14 @@
 
 #pragma once
 
+#include <memory>
+
+#include "openvino/core/rtti.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "snippets/pass/common_optimizations.hpp"
 #include "subgraph_pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface ExtractConstants
@@ -19,11 +22,9 @@ namespace pass {
 class ExtractConstants : public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("ExtractConstants", "0");
-    ExtractConstants() = default;
+    ExtractConstants() : SubgraphPass("ExtractConstants") {}
 
     bool run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) override;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

@@ -60,7 +60,7 @@ async function downloadFile(url, filename, destination) {
 
   return new Promise((resolve, reject) => {
     file.on('error', e => {
-      reject(`Error oppening file stream: ${e}`);
+      reject(`Error opening file stream: ${e}`);
     });
 
     const getRequest = module.get(url, { agent }, res => {

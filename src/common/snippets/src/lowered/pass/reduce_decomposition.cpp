@@ -4,17 +4,37 @@
 
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/maximum.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
 #include "snippets/lowered/pass/iter_handler.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/specific_loop_iter_types.hpp"
+#include "snippets/op/fill.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/vector_buffer.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 ReduceDecomposition::ReduceDecomposition(size_t vector_size) : RangedPass(), m_vector_size{vector_size} {}
 
@@ -23,8 +43,8 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
 
     auto get_initial_value = [](const ov::DiscreteTypeInfo& type_info) {
         static const std::map<ov::DiscreteTypeInfo, uint32_t> reduce_initial_values{
-            {op::ReduceMax::get_type_info_static(), uint32_t(0xff7fffff)},
-            {op::ReduceSum::get_type_info_static(), uint32_t(0x00000000)},
+            {op::ReduceMax::get_type_info_static(), static_cast<uint32_t>(0xff7fffff)},
+            {op::ReduceSum::get_type_info_static(), static_cast<uint32_t>(0x00000000)},
         };
         OPENVINO_ASSERT(reduce_initial_values.count(type_info), "Unexpected ReduceType");
         return reduce_initial_values.at(type_info);
@@ -38,11 +58,11 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
             const ov::DiscreteTypeInfo& type_info) -> std::pair<LinearIR::constExprIt, std::shared_ptr<ov::Node>> {
         if (type_info == op::ReduceMax::get_type_info_static()) {
             return linear_ir.insert_node<ov::op::v1::Maximum>(expr_it, input0, input1);
-        } else if (type_info == op::ReduceSum::get_type_info_static()) {
-            return linear_ir.insert_node<ov::op::v1::Add>(expr_it, input0, input1);
-        } else {
-            OPENVINO_THROW("Unsupported reduce type: ", type_info);
         }
+        if (type_info == op::ReduceSum::get_type_info_static()) {
+            return linear_ir.insert_node<ov::op::v1::Add>(expr_it, input0, input1);
+        }
+        OPENVINO_THROW("Unsupported reduce type: ", type_info);
     };
 
     auto insert_horizon_node =
@@ -52,11 +72,11 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
             const ov::DiscreteTypeInfo& type_info) -> std::pair<LinearIR::constExprIt, std::shared_ptr<ov::Node>> {
         if (type_info == op::ReduceMax::get_type_info_static()) {
             return linear_ir.insert_node<op::HorizonMax>(expr_it, input);
-        } else if (type_info == op::ReduceSum::get_type_info_static()) {
-            return linear_ir.insert_node<op::HorizonSum>(expr_it, input);
-        } else {
-            OPENVINO_THROW("Unsupported reduce type: ", type_info);
         }
+        if (type_info == op::ReduceSum::get_type_info_static()) {
+            return linear_ir.insert_node<op::HorizonSum>(expr_it, input);
+        }
+        OPENVINO_THROW("Unsupported reduce type: ", type_info);
     };
 
     bool modified = false;
@@ -64,8 +84,9 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& reduce_expr = *expr_it;
         const auto& reduce = ov::as_type_ptr<ov::snippets::op::ReduceBase>(reduce_expr->get_node());
-        if (!reduce || std::dynamic_pointer_cast<modifier::MemoryAccess>(reduce_expr->get_node()))
+        if (!reduce || std::dynamic_pointer_cast<modifier::MemoryAccess>(reduce_expr->get_node())) {
             continue;
+        }
 
         const auto& reduce_type_info = reduce->get_type_info();
         const auto& input_shape = reduce_expr->get_input_port_descriptor(0)->get_shape();
@@ -92,10 +113,10 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
             expr_it,
             work_amount,
             increment,
-            0,
-            std::vector<ExpressionPort>{(*fill.first)->get_input_port(0), (*accumulation.first)->get_input_port(1)},
-            std::vector<ExpressionPort>{(*accumulation.first)->get_output_port(0)});
-        const auto tail_size = utils::is_dynamic_value(work_amount) ? 1lu : work_amount % increment;
+            {LoopPort::create<LoopPort::Type::Incremented>((*fill.first)->get_input_port(0), 0),
+             LoopPort::create<LoopPort::Type::Incremented>((*accumulation.first)->get_input_port(1), 0)},
+            {LoopPort::create<LoopPort::Type::Incremented>((*accumulation.first)->get_output_port(0), 0)});
+        const auto tail_size = utils::is_dynamic_value(work_amount) ? 1LU : work_amount % increment;
         if (tail_size != 0) {
             const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(reduce_loop_id);
             loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SetFillOffset>(tail_size);
@@ -104,11 +125,10 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
 
         // Transfer original ExpressionPorts
         replace_input_port_connectors({fill.first->get()->get_input_port(0)}, reduce_expr->get_input_port_connector(0));
-        replace_input_port_connectors(reduce_expr->get_output_port_connector(0)->get_consumers(),
-                                      horizon.first->get()->get_output_port_connector(0));
+        const auto reduce_consumers = reduce_expr->get_output_port_connector(0)->get_consumers();
+        replace_input_port_connectors(reduce_consumers, horizon.first->get()->get_output_port_connector(0));
 
         // Update input shapes of consumers
-        const auto reduce_consumers = horizon.first->get()->get_output_port_connector(0)->get_consumers();
         for (const auto& consumer : reduce_consumers) {
             consumer.get_expr()->updateShapes();
         }
@@ -127,7 +147,4 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
     return modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

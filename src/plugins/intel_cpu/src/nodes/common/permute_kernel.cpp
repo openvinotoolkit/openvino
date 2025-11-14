@@ -4,28 +4,38 @@
 
 #include "permute_kernel.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <string>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "nodes/executors/common/ref_transpose.hpp"
 #include "nodes/executors/transpose.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "utils/cpu_utils.hpp"
+#    include "utils/general_utils.h"
+#endif
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#    include <memory>
+
+#    include "cpu/x64/jit_generator.hpp"
+
+using namespace Xbyak;
+using namespace dnnl::impl::cpu::x64;
+#endif
+
 using namespace dnnl;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
-using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_args_permute, field)
 
@@ -34,16 +44,16 @@ namespace ov::intel_cpu {
 #if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
-struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator {
+struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_permute_kernel_f32)
 
     explicit jit_uni_permute_kernel_f32(jit_permute_config_params jcp_)
         : jit_uni_permute_kernel(jcp_),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -105,7 +115,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
         Xbyak::Label exit_label;
 
         if (n + 1 == static_cast<int>(jcp.ndims)) {
-            if (jcp.src_strides[n] == 1 && jcp.dst_strides[n] == 1) {
+            if (all_of(1U, jcp.src_strides[n], jcp.dst_strides[n])) {
                 uint32_t step = vlen / jcp.data_size;
 
                 L(main_loop_label);
@@ -158,7 +168,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
 private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    uint32_t vlen = cpu_isa_traits<isa>::vlen;
+    uint32_t vlen = cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_dst = r9;
@@ -221,15 +231,24 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
 
     switch (jcp.n) {
     case 0:
-    // This is a degenerate case that is only possible if the tensor has 0 or 1st rank
-    // Such a situation is possible in the following graph:
-    //  Parameter
-    //     |
-    //  Transpose
-    //     |
-    //  Result
-    // The elimination of the Transpose node will not be performed
-    // So copy from input buffer to output buffer without any permutation
+        // This is a degenerate case that is only possible if the tensor has 0 or 1st rank
+        // Such a situation is possible in the following graph:
+        //  Parameter
+        //     |
+        //  Transpose
+        //     |
+        //  Result
+        // The elimination of the Transpose node will not be performed
+        // So copy from input buffer to output buffer without any permutation
+        {
+            auto arg = jit_args_permute();
+
+            arg.src = src_data;
+            arg.dst = dst_data;
+
+            (*permute_kernel)(&arg);
+        }
+        break;
     case 1:
         parallel_for(dst_dims[0], [&](int i0) {
             auto arg = jit_args_permute();

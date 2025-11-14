@@ -3212,7 +3212,6 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
         const int32_t input_f = 3, input_b = 1, weight_b = 4;
 
-        auto fake_alignment_size = engine.get_device_info().supports_immad ? 8 : 16;
         auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
         auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx });
         auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx });
@@ -3239,7 +3238,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto output_prim_mem = outputs.begin()->second.get_memory();
 
         auto out_l = network->get_output_layout(outputs.begin()->first);
-        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, fake_alignment_size)); // fake_alignment
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), input_b);
         ASSERT_EQ(out_l.batch(), input_b);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
@@ -3377,7 +3376,6 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto input_data1 = engine.allocate_memory(input_actual_layout);
         auto input_data2 = engine.allocate_memory(input_actual_layout);
         auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx });
-        auto fake_alignment_size = engine.get_device_info().supports_immad ? 8 : 16;
         set_values(input_data1, { 0.5f, -2.0f, -0.5f });
         set_values(input_data2, { -0.5f, 2.0f, 0.5f });
         set_values(weights_data, { 1.5f, 1.0f, 0.5f,
@@ -3406,7 +3404,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             auto output_prim_mem = outputs.begin()->second.get_memory();
 
             auto out_l = network->get_output_layout(outputs.begin()->first);
-            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, fake_alignment_size)); // fake_alignment
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), input_b);
             ASSERT_EQ(out_l.batch(), input_b);
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
@@ -3430,7 +3428,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             auto output_prim_mem = outputs.begin()->second.get_memory();
 
             auto out_l = network->get_output_layout(outputs.begin()->first);
-            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, fake_alignment_size)); // fake_alignment
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), input_b);
             ASSERT_EQ(out_l.batch(), input_b);
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
@@ -3450,7 +3448,6 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
         const int32_t input_f = 3, weight_b = 4;
 
-        auto fake_alignment_size = engine.get_device_info().supports_immad ? 8 : 16;
         auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
         auto input_actual_layout1 = layout{ ov::PartialShape{ 2, input_f }, data_types::f32,format::bfyx};
         auto input_actual_layout2 = layout{ ov::PartialShape{ 1, input_f }, data_types::f32,format::bfyx};
@@ -3490,7 +3487,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             auto output_prim_mem = outputs.begin()->second.get_memory();
 
             auto out_l = network->get_output_layout(outputs.begin()->first);
-            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, fake_alignment_size)); // fake_alignment
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), 2);
             ASSERT_EQ(out_l.batch(), 2);
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
@@ -3519,7 +3516,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             auto output_prim_mem = outputs.begin()->second.get_memory();
 
             auto out_l = network->get_output_layout(outputs.begin()->first);
-            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, fake_alignment_size)); // fake_alignment
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), 1);
             ASSERT_EQ(out_l.batch(), 1);
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
@@ -3539,7 +3536,6 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
         const int32_t input_f = 3, weight_b = 4;
 
-        auto fake_alignment_size = engine.get_device_info().supports_immad ? 8 : 16;
         auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
         auto input_actual_layout1 = layout{ ov::PartialShape{ 2, input_f }, data_types::f32,format::bfyx};
         auto input_actual_layout2 = layout{ ov::PartialShape{ 1, input_f }, data_types::f32,format::bfyx};
@@ -3578,8 +3574,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
                 auto output_prim_mem = outputs.begin()->second.get_memory();
 
                 auto out_l = network->get_output_layout(outputs.begin()->first);
-                ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, fake_alignment_size)); // fake_alignment
-                ASSERT_EQ(out_l.batch(), 2); // fake_alignment
+                ASSERT_EQ(output_prim_mem->get_layout().batch(), 2);
+                ASSERT_EQ(out_l.batch(), 2);
                 ASSERT_EQ(out_l.feature(), weight_b);
                 ASSERT_EQ(out_l.spatial(0), 1);
                 ASSERT_EQ(out_l.spatial(1), 1);
@@ -3607,8 +3603,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
                 auto output_prim_mem = outputs.begin()->second.get_memory();
 
                 auto out_l = network->get_output_layout(outputs.begin()->first);
-                ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, fake_alignment_size)); // fake_alignment
-                ASSERT_EQ(out_l.batch(), 1); // fake_alignment
+                ASSERT_EQ(output_prim_mem->get_layout().batch(), 1);
+                ASSERT_EQ(out_l.batch(), 1);
                 ASSERT_EQ(out_l.feature(), weight_b);
                 ASSERT_EQ(out_l.spatial(0), 1);
                 ASSERT_EQ(out_l.spatial(1), 1);
@@ -3628,7 +3624,6 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
         const int32_t input_f = 3, input_b = 1, weight_b = 4;
 
-        auto fake_alignment_size = engine.get_device_info().supports_immad ? 8 : 16;
         auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
         auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx });
         auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx });
@@ -3672,7 +3667,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         ASSERT_TRUE(reorder_impl == nullptr);
 
         auto out_l = network->get_output_layout(outputs.begin()->first);
-        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, fake_alignment_size)); // fake_alignment
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), input_b);
         ASSERT_EQ(out_l.batch(), input_b);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
@@ -3893,13 +3888,8 @@ struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_te
     }
 
     void run_test(bool is_caching_test = false) {
-        shared_dims dims;
-        size_t batch, input_f, input_x, input_y, output_f;
-        format::type input_format, output_format;
-        std::string kernel;
-
-        std::tie(batch, dims, output_f, input_format, output_format, kernel) = GetParam();
-        std::tie(input_f, input_x, input_y) = dims;
+        const auto& [batch, dims, output_f, input_format, output_format, kernel] = GetParam();
+        const auto [input_f, input_x, input_y] = dims;
 
         auto input_data = rg.generate_random_4d<InputT>(batch, input_f, input_y, input_x, type_test_ranges<InputT>::min, type_test_ranges<InputT>::max, type_test_ranges<InputT>::k);
         auto weights_data = rg.generate_random_4d<WeightsT>(output_f, input_f, input_y, input_x, type_test_ranges<WeightsT>::min, type_test_ranges<WeightsT>::max, type_test_ranges<WeightsT>::k);
@@ -4028,13 +4018,8 @@ struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected
     }
 
     void run_test(bool is_caching_test = false) {
-        shared_dims dims;
-        size_t batch, input_f, input_x, input_y, output_y;
-        format::type input_format, output_format;
-        std::string kernel;
-
-        std::tie(batch, dims, output_y, input_format, output_format, kernel) = GetParam();
-        std::tie(input_f, input_x, input_y) = dims;
+        const auto& [batch, dims, output_y, input_format, output_format, kernel] = GetParam();
+        const auto [input_f, input_x, input_y] = dims;
 
         auto input_data = rg.generate_random_4d<InputT>(batch, input_f, input_y, input_x, type_test_ranges<InputT>::min, type_test_ranges<InputT>::max, type_test_ranges<InputT>::k);
         auto weights_data = rg.generate_random_4d<WeightsT>(output_y, input_y, 1, 1, type_test_ranges<WeightsT>::min, type_test_ranges<WeightsT>::max, type_test_ranges<WeightsT>::k);
@@ -4402,10 +4387,7 @@ class fc_quantized_random_test
 
 public:
     void run_random_test() {
-        size_t b, in_f, in_x, in_y, out_f;
-        format::type in_fmt;
-
-        std::tie(b, in_f, in_x, in_y, out_f, in_fmt) = GetParam();
+        const auto& [b, in_f, in_x, in_y, out_f, in_fmt] = GetParam();
 
         VVVVF<InputT> input_data = rg.generate_random_4d<InputT>(b, in_f, in_y, in_x, -127, 127);
         VVVVF<int8_t> weights_data = rg.generate_random_4d<int8_t>(out_f, in_f, in_y, in_x, -127, 127);
@@ -5254,6 +5236,9 @@ TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int4_group_s
     this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 32, 32, WzpMode::Symmetric, WeightMode::Bit4);
 }
 
+TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int8_group_scale_scalar_zp_gs16) {
+    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 16, 16, WzpMode::Symmetric, WeightMode::Bit8);
+}
 
 using fully_connected_dynamic_test_params = std::tuple<
     std::vector<ov::Dimension::value_type>, // batch_sizes
@@ -5271,12 +5256,7 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
     }
 
     void run_test(bool is_caching_test = false) {
-        std::vector<ov::Dimension::value_type> batch_sizes;
-        ov::Dimension::value_type input_f;
-        ov::Dimension::value_type output_f;
-        bool fc_3d = false;
-
-        std::tie(batch_sizes, input_f, output_f, fc_3d) = GetParam();
+        const auto& [batch_sizes, input_f, output_f, fc_3d] = GetParam();
 
         auto input_dt = ov::element::from<InputT>();
         auto weights_dt = ov::element::from<WeightsT>();
@@ -5608,10 +5588,8 @@ class fc_random_types_test
 public:
     void run_random_test() {
         tests::random_generator rg(GET_SUITE_NAME);
-        size_t b, in_f, in_x, in_y, out_f;
-        format::type in_fmt;
 
-        std::tie(b, in_f, in_x, in_y, out_f, in_fmt) = GetParam();
+        const auto& [b, in_f, in_x, in_y, out_f, in_fmt] = GetParam();
 
         quantization_t quant_data;
         quant_data.output_low  = std::numeric_limits<WeightsT>::lowest();

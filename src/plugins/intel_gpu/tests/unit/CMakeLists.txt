@@ -31,6 +31,7 @@ file(GLOB_RECURSE SOURCES_MAIN
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/remote_tensor.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/usm_host_tensor.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/common_utils.cpp"
+    "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/simple_math.cpp"
   )
 
 if (NOT ENABLE_ONEDNN_FOR_GPU)

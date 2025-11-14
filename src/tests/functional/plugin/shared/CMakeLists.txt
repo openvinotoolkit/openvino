@@ -60,13 +60,15 @@ ov_add_target(
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>"
+            PRIVATE
+                "${OpenVINO_SOURCE_DIR}/src/plugins/template/include"
         LINK_LIBRARIES
             PUBLIC
                 openvino::pugixml
                 common_test_utils
                 func_test_utils
                 ov_lpt_models
-                sharedTestClasses
+                base_func_tests
             PRIVATE
                 ${LINK_LIBRARIES_PRIVATE}
         DEPENDENCIES

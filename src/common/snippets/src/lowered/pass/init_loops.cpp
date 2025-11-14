@@ -4,16 +4,21 @@
 
 #include "snippets/lowered/pass/init_loops.hpp"
 
+#include <cstdint>
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/op/buffer.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/utils/loop_utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 namespace {
 inline void init_is_incremented(LoopPort& port) {
@@ -28,12 +33,12 @@ inline int64_t get_data_size(const LoopPort& loop_port) {
     if (expr_port->get_type() == ExpressionPort::Input) {
         return static_cast<int64_t>(
             expr_port->get_expr()->get_node()->get_input_element_type(expr_port->get_index()).size());
-    } else if (expr_port->get_type() == ExpressionPort::Output) {
+    }
+    if (expr_port->get_type() == ExpressionPort::Output) {
         return static_cast<int64_t>(
             expr_port->get_expr()->get_node()->get_output_element_type(expr_port->get_index()).size());
-    } else {
-        OPENVINO_THROW("Unsupported expression port type!");
     }
+    OPENVINO_THROW("Unsupported expression port type!");
 }
 }  // namespace
 
@@ -47,20 +52,17 @@ void InitLoops::update_compile_parameters(const UnifiedLoopInfoPtr& loop_info) {
 
 bool InitLoops::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InitLoops")
-    if (linear_ir.empty())
+    if (linear_ir.empty()) {
         return false;
-
-    const auto& loops = linear_ir.get_loop_manager()->get_map();
-    for (const auto& loop : loops) {
-        const auto& loop_info = ov::as_type_ptr<UnifiedLoopInfo>(loop.second);
-        update_compile_parameters(loop_info);
-        ov::snippets::utils::update_runtime_parameters(loop_info);
     }
 
+    const auto& loop_manager = linear_ir.get_loop_manager();
+    for (const auto& loop : loop_manager->get_map()) {
+        const auto& loop_info = ov::as_type_ptr<UnifiedLoopInfo>(loop.second);
+        update_compile_parameters(loop_info);
+        ov::snippets::utils::update_runtime_parameters(loop_manager, loop_info);
+    }
     return true;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

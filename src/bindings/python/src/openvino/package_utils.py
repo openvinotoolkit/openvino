@@ -5,10 +5,11 @@
 import os
 import sys
 from functools import wraps
-from typing import Callable, Any, Optional
+from typing import Any, Optional
 from pathlib import Path
 import importlib.util
 from types import ModuleType
+from collections.abc import Callable
 
 
 def _add_openvino_libs_to_search_path() -> None:

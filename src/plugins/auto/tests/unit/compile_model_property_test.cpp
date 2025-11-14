@@ -32,11 +32,8 @@ static std::vector<ConfigParams> testConfigs;
 
 class LoadNetworkWithSecondaryConfigsMockTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::string deviceName;
-        std::vector<std::string> targetDevices;
-        ov::AnyMap deviceConfigs;
-        std::tie(deviceName, targetDevices, deviceConfigs) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
+        const auto& [deviceName, targetDevices, deviceConfigs] = obj.param;
         std::ostringstream result;
         result << "_virtual_device_" << deviceName;
         result << "_loadnetwork_to_device_";
@@ -127,9 +124,8 @@ public:
 };
 
 TEST_P(LoadNetworkWithSecondaryConfigsMockTest, LoadNetworkWithSecondaryConfigsTest) {
-    std::string device;
-    std::vector<std::string> targetDevices;
-    std::tie(device, targetDevices, config) = this->GetParam();
+    const auto& [device, targetDevices, _config] = this->GetParam();
+    config = _config;
     if (device.find("AUTO") != std::string::npos)
         plugin->set_device_name("AUTO");
     if (device.find("MULTI") != std::string::npos)
@@ -161,9 +157,8 @@ TEST_P(LoadNetworkWithSecondaryConfigsMockTest, LoadNetworkWithSecondaryConfigsT
 
 using AutoLoadExeNetworkFailedTest = LoadNetworkWithSecondaryConfigsMockTest;
 TEST_P(AutoLoadExeNetworkFailedTest, checkLoadFailMassage) {
-    std::string device;
-    std::vector<std::string> targetDevices;
-    std::tie(device, targetDevices, config) = this->GetParam();
+    const auto& [device, targetDevices, _config] = this->GetParam();
+    config = _config;
     if (device.find("AUTO") != std::string::npos)
         plugin->set_device_name("AUTO");
     if (device.find("MULTI") != std::string::npos)
@@ -236,18 +231,14 @@ using PropertyTestParams = std::tuple<std::string,                  // virtual d
 
 class CompiledModelPropertyMockTest : public tests::AutoTest, public ::testing::TestWithParam<PropertyTestParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PropertyTestParams> obj) {
-        std::string deviceName;
-        std::string devicePriorities;
-        std::map<std::string, bool> isSupportProperty;
-        ov::AnyMap properties;
-        std::tie(deviceName, devicePriorities, isSupportProperty, properties) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<PropertyTestParams>& obj) {
+        const auto& [deviceName, devicePriorities, isSupportProperty, properties] = obj.param;
         std::ostringstream result;
         result << "_virtual_device_" << deviceName;
         result << "_loadnetwork_to_device_" << devicePriorities;
         for (auto& property : properties) {
             result << "_property_" << property.first;
-            bool isSupport = isSupportProperty[property.first];
+            const bool isSupport = isSupportProperty.count(property.first) && isSupportProperty.at(property.first);
             if (isSupport)
                 result << "_isSupport_No_";
             else
@@ -258,11 +249,7 @@ public:
     }
 
     void SetUp() override {
-        std::string deviceName;
-        std::string devicePriorities;
-        ov::AnyMap properties;
-        std::map<std::string, bool> isSupportProperty;
-        std::tie(deviceName, devicePriorities, isSupportProperty, properties) = GetParam();
+        const auto& [deviceName, devicePriorities, isSupportProperty, properties] = GetParam();
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
         std::vector<std::string> deviceIDs = {};
@@ -280,7 +267,7 @@ public:
             .WillByDefault(Return(mockExeNetworkActual));
         std::vector<ov::PropertyName> supported_props = {};
         for (auto& property : properties) {
-            bool isSupport = isSupportProperty[property.first];
+            const bool isSupport = isSupportProperty.count(property.first) && isSupportProperty.at(property.first);
             if (isSupport) {
                 supported_props.push_back(property.first);
                 auto value = property.second.as<std::string>();
@@ -303,11 +290,7 @@ public:
 };
 
 TEST_P(CompiledModelPropertyMockTest, compiledModelGetPropertyNoThrow) {
-    std::string deviceName;
-    std::string devicePriorities;
-    ov::AnyMap properties;
-    std::map<std::string, bool> isSupportProperty;
-    std::tie(deviceName, devicePriorities, isSupportProperty, properties) = GetParam();
+    const auto& [deviceName, devicePriorities, isSupportProperty, properties] = GetParam();
     if (deviceName.find("AUTO") != std::string::npos)
         plugin->set_device_name("AUTO");
     if (deviceName.find("MULTI") != std::string::npos)

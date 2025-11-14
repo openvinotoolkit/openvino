@@ -52,7 +52,6 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         output_type = impl_param.get_output_element_type();
     }
 
-
     ov::op::v3::Broadcast op;
     op.set_broadcast_spec(desc->broadcast_mode);
     bool third_input_needed = desc->broadcast_mode == ov::op::BroadcastType::EXPLICIT;

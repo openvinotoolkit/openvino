@@ -19,7 +19,7 @@ namespace ov::intel_cpu {
 
 class jit_perf_count_chrono_start_emitter : public jit_binary_call_emitter {
 public:
-    jit_perf_count_chrono_start_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_perf_count_chrono_start_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                         const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override;
@@ -33,7 +33,7 @@ private:
 
 class jit_perf_count_chrono_end_emitter : public jit_binary_call_emitter {
 public:
-    jit_perf_count_chrono_end_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_perf_count_chrono_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                       const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override;

@@ -80,6 +80,8 @@ inline std::string get_version() {
     return version.buildNumber;
 }
 
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
+
 #ifdef Py_GIL_DISABLED
 PYBIND11_MODULE(_pyopenvino, m, py::mod_gil_not_used()) {
 #else
@@ -227,6 +229,8 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_Output<ov::Node>(m, std::string(""));
     regclass_Tensor(m);
     regclass_graph_descriptor_Tensor(m);
+    // https://pybind11.readthedocs.io/en/stable/advanced/cast/stl.html#making-opaque-types
+    py::bind_vector<ov::TensorVector>(m, "TensorVector");
     regclass_graph_Input(m);
     regclass_graph_Node(m);
     regclass_graph_NodeFactory(m);

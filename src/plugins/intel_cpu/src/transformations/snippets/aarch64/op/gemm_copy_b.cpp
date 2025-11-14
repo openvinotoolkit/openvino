@@ -4,8 +4,22 @@
 
 #include "gemm_copy_b.hpp"
 
-#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -46,7 +60,7 @@ void GemmCopyB::validate_and_infer_types() {
 }
 
 void GemmCopyB::validate_element_type(const ov::element::Type& element_type) {
-    OPENVINO_ASSERT(one_of(element_type, element::f32),
+    OPENVINO_ASSERT(any_of(element_type, element::f32),
                     "GemmCopyB doesn't support element type" + element_type.get_type_name());
 }
 

@@ -77,22 +77,9 @@ class EltwiseCacheTest : public testing::WithParamInterface<EltwiseCacheTestPara
                          virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<EltwiseCacheTestParams> &obj) {
-        InputShapesTuple inputShapesTuple;
-        std::vector<ElementType> inputPrecisions;
-        std::vector<EltwiseTypes> eltwiseOpTypes;
-        bool withQuantization;
-        bool needReshape;
-        bool enforceSnippets;
-        std::string targetName;
-        CPUSpecificParams cpuParams;
-        std::tie(inputShapesTuple, inputPrecisions, eltwiseOpTypes, withQuantization, needReshape, enforceSnippets,
-                 targetName, cpuParams) = obj.param;
-
-        std::vector<InputShape> eltwiseInputShapes;
-        std::vector<std::vector<size_t>> fqInputShapes;
-        std::vector<int32_t> reshapeShape;
-        std::tie(eltwiseInputShapes, fqInputShapes, reshapeShape) = inputShapesTuple;
-
+        const auto& [inputShapesTuple, inputPrecisions, eltwiseOpTypes, withQuantization, needReshape, enforceSnippets,
+                     targetName, cpuParams] = obj.param;
+        const auto& [eltwiseInputShapes, fqInputShapes, reshapeShape] = inputShapesTuple;
         std::ostringstream results;
 
         results << "IS=(";
@@ -148,22 +135,10 @@ public:
 protected:
     void SetUp() override {
         abs_threshold = 0.1f;
-
-        InputShapesTuple inputShapesTuple;
-        std::vector<ElementType> inputPrecisions;
-        std::vector<EltwiseTypes> eltwiseOpTypes;
-        bool withQuantization;
-        bool needReshape;
-        bool enforceSnippets;
-        CPUSpecificParams cpuParams;
-        std::tie(inputShapesTuple, inputPrecisions, eltwiseOpTypes, withQuantization, needReshape, enforceSnippets,
-                 targetDevice, cpuParams) = this->GetParam();
-
-        std::vector<InputShape> eltwiseInputShapes;
-        std::vector<std::vector<size_t>> fqInputShapes;
-        std::vector<int32_t> reshapeShape;
-        std::tie(eltwiseInputShapes, fqInputShapes, reshapeShape) = inputShapesTuple;
-
+        const auto& [inputShapesTuple, inputPrecisions, eltwiseOpTypes, withQuantization, needReshape, enforceSnippets,
+                     _targetDevice, cpuParams] = this->GetParam();
+        targetDevice = _targetDevice;
+        const auto& [eltwiseInputShapes, fqInputShapes, reshapeShape] = inputShapesTuple;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         init_input_shapes(eltwiseInputShapes);

@@ -72,10 +72,28 @@ LIRComparator::Result LIRComparator::compare(const LinearIRPtr& linear_ir,
     auto run_comparison = [&](const ExpressionPtr& expr, const ExpressionPtr& expr_ref) {
         const auto node = expr->get_node();
         const auto node_ref = expr_ref->get_node();
+        if (should_compare(LIRCmpValues::EXPR_ATTRS)) {
+            bool node_attrs_comparison_disabled = !should_compare(NodesCmpValues::ATTRIBUTES);
+            // WA: NodesCmpValues::ATTRIBUTES is used for expressions attributes comparison
+            // so it must be temporarily forced to true for expressions attributes comparison
+            if (node_attrs_comparison_disabled)
+                enable(NodesCmpValues::ATTRIBUTES);
+            attributes::detail::CompareNodesAttributes compare_expr_attr(m_nodes_cmp_values);
+            expr_ref->visit_attributes(compare_expr_attr.get_ref_reader());
+            expr->visit_attributes(compare_expr_attr.get_cmp_reader());
+            if (!compare_expr_attr.equal()) {
+                return Result::error("Comparison of attributes failed for exprs " + name(node_ref) + ", " + name(node) +
+                " [cmp status (ref vs target): " + to_str(compare_expr_attr) + "]");
+            }
+            if (node_attrs_comparison_disabled)
+                disable(NodesCmpValues::ATTRIBUTES);
+        }
+
         if (m_nodes_cmp_values != NodesCmpValues::NONE)
             PROPAGATE_ERROR("", Comparator(m_nodes_cmp_values).compare(node.get(), node_ref.get()));
 
-        const std::string err_prefix = "Comparison failed for nodes " + node->get_friendly_name() + ", " + node_ref->get_friendly_name() + ". ";
+        const std::string err_prefix = "Comparison failed for nodes " + node->get_friendly_name() + " (actual), " +
+                                       node_ref->get_friendly_name() + "(reference). ";
         if (should_compare(LIRCmpValues::LOOP_INDICES))
             COMPARE(err_prefix + "Loop indices", expr->get_loop_ids(), expr_ref->get_loop_ids());
 
@@ -247,8 +265,8 @@ LIRComparator::Result LIRComparator::compare_handlers(const SpecificIterationHan
     constexpr auto MAIN_BODY = SpecificLoopIterType::MAIN_BODY;
     constexpr auto LAST_ITER = SpecificLoopIterType::LAST_ITER;
     PROPAGATE_ERROR("First iter passes", compare_pipelines(handlers.get_passes<FIRST_ITER>(), handlers_ref.get_passes<FIRST_ITER>()));
-    PROPAGATE_ERROR("First iter passes", compare_pipelines(handlers.get_passes<MAIN_BODY>(), handlers_ref.get_passes<MAIN_BODY>()));
-    PROPAGATE_ERROR("First iter passes", compare_pipelines(handlers.get_passes<LAST_ITER>(), handlers_ref.get_passes<LAST_ITER>()));
+    PROPAGATE_ERROR("Main body passes", compare_pipelines(handlers.get_passes<MAIN_BODY>(), handlers_ref.get_passes<MAIN_BODY>()));
+    PROPAGATE_ERROR("Last iter passes", compare_pipelines(handlers.get_passes<LAST_ITER>(), handlers_ref.get_passes<LAST_ITER>()));
     return Result::ok();
 }
 

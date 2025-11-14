@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/remote_tensor_tests/remote_run.hpp"
-
-#include "common/npu_test_env_cfg.hpp"
-#include "common/utils.hpp"
-#include "intel_npu/config/options.hpp"
+#include "remote_run.hpp"
 
 using namespace ov::test::behavior;
 

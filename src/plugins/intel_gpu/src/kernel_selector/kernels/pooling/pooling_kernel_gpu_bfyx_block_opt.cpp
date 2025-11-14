@@ -64,13 +64,13 @@ JitConstants PoolingKernelGPUBfyxBlockOpt::GetJitConstants(const pooling_params&
 
 bool PoolingKernelGPUBfyxBlockOpt::Validate(const Params& p) const {
     if (!PoolingKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const pooling_params& params = static_cast<const pooling_params&>(p);
     if (NeedsBoundaryCheck(params) || params.poolSize.x > 5 || params.poolSize.y > 5 || params.poolSize.x < 3 ||
         params.poolSize.y < 3) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

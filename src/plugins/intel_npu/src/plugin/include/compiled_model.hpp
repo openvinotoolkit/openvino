@@ -33,7 +33,8 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
-                  const FilteredConfig& config);
+                  const FilteredConfig& config,
+                  const std::optional<int64_t>& batchSize);
 
     CompiledModel(const CompiledModel&) = delete;
 
@@ -68,6 +69,8 @@ private:
     std::unique_ptr<Properties> _properties;
 
     std::shared_ptr<IGraph> _graph;
+
+    std::optional<int64_t> _batchSize;
 };
 
 }  //  namespace intel_npu

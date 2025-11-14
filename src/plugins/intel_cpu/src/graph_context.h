@@ -10,6 +10,7 @@
 
 #include "cache/multi_cache.h"
 #include "config.h"
+#include "cpu_parallel.hpp"
 #include "dnnl_scratch_pad.h"
 #include "memory_control.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
@@ -35,6 +36,7 @@ public:
                  WeightsSharing::Ptr w_cache,
                  bool isGraphQuantized,
                  ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
+                 std::shared_ptr<CpuParallel> cpuParallel = nullptr,
                  std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
     [[nodiscard]] const Config& getConfig() const {
@@ -47,6 +49,10 @@ public:
 
     [[nodiscard]] MultiCachePtr getParamsCache() const {
         return m_rtParamsCache;
+    }
+
+    [[nodiscard]] MultiCachePtr getSnippetsParamsCache() const {
+        return m_snippetsParamsCache;
     }
 
     [[nodiscard]] DnnlScratchPadPtr getScratchPad() const {
@@ -65,6 +71,10 @@ public:
 
     [[nodiscard]] ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
         return m_cpuStreamExecutor;
+    }
+
+    [[nodiscard]] std::shared_ptr<CpuParallel> getCpuParallel() const {
+        return m_cpuParallel;
     }
 
     [[nodiscard]] std::shared_ptr<SubMemoryManager> getSubMemory() const {
@@ -106,6 +116,7 @@ private:
     WeightsSharing::Ptr m_weightsCache;
     // primitive cache
     MultiCachePtr m_rtParamsCache;
+    MultiCachePtr m_snippetsParamsCache;
     // global scratch pad
     DnnlScratchPadPtr m_rtScratchPad;
 
@@ -116,6 +127,7 @@ private:
     ov::threading::IStreamsExecutor::Ptr m_streamExecutor;
     // cpu stream executor for current graph
     ov::threading::CPUStreamsExecutor::Ptr m_cpuStreamExecutor;
+    std::shared_ptr<CpuParallel> m_cpuParallel = nullptr;
     // numa submemory manager
     std::shared_ptr<SubMemoryManager> m_subMemoryManager;
 

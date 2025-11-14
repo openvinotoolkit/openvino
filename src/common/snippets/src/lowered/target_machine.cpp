@@ -4,6 +4,16 @@
 
 #include "snippets/target_machine.hpp"
 
+#include <functional>
+#include <memory>
+#include <set>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/runtime_configurator.hpp"
 
 using namespace ov::snippets;

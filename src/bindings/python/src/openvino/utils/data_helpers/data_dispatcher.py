@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import singledispatch
-from typing import Any, Dict, Union, Optional
+from typing import Any, Union, Optional
 
 import numpy as np
 
@@ -359,7 +359,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
     # Create new temporary dictionary.
     # new_inputs will be used to transfer data to inference calls,
     # ensuring that original inputs are not overwritten with Tensors.
-    new_inputs: Dict[ValidKeys, Tensor] = {}
+    new_inputs: dict[ValidKeys, Tensor] = {}
     for key, value in inputs.items():
         if not isinstance(key, (str, int, ConstOutput)):
             raise TypeError(f"Incompatible key type for input: {key}")

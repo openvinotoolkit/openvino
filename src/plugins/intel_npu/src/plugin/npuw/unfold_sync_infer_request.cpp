@@ -30,6 +30,9 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
             if (proto_comp_model_desc.spatial) {
                 NPUW_ASSERT(false && "Spatial is not supported in unfold");
             }
+            if (proto_comp_model_desc.attention) {
+                NPUW_ASSERT(false && "Dynamic is not supported in unfold");
+            }
         }  // if(replaced_by)
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(i);
@@ -50,8 +53,8 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         const auto& subm_idx_from = kvp.second.first;
         const auto& port_idx_from = kvp.second.second;
 
-        LOG_DEBUG("Subgraph[" << subm_idx_from << "]/" << port_idx_from << " --> "
-                              << "Subgraph[" << subm_idx_to << "]/" << port_idx_to);
+        LOG_DEBUG("Subgraph[" << subm_idx_from << "]/" << port_idx_from << " --> " << "Subgraph[" << subm_idx_to << "]/"
+                              << port_idx_to);
         NPUW_ASSERT(m_subrequests[subm_idx_from]);  // prod request is created
         NPUW_ASSERT(m_subrequests[subm_idx_to]);    // cons request is created
         NPUW_ASSERT(m_subrequests[subm_idx_from]._ptr != m_subrequests[subm_idx_to]._ptr);

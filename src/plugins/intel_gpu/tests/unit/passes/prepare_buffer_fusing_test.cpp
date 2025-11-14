@@ -32,6 +32,7 @@
 #include "openvino/op/interpolate.hpp"
 
 #include "program_wrapper.h"
+#include "primitive_inst_test_helper.h"
 
 #include <memory>
 
@@ -224,6 +225,93 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic) {
     ASSERT_EQ(concat_mem.get(), permute2_mem.get());
     for (size_t x = 0; x < out_l.count(); ++x) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);
+    }
+}
+
+TEST(prepare_buffer_fusing, in_place_concat_dynamic_memory_reallocation) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto input_dynamic_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+
+    topology t;
+    t.add(input_layout("input1", input_dynamic_layout));
+    t.add(input_layout("input2", input_dynamic_layout));
+    t.add(reorder("input1_reordered", input_info("input1"), format::bfyx, data_types::f16));
+    t.add(reorder("input2_reordered", input_info("input2"), format::bfyx, data_types::f16));
+    t.add(concatenation("concat", { input_info("input1_reordered"), input_info("input2_reordered") }, 1));
+    t.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto net = cldnn::network(program::build_program(engine, t, config, false, false));
+
+    std::vector<ov::Shape> input_shapes =
+    { ov::Shape{1, 32, 8, 6},
+      ov::Shape{1, 32, 8, 6},
+      ov::Shape{1, 32, 12, 9},
+      ov::Shape{1, 32, 12, 9},
+      ov::Shape{1, 32, 6, 11},
+      ov::Shape{1, 32, 6, 11},
+      ov::Shape{1, 32, 9, 16},
+      ov::Shape{1, 32, 9, 16} };
+
+    auto prev_concat_mem = memory_ptr{nullptr};
+    auto prev_shape = ov::Shape{};
+
+    for (const auto& input_shape : input_shapes) {
+        auto input_layout = input_dynamic_layout.clone_with_other_shape(input_shape);
+        auto input_memory1 = engine.allocate_memory(input_layout);
+        auto input_memory2 = engine.allocate_memory(input_layout);
+
+        auto input_data1 = rg.generate_random_1d<float>(input_layout.count(), 0, 1);
+        auto input_data2 = rg.generate_random_1d<float>(input_layout.count(), 0, 1);
+
+        set_values<float>(input_memory1, input_data1);
+        set_values<float>(input_memory2, input_data2);
+
+        net.set_input_data("input1", input_memory1);
+        net.set_input_data("input2", input_memory2);
+
+        std::map<cldnn::primitive_id, cldnn::network_output> output;
+        EXPECT_NO_THROW(output = net.execute());
+
+        auto out_mem = output.at("output").get_memory();
+        cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
+
+        const auto& reorder_inst = net.get_primitive("input1_reordered");
+        const auto& concat_inst = net.get_primitive("concat");
+        auto reorder1_mem = net.get_primitive("input1_reordered")->output_memory_ptr();
+        auto reorder2_mem = net.get_primitive("input2_reordered")->output_memory_ptr();
+        auto concat_mem = net.get_primitive("concat")->output_memory_ptr();
+
+        ASSERT_TRUE(concat_inst->get_node().can_be_optimized());
+        ASSERT_TRUE(engine.is_the_same_buffer(*concat_mem, *reorder1_mem));
+        ASSERT_TRUE(engine.is_the_same_buffer(*concat_mem, *reorder2_mem));
+
+        if (prev_concat_mem) {
+            const auto can_reuse_mem = ov::shape_size(input_shape) <= ov::shape_size(prev_shape);
+            ASSERT_EQ(engine.is_the_same_buffer(*prev_concat_mem, *concat_mem), can_reuse_mem);
+        }
+
+        // Under certain circumstances (e.g., asynchronous compilation for some primitives), `allocation_done_by_other` flag
+        // might be incorrectly set or unset for the concat primitive. This can lead to incorrect memory assignment:
+        // if the flag remains set without being properly reset, concat may reuse a smaller buffer than required.
+        // Manually forcing the flag value ensures it can be correctly reconfigured for each execution iteration
+        PrimitiveInstTestHelper::set_allocation_done_by_other(concat_inst, true);
+
+        prev_concat_mem = concat_mem;
+        prev_shape = input_shape;
+
+        for (size_t i = 0; i < input_data1.size(); ++i) {
+            ASSERT_EQ(output_ptr[i], input_data1[i]);
+        }
+
+        for (size_t i = 0; i < input_data2.size(); ++i) {
+            ASSERT_EQ(output_ptr[input_data1.size() + i], input_data2[i]);
+        }
     }
 }
 
@@ -709,7 +797,7 @@ TEST(prepare_buffer_fusing, in_place_crop_static) {
         ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
-TEST(prepare_buffer_fusing, in_place_crop_static_padding_and_gemm) {
+TEST(prepare_buffer_fusing, disable_crop_buffer_fusing_with_shift_right_padding) {
     auto& engine = get_test_engine();
 
     auto gemm_input_mem = engine.allocate_memory({ {1, 4, 4, 2}, data_types::f32, format::bfyx });
@@ -747,7 +835,7 @@ TEST(prepare_buffer_fusing, in_place_crop_static_padding_and_gemm) {
         auto outputs = network.execute();
 
         auto crop_prim = network.get_primitive("crop");
-        ASSERT_EQ(crop_prim->can_be_optimized(), true);
+        ASSERT_EQ(crop_prim->can_be_optimized(), false);    // Not opt out because the user, gemm node, has paddings at spatial dimensions
 
         auto output = outputs.at("output").get_memory();
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -1525,7 +1613,7 @@ TEST(prepare_buffer_fusing, inner_axis_data_offset_with_gemm_user) {
 
     auto input_memory = engine.allocate_memory(in_layout);
     auto input_data = rg.generate_random_1d<float>(input_memory->count(), -1, 1);
-    
+
     auto offsets1 = tensor{0, 0, 0, 0};
     auto offsets2 = tensor{0, 0, 8, 0};
 
@@ -1566,4 +1654,29 @@ TEST(prepare_buffer_fusing, redundant_reorder_permute) {
     auto& reorder_node = prog->get_node("reorder").as<reorder>();
     ASSERT_TRUE(reorder_node.can_be_optimized());
     ASSERT_TRUE(permute_node.can_be_optimized());
+}
+
+TEST(prepare_buffer_fusing, reorder_permute_with_fused_prim) {
+    auto& engine = get_test_engine();
+
+    auto in_layout1 = layout{ ov::PartialShape{1, 2, 3, 5}, data_types::f16, format::byxf };
+    auto in_layout2 = layout{ ov::PartialShape{1, 3, 5, 2}, data_types::f16, format::bfyx };
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout1));
+    topology.add(input_layout("input2", in_layout2));
+    topology.add(reorder("reorder", input_info("input1"), format::bfyx, data_types::f16));
+    topology.add(permute("permute", input_info("reorder"), {0, 2, 3, 1}));
+    topology.add(eltwise("eltwise", { input_info("permute"), input_info("input2") }, eltwise_mode::sum));
+    topology.add(reorder("output", input_info("eltwise"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+
+    auto& permute_node = prog->get_node("permute").as<permute>();
+    auto& reorder_node = prog->get_node("reorder").as<reorder>();
+    ASSERT_FALSE(reorder_node.can_be_optimized());
+    ASSERT_FALSE(permute_node.can_be_optimized());
 }

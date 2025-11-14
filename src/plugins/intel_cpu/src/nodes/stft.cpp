@@ -62,12 +62,8 @@ STFT::STFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 }
 
 void STFT::getSupportedDescriptors() {
-    if (getParentEdges().size() != 4) {
-        THROW_CPU_NODE_ERR("STFT has incorrect number of input edges.");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("STFT has incorrect number of output edges.");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 4, "STFT has incorrect number of input edges.");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "STFT has incorrect number of output edges.");
 }
 
 void STFT::initSupportedPrimitiveDescriptors() {
@@ -76,7 +72,7 @@ void STFT::initSupportedPrimitiveDescriptors() {
     }
 
     auto dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
-    if (!one_of(dataPrecision, ov::element::f32)) {
+    if (none_of(dataPrecision, ov::element::f32)) {
         dataPrecision = ov::element::f32;
     }
 
@@ -120,6 +116,7 @@ void transpose_out4d(const uint8_t* in,
 }  // namespace
 
 void STFT::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto* signal = getSrcDataAtPortAs<const float>(DATA_IDX);
     const auto* window = getSrcDataAtPortAs<const float>(WINDOW_IDX);
     auto* rdft_result = getDstDataAtPortAs<float>(0);
@@ -151,7 +148,7 @@ void STFT::execute([[maybe_unused]] const dnnl::stream& strm) {
         dst = dst_mem->getDataAs<float>();
     }
 
-    parallel_for2d(batch_size, num_frames, [&](size_t batch, size_t frame_idx) {
+    cpu_parallel->parallel_for2d(batch_size, num_frames, [&](size_t batch, size_t frame_idx) {
         size_t batch_in_start = batch * signal_length;
         size_t batch_frames_out = batch * num_frames;
 
@@ -192,7 +189,8 @@ void STFT::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 bool STFT::needShapeInfer() const {
-    return !(m_is_frame_size_const && m_is_frame_step_const) || Node::needShapeInfer();
+    const bool both_const = m_is_frame_size_const && m_is_frame_step_const;
+    return !both_const || Node::needShapeInfer();
 }
 
 void STFT::createPrimitive() {

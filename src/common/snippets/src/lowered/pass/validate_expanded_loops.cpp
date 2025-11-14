@@ -4,15 +4,25 @@
 
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 #define INFORMATIVE_ASSERT(cond, ...) OPENVINO_ASSERT((cond), "Failed to validate ExpandedLoops: ", __VA_ARGS__)
 
@@ -24,11 +34,13 @@ bool is_inner_splitted_tail(const ExpressionPtr& loop_expr, const LoopManagerPtr
     const auto expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_manager->get_loop_info(loop_id));
     INFORMATIVE_ASSERT(expanded_loop_info, "expects only ExpandedLoopInfo in LoopManager");
     // Inner Splitted Tail Loop has `MAIN_BODY` type for now after InsertSpecificIteration pass
-    if (expanded_loop_info->get_type() != SpecificLoopIterType::MAIN_BODY)
+    if (expanded_loop_info->get_type() != SpecificLoopIterType::MAIN_BODY) {
         return false;
+    }
     const auto outer_loops = loop_expr->get_loop_ids();
-    if (outer_loops.empty())
+    if (outer_loops.empty()) {
         return false;
+    }
     const auto outer_loop_id = outer_loops.front();
     const auto outer_expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_manager->get_loop_info(outer_loop_id));
     INFORMATIVE_ASSERT(outer_expanded_loop_info, "expects only ExpandedLoopInfo in LoopManager");
@@ -77,39 +89,48 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
         const auto& finalization_offsets = expanded_loop_info->get_finalization_offsets();
         INFORMATIVE_ASSERT(finalization_offsets.size() == current_info.finalization_offsets.size(),
                            "incompatible finalization offset count");
-        for (size_t i = 0; i < current_info.num_ports; ++i)
+        for (size_t i = 0; i < current_info.num_ports; ++i) {
             current_info.finalization_offsets[i] =
                 utils::dynamic_safe_add(current_info.finalization_offsets[i], finalization_offsets[i]);
+        }
     }
 
     // Validation of total information
     for (const auto& p : initializated_info_map) {
         const auto loop_info = p.first;
         const auto total_info = p.second;
-        INFORMATIVE_ASSERT(
-            total_info.work_amount == loop_info->get_work_amount(),
-            "total work amount of expanded loops is not equal to work amount of undefined loop with ID: " +
-                std::to_string(total_info.id));
-        INFORMATIVE_ASSERT(
-            total_info.finalization_offsets == loop_info->get_finalization_offsets(),
-            "total finalization offsets are not equal to finalization offsets of undefined loop with ID: " +
-                std::to_string(total_info.id));
+        INFORMATIVE_ASSERT(total_info.work_amount == loop_info->get_work_amount(),
+                           "total work amount of expanded loops (",
+                           total_info.work_amount,
+                           ") is not equal to work amount of unified loop (",
+                           loop_info->get_work_amount(),
+                           ") with ID: ",
+                           total_info.id);
+        INFORMATIVE_ASSERT(total_info.finalization_offsets == loop_info->get_finalization_offsets(),
+                           "total finalization offsets of expanded loops (",
+                           ::ov::util::to_string(total_info.finalization_offsets),
+                           ") are not equal to finalization offsets of unified loop (",
+                           ::ov::util::to_string(loop_info->get_finalization_offsets()),
+                           ") with ID: ",
+                           total_info.id);
     }
 }
 
 void ValidateExpandedLoops::validate_loop_expressions(const LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
 
-    std::set<size_t> unique_loop_ids;
+    std::unordered_set<size_t> unique_loop_ids;
     for (const auto& expr : linear_ir) {
         if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node())) {
             const auto loop_id = loop_end->get_id();
+            INFORMATIVE_ASSERT(unique_loop_ids.count(loop_id) == 0, "LoopEnd has duplicate loop ID: ", loop_id);
             unique_loop_ids.insert(loop_id);
 
             // At the moment, InnerSpliitedTail LoopEnd is not compatible with ExpandedLoopInfo
             // Validation is not supported
-            if (is_inner_splitted_tail(expr, loop_manager))
+            if (is_inner_splitted_tail(expr, loop_manager)) {
                 continue;
+            }
 
             const auto expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_manager->get_loop_info(loop_id));
             INFORMATIVE_ASSERT(expanded_loop_info, "expects only ExpandedLoopInfo in LoopManager");
@@ -143,7 +164,4 @@ bool ValidateExpandedLoops::run(LinearIR& linear_ir) {
 
 #undef INFORMATIVE_ASSERT
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

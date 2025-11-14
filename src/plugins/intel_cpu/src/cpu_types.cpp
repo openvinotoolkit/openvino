@@ -235,6 +235,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ExperimentalDetectronGenerateProposalsSingleImage", Type::ExperimentalDetectronGenerateProposalsSingleImage},
         {"ExtractImagePatches", Type::ExtractImagePatches},
         {"GenerateProposals", Type::GenerateProposals},
+        {"Identity", Type::Identity},
         {"Inverse", Type::Inverse},
         {"NonMaxSuppression", Type::NonMaxSuppression},
         {"NonMaxSuppressionIEInternal", Type::NonMaxSuppression},
@@ -264,7 +265,9 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"QKVProjection", Type::QKVProjection},
         {"RMS", Type::RMS},
         {"SearchSorted", Type::SearchSorted},
-        {"LoraSubgraph", Type::LoRA}};
+        {"LoraSubgraph", Type::LoRA},
+        {"BatchGatherMatmul", Type::GatherMatmul},
+        {"BatchGatherMatmulCompressed", Type::GatherMatmul}};
     return type_to_name_tbl;
 }
 
@@ -374,6 +377,7 @@ std::string NameFromType(const Type type) {
         CASE(ExperimentalDetectronPriorGridGenerator);
         CASE(ExperimentalDetectronGenerateProposalsSingleImage);
         CASE(GenerateProposals);
+        CASE(Identity);
         CASE(Inverse);
         CASE(ExtractImagePatches);
         CASE(NonMaxSuppression);
@@ -398,6 +402,7 @@ std::string NameFromType(const Type type) {
         CASE(SearchSorted);
         CASE(SegmentMax);
         CASE(LoRA);
+        CASE(GatherMatmul);
         CASE(Unknown);
     }
 #undef CASE

@@ -4,18 +4,23 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/op/loop.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
- * @interface InsertSpecificIterations
+ * @ interface InsertSpecificIterations
  * @brief Inserts separate loop bodies for first/last iterations if needed.
  * Also calls previously registered SpecificIterationHandlers for the inserted bodies and the main body.
  * @ingroup snippets
@@ -76,35 +81,30 @@ private:
     /**
      * @brief Make a copy of Loop with ID `loop_id` and insert to LinearIR before `insert_pos`
      * @param linear_ir target Linear IR
-     * @param loop_id the target loop ID
+     * @param bounds loop bounds of current loop
      * @param insert_pos insertion position iterator
-     * @param new_entry_ports reference of vector with Loop input ports that will be updated after insertion
-     * @param new_exit_ports reference of vector with Loop output ports that will be updated after insertion
+     * @param expression_map expression map to store pairs [original_expr, new_expr]
      * @return LoopBounds: iterators of new LoopBegin and LoopEnd
      */
     static LoopManager::LoopBounds insert_copy_loop(LinearIR& linear_ir,
-                                                    const size_t loop_id,
+                                                    const LoopManager::LoopBounds& bounds,
                                                     const LinearIR::constExprIt& insert_pos,
-                                                    std::vector<LoopPort>& new_entry_ports,
-                                                    std::vector<LoopPort>& new_exit_ports);
+                                                    ExpressionMap& expression_map);
     /**
      * @brief Initializes decomposed loop: update ptr arithmetic, work_amout, increment, ID
      * @param linear_ir target Linear IR
-     * @param begin iterator of LoopBegin
-     * @param end iterator of LoopEnd
+     * @param decomposed_loop_bounds decomposed loop bounds
      * @param decomposed_loop_info loop info of the corresponding decomposed loop
-     * @param unified_loop_id ID of the unified loop
+     * @param loop_id_to_replace ID of the loop which should be replaced by the decomposed one
      * @param decomposed_loop_end LoopEnd of the decomposed loop
+     * @param run_handlers flag to run handlers for the decomposed loop
      */
     static void init_decomposed_loop(LinearIR& linear_ir,
-                                     LinearIR::constExprIt begin,
-                                     LinearIR::constExprIt end,
+                                     const LoopManager::LoopBounds& decomposed_loop_bounds,
                                      const ExpandedLoopInfoPtr& decomposed_loop_info,
-                                     size_t unified_loop_id,
-                                     const std::shared_ptr<op::LoopEnd>& decomposed_loop_end);
+                                     size_t loop_id_to_replace,
+                                     const std::shared_ptr<op::LoopEnd>& decomposed_loop_end,
+                                     bool run_handlers);
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

@@ -4,26 +4,32 @@
 
 #include "snippets/lowered/pass/validate_buffers.hpp"
 
-#include "snippets/itt.hpp"
-#include "snippets/utils/utils.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <map>
+#include <set>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 bool ValidateBuffers::run(LinearIR& linear_ir,
-                          lowered::LinearIR::constExprIt begin,
-                          lowered::LinearIR::constExprIt end) {
+                          [[maybe_unused]] lowered::LinearIR::constExprIt begin,
+                          [[maybe_unused]] lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ValidateBuffers")
 
     const auto& lir_buffers = linear_ir.get_buffers();
 
     // Firstly we check that all BufferExpression are in "get_buffers()"
     for (const auto& expr : linear_ir) {
-        if (const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(expr))
+        if (const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
             OPENVINO_ASSERT(std::find(lir_buffers.cbegin(), lir_buffers.cend(), buffer_expr) != lir_buffers.cend(),
                             "All BufferExpressions must be in LinearIR.get_buffers()");
+        }
     }
 
     // Secondly we should validate buffers and their clusters
@@ -51,7 +57,7 @@ bool ValidateBuffers::run(LinearIR& linear_ir,
         OPENVINO_ASSERT(dynamic_buffer_clusters.count(cluster_id) == 0,
                         "Buffers from the same cluster must be only static or dynamic");
 
-        OPENVINO_ASSERT(cluster.size() > 0, "Incorrect size of buffer cluster");
+        OPENVINO_ASSERT(!cluster.empty(), "Incorrect size of buffer cluster");
         size_t cluster_offset = (*cluster.cbegin())->get_offset();
         for (const auto& buffer_expr : cluster) {
             OPENVINO_ASSERT(cluster_offset == buffer_expr->get_offset(),
@@ -62,7 +68,4 @@ bool ValidateBuffers::run(LinearIR& linear_ir,
     return !lir_buffers.empty();
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

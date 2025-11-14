@@ -5,13 +5,18 @@
 #include "openvino/op/pad.hpp"
 
 #include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
@@ -25,57 +30,49 @@ using namespace ov::op;
 namespace {
 OutputVector translate_pad_common(const NodeContext& context,
                                   const Output<Node>& data,
-                                  const std::vector<int64_t>& paddings,
+                                  const Output<Node>& paddings,
                                   const Output<Node>& pad_value,
                                   const std::string& mode = "constant") {
     Output<Node> shape;
     Output<Node> rank;
     std::tie(shape, rank) = get_shape_rank(context, data);
-    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-    size_t pad_size_half = paddings.size() / 2;
-    std::vector<int64_t> pad_b(pad_size_half, 0);
-    std::vector<int64_t> pad_e(pad_size_half, 0);
-    for (size_t i = 0; i < pad_size_half; i++) {
-        pad_b[i] = paddings[paddings.size() - 2 - 2 * i];
-        pad_e[i] = paddings[paddings.size() - 1 - 2 * i];
-    }
-    auto pads_begin_short = context.mark_node(v0::Constant::create(element::i32, Shape{pad_size_half}, pad_b));
-    auto pads_end_short = context.mark_node(v0::Constant::create(element::i32, Shape{pad_size_half}, pad_e));
-    auto pads_short_len = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_size_half}));
-    auto pads_diff = context.mark_node(std::make_shared<v1::Subtract>(rank, pads_short_len));
-    auto pads_remaining = context.mark_node(std::make_shared<v3::Broadcast>(zero, pads_diff));
-    auto pads_begins = context.mark_node(std::make_shared<v0::Concat>(NodeVector{pads_remaining, pads_begin_short}, 0));
-    auto pads_ends = context.mark_node(std::make_shared<v0::Concat>(NodeVector{pads_remaining, pads_end_short}, 0));
     if (mode == "circular") {
         int64_t pad_l;
         int64_t pad_r;
-        auto pad_last_id = paddings.size();
+        const auto paddings_const = ov::util::get_constant_from_source(paddings);
+        PYTORCH_OP_CONVERSION_CHECK(paddings_const,
+                                    "aten::pad conversion for circular mode supports only constant paddings");
+        const auto paddings_data = paddings_const->cast_vector<int64_t>();
+        const auto pad_last_id = paddings_data.size();
+        const auto pad_size_half = pad_last_id / 2;
         auto cur = data;
-        auto step = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
-        auto zero_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+        const auto step = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+        const auto zero_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
         for (size_t i = 0; i < pad_size_half; i++) {
             OutputVector tensors;
-            pad_r = paddings[pad_last_id - (2 * i + 1)];
-            pad_l = paddings[pad_last_id - (2 * i + 2)];
-            auto axes = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2 + i}));
+            pad_r = paddings_data[pad_last_id - (2 * i + 1)];
+            pad_l = paddings_data[pad_last_id - (2 * i + 2)];
+            const auto axes = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2 + i}));
             if (pad_l > 0) {
-                auto start = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-pad_l}));
-                auto end = context.mark_node(std::make_shared<v8::Gather>(shape, axes, zero_1d));
+                const auto start = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-pad_l}));
+                const auto end = context.mark_node(std::make_shared<v8::Gather>(shape, axes, zero_1d));
 
-                auto left = context.mark_node(std::make_shared<v8::Slice>(cur, start, end, step, axes));
+                const auto left = context.mark_node(std::make_shared<v8::Slice>(cur, start, end, step, axes));
                 tensors.push_back(left);
             }
             if (pad_l < 0 || pad_r < 0) {
-                auto start = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_l < 0 ? -pad_l : 0}));
-                auto end = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_r < 0 ? pad_r : 0}));
-                auto middle = context.mark_node(std::make_shared<v8::Slice>(cur, start, end, step, axes));
+                const auto start =
+                    context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_l < 0 ? -pad_l : 0}));
+                const auto end =
+                    context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_r < 0 ? pad_r : 0}));
+                const auto middle = context.mark_node(std::make_shared<v8::Slice>(cur, start, end, step, axes));
                 tensors.push_back(middle);
             } else {
                 tensors.push_back(cur);
             }
             if (pad_r > 0) {
-                auto end = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_r}));
-                auto right = context.mark_node(std::make_shared<v8::Slice>(cur, zero_1d, end, step, axes));
+                const auto end = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_r}));
+                const auto right = context.mark_node(std::make_shared<v8::Slice>(cur, zero_1d, end, step, axes));
                 tensors.push_back(right);
             }
             if (tensors.size()) {
@@ -84,25 +81,71 @@ OutputVector translate_pad_common(const NodeContext& context,
         }
         return {cur};
     }
-    auto pad_value_ = context.mark_node(std::make_shared<v1::ConvertLike>(pad_value, data));
+    const auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    const auto neg_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
+
+    // PyTorch paddings represented as [N_pad_begins, N_pad_ends, N-1_pad_begins, N-1_pad_ends, ... ]
+    // if len of paddings not equal to input rank * 2, zero padding added to first rank - N  dimensions
+    // OV expects paddings separated on begins and ends for each dimension from first to last
+    const auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    const auto pads_shape = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {-1, 2}));
+    const auto pads_reshape = context.mark_node(std::make_shared<v1::Reshape>(paddings, pads_shape, false));
+    const auto pads_split = context.mark_node(std::make_shared<v1::Split>(pads_reshape, one, 2));
+    auto pads_begin_short = context.mark_node(std::make_shared<v0::Squeeze>(pads_split->output(0), one));
+    auto pads_end_short = context.mark_node(std::make_shared<v0::Squeeze>(pads_split->output(1), one));
+
+    auto pads_short_len = context.mark_node(std::make_shared<v3::ShapeOf>(pads_begin_short, element::i32));
+    pads_short_len = context.mark_node(std::make_shared<v0::Squeeze>(pads_short_len, zero));
+    if (const auto c_node = ov::util::get_constant_from_source(pads_short_len)) {
+        pads_short_len = std::move(c_node);
+    }
+    const auto pads_start_idx = context.mark_node(std::make_shared<v1::Add>(pads_short_len, neg_one));
+    const auto pad_idx_range =
+        context.mark_node(std::make_shared<v4::Range>(pads_start_idx, neg_one, neg_one, element::i32));
+    pads_begin_short = context.mark_node(std::make_shared<v8::Gather>(pads_begin_short, pad_idx_range, zero));
+    pads_end_short = context.mark_node(std::make_shared<v8::Gather>(pads_end_short, pad_idx_range, zero));
+
+    if (const auto begins = ov::util::get_constant_from_source(pads_begin_short)) {
+        pads_begin_short = std::move(begins);
+    }
+    if (const auto ends = ov::util::get_constant_from_source(pads_end_short)) {
+        pads_end_short = std::move(ends);
+    }
+
+    const auto input_rank = std::get<1>(get_shape_rank(context, data, false, element::i32));
+    const auto pads_diff = context.mark_node(std::make_shared<v1::Subtract>(input_rank, pads_short_len));
+    const auto pads_remaining_raw = context.mark_node(std::make_shared<v3::Broadcast>(zero, pads_diff));
+    const auto pads_remaining = context.mark_node(std::make_shared<v1::ConvertLike>(pads_remaining_raw, paddings));
+
+    auto pads_begin =
+        context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining, pads_begin_short}, 0));
+    auto pads_end = context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining, pads_end_short}, 0));
+
+    if (const auto begins = ov::util::get_constant_from_source(pads_begin)) {
+        pads_begin = std::move(begins);
+    }
+    if (const auto ends = ov::util::get_constant_from_source(pads_end)) {
+        pads_end = std::move(ends);
+    }
+    const auto pad_value_ = context.mark_node(std::make_shared<v1::ConvertLike>(pad_value, data));
     static const std::map<std::string, PadMode> pt_to_ov_pad{
         {"constant", PadMode::CONSTANT},
         {"reflect", PadMode::REFLECT},
         {"replicate", PadMode::EDGE},
     };
-    auto ov_mode = pt_to_ov_pad.find(mode);
+    const auto ov_mode = pt_to_ov_pad.find(mode);
     PYTORCH_OP_CONVERSION_CHECK(ov_mode != pt_to_ov_pad.end(),
                                 "aten::pad conversion doesn't support [ ",
                                 mode,
                                 " ] padding mode");
-    return {context.mark_node(std::make_shared<v1::Pad>(data, pads_begins, pads_ends, pad_value_, ov_mode->second))};
+    return {context.mark_node(std::make_shared<v12::Pad>(data, pads_begin, pads_end, pad_value_, ov_mode->second))};
 }
 }  // namespace
 
 OutputVector translate_pad(const NodeContext& context) {
     num_inputs_check(context, 2, 4);
     auto data = context.get_input(0);
-    auto paddings = context.const_input<std::vector<int64_t>>(1);
+    auto paddings = get_input_concat_if_list(context, 1);
     std::string mode = "constant";
 
     if (!context.input_is_none(2)) {
@@ -118,20 +161,31 @@ OutputVector translate_pad(const NodeContext& context) {
     return translate_pad_common(context, data, paddings, pad_value, mode);
 }
 
-OutputVector translate_constant_pad_nd_fx(const NodeContext& context) {
-    num_inputs_check(context, 3, 3);
+OutputVector translate_constant_pad_nd(const NodeContext& context) {
+    num_inputs_check(context, 2, 3);
     auto data = context.get_input(0);
-    auto paddings = context.const_input<std::vector<int64_t>>(1);
-    auto pad_value = context.get_input(2);
+    auto paddings = get_input_concat_if_list(context, 1);
+    Output<Node> pad_value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+    if (!context.input_is_none(2)) {
+        pad_value = context.get_input(2);
+    }
     return translate_pad_common(context, data, paddings, pad_value);
 }
 
-OutputVector translate_reflection_pad_nd_fx(const NodeContext& context) {
+OutputVector translate_reflection_pad_nd(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto data = context.get_input(0);
-    auto paddings = context.const_input<std::vector<int64_t>>(1);
+    auto paddings = get_input_concat_if_list(context, 1);
     Output<Node> pad_value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
     return translate_pad_common(context, data, paddings, pad_value, "reflect");
+}
+
+OutputVector translate_replication_pad_nd(const NodeContext& context) {
+    num_inputs_check(context, 2, 2);
+    auto data = context.get_input(0);
+    auto paddings = get_input_concat_if_list(context, 1);
+    Output<Node> pad_value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+    return translate_pad_common(context, data, paddings, pad_value, "replicate");
 }
 
 }  // namespace op

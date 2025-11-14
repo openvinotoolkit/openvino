@@ -151,7 +151,7 @@ class PytorchLayerTest:
             # OV infer:
             core = Core()
             config = {}
-            if ie_device == "GPU" and precision == "FP32":
+            if precision == "FP32":
                 config[hints.inference_precision] = Type.f32
             if "dynamic_quantization_group_size" in kwargs:
                 config["DYNAMIC_QUANTIZATION_GROUP_SIZE"] = str(kwargs["dynamic_quantization_group_size"])

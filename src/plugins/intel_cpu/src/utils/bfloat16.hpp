@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <limits>
 
-#include "utils/cpp/bit_cast.hpp"
+#include "cpp/bit_cast.hpp"
 
 /**
  * The bfloat16_t class can be used as an arithmetic type. All arithmetic operations goes through conversion to the
@@ -22,21 +22,24 @@ namespace ov::intel_cpu {
 class bfloat16_t {
 public:
     bfloat16_t() = default;
-    bfloat16_t(float value) noexcept : m_value {
+    // Implicit conversion from float to bfloat16_t is intentionally allowed
+    // to avoid verbosity in the codebase
+    bfloat16_t(float value) noexcept  // NOLINT(google-explicit-constructor)
+        : m_value{
 #if defined BFLOAT16_ROUND_MODE_TO_NEAREST
-        round_to_nearest(value)
+              round_to_nearest(value)
 #elif defined BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN
-        round_to_nearest_even(value)
+              round_to_nearest_even(value)
 #elif defined BFLOAT16_ROUND_MODE_TRUNCATE
-        truncate(value)
+              truncate(value)
 #else
 #    error \
         "ROUNDING_MODE must be one of BFLOAT16_ROUND_MODE_TO_NEAREST, BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN, or BFLOAT16_ROUND_MODE_TRUNCATE"
 #endif
+          } {
     }
-    {}
 
-    operator float() const {
+    operator float() const {  // NOLINT(google-explicit-constructor)
         auto bits = static_cast<uint32_t>(m_value) << 16;
         return ov::intel_cpu::bit_cast<float>(bits);
     }
@@ -48,17 +51,17 @@ public:
     }
 
     static uint16_t round_to_nearest_even(float x) {
-        uint32_t bits = ov::intel_cpu::bit_cast<uint32_t>(x);
-        return static_cast<uint16_t>((bits + ((bits & 0x00010000u) >> 1)) >> 16);
+        auto bits = ov::intel_cpu::bit_cast<uint32_t>(x);
+        return static_cast<uint16_t>((bits + ((bits & 0x00010000U) >> 1)) >> 16);
     }
 
     static uint16_t round_to_nearest(float x) {
-        uint32_t bits = ov::intel_cpu::bit_cast<uint32_t>(x);
-        return static_cast<uint16_t>((bits + 0x8000u) >> 16);
+        auto bits = ov::intel_cpu::bit_cast<uint32_t>(x);
+        return static_cast<uint16_t>((bits + 0x8000U) >> 16);
     }
 
     static uint16_t truncate(float x) {
-        uint32_t bits = ov::intel_cpu::bit_cast<uint32_t>(x);
+        auto bits = ov::intel_cpu::bit_cast<uint32_t>(x);
         return static_cast<uint16_t>(bits >> 16);
     }
 

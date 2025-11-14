@@ -29,7 +29,7 @@ class MatrixNms : public Node {
 public:
     MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     [[nodiscard]] bool created() const override;
@@ -82,10 +82,10 @@ private:
 
         Rectangle() = default;
 
-        float x1 = 0.0f;
-        float y1 = 0.0f;
-        float x2 = 0.0f;
-        float y2 = 0.0f;
+        float x1 = 0.0F;
+        float y1 = 0.0F;
+        float x2 = 0.0F;
+        float y2 = 0.0F;
     };
 
     struct BoxInfo {
@@ -102,7 +102,7 @@ private:
         int64_t index = -1;
         int64_t batchIndex = -1;
         int64_t classIndex = -1;
-        float score = 0.0f;
+        float score = 0.0F;
     };
     const std::string m_inType = "input", m_outType = "output";
     std::vector<int64_t> m_numPerBatch;

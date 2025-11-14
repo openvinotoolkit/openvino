@@ -183,9 +183,9 @@ T& Meta::get() {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
     NodeHandle create();
-    void remove(NodeHandle nh);
-    void remove(EdgeHandle eh);
-    EdgeHandle link(NodeHandle src, NodeHandle dst);
+    void remove(const NodeHandle& nh);
+    void remove(const EdgeHandle& eh);
+    EdgeHandle link(const NodeHandle& src, const NodeHandle& dst);
 
     Meta& meta() {
         return m_graph_meta;
@@ -194,13 +194,13 @@ public:
         return m_graph_meta;
     }
 
-    Meta& meta(NodeHandle handle);
-    const Meta& meta(NodeHandle handle) const;
-    Meta& meta(EdgeHandle handle);
-    const Meta& meta(EdgeHandle handle) const;
+    Meta& meta(const NodeHandle& handle);
+    const Meta& meta(const NodeHandle& handle) const;
+    Meta& meta(const EdgeHandle& handle);
+    const Meta& meta(const EdgeHandle& handle) const;
 
-    bool contains(NodeHandle handle) const;
-    bool linked(NodeHandle src, NodeHandle dst);
+    bool contains(const NodeHandle& handle) const;
+    bool linked(const NodeHandle& src, const NodeHandle& dst);
 
     std::vector<NodeHandle> nodes() const;
     std::vector<NodeHandle> sorted() const;

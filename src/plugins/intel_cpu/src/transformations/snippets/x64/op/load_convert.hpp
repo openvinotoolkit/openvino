@@ -29,8 +29,8 @@ public:
 
     LoadConvertSaturation(const Output<Node>& x,
                           const ov::element::Type& destination_type,
-                          size_t count = 1lu,
-                          size_t offset = 0lu);
+                          size_t count = 1LU,
+                          size_t offset = 0LU);
     LoadConvertSaturation() = default;
 
     ov::element::Type get_destination_type() const {
@@ -63,8 +63,8 @@ public:
 
     LoadConvertTruncation(const Output<Node>& x,
                           const ov::element::Type& destination_type,
-                          size_t count = 1lu,
-                          size_t offset = 0lu);
+                          size_t count = 1LU,
+                          size_t offset = 0LU);
     LoadConvertTruncation() = default;
 
     ov::element::Type get_destination_type() const {

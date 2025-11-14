@@ -70,10 +70,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
-        ov::element::Type precision;
-        ov::Shape shape;
-        FakeQuantizeWithDynamicIntervalsTransformationTestValues testValues;
-        std::tie(precision, shape, testValues) = obj.param;
+        const auto& [precision, shape, testValues] = obj.param;
 
         std::ostringstream result;
         result << LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.params) << testValues;

@@ -26,7 +26,7 @@ typedef std::tuple <
 
 class CheckBroadcast : public testing::WithParamInterface<CheckBroadcastParams>, virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CheckBroadcastParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<CheckBroadcastParams>& obj);
 
 protected:
     void SetUp() override;

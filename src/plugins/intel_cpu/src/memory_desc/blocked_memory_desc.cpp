@@ -64,9 +64,9 @@ std::string BlockedMemoryDesc::serializeFormat() const {
     }
 
     for (size_t i = 0; i < shape.getRank(); ++i) {
-        char nextLetter = startLetter + order[i];
+        auto nextLetter = static_cast<char>(startLetter + order[i]);
         if (blockedAxis.count(i)) {
-            nextLetter = toupper(nextLetter);
+            nextLetter = static_cast<char>(toupper(nextLetter));
         }
         result << nextLetter;
     }

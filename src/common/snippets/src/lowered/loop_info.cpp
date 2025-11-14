@@ -4,34 +4,40 @@
 
 #include "snippets/lowered/loop_info.hpp"
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <iterator>
+#include <memory>
+#include <numeric>
+#include <set>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/specific_loop_iter_handlers.hpp"
+#include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 LoopInfo::LoopInfo(size_t work_amount,
                    size_t increment,
                    const std::vector<LoopPort>& entries,
-                   const std::vector<LoopPort>& exits)
+                   const std::vector<LoopPort>& exits,
+                   bool is_parallel)
     : m_work_amount(work_amount),
       m_increment(increment),
       m_input_ports(entries),
-      m_output_ports(exits) {}
-
-LoopInfo::LoopInfo(size_t work_amount,
-                   size_t increment,
-                   const std::vector<ExpressionPort>& entries,
-                   const std::vector<ExpressionPort>& exits)
-    : m_work_amount(work_amount),
-      m_increment(increment) {
-    m_input_ports.reserve(entries.size());
-    m_output_ports.reserve(exits.size());
-    for (const auto& port : entries)
-        m_input_ports.push_back(LoopPort::create<LoopPort::Type::Incremented>(port));
-    for (const auto& port : exits)
-        m_output_ports.push_back(LoopPort::create<LoopPort::Type::Incremented>(port));
-}
+      m_output_ports(exits),
+      m_is_parallel(is_parallel) {}
 
 bool LoopInfo::is_dynamic() const {
     return utils::is_dynamic_value(m_work_amount) || utils::is_dynamic_value(m_increment);
@@ -46,8 +52,9 @@ size_t LoopInfo::get_dim_idx() const {
     auto is_processed_it = std::find_if(m_input_ports.begin(), m_input_ports.end(), is_processed);
     if (is_processed_it == m_input_ports.end()) {
         is_processed_it = std::find_if(m_output_ports.begin(), m_output_ports.end(), is_processed);
-        if (is_processed_it == m_output_ports.end())
+        if (is_processed_it == m_output_ports.end()) {
             return LoopPort::UNDEFINED_DIM_IDX;
+        }
     }
     const auto dim_idx = is_processed_it->get_dim_idx();
 
@@ -57,9 +64,8 @@ size_t LoopInfo::get_dim_idx() const {
     if (std::all_of(m_input_ports.begin(), m_input_ports.end(), equal_dim_idxes) &&
         std::all_of(m_output_ports.begin(), m_output_ports.end(), equal_dim_idxes)) {
         return dim_idx;
-    } else {
-        return LoopPort::UNDEFINED_DIM_IDX;
     }
+    return LoopPort::UNDEFINED_DIM_IDX;
 }
 
 size_t LoopInfo::get_input_count() const {
@@ -103,15 +109,6 @@ void LoopInfo::set_increment(size_t increment) {
     m_increment = increment;
 }
 
-void LoopInfo::set_dim_idx(size_t dim_idx) {
-    auto setter = [dim_idx](LoopPort& port) {
-        if (port.is_processed())
-            port.set_dim_idx(dim_idx);
-    };
-    std::for_each(m_input_ports.begin(), m_input_ports.end(), setter);
-    std::for_each(m_output_ports.begin(), m_output_ports.end(), setter);
-}
-
 template <>
 std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const LoopPort& loop_port) {
     auto& ports = loop_port.get_expr_port()->get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
@@ -123,10 +120,10 @@ std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const LoopPort& loop_po
 }
 
 template <>
-std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const ExpressionPort& expr_port) {
-    auto& ports = expr_port.get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
-    const auto it = std::find_if(ports.begin(), ports.end(), [&expr_port](const LoopPort& port) {
-        return *port.get_expr_port() == expr_port;
+std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const ExpressionPort& loop_port) {
+    auto& ports = loop_port.get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
+    const auto it = std::find_if(ports.begin(), ports.end(), [&loop_port](const LoopPort& port) {
+        return *port.get_expr_port() == loop_port;
     });
     return it;
 }
@@ -178,8 +175,9 @@ void LoopInfo::replace_with_new_ports(const ExpressionPort& actual_port,
     auto port_it = find_loop_port(actual_port);
     // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort
     // is not strong condition as LoopPort For example, not all inner loop ports are ports of outer loops
-    if (port_it == ports.end())
+    if (port_it == ports.end()) {
         return;
+    }
 
     // to save other parameters except expression port
     std::vector<LoopPort> target_loop_ports(target_ports.size(), *port_it);
@@ -218,8 +216,9 @@ bool UnifiedLoopInfo::LoopPortDesc::is_static() const {
 }
 
 bool operator==(const UnifiedLoopInfo::LoopPortDesc& lhs, const UnifiedLoopInfo::LoopPortDesc& rhs) {
-    if (&lhs == &rhs)
+    if (&lhs == &rhs) {
         return true;
+    }
     return lhs.ptr_increment == rhs.ptr_increment && lhs.finalization_offset == rhs.finalization_offset &&
            lhs.data_size == rhs.data_size;
 }
@@ -231,21 +230,10 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
                                  size_t increment,
                                  const std::vector<LoopPort>& entries,
                                  const std::vector<LoopPort>& exits,
-                                 const SpecificIterationHandlers& handlers)
-    : LoopInfo(work_amount, increment, entries, exits),
-      m_handlers(handlers),
-      m_input_port_descs(std::vector<LoopPortDesc>(entries.size())),
-      m_output_port_descs(std::vector<LoopPortDesc>(exits.size())) {
-    sort_ports();
-}
-
-UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
-                                 size_t increment,
-                                 const std::vector<ExpressionPort>& entries,
-                                 const std::vector<ExpressionPort>& exits,
-                                 const SpecificIterationHandlers& handlers)
-    : LoopInfo(work_amount, increment, entries, exits),
-      m_handlers(handlers),
+                                 bool is_parallel,
+                                 SpecificIterationHandlers handlers)
+    : LoopInfo(work_amount, increment, entries, exits, is_parallel),
+      m_handlers(std::move(handlers)),
       m_input_port_descs(std::vector<LoopPortDesc>(entries.size())),
       m_output_port_descs(std::vector<LoopPortDesc>(exits.size())) {
     sort_ports();
@@ -255,13 +243,14 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
                                  size_t increment,
                                  const std::vector<LoopPort>& entries,
                                  const std::vector<LoopPort>& exits,
-                                 const std::vector<LoopPortDesc>& in_shifts,
-                                 const std::vector<LoopPortDesc>& out_shifts,
-                                 const SpecificIterationHandlers& handlers)
-    : LoopInfo(work_amount, increment, entries, exits),
-      m_handlers(handlers),
-      m_input_port_descs(in_shifts),
-      m_output_port_descs(out_shifts) {
+                                 const std::vector<LoopPortDesc>& in_descs,
+                                 const std::vector<LoopPortDesc>& out_descs,
+                                 bool is_parallel,
+                                 SpecificIterationHandlers handlers)
+    : LoopInfo(work_amount, increment, entries, exits, is_parallel),
+      m_handlers(std::move(handlers)),
+      m_input_port_descs(in_descs),
+      m_output_port_descs(out_descs) {
     sort_ports();
 }
 
@@ -277,6 +266,7 @@ std::shared_ptr<LoopInfo> UnifiedLoopInfo::clone_with_new_expr(const ExpressionM
                                                            new_output_ports,
                                                            m_input_port_descs,
                                                            m_output_port_descs,
+                                                           m_is_parallel,
                                                            m_handlers);
     }
     return loop_map.at(this);
@@ -347,16 +337,18 @@ const std::vector<UnifiedLoopInfo::LoopPortDesc>& UnifiedLoopInfo::get_output_po
 std::vector<UnifiedLoopInfo::LoopPortInfo> UnifiedLoopInfo::get_input_ports_info() const {
     assert(m_input_ports.size() == m_input_port_descs.size() && "Incompatible count of input port and descs");
     std::vector<UnifiedLoopInfo::LoopPortInfo> info(get_input_count());
-    for (size_t i = 0; i < get_input_count(); ++i)
+    for (size_t i = 0; i < get_input_count(); ++i) {
         info[i] = {m_input_ports[i], m_input_port_descs[i]};
+    }
     return info;
 }
 
 std::vector<UnifiedLoopInfo::LoopPortInfo> UnifiedLoopInfo::get_output_ports_info() const {
     assert(m_output_ports.size() == m_output_port_descs.size() && "Incompatible count of output port and descs");
     std::vector<UnifiedLoopInfo::LoopPortInfo> info(get_output_count());
-    for (size_t i = 0; i < get_output_count(); ++i)
+    for (size_t i = 0; i < get_output_count(); ++i) {
         info[i] = {m_output_ports[i], m_output_port_descs[i]};
+    }
     return info;
 }
 
@@ -364,7 +356,7 @@ namespace {
 template <typename T>
 void order(const std::vector<size_t>& new_order, std::vector<T>& values) {
     const auto order_set = std::set<size_t>(new_order.cbegin(), new_order.cend());
-    OPENVINO_ASSERT(new_order.size() == values.size() && order_set.size() == values.size(),
+    OPENVINO_ASSERT(utils::all_of(values.size(), new_order.size(), order_set.size()),
                     "Failed to sort values: `new order` must contain unique indexes");
     OPENVINO_ASSERT(*order_set.begin() == 0 && *order_set.rbegin() == (values.size() - 1),
                     "Failed to sort values: `new_order` must contain new indexes for ALL values");
@@ -380,8 +372,9 @@ std::vector<size_t> get_port_index_order(const std::vector<LoopPort>& ports) {
     std::sort(new_indexes.begin(), new_indexes.end(), [ports](size_t l, size_t r) {
         const auto& expr_port_l = ports[l].get_expr_port();
         const auto& expr_port_r = ports[r].get_expr_port();
-        if (expr_port_l->get_expr() == expr_port_r->get_expr())
+        if (expr_port_l->get_expr() == expr_port_r->get_expr()) {
             return expr_port_l->get_index() < expr_port_r->get_index();
+        }
         return expr_port_l->get_expr()->get_exec_num() < expr_port_r->get_expr()->get_exec_num();
     });
     return new_indexes;
@@ -452,8 +445,9 @@ void UnifiedLoopInfo::replace_with_new_ports(const ExpressionPort& actual_port,
     auto port_it = find_loop_port(actual_port);
     // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort
     // is not strong condition as LoopPort For example, not all inner loop ports are ports of outer loops
-    if (port_it == ports.end())
+    if (port_it == ports.end()) {
         return;
+    }
 
     replace_with_cloned_descs(std::distance(ports.begin(), port_it), target_ports.size(), is_input);
     LoopInfo::replace_with_new_ports(actual_port, target_ports);
@@ -469,7 +463,14 @@ InnerSplittedUnifiedLoopInfo::InnerSplittedUnifiedLoopInfo(size_t increment,
                                                            const std::vector<LoopPortDesc>& out_descs,
                                                            const SpecificIterationHandlers& handlers,
                                                            LoopInfoPtr outer_splitted_loop_info)
-    : UnifiedLoopInfo(utils::get_dynamic_value<size_t>(), increment, entries, exits, in_descs, out_descs, handlers),
+    : UnifiedLoopInfo(utils::get_dynamic_value<size_t>(),
+                      increment,
+                      entries,
+                      exits,
+                      in_descs,
+                      out_descs,
+                      outer_splitted_loop_info->is_parallel(),
+                      handlers),
       m_outer_splitted_loop_info(std::move(outer_splitted_loop_info)) {
     OPENVINO_ASSERT(m_outer_splitted_loop_info != nullptr, "Outer Splitted Loop Info is missed!");
 }
@@ -510,7 +511,7 @@ LoopInfoPtr InnerSplittedUnifiedLoopInfo::get_outer_splitted_loop_info() const {
     return m_outer_splitted_loop_info;
 }
 
-void InnerSplittedUnifiedLoopInfo::set_work_amount(size_t work_amount) {
+void InnerSplittedUnifiedLoopInfo::set_work_amount([[maybe_unused]] size_t work_amount) {
     OPENVINO_THROW("InnerSplittedUnifiedLoopInfo doesn't support `set_work_amount`");
 }
 
@@ -529,7 +530,7 @@ ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount,
                                    SpecificLoopIterType type,
                                    std::shared_ptr<UnifiedLoopInfo> unified_loop_info,
                                    bool evaluate_once)
-    : LoopInfo(work_amount, increment, entries, exits),
+    : LoopInfo(work_amount, increment, entries, exits, unified_loop_info->is_parallel()),
       m_ptr_increments(std::move(ptr_increments)),
       m_finalization_offsets(std::move(final_offsets)),
       m_data_sizes(std::move(data_sizes)),
@@ -662,9 +663,8 @@ void order_subvector(const std::vector<size_t>& indexes,
 
 void ExpandedLoopInfo::sort_ports() {
     const auto count = get_input_count() + get_output_count();
-    OPENVINO_ASSERT(
-        utils::everyone_is(count, m_ptr_increments.size(), m_finalization_offsets.size(), m_data_sizes.size()),
-        "Incompatible data ptr shifts!");
+    OPENVINO_ASSERT(utils::all_of(count, m_ptr_increments.size(), m_finalization_offsets.size(), m_data_sizes.size()),
+                    "Incompatible data ptr shifts!");
 
     auto reorder = [this](std::vector<LoopPort>& ports, size_t count, size_t offset) {
         if (!ports.empty()) {
@@ -679,6 +679,4 @@ void ExpandedLoopInfo::sort_ports() {
     reorder(m_output_ports, get_output_count(), get_input_count());
 }
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

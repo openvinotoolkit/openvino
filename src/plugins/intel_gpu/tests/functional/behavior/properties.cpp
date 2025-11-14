@@ -5,7 +5,7 @@
 #include <algorithm>
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "openvino/runtime/core.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 

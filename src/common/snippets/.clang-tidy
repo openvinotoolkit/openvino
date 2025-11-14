@@ -1,0 +1,147 @@
+---
+
+### NOTE:
+# The 'Checks: >' is a multiline string here. Comment must not be moved into the string.
+#
+### Checks that are turned off for a reason:
+#
+# -cppcoreguidelines-avoid-c-arrays. There are a lot of code which uses C-style arrays
+# -cppcoreguidelines-avoid-do-while. Just stylistic preference
+# -cppcoreguidelines-explicit-virtual-functions. Forbids 'override final' usage
+# -cppcoreguidelines-macro-usage. There are macros defined by OV that are matching this check
+# -cppcoreguidelines-misleading-capture-default-by-value. Commonly used in the transformations code
+# -cppcoreguidelines-non-private-member-variables-in-classes. There are a lot of code which uses protected members directly
+# -cppcoreguidelines-owning-memory. There is a code which uses raw pointers
+# -cppcoreguidelines-pro-bounds-array-to-pointer-decay. There are a lot of code which uses array to pointer conversion
+# -cppcoreguidelines-pro-bounds-constant-array-index. Size is deduced incorrectly from the array type
+# -cppcoreguidelines-pro-bounds-pointer-arithmetic
+# -cppcoreguidelines-pro-type-const-cast. There is some code which uses const_cast and cannot get rid of that
+# -cppcoreguidelines-pro-type-reinterpret-cast. There are a lot of code which uses reinterpret_cast
+# -cppcoreguidelines-pro-type-static-cast-downcast. Performance impact
+# -cppcoreguidelines-pro-type-union-access. There are a lot of code which uses unions
+# -cppcoreguidelines-pro-type-vararg. There are a lot of code which uses vararg functions
+# -cppcoreguidelines-rvalue-reference-param-not-moved. There are a lot of code which uses rvalue references
+# -cppcoreguidelines-special-member-functions. There are a lot of code which does not define all copy/move constructors/assignment operators
+# -google-readability-todo. No big reason to enforce
+# -modernize-use-trailing-return-type. Just stylistic preference
+# -misc-const-correctness. No big reason to enforce
+# -misc-no-recursion. No big reason to enforce
+# -readability-identifier-length. A lot of code use short names for readability, i.e. 'B' for batch
+#
+### Checks that are turned off but better be enabled later:
+# -bugprone-easily-swappable-parameters
+# -cppcoreguidelines-avoid-const-or-ref-data-members
+# -google-default-arguments,
+# -misc-non-private-member-variables-in-classes,
+# -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
+# -readability-isolate-declaration
+# -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
+# -readability-suspicious-call-argument
+# Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
+# -modernize-use-constraints,
+# -modernize-use-std-numbers
+
+Checks: >
+  -*,
+  bugprone-*,
+  cppcoreguidelines-*,
+  performance-*,
+  google-*,
+  modernize-*,
+  misc-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-const-or-ref-data-members,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-explicit-virtual-functions,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-misleading-capture-default-by-value,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-const-cast,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-static-cast-downcast,
+  -cppcoreguidelines-pro-type-union-access,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-rvalue-reference-param-not-moved,
+  -cppcoreguidelines-special-member-functions,
+  -google-build-using-namespace,
+  -google-readability-todo,
+  -modernize-use-trailing-return-type,
+  -modernize-use-constraints,
+  -modernize-use-std-numbers,
+  -misc-const-correctness,
+  -misc-no-recursion,
+  -misc-non-private-member-variables-in-classes,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-isolate-declaration,
+  -readability-magic-numbers,
+  -readability-suspicious-call-argument,
+# Treat warnings as errors
+WarningsAsErrors: '*'
+# Use clang-format for applied fixes
+FormatStyle: file
+HeaderFilterRegex: 'src/common/snippets/.*\.h(pp)?$'
+CheckOptions:
+  - key: bugprone-narrowing-conversions.IgnoreConversionFromTypes
+    value: "size_t;ptrdiff_t;size_type;difference_type;value_type;uint32_t;uint64_t;unsigned long;unsigned int"
+  - key: cppcoreguidelines-narrowing-conversions.IgnoreConversionFromTypes
+    value: "size_t;ptrdiff_t;size_type;difference_type;value_type;uint32_t;uint64_t;unsigned long;unsigned int"
+  - key: cppcoreguidelines-avoid-do-while.IgnoreMacros
+    value: true
+  # use = instead of {} for initialization
+  - key: cppcoreguidelines-pro-type-member-init.UseAssignment
+    value: true
+  - key: modernize-use-default-member-init.UseAssignment
+    value: true
+  # matches with corresponding cpplink check  
+  - key: google-readability-namespace-comments.ShortNamespaceLines
+    value: "10"
+  # matches with corresponding cpplink check  
+  - key: google-readability-namespace-comments.SpacesBeforeComments
+    value: "2"
+  - key: modernize-loop-convert.MinConfidence
+    value: reasonable
+  - key: modernize-pass-by-value.IncludeStyle
+    value: google
+  - key: modernize-use-auto.MinTypeNameLength
+    value: "3"
+  - key: modernize-use-override.AllowOverrideAndFinal
+    value: true
+  - key: performance-for-range-copy.WarnOnAllAutoCopies
+    value: true
+  - key: readability-implicit-bool-conversion.AllowIntegerConditions
+    value: true
+  - key: readability-implicit-bool-conversion.AllowPointerConditions
+    value: true
+  # Unifies the usage of the statements
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: "1"
+  # itt and conditional compilation are implemented via tricky macro combinations
+  - key: misc-include-cleaner.IgnoreHeaders
+    # TODO: remove snippets/*.hpp from the list
+    value: >
+      .*/itt.hpp;
+      snippets/runtime_configurator.hpp;
+      snippets/lowered/loop_manager.hpp;
+#  Reasonable way to enforce splitting complex code into simple functions
+  - key: readability-function-size.StatementThreshold
+    value: "800"
+  - key: performance-unnecessary-value-param.AllowedTypes
+    value: >
+      ov::snippets::lowered::LinearIR::constExprReverseIt
+  - key: readability-simplify-boolean-expr.ChainedConditionalReturn
+    value: true
+  - key: readability-simplify-boolean-expr.ChainedConditionalAssignment
+    value: true
+  - key: readability-simplify-boolean-expr.SimplifyDeMorgan
+    value: true
+  - key: readability-simplify-boolean-expr.SimplifyDeMorganRelaxed
+    value: true
+---

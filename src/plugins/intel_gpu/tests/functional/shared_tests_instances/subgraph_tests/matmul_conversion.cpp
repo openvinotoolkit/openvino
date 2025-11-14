@@ -51,20 +51,8 @@ using MatmulConversionParams = std::tuple<std::vector<InputShape>,  // input sha
 class MatmulConversionsSameParent : public testing::WithParamInterface<MatmulConversionSharedParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatmulConversionSharedParams> obj) {
-        ShapeParams shape_params;
-        ov::element::Type input_precision;
-        bool matmul0_tran_0;
-        bool matmul0_tran_1;
-        bool matmul1_tran_0;
-        bool matmul1_tran_1;
-
-        std::tie(shape_params,
-                 input_precision,
-                 matmul0_tran_0,
-                 matmul0_tran_1,
-                 matmul1_tran_0,
-                 matmul1_tran_1) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulConversionSharedParams>& obj) {
+        const auto& [shape_params, input_precision, matmul0_tran_0, matmul0_tran_1, matmul1_tran_0, matmul1_tran_1] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -106,19 +94,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        ShapeParams shape_params;
-        ov::element::Type input_precision;
-        bool matmul0_tran_0;
-        bool matmul0_tran_1;
-        bool matmul1_tran_0;
-        bool matmul1_tran_1;
-
-        std::tie(shape_params,
-                 input_precision,
-                 matmul0_tran_0,
-                 matmul0_tran_1,
-                 matmul1_tran_0,
-                 matmul1_tran_1) = GetParam();
+        const auto& [shape_params, input_precision, matmul0_tran_0, matmul0_tran_1, matmul1_tran_0, matmul1_tran_1] = GetParam();
 
         init_input_shapes({shape_params.data_shape, {{}, {{shape_params.weights_shape}}}});
 
@@ -192,20 +168,8 @@ INSTANTIATE_TEST_SUITE_P(MatmulConversionsSameParent_transposed,
 class MatmulConversions : public testing::WithParamInterface<MatmulConversionParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatmulConversionParams> obj) {
-        std::vector<InputShape> input_shapes;
-        ov::element::Type input_precision;
-        bool matmul0_tran_0;
-        bool matmul0_tran_1;
-        bool matmul1_tran_0;
-        bool matmul1_tran_1;
-
-        std::tie(input_shapes,
-                 input_precision,
-                 matmul0_tran_0,
-                 matmul0_tran_1,
-                 matmul1_tran_0,
-                 matmul1_tran_1) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulConversionParams>& obj) {
+        const auto& [input_shapes, input_precision, matmul0_tran_0, matmul0_tran_1, matmul1_tran_0, matmul1_tran_1] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -254,19 +218,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        std::vector<InputShape> input_shapes;
-        ov::element::Type input_precision;
-        bool matmul0_tran_0;
-        bool matmul0_tran_1;
-        bool matmul1_tran_0;
-        bool matmul1_tran_1;
-
-        std::tie(input_shapes,
-                 input_precision,
-                 matmul0_tran_0,
-                 matmul0_tran_1,
-                 matmul1_tran_0,
-                 matmul1_tran_1) = GetParam();
+        const auto& [input_shapes, input_precision, matmul0_tran_0, matmul0_tran_1, matmul1_tran_0, matmul1_tran_1] = GetParam();
 
         init_input_shapes(input_shapes);
 
@@ -349,19 +301,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        std::vector<InputShape> input_shapes;
-        ov::element::Type input_precision;
-        bool matmul0_tran_0;
-        bool matmul0_tran_1;
-        bool matmul1_tran_0;
-        bool matmul1_tran_1;
-
-        std::tie(input_shapes,
-                 input_precision,
-                 matmul0_tran_0,
-                 matmul0_tran_1,
-                 matmul1_tran_0,
-                 matmul1_tran_1) = GetParam();
+        const auto& [input_shapes, input_precision, matmul0_tran_0, matmul0_tran_1, matmul1_tran_0, matmul1_tran_1] = GetParam();
 
         init_input_shapes(input_shapes);
 

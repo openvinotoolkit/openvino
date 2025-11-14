@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "internal/overload/compiled_model/property.hpp"
+#include "property.hpp"
 
 #include <openvino/runtime/intel_npu/properties.hpp>
 #include <vector>
 
-#include "behavior/compiled_model/properties.hpp"
 #include "common/npu_test_env_cfg.hpp"
-#include "common/utils.hpp"
-#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-#include "intel_npu/config/options.hpp"
 
 using namespace ov::test::behavior;
 
@@ -29,7 +25,11 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_immutable_properties = 
     {std::make_pair(ov::optimal_number_of_infer_requests.name(), ov::Any(2))},
     {std::make_pair(ov::hint::enable_cpu_pinning.name(), ov::Any(false))},
     {std::make_pair(ov::supported_properties.name(), ov::Any("deadbeef"))},
-    {std::make_pair(ov::model_name.name(), ov::Any("deadbeef"))}};
+    {std::make_pair(ov::model_name.name(), ov::Any("deadbeef"))},
+    {ov::hint::model.name(), ov::Any(std::shared_ptr<const ov::Model>(nullptr))},
+    {ov::hint::model.name(),
+     ov::Any(std::shared_ptr<ov::Model>(nullptr))}  // intentionally copied above to test constness
+};
 
 std::vector<std::pair<std::string, ov::Any>> plugin_public_mutable_properties = {
     {ov::hint::num_requests.name(), ov::Any(5)},

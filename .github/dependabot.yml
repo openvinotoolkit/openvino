@@ -15,7 +15,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Poland"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "p-wysocki"
       - "akuporos"

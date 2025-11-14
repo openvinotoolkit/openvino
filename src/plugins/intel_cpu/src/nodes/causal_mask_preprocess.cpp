@@ -159,7 +159,7 @@ void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
             prec = ov::element::i32;
         }
     } else {
-        THROW_CPU_NODE_ERR("type not supported : " + m_config.type);
+        CPU_NODE_THROW("type not supported : " + m_config.type);
     }
 
     std::vector<PortConfigurator> inPortConfigs;

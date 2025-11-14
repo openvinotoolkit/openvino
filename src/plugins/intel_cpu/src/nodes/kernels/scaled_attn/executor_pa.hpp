@@ -14,9 +14,6 @@ namespace ov::Extensions::Cpu::XARCH {
 std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type,
                                                          ov::element::Type key_cache_type,
                                                          ov::element::Type value_cache_type,
-                                                         size_t key_group_size,
-                                                         size_t value_group_size,
-                                                         bool quant_key_bychannel,
-                                                         bool quant_value_bychannel);
+                                                         const PagedAttnQuantParams& params);
 
 }  // namespace ov::Extensions::Cpu::XARCH

@@ -22,6 +22,7 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -31,7 +32,7 @@ void assign_new_ptr_increment(int64_t new_ptr_increment,
     const auto old_ptr_incr = loop_desc.ptr_increment;
     const auto old_final_offset = loop_desc.finalization_offset;
 
-    if (old_ptr_incr != 0 && old_ptr_incr != new_ptr_increment) {
+    if (none_of(old_ptr_incr, 0, new_ptr_increment)) {
         loop_desc.ptr_increment = new_ptr_increment;
         if (!ov::snippets::utils::is_dynamic_value(old_final_offset)) {
             OPENVINO_ASSERT(old_final_offset % old_ptr_incr == 0, "Can't rescale finalization offsets");
@@ -53,7 +54,6 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
             const auto& node = p.get_expr()->get_node();
             if (auto brg = as_type_ptr<BrgemmCPU>(node)) {
                 const auto& brgemm_config = brg->get_config();
-                const auto& precision = node->get_input_element_type(1);
                 /*
                  * The BrgemmCopyB operation repacks the weights in the following way:
                  *   1) Not-FP32 Brgemm requires inner K block which is equal to VNNI factor
@@ -66,23 +66,23 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                     int64_t blocked_shape_ptr_inc = 0;
                     if (loop_port.get_dim_idx() == 1) {
                         // Blocking loop by K dimension:
-                        //  - pointer increment is equal to LDB
-                        blocked_shape_ptr_inc = brgemm_utils::repacking::compute_LDB(loop_desc.ptr_increment,
-                                                                                     brgemm_config.wei_n_blk(),
-                                                                                     brgemm_config.are_wei_blocked());
+                        blocked_shape_ptr_inc =
+                            brgemm_utils::repacking::compute_K_blocked_stride(loop_desc.ptr_increment,
+                                                                              brgemm_config.wei_n_blk(),
+                                                                              brgemm_config.are_wei_blocked());
                     } else if (loop_port.get_dim_idx() == 0) {
                         // Blocking loop by N dimension:
-                        //  - if weights are not in blocked format, account for the VNNI format
-                        //  - if weights are blocked, account for zero padding in K dimension
+                        // Attention: blocked_shape_ptr_inc is int64_t while K dimension is uint64_t
                         const auto& shape = loop_port.get_expr_port()->get_descriptor_ptr()->get_shape();
-                        const auto k_dim = *++shape.rbegin();
-                        if (snippets::utils::is_dynamic_value(k_dim)) {
+                        const auto K_dim = *++shape.rbegin();
+                        if (snippets::utils::is_dynamic_value(K_dim)) {
                             blocked_shape_ptr_inc = snippets::utils::get_dynamic_value<int64_t>();
-                        } else if (brgemm_config.are_wei_blocked()) {
-                            blocked_shape_ptr_inc = static_cast<int64_t>(
-                                brgemm_utils::repacking::compute_blocked_dim(k_dim, brgemm_config.wei_k_blk()));
                         } else {
-                            blocked_shape_ptr_inc = static_cast<int64_t>(brgemm_utils::compute_vnni_factor(precision));
+                            blocked_shape_ptr_inc =
+                                brgemm_utils::repacking::compute_N_blocked_stride(static_cast<int64_t>(K_dim),
+                                                                                  brgemm_config.wei_k_blk(),
+                                                                                  brgemm_config.wei_dt(),
+                                                                                  brgemm_config.are_wei_blocked());
                         }
                     } else {
                         OPENVINO_THROW("Unexpected loop port dimension index in AdjustBrgemmCopyBLoopPorts");

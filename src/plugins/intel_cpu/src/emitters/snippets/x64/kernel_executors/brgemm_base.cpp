@@ -130,7 +130,9 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
     // In case of data repacking LDB is chosen in accordance with repacking buffer size
     const auto& brgemm_config = brgemm_node->get_config();
     if (brgemm_config.with_wei_repacking()) {
-        LDB = brgemm_utils::repacking::compute_LDB(LDB, brgemm_config.wei_n_blk(), brgemm_config.are_wei_blocked());
+        LDB = brgemm_utils::repacking::compute_K_blocked_stride(LDB,
+                                                                brgemm_config.wei_n_blk(),
+                                                                brgemm_config.are_wei_blocked());
     }
 
     config.update(M, N, K, LDA, LDB, LDC, beta);

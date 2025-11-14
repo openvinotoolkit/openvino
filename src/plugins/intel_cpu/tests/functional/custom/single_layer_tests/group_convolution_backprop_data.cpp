@@ -12,6 +12,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -30,27 +31,11 @@ class GroupDeconvolutionLayerCPUTest : public testing::WithParamInterface<GroupD
                                        virtual public SubgraphBaseTest,
                                        public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GroupDeconvLayerCPUTestParamsSet> obj) {
-        GroupDeconvSpecParams basicParamsSet;
-        DeconvInputData inputData;
-        ElementType prec;
-        CPUSpecificParams cpuParams;
-        fusingSpecificParams fusingParams;
-        ov::AnyMap additionalConfig;
-        std::tie(basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig) = obj.param;
-
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
-        size_t convOutChannels, groupNum;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, groupNum, padType, outPadding) =
+    static std::string getTestCaseName(const testing::TestParamInfo<GroupDeconvLayerCPUTestParamsSet>& obj) {
+        const auto &[basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig] = obj.param;
+        const auto &[kernel, stride, padBegin, padEnd, dilation, convOutChannels, groupNum, padType, outPadding] =
             basicParamsSet;
-
-        InputShape inputShape;
-        ov::test::utils::InputLayerType outShapeType;
-        std::vector<std::vector<int32_t>> outShapeData;
-        std::tie(inputShape, outShapeType, outShapeData) = inputData;
-
+        const auto &[inputShape, outShapeType, outShapeData] = inputData;
         std::ostringstream result;
         result << "IS=";
         result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
@@ -231,27 +216,18 @@ protected:
         rel_threshold = 1e-4f;
 
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        GroupDeconvSpecParams basicParamsSet;
-        DeconvInputData inputData;
-        CPUSpecificParams cpuParams;
-        fusingSpecificParams fusingParams;
-        ov::AnyMap additionalConfig;
-        std::tie(basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig) = this->GetParam();
-
+        const auto& [basicParamsSet, inputData, _prec, fusingParams, cpuParams, additionalConfig] = this->GetParam();
+        prec = _prec;
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, groupNum, padType, outPadding) =
             basicParamsSet;
-
-        InputShape inputShape;
-        ov::test::utils::InputLayerType outShapeType;
-        std::tie(inputShape, outShapeType, outShapeData) = inputData;
-
+        const auto& [inputShape, outShapeType, _outShapeData] = inputData;
+        outShapeData = _outShapeData;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::bf16) {
+        if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
             inType = outType = prec = ElementType::bf16;
             rel_threshold = 1e-2f;
         } else {

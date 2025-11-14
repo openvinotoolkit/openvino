@@ -1,5 +1,6 @@
 # type: ignore
 from __future__ import annotations
+from builtins import list as TensorShape
 from functools import partial
 from functools import singledispatch
 from openvino._pyopenvino import Node
@@ -24,7 +25,7 @@ import numpy as np
 import openvino._pyopenvino
 import openvino.utils.decorators
 import typing
-__all__ = ['Constant', 'Node', 'NodeInput', 'NumericType', 'Output', 'Parameter', 'PartialShape', 'Shape', 'TensorShape', 'Type', 'Variable', 'VariableInfo', 'as_node', 'as_nodes', 'assign', 'ctc_greedy_decoder_seq_len', 'gather_elements', 'get_element_type', 'mvn', 'nameable_op', 'np', 'overloading', 'partial', 'read_value', 'singledispatch']
+__all__: list[str] = ['Constant', 'Node', 'NodeInput', 'NumericType', 'Output', 'Parameter', 'PartialShape', 'Shape', 'TensorShape', 'Type', 'Variable', 'VariableInfo', 'as_node', 'as_nodes', 'assign', 'ctc_greedy_decoder_seq_len', 'gather_elements', 'get_element_type', 'mvn', 'nameable_op', 'np', 'overloading', 'partial', 'read_value', 'singledispatch']
 def ctc_greedy_decoder_seq_len(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return a node which performs CTCGreedyDecoderSeqLen.
@@ -62,6 +63,5 @@ def mvn(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
-TensorShape: typing._GenericAlias  # value = typing.List[int]
 _get_node_factory_opset6: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset6')
 read_value: openvino.utils.decorators.MultiMethod  # value = <openvino.utils.decorators.MultiMethod object>

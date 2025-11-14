@@ -137,7 +137,7 @@ bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Outpu
 
 bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVector& args) {
     for (size_t i = 0; i < args.size(); i++) {
-        OPENVINO_LOG_MATCHER2(this, i);
+        OPENVINO_LOG_MATCHER2(this, i, pattern_args.at(i));
         if (!match_value(pattern_args.at(i), args.at(i))) {
             OPENVINO_LOG_MATCHER3(this, i);
             return false;

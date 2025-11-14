@@ -20,11 +20,8 @@ class Conv1dConvertTransformationCPUTest : public testing::WithParamInterface<co
                                            virtual public SubgraphBaseTest,
                                            public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<conv1dConvertCPUTestParamsSet> obj) {
-        InputShape inputShapes;
-        nodeType convType;
-        std::tie(convType, inputShapes) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<conv1dConvertCPUTestParamsSet>& obj) {
+        const auto& [convType, inputShapes] = obj.param;
         std::ostringstream result;
         result << nodeType2str(convType) << "_";
         result << "IS=" << inputShapes;
@@ -35,10 +32,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        InputShape inputShapes;
-        nodeType convType;
-        std::tie(convType, inputShapes) = this->GetParam();
-
+        const auto& [convType, inputShapes] = this->GetParam();
         init_input_shapes({inputShapes});
 
         std::shared_ptr<Node> conv;

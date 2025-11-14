@@ -6,6 +6,7 @@
 
 #include <snippets/op/subgraph.hpp>
 
+#include "openvino/opsets/opset1.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/reduce.hpp"

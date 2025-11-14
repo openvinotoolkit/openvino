@@ -17,18 +17,21 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
-#include "plugin.hpp"
 #include "properties.hpp"
 
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
+                                         const std::vector<ov::hetero::SubmodelInfo>& submodels,
+                                         const SubgraphsMappingInfo& mapping_info,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
+                                         ov::hetero::RemoteContext::Ptr context,
                                          const Configuration& cfg)
-    : ov::ICompiledModel(model, plugin),
+    : ov::ICompiledModel(model, plugin, context),
       m_cfg(cfg),
       m_name(model->get_friendly_name()),
-      m_loaded_from_cache(false) {
+      m_loaded_from_cache(false),
+      m_mapping_info(mapping_info) {
     try {
-        compile_model(model);
+        compile_model(submodels);
     } catch (const std::exception& e) {
         OPENVINO_THROW("Standard exception from compilation library: ", e.what());
     } catch (...) {
@@ -36,31 +39,26 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
     }
 }
 
-void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
-    ov::SupportedOpsMap query_model_result;
-    bool user_set_affinities = false;
-    // Get user defined affinity
-    for (const auto& node : model->get_ordered_ops()) {
-        auto& node_info = node->get_rt_info();
-        auto it_info = node_info.find("affinity");
-        if (it_info != node_info.end()) {
-            OPENVINO_ASSERT(it_info->second.is<std::string>(), "Unexpected type of \"affinity\" attribute");
-            query_model_result.emplace(node->get_friendly_name(), it_info->second.as<std::string>());
-            user_set_affinities = true;
-        }
-    }
+void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::SubmodelInfo>& submodels) {
+    const bool add_exclusive = submodels.size() > 1;
+    const auto& hetero_plugin = get_hetero_plugin();
+    const auto& core = hetero_plugin->get_core();
+    const auto& device_properties = m_cfg.get_device_properties();
 
-    auto compile_device_model = [&](CompiledModelDesc& compiled_model_desc, bool add_exclusive) {
-        auto meta_devices =
-            get_hetero_plugin()->get_properties_per_device(compiled_model_desc.device, m_cfg.get_device_properties());
+    m_compiled_submodels.clear();
+    m_compiled_submodels.reserve(submodels.size());
+
+    for (const auto& [device, sub_model] : submodels) {
+        // get meta devices properties for the target device
+        auto meta_devices = hetero_plugin->get_properties_per_device(device, device_properties);
+
         // disable caching for subgraphs, because the whole HETERO model is cached
-        auto device_config = meta_devices[compiled_model_desc.device];
+        auto device_config = meta_devices.at(device);
         device_config[ov::cache_dir.name()] = "";
+
         // set exclusive_async_requests in case when model is split
         if (add_exclusive) {
-            auto supported_internal_properties =
-                get_hetero_plugin()->get_core()->get_property(compiled_model_desc.device,
-                                                              ov::internal::supported_properties);
+            auto supported_internal_properties = core->get_property(device, ov::internal::supported_properties);
             if (std::find(supported_internal_properties.begin(),
                           supported_internal_properties.end(),
                           ov::internal::exclusive_async_requests) != supported_internal_properties.end()) {
@@ -68,59 +66,13 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
                 device_config.insert(ov::internal::exclusive_async_requests(true));
             }
         }
-        compiled_model_desc.compiled_model = get_hetero_plugin()->get_core()->compile_model(compiled_model_desc.model,
-                                                                                            compiled_model_desc.device,
-                                                                                            device_config);
-    };
 
-    if (user_set_affinities) {
-        // All affinities must be defined by user
-        ov::hetero::SubgraphsVector ordered_subgraphs;
-        std::tie(ordered_subgraphs, m_mapping_info) =
-            get_model_subgraphs(model, query_model_result, user_set_affinities, m_cfg.dump_dot_files());
-
-        m_compiled_submodels.resize(ordered_subgraphs.size());
-        bool add_exclusive = ordered_subgraphs.size() > 1;
-        size_t id = 0;
-        for (const auto& subgraph : ordered_subgraphs) {
-            m_compiled_submodels[id].device = subgraph._affinity;
-            m_compiled_submodels[id].model = std::make_shared<ov::Model>(subgraph._results,
-                                                                         subgraph._sinks,
-                                                                         subgraph._parameters,
-                                                                         m_name + '_' + std::to_string(id));
-            compile_device_model(m_compiled_submodels[id], add_exclusive);
-            ++id;
-        }
-    } else {
-        // Restore properties in order to pass "device priorities" together
-        // with devices properties
-        auto full_properties = m_cfg.get_hetero_properties();
-        for (const auto& property : m_cfg.get_device_properties())
-            full_properties[property.first] = property.second;
-
-        // This function modifes original model
-        auto cloned_model = model->clone();
-        std::tie(query_model_result, m_mapping_info) =
-            get_hetero_plugin()->query_model_update(cloned_model, full_properties, true);
-
-        ov::hetero::op::DeviceSubgraphVector ordered_subgraphs;
-        for (const auto& op : cloned_model->get_ordered_ops()) {
-            if (const auto& subgraph = ov::as_type_ptr<ov::hetero::op::DeviceSubgraph>(op)) {
-                ordered_subgraphs.push_back(subgraph);
-            } else {
-                OPENVINO_ASSERT(ov::op::util::is_output(op) || ov::op::util::is_parameter(op) ||
-                                ov::op::util::is_sink(op));
-            }
-        }
-        m_compiled_submodels.resize(ordered_subgraphs.size());
-        bool add_exclusive = ordered_subgraphs.size() > 1;
-        size_t id = 0;
-        for (const auto& subgraph : ordered_subgraphs) {
-            m_compiled_submodels[id].device = subgraph->get_affinity();
-            m_compiled_submodels[id].model = subgraph->get_function();
-            compile_device_model(m_compiled_submodels[id], add_exclusive);
-            ++id;
-        }
+        // compile the submodel and add to the compiled submodels list
+        CompiledModelDesc desc;
+        desc.device = device;
+        desc.model = sub_model;
+        desc.compiled_model = core->compile_model(sub_model, device, device_config);
+        m_compiled_submodels.emplace_back(std::move(desc));
     }
     set_inputs_and_outputs();
 }

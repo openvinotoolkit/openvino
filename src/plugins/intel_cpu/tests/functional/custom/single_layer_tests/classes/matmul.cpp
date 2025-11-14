@@ -15,22 +15,9 @@ namespace ov {
 namespace test {
 
 std::string MatMulLayerCPUTest::getTestCaseName(const testing::TestParamInfo<MatMulLayerCPUTestParamSet>& obj) {
-    MatMulLayerTestParamsSet basicParamsSet;
-    MatMulNodeType nodeType;
-    fusingSpecificParams fusingParams;
-    CPUSpecificParams cpuParams;
-
-    std::tie(basicParamsSet, nodeType, fusingParams, cpuParams) = obj.param;
-
-    ElementType netType;
-    ElementType inType, outType;
-    ShapeRelatedParams shapeRelatedParams;
-    utils::InputLayerType secondaryInputType;
-    TargetDevice targetDevice;
-    ov::AnyMap additionalConfig;
-    std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) =
+    const auto& [basicParamsSet, nodeType, fusingParams, cpuParams] = obj.param;
+    const auto& [shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig] =
         basicParamsSet;
-
     std::ostringstream result;
     result << (nodeType == MatMulNodeType::MatMul ? "MatMul_" : "FullyConnected_");
     result << "IS=";
@@ -73,21 +60,13 @@ void MatMulLayerCPUTest::transpose(T& shape) {
 }
 
 void MatMulLayerCPUTest::SetUp() {
-    MatMulLayerTestParamsSet basicParamsSet;
-    MatMulNodeType nodeType;
-    fusingSpecificParams fusingParams;
-    CPUSpecificParams cpuParams;
-
-    std::tie(basicParamsSet, nodeType, fusingParams, cpuParams) = this->GetParam();
+    const auto& [basicParamsSet, nodeType, fusingParams, cpuParams] = this->GetParam();
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-    ShapeRelatedParams shapeRelatedParams;
-    ElementType netType;
-    utils::InputLayerType secondaryInputType;
-    ov::AnyMap additionalConfig;
-
-    std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) = basicParamsSet;
-
+    const auto& [shapeRelatedParams, _netType, _inType, _outType, secondaryInputType, _targetDevice, additionalConfig] =
+        basicParamsSet;
+    inType = _inType;
+    outType = _outType;
+    targetDevice = _targetDevice;
     init_input_shapes(shapeRelatedParams.inputShapes);
 
     bool transpA = shapeRelatedParams.transpose.first;
@@ -120,6 +99,7 @@ void MatMulLayerCPUTest::SetUp() {
     auto it = additionalConfig.find(ov::hint::inference_precision.name());
     ov::element::Type inference_precision =
         (it != additionalConfig.end()) ? it->second.as<ov::element::Type>() : ov::element::dynamic;
+    auto netType = _netType;
     if (inference_precision == ov::element::bf16) {
         inType = outType = netType = ElementType::bf16;
         rel_threshold = abs_threshold = 1e-2f;

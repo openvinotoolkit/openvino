@@ -158,7 +158,7 @@ protected:
             instance.get_input_layout(1).count() == 0) {
             stream& stream = instance.get_network().get_stream();
             stream.enqueue_barrier();
-            return instance.output_memory_ptr()->fill(stream, false);
+            return instance.output_memory_ptr()->fill(stream, {}, false);
         }
 
         if (need_indirect_load(instance))

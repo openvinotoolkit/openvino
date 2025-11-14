@@ -204,8 +204,9 @@ protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
 
-        std::tuple<size_t, size_t> dim;
-        std::tie(dtype, dim, shift) = GetParam();
+        const auto& [_dtype, dim, _shift] = GetParam();
+        dtype = _dtype;
+        shift = _shift;
         std::tie(h, w) = dim;
     }
 };

@@ -11,7 +11,6 @@
 #include <memory>
 #include <numeric>
 #include <oneapi/dnnl/dnnl.hpp>
-#include <vector>
 
 #include "cpu_memory_desc.h"
 #include "cpu_types.h"
@@ -141,9 +140,8 @@ Shape MemoryDescUtils::makeDummyShape(const Shape& shape, Dim dummyVal) {
 }
 
 Shape MemoryDescUtils::makeDummyShape(const Shape& shape, const VectorDims& dummyVals) {
-    if (shape.getRank() != dummyVals.size()) {
-        OPENVINO_THROW("makeDummyShape(): dummyVals vector size and shape ranks mismatch");
-    }
+    OPENVINO_ASSERT(shape.getRank() == dummyVals.size(),
+                    "makeDummyShape(): dummyVals vector size and shape ranks mismatch");
     const auto& minDims = shape.getMinDims();
     const auto& maxDims = shape.getMaxDims();
     const auto& dims = shape.getDims();

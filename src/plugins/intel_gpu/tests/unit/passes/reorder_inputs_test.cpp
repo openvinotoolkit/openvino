@@ -191,7 +191,7 @@ TEST(reorder_inputs, mixed_ranks_reshape) {
 
     auto& reshape_node = prog_impl->get_node("reshape");
 
-    ov::PartialShape expected_reorder_shape{ 1, 32, 16384, 2 };
+    ov::PartialShape expected_reorder_shape{ 1, 32, 128, 128, 2 };
     ASSERT_EQ(reshape_node.get_input_layouts()[0].get_partial_shape(), expected_reorder_shape);
 }
 

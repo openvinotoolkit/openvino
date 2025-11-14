@@ -83,15 +83,15 @@ KernelsData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetKernelsData(const Param
 
 bool Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::Validate(const Params& params) const {
     if (!PoolingKernelBase::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
     auto p = dynamic_cast<const pooling_params&>(params);
 
     if (p.inputs[0].Feature().v % 16 != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (p.inputs[0].Batch().v % 16 != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

@@ -38,30 +38,13 @@ using InterpolateLayerGPUTestParamsSet = std::tuple<InterpolateSpecificParams,
 class InterpolateLayerGPUTest : public testing::WithParamInterface<InterpolateLayerGPUTestParamsSet>,
                                 virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerGPUTestParamsSet> obj) {
-        InterpolateSpecificParams specificParams;
-        ShapeParams shapeParams;
-        ov::element::Type prec;
-        bool useInterpolateV11;
+    static std::string getTestCaseName(const testing::TestParamInfo<InterpolateLayerGPUTestParamsSet>& obj) {
         std::map<std::string, std::string> additionalConfig;
-        std::tie(specificParams, shapeParams, prec, useInterpolateV11) = obj.param;
+        const auto& [specificParams, shapeParams, prec, useInterpolateV11] = obj.param;
 
-        ov::op::v4::Interpolate::InterpolateMode mode;
-        ov::op::v4::Interpolate::CoordinateTransformMode transfMode;
-        ov::op::v4::Interpolate::NearestMode nearMode;
-        bool antiAlias;
-        std::vector<size_t> padBegin;
-        std::vector<size_t> padEnd;
-        double cubeCoef;
-        std::tie(mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef) = specificParams;
+        const auto& [mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef] = specificParams;
 
-        ov::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
-        InputShape inputShapes;
-        ov::test::utils::InputLayerType sizesInputType;
-        ov::test::utils::InputLayerType scalesInputType;
-        std::vector<std::vector<float>> shapeDataForInput;
-        std::vector<int64_t> axes;
-        std::tie(shapeCalcMode, inputShapes, sizesInputType, scalesInputType, shapeDataForInput, axes) = shapeParams;
+        const auto& [shapeCalcMode, inputShapes, sizesInputType, scalesInputType, shapeDataForInput, axes] = shapeParams;
 
         std::ostringstream result;
         using ov::operator<<;
@@ -164,27 +147,12 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        InterpolateSpecificParams specificParams;
-        ShapeParams shapeParams;
-        ov::element::Type ngPrc;
-        bool useInterpolateV11;
-        std::tie(specificParams, shapeParams, ngPrc, useInterpolateV11) = this->GetParam();
+        const auto& [specificParams, shapeParams, ngPrc, useInterpolateV11] = this->GetParam();
 
-        ov::op::v4::Interpolate::InterpolateMode mode;
-        ov::op::v4::Interpolate::CoordinateTransformMode transfMode;
-        ov::op::v4::Interpolate::NearestMode nearMode;
-        bool antiAlias;
-        std::vector<size_t> padBegin;
-        std::vector<size_t> padEnd;
-        double cubeCoef;
-        std::tie(mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef) = specificParams;
+        const auto& [mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef] = specificParams;
 
-        InputShape dataShape;
-        ov::test::utils::InputLayerType sizesInputType;
-        ov::test::utils::InputLayerType scalesInputType;
-        std::vector<std::vector<float>> shapeDataForInput;
-        std::vector<int64_t> axes;
-        std::tie(shapeCalcMode, dataShape, sizesInputType, scalesInputType, shapeDataForInput, axes) = shapeParams;
+        const auto& [_shapeCalcMode, dataShape, sizesInputType, scalesInputType, shapeDataForInput, axes] = shapeParams;
+        shapeCalcMode = _shapeCalcMode;
 
         if (shapeCalcMode == ov::op::v4::Interpolate::ShapeCalcMode::SCALES) {
             scales = shapeDataForInput;
@@ -730,4 +698,63 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN5D_Layout_Test, InterpolateLayerGPUTest,
             ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
     InterpolateLayerGPUTest::getTestCaseName);
+
+
+//
+// Test cache save/load for Interpolate V4/V11
+//
+class InterpolateLayerCacheGPUTest : public InterpolateLayerGPUTest {
+};
+
+const std::vector<ShapeParams> shapeParams4D_Smoke_single = {
+    ShapeParams{
+        ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
+        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}}},
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::PARAMETER,
+        {{1.f, 1.f, 1.25f, 1.5f}},
+        defaultAxes4D.front()
+    }
+};
+
+const std::vector<std::vector<size_t>> pads4D_cache = {
+        {0, 0, 0, 0},
+};
+
+const auto interpolateCasesNNCache_Smoke = ::testing::Combine(
+        ::testing::Values(ov::op::v4::Interpolate::InterpolateMode::NEAREST),
+        ::testing::Values(ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL),
+        ::testing::Values(ov::op::v4::Interpolate::NearestMode::SIMPLE),
+        ::testing::Values(false),
+        ::testing::ValuesIn(pads4D_cache),
+        ::testing::ValuesIn(pads4D_cache),
+        ::testing::ValuesIn(cubeCoefs));
+
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCacheGPUTest,
+        ::testing::Combine(
+             interpolateCasesNNCache_Smoke,
+            ::testing::ValuesIn(shapeParams4D_Smoke_single),
+            ::testing::Values(ov::element::f32),
+            ::testing::Values(true, false)),
+    InterpolateLayerCacheGPUTest::getTestCaseName);
+
+TEST_P(InterpolateLayerCacheGPUTest, InferenceCache) {
+    std::stringstream ss;
+    ss << "gpu_model_cache_" << std::hash<std::string>{}(
+        std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+        std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+    std::string cacheDirName = ss.str();
+
+    ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+    ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+    ov::test::utils::removeDir(cacheDirName);
+    core->set_property(ov::cache_dir(cacheDirName));
+    compile_model();
+    run();
+
+    ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+    ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+    ov::test::utils::removeDir(cacheDirName);
+}
+
 } // namespace

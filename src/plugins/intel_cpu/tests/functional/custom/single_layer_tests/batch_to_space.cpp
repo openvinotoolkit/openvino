@@ -29,10 +29,10 @@ class BatchToSpaceCPULayerTest : public testing::WithParamInterface<BatchToSpace
                                  public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BatchToSpaceLayerTestCPUParams>& obj) {
-        std::vector<InputShape> inputShapes;
-        ov::element::Type model_type;
-        CPUSpecificParams cpuParams;
-        std::tie(inputShapes, blockShape, cropsBegin, cropsEnd, model_type, cpuParams) = obj.param;
+        const auto& [inputShapes, _blockShape, _cropsBegin, _cropsEnd, model_type, cpuParams] = obj.param;
+        blockShape = _blockShape;
+        cropsBegin = _cropsBegin;
+        cropsEnd = _cropsEnd;
         std::ostringstream result;
         if (inputShapes.front().first.size() != 0) {
             result << "IS=(";
@@ -99,11 +99,10 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        std::vector<InputShape> inputShapes;
-        ov::element::Type model_type;
-        CPUSpecificParams cpuParams;
-        std::tie(inputShapes, blockShape, cropsBegin, cropsEnd, model_type, cpuParams) = this->GetParam();
+        const auto& [inputShapes, _blockShape, _cropsBegin, _cropsEnd, model_type, cpuParams] = this->GetParam();
+        blockShape = _blockShape;
+        cropsBegin = _cropsBegin;
+        cropsEnd = _cropsEnd;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         init_input_shapes(inputShapes);
 

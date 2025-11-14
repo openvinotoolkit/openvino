@@ -20,14 +20,8 @@ using ov::test::utils::EltwiseTypes;
 using ov::test::utils::InputLayerType;
 using ov::test::utils::OpType;
 
-std::string BitwiseShiftLayerCPUTest::getTestCaseName(testing::TestParamInfo<BitshiftLayerCPUTestParamsSet> obj) {
-    EltwiseTestParams basicParamsSet;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    bool enforceSnippets;
-    ov::AnyMap val_map;
-    std::tie(basicParamsSet, cpuParams, fusingParams, enforceSnippets, val_map) = obj.param;
-
+std::string BitwiseShiftLayerCPUTest::getTestCaseName(const testing::TestParamInfo<BitshiftLayerCPUTestParamsSet>& obj) {
+    const auto& [basicParamsSet, cpuParams, fusingParams, enforceSnippets, val_map] = obj.param;
     std::ostringstream result;
     result << EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTestParams>(basicParamsSet, 0));
     result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -62,32 +56,18 @@ void BitwiseShiftLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& tar
 }
 
 void BitwiseShiftLayerCPUTest::SetUp() {
-    EltwiseTestParams basicParamsSet;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    bool enforceSnippets;
-    ov::AnyMap val_map;
-    std::tie(basicParamsSet, cpuParams, fusingParams, enforceSnippets, val_map) = this->GetParam();
-    std::vector<InputShape> shapes;
-    ElementType netType;
-    utils::InputLayerType secondaryInputType;
-    ov::test::utils::OpType opType;
-    ov::AnyMap additionalConfig;
-
-    std::tie(shapes,
-             eltwiseType,
-             secondaryInputType,
-             opType,
-             netType,
-             inType,
-             outType,
-             targetDevice,
-             additionalConfig) = basicParamsSet;
+    const auto& [basicParamsSet, cpuParams, fusingParams, enforceSnippets, val_map] = this->GetParam();
+    const auto& [_shapes, _eltwiseType, secondaryInputType, opType, netType, _inType, _outType, _targetDevice,
+                 additionalConfig] = basicParamsSet;
+    eltwiseType = _eltwiseType;
+    inType = _inType;
+    outType = _outType;
+    targetDevice = _targetDevice;
     abs_threshold = 0;
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
-
+    auto shapes = _shapes;
     shapes.resize(2);
     switch (opType) {
     case ov::test::utils::OpType::SCALAR: {

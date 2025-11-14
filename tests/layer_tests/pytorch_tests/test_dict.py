@@ -5,7 +5,6 @@ import numpy as np
 import platform
 import pytest
 import torch
-from typing import Dict
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -30,12 +29,12 @@ class TestDict(PytorchLayerTest):
 
 
 class aten_dict_with_types(torch.nn.Module):
-    def forward(self, x_dict: Dict[str, torch.Tensor]):
+    def forward(self, x_dict: dict[str, torch.Tensor]):
         return x_dict["x1"].to(torch.float32) + x_dict["x2"].to(torch.float32)
 
 
 class aten_dict_no_types(torch.nn.Module):
-    def forward(self, x_dict: Dict[str, torch.Tensor]):
+    def forward(self, x_dict: dict[str, torch.Tensor]):
         return x_dict["x1"] + x_dict["x2"]
 
 

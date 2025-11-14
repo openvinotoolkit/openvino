@@ -46,7 +46,7 @@ protected:
     template <typename T>
     void processData(const T* srcData, const T* weightsData, const VectorDims& inDataDims, const MemoryPtr& outMemory);
 
-    const size_t EMB_TABLE_IDX = 0lu;
+    const size_t EMB_TABLE_IDX = 0LU;
     const size_t INDICES_IDX;
     const size_t PER_SAMPLE_WEIGHTS_IDX;
     const size_t DEFAULT_INDEX_IDX;

@@ -4,7 +4,6 @@
 
 # mypy: ignore-errors
 
-from typing import Dict
 
 import torch
 from torch.nn import Module
@@ -39,10 +38,10 @@ class Partitioner:
         fx_gm = make_fx(graph_module)(*args)
         return fx_gm
 
-    def add_get_attr_inputs(self, partitions: t.List[Partition]):
+    def add_get_attr_inputs(self, partitions: list[Partition]):
         # TODO: Find a more efficient way to include input
         # "get_attr" nodes to the partitions.
-        getattr_to_merge: Dict[Node, Node] = {}
+        getattr_to_merge: dict[Node, Node] = {}
         for partition in partitions:
             for pnode in partition.nodes:
                 for pnode_input in pnode.all_input_nodes:

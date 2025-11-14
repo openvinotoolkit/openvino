@@ -117,6 +117,13 @@ def test_properties_rw_base():
             ),
         ),
         (
+            intel_cpu.TbbPartitioner,
+            (
+                (intel_cpu.TbbPartitioner.STATIC, "TbbPartitioner.STATIC", 1),
+                (intel_cpu.TbbPartitioner.AUTO, "TbbPartitioner.AUTO", 2),
+            ),
+        ),
+        (
             intel_auto.SchedulePolicy,
             (
                 (intel_auto.SchedulePolicy.ROUND_ROBIN, "SchedulePolicy.ROUND_ROBIN", 0),
@@ -188,6 +195,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (device.luid, "DEVICE_LUID"),
         (device.capabilities, "OPTIMIZATION_CAPABILITIES"),
         (intel_gpu.device_total_mem_size, "GPU_DEVICE_TOTAL_MEM_SIZE"),
+        (intel_gpu.device_max_alloc_mem_size, "GPU_DEVICE_MAX_ALLOC_MEM_SIZE"),
         (intel_gpu.uarch_version, "GPU_UARCH_VERSION"),
         (intel_gpu.execution_units_count, "GPU_EXECUTION_UNITS_COUNT"),
         (intel_gpu.memory_statistics, "GPU_MEMORY_STATISTICS"),
@@ -296,6 +304,16 @@ def test_properties_ro(ov_property_ro, expected_value):
             ),
         ),
         (
+            hints.enable_cpu_reservation,
+            "ENABLE_CPU_RESERVATION",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
             hints.scheduling_core_type,
             "SCHEDULING_CORE_TYPE",
             ((hints.SchedulingCoreType.PCORE_ONLY, hints.SchedulingCoreType.PCORE_ONLY),),
@@ -303,9 +321,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.model_distribution_policy,
             "MODEL_DISTRIBUTION_POLICY",
-            (
-                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),
-            ),
+            (({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),),
         ),
         (
             hints.enable_hyper_threading,
@@ -354,6 +370,14 @@ def test_properties_ro(ov_property_ro, expected_value):
             (
                 (0.1, np.float32(0.1)),
                 (2.0, 2.0),
+            ),
+        ),
+        (
+            intel_cpu.tbb_partitioner,
+            "TBB_PARTITIONER",
+            (
+                (intel_cpu.TbbPartitioner.STATIC, intel_cpu.TbbPartitioner.STATIC),
+                (intel_cpu.TbbPartitioner.AUTO, intel_cpu.TbbPartitioner.AUTO),
             ),
         ),
         (
@@ -467,6 +491,12 @@ def test_properties_ro(ov_property_ro, expected_value):
             "NPU_RUN_INFERENCES_SEQUENTIALLY",
             ((True, True),),
         ),
+        (
+            intel_npu.qdq_optimization_aggressive,
+            "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
+            ((True, True),),
+        ),
+        (props.enable_weightless, "ENABLE_WEIGHTLESS", ((True, True), (False, False))),
     ],
 )
 def test_properties_rw(ov_property_rw, expected_value, test_values):

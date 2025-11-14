@@ -176,7 +176,7 @@ JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_para
 
 bool GatherElementsKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::GATHER_ELEMENTS) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const gather_elements_params& params = static_cast<const gather_elements_params&>(p);
@@ -184,12 +184,12 @@ bool GatherElementsKernelRef::Validate(const Params& p) const {
     size_t indices_rank = params.inputs[1].GetDims().size();
 
     if (input_rank != indices_rank) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

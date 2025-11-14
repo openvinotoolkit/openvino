@@ -396,12 +396,12 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         // its attached memory with both its inputs and outputs
         for (auto& dep : p_inst->dependencies()) {
             // check dependencies
-            if (eng.is_the_same_buffer(mem_orig, dep.first->output_memory())) {
+            if (dep.first->outputs_allocated() && eng.is_the_same_buffer(mem_orig, dep.first->output_memory())) {
                 chain.push_back(const_cast<primitive_inst*>(dep.first));
             }
             // then second order dependencies
             for (auto& second_dep : dep.first->dependencies()) {
-                if (eng.is_the_same_buffer(mem_orig, second_dep.first->output_memory())) {
+                if (second_dep.first->outputs_allocated() && eng.is_the_same_buffer(mem_orig, second_dep.first->output_memory())) {
                     chain.push_back(const_cast<primitive_inst*>(second_dep.first));
                 }
             }
@@ -411,7 +411,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         const auto& user_ids = mdata_ptr->get_user_ids();
         for (const auto& id : user_ids) {
             auto usr_prim = get_primitive(id).get();
-            if (eng.is_the_same_buffer(mem_orig, usr_prim->output_memory())) {
+            if (usr_prim->outputs_allocated() && eng.is_the_same_buffer(mem_orig, usr_prim->output_memory())) {
                 chain.push_back(usr_prim);
             }
         }
@@ -428,10 +428,9 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
     while (!candidates.empty()) {
         auto cand = candidates.top();
         candidates.pop();
-        const auto& mem_cand = cand->output_memory();
         // Add cand inst to the chain when cand's output is not allocated yet.
         if (!p_inst->outputs_allocated()
-            || eng.is_the_same_buffer(mem_orig, mem_cand)) {
+            || (cand->outputs_allocated() && eng.is_the_same_buffer(mem_orig, cand->output_memory()))) {
             auto nc_cand = const_cast<primitive_inst*>(cand);
             chain.push_back(nc_cand);
             add_mdata_chain(nc_cand);
@@ -544,31 +543,6 @@ void network::allocate_primitives() {
     }
 
     auto& po = _program->get_processing_order();
-
-    for (auto const& node : po) {
-        if (node->get_preferred_impl_type() == impl_types::onednn) {
-            size_t eltw_dep = 0;
-            for (auto& fused_op : node->get_fused_primitives()) {
-                if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    // If it is first sum, reuse the buffer
-                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
-                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
-                        continue;
-                    if (!fused_op.has_outer_dep())
-                        continue;
-                    eltw_dep = fused_op.outer_dep_start_idx;
-                    auto& eltw_in = node->get_dependency(eltw_dep);
-                    if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
-                        auto& eltw_inst = _primitives.at(eltw_in.id());
-                        auto& prim_inst = _primitives.at(node->id());
-                        auto& eltw_mem = eltw_inst->output_memory();
-                        auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node->get_output_layout());
-                        prim_inst->set_output_memory(new_mem);
-                    }
-                }
-            }
-        }
-    }
 
     // Update the output memory address of optimized-out layer if it is not valid.
     for (auto const& node : po) {
@@ -992,8 +966,9 @@ void network::allocate_primitive_instance(program_node const& node) {
         bool transpose_required = false;
         if (is_lora_state) {
             const auto& lora_prim = node.get_users().front()->as<lora>().get_primitive();
-            for (size_t state_idx : {2, 4}) {
-                if (lora_prim->input[state_idx].pid == node.id()) {
+            for (size_t state_idx : {2, 4, 5, 7, 8, 10}) {
+                if (state_idx < lora_prim->input.size() &&
+                    lora_prim->input[state_idx].pid == node.id()) {
                     transpose_required = lora_prim->transposed_states;
                 }
             }
@@ -1035,6 +1010,12 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
+        // usm_device memory does not provide performance benefits on the LNL platform
+        if (get_engine().get_device_info().arch == gpu_arch::xe2 &&
+            get_engine().get_device_info().dev_type == device_type::integrated_gpu) {
+            return;
+        }
+
         // Allocate and transfer memory
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);

@@ -4,14 +4,20 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 class LinearIRBuilder;
 class PortDescriptor;
@@ -20,30 +26,37 @@ class PortDescriptor {
     friend class LinearIRBuilder;
 
 public:
-    explicit PortDescriptor(const ov::Input<ov::Node>& node,
+    explicit PortDescriptor(const ov::Input<ov::Node>& in,
                             VectorDims subtensor_shape = {},
                             std::vector<size_t> layout = {});
-    explicit PortDescriptor(const ov::Input<const ov::Node>& node,
+    explicit PortDescriptor(const ov::Input<const ov::Node>& in,
                             VectorDims subtensor_shape = {},
                             std::vector<size_t> layout = {});
-    explicit PortDescriptor(const ov::Output<ov::Node>& node,
+    explicit PortDescriptor(const ov::Output<ov::Node>& out,
                             VectorDims subtensor_shape = {},
                             std::vector<size_t> layout = {});
-    explicit PortDescriptor(const ov::Output<const ov::Node>& node,
+    explicit PortDescriptor(const ov::Output<const ov::Node>& out,
                             VectorDims subtensor_shape = {},
                             std::vector<size_t> layout = {});
-    PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout = {}, Reg reg = {});
-    PortDescriptor(VectorDimsPtr shape, VectorDims subtensor_shape, std::vector<size_t> layout = {}, Reg reg = {});
+    explicit PortDescriptor(VectorDims shape,
+                            VectorDims subtensor_shape,
+                            std::vector<size_t> layout = {},
+                            Reg reg = {});
+    explicit PortDescriptor(VectorDimsPtr shape,
+                            VectorDims subtensor_shape,
+                            std::vector<size_t> layout = {},
+                            Reg reg = {});
     PortDescriptor();
 
-    const VectorDims& get_shape() const;
-    const VectorDims& get_subtensor() const {
+    [[nodiscard]] const VectorDims& get_shape() const;
+
+    [[nodiscard]] const VectorDims& get_subtensor() const {
         return m_subtensor_shape;
     }
-    const std::vector<size_t>& get_layout() const {
+    [[nodiscard]] const std::vector<size_t>& get_layout() const {
         return m_layout;
     }
-    const Reg& get_reg() const {
+    [[nodiscard]] const Reg& get_reg() const {
         return m_reg;
     }
 
@@ -56,11 +69,11 @@ public:
     // Indexing starts from the end (rbegin() + idx)
     void set_subtensor_dim(size_t idx, VectorDims::value_type value);
 
-    std::string serialize() const;
-    bool empty() const {
+    [[nodiscard]] std::string serialize() const;
+    [[nodiscard]] bool empty() const {
         return m_layout.empty() && m_subtensor_shape.empty();
     }
-    PortDescriptorPtr clone() const;
+    [[nodiscard]] PortDescriptorPtr clone() const;
 
     friend bool operator==(const PortDescriptor& lhs, const PortDescriptor& rhs);
     friend bool operator!=(const PortDescriptor& lhs, const PortDescriptor& rhs) {
@@ -72,9 +85,9 @@ private:
     /// \brief Original tensor shape
     VectorDimsPtr m_tensor_shape = nullptr;
     /// \brief Order of dimensions: NCHW == {0, 1, 2, 3}, NHWC == {0, 2, 3, 1}, NCHW16c == {0, 1, 2, 3, 1}
-    std::vector<size_t> m_layout{};
+    std::vector<size_t> m_layout;
     /// \brief Minimal tensor size that could be processed in one call
-    VectorDims m_subtensor_shape{};
+    VectorDims m_subtensor_shape;
     /// \brief The corresponding abstract/physical register
     Reg m_reg{RegType::gpr, 0};
 
@@ -131,14 +144,12 @@ public:
         : inputs(std::move(in_descs)),
           outputs(std::move(out_descs)) {}
 
-    bool is_copyable() const override {
+    [[nodiscard]] bool is_copyable() const override {
         return false;
     }
 
-    std::vector<PortDescriptorPtr> inputs{};
-    std::vector<PortDescriptorPtr> outputs{};
+    std::vector<PortDescriptorPtr> inputs;
+    std::vector<PortDescriptorPtr> outputs;
 };
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

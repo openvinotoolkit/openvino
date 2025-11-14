@@ -10,6 +10,7 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_helpers.h"
 #include "to_string_utils.h"
+#include "eltwise_inst.h"
 #include "pooling_inst.h"
 #include "fully_connected_inst.h"
 
@@ -411,6 +412,19 @@ static bool is_weights_dependency(program_node* predecessor, program_node* succe
     return is_weights_dep;
 }
 
+static bool need_align_shape_for_numpy_broadcast(program_node* predecessor, program_node* successor, format output_format) {
+    if (successor->is_type<eltwise>()) {
+        auto& elt_suc = successor->as<eltwise>();
+        if (elt_suc.need_align_for_numpy_broadcast(predecessor->get_output_layout())) {
+            GPU_DEBUG_TRACE_DETAIL << " Skip add reorder in reorder_in_dir for numpy broadcast " << successor->id()
+                                    << output_format.to_string() << std::endl;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // If there is layout mismatch between two layers, add reorder
 template <direction_e dir>
 void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
@@ -435,6 +449,9 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
         out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
         if (in_layout.format == out_layout.format)
+            continue;
+
+        if (need_align_shape_for_numpy_broadcast(predecessor, successor, out_layout.format))
             continue;
 
         GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << get_node(next)->id() << " ## "

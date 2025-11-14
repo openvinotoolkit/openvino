@@ -4,9 +4,11 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/opsets/opset1.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/tokenization_config.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "fake_quantize_helper.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -20,7 +22,7 @@ namespace snippets {
 class FakeQuantizeTokenizationTest : public TransformationTestsF {
 public:
     void register_passes() {
-        ov::snippets::pass::SnippetsTokenization::Config config = { 1, std::numeric_limits<size_t>::max(), true, true, true, { 3, 4 }};
+        ov::snippets::pass::TokenizationConfig config(std::numeric_limits<size_t>::max());
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);

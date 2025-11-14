@@ -11,12 +11,8 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string ThreeInputsEltwise::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ThreeInputsEltwiseParams> obj) {
-    InputShape inputShapes0, inputShapes1, inputShapes2;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes0, inputShapes1, inputShapes2,
-             num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string ThreeInputsEltwise::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ThreeInputsEltwiseParams>& obj) {
+    const auto& [inputShapes0, inputShapes1, inputShapes2, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes0.first}) << "_";
@@ -41,16 +37,16 @@ std::string ThreeInputsEltwise::getTestCaseName(testing::TestParamInfo<ov::test:
 }
 
 void ThreeInputsEltwise::SetUp() {
-    InputShape inputShape0, inputShape1, inputShape2;
-    std::tie(inputShape0, inputShape1, inputShape2,
-             ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape0, inputShape1, inputShape2, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] =
+        this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({inputShape0, inputShape1, inputShape2});
 
     auto f = ov::test::snippets::EltwiseThreeInputsFunction(inputDynamicShapes);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(ThreeInputsEltwise, CompareWithRefImpl) {

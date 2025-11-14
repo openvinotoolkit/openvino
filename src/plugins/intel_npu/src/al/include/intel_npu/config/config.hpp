@@ -33,11 +33,15 @@ struct TypePrinter {
     static constexpr const char* name();
 };
 
-#define TYPE_PRINTER(type)                                    \
-    template <>                                               \
-    struct TypePrinter<type> {                                \
-        static constexpr bool hasName() { return true; }      \
-        static constexpr const char* name() { return #type; } \
+#define TYPE_PRINTER(type)                    \
+    template <>                               \
+    struct TypePrinter<type> {                \
+        static constexpr bool hasName() {     \
+            return true;                      \
+        }                                     \
+        static constexpr const char* name() { \
+            return #type;                     \
+        }                                     \
     };
 
 TYPE_PRINTER(bool)
@@ -291,7 +295,7 @@ struct OptionBase {
 
     /// Overload this for options conditioned by compiler version
     static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
+        return ONEAPI_MAKE_VERSION(7, 23);
     }
 
     static std::string toString(const ValueType& val) {

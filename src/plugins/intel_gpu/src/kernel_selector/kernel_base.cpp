@@ -25,7 +25,8 @@ std::string toString(const kernel_selector::CommonDispatchData& dispatchData) {
 }
 
 void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData,
-                                   const size_t maxWorkGroupSize) {
+                                   const EngineInfo& engineInfo) {
+    const auto maxWorkGroupSize = engineInfo.maxWorkGroupSize;
     if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
         throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName + ": " +
                                  ": LWS and GWS size is expected to be equal to 3. Actual: " +
@@ -42,10 +43,12 @@ void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_s
                                      ": Dispatch data cannot contain zeros. Actual: " +
                                      toString(dispatchData));
 
-        if (dispatchData.gws[i] % dispatchData.lws[i] != 0)
-            throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
-                                     ": GWS must be divisible by corresponding LWS. Actual: " +
-                                     toString(dispatchData));
+        if (!engineInfo.supports_non_uniform_work_group) {
+            if (dispatchData.gws[i] % dispatchData.lws[i] != 0)
+                throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
+                                        ": GWS must be divisible by corresponding LWS. Actual: " +
+                                        toString(dispatchData));
+        }
     }
 }
 

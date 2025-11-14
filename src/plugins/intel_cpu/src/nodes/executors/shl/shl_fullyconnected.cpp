@@ -4,12 +4,29 @@
 
 #include "shl_fullyconnected.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <string>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "csinn/csi_nn.h"
+#include "csinn_data_structure.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/shl/shl_utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "rvv/rvv.h"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 namespace {
@@ -39,7 +56,7 @@ MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory, const ExecutorConte
         const std::string string_hash = format + "_" + std::to_string(weightsMemory->getSize()) + "_" +
                                         std::to_string(reinterpret_cast<uint64_t>(weightsMemory->getData()));
         DEBUG_LOG("ShlFCExecutor: findOrCreate, string_hash: ", string_hash);
-        return *weightCache->findOrCreate(string_hash, create);
+        return static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     }
 
     DEBUG_LOG("ShlFCExecutor: Weights cache is not available");
@@ -61,7 +78,7 @@ bool ShlFCExecutor::supports(const FCConfig& config) {
     const auto& srcDesc = config.descs.at(ARG_SRC);
     const auto& weiDesc = config.descs.at(ARG_WEI);
     const auto& dstDesc = config.descs.at(ARG_DST);
-    if (!everyone_is(ov::element::f32, srcDesc->getPrecision(), weiDesc->getPrecision(), dstDesc->getPrecision())) {
+    if (!all_of(ov::element::f32, srcDesc->getPrecision(), weiDesc->getPrecision(), dstDesc->getPrecision())) {
         DEBUG_LOG("ShlFCExecutor: supports only f32");
         return false;
     }
@@ -87,7 +104,7 @@ bool ShlFCExecutor::supports(const FCConfig& config) {
     return true;
 }
 
-ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr context)
+ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context)
     : packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context)) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();

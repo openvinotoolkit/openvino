@@ -136,7 +136,7 @@ public:
     const std::vector<float>& getOutputShift() const {
         return outputShift;
     }
-    const size_t getLevels() const {
+    size_t getLevels() const {
         return levels;
     }
 
@@ -236,7 +236,7 @@ private:
     using executorPtr = std::shared_ptr<FakeQuantizeExecutor>;
     executorPtr execPtr = nullptr;
     struct FakeQuantizeJitExecutor : public FakeQuantizeExecutor {
-        FakeQuantizeJitExecutor(const jit_quantize_params& _jqp);
+        explicit FakeQuantizeJitExecutor(const jit_quantize_params& _jqp);
         void exec(const FakeQuantize& node) override;
         std::unique_ptr<jit_uni_quantize_kernel> pKernel;
     };
@@ -311,7 +311,7 @@ private:
     void updateOptimizedFormula(bool do_rounding);
 
     std::vector<float> quantizationData;
-    size_t quantizationDataSize = 0lu;
+    size_t quantizationDataSize = 0LU;
     MemoryPtr quantizationMemory;
 
     size_t cropLowSize;
@@ -328,9 +328,9 @@ private:
     // version based lazy evaluation, any parameter change increases parameterVersion
     // and postOpDataVersion will be compared with it to see if an update is required
     // when it was being actually used.
-    size_t parameterVersion = 1lu;
-    size_t postOpDataVersion = 0lu;
-    size_t legacyPostOpDataVersion = 0lu;
+    size_t parameterVersion = 1LU;
+    size_t postOpDataVersion = 0LU;
+    size_t legacyPostOpDataVersion = 0LU;
 
     bool isInputLowBroadcasted = false;
     bool isInputHighBroadcasted = false;

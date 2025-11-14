@@ -4,10 +4,10 @@
 
 #include "brgemm_copy_b.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <common/utils.hpp>
@@ -39,6 +39,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))
@@ -61,11 +62,11 @@ BrgemmCopyBKernelConfig::BrgemmCopyBKernelConfig(const brgemm_utils::BrgemmConfi
       m_hash(compute_hash()) {}
 
 bool BrgemmCopyBKernelConfig::is_completed() const {
-    return !utils::one_of(0, m_N, m_K, m_copy_B_wei_stride, m_LDB) || is_empty();
+    return none_of(0, m_N, m_K, m_copy_B_wei_stride, m_LDB) || is_empty();
 }
 
 bool BrgemmCopyBKernelConfig::is_empty() const {
-    return everyone_is(0, m_N, m_N_blk, m_K, m_K_blk, m_copy_B_wei_stride, m_LDB);
+    return all_of(0, m_N, m_N_blk, m_K, m_K_blk, m_copy_B_wei_stride, m_LDB);
 }
 
 bool BrgemmCopyBKernelConfig::operator==(const BrgemmCopyBKernelConfig& rhs) const {
@@ -83,7 +84,7 @@ void BrgemmCopyBKernelConfig::update(dnnl_dim_t N,
                                      dnnl_dim_t LDB) {
     // If one of the dims is zero, it means that BrgemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (utils::one_of(0, N, K)) {
+    if (any_of(0, N, K)) {
         m_N = 0;
         m_N_blk = 0;
         m_K = 0;
@@ -203,10 +204,10 @@ std::string BrgemmCopyBKernelConfig::StaticParams::to_string() const {
 #    undef PRINT
 #endif
 
-BrgemmCopyBKernel::BrgemmCopyBKernel() : jit_generator(jit_name()), ker_(nullptr) {}
+BrgemmCopyBKernel::BrgemmCopyBKernel() : jit_generator_t(jit_name()), ker_(nullptr) {}
 
 BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
-    : jit_generator(jit_name()),
+    : jit_generator_t(jit_name()),
       is_with_comp(conf.is_with_comp()),
       is_transpose(conf.is_transposed_B()),
       K(conf.get_K()),
@@ -217,20 +218,21 @@ BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
       ker_(nullptr) {
     const auto orig_wei_data_size = dnnl_data_type_size(conf.get_original_wei_dt());
     const auto wei_data_size = dnnl_data_type_size(conf.get_wei_dt());
-    const auto vnni_factor = data_type_vnni_granularity(conf.get_wei_dt());
-    const auto buffer_repacked_k_dim = brgemm_utils::repacking::compute_blocked_dim(K, conf.get_wei_K_blk());
+    const auto prc = DnnlExtensionUtils::DataTypeToElementType(static_cast<dnnl::memory::data_type>(conf.get_wei_dt()));
+    const auto n_stride =
+        brgemm_utils::repacking::compute_N_blocked_stride(K, conf.get_wei_K_blk(), prc, conf.are_wei_blocked());
 
     stride_in = conf.is_transposed_B() ? conf.get_K() * wei_N_blk * orig_wei_data_size : wei_N_blk * orig_wei_data_size;
-    stride_out = wei_N_blk * wei_data_size * (conf.are_wei_blocked() ? buffer_repacked_k_dim : vnni_factor);
+    stride_out = wei_N_blk * n_stride * wei_data_size;
 
     init_brgemm_copy_b_kernel(dnnl_brgemm_copy_b_kernel, conf);
     OV_CPU_JIT_EMITTER_ASSERT(dnnl_brgemm_copy_b_kernel, "Kernel is missed!");
 }
 
 status_t BrgemmCopyBKernel::create_kernel() {
-    const auto code = jit_generator::create_kernel();
+    const auto code = jit_generator_t::create_kernel();
     OV_CPU_JIT_EMITTER_ASSERT(code == status::success, "Failed to create kernel");
-    ker_ = reinterpret_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
+    ker_ = jit_kernel_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
     return code;
 }
 
@@ -428,35 +430,40 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
     const auto& loop_ids = expr->get_loop_ids();
     const snippets::lowered::LoopManagerPtr& loop_manager = linear_ir->get_loop_manager();
 
-    auto init = [&](size_t& dim, size_t& blk, size_t idx) {
+    auto init = [&](int64_t& dim, int64_t& blk, size_t idx) {
         OPENVINO_ASSERT(idx < planar_shape.size() && idx < in_subtensor.size(),
                         "Index must be less than shape/subtensor rank!");
-        dim = *(planar_shape.rbegin() + idx);
-        blk = *(in_subtensor.rbegin() + idx);
-        if (ov::snippets::utils::is_full_dim_value(blk)) {
+        auto curr_dim = *(planar_shape.rbegin() + idx);
+        auto curr_blk = *(in_subtensor.rbegin() + idx);
+        OPENVINO_ASSERT(
+            !ov::snippets::utils::is_dynamic_value(curr_dim) && !ov::snippets::utils::is_dynamic_value(curr_blk),
+            "Dimension and subtensor should not be dynamic at update config stage.");
+        dim = static_cast<int64_t>(curr_dim);
+        if (ov::snippets::utils::is_full_dim_value(curr_blk)) {
             blk = dim;
         } else {
             OPENVINO_ASSERT(loop_idx < loop_ids.size(), "Loop is missed");
             const auto& current_expanded_loop_info =
                 loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_ids[loop_idx++]);
-            blk = current_expanded_loop_info->get_increment();
-            input_desc->set_subtensor_dim(idx, blk);
-            output_desc->set_subtensor_dim(idx, blk);
+            curr_blk = current_expanded_loop_info->get_increment();
+            input_desc->set_subtensor_dim(idx, curr_blk);
+            output_desc->set_subtensor_dim(idx, curr_blk);
+            blk = static_cast<int64_t>(curr_blk);
             OV_CPU_JIT_EMITTER_ASSERT(blk <= dim, "BrgemmCopyB has incompatible subtensor dimensions");
         }
     };
 
-    size_t K_dim = 0;
-    size_t K_blk = 0;
-    size_t N_dim = 0;
-    size_t N_blk = 0;
+    int64_t K_dim = 0;
+    int64_t K_blk = 0;
+    int64_t N_dim = 0;
+    int64_t N_blk = 0;
     //  Dimension K
     init(K_dim, K_blk, 1);
     //  Dimension N
     init(N_dim, N_blk, 0);
 
-    const auto LDB = brgemm_utils::repacking::compute_LDB(N_dim, config.get_wei_N_blk(), config.are_wei_blocked());
-    OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
+    const auto LDB =
+        brgemm_utils::repacking::compute_K_blocked_stride(N_dim, config.get_wei_N_blk(), config.are_wei_blocked());
     const auto copy_B_wei_stride =
         ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) *
         dnnl_data_type_size(config.get_original_wei_dt());

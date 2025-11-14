@@ -331,9 +331,7 @@ TEST_F(SerializationConstantCompressionTest, EmptyConstants) {
     ov::Core core;
     auto model_imported = core.read_model(m_out_xml_path_1, m_out_bin_path_1);
 
-    bool success;
-    std::string message;
-    std::tie(success, message) = compare_functions(model_initial, model_imported, true, true, false, true, true);
+    const auto& [success, message] = compare_functions(model_initial, model_imported, true, true, false, true, true);
     ASSERT_TRUE(success) << message;
 }
 
@@ -354,9 +352,7 @@ TEST_F(SerializationConstantCompressionTest, EmptyAndNotEmptyConstantSameValues)
     ov::Core core;
     auto model_imported = core.read_model(m_out_xml_path_1, m_out_bin_path_1);
 
-    bool success;
-    std::string message;
-    std::tie(success, message) = compare_functions(model_initial, model_imported, true, true, false, true, true);
+    const auto& [success, message] = compare_functions(model_initial, model_imported, true, true, false, true, true);
     ASSERT_TRUE(success) << message;
 }
 
@@ -377,8 +373,6 @@ TEST_F(SerializationConstantCompressionTest, EmptyAndNotEmptyConstantsDifferentV
     ov::Core core;
     auto model_imported = core.read_model(m_out_xml_path_1, m_out_bin_path_1);
 
-    bool success;
-    std::string message;
-    std::tie(success, message) = compare_functions(model_initial, model_imported, true, true, false, true, true);
+    const auto& [success, message] = compare_functions(model_initial, model_imported, true, true, false, true, true);
     ASSERT_TRUE(success) << message;
 }

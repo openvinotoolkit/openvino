@@ -8,7 +8,7 @@ import argparse as argparse
 import numbers as numbers
 import openvino_telemetry as tm
 import os as os
-__all__ = ['arg_to_str', 'argparse', 'backend_ga4', 'check_values_equal', 'get_params_with_paths_list', 'get_rt_version', 'get_tid', 'init_ovc_telemetry', 'init_telemetry_class', 'is_keras3', 'is_optimum', 'is_torch_compile', 'numbers', 'os', 'send_conversion_result', 'send_framework_info', 'send_params_info', 'telemetry_params', 'tm']
+__all__: list[str] = ['arg_to_str', 'argparse', 'backend_ga4', 'check_values_equal', 'get_params_with_paths_list', 'get_rt_version', 'get_tid', 'init_ovc_telemetry', 'init_telemetry_class', 'is_keras3', 'is_optimum', 'is_torch_compile', 'numbers', 'os', 'send_conversion_result', 'send_framework_info', 'send_params_info', 'telemetry_params', 'tm']
 def arg_to_str(arg):
     ...
 def get_tid():

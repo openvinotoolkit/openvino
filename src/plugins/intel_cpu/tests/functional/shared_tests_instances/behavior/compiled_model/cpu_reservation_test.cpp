@@ -24,7 +24,7 @@ using Device = std::string;
 using Config = ov::AnyMap;
 using CpuReservationTest = ::testing::Test;
 
-#if !(defined(__arm__) || defined(__APPLE__) || defined(__EMSCRIPTEN__))
+#if !(defined(OPENVINO_ARCH_ARM) || defined(__APPLE__) || defined(__EMSCRIPTEN__))
 
 TEST_F(CpuReservationTest, smoke_Mutiple_CompiledModel_Reservation) {
     std::vector<std::shared_ptr<ov::Model>> models;

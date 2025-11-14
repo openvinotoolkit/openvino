@@ -4,13 +4,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
-#include "snippets/emitter.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
-
+namespace ov::snippets::op {
 /**
  * @interface LoopBase
  * @brief Base class for LoopBegin and LoopEnd
@@ -19,10 +24,20 @@ namespace op {
 class LoopBase : public ov::op::Op {
 public:
     OPENVINO_OP("LoopBase", "SnippetsOpset");
-    LoopBase(const std::vector<Output<Node>>& args);
+    explicit LoopBase(const OutputVector& args, bool is_parallel);
     LoopBase() = default;
 
+    bool get_is_parallel() const {
+        return m_is_parallel;
+    }
+    void set_is_parallel(bool is_parallel) {
+        m_is_parallel = is_parallel;
+    }
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
 protected:
+    bool m_is_parallel = false;
 };
 class LoopEnd;
 /**
@@ -38,7 +53,8 @@ class LoopBegin : public LoopBase {
 
 public:
     OPENVINO_OP("LoopBegin", "SnippetsOpset", LoopBase);
-    LoopBegin();
+    LoopBegin() = default;
+    explicit LoopBegin(bool is_parallel);
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
@@ -76,7 +92,8 @@ public:
             std::vector<int64_t> element_type_sizes,
             size_t input_num,
             size_t output_num,
-            size_t id);
+            size_t id,
+            bool is_parallel);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -105,10 +122,10 @@ public:
     void set_id(size_t id);
 
 protected:
-    std::vector<bool> m_is_incremented = {};
-    std::vector<int64_t> m_ptr_increments = {};
-    std::vector<int64_t> m_finalization_offsets = {};
-    std::vector<int64_t> m_element_type_sizes = {};
+    std::vector<bool> m_is_incremented;
+    std::vector<int64_t> m_ptr_increments;
+    std::vector<int64_t> m_finalization_offsets;
+    std::vector<int64_t> m_element_type_sizes;
     size_t m_work_amount = 0;
     size_t m_work_amount_increment = 0;
     size_t m_input_num = 0;
@@ -119,6 +136,4 @@ protected:
     bool m_evaluate_once = false;
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

@@ -6,7 +6,8 @@ from __future__ import annotations
 import yaml
 from pathlib import Path
 from copy import deepcopy
-from typing import Optional, Dict, List, Union, Iterator, Any
+from typing import Optional, Union, Any
+from collections.abc import Iterator
 
 
 class ManifestException(Exception):
@@ -43,7 +44,7 @@ class Manifest:
             self._manifest_file = self._manifest_file / self.default_manifest_name
 
         self._manifest_version = "1.0"
-        self._components: Dict[str, Component] = {}
+        self._components: dict[str, Component] = {}
 
         if manifest_path is not None:
             self._prepare_manifest()
@@ -81,7 +82,7 @@ class Manifest:
         return self._manifest_version
 
     @property
-    def components(self) -> List[Component]:
+    def components(self) -> list[Component]:
         return list(self._components.values())
 
     def get_component(self, component_name: str) -> Optional[Component]:
@@ -131,7 +132,7 @@ class Manifest:
         except Exception as ex:
             raise ManifestSavingError(ex) from ex
 
-    def as_dict(self) -> Dict[str, Union[str, Dict]]:
+    def as_dict(self) -> dict[str, Union[str, dict]]:
         """Return manifest as dictionary"""
         if not self._manifest_file.is_file():
             raise ManifestDoesNotExist(f'Cannot find manifest "{self._manifest_file}"')
@@ -204,7 +205,7 @@ class Component:
 
         :param name: Name of component
         :param version: Version of component
-        :param repositories: List of repositories
+        :param repositories: list of repositories
         :param product_type: Unique key to describe a product type (can include OS, arch, build variant, etc)
         :param target_arch: Target architecture
         :param build_type: Type of build (release, debug)
@@ -303,7 +304,7 @@ class Component:
         return self._build_event
 
     @property
-    def repositories(self) -> List[Repository]:
+    def repositories(self) -> list[Repository]:
         return list(self._repositories.values())
 
     @property

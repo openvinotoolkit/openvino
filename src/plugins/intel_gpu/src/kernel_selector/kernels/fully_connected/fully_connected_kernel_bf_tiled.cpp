@@ -284,7 +284,7 @@ DeviceFeaturesKey FullyConnected_bf_tiled::get_required_device_features_key(cons
 
 bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     if (!Parent::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     auto& fc_params = static_cast<const fully_connected_params&>(params);
@@ -296,36 +296,36 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     // but we need to ensure that batch pitch preserves alignment.
     if (input.GetDType() == Datatype::F16) {
         if (input.Batch().pitch % 2 != 0 && (input.Batch().v > 1 || fc_params.is_shape_agnostic))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         // for 3d case we have to check feature alignment as well
         if (output.GetLayout() == DataLayout::bfyx && input.Feature().pitch % 2 != 0 && (input.Feature().v > 1 || fc_params.is_shape_agnostic))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // Dynamic kernel doesn't support dynamic weights yet
     if (fc_params.is_shape_agnostic && input.is_dynamic()) {
         if (get_input_bf_size(fc_params).second == 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (input.GetLayout() == DataLayout::bfyx) {
         // Padding on input is not supported.
         // TODO: Enable by mirroring the padding in weights.
         if (input.X().pad.Total() != 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         if (input.Y().pad.Total() != 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // We don't support 4d output
     if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx) {
         if (input.X().v > 1)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     auto wt = weights.GetDType();
-    if ((wt == WeightsType::UINT4 || wt == WeightsType::INT4) && (weights.IFM().v % 2 != 0 || weights.OFM().v % 2 != 0)) {
-        return false;
+    if ((wt == WeightsType::UINT4 || wt == WeightsType::INT4) && (weights.IFM().v % 2 != 0)) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;
@@ -635,7 +635,7 @@ KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params
 
     size_t output_b = get_output_aligned_bf_size(fc_params, false).first;
 
-    float estimated_time = FORCE_PRIORITY_9;
+    float estimated_time = FORCE_PRIORITY_5;
     if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
         estimated_time = FORCE_PRIORITY_3;
     else if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
@@ -651,8 +651,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     size_t quantize_grp_size = get_dynamic_quantize_group_size(params);
 
     if (is_swiglu_fused(params)) {
-        auto split_length = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_length;
-        auto split_to_glu_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_to_glu_idx;
+        auto split_length = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->glu_stride;
+        auto split_to_glu_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->gate_idx;
         jit.AddConstant(MakeJitConstant("SWIGLU_LENGTH", split_length));
         jit.AddConstant(MakeJitConstant("SWIGLU_SPLIT_TO_GLU_IDX", split_to_glu_idx));
     }

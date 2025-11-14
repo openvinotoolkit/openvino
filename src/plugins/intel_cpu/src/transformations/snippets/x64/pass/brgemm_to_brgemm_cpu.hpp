@@ -33,7 +33,7 @@ namespace ov::intel_cpu::pass {
 class BrgemmToBrgemmCPU : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("BrgemmToBrgemmCPU");
-    BrgemmToBrgemmCPU(std::set<size_t> constant_inputs_idxs)
+    explicit BrgemmToBrgemmCPU(std::set<size_t> constant_inputs_idxs)
         : m_constant_inputs_idxs(std::move(constant_inputs_idxs)) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;

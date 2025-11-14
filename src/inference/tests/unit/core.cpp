@@ -247,9 +247,9 @@ TEST(CoreTests_parse_device_config, get_device_config) {
                                    const ov::AnyMap& config,
                                    const std::string& expected_device,
                                    const ov::AnyMap& expected_config) {
-        auto parsed = ov::parseDeviceNameIntoConfig(device, config);
-        ASSERT_EQ(parsed._deviceName, expected_device);
-        ASSERT_EQ(ov::Any(parsed._config).as<std::string>(), ov::Any(expected_config).as<std::string>());
+        auto parsed = ov::parse_device_name_into_config(device, config);
+        ASSERT_EQ(parsed.m_device_name, expected_device);
+        ASSERT_EQ(ov::Any(parsed.m_config).as<std::string>(), ov::Any(expected_config).as<std::string>());
     };
     // Single device
     check_parsed_config("DEVICE.0", ov::AnyMap{}, "DEVICE", ov::AnyMap{ov::device::id("0")});
@@ -306,7 +306,7 @@ TEST(CoreTests_parse_device_config, get_device_config) {
                         ov::AnyMap{ov::device::id("0.1"), ov::log::level(ov::log::Level::INFO)});
 
     // device ID mismatch
-    EXPECT_THROW(ov::parseDeviceNameIntoConfig("DEVICE.X", ov::AnyMap{ov::device::id("Y")}), ov::Exception);
+    EXPECT_THROW(ov::parse_device_name_into_config("DEVICE.X", ov::AnyMap{ov::device::id("Y")}), ov::Exception);
 
     // HETERO
     check_parsed_config("HETERO:DEVICE", ov::AnyMap{}, "HETERO", ov::AnyMap{ov::device::priorities("DEVICE")});
@@ -342,8 +342,9 @@ TEST(CoreTests_parse_device_config, get_device_config) {
         ov::AnyMap{ov::device::priorities("DEVICE"),
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR)}}})});
     // device priorities mismatch
-    EXPECT_THROW(ov::parseDeviceNameIntoConfig("HETERO:DEVICE", ov::AnyMap{ov::device::priorities("ANOTHER_DEVICE")}),
-                 ov::Exception);
+    EXPECT_THROW(
+        ov::parse_device_name_into_config("HETERO:DEVICE", ov::AnyMap{ov::device::priorities("ANOTHER_DEVICE")}),
+        ov::Exception);
 
     // MULTI
     check_parsed_config("MULTI:DEVICE", ov::AnyMap{}, "MULTI", ov::AnyMap{ov::device::priorities("DEVICE")});
@@ -427,9 +428,9 @@ TEST(CoreTests_parse_device_config, get_device_config) {
                    ov::device::properties(ov::AnyMap{{"MULTI", ov::AnyMap{ov::device::priorities("DEVICE")}}})});
 
     // invalid device name with characters after parenthesis except comma
-    EXPECT_THROW(ov::parseDeviceNameIntoConfig("DEVICE(0)ov", ov::AnyMap{}), ov::Exception);
-    EXPECT_THROW(ov::parseDeviceNameIntoConfig("MULTI:DEVICE(0)ov,DEVICE(1)", ov::AnyMap{}), ov::Exception);
-    EXPECT_THROW(ov::parseDeviceNameIntoConfig("MULTI:DEVICE(0),DEVICE(1),", ov::AnyMap{}), ov::Exception);
+    EXPECT_THROW(ov::parse_device_name_into_config("DEVICE(0)ov", ov::AnyMap{}), ov::Exception);
+    EXPECT_THROW(ov::parse_device_name_into_config("MULTI:DEVICE(0)ov,DEVICE(1)", ov::AnyMap{}), ov::Exception);
+    EXPECT_THROW(ov::parse_device_name_into_config("MULTI:DEVICE(0),DEVICE(1),", ov::AnyMap{}), ov::Exception);
 }
 
 TEST(CoreTests_parse_device_config, get_batch_device_name) {
