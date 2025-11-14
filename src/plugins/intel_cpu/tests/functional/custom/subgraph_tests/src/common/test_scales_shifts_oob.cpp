@@ -12,18 +12,13 @@ using namespace CPUTestUtils;
 
 namespace {
 
-// Checks that getScalesAndShifts no longer triggers out-of-bounds memory access 
-//tied to getPaddedElementsCount (regression for #32070).
-class ScalesShiftsOOBTest : public testing::WithParamInterface<std::string>,
-                            public SubgraphBaseStaticTest {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
-        return "Device=" + obj.param;
-    }
-
+// Regression test for #32070
+// Verifies that getScalesAndShifts correctly handles memory with blocked layouts
+// by using actual allocated size instead of incorrectly calculating element count
+class ScalesShiftsOOBTest : public SubgraphBaseStaticTest {
 protected:
     void SetUp() override {
-        targetDevice = this->GetParam();
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         ov::ParameterVector params;
         auto input = std::make_shared<ov::op::v0::Parameter>(
@@ -107,16 +102,10 @@ protected:
     }
 };
 
-// Fix ensures model compiles and runs inference without memory errors or out-of-bounds 
-// in getScalesAndShifts, unlike before.
-TEST_P(ScalesShiftsOOBTest, CompileAndInfer) {
-    ASSERT_NO_THROW(run());
+TEST_F(ScalesShiftsOOBTest, CompileAndInfer) {
+    // Before the fix, this would read beyond allocated memory when processing
+    // PReLU slope constants in blocked layouts
+    run();
 }
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_ScalesShiftsOOB,
-    ScalesShiftsOOBTest,
-    ::testing::Values(ov::test::utils::DEVICE_CPU),
-    ScalesShiftsOOBTest::getTestCaseName);
 
 }  // namespace
