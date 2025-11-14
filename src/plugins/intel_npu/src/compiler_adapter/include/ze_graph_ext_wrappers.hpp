@@ -62,8 +62,6 @@ public:
 
     bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
 
-    bool isStridedTensorSupported(const GraphDescriptor& graphDescriptor) const;
-
 private:
     void getMetadata(ze_graph_handle_t graphHandle,
                      uint32_t indexUsedByDriver,

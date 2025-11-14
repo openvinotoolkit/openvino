@@ -665,24 +665,4 @@ bool ZeGraphExtWrappers::isTurboOptionSupported(const ze_graph_compiler_version_
     return is_supported;
 }
 
-bool ZeGraphExtWrappers::isStridedTensorSupported(const GraphDescriptor& graphDescriptor) const {
-    if (_graphExtVersion < ZE_GRAPH_EXT_VERSION_1_15) {
-        return false;
-    }
-
-    ze_graph_argument_property_strides_t graphArgumentPropertyStrides = {};
-    graphArgumentPropertyStrides.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTY_STRIDES;
-    ze_graph_properties_3_t graphProperties = {};
-    graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-    graphProperties.pNext = &graphArgumentPropertyStrides;
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(graphDescriptor._handle, &graphProperties);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties3", result, _zeroInitStruct->getGraphDdiTable());
-
-    if (graphArgumentPropertyStrides.supportsDynamicStrides) {
-        return true;
-    }
-
-    return false;
-}
-
 }  // namespace intel_npu

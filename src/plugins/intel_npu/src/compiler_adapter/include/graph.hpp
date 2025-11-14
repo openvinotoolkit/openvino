@@ -58,8 +58,6 @@ public:
     void set_last_submitted_id(uint32_t id_index) override;
     uint32_t get_last_submitted_id() const override;
 
-    bool is_strided_tensor_supported() const override;
-
     ~Graph() override;
 
 protected:
