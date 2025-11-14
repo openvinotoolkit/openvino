@@ -11,7 +11,6 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
-#include <limits>
 #include <map>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -46,7 +45,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
@@ -546,20 +544,25 @@ bool Eltwise::isWithBroadcast() {
 }
 
 void Eltwise::init() {
-    // Bf16 saturation handling for gamma parameter when input precision is bf16 to make sure it stays within the valid
-    // range for bfloat16.
+    // Bf16 saturation handling for PowerStatic parameters
+    // to make sure they stay within the valid range for bfloat16.
     if (m_attrs.data.algo == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
-        const float lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
-        const float max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
-        auto& gamma = m_attrs.data.gamma;
+        // Use the actual float values corresponding to bfloat16 limits
+        // 0xFF7F = -65504.0F (lowest), 0x7F7F = 65504.0F (max)
+        static constexpr float bf16_lowest = -65504.0F;
+        static constexpr float bf16_max = 65504.0F;
 
-        if (gamma < lowest) {
-            gamma = lowest;
-        }
+        // Helper lambda to clamp parameter values within bf16 range
+        auto clampBf16Parameter = [&](auto& param) {
+            if (std::isfinite(param)) {
+                param = std::clamp(static_cast<float>(param), bf16_lowest, bf16_max);
+            }
+        };
 
-        if (gamma > max) {
-            gamma = max;
-        }
+        // Clamp all PowerStatic parameters
+        clampBf16Parameter(m_attrs.data.alpha);
+        clampBf16Parameter(m_attrs.data.beta);
+        clampBf16Parameter(m_attrs.data.gamma);
     }
 }
 
