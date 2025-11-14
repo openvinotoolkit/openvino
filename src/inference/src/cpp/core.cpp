@@ -28,7 +28,15 @@ std::string find_plugins_xml(const std::string& xml_file) {
             return xml_file_name;
         }
     }
-    const auto ov_library_path = ov::util::get_ov_lib_path();
+
+    // get_ov_lib_path() returns UTF-8 encoded string when UNICODE support is enabled
+    const auto ov_library_path_str = ov::util::get_ov_lib_path();
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    ov::util::Path ov_library_path = std::filesystem::u8path(ov_library_path_str);
+#else
+    ov::util::Path ov_library_path = ov::util::Path(ov_library_path_str);
+#endif
 
     // plugins xml can be found in either:
     // 1. openvino-X.Y.Z relative to libopenvino.so folder
@@ -79,6 +87,7 @@ Core::Core(const std::string& xml_config_file) {
 
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
     OV_CORE_CALL_STATEMENT({ return _impl->get_versions(device_name); })}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path,
                                             const std::wstring& bin_path,
