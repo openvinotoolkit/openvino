@@ -102,6 +102,23 @@ ov::hint::ExecutionMode OptionParser<ov::hint::ExecutionMode>::parse(std::string
     return mode;
 }
 
+ov::intel_npu::ModelSerializerAlgorithm OptionParser<ov::intel_npu::ModelSerializerAlgorithm>::parse(
+    std::string_view val) {
+    // also accept numeric values if provided correctly
+    int val_i = -1;
+    try {
+        val_i = std::stoi(val.data());
+    } catch (...) {
+        val_i = -1;
+    }
+    if (val == "COPY_WEIGHTS" || val_i == 0) {
+        return ov::intel_npu::ModelSerializerAlgorithm::COPY_WEIGHTS;
+    } else if (val == "POINTERS_TO_ADDRESSES" || val_i == 1) {
+        return ov::intel_npu::ModelSerializerAlgorithm::POINTERS_TO_ADDRESSES;
+    }
+    OPENVINO_THROW("Unsupported value for NPU_MODEL_SERIALIZER_ALGORITHM property: ", val);
+}
+
 //
 // OptionPrinter
 //
@@ -120,6 +137,21 @@ std::string OptionPrinter<ov::hint::ExecutionMode>::toString(ov::hint::Execution
     std::ostringstream os;
     os << val;
     return os.str();
+}
+
+//
+// ModelSerializerAlgorithm
+//
+
+std::string_view stringifyEnum(ov::intel_npu::ModelSerializerAlgorithm val) {
+    switch (val) {
+    case ov::intel_npu::ModelSerializerAlgorithm::COPY_WEIGHTS:
+        return "COPY_WEIGHTS";
+    case ov::intel_npu::ModelSerializerAlgorithm::POINTERS_TO_ADDRESSES:
+        return "POINTERS_TO_ADDRESSES";
+    default:
+        return "<UNKNOWN>";
+    }
 }
 
 //
@@ -196,13 +228,12 @@ bool OptionsDesc::has(std::string_view key) const {
     return false;
 }
 
-std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
-    std::vector<std::string> res;
-    res.reserve(_impl.size());
+std::map<std::string, std::vector<std::string>> OptionsDesc::getSupported(bool includePrivate) const {
+    std::map<std::string, std::vector<std::string>> res;
 
     for (const auto& p : _impl) {
         if (p.second.isPublic() || includePrivate) {
-            res.push_back(p.first);
+            res.emplace(p.first, p.second.getSupportedValues());
         }
     }
 

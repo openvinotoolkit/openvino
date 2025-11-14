@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -111,6 +112,11 @@ struct OptionParser<ov::log::Level> final {
 template <>
 struct OptionParser<ov::hint::ExecutionMode> final {
     static ov::hint::ExecutionMode parse(std::string_view val);
+};
+
+template <>
+struct OptionParser<ov::intel_npu::ModelSerializerAlgorithm> final {
+    static ov::intel_npu::ModelSerializerAlgorithm parse(std::string_view val);
 };
 
 void splitAndApply(const std::string& str, char delim, std::function<void(std::string_view)> callback);
@@ -224,6 +230,12 @@ struct OptionPrinter<ov::hint::ExecutionMode> final {
 };
 
 //
+// ModelSerializerAlgorithm
+//
+
+std::string_view stringifyEnum(ov::intel_npu::ModelSerializerAlgorithm val);
+
+//
 // OptionMode
 //
 
@@ -298,6 +310,10 @@ struct OptionBase {
         return ONEAPI_MAKE_VERSION(7, 23);
     }
 
+    static std::vector<ValueType> supportedValues() {
+        return {};
+    }
+
     static std::string toString(const ValueType& val) {
         return OptionPrinter<ValueType>::toString(val);
     }
@@ -363,6 +379,7 @@ struct OptionConcept final {
     ov::PropertyMutability (*mutability)() = nullptr;
     uint32_t (*compilerSupportVersion)() = nullptr;
     std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
+    std::vector<std::string> (*getSupportedValues)() = nullptr;
 };
 
 template <class Opt>
@@ -379,6 +396,16 @@ std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
 }
 
 template <class Opt>
+std::vector<std::string> getSupportedValues() {
+    std::vector<std::string> res;
+    const auto& supportedValues = Opt::supportedValues();
+    for (const auto& value : supportedValues) {
+        res.push_back(Opt::toString(value));
+    }
+    return res;
+}
+
+template <class Opt>
 OptionConcept makeOptionModel() {
     return {&Opt::key,
             &Opt::envVar,
@@ -386,7 +413,8 @@ OptionConcept makeOptionModel() {
             &Opt::isPublic,
             &Opt::mutability,
             &Opt::compilerSupportVersion,
-            &validateAndParse<Opt>};
+            &validateAndParse<Opt>,
+            &getSupportedValues<Opt>};
 }
 
 }  // namespace details
@@ -404,7 +432,7 @@ public:
 
     void reset();
 
-    std::vector<std::string> getSupported(bool includePrivate = false) const;
+    std::map<std::string, std::vector<std::string>> getSupported(bool includePrivate = false) const;
     std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
     std::string getSupportedAsString(bool includePrivate = false) const;
 
