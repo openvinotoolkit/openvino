@@ -2049,6 +2049,10 @@ void Graph::EnforceInferencePrecision() const {
             const auto& childEdgesAtPort = node->getChildEdgesAtPort(port);
             for (const auto& childEdge : childEdgesAtPort) {
                 const auto& child = childEdge->getChild();
+                // ShapeOf subgraphs are kept in integer precision
+                if (child->getType() == Type::ShapeOf) {
+                    continue;
+                }
 
                 // Stop at mandatory BF16 nodes (don't add them to nodesToSkip)
                 if (isMandatoryBF16Node(child)) {
@@ -2106,8 +2110,11 @@ void Graph::EnforceInferencePrecision() const {
 
             // Pattern 2: Gather with integer type on data input
             if (node->getType() == Type::Gather) {
+                // Note: ShapeOf subgraphs are excluded from skipping markup
+                // since they are always kept in integer precision
+                const bool shapeOfSubgraph = node->getParentEdgeAt(0)->getParent()->getType() == Type::ShapeOf;
                 const auto inputPrec = node->getOriginalInputPrecisionAtPort(0);
-                if (inputPrec.is_integral_number()) {
+                if (!shapeOfSubgraph && inputPrec.is_integral_number()) {
                     // Add Gather node to nodesToSkip
                     nodesToSkip.insert(node);
 
