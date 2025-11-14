@@ -45,40 +45,64 @@ ov::OutputVector gather_nd(const ov::frontend::onnx::Node& node) {
     // This is a workaround for ONNXRuntime's non-standard behavior that allows
     // dimension 1 to broadcast to any size N in batch dimensions
     if (batch_dims > 0) {
-        auto data_shape = std::make_shared<v3::ShapeOf>(data, ov::element::i64);
-        auto indices_shape = std::make_shared<v3::ShapeOf>(indices, ov::element::i64);
+        // Check if we can determine statically that broadcasting is not needed
+        bool need_broadcast = false;
+        bool shapes_are_static = data.get_partial_shape().is_static() && indices.get_partial_shape().is_static();
 
-        // Compute target batch shape as max(data_batch_shape, indices_batch_shape)
-        ov::OutputVector batch_dims_vec;
-        for (int64_t i = 0; i < batch_dims; ++i) {
-            auto data_dim = get_dimension(data_shape, i);
-            auto indices_dim = get_dimension(indices_shape, i);
-            auto max_dim = std::make_shared<v1::Maximum>(data_dim, indices_dim);
-            batch_dims_vec.push_back(max_dim);
+        if (shapes_are_static) {
+            // Compare batch dimensions statically
+            auto data_shape_static = data.get_shape();
+            auto indices_shape_static = indices.get_shape();
+
+            for (int64_t i = 0; i < batch_dims; ++i) {
+                if (data_shape_static[i] != indices_shape_static[i]) {
+                    need_broadcast = true;
+                    break;
+                }
+            }
+        } else {
+            // Dynamic shapes - conservatively assume broadcast may be needed
+            need_broadcast = true;
         }
 
-        // Get remaining dimensions
-        auto zero_const = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-        auto batch_dims_const = v0::Constant::create(ov::element::i64, ov::Shape{1}, {batch_dims});
-        auto one_step = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        // Only add Broadcast operations if needed
+        if (need_broadcast) {
+            auto data_shape = std::make_shared<v3::ShapeOf>(data, ov::element::i64);
+            auto indices_shape = std::make_shared<v3::ShapeOf>(indices, ov::element::i64);
 
-        auto data_rank_node = std::make_shared<v3::ShapeOf>(data_shape, ov::element::i64);
-        auto indices_rank_node = std::make_shared<v3::ShapeOf>(indices_shape, ov::element::i64);
+            // Compute target batch shape as max(data_batch_shape, indices_batch_shape)
+            ov::OutputVector batch_dims_vec;
+            for (int64_t i = 0; i < batch_dims; ++i) {
+                auto data_dim = get_dimension(data_shape, i);
+                auto indices_dim = get_dimension(indices_shape, i);
+                auto max_dim = std::make_shared<v1::Maximum>(data_dim, indices_dim);
+                batch_dims_vec.push_back(max_dim);
+            }
 
-        auto data_remaining =
-            std::make_shared<v8::Slice>(data_shape, batch_dims_const, data_rank_node, one_step, zero_const);
-        auto indices_remaining =
-            std::make_shared<v8::Slice>(indices_shape, batch_dims_const, indices_rank_node, one_step, zero_const);
+            // Get remaining dimensions
+            auto zero_const = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+            auto batch_dims_const = v0::Constant::create(ov::element::i64, ov::Shape{1}, {batch_dims});
+            auto one_step = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
 
-        // Construct target shapes
-        auto target_batch_shape = std::make_shared<v0::Concat>(batch_dims_vec, 0);
-        auto target_data_shape = std::make_shared<v0::Concat>(ov::OutputVector{target_batch_shape, data_remaining}, 0);
-        auto target_indices_shape =
-            std::make_shared<v0::Concat>(ov::OutputVector{target_batch_shape, indices_remaining}, 0);
+            auto data_rank_node = std::make_shared<v3::ShapeOf>(data_shape, ov::element::i64);
+            auto indices_rank_node = std::make_shared<v3::ShapeOf>(indices_shape, ov::element::i64);
 
-        // Broadcast data and indices to target shapes
-        data = std::make_shared<v3::Broadcast>(data, target_data_shape);
-        indices = std::make_shared<v3::Broadcast>(indices, target_indices_shape);
+            auto data_remaining =
+                std::make_shared<v8::Slice>(data_shape, batch_dims_const, data_rank_node, one_step, zero_const);
+            auto indices_remaining =
+                std::make_shared<v8::Slice>(indices_shape, batch_dims_const, indices_rank_node, one_step, zero_const);
+
+            // Construct target shapes
+            auto target_batch_shape = std::make_shared<v0::Concat>(batch_dims_vec, 0);
+            auto target_data_shape =
+                std::make_shared<v0::Concat>(ov::OutputVector{target_batch_shape, data_remaining}, 0);
+            auto target_indices_shape =
+                std::make_shared<v0::Concat>(ov::OutputVector{target_batch_shape, indices_remaining}, 0);
+
+            // Broadcast data and indices to target shapes
+            data = std::make_shared<v3::Broadcast>(data, target_data_shape);
+            indices = std::make_shared<v3::Broadcast>(indices, target_indices_shape);
+        }
     }
 
     return {std::make_shared<v8::GatherND>(data, indices, batch_dims)};
