@@ -498,6 +498,16 @@ static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
 
 /**
  * @brief
+ * Type: boolean
+ * Enable multiple KV cache model variants with different static shapes (1K, 2K, 4K, 8K stepping).
+ * When enabled, multiple KV cache models will be compiled and the appropriate one will be
+ * selected at runtime based on the required KV cache size.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> kvcache_variants{"NPUW_LLM_KVCACHE_VARIANTS"};
+
+/**
+ * @brief
  * Type: uint64_t.
  * Prompt chunk size for chunk prefill.
  * The chunk size should be a power of two.
