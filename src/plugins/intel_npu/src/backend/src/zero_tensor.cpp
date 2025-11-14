@@ -10,6 +10,7 @@
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "openvino/core/memory_util.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -70,20 +71,32 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     // Data pointer of the given user_tensor must be a valid address in the level zero context
     // Check first if the given tensor is a ZeroRemoteTensor (which has a different method to expose the internal
     // storage)
-    auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(_user_tensor._ptr);
-    if (remote_tensor == nullptr) {
-        _ptr = _user_tensor->data();
-    } else {
+    if (auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(_user_tensor._ptr)) {
         _ptr = remote_tensor->get_original_memory();
+    } else {
+        _ptr = _user_tensor->data();
+    }
+
+    void* owner_ptr = _ptr;
+    size_t owner_size = _user_tensor->get_byte_size();
+    auto owner_tensor = ov::get_owner_tensor(_user_tensor);
+
+    while (owner_tensor._ptr != nullptr) {
+        if (auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(owner_tensor._ptr)) {
+            owner_ptr = remote_tensor->get_original_memory();
+        } else {
+            owner_ptr = owner_tensor->data();
+        }
+        owner_size = owner_tensor->get_byte_size();
+
+        owner_tensor = ov::get_owner_tensor(owner_tensor);
     }
 
     // Check if [data, data + size] was previously imported or allocated in the current level zero context. In such case
     // _mem_ref will keep a reference to that allocation. Otherwise the function will try to import it into the level
     // zero context.
     _logger.debug("ZeroTensor::ZeroTensor - get tensor from pool or import it");
-    _mem_ref = ZeroMemPool::get_instance().import_standard_allocation_memory(_init_structs,
-                                                                             _ptr,
-                                                                             _user_tensor->get_byte_size());
+    _mem_ref = ZeroMemPool::get_instance().import_standard_allocation_memory(_init_structs, owner_ptr, owner_size);
 }
 
 // Note: Override data() members to not used OpenVINO library code to improve performance
@@ -202,6 +215,10 @@ void ZeroTensor::prevent_reuse() {
 
 bool ZeroTensor::can_be_reused() {
     return _can_be_reused;
+}
+
+ZeroTensor::~ZeroTensor() {
+    _mem_ref = nullptr;  // make sure zero memory is released before user tensor
 }
 
 }  // namespace intel_npu
