@@ -5,6 +5,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/util/env_util.hpp"
+#include "openvino/util/file_util.hpp"
 #ifdef CPU_DEBUG_CAPS
 
 #    include <string>
@@ -63,6 +64,10 @@ void DebugCapsConfig::readProperties() {
 
     if (const auto* envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME")) {
         blobDumpFilters[FILTER::BY_NAME] = envVarValue;
+    }
+
+    if (!blobDumpFilters.empty()) {
+        ov::util::create_directory_recursive(blobDumpDir);
     }
 
     if (const auto* envVarValue = readEnv("OV_CPU_DISABLE")) {
