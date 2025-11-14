@@ -83,4 +83,14 @@ OPENVINO_RUNTIME_API ov::Tensor make_tensor(const ov::SoPtr<ITensor>& tensor);
  */
 OPENVINO_RUNTIME_API ov::SoPtr<ov::ITensor> get_tensor_impl(const ov::Tensor& tensor);
 
+/**
+ * @brief Returns the underlying owner tensor implementation of the provided tensor
+ *
+ * @param tensor Tensor implementation to get the owner from. For tensors created as views of another tensor, this
+ * returns the original tensor that owns the memory buffer
+ *
+ * @return SoPtr to ITensor if the owner tensor exists, nullptr otherwise.
+ */
+OPENVINO_RUNTIME_API ov::SoPtr<ov::ITensor> get_owner_tensor(const ov::SoPtr<ov::ITensor>& tensor);
+
 }  // namespace ov
