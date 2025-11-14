@@ -589,7 +589,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
 }
 std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
     auto callback_sp = std::shared_ptr<py::function>(new py::function(std::move(f_callback)), [](py::function* c) {
-        ConditionalGILScopedAcquire acquire;
+        // For free-threaded Python, gil_scoped_acquire still ensures thread is attached
+        py::gil_scoped_acquire acquire;
         delete c;
     });
     return callback_sp;

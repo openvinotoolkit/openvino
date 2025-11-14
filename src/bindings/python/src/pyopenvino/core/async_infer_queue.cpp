@@ -118,8 +118,8 @@ public:
             m_requests[handle].m_request->set_callback([this, callback_sp, handle](std::exception_ptr exception_ptr) {
                 *m_requests[handle].m_end_time = Time::now();
                 if (exception_ptr == nullptr) {
-                    // Acquire GIL, execute Python function
-                    ConditionalGILScopedAcquire acquire;
+                    // For free-threaded Python, gil_scoped_acquire still ensures thread is attached
+                    py::gil_scoped_acquire acquire;
                     try {
                         (*callback_sp)(m_requests[handle], m_user_ids[handle]);
                     } catch (const py::error_already_set& py_error) {

@@ -440,8 +440,8 @@ void regclass_InferRequest(py::module m) {
                 } catch (const std::exception& e) {
                     OPENVINO_THROW("Caught exception: ", e.what());
                 }
-                // Acquire GIL, execute Python function
-                ConditionalGILScopedAcquire acquire;
+                // For free-threaded Python, gil_scoped_acquire still ensures thread is attached
+                py::gil_scoped_acquire acquire;
                 (*callback_sp)(self.m_userdata);
             });
         },

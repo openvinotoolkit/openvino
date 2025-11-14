@@ -139,7 +139,6 @@ def prepared_paths(request, tmp_path):
     ({"wrong_np": np.array([1.5, 2.5], dtype="complex128")}, pytest.raises(TypeError), "Unsupported NumPy array dtype: complex128"),
     ({"wrong": {}}, pytest.raises(TypeError), "Unsupported attribute type: <class 'dict'>")
 ])
-@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED"), reason="Ticket: 171534")
 def test_visit_attributes_custom_op(device, prepared_paths, attributes, expectation, raise_msg):
     input_shape = [2, 1]
 
@@ -199,7 +198,6 @@ def test_custom_add_model():
     assert op_types == ["Parameter", "Parameter", "CustomAdd", "Result"]
 
 
-@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED"), reason="Ticket: 171534")
 def test_custom_op(device):
     model = create_snake_model()
     compiled_model = compile_model(model, device)
@@ -222,6 +220,9 @@ class CustomSimpleOp(Op):
     def validate_and_infer_types(self):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
 
+    def clone_with_new_inputs(self, new_inputs):
+        return CustomSimpleOp(*new_inputs)
+
 
 class CustomSimpleOpWithAttribute(Op):
     class_type_info = DiscreteTypeInfo("CustomSimpleOpWithAttribute", "extension")
@@ -232,6 +233,9 @@ class CustomSimpleOpWithAttribute(Op):
 
     def validate_and_infer_types(self):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
+
+    def clone_with_new_inputs(self, new_inputs):
+        return CustomSimpleOpWithAttribute(new_inputs, **self._attrs)
 
     @staticmethod
     def get_type_info():

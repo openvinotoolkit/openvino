@@ -168,7 +168,6 @@ def test_output_replace():
     assert res.input_value(0).get_node() == exp
 
 
-@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED"), reason="Ticket: 171534")
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_queue(device, share_inputs):
     jobs = 8
