@@ -1699,7 +1699,10 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
         auto* constInputNode = dynamic_cast<node::Input*>(constInput.get());
         OPENVINO_ASSERT(constInputNode, "Cannot cast ", constInput->getName(), " to Input");
         auto constBlob = constInputNode->getMemoryPtr();
-        const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        // Calculate element count from actual allocated memory size to handle both
+        // plain and blocked layouts correctly
+        const auto precision = constBlob->getPrecision();
+        const auto elementsCount = constBlob->getSize() / precision.size();
         buffer.resize(elementsCount);
         cpu_convert(constBlob->getData(),
                     buffer.data(),
