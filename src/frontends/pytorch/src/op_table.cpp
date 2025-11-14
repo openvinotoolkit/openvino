@@ -267,6 +267,7 @@ OP_CONVERTER(translate_triu);
 OP_CONVERTER(translate_tuple_index);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
+OP_CONVERTER(translate_unique_consecutive);
 OP_CONVERTER(translate_unique2);
 OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
@@ -754,6 +755,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::unbind - Supported in limited set of patterns
         {"aten::unflatten", op::translate_unflatten},
         {"aten::unfold", op::translate_unfold},
+        {"aten::unique_consecutive", op::translate_unique_consecutive},
         // aten::unsafe_chunk - Supported in limited set of patterns
         {"aten::unsqueeze", common_translators::translate_unsqueeze},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
