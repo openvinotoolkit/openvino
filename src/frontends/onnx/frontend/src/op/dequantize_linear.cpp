@@ -15,6 +15,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -253,25 +254,23 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         return {scaled_x};
     }
 
+    auto num_blocks = static_cast<size_t>(src_x.get_partial_shape()[0].get_length()) / block_size;
     // Compatible to multi-dimension of input, not only 2D.
     // For further broadcasting scales and zp - reshape input to a shape
-    // axis == 0, [x.shape[0]/block_size, block_size, x.shape[1], x.shape[2,...]]
-    // axis == 1, [x.shape[0], block_size, x.shape[1]/block_size, x.shape[2,...]]
+    // axis == 0, [num_blocks, block_size, x.shape[1], x.shape[2,...]]
+    // axis == 1, [x.shape[0], num_blocks, block_size, x.shape[2,...]]
     std::vector<size_t> target_shape_vector;
     if (axis == 0) {
-        target_shape_vector = {static_cast<size_t>(src_x.get_partial_shape()[0].get_length()) / block_size,
-                               block_size,
-                               static_cast<size_t>(src_x.get_partial_shape()[1].get_length())};
+        target_shape_vector = {num_blocks, block_size, static_cast<size_t>(src_x.get_partial_shape()[1].get_length())};
     } else {
-        target_shape_vector = {static_cast<size_t>(src_x.get_partial_shape()[0].get_length()),
-                               block_size,
-                               static_cast<size_t>(src_x.get_partial_shape()[1].get_length()) / block_size};
+        target_shape_vector = {static_cast<size_t>(src_x.get_partial_shape()[0].get_length()), num_blocks, block_size};
     }
     for (int64_t i = 2; i < src_x.get_partial_shape().rank().get_length(); i++) {
         target_shape_vector.push_back(static_cast<size_t>(src_x.get_partial_shape()[i].get_length()));
     }
     ov::Output<ov::Node> broadcastable_x = op::util::reshape(src_x, ov::Shape(target_shape_vector));
-    const auto& unsqueezed_axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{1});
+    const auto& unsqueezed_axes =
+        std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{axis == 0 ? 1 : 2});
 
     const auto scale_type = scale.get_element_type();
     if (inputs.size() > 2) {
