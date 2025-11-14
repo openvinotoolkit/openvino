@@ -53,11 +53,15 @@ KERNEL(softmax_topk)(
         local_output[0] = 1;
         for(uint i = 1; i < TOP_K; i++) {
             local_output[i] = native_exp(local_output[i] - max_v);
-            // softmax_total += local_output[i];
+#if TOPK_REDUCE
+            softmax_total += local_output[i];
+#endif
         }
+#if !(TOPK_REDUCE)
         for(uint i = 1; i < VALUE_NUM; i++) {
             softmax_total += native_exp(local_input[i] - max_v);
         }
+#endif
         output_index += batch * TOP_K;
         output += batch * TOP_K;
 
@@ -86,7 +90,6 @@ KERNEL (gather_2d_ref)(
     dst_tok += k * HIDDEN_SIZE;
 
     if (off >= HIDDEN_SIZE) {
-        printf("Warning off >= HIDDEN_SIZE: k = %d, off = %d, HIDDEN_SIZE = %d\n", k, off, HIDDEN_SIZE);
         return;
     }
 
