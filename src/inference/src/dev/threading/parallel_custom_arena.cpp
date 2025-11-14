@@ -4,6 +4,11 @@
 #include "dev/threading/parallel_custom_arena.hpp"
 
 #include <cstring>
+#include <cstdlib>
+
+#if defined(__linux__) || defined(__APPLE__)
+#    include <dlfcn.h>
+#endif
 
 #include "dev/threading/itt.hpp"
 
@@ -47,6 +52,22 @@ void __TBB_internal_restore_affinity(binding_handler* handler_ptr, int slot_num)
 int __TBB_internal_get_default_concurrency(int numa_id, int core_type_id, int max_threads_per_core);
 }
 
+static bool is_sanitizer_runtime() {
+#        if defined(__SANITIZE_ADDRESS__) || defined(ADDRESS_SANITIZER)
+    return true;
+#        elif defined(__has_feature)
+#            if __has_feature(address_sanitizer)
+    return true;
+#            endif
+#        endif
+#        if defined(__linux__) || defined(__APPLE__)
+    if (dlsym(RTLD_DEFAULT, "__asan_init")) {
+        return true;
+    }
+#        endif
+    return std::getenv("ASAN_OPTIONS") != nullptr;
+}
+
 static bool is_binding_environment_valid() {
 #        if defined(_WIN32) && !defined(_WIN64)
     static bool result = [] {
@@ -57,9 +78,9 @@ static bool is_binding_environment_valid() {
             return false;
         return true;
     }();
-    return result;
+    return result && !is_sanitizer_runtime();
 #        else
-    return true;
+    return !is_sanitizer_runtime();
 #        endif /* _WIN32 && !_WIN64 */
 }
 
