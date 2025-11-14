@@ -23,6 +23,7 @@
 #include "snippets/op/loop.hpp"
 #include "snippets/op/perf_count.hpp"
 #include "snippets/op/reg_spill.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov::snippets::lowered {
@@ -34,6 +35,9 @@ std::shared_ptr<Expression> ExpressionFactory::build(const std::shared_ptr<Node>
         return create(par, inputs, m_shape_infer_factory);
     }
     if (const auto res = ov::as_type_ptr<ov::op::v0::Result>(n)) {
+        return create(res, inputs, m_shape_infer_factory);
+    }
+    if (const auto res = ov::as_type_ptr<op::Result>(n)) {
         return create(res, inputs, m_shape_infer_factory);
     }
     if (const auto loop_begin = ov::as_type_ptr<op::LoopBegin>(n)) {
@@ -112,6 +116,21 @@ ExpressionPtr ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Result
     // output at least. The port descriptors are automatically created in constructor. We manually clean output ports.
     expr->m_output_port_descriptors.clear();
     expr->validate();
+    return expr;
+}
+
+ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::Result>& res,
+                                        const std::vector<PortConnectorPtr>& inputs,
+                                        const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
+    // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly
+    // make_shared<Expression>(args)
+    auto expr = std::shared_ptr<Expression>(new Expression(res, shape_infer_factory));
+    init_expression_inputs(expr, inputs);
+    // The Result node don't need output port (because of sense of the node). But each node in openvino must have one
+    // output at least. The port descriptors are automatically created in constructor. We manually clean output ports.
+    expr->m_output_port_descriptors.clear();
+    expr->validate();
+    std::cout << "ExpressionFactory::create(const std::shared_ptr<op::Result>" << std::endl;
     return expr;
 }
 
