@@ -419,6 +419,7 @@ struct CACHING_PROPERTIES final : OptionBase<CACHING_PROPERTIES, std::string> {
         return OptionMode::RunTime;
     }
 };
+
 struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPERTIES, std::string> {
     static std::string_view key() {
         return ov::internal::supported_properties.name();
