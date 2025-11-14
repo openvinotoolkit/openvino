@@ -10,7 +10,7 @@ on:
         description: 'Filter for google tests {SMOKE | CONCISE}'
         required: true
         default: 'CONCISE'
-  pull_request:
+
     paths:
       - '.github/workflows/linux_riscv_xuantie_dev_cpu.yml'
       - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'
@@ -68,7 +68,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
-      
+
       - name: Get target branch
         id: set_target_branch
         run: |
@@ -141,7 +141,7 @@ jobs:
 
       - name: System info
         uses: ./openvino/.github/actions/system_info
-        
+
       - name: Setup ccache
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
@@ -161,7 +161,7 @@ jobs:
       #
       - name: Clean ccache stats
         run: ccache --zero-stats
-      
+
       - name: CMake - Configure
         run: >
           cmake -G "${{ env.CMAKE_GENERATOR }}"
@@ -188,21 +188,21 @@ jobs:
         run: |
           ccache --show-stats
           ccache --cleanup
-        
+
       - name: Cmake install - OpenVINO
         run: |
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
         working-directory: ${{ env.BUILD_DIR }}
-          
+
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
-        
+
       - name: Pack openvino_tests
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
         working-directory: ${{ env.INSTALL_TEST_DIR }}
-        
+
       - name: Upload openvino package
         if: ${{ always() }}
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
@@ -210,7 +210,7 @@ jobs:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
-          
+
       - name: Upload openvino tests package
         if: ${{ always() }}
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
@@ -218,7 +218,7 @@ jobs:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
-  
+
   CPU_Functional_Tests:
     name: CPU functional tests
     timeout-minutes: 30
@@ -242,19 +242,19 @@ jobs:
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
-          
+
       - name: Extract OpenVINO packages and tests
         run: |
           pigz -dc openvino_package.tar.gz | tar -xvf - -C ${INSTALL_DIR}
           pigz -dc openvino_tests.tar.gz | tar -xvf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
-        
+
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh

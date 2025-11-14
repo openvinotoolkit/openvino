@@ -18,7 +18,6 @@ if(APPLE AND AARCH64 AND NOT OV_FORCE_ADHOC_SIGN)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_adhoc_codesign")
 endif()
 
-
 include(cmake/install_tbb.cmake)
 
 # CC library should be registered before other cc targets

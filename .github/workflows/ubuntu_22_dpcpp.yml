@@ -6,7 +6,7 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-  # pull_request:
+  #
   # merge_group:
 
 concurrency:
@@ -93,7 +93,7 @@ jobs:
       build-contrib: false
       build-rpm-packages: false
       target-branch: ${{ inputs.target-branch }}
-      cmake-options: >- 
+      cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
