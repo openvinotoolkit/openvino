@@ -175,16 +175,15 @@ ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
     // To maintain compatibility with other runtimes (e.g., ONNXRuntime),
     // extract only the spatial dimensions if the shape includes batch and channels.
     if (!output_shape.empty() && output_shape.size() > num_spatial_dims) {
-        CHECK_VALID_NODE(
-            node,
-            output_shape.size() == num_spatial_dims + 2,
-            "ConvTranspose output_shape attribute has unexpected number of dimensions. "
-            "Expected ",
-            num_spatial_dims,
-            " spatial dimensions or ",
-            num_spatial_dims + 2,
-            " dimensions (with batch and channels), but got ",
-            output_shape.size());
+        CHECK_VALID_NODE(node,
+                         output_shape.size() == num_spatial_dims + 2,
+                         "ConvTranspose output_shape attribute has unexpected number of dimensions. "
+                         "Expected ",
+                         num_spatial_dims,
+                         " spatial dimensions or ",
+                         num_spatial_dims + 2,
+                         " dimensions (with batch and channels), but got ",
+                         output_shape.size());
 
         // Extract last num_spatial_dims elements (the spatial dimensions)
         // For example: [1, 16, 32, 32] -> [32, 32] for 2D convolution
@@ -213,8 +212,8 @@ ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
 
             // Formula from ONNX Runtime: ComputeTotalPad
             // total_pad = max(0, (in_size - 1) * stride + adj + (kernel - 1) * dilation + 1 - out_size)
-            const int64_t total_pad = std::max<int64_t>(
-                0, (in_size - 1) * stride + adj + (kernel_size - 1) * dilation + 1 - out_size);
+            const int64_t total_pad =
+                std::max<int64_t>(0, (in_size - 1) * stride + adj + (kernel_size - 1) * dilation + 1 - out_size);
 
             // Distribute padding: for NOTSET/EXPLICIT, put more on head when odd
             // (ONNX Runtime default for non-SAME modes)
