@@ -15,6 +15,7 @@
 #include "dev/threading/thread_affinity.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "openvino/util/log.hpp"
 #include "os/cpu_map_info.hpp"
 
 namespace ov {
@@ -202,6 +203,8 @@ CPU::CPU() {
                     numa_node_map.insert(std::pair<int, int>(numa_node_list[i][j], i * _numa_nodes / _sockets + j));
                 }
             }
+            _socketid_mapping_table.clear();
+            _numaid_mapping_table.clear();
             for (size_t i = 0; i < valid_cpu_mapping_table.size(); i++) {
                 auto new_numa_id = numa_node_map.at(valid_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]);
                 auto new_socket_id = sockets_map.at(valid_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]);
@@ -214,6 +217,9 @@ CPU::CPU() {
                 valid_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] = new_numa_id;
                 valid_cpu_mapping_table[i][CPU_MAP_SOCKET_ID] = new_socket_id;
             }
+        } else {
+            _socketid_mapping_table.clear();
+            _numaid_mapping_table.clear();
         }
 
         if (valid_cpu_mapping_table.size() == 0) {
@@ -221,20 +227,26 @@ CPU::CPU() {
         } else if (valid_cpu_mapping_table.size() == (unsigned)_processors) {
             return 0;
         } else {
+            OPENVINO_INFO("CPU affinity mask detected: using ",
+                          valid_cpu_mapping_table.size(),
+                          " out of ",
+                          _processors,
+                          " logical CPUs for inference");
             _processors = valid_cpu_mapping_table.size();
             _cpu_mapping_table.swap(valid_cpu_mapping_table);
-            int cur_numa_nodes = _numa_nodes;
+            int cur_sockets = _sockets;
             int cur_cores = _cores;
             {
                 std::lock_guard<std::mutex> lock{_cpu_mutex};
                 update_valid_processor_linux(std::move(phy_core_list),
-                                             cur_numa_nodes,
+                                             cur_sockets,
                                              cur_cores,
                                              _proc_type_table,
                                              _cpu_mapping_table);
             }
+            _sockets = cur_sockets;
             _cores = cur_cores;
-            _numa_nodes = cur_numa_nodes;
+            _numa_nodes = _proc_type_table.size() <= 1 ? 1 : static_cast<int>(_proc_type_table.size()) - 1;
             return 0;
         }
     };
@@ -372,15 +384,19 @@ void parse_node_info_linux(const std::vector<std::string> node_info_table,
 
     for (auto& row : nodes_table) {
         for (int i = row[0]; i <= row[1]; i++) {
-            _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] = row[2];
+            auto& cpu_row = _cpu_mapping_table[i];
+            const int core_type = cpu_row[CPU_MAP_CORE_TYPE];
+            cpu_row[CPU_MAP_NUMA_NODE_ID] = row[2];
             if (_sockets > _numa_nodes) {
-                _cpu_mapping_table[i][CPU_MAP_SOCKET_ID] = row[2];
+                cpu_row[CPU_MAP_SOCKET_ID] = row[2];
             }
-            _proc_type_table[0][ALL_PROC]++;
-            _proc_type_table[0][_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-            if (node_info_table.size() != 1) {
-                _proc_type_table[row[2] + 1][ALL_PROC]++;
-                _proc_type_table[row[2] + 1][_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
+            if (core_type >= 0 && core_type < static_cast<int>(_proc_type_table[0].size())) {
+                _proc_type_table[0][ALL_PROC]++;
+                _proc_type_table[0][core_type]++;
+                if (node_info_table.size() != 1) {
+                    _proc_type_table[row[2] + 1][ALL_PROC]++;
+                    _proc_type_table[row[2] + 1][core_type]++;
+                }
             }
         }
         node_index = (node_info_table.size() != 1) ? row[2] + 1 : 0;
@@ -606,7 +622,23 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
     }
 
     for (size_t n = 0; n < offline_list.size(); n++) {
-        _cpu_mapping_table.erase(_cpu_mapping_table.begin() + offline_list[n] - n);
+        const int erase_index = offline_list[n] - static_cast<int>(n);
+        if (erase_index < 0 || static_cast<size_t>(erase_index) >= _cpu_mapping_table.size()) {
+            continue;
+        }
+        auto& cpu_row = _cpu_mapping_table[static_cast<size_t>(erase_index)];
+        const int core_type = cpu_row[CPU_MAP_CORE_TYPE];
+        if (core_type >= 0 && core_type < static_cast<int>(_proc_type_table[0].size())) {
+            _proc_type_table[0][ALL_PROC]--;
+            _proc_type_table[0][core_type]--;
+            const int numa_id = cpu_row[CPU_MAP_NUMA_NODE_ID];
+            if (_proc_type_table.size() > 1 && numa_id >= 0 &&
+                numa_id + 1 < static_cast<int>(_proc_type_table.size())) {
+                _proc_type_table[numa_id + 1][ALL_PROC]--;
+                _proc_type_table[numa_id + 1][core_type]--;
+            }
+        }
+        _cpu_mapping_table.erase(_cpu_mapping_table.begin() + erase_index);
         _processors--;
     }
 
@@ -810,7 +842,23 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
     }
 
     for (size_t n = 0; n < offline_list.size(); n++) {
-        _cpu_mapping_table.erase(_cpu_mapping_table.begin() + offline_list[n] - n);
+        const int erase_index = offline_list[n] - static_cast<int>(n);
+        if (erase_index < 0 || static_cast<size_t>(erase_index) >= _cpu_mapping_table.size()) {
+            continue;
+        }
+        auto& cpu_row = _cpu_mapping_table[static_cast<size_t>(erase_index)];
+        const int core_type = cpu_row[CPU_MAP_CORE_TYPE];
+        if (core_type >= 0 && core_type < static_cast<int>(_proc_type_table[0].size())) {
+            _proc_type_table[0][ALL_PROC]--;
+            _proc_type_table[0][core_type]--;
+            const int numa_id = cpu_row[CPU_MAP_NUMA_NODE_ID];
+            if (_proc_type_table.size() > 1 && numa_id >= 0 &&
+                numa_id + 1 < static_cast<int>(_proc_type_table.size())) {
+                _proc_type_table[numa_id + 1][ALL_PROC]--;
+                _proc_type_table[numa_id + 1][core_type]--;
+            }
+        }
+        _cpu_mapping_table.erase(_cpu_mapping_table.begin() + erase_index);
         _processors--;
     }
 };
