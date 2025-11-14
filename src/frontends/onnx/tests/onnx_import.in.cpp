@@ -1014,6 +1014,21 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_nonmaxsuppression_default_sco
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, reduce_log_sum_none_input) {
+    auto model = convert_model("reduce_log_sum_none_input.onnx");
+
+    // No runtime inputs needed - using model initializers
+    Inputs inputs{};
+
+    // output data shape: scalar
+    auto expected_output = ov::test::NDArray<float, 4>({{{{0.7971231937408447}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum) {
     auto model = convert_model("reduce_log_sum.onnx");
 
@@ -6220,6 +6235,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_constant_of_shape_null_node) {
     auto model = convert_model("constant_of_shape_null_node.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_expected_output<int32_t>(Shape{}, {1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, cast_float32_to_int4) {
+    auto model = convert_model("cast_float32_to_int4.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{4}, std::vector<float>{1.6f, 2.4f, -1.6f, -2.4f});
+    test_case.add_expected_output<uint8_t>({0x22, 0xEE});
+
     test_case.run();
 }
 

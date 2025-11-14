@@ -1024,7 +1024,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
             #if DECOMPRESSION_ZP_TERM
                 #if DECOMPRESSION_ZP_SCALAR
-                    wei_zp[fi] = (TO_ACCUMULATOR_TYPE)(DECOMPRESSION_ZP_VALUE);
+                    wei_zp[fi] = TO_ACCUMULATOR_TYPE(DECOMPRESSION_ZP_VALUE);
                 #elif DECOMPRESSION_ZP_GROUPS_NUM == 1
                     wei_zp[fi] = TO_ACCUMULATOR_TYPE(d_zps[fi % DECOMPRESSION_ZP_LENGTH]);
                 #endif

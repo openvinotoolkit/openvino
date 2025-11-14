@@ -70,7 +70,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize PluginCompilerAdapter start");
 
-    _logger.info("MLIR compiler will be used.");
+    _logger.info("PLUGIN compiler will be used.");
     std::string baseName = "npu_mlir_compiler";
     auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
     _compiler = load_compiler(libPath);
@@ -91,7 +91,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const Config& config) const {
+                                                       const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
@@ -100,12 +100,14 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
     ov::Tensor tensor = make_tensor_from_vector(networkDesc.compiledNetwork);
     GraphDescriptor graphDesc;
+    NetworkMetadata networkMeta;
 
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled
         // network
         try {
             graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
+            networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -116,7 +118,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         _zeGraphExt,
         _zeroInitStruct,
         graphDesc,
-        std::move(networkDesc.metadata),
+        std::move(networkMeta),
         std::move(tensor),
         config,
         /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
@@ -124,7 +126,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
-                                                         const Config& config) const {
+                                                         const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
 
     std::vector<std::shared_ptr<NetworkDescription>> initNetworkDescriptions;
@@ -208,11 +210,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
     ov::Tensor tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
     GraphDescriptor mainGraphDesc;
+    NetworkMetadata mainNetworkMetadata;
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to
         // get the graph handle from the compiled network
         try {
             mainGraphDesc = _zeGraphExt->getGraphDescriptor(tensorMain.data(), tensorMain.get_byte_size());
+            mainNetworkMetadata = _zeGraphExt->getNetworkMeta(mainGraphDesc);
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -228,23 +232,25 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
     for (auto& networkDesc : initNetworkDescriptions) {
         ov::Tensor tensor = make_tensor_from_vector(networkDesc->compiledNetwork);
         GraphDescriptor initGraphDesc;
+        NetworkMetadata initNetworkMeta;
         if (_zeGraphExt) {
             try {
                 initGraphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
+                initNetworkMeta = _zeGraphExt->getNetworkMeta(initGraphDesc);
             } catch (...) {
             }
         }
 
         initGraphDescriptors.push_back(initGraphDesc);
         tensorsInits.push_back(std::move(tensor));
-        initNetworkMetadata.push_back(std::move(networkDesc->metadata));
+        initNetworkMetadata.push_back(std::move(initNetworkMeta));
     }
 
     return std::make_shared<WeightlessGraph>(
         _zeGraphExt,
         _zeroInitStruct,
         mainGraphDesc,
-        std::move(mainNetworkDescription->metadata),
+        std::move(mainNetworkMetadata),
         std::move(tensorMain),
         initGraphDescriptors,
         std::move(initNetworkMetadata),
@@ -257,7 +263,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     ov::Tensor mainBlob,
-    const Config& config,
+    const FilteredConfig& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
@@ -331,7 +337,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
-                                                 const Config& config) const {
+                                                 const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(QUERY_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "query");
 
     return _compiler->query(model, config);
