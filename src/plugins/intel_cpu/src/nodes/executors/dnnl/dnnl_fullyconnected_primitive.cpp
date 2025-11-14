@@ -331,9 +331,12 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
         wdt = memory::data_type::s8;
     }
 
-    const dnnl::memory::desc weightsDesc =
-        useSparseWeights ? dnnl::memory::desc().sparse_desc(normalizedWeightDesc.get_dims(), wdt)
-                         : dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
+    // const dnnl::memory::desc weightsDesc =
+    //     useSparseWeights ? dnnl::memory::desc().sparse_desc(normalizedWeightDesc.get_dims(), wdt)
+    //                      : dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
+
+    // need to support useSparseWeights in onednn and return back
+    const dnnl::memory::desc weightsDesc = dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
 
     return {engine,
             dnnl::prop_kind::forward_inference,
@@ -474,7 +477,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
 static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc) {
     const auto implType = parse_impl_name(primDesc.impl_info_str());
     if (implType == ov::intel_cpu::brgemm_avx512_amx &&
-        primDesc.weights_desc().get_format_kind() == memory::format_kind::sparsed) {
+        primDesc.weights_desc().get_format_kind() == memory::format_kind::sparse) {
         return ov::intel_cpu::brgemm_sparse_avx512_amx;
     }
 
