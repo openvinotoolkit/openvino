@@ -633,264 +633,263 @@ void ZeroInferRequest::update_states_if_memory_changed() {
             }
         }
     }
+}
 
-    void ZeroInferRequest::infer() {
-        if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-            OPENVINO_THROW("Only start async is supported when RUN_INFERENCES_SEQUENTIALLY is enabled!");
-        }
-
-        infer_async();
-        get_result();
+void ZeroInferRequest::infer() {
+    if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        OPENVINO_THROW("Only start async is supported when RUN_INFERENCES_SEQUENTIALLY is enabled!");
     }
 
-    void ZeroInferRequest::infer_async() {
-        _logger.debug("InferRequest::infer_async started");
-        OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
+    infer_async();
+    get_result();
+}
 
-        {
-            std::lock_guard<std::mutex> lock(_graph->get_mutex());
+void ZeroInferRequest::infer_async() {
+    _logger.debug("InferRequest::infer_async started");
+    OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
 
-            if (!_pipelineIsCreated || _dynamicBatchValueChanged) {
-                OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
-                create_pipeline();  // Reallocate pipeline if necessary
-                _pipelineIsCreated = true;
-                _dynamicBatchValueChanged = false;  // Reset reallocation flag
-            } else {
-                update_pipeline_if_memory_changed();
-                update_states_if_memory_changed();
+    {
+        std::lock_guard<std::mutex> lock(_graph->get_mutex());
+
+        if (!_pipelineIsCreated || _dynamicBatchValueChanged) {
+            OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
+            create_pipeline();  // Reallocate pipeline if necessary
+            _pipelineIsCreated = true;
+            _dynamicBatchValueChanged = false;  // Reset reallocation flag
+        } else {
+            update_pipeline_if_memory_changed();
+            update_states_if_memory_changed();
+        }
+    }
+
+    auto batch_size = _graph->get_batch_size();
+    size_t inputIndex = 0;
+    for (const auto& userTensor : _userInputTensors) {
+        const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
+
+        OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights,
+                        "This path should not be used for running inferences for the \"init\" model");
+
+        if (inputDescriptor.isShapeTensor) {
+            OPENVINO_ASSERT(inputDescriptor.relatedDescriptorIndex.has_value(),
+                            "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
+                            inputDescriptor.nameFromCompiler);
+            const auto& inputDims = get_user_input(*inputDescriptor.relatedDescriptorIndex)->get_shape();
+
+            for (size_t i = 0; i < userTensor.at(SINGLE_TENSOR)->get_size(); ++i) {
+                const auto reverseIdx = inputDims.size() - 1 - i;
+                userTensor.at(SINGLE_TENSOR)->data<uint32_t>()[i] = static_cast<uint32_t>(inputDims[reverseIdx]);
             }
         }
 
-        auto batch_size = _graph->get_batch_size();
-        size_t inputIndex = 0;
-        for (const auto& userTensor : _userInputTensors) {
-            const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
+        // This path is used only for batched input when set_tensors is called and userTensor vector size is greater
+        // than 1.
+        // There are two cases:
+        // 1. Batch size is set and batching is handled by the plugin.
+        // 2. Batch size is not set and batching is handled by the compiler.
+        if (is_batched_input(inputIndex)) {
+            if (batch_size.has_value()) {
+                for (size_t i = 0; i < userTensor.size(); i++) {
+                    void* levelZeroBuffer = get_level_zero_input(inputIndex, i)->data();
 
-            OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights,
-                            "This path should not be used for running inferences for the \"init\" model");
+                    auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i)._ptr);
 
-            if (inputDescriptor.isShapeTensor) {
-                OPENVINO_ASSERT(inputDescriptor.relatedDescriptorIndex.has_value(),
-                                "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
-                                inputDescriptor.nameFromCompiler);
-                const auto& inputDims = get_user_input(*inputDescriptor.relatedDescriptorIndex)->get_shape();
+                    void* userBuffer = !userBatchRemoteTensor ? userTensor.at(i)->data()
+                                                              : userBatchRemoteTensor->get_original_memory();
 
-                for (size_t i = 0; i < userTensor.at(SINGLE_TENSOR)->get_size(); ++i) {
-                    const auto reverseIdx = inputDims.size() - 1 - i;
-                    userTensor.at(SINGLE_TENSOR)->data<uint32_t>()[i] = static_cast<uint32_t>(inputDims[reverseIdx]);
-                }
-            }
-
-            // This path is used only for batched input when set_tensors is called and userTensor vector size is greater
-            // than 1.
-            // There are two cases:
-            // 1. Batch size is set and batching is handled by the plugin.
-            // 2. Batch size is not set and batching is handled by the compiler.
-            if (is_batched_input(inputIndex)) {
-                if (batch_size.has_value()) {
-                    for (size_t i = 0; i < userTensor.size(); i++) {
-                        void* levelZeroBuffer = get_level_zero_input(inputIndex, i)->data();
-
-                        auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i)._ptr);
-
-                        void* userBuffer = !userBatchRemoteTensor ? userTensor.at(i)->data()
-                                                                  : userBatchRemoteTensor->get_original_memory();
-
-                        if (userBuffer != levelZeroBuffer) {
-                            if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
-                                OPENVINO_THROW("Empty buffer");
-                            }
-
-                            _logger.debug(
-                                "Batched Tensors - Tensor by index: %zu is not allocated in the current Level Zero "
-                                "context, copy bytes from user tensor: %zu, into L0 with expected size: %zu",
-                                inputIndex,
-                                userTensor.at(i)->get_byte_size(),
-                                get_level_zero_input(inputIndex, i)->get_byte_size());
-                            OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-                            std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(i)->get_byte_size());
+                    if (userBuffer != levelZeroBuffer) {
+                        if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
+                            OPENVINO_THROW("Empty buffer");
                         }
+
+                        _logger.debug(
+                            "Batched Tensors - Tensor by index: %zu is not allocated in the current Level Zero "
+                            "context, copy bytes from user tensor: %zu, into L0 with expected size: %zu",
+                            inputIndex,
+                            userTensor.at(i)->get_byte_size(),
+                            get_level_zero_input(inputIndex, i)->get_byte_size());
+                        OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
+                        std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(i)->get_byte_size());
                     }
-                } else {
-                    void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
-
-                    _logger.debug("Batched Tensors - Tensor by index: %zu is not allocated in the current Level Zero "
-                                  "context or must be "
-                                  "in a continued memory space, copy into L0 with size: %zu",
-                                  inputIndex,
-                                  get_level_zero_input(inputIndex)->get_byte_size());
-                    size_t copied_bytes_from_user = 0;
-                    for (size_t i = 0; i < userTensor.size(); i++) {
-                        auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i)._ptr);
-
-                        void* userBuffer = !userBatchRemoteTensor ? userTensor.at(i)->data()
-                                                                  : userBatchRemoteTensor->get_original_memory();
-
-                        std::memcpy(
-                            static_cast<unsigned char*>(levelZeroBuffer) + (i * userTensor.at(i)->get_byte_size()),
-                            userBuffer,
-                            userTensor.at(i)->get_byte_size());
-                        copied_bytes_from_user += userTensor.at(i)->get_byte_size();
-                        _logger.debug("Batched Tensors - Tensor by index: %zu copied bytes: [%zu/%zu]",
-                                      inputIndex,
-                                      copied_bytes_from_user,
-                                      get_level_zero_input(inputIndex)->get_byte_size());
-                    }
-                    OPENVINO_ASSERT(get_level_zero_input(inputIndex)->get_byte_size() == copied_bytes_from_user,
-                                    "Bytes copied must be equal");
                 }
+            } else {
+                void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
 
-                ++inputIndex;
-                continue;
-            }
+                _logger.debug("Batched Tensors - Tensor by index: %zu is not allocated in the current Level Zero "
+                              "context or must be "
+                              "in a continued memory space, copy into L0 with size: %zu",
+                              inputIndex,
+                              get_level_zero_input(inputIndex)->get_byte_size());
+                size_t copied_bytes_from_user = 0;
+                for (size_t i = 0; i < userTensor.size(); i++) {
+                    auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i)._ptr);
 
-            if (inputDescriptor.isMainInputWeights) {
-                // These values were set while running the "WeightlessGraph::init" method
-                continue;
-            }
+                    void* userBuffer = !userBatchRemoteTensor ? userTensor.at(i)->data()
+                                                              : userBatchRemoteTensor->get_original_memory();
 
-            auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(SINGLE_TENSOR)._ptr);
-            void* userBuffer =
-                !userRemoteTensor ? userTensor.at(SINGLE_TENSOR)->data() : userRemoteTensor->get_original_memory();
-            void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
-
-            if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
-                OPENVINO_THROW("Empty buffer");
-            }
-
-            if (userBuffer != levelZeroBuffer) {
-                _logger.info("Tensor is not allocated in the current Level Zero context");
-                OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-                std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(SINGLE_TENSOR)->get_byte_size());
+                    std::memcpy(static_cast<unsigned char*>(levelZeroBuffer) + (i * userTensor.at(i)->get_byte_size()),
+                                userBuffer,
+                                userTensor.at(i)->get_byte_size());
+                    copied_bytes_from_user += userTensor.at(i)->get_byte_size();
+                    _logger.debug("Batched Tensors - Tensor by index: %zu copied bytes: [%zu/%zu]",
+                                  inputIndex,
+                                  copied_bytes_from_user,
+                                  get_level_zero_input(inputIndex)->get_byte_size());
+                }
+                OPENVINO_ASSERT(get_level_zero_input(inputIndex)->get_byte_size() == copied_bytes_from_user,
+                                "Bytes copied must be equal");
             }
 
             ++inputIndex;
+            continue;
         }
 
-        OV_ITT_TASK_NEXT(ZERO_INFER, "push");
-        _pipeline->push();
-    }
-
-    void ZeroInferRequest::get_result() {
-        OV_ITT_TASK_CHAIN(ZERO_RESULT, itt::domains::LevelZeroBackend, "get_result", "pull");
-        _logger.debug("InferRequest::get_result start");
-        _pipeline->pull();
-
-        size_t outputIndex = 0;
-        for (const auto& userTensor : _userOutputTensors) {
-            const IODescriptor outputDescriptor = _metadata.outputs.at(outputIndex);
-            if (outputDescriptor.isShapeTensor) {
-                OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value(),
-                                "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
-                                outputDescriptor.nameFromCompiler);
-
-                ov::Shape actualDims;
-                actualDims.reserve(userTensor->get_size());
-
-                for (size_t i = 0; i < userTensor->get_size(); ++i) {
-                    const auto reverseIdx = userTensor->get_size() - 1 - i;
-                    actualDims.push_back(userTensor->data<uint32_t>()[reverseIdx]);
-                }
-                auto& tensorToBeReshaped = _userOutputTensors.at(*outputDescriptor.relatedDescriptorIndex);
-                tensorToBeReshaped->set_shape(actualDims);
-            }
-
-            auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor._ptr);
-            void* userBuffer = !userRemoteTensor ? userTensor->data() : userRemoteTensor->get_original_memory();
-            void* levelZeroBuffer = _levelZeroOutputTensors.at(outputIndex)->data();
-
-            if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
-                OPENVINO_THROW("Empty buffer");
-            }
-
-            if (userBuffer != levelZeroBuffer) {
-                _logger.info("Output tensor by index: %zu is not allocated in the current Level Zero context",
-                             outputIndex);
-                OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
-                std::memcpy(userBuffer, levelZeroBuffer, userTensor->get_byte_size());
-            }
-
-            ++outputIndex;
+        if (inputDescriptor.isMainInputWeights) {
+            // These values were set while running the "WeightlessGraph::init" method
+            continue;
         }
 
-        OV_ITT_TASK_NEXT(ZERO_RESULT, "reset");
-        _pipeline->reset();
-        _logger.debug("InferRequest::get_result finished");
-    }
+        auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(SINGLE_TENSOR)._ptr);
+        void* userBuffer =
+            !userRemoteTensor ? userTensor.at(SINGLE_TENSOR)->data() : userRemoteTensor->get_original_memory();
+        void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
 
-    void ZeroInferRequest::check_network_precision(const ov::element::Type_t precision) const {
-        switch (precision) {
-        case ov::element::Type_t::f32:
-            break;
-        case ov::element::Type_t::f16:
-            break;
-        case ov::element::Type_t::bf16:
-            break;
-        case ov::element::Type_t::f8e4m3:
-            break;
-        case ov::element::Type_t::f8e5m2:
-            break;
-        case ov::element::Type_t::f8e8m0:
-            break;
-        case ov::element::Type_t::nf4:
-            break;
-        case ov::element::Type_t::u2:
-            break;
-        case ov::element::Type_t::u4:
-            break;
-        case ov::element::Type_t::i4:
-            break;
-        case ov::element::Type_t::u8:
-            break;
-        case ov::element::Type_t::i8:
-            break;
-        case ov::element::Type_t::u16:
-            break;
-        case ov::element::Type_t::i16:
-            break;
-        case ov::element::Type_t::u32:
-            break;
-        case ov::element::Type_t::i32:
-            break;
-        case ov::element::Type_t::u64:
-            break;
-        case ov::element::Type_t::i64:
-            break;
-        case ov::element::Type_t::f64:
-            break;
-        case ov::element::Type_t::boolean:
-            break;
-        default:
-            OPENVINO_THROW(
-                "Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
-                "! Supported precisions: FP32, FP16, BF16, FP8, NF4, U2, U4, I4, U8, I8, U16, I16, U32, I32, U64, "
-                "I64, FP64, BOOLEAN");
+        if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
+            OPENVINO_THROW("Empty buffer");
         }
+
+        if (userBuffer != levelZeroBuffer) {
+            _logger.info("Tensor is not allocated in the current Level Zero context");
+            OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
+            std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(SINGLE_TENSOR)->get_byte_size());
+        }
+
+        ++inputIndex;
     }
 
-    std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
-        OPENVINO_ASSERT(_pipeline, "Profiling information isn't available before running an inference!");
+    OV_ITT_TASK_NEXT(ZERO_INFER, "push");
+    _pipeline->push();
+}
 
-        return _pipeline->get_profiling_info();
+void ZeroInferRequest::get_result() {
+    OV_ITT_TASK_CHAIN(ZERO_RESULT, itt::domains::LevelZeroBackend, "get_result", "pull");
+    _logger.debug("InferRequest::get_result start");
+    _pipeline->pull();
+
+    size_t outputIndex = 0;
+    for (const auto& userTensor : _userOutputTensors) {
+        const IODescriptor outputDescriptor = _metadata.outputs.at(outputIndex);
+        if (outputDescriptor.isShapeTensor) {
+            OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value(),
+                            "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
+                            outputDescriptor.nameFromCompiler);
+
+            ov::Shape actualDims;
+            actualDims.reserve(userTensor->get_size());
+
+            for (size_t i = 0; i < userTensor->get_size(); ++i) {
+                const auto reverseIdx = userTensor->get_size() - 1 - i;
+                actualDims.push_back(userTensor->data<uint32_t>()[reverseIdx]);
+            }
+            auto& tensorToBeReshaped = _userOutputTensors.at(*outputDescriptor.relatedDescriptorIndex);
+            tensorToBeReshaped->set_shape(actualDims);
+        }
+
+        auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor._ptr);
+        void* userBuffer = !userRemoteTensor ? userTensor->data() : userRemoteTensor->get_original_memory();
+        void* levelZeroBuffer = _levelZeroOutputTensors.at(outputIndex)->data();
+
+        if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
+            OPENVINO_THROW("Empty buffer");
+        }
+
+        if (userBuffer != levelZeroBuffer) {
+            _logger.info("Output tensor by index: %zu is not allocated in the current Level Zero context", outputIndex);
+            OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
+            std::memcpy(userBuffer, levelZeroBuffer, userTensor->get_byte_size());
+        }
+
+        ++outputIndex;
     }
 
-    void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIndex) const {
-        OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
-                        "The link between state descriptors is missing, state name: ",
-                        descriptor.nameFromCompiler);
+    OV_ITT_TASK_NEXT(ZERO_RESULT, "reset");
+    _pipeline->reset();
+    _logger.debug("InferRequest::get_result finished");
+}
 
-        _variableStates.push_back(std::make_shared<ZeroVariableState>(_initStructs,
-                                                                      descriptor.nameFromCompiler,
-                                                                      get_level_zero_input(tensorIndex),
-                                                                      tensorIndex,
-                                                                      descriptor.relatedDescriptorIndex.value(),
-                                                                      _config));
+void ZeroInferRequest::check_network_precision(const ov::element::Type_t precision) const {
+    switch (precision) {
+    case ov::element::Type_t::f32:
+        break;
+    case ov::element::Type_t::f16:
+        break;
+    case ov::element::Type_t::bf16:
+        break;
+    case ov::element::Type_t::f8e4m3:
+        break;
+    case ov::element::Type_t::f8e5m2:
+        break;
+    case ov::element::Type_t::f8e8m0:
+        break;
+    case ov::element::Type_t::nf4:
+        break;
+    case ov::element::Type_t::u2:
+        break;
+    case ov::element::Type_t::u4:
+        break;
+    case ov::element::Type_t::i4:
+        break;
+    case ov::element::Type_t::u8:
+        break;
+    case ov::element::Type_t::i8:
+        break;
+    case ov::element::Type_t::u16:
+        break;
+    case ov::element::Type_t::i16:
+        break;
+    case ov::element::Type_t::u32:
+        break;
+    case ov::element::Type_t::i32:
+        break;
+    case ov::element::Type_t::u64:
+        break;
+    case ov::element::Type_t::i64:
+        break;
+    case ov::element::Type_t::f64:
+        break;
+    case ov::element::Type_t::boolean:
+        break;
+    default:
+        OPENVINO_THROW(
+            "Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
+            "! Supported precisions: FP32, FP16, BF16, FP8, NF4, U2, U4, I4, U8, I8, U16, I16, U32, I32, U64, "
+            "I64, FP64, BOOLEAN");
     }
+}
 
-    std::shared_ptr<ZeroTensor>& ZeroInferRequest::get_level_zero_input(size_t index, size_t tensorNo) const {
-        return _levelZeroInputTensors.at(index).at(tensorNo);
-    }
+std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
+    OPENVINO_ASSERT(_pipeline, "Profiling information isn't available before running an inference!");
 
-    std::vector<std::shared_ptr<ZeroTensor>>& ZeroInferRequest::get_level_zero_inputs(size_t index) const {
-        return _levelZeroInputTensors.at(index);
-    }
+    return _pipeline->get_profiling_info();
+}
+
+void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIndex) const {
+    OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
+                    "The link between state descriptors is missing, state name: ",
+                    descriptor.nameFromCompiler);
+
+    _variableStates.push_back(std::make_shared<ZeroVariableState>(_initStructs,
+                                                                  descriptor.nameFromCompiler,
+                                                                  get_level_zero_input(tensorIndex),
+                                                                  tensorIndex,
+                                                                  descriptor.relatedDescriptorIndex.value(),
+                                                                  _config));
+}
+
+std::shared_ptr<ZeroTensor>& ZeroInferRequest::get_level_zero_input(size_t index, size_t tensorNo) const {
+    return _levelZeroInputTensors.at(index).at(tensorNo);
+}
+
+std::vector<std::shared_ptr<ZeroTensor>>& ZeroInferRequest::get_level_zero_inputs(size_t index) const {
+    return _levelZeroInputTensors.at(index);
+}
