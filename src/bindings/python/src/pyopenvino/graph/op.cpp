@@ -8,7 +8,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
-#include <pybind11/critical_section.h>
 
 #include <pyopenvino/graph/op.hpp>
 
@@ -25,10 +24,7 @@ void PyOp::validate_and_infer_types() {
 }
 
 bool PyOp::visit_attributes(ov::AttributeVisitor& value) {
-    py::gil_scoped_acquire gil;  // Traditional: Acquire GIL. Free-threaded: Ensure thread state.
-#ifdef Py_GIL_DISABLED
-    py::scoped_critical_section cs(py_handle);  // Free-threaded only: Lock the Python object
-#endif
+    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
     // Try to look up the overridden method on the Python side.
     py::function overrided_py_method = pybind11::get_override(this, "visit_attributes");
     if (overrided_py_method) {                                       // method is found
@@ -37,20 +33,18 @@ bool PyOp::visit_attributes(ov::AttributeVisitor& value) {
     return true;
 }
 
-std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& inputs) const {
-    py::gil_scoped_acquire gil;  // Traditional: Acquire GIL. Free-threaded: Ensure thread state.
-#ifdef Py_GIL_DISABLED
-    py::scoped_critical_section cs(py_handle);  // Free-threaded only: Lock the Python object
-#endif
+std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
     // Try to look up the overridden method on the Python side.
     py::function overrided_py_method = pybind11::get_override(this, "clone_with_new_inputs");
-    if (overrided_py_method) {  // method is found
-        // Call the Python function.
-        py::object obj = overrided_py_method(inputs);
-        return obj.cast<std::shared_ptr<ov::Node>>();
-    } else {
-        OPENVINO_THROW("clone_with_new_inputs() is not implemented for ", get_type_info().name, " class");
+    if (overrided_py_method) {                        // method is found
+        auto result = overrided_py_method(new_args);  // Call the Python function.
+        return result.cast<std::shared_ptr<ov::Node>>();
     }
+    // Default implementation for clone_with_new_inputs
+    auto py_handle_type = py::type::handle_of(py_handle);
+    auto new_py_object = py_handle_type(new_args);
+    return new_py_object.cast<std::shared_ptr<ov::Node>>();
 }
 
 const ov::op::Op::type_info_t& PyOp::get_type_info() const {
@@ -58,10 +52,7 @@ const ov::op::Op::type_info_t& PyOp::get_type_info() const {
 }
 
 bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    py::gil_scoped_acquire gil;  // Traditional: Acquire GIL. Free-threaded: Ensure thread state.
-#ifdef Py_GIL_DISABLED
-    py::scoped_critical_section cs(py_handle);  // Free-threaded only: Lock the Python object
-#endif
+    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
     py::function overrided_py_method = pybind11::get_override(this, "evaluate");
 
     if (overrided_py_method) {
@@ -71,10 +62,7 @@ bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& inp
 }
 
 bool PyOp::has_evaluate() const {
-    py::gil_scoped_acquire gil;  // Traditional: Acquire GIL. Free-threaded: Ensure thread state.
-#ifdef Py_GIL_DISABLED
-    py::scoped_critical_section cs(py_handle);  // Free-threaded only: Lock the Python object
-#endif
+    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
     // Try to look up the overridden method on the Python side.
     py::function overrided_py_method = pybind11::get_override(this, "has_evaluate");
     if (overrided_py_method) {                                 // method is found
@@ -88,10 +76,8 @@ bool PyOp::has_evaluate() const {
 }
 
 void PyOp::update_type_info() {
-    py::gil_scoped_acquire gil;  // Traditional: Acquire GIL. Free-threaded: Ensure thread state.
-#ifdef Py_GIL_DISABLED
-    py::scoped_critical_section cs(py_handle);  // Free-threaded only: Lock the Python object
-#endif
+    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+
     // Try to look up the overridden method on the Python side.
     py::function overriden_py_method = pybind11::get_override(this, "get_type_info");
     if (overriden_py_method) {

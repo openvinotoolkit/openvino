@@ -220,9 +220,6 @@ class CustomSimpleOp(Op):
     def validate_and_infer_types(self):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
 
-    def clone_with_new_inputs(self, new_inputs):
-        return CustomSimpleOp(*new_inputs)
-
 
 class CustomSimpleOpWithAttribute(Op):
     class_type_info = DiscreteTypeInfo("CustomSimpleOpWithAttribute", "extension")
@@ -233,9 +230,6 @@ class CustomSimpleOpWithAttribute(Op):
 
     def validate_and_infer_types(self):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
-
-    def clone_with_new_inputs(self, new_inputs):
-        return CustomSimpleOpWithAttribute(new_inputs, **self._attrs)
 
     @staticmethod
     def get_type_info():
