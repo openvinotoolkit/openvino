@@ -103,11 +103,18 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef BIAS_DT
     bias_ptr += (experts_ids[batch] * BIAS_STRIDE);
     int sglid = get_sub_group_local_id();
-    const int num_cols_per_block = (ugemm_moe_c_type_block0 * ugemm_moe_c_type_block1) / SUBGROUP_SIZE; // 8
-    const int num_rows_per_block = ugemm_moe_c_type_nblock0 * ugemm_moe_c_type_nblock1; // 12
-    for (int br = 0; br < num_rows_per_block; br++) {
-        for (int bc = 0; bc < num_cols_per_block; bc++) {
-            c_tile_half.x[br][bc] += bias_ptr[sg_i0 + br * SUBGROUP_SIZE + sglid];
+    const int br = ugemm_moe_c_type_block0;
+    const int nbr = ugemm_moe_c_type_nblock0;
+    const int bc = ugemm_moe_c_type_block1;
+    const int nbc = ugemm_moe_c_type_nblock1;
+    int sg = SUBGROUP_SIZE;
+    for (int j = 0; j < bc * nbc; j++) {
+        if (sg_j0 + j < cur_n_tokens) {
+            for (int i0 = 0; i0 < br * nbr; i0 += sg) {
+                int i = i0 + sglid;
+                if (sg_i0 + i < m)
+                    c_tile_half.x[i0 / br + nbr * (j / bc)][(i0 % br)/sg + (j % bc) * (br / sg)] += bias_ptr[sg_i0 + i];
+            }
         }
     }
 #endif
