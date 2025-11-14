@@ -62,6 +62,9 @@ jobs:
           - name: tempdisk
             runner: aks-win-32-cores-128gb-tdsk-st
             build_jobs: thirtytwo_jobs
+          - name: 'd-size'
+            runner: 'aks-win-16-cores-32gb-d-st'
+            build_jobs: sixteen_jobs
         link_jobs:
           - one_job
           - four_jobs
