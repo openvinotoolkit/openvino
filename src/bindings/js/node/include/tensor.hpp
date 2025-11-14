@@ -71,6 +71,7 @@ public:
      * @return JavaScript undefined on success, or throws a JS exception on error.
      */
     Napi::Value set_shape(const Napi::CallbackInfo& info);
+    Napi::Value copy_to(const Napi::CallbackInfo& info);
 
 private:
     ov::Tensor _tensor;
