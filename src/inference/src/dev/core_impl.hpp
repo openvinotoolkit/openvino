@@ -34,7 +34,6 @@ public:
         static CacheConfig create(const std::string& dir);
     };
 
-    void set(const ov::AnyMap& config);
     void set(const ov::AnyMap& config, const std::string& device_name);
 
     /**
@@ -47,8 +46,6 @@ public:
     std::string get_cache_dir() const;
 
     bool get_enable_mmap() const;
-
-    CacheConfig get_cache_config_for_device(const ov::Plugin& plugin, const ov::AnyMap& parsed_config) const;
 
     // Creating thread-safe copy of global config including shared_ptr to ICacheManager
     CacheConfig get_cache_config_for_device(const ov::Plugin& plugin) const;

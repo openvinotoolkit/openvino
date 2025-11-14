@@ -384,7 +384,7 @@ ov::Parsed parse_device_config(const std::string& device_name,
         }
     };
 
-    parsed.m_core_config.set(updated_config);
+    parsed.m_core_config.set(updated_config, updated_device_name);
     // keep batch property only when called from query_supported_property
     if (!keep_auto_batch_property) {
         for (const auto& name : auto_batch_properties_names) {
@@ -392,6 +392,12 @@ ov::Parsed parse_device_config(const std::string& device_name,
         }
     }
     return parsed;
+}
+
+void emplace_cache_dir_if_supported(ov::AnyMap& config, const ov::Plugin& plugin, const std::string& cache_dir) {
+    if (ov::util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir)) {
+        config.emplace(ov::cache_dir(cache_dir));
+    }
 }
 }  // namespace
 
@@ -406,7 +412,6 @@ ov::Parsed ov::parse_device_name_into_config(const std::string& device_name,
                                              const AnyMap& config,
                                              const bool keep_auto_batch_property) {
     auto parsed = parse_device_config(device_name, core_config, config, keep_auto_batch_property);
-
     // remove core properties for HW devices
     if (!ov::is_virtual_device(parsed.m_device_name)) {
         CoreConfig::remove_core(parsed.m_config);
@@ -835,13 +840,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                 config_with_batch,
                                                 is_proxy_device(patched_device_name));
     auto plugin = get_plugin(parsed.m_device_name);
-    const auto cache_manager =
-        parsed.m_core_config.get_cache_config_for_device(plugin, parsed.m_config).m_cache_manager;
-    auto res = import_compiled_model(plugin, {}, parsed.m_config, model);
+    const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
+    auto res = import_compiled_model(plugin, {}, config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (res) {
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
+        emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager,
                                    parsed.m_core_config.get_enable_mmap(),
                                    get_cache_model_path(config).string()};
@@ -882,13 +887,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto parsed =
         parse_device_name_into_config(device_name, m_core_config, config_with_batch, is_proxy_device(device_name));
     auto plugin = get_plugin(parsed.m_device_name);
-    const auto cache_manager =
-        parsed.m_core_config.get_cache_config_for_device(plugin, parsed.m_config).m_cache_manager;
+    const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto res = import_compiled_model(plugin, context, parsed.m_config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (res) {
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
+        emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager,
                                    parsed.m_core_config.get_enable_mmap(),
                                    get_cache_model_path(config).string()};
@@ -911,8 +916,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     auto parsed = parse_device_config(device_name, m_core_config, config, false);
     // in case of compile_model(file_name), we need to clear-up core-level properties
     auto plugin = get_plugin(parsed.m_device_name);
-    const auto cache_manager =
-        parsed.m_core_config.get_cache_config_for_device(plugin, parsed.m_config).m_cache_manager;
+    const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto compiled_model = import_compiled_model(plugin, {}, parsed.m_config, model_path);
 
     if (compiled_model) {
@@ -920,6 +924,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CoreConfig::remove_core(parsed.m_config);
+        emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), model_path};
         cache_content.m_blob_id =
             ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed.m_config));
@@ -942,13 +947,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::compile_model::from_memory");
     auto parsed = parse_device_name_into_config(device_name, m_core_config, config);
     auto plugin = get_plugin(parsed.m_device_name);
-    const auto cache_manager =
-        parsed.m_core_config.get_cache_config_for_device(plugin, parsed.m_config).m_cache_manager;
+    const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto compiled_model = import_compiled_model(plugin, {}, parsed.m_config);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (compiled_model) {
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
+        emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap()};
         cache_content.m_blob_id =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed.m_config));
@@ -1655,39 +1660,27 @@ ov::CoreConfig::CoreConfig(const CoreConfig& other) {
     m_flag_enable_mmap = other.m_flag_enable_mmap;
 }
 
-void ov::CoreConfig::set(const ov::AnyMap& config) {
-    auto it = config.find(ov::cache_dir.name());
-    if (it != config.end()) {
-        std::lock_guard<std::mutex> lock(m_cache_config_mutex);
-        // fill global cache config
-        const auto& cache_dir = it->second.as<std::string>();
-        m_cache_config = CoreConfig::CacheConfig::create(cache_dir);
-        // sets cache config per-device if it's not set explicitly before
-        for (auto& device_cfg : m_devices_cache_config) {
-            device_cfg.second = CoreConfig::CacheConfig::create(cache_dir);
+void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_name) {
+    if (const auto cfg_entry = config.find(ov::cache_dir.name()); cfg_entry != config.end()) {
+        const auto& cache_dir = cfg_entry->second.as<std::string>();
+        if (std::lock_guard<std::mutex> lock(m_cache_config_mutex); device_name.empty()) {
+            // fill global cache config
+            m_cache_config = CoreConfig::CacheConfig::create(cache_dir);
+            // sets cache config per-device if it's not set explicitly before
+            for (auto& device_cfg : m_devices_cache_config) {
+                device_cfg.second = CoreConfig::CacheConfig::create(cache_dir);
+            }
+        } else {
+            m_devices_cache_config[device_name] = CoreConfig::CacheConfig::create(cache_dir);
         }
     }
 
-    it = config.find(ov::force_tbb_terminate.name());
-    if (it != config.end()) {
-        auto flag = it->second.as<bool>();
-        ov::threading::executor_manager()->set_property({{it->first, flag}});
+    if (const auto cfg_entry = config.find(ov::force_tbb_terminate.name()); cfg_entry != config.end()) {
+        ov::threading::executor_manager()->set_property({*cfg_entry});
     }
 
-    it = config.find(ov::enable_mmap.name());
-    if (it != config.end()) {
-        auto flag = it->second.as<bool>();
-        m_flag_enable_mmap = flag;
-    }
-}
-
-void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_name) {
-    if (device_name.empty()) {
-        set(config);
-    } else if (const auto cache_dir_entry = config.find(ov::cache_dir.name()); cache_dir_entry != config.end()) {
-        std::lock_guard<std::mutex> lock(m_cache_config_mutex);
-        m_devices_cache_config[device_name] =
-            CoreConfig::CacheConfig::create(cache_dir_entry->second.as<std::string>());
+    if (const auto cfg_entry = config.find(ov::enable_mmap.name()); cfg_entry != config.end()) {
+        m_flag_enable_mmap = cfg_entry->second.as<bool>();
     }
 }
 
@@ -1709,19 +1702,6 @@ std::string ov::CoreConfig::get_cache_dir() const {
 
 bool ov::CoreConfig::get_enable_mmap() const {
     return m_flag_enable_mmap;
-}
-
-// Creating thread-safe copy of config including shared_ptr to ICacheManager
-// Passing empty or not-existing name will return global cache config
-ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov::Plugin& plugin,
-                                                                        const ov::AnyMap& config) const {
-    // cache_dir is enabled locally in compile_model only
-    if (config.count(ov::cache_dir.name())) {
-        const auto& cache_dir = config.at(ov::cache_dir.name()).as<std::string>();
-        return CoreConfig::CacheConfig::create(cache_dir);
-    } else {  // cache_dir is set to Core globally or for the specific device
-        return get_cache_config_for_device(plugin);
-    }
 }
 
 ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov::Plugin& plugin) const {
@@ -1758,7 +1738,7 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath
                                                     const AnyMap& properties) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
     auto local_core_config = m_core_config;
-    local_core_config.set(properties);
+    local_core_config.set(properties, {});
     return ov::util::read_model(modelPath, binPath, get_extensions_copy(), local_core_config.get_enable_mmap());
 }
 
