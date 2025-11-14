@@ -37,6 +37,16 @@ public:
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
 
+/**
+ * @brief Returns mapped memory for a file from provided file descriptor.
+ * Instead of reading files, we can map the memory via mmap for Linux
+ * in order to avoid time-consuming reading and reduce memory consumption.
+ *
+ * @param fd File descriptor of an already opened file.
+ * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
+ */
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const int fd);
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**

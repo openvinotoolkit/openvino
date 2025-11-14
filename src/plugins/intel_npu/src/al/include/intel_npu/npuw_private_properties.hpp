@@ -8,6 +8,13 @@
 
 namespace ov {
 namespace intel_npu {
+
+/**
+ * @brief Type definition for file descriptor getter callback.
+ * Function that takes a file path string and returns a file descriptor as int.
+ * This is useful for scenarios where file access needs to be controlled externally.
+ */
+using FdGetterType = std::function<int(const std::string&)>;
 /**
  * @brief
  * Type: bool
@@ -17,6 +24,13 @@ namespace intel_npu {
 static constexpr ov::Property<bool> use_npuw{"NPU_USE_NPUW"};
 
 namespace npuw {
+/**
+ * @brief This key identifies callback function to get file descriptor for a given file path.
+ * The callback takes a file path string and returns a file descriptor as int.
+ * This is useful for scenarios where file access needs to be controlled externally.
+ */
+static constexpr ov::Property<FdGetterType> fd_getter{"FD_GETTER"};
+
 /**
  * @brief
  * Type: std::string

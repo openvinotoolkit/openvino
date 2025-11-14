@@ -14,8 +14,12 @@
 #include <string>
 #include <tuple>
 #include <unordered_map>
+
+#include "intel_npu/npuw_private_properties.hpp"
 #include <unordered_set>
 #include <vector>
+
+#include "openvino/runtime/properties.hpp"
 
 namespace ov {
 namespace npuw {
@@ -131,7 +135,8 @@ struct WeightsContext {
     WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
-                   const BF16Cache& _bf16_consts);
+                   const BF16Cache& _bf16_consts,
+                   const ov::intel_npu::FdGetterType& _fd_getter = nullptr);
 
     WeightsContext& operator=(const WeightsContext& other) = default;
 
@@ -146,6 +151,7 @@ struct WeightsContext {
     std::string weights_path;
     ConstsCache consts_cache;
     BF16Cache bf16_consts;
+    ov::intel_npu::FdGetterType fd_getter = nullptr;
 };
 
 struct PyramidCtx {
