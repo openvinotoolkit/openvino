@@ -61,14 +61,14 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
 
     CPU_REGISTER_PASS_COMMON(
         manager,
-        pass::ConvertFullyConnectedToFullyConnectedCompressed,
+        ov::pass::ConvertFullyConnectedToFullyConnectedCompressed,
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedActivationsTypes(),
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(),
         [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc, size_t IC, size_t OC, size_t G) {
             return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(fc, IC, OC, G, config);
         });
 
-    CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);
+    CPU_REGISTER_PASS_X64(manager, ov::pass::ConvertFCToFCQuantizedLegacy);
     CPU_REGISTER_PASS_COMMON(manager, MoveFCReshapeToWeights);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
