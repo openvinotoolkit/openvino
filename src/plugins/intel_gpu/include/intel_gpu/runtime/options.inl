@@ -40,6 +40,7 @@ OV_CONFIG_RELEASE_OPTION(ov::internal, key_cache_quant_mode, ov::internal::Cache
 OV_CONFIG_RELEASE_OPTION(ov::internal, value_cache_quant_mode, ov::internal::CacheQuantMode::BY_TOKEN, "AUTO or BY_CHANNEL or BY_TOKEN")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, mem_pool_util_threshold, 0.5, "Minimum utilization threshold (0.0~1.0) for reusable memory in the pool")
 OV_CONFIG_RELEASE_OPTION(ov, enable_weightless, false, "Enable/Disable weightless blob")
+OV_CONFIG_RELEASE_OPTION(ov, sliding_window_per_layer, "", "Sliding window per attention layer")
 
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, shape_predictor_settings, {10, 16 * 1024, 2, 1.1f}, "Preallocation settings")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, queue_type, QueueTypes::out_of_order, "Type of the queue that must be used for model execution. May be in-order or out-of-order")

@@ -1367,4 +1367,10 @@ static constexpr Property<uint64_t, PropertyMutability::RW> key_cache_group_size
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_size{"VALUE_CACHE_GROUP_SIZE"};
+
+/**
+ *  @brief Sliding windows per attention layer
+ *  @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::string, PropertyMutability::RW> sliding_window_per_layer{"SLIDING_WINDOW_PER_LAYER"};
 }  // namespace ov
