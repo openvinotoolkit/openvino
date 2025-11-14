@@ -227,7 +227,7 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
         if (dims.size() != flag.size()) {
             return dims;
         }
-        std::vector<size_t> ret;
+        VectorDims ret;
         for (size_t i = 0; i < dims.size(); i++) {
             if (flag[i] != 1) {
                 ret.push_back(dims[i]);
