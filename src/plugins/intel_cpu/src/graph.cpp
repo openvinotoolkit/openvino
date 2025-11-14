@@ -2103,6 +2103,18 @@ void Graph::EnforceInferencePrecision() const {
                     }
                 }
             }
+
+            // Pattern 2: Gather with integer type on data input
+            if (node->getType() == Type::Gather) {
+                const auto inputPrec = node->getOriginalInputPrecisionAtPort(0);
+                if (inputPrec.is_integral_number()) {
+                    // Add Gather node to nodesToSkip
+                    nodesToSkip.insert(node);
+
+                    // keep the child subtree in the original precision
+                    forwardSkipSearch(node, nodesToSkip);
+                }
+            }
         }
     }
 
