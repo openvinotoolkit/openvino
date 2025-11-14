@@ -216,10 +216,18 @@ std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>> create_router_pattern() 
     auto one_hot_off = wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
     auto transpose_perm = wrap_type<ov::op::v0::Constant>(pattern::value_matches("2, 1, 0"));
 
-    auto softmax = wrap_type<ov::op::v8::Softmax>({linear_MatMul}, {{"axis", -1}});
-    auto topk = wrap_type<ov::op::v11::TopK>(
+    auto softmax_0 = wrap_type<ov::op::v8::Softmax>({linear_MatMul}, {{"axis", -1}});
+    auto softmax_1 = wrap_type<ov::op::v8::Softmax>({linear_MatMul}, {{"axis", 1}});
+    auto softmax = softmax_0 | softmax_1;
+    auto topk_none = wrap_type<ov::op::v11::TopK>(
         {softmax, num_topk},
         {{"axis", -1}, {"mode", "max"}, {"sort", "none"}, {"index_element_type", "i64"}, {"stable", false}});
+    topk_none->set_output_size(2);
+    auto topk_value = wrap_type<ov::op::v11::TopK>(
+        {softmax, num_topk},
+        {{"axis", -1}, {"mode", "max"}, {"sort", "value"}, {"index_element_type", "i64"}, {"stable", false}});
+    topk_value->set_output_size(2);
+    auto topk = topk_none | topk_value;
     topk->set_output_size(2);
     auto one_hot = wrap_type<ov::op::v1::OneHot>({topk->output(1), expert_num, one_hot_on, one_hot_off}, {{"axis", 2}});
     auto permute = wrap_type<ov::op::v1::Transpose>({one_hot, transpose_perm});
