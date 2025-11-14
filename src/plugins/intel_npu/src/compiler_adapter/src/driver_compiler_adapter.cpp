@@ -103,7 +103,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
-    _logger.debug("serialize IR");
+    bool isSerializerAlgorithmSupported =
+        config.isAvailable(ov::intel_npu::model_serializer_algorithm.name())
+            ? this->is_option_supported(ov::intel_npu::model_serializer_algorithm.name(),
+                                        MODEL_SERIALIZER_ALGORITHM::toString(config.get<MODEL_SERIALIZER_ALGORITHM>()))
+            : false;
 
     auto serializedIR =
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
@@ -160,6 +164,12 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
                        config.get<SEPARATE_WEIGHTS_VERSION>(),
                        ". \"WSVersion::ITERATIVE\" is the only supported value for the compiler-in-driver path.");
     }
+
+    bool isSerializerAlgorithmSupported =
+        config.isAvailable(ov::intel_npu::model_serializer_algorithm.name())
+            ? this->is_option_supported(ov::intel_npu::model_serializer_algorithm.name(),
+                                        MODEL_SERIALIZER_ALGORITHM::toString(config.get<MODEL_SERIALIZER_ALGORITHM>()))
+            : false;
 
     _logger.debug("serialize IR");
     auto serializedIR =
@@ -304,6 +314,12 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
+
+    bool isSerializerAlgorithmSupported =
+        config.isAvailable(ov::intel_npu::model_serializer_algorithm.name())
+            ? this->is_option_supported(ov::intel_npu::model_serializer_algorithm.name(),
+                                        MODEL_SERIALIZER_ALGORITHM::toString(config.get<MODEL_SERIALIZER_ALGORITHM>()))
+            : false;
 
     _logger.debug("serialize IR");
     auto serializedIR =

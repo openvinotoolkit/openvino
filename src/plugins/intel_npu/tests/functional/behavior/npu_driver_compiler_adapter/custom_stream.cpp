@@ -59,7 +59,11 @@ protected:
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelWeightsCopy) {
     auto model = createModelWithLargeSize();
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
-    EXPECT_NO_THROW(::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, true));
+    EXPECT_NO_THROW(
+        ::intel_npu::driver_compiler_utils::serializeIR(model,
+                                                        dummyCompilerVersion,
+                                                        11,
+                                                        ov::intel_npu::ModelSerializerAlgorithm::COPY_WEIGHTS));
 }
 
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
