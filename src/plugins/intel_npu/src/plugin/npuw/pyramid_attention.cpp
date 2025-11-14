@@ -4,15 +4,12 @@
 #include "pyramid_attention.hpp"
 
 #include <algorithm>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <string>
 #include <utility>
-#include <vector>
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/softmax.hpp"
@@ -22,7 +19,6 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/validate.hpp"
-#include "util.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -52,93 +48,6 @@ std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr
     }
 
     return nullptr;
-}
-
-// Helper function to patch broadcast constants (set to 1 for dynamic handling)
-void patch_broadcast_constants(const std::shared_ptr<ov::Model>& model, size_t target_length) {
-    for (auto&& op : model->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::v3::Broadcast>(op)) {
-            continue;
-        }
-        // Inspect the constant
-        auto shape_source = op->input(1).get_source_output().get_node_shared_ptr();
-        if (!ov::is_type<ov::op::v0::Constant>(shape_source)) {
-            LOG_WARN("SDPA Broadcast's 2nd input is not Const: " << shape_source << ", skipping");
-            continue;
-        }
-
-        auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
-        auto shape_values = shape_const->cast_vector<int32_t>();
-        for (auto&& d : shape_values) {
-            //  Assume the context length is the mask's innermost dimension
-            if (static_cast<std::size_t>(d) == target_length) {
-                d = 1;
-            }
-        }
-        auto new_const = std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(),
-                                                                shape_const->get_shape(),
-                                                                shape_values);
-        op->input(1).replace_source_output(new_const);
-    }
-}
-
-// Helper function to patch reshape constants for pre-reshape (-1 substitution)
-void patch_reshape_constants(const std::shared_ptr<ov::Model>& model,
-                             const std::map<std::string, size_t>& past_value_sequence_dims) {
-    for (auto&& op : model->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::v1::Reshape>(op)) {
-            continue;
-        }
-
-        // Check if Reshape's single consumer is MatMul
-        auto target_inputs = op->output(0).get_target_inputs();
-        if (target_inputs.size() != 1) {
-            continue;  // Reshape should have exactly one consumer
-        }
-
-        auto matmul_node = target_inputs.begin()->get_node()->shared_from_this();
-        if (!ov::is_type<ov::op::v0::MatMul>(matmul_node)) {
-            continue;
-        }
-
-        // Check if MatMul's input 0 is from Softmax
-        auto matmul_input0 = matmul_node->input(0).get_source_output().get_node_shared_ptr();
-        if (!ov::is_type<ov::op::v8::Softmax>(matmul_input0)) {
-            continue;
-        }
-
-        LOG_INFO("Found Reshape -> MatMul pattern where MatMul input 0 is from Softmax, "
-                 "patching Reshape constant");
-
-        // Inspect the reshape constant (shape input)
-        auto shape_source = op->input(1).get_source_output().get_node_shared_ptr();
-        if (!ov::is_type<ov::op::v0::Constant>(shape_source)) {
-            LOG_WARN("Reshape's shape input is not Const: " << shape_source << ", skipping");
-            continue;
-        }
-
-        auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
-        auto shape_values = shape_const->cast_vector<int32_t>();
-
-        // Find the first past value sequence dimension from the map
-        // All past value parameters should have the same sequence dimension
-        if (past_value_sequence_dims.empty()) {
-            LOG_WARN("No past value sequence dimensions provided for reshape patching");
-            continue;
-        }
-
-        size_t value_seq_dim = past_value_sequence_dims.begin()->second;
-        NPUW_ASSERT(value_seq_dim < shape_values.size());
-        shape_values[value_seq_dim] = -1;
-
-        auto new_const = std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(),
-                                                                shape_const->get_shape(),
-                                                                shape_values);
-        op->input(1).replace_source_output(new_const);
-
-        LOG_INFO("Done");
-        return;
-    }
 }
 
 // Helper function to create Attention instance from a model
@@ -288,8 +197,8 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     }
 
     // Apply pre-reshape patching using helper functions
-    patch_broadcast_constants(cloned_model, full_context_length);
-    patch_reshape_constants(cloned_model, past_value_sequence_dims);
+    ov::npuw::function::patch_broadcast_constants(cloned_model, full_context_length);
+    ov::npuw::function::patch_reshape_constants(cloned_model, past_value_sequence_dims);
 
     cloned_model->reshape(new_shapes);
     cloned_model->validate_nodes_and_infer_types();
@@ -356,60 +265,55 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
     std::map<std::string, size_t> past_key_sequence_dims;
     std::map<std::string, size_t> past_value_sequence_dims;
 
-    // Helper function to find sequence dimension in parameter shape
-    auto find_context_dim = [](const std::shared_ptr<ov::op::v0::Parameter>& param,
-                               size_t target_length) -> std::optional<size_t> {
-        const auto& param_shape = param->get_shape();
-        auto dim_iter = std::find(param_shape.begin(), param_shape.end(), target_length);
-        if (dim_iter == param_shape.end()) {
-            return std::nullopt;  // No such dim found
+    // Helper lambda to extract sequence dimensions from Concat node and assign to parameters
+    auto extract_sequence_dims = [&](const std::shared_ptr<ov::Node>& concat_node,
+                                     bool is_key,
+                                     std::map<std::string, size_t>& sequence_dims) -> bool {
+        if (!concat_node) {
+            LOG_WARN("Could not find Concat node for past " << (is_key ? "key" : "value") << " in SDPA pattern");
+            return false;
         }
-        if (std::find(dim_iter + 1, param_shape.end(), target_length) != param_shape.end()) {
-            return std::nullopt;  // There must be no other such dim
+
+        auto concat_op = std::dynamic_pointer_cast<ov::op::v0::Concat>(concat_node);
+        const auto& concat_out_shape = concat_op->get_output_partial_shape(0);
+        const auto concat_axis =
+            ov::util::try_normalize_axis(concat_op->get_axis(), concat_out_shape.rank(), *concat_op);
+
+        LOG_DEBUG("Found past " << (is_key ? "key" : "value") << " Concat node, concat axis: " << concat_axis);
+
+        // Find all matching parameters and assign this dimension
+        const auto& original_params = model->get_parameters();
+        for (const auto& param : original_params) {
+            const std::string param_name = param->get_friendly_name();
+            bool is_target_param = is_key ? ov::npuw::util::isPastKeyValuesKey(param_name)
+                                          : ov::npuw::util::isPastKeyValuesValue(param_name);
+
+            if (is_target_param) {
+                sequence_dims[param_name] = concat_axis;
+                LOG_DEBUG("Assigned " << (is_key ? "key" : "value") << " concat axis " << concat_axis
+                                      << " to parameter: " << param_name);
+
+                auto curr_past_kv_length = param->get_shape()[concat_axis];
+                if (past_kv_length && past_kv_length != curr_past_kv_length) {
+                    LOG_WARN("Inconsistent past KV lengths found among " << (is_key ? "key" : "value")
+                                                                         << " parameters");
+                    return false;
+                }
+                past_kv_length = curr_past_kv_length;
+            }
         }
-        return std::distance(param_shape.begin(), dim_iter);
+        return true;
     };
 
-    // Analyze original model parameters to find sequence dimensions
-    const auto& original_params = model->get_parameters();
-    for (const auto& param : original_params) {
-        const std::string param_name = param->get_friendly_name();
+    // Extract sequence dimensions for past key and past value
+    if (!extract_sequence_dims(pattern_nodes.past_key_concat_node, true, past_key_sequence_dims) ||
+        !extract_sequence_dims(pattern_nodes.past_value_concat_node, false, past_value_sequence_dims)) {
+        return std::nullopt;
+    }
 
-        if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
-            auto sequence_dim_opt = find_context_dim(param, full_context_length - query_length);
-            if (sequence_dim_opt) {
-                past_key_sequence_dims[param_name] = *sequence_dim_opt;
-                LOG_DEBUG("Found past key sequence dimension for '" << param_name << "': " << *sequence_dim_opt);
-
-                auto curr_past_kv_length = param->get_shape()[*sequence_dim_opt];
-                if (past_kv_length && past_kv_length != curr_past_kv_length) {
-                    LOG_WARN("Inconsistent past KV lengths found among parameters");
-                    return std::nullopt;
-                } else {
-                    past_kv_length = curr_past_kv_length;
-                }
-            } else {
-                LOG_WARN("Could not find sequence dimension for past key param: " << param_name);
-                return std::nullopt;
-            }
-        } else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
-            auto sequence_dim_opt = find_context_dim(param, full_context_length - query_length);
-            if (sequence_dim_opt) {
-                past_value_sequence_dims[param_name] = *sequence_dim_opt;
-                LOG_DEBUG("Found past value sequence dimension for '" << param_name << "': " << *sequence_dim_opt);
-
-                auto curr_past_kv_length = param->get_shape()[*sequence_dim_opt];
-                if (past_kv_length && past_kv_length != curr_past_kv_length) {
-                    LOG_WARN("Inconsistent past KV lengths found among parameters");
-                    return std::nullopt;
-                } else {
-                    past_kv_length = curr_past_kv_length;
-                }
-            } else {
-                LOG_WARN("Could not find sequence dimension for past value param: " << param_name);
-                return std::nullopt;
-            }
-        }
+    if (past_key_sequence_dims.empty() || past_value_sequence_dims.empty()) {
+        LOG_WARN("Failed to find past KV parameters");
+        return std::nullopt;
     }
 
     return PyramidValidationResult{query_length,
@@ -434,6 +338,37 @@ SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model
         }
     }
 
+    // Helper lambda to trace from MatMul to find Concat node
+    auto find_concat_from_matmul = [](const std::shared_ptr<ov::Node>& matmul_node,
+                                      size_t input_idx) -> std::shared_ptr<ov::Node> {
+        if (!matmul_node)
+            return nullptr;
+
+        auto current_node = matmul_node->input(input_idx).get_source_output().get_node_shared_ptr();
+
+        // Traverse backwards through reshape/transpose operations to find Concat
+        while (current_node) {
+            if (ov::is_type<ov::op::v0::Concat>(current_node)) {
+                return current_node;
+            }
+
+            // Allow traversing through Reshape and Transpose
+            if (ov::is_type<ov::op::v1::Reshape>(current_node) || ov::is_type<ov::op::v3::Broadcast>(current_node) ||
+                ov::is_type<ov::op::v0::Unsqueeze>(current_node)) {
+                if (current_node->get_input_size() > 0) {
+                    current_node = current_node->input(0).get_source_output().get_node_shared_ptr();
+                } else {
+                    break;
+                }
+            } else {
+                // Stop at other operations
+                break;
+            }
+        }
+
+        return nullptr;
+    };
+
     // Search for the pattern: MatMul -> Add -> Softmax -> MatMul
     auto ops = model->get_ordered_ops();
     for (auto&& node : ops) {
@@ -449,6 +384,9 @@ SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model
                 auto add_input0 = pattern_nodes.add_node->input(0).get_source_output().get_node_shared_ptr();
                 if (ov::is_type<ov::op::v0::MatMul>(add_input0)) {
                     pattern_nodes.matmul1_node = add_input0;
+
+                    // Find Concat node for past key (input 1 of MatMul1)
+                    pattern_nodes.past_key_concat_node = find_concat_from_matmul(pattern_nodes.matmul1_node, 1);
                 }
             }
 
@@ -458,6 +396,9 @@ SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model
                     auto target_node = target_input.get_node()->shared_from_this();
                     if (ov::is_type<ov::op::v0::MatMul>(target_node)) {
                         pattern_nodes.matmul2_node = target_node;
+
+                        // Find Concat node for past value (input 1 of MatMul2)
+                        pattern_nodes.past_value_concat_node = find_concat_from_matmul(pattern_nodes.matmul2_node, 1);
                         break;
                     }
                 }
@@ -546,7 +487,6 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     pyramid_attention._models = pyramid_models;
     pyramid_attention._attentions = pyramid_attentions;
 
-    // Early return with pyramid attention result
     LOG_INFO("Returning pyramid attention with " << pyramid_models.size() << " models");
     LOG_INFO("  Query length: " << pyramid_attention._query_length);
     LOG_INFO("  Full context length: " << pyramid_attention._full_context_length);
