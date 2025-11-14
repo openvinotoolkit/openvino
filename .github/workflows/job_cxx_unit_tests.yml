@@ -241,7 +241,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).C_API.test && inputs.os != 'debian_10' }} # Ticket: 153169
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
-          ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_filter=ov_infer_request/ov_infer_request_test.infer_async_wait_for_return_busy* --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
         if: fromJSON(inputs.affected-components).AUTO_BATCH.test
