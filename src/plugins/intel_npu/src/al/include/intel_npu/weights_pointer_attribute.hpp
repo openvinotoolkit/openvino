@@ -12,8 +12,7 @@ namespace intel_npu {
 
 /**
  * @brief Attribute containing the memory address of a weights buffer and the size of the buffer in bytes.
- * @details Used as part of the serialization/deserialization algorithms in order to allow processing models without
- * copying weights.
+ * @details Used as part of the model marshalling process to avoid the need of copying weights.
  */
 class WeightsPointerAttribute : public ov::RuntimeAttribute {
 public:
