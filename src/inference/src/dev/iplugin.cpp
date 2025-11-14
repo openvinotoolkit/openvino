@@ -78,7 +78,9 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string
     OPENVINO_ASSERT(core);
     const auto model = core->read_model(model_path, {}, properties);
     auto local_properties = properties;
-    CoreConfig::remove_core_skip_cache_dir(local_properties);
+    if (!ov::is_virtual_device(get_device_name())) {
+        CoreConfig::remove_core(local_properties);
+    }
     return compile_model(model, local_properties);
 }
 

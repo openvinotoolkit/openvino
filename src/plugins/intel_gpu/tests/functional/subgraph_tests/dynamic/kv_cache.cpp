@@ -71,6 +71,7 @@ TEST_P(KVCacheTest, Inference_cached) {
         ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
         ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
         ov::test::utils::removeDir(cacheDirName);
+        core->set_property(ov::cache_dir(cacheDirName));
         configuration.insert(ov::cache_dir(cacheDirName));
         compile_model();
     }
