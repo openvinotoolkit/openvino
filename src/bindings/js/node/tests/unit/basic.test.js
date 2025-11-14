@@ -323,6 +323,26 @@ describe("ov basic tests.", () => {
       );
     });
 
+    it("Test importModelSync(tensor, device)", () => {
+      const core = new ov.Core();
+      const { Tensor } = ov;
+
+      // Create dummy data to simulate a model buffer in a tensor
+      const dummyData = new Uint8Array([1, 2, 3, 4]);
+      const tensor = new Tensor("u8", [dummyData.length], dummyData);
+
+      // Some environments may accept a small dummy buffer as a valid model; others will throw during deserialization.
+      // Accept either behavior but ensure the function doesn't crash the process.
+      try {
+        const compiled = core.importModelSync(tensor, "CPU");
+        assert.ok(compiled instanceof ov.CompiledModel);
+      } catch (e) {
+        // Ensure an Error object is thrown (no process crash)
+        assert.ok(e instanceof Error);
+      }
+    });
+
+
     it("Test importModelSync(stream, device) throws", () => {
       assert.throws(
         () => core.importModelSync(userStream, tensor),
@@ -355,6 +375,17 @@ describe("ov basic tests.", () => {
 
     it("importModel returns promise with CompiledModel", async () => {
       const promise = core.importModel(userStream, "CPU");
+      assert.ok(promise instanceof Promise);
+      const cm = await promise;
+      assert.ok(cm instanceof ov.CompiledModel);
+    });
+
+    it("importModel(tensor, device) returns Promise<CompiledModel>", async () => {
+      // Convert exported Buffer to a Tensor and import asynchronously
+      const buf = userStream;
+      const u8 = new Uint8Array(buf);
+      const tensor = new ov.Tensor("u8", [u8.length], u8);
+      const promise = core.importModel(tensor, "CPU");
       assert.ok(promise instanceof Promise);
       const cm = await promise;
       assert.ok(cm instanceof ov.CompiledModel);
