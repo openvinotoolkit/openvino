@@ -22,6 +22,7 @@
 #include "snippets/pass/gn_tokenization.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/mlp_seq_tokenization.hpp"
+#include "snippets/pass/transform_convert.hpp"
 
 namespace ov::snippets::pass {
 
@@ -104,6 +105,7 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     tokenization_passes->add_matcher<TokenizeFCSnippets>(m_tokenization_config);
     tokenization_passes->add_matcher<TokenizeSnippets>(m_tokenization_config);
 
+    manager.register_pass<TransformConvertToConvertTruncation>();
     manager.register_pass<CommonOptimizations>(m_common_optimizations_config);
     manager.run_passes(m);
 
