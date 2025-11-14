@@ -61,7 +61,7 @@ public:
 
 private:
     void getMetadata(ze_graph_handle_t graphHandle,
-                     uint32_t index,
+                     uint32_t indexUsedByDriver,
                      std::vector<IODescriptor>& inputs,
                      std::vector<IODescriptor>& outputs) const;
 

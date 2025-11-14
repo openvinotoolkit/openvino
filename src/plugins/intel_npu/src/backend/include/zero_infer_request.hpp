@@ -11,7 +11,6 @@
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_pipeline.hpp"
 #include "zero_tensor.hpp"
@@ -64,9 +63,6 @@ private:
     const std::shared_ptr<IGraph> _graph;
     const Config _config;
     Logger _logger;
-
-    const std::vector<ArgumentDescriptor>& _graphInputDescriptors;
-    const std::vector<ArgumentDescriptor>& _graphOutputDescriptors;
 
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
