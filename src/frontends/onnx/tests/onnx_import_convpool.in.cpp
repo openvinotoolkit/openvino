@@ -1520,7 +1520,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_conv_transpose_autopad) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_with_batch_channels) {
-    // CVS-169060: Test ConvTranspose with output_shape containing batch and channel dimensions
+    // Test ConvTranspose with output_shape containing batch and channel dimensions
     // Per ONNX spec, output_shape should only contain spatial dimensions [H, W]
     // However, some models incorrectly include all dimensions [N, C, H, W]
     // This test verifies that OpenVINO gracefully handles this by extracting spatial dims
@@ -1545,8 +1545,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_with_batch_
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_with_batch_channels_stride2) {
-    // CVS-169060: Test ConvTranspose with output_shape=[1,16,32,32] (includes batch/channels)
-    // This is the exact scenario from the GitHub issue #30798
+    // Test ConvTranspose with output_shape=[1,16,32,32] (includes batch/channels)
     // Input: [1,3,28,28], output_shape attribute: [1,16,32,32]
     // Should extract spatial dims: [32,32] and produce output [1,16,32,32]
     auto model = convert_model("convtranspose_output_shape_with_batch_channels_stride2.onnx");
