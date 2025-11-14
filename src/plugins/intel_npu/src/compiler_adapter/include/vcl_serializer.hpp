@@ -33,11 +33,12 @@ namespace driver_compiler_utils {
  * @param weightsSizeThreshold Relevant only if "useBaseModelSerializer" is false. The weights smaller than this value
  * will be copied into a separate buffer. The rest will have only their memory location stored.
  */
-SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
-                         ze_graph_compiler_version_info_t compilerVersion,
-                         const uint32_t supportedOpsetVersion,
-                         const bool useBaseModelSerializer = true,
-                         const size_t weightsSizeThreshold = 0);
+SerializedIR serializeIR(
+    const std::shared_ptr<const ov::Model>& model,
+    ze_graph_compiler_version_info_t compilerVersion,
+    const uint32_t supportedOpsetVersion,
+    const ov::intel_npu::ModelSerializerAlgorithm = ov::intel_npu::ModelSerializerAlgorithm::COPY_WEIGHTS,
+    const size_t weightsSizeThreshold = 0);
 
 /**
  * @brief Serialize input / output information to string format.

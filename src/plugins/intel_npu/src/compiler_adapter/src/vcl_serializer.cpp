@@ -464,9 +464,9 @@ private:
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          const ze_graph_compiler_version_info_t compilerVersion,
                          const uint32_t supportedOpsetVersion,
-                         const bool useBaseModelSerializer,
+                         const ov::intel_npu::ModelSerializerAlgorithm modelSerializationAlgorithm,
                          const size_t weightsSizeThreshold) {
-    if (!useBaseModelSerializer) {
+    if (modelSerializationAlgorithm == ov::intel_npu::ModelSerializerAlgorithm::POINTERS_TO_ADDRESSES) {
         // Non-constness required for adding & removing weights pointer attributes. The current instance is already a
         // clone (or should be one), we are not modifying the original model.
         const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
