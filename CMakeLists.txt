@@ -190,5 +190,5 @@ include(cmake/packaging/packaging.cmake)
 
 ov_cpack(${OV_CPACK_COMPONENTS_ALL})
 
-set_property(GLOBAL PROPERTY JOB_POOLS build_jobs=32 link_jobs=16 four_jobs=4)
+set_property(GLOBAL PROPERTY JOB_POOLS build_jobs=32 link_jobs=16 one_job=1 two_jobs=2 four_jobs=4 eight_jobs=8 sixteen_jobs=16 thirtytwo_jobs=32 sixtyfour_jobs=64)
 

@@ -61,19 +61,19 @@ jobs:
       fail-fast: false
       matrix:
         variant:
-          - name: 'baseline'
-            runner: 'aks-win-16-cores-32gb-build-st'
-          # - name: 'nvme'
-          #   runner: 'aks-win-16-cores-32gb-nvme-st'
-          - name: 'managed-disk'
-            runner: 'aks-win-16-cores-32gb-mdsk-st'
+          - name: tempdisk
+            runner: aks-win-32-cores-128gb-tdsk-st
+            build_jobs: thirtytwo_jobs
           - name: 'd-size'
             runner: 'aks-win-16-cores-32gb-d-st'
-          - name: 'amd_nvme'
-            runner: 'aks-win-16-cores-32gb-amd-nvme-st'
+            build_jobs: sixteen_jobs
+        link_jobs:
+          - one_job
+          - four_jobs
+          - eight_jobs
+          - sixteen_jobs
         cache:
           - True
-          # - False
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
     name: "Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"
@@ -94,4 +94,5 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
-
+            -DCMAKE_JOB_POOL_LINK:STRING=${{ matrix.link_jobs }}
+            -DCMAKE_JOB_POOL_COMPILE:STRING=${{ matrix.variant.build_jobs }}

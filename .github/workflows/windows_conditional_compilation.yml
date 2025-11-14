@@ -58,19 +58,20 @@ jobs:
       fail-fast: false
       matrix:
         variant:
-          - name: baseline
-            runner: aks-win-32-cores-128gb-build-st
-          # - name: nvme
-          #   runner: aks-win-32-cores-128gb-nvme-st
           - name: tempdisk
             runner: aks-win-32-cores-128gb-tdsk-st
-          - name: amd
-            runner: aks-win-32-cores-128gb-amd-st
-          - name: more_cores_amd_nvme
-            runner: aks-win-64-cores-128gb-amd-nvme-st
+            build_jobs: thirtytwo_jobs
+          - name: 'd-size'
+            runner: 'aks-win-16-cores-32gb-d-st'
+            build_jobs: sixteen_jobs
+        link_jobs:
+          - one_job
+          - four_jobs
+          - eight_jobs
+          - sixteen_jobs
         cache:
           - True
-        #  - False
+
     name: "Build OpenVINO - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"
     needs: Smart_CI
     timeout-minutes: 300 # 5 hours without cache
@@ -201,8 +202,8 @@ jobs:
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
-            -DCMAKE_JOB_POOL_COMPILE:STRING=build_jobs `
+            -DCMAKE_JOB_POOL_LINK:STRING=${{ matrix.link_jobs }} `
+            -DCMAKE_JOB_POOL_COMPILE:STRING=${{ matrix.variant.build_jobs }} `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
