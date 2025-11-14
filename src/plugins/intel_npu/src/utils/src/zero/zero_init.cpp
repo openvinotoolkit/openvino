@@ -7,6 +7,7 @@
 #include <ze_command_queue_npu_ext.h>
 #include <ze_mem_import_system_memory_ext.h>
 
+#include <mutex>
 #include <regex>
 
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -181,7 +182,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     // Query our graph extension version
     std::string graph_ext_name;
     uint32_t graph_ext_version = 0;
-    uint32_t target_graph_ext_version = ZE_GRAPH_EXT_VERSION_CURRENT;
+    uint32_t target_graph_ext_version = ZE_GRAPH_EXT_VERSION_1_14;
 
 #if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     const char* extVersion = std::getenv("NPU_ZE_GRAPH_EXT_VERSION");
@@ -222,6 +223,15 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
                        driver_ext_major_version);
     }
 
+    // Load our graph extension
+    ze_graph_dditable_ext_t* graph_ddi_table_ext = nullptr;
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetExtensionFunctionAddress",
+                                zeDriverGetExtensionFunctionAddress(driver_handle,
+                                                                    graph_ext_name.c_str(),
+                                                                    reinterpret_cast<void**>(&graph_ddi_table_ext)));
+    graph_dditable_ext_decorator =
+        std::make_unique<ze_graph_dditable_ext_decorator>(graph_ddi_table_ext, graph_ext_version);
+
     log.info("Found Driver Version %d.%d, Graph Extension Version %d.%d (%s)",
              ZE_MAJOR_VERSION(ze_drv_api_version),
              ZE_MINOR_VERSION(ze_drv_api_version),
@@ -256,15 +266,6 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
         std::make_unique<ze_command_queue_npu_dditable_ext_decorator>(_command_queue_npu_dditable_ext,
                                                                       command_queue_ext_version);
 
-    // Load our graph extension
-    ze_graph_dditable_ext_t* graph_ddi_table_ext = nullptr;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetExtensionFunctionAddress",
-                                zeDriverGetExtensionFunctionAddress(driver_handle,
-                                                                    graph_ext_name.c_str(),
-                                                                    reinterpret_cast<void**>(&graph_ddi_table_ext)));
-    graph_dditable_ext_decorator =
-        std::make_unique<ze_graph_dditable_ext_decorator>(graph_ddi_table_ext, graph_ext_version);
-
     // Query the mutable command list version
 #ifdef _WIN32
     // The 2688 Windows driver version doesn't support as expected the MutableCommandList feature
@@ -295,12 +296,45 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     graph_profiling_npu_dditable_ext_decorator =
         std::make_unique<ze_graph_profiling_ddi_table_ext_decorator>(_graph_profiling_ddi_table_ext);
 
+    // Query our context extension version
+    std::string context_ext_name;
+    uint32_t context_ext_version = 0;
+    std::tie(context_ext_version, context_ext_name) =
+        queryDriverExtensionVersion(ZE_CONTEXT_NPU_EXT_NAME, ZE_CONTEXT_NPU_EXT_VERSION_CURRENT, extProps, count);
+
+    log.debug("NPU context extension version %d.%d",
+              ZE_MAJOR_VERSION(context_ext_version),
+              ZE_MINOR_VERSION(context_ext_version));
+
+    // Load our context extension
+    ze_context_npu_dditable_ext_last_t* _context_npu_dditable_ext = nullptr;
+    if (context_ext_version) {
+        THROW_ON_FAIL_FOR_LEVELZERO(
+            "zeDriverGetExtensionFunctionAddress " + context_ext_name,
+            zeDriverGetExtensionFunctionAddress(driver_handle,
+                                                context_ext_name.c_str(),
+                                                reinterpret_cast<void**>(&_context_npu_dditable_ext)));
+    }
+
+    context_npu_dditable_ext_decorator =
+        std::make_unique<ze_context_npu_dditable_ext_decorator>(_context_npu_dditable_ext, context_ext_version);
+
     uint32_t device_count = 1;
     // Get our target device
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGet", zeDeviceGet(driver_handle, &device_count, &device_handle));
 
     // Create context - share between the compiler and the backend
-    ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
+    ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0};
+
+    ze_context_properties_npu_ext_t context_properties = {};
+    if (context_ext_version >= ZE_MAKE_VERSION(1, 0)) {
+        context_options |= ZE_NPU_CONTEXT_OPTION_ENABLE_IDLE_OPTIMIZATIONS;
+
+        context_properties.stype = ZE_STRUCTURE_TYPE_CONTEXT_PROPERTIES_NPU_EXT;
+        context_properties.options = context_options;
+        context_desc.pNext = static_cast<const void*>(&context_properties);
+    }
+
     THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
     log.debug("ZeroInitStructsHolder initialize complete");
 
@@ -331,15 +365,32 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     }
 }
 
-const std::shared_ptr<ZeroInitStructsHolder>& ZeroInitStructsHolder::getInstance() {
-    static std::shared_ptr<ZeroInitStructsHolder> instance = std::make_shared<ZeroInitStructsHolder>();
+const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {
+    static std::mutex mutex;
+    static std::weak_ptr<ZeroInitStructsHolder> weak_instance;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto instance = weak_instance.lock();
+    if (!instance) {
+        instance = std::make_shared<ZeroInitStructsHolder>();
+        weak_instance = instance;
+    }
     return instance;
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     if (context) {
+        if (context_npu_dditable_ext_decorator->version() >= ZE_MAKE_VERSION(1, 0)) {
+            context_options &= ~(ZE_NPU_CONTEXT_OPTION_ENABLE_IDLE_OPTIMIZATIONS);
+            ze_context_properties_npu_ext_t context_properties = {ZE_STRUCTURE_TYPE_CONTEXT_PROPERTIES_NPU_EXT,
+                                                                  nullptr,
+                                                                  context_options};
+            context_npu_dditable_ext_decorator->pfnSetProperties(context, &context_properties);
+        }
+
         log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
         auto result = zeContextDestroy(context);
+        context = nullptr;
         if (result != ZE_RESULT_SUCCESS) {
             if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
                 log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
