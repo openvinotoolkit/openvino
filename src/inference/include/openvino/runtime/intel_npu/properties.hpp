@@ -110,6 +110,7 @@ static constexpr ov::Property<bool> turbo{"NPU_TURBO"};
  * @brief [Only for NPU Compiler]
  * Type: integer, default is -1
  * Sets the number of npu tiles to compile the model for.
+ * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
 
@@ -118,6 +119,7 @@ static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
  * Type: integer, default is -1
  * Maximum number of tiles supported by the device we compile for. Can be set for offline compilation. If not set, it
  * will be populated by driver.
+ * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
 
@@ -133,6 +135,7 @@ static constexpr ov::Property<bool> bypass_umd_caching{"NPU_BYPASS_UMD_CACHING"}
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false
  * This option allows to delay loading the weights until inference is created
+ * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"};
 
@@ -144,6 +147,33 @@ static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"}
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
+
+// TODO: add comments, find proper name.
+// Initial commit just to match compiler expected properties
+inline std::ostream& operator<<(std::ostream& os, const std::vector<int>& args_with_dynamic_strides) {
+    std::size_t counter = 0;
+    std::size_t size = args_with_dynamic_strides.size();
+    for (auto& v : args_with_dynamic_strides) {
+        os << v;
+        if (counter < size - 1) {
+            os << ' ';
+        }
+        ++counter;
+    }
+    return os;
+}
+
+inline std::istream& operator>>(std::istream& is, std::vector<int>& args_with_dynamic_strides) {
+    std::string arg;
+    while (std::getline(is, arg, ' ')) {
+        args_with_dynamic_strides.push_back(std::stoi(arg));
+    }
+    return is;
+}
+
+static constexpr Property<std::vector<int>> inputs_with_dynamic_strides("INPUTS_WITH_DYNAMIC_STRIDES");
+
+static constexpr Property<std::vector<int>> outputs_with_dynamic_strides("OUTPUTS_WITH_DYNAMIC_STRIDES");
 
 }  // namespace intel_npu
 }  // namespace ov
