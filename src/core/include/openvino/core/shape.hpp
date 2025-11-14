@@ -30,8 +30,6 @@ public:
 
     OPENVINO_API Shape(const Shape& axis_lengths);
 
-    OPENVINO_API Shape(Shape&& other);
-
     OPENVINO_API explicit Shape(size_t n, size_t initial_value = 0);
 
     OPENVINO_API ~Shape();

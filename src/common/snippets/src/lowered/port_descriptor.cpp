@@ -28,7 +28,7 @@ PortDescriptor::PortDescriptor(const ov::Input<ov::Node>& in, VectorDims subtens
                      std::move(layout)) {}
 
 PortDescriptor::PortDescriptor(const ov::Input<const ov::Node>& in,
-                               VectorDims subtensor_shape,
+                               std::vector<size_t> subtensor_shape,
                                std::vector<size_t> layout)
     : PortDescriptor(utils::pshape_to_vdims(in.get_partial_shape()), std::move(subtensor_shape), std::move(layout)) {}
 
@@ -38,7 +38,7 @@ PortDescriptor::PortDescriptor(const ov::Output<ov::Node>& out, VectorDims subte
                      std::move(layout)) {}
 
 PortDescriptor::PortDescriptor(const ov::Output<const ov::Node>& out,
-                               VectorDims subtensor_shape,
+                               std::vector<size_t> subtensor_shape,
                                std::vector<size_t> layout)
     : PortDescriptor(utils::pshape_to_vdims(out.get_partial_shape()), std::move(subtensor_shape), std::move(layout)) {}
 

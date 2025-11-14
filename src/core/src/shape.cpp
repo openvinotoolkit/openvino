@@ -34,8 +34,6 @@ ov::Shape::Shape(const std::vector<size_t>& axis_lengths) : std::vector<size_t>(
 
 ov::Shape::Shape(const Shape& axis_lengths) = default;
 
-ov::Shape::Shape(Shape&& other) = default;
-
 ov::Shape::Shape(size_t n, size_t initial_value) : std::vector<size_t>(n, initial_value) {}
 
 ov::Shape::Shape(const std::string& value) {
