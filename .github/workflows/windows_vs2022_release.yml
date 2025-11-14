@@ -76,7 +76,7 @@ jobs:
           - True
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
-    name: "Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"
+    name: "Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}, Link jobs: ${{ matrix.link_jobs }}"
     uses: ./.github/workflows/job_build_windows.yml
     with:
       runner: ${{ matrix.variant.runner }}
