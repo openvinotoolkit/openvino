@@ -318,10 +318,6 @@ const std::optional<std::size_t> Graph::get_batch_size() const {
     return _batchSize;
 }
 
-bool Graph::is_strided_tensor_supported() const {
-    return _zeGraphExt->isStridedTensorSupported(_graphDesc);
-}
-
 Graph::~Graph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
     if (_zeGraphExt != nullptr) {

@@ -68,8 +68,6 @@ public:
     virtual void set_last_submitted_id(uint32_t id_index) = 0;
     virtual uint32_t get_last_submitted_id() const = 0;
 
-    virtual bool is_strided_tensor_supported() const = 0;
-
 protected:
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
     // first inference starts running
