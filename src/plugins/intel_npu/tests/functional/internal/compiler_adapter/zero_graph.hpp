@@ -91,8 +91,10 @@ protected:
     void serializeIR() {
         auto compilerProperties = zeroInitStruct->getCompilerProperties();
         const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-        serializedIR =
-            driver_compiler_utils::serializeIR(model, compilerProperties.compilerVersion, maxOpsetVersion, true);
+        serializedIR = driver_compiler_utils::serializeIR(model,
+                                                          compilerProperties.compilerVersion,
+                                                          maxOpsetVersion,
+                                                          ov::intel_npu::ModelSerializerAlgorithm::COPY_WEIGHTS);
     }
 
     bool bypassUmdCache() {
