@@ -767,10 +767,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
     const auto origin_weights_path = get_origin_weights_path(config);
 
+    // `const_cast` intentionally used as AlignedBuffer requires non-const pointer
+    // but is used as read-only in deserializer
+    auto* model_data_ptr = reinterpret_cast<char*>(const_cast<void*>(model_tensor.data()));
     std::shared_ptr<ov::AlignedBuffer> model_buffer =
-        std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(model_tensor.data()),
-                                                       model_tensor.get_byte_size(),
-                                                       model_tensor);
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(model_data_ptr, model_tensor.get_byte_size(), model_tensor);
 
     ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 
