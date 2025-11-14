@@ -122,6 +122,23 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
+
+        // Check VariadicSplit output connections in combined mode
+        bool gate_up_swapped = false;
+        if (pattern_map.count(gate_up_proj_split)) {
+            auto mlp_gated_up_node = pattern_map.at(mlp_gated_up).get_node_shared_ptr();
+            auto input0 = mlp_gated_up_node->input_value(0);
+            auto input1 = mlp_gated_up_node->input_value(1);
+
+            // Check if VariadicSplit output[0] connects to Multiply (swapped case)
+            // Since pattern matching succeeded, we know one of the outputs connects to Multiply
+            if ((input0.get_node() == pattern_map.at(gate_up_proj_split).get_node() && input0.get_index() == 0) ||
+                (input1.get_node() == pattern_map.at(gate_up_proj_split).get_node() && input1.get_index() == 0)) {
+                gate_up_swapped = true;
+            }
+            // Otherwise, it's the normal case where output[1] connects to Multiply
+        }
+
         auto src = pattern_map.at(input);
         if (!src.get_element_type().is_real()) {
             // FakeQuantize, should skip fusion
@@ -224,6 +241,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
             cfg.hidden_size = down_size;
             cfg.up_size = up_size;
             cfg.gate_up_combined = is_gate_up_combined;
+            cfg.gate_up_swapped = gate_up_swapped;
 
             if (pattern_map.count(mlp_silu_gate) > 0) {
                 cfg.act = LLMMLPNode::ACT_FN::SILU;
