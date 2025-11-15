@@ -100,6 +100,7 @@
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
+#include "plugin/transformations/set_sliding_windows.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
@@ -383,6 +384,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Transformation of SDPA to VLSDPA for QWen2.x-VL,
         // Note: this should be applied before TransposeFusion.
         manager.register_pass<ov::pass::SDPAToVLSDPA>();
+        if (config.get_sliding_window_per_layer().length() > 0) {
+            manager.register_pass<ov::intel_gpu::SetSlidingWindows>(config.get_sliding_window_per_layer());
+        }
+
+
         // Disable SDPAToVLSDPA if XMX architectures is unavaiable or IGC incompatiable.
         pass_config->set_callback<ov::pass::SDPAToVLSDPA>(
                 [&](const_node_ptr &) -> bool {
@@ -446,7 +452,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::ConvertMOEToMOECompressed>(is_pa);
             manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
         }
-
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
 

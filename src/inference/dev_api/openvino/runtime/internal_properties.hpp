@@ -169,5 +169,10 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
  */
 
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
+
+/**
+ * @brief Describe sliding window per layer for models with attention layers.
+ */
+static constexpr Property<std::string, PropertyMutability::RW> sliding_window_per_layer{"SLIDING_WINDOW_PER_LAYER"};
 }  // namespace internal
 }  // namespace ov
