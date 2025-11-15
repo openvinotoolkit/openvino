@@ -235,6 +235,10 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
+      - name: Clean ccache stats
+        if: ${{ inputs.cache }}
+        run: '& ccache --zero-stats'
+
       - name: Build additional Python wheels
         if: ${{ inputs.build-additional-python-wheels }}
         run: |
@@ -263,6 +267,10 @@ jobs:
           }
         env:
           CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
+
+      - name: Show ccache stats
+        if: ${{ inputs.cache }}
+        run: '& ccache --show-stats'
 
       - name: Pack Artifacts
         run: |

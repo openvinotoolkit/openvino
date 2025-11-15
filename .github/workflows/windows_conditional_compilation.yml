@@ -220,6 +220,10 @@ jobs:
         if: ${{ matrix.cache == true }}
         run: '& ccache --show-stats'
 
+      - name: Clean ccache stats
+        if: ${{ matrix.cache == true }}
+        run: '& ccache --zero-stats'
+
       - name: Cmake install - OpenVINO
         run: |
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
@@ -229,6 +233,10 @@ jobs:
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
+
+      - name: Show ccache stats
+        if: ${{ inputs.cache }}
+        run: '& ccache --show-stats'
 
       - name: Ctest - OpenVINO unit tests
         # fails due to "illegal" (probably illegal instruction) error
@@ -293,6 +301,10 @@ jobs:
           }
           Compress-Archive @compress
 
+      - name: Clean ccache stats
+        if: ${{ matrix.cache == true }}
+        run: '& ccache --zero-stats'
+
       - name: Build C samples - OpenVINO install tree
         run: |
           # install PDB files to OpenVINO main installation folder to ensure that they are used instead of PDB files from build folder
@@ -306,4 +318,7 @@ jobs:
           LDFLAGS: "/DEBUG"
           CMAKE_GENERATOR: "Visual Studio 17 2022"
 
+      - name: Show ccache stats
+        if: ${{ inputs.cache }}
+        run: '& ccache --show-stats'
 
