@@ -549,8 +549,8 @@ void Eltwise::init() {
     // Bf16 saturation handling for PowerStatic parameters
     // to make sure they stay within the valid range for bfloat16.
     if (m_attrs.data.algo == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
-        static const float bf16_lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
-        static const float bf16_max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
+        const float bf16_lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        const float bf16_max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
 
         // Helper lambda to clamp parameter values within bf16 range
         auto clampBf16Parameter = [&](auto& param) {
