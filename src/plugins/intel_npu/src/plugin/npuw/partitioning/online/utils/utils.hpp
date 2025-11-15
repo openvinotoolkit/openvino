@@ -74,7 +74,6 @@ using PairMICSetIO = std::pair<MICSet, MetaInterconnectIO>;
 namespace util {
 // FIXME: metadesc should be hash of layer's meta, not string
 std::string getMetaDesc(const std::shared_ptr<ov::Node>& ov_node);
-std::string repeated_id(const std::shared_ptr<Repeated>& ptr);
 std::optional<Avoid> parseAvoid(const std::string& s);
 std::optional<Isolate> parseIsolate(const std::string& s);
 std::tuple<PatternType, std::string, std::string> parse(const std::string& s);
@@ -96,7 +95,8 @@ static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
                                                                  "P:RMSNorm/compute,P:RMSNorm2/compute,"
                                                                  "P:RMSNorm3/compute,P:RMSNorm4/compute,"
                                                                  "P:VariadicSplit/compute"},
-                                                                {"FAKE", "P:FakeConvert/fake,P:FakeQuantize/fake"}};
+                                                                {"FAKE", "P:FakeConvert/fake,P:FakeQuantize/fake"},
+                                                                {"ATTN", "P:SDPA/attn,P:SDPADecomposed/attn"}};
 }  // namespace util
 
 }  // namespace online

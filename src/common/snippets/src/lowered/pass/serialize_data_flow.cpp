@@ -38,7 +38,7 @@ bool SerializeDataFlow::run(const LinearIR& linear_ir) {
         const auto node = expr->get_node();
         ov::OutputVector inputs(expr->get_input_count());
         for (size_t i = 0; i < expr->get_input_count(); ++i) {
-            const auto& input_expr = expr->get_input_port_connector(i)->get_source().get_expr();
+            const auto& input_expr = expr->get_input_expr_ptr(i);
             OPENVINO_ASSERT(ops_map.count(input_expr), "input node wasn't found during serialization");
             inputs[i] = ops_map[input_expr]->output(expr->get_input_port_connector(i)->get_source().get_index());
         }

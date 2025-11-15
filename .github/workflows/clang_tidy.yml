@@ -159,7 +159,7 @@ jobs:
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CLANG_TIDY=ON \
-            -DENABLE_PROFILING_ITT=ON \
+            -DENABLE_PROFILING_ITT=FULL \
             -DENABLE_DEBUG_CAPS=ON \
             -DSELECTIVE_BUILD=COLLECT \
             -DENABLE_PYTHON=OFF \
@@ -225,7 +225,7 @@ jobs:
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CLANG_TIDY=ON \
-            -DENABLE_PROFILING_ITT=ON \
+            -DENABLE_PROFILING_ITT=FULL \
             -DENABLE_DEBUG_CAPS=ON \
             -DSELECTIVE_BUILD=COLLECT \
             -DENABLE_PYTHON=OFF \
@@ -294,7 +294,7 @@ jobs:
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64-100-xuantie-gnu.toolchain.cmake \
             -DENABLE_CLANG_TIDY=ON \
-            -DENABLE_PROFILING_ITT=ON \
+            -DENABLE_PROFILING_ITT=FULL \
             -DENABLE_DEBUG_CAPS=ON \
             -DSELECTIVE_BUILD=COLLECT \
             -DENABLE_PYTHON=OFF \

@@ -248,14 +248,14 @@ ov::snippets::op::Subgraph::BlockedShape get_wei_blocked_shape(const ov::snippet
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
     OPENVINO_ASSERT(ov::is_type<BrgemmCPU>(brgemm_expr->get_node()),
                     "get_copy_b_expr must be called only for BrgemmCPU node");
-    auto b_input_expr = brgemm_expr->get_input_port_connector(1)->get_source().get_expr();
+    auto b_input_expr = brgemm_expr->get_input_expr_ptr(1);
     if (ov::is_type<BrgemmCopyB>(b_input_expr->get_node())) {
         return b_input_expr;
     }
     if (ov::is_type<RepackedWeightsBufferExpression>(b_input_expr)) {
         OPENVINO_ASSERT(b_input_expr->get_input_count() >= 1,
                         "RepackedWeightsBufferExpression on brgemm's B input must have at least one input");
-        auto input_buffer_expr = b_input_expr->get_input_port_connector(0)->get_source().get_expr();
+        auto input_buffer_expr = b_input_expr->get_input_expr_ptr(0);
         if (ov::is_type<BrgemmCopyB>(input_buffer_expr->get_node())) {
             return input_buffer_expr;
         }

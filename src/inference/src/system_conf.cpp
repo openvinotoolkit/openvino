@@ -123,6 +123,10 @@ bool with_cpu_arm_dotprod() {
     return false;
 }
 
+bool with_cpu_arm_i8mm() {
+    return false;
+}
+
 #else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool with_cpu_x86_sse42() {
@@ -216,6 +220,25 @@ bool with_cpu_arm_dotprod() {
 #    endif
 }
 
+bool with_cpu_arm_i8mm() {
+#    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__arm__) && defined(__aarch64__)
+    const uint32_t hwcaps = getauxval(AT_HWCAP);
+    return hwcaps & HWCAP2_I8MM;
+#    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__aarch64__) && defined(__arm__)
+    return false;
+#    elif defined(__aarch64__) && defined(__APPLE__)
+    int64_t result(0);
+    size_t size = sizeof(result);
+    const std::string& cap = "hw.optional.arm.FEAT_I8MM";
+    sysctlbyname(cap.c_str(), &result, &size, NULL, 0);
+    return result > 0;
+#    else
+    return false;
+#    endif
+}
+
 #endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool check_open_mp_env_vars(bool include_omp_num_threads) {
@@ -268,7 +291,7 @@ CPU& cpu_info() {
 int get_number_of_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
-#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
+#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO) || (OV_THREAD == OV_THREAD_TBB_ADAPTIVE))
 std::vector<int> get_available_numa_nodes() {
     return {-1};
 }
@@ -323,7 +346,7 @@ int get_org_numa_id(int numa_node_id) {
 int get_number_of_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
-#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
+#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO) || (OV_THREAD == OV_THREAD_TBB_ADAPTIVE))
 std::vector<int> get_available_numa_nodes() {
     return {-1};
 }
@@ -397,7 +420,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
     OPENVINO_ASSERT(totalNumberOfCpuCores != 0, "Total number of cpu cores can not be 0.");
 
     int phys_cores = totalNumberOfCpuCores;
-#        if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#        if OV_THREAD_USE_TBB
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         phys_cores = custom::info::default_concurrency(
@@ -407,7 +430,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
     return phys_cores;
 }
 
-#        if !((OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO))
+#        if !((OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO) || (OV_THREAD == OV_THREAD_TBB_ADAPTIVE))
 std::vector<int> get_available_numa_nodes() {
     CPU& cpu = cpu_info();
     std::vector<int> nodes((0 == cpu._numa_nodes) ? 1 : cpu._numa_nodes);
@@ -535,7 +558,7 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
 
 int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
     int logical_cores = parallel_get_max_threads();
-#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#    if OV_THREAD_USE_TBB
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         logical_cores = custom::info::default_concurrency(
@@ -569,7 +592,7 @@ int get_org_numa_id(int numa_node_id) {
 }
 #endif
 
-#if ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
+#if ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO) || (OV_THREAD == OV_THREAD_TBB_ADAPTIVE))
 std::vector<int> get_available_numa_nodes() {
     return custom::info::numa_nodes();
 }
