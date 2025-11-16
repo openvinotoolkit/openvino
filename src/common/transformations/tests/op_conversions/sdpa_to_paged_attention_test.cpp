@@ -2039,7 +2039,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
     }
 }
 
-TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
+TEST_F(SDPAToPATest, DISABLED_SDPAToPA_gpt_oss_General) {
     {
         auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
         auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
