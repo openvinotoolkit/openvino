@@ -287,7 +287,7 @@ struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::RunTime;
     }
 };
 
@@ -846,8 +846,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static ov::intel_npu::CompilerType parse(std::string_view val) {
-        if (val == "MLIR") {
-            return ov::intel_npu::CompilerType::MLIR;
+        if (val == "PLUGIN" || val == "MLIR") {
+            return ov::intel_npu::CompilerType::PLUGIN;
         } else if (val == "DRIVER") {
             return ov::intel_npu::CompilerType::DRIVER;
         }
@@ -857,8 +857,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
 
     static std::string toString(const ov::intel_npu::CompilerType& val) {
         std::stringstream strStream;
-        if (val == ov::intel_npu::CompilerType::MLIR) {
-            strStream << "MLIR";
+        if (val == ov::intel_npu::CompilerType::PLUGIN) {
+            strStream << "PLUGIN";
         } else if (val == ov::intel_npu::CompilerType::DRIVER) {
             strStream << "DRIVER";
         } else {
@@ -1423,6 +1423,20 @@ struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, b
 
     static OptionMode mode() {
         return OptionMode::CompileTime;
+    }
+};
+
+struct SERIALIZATION_WEIGHTS_SIZE_THRESHOLD final : OptionBase<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD, size_t> {
+    static std::string_view key() {
+        return ov::intel_npu::serialization_weights_size_threshold.name();
+    }
+
+    static size_t defaultValue() {
+        return 0;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
     }
 };
 

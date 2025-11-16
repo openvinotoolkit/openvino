@@ -100,6 +100,9 @@ protected:
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
     ov::Output<const ov::Node> m_lm_head_logits_port;
 
+    // Cache past_key_values ports for efficient clearing in prepare_for_new_conversation
+    std::vector<ov::Output<const ov::Node>> m_prefill_past_kv_ports;
+
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
 

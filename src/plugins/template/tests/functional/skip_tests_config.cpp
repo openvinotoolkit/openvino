@@ -75,8 +75,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvertI420WithLegacyTest.*)",
         // Plugin version was changed to ov::Version
         R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
-        // New plugin doesn't support dynamic preprocessing, here we set blob with changed layout
-        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*_iPRC=0.*_iLT=1.*)",
         // New plugin API doesn't support changes of pre-processing
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
@@ -91,17 +89,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestQueryStateExceptionTest.*inferreq_smoke_QueryState_ExceptionTest.*)",
         R"(.*OVInferRequestCheckTensorPrecision.*get(Input|Output|Inputs|Outputs)From.*FunctionWith(Single|Several).*type=(u4|u1|i4|boolean).*)",
         R"(.*LSTMSequence_With_Hardcoded_Refs.*ReferenceLSTMSequenceTest.*iType=f16.*)",
-        // CVS-111443
-        R"(.*eltwiseOpType=Mod_secondaryInputType=PARAMETER_opType=VECTOR_NetType=(f16|f32).*)",
         // Interpreter backend doesn't implement evaluate method for OP Multiply (by GroupNormalizationDecomposition)
         R"(.*ReferenceGroupNormalization.*_f64*)",
         // Precision not high enough to get exact result for the complex test cases
         // (both tiny values and very high values necessary)
         R"(.*ReferenceInverse.*bf16.*[4,4].*)",
-        R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=\(\[\]_\)_TS=.*(4.4.200|1.10.200|10.200|2.200|1.10.100|4.4.16).*_eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=dynamic_OutType=dynamic.*)",
-        R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=\(\(2.17.5.1\)_\(1.17.1.4\)_\)_eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f16_InType=dynamic_OutType=dynamic_.*)",
-        R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=.*(2.200|10.200|1.10.100|4.4.16|1.2.4|1.4.4|1.4.4.1).*eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f16_InType=dynamic_OutType=dynamic.*)",
-        R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=.*2.*eltwise_op_type=Pow_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=dynamic_OutType=dynamic.*)",
         // model import is not supported
         R"(.*OVCompiledModelBaseTest.import_from_.*)"};
 #ifdef _WIN32

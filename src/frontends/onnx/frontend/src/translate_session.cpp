@@ -51,6 +51,7 @@ ov::Output<ov::Node> TranslateSession::lookup_tensor(const std::string& name) {
         auto new_param = std::make_shared<ov::op::v0::Parameter>(node_from_parent.get_element_type(),
                                                                  node_from_parent.get_partial_shape());
         new_param->set_friendly_name(node_from_parent.get_node()->get_friendly_name());
+        new_param->output(0).set_names({name});
         m_parameters.push_back(new_param);
         m_tensor_values[name] = new_param;
         return new_param;
@@ -68,7 +69,6 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
 
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
                                        std::shared_ptr<ov::Model>& ov_model) {
-    const OperatorsBridge translate_map;
     const auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
 
     auto& all_tensor_places = model_onnx->get_tensor_places();
@@ -125,7 +125,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         const auto out_size = decoder->get_output_size();
         ov::OutputVector ov_outputs(out_size);
         const Operator* translator =
-            translate_map.get_operator(decoder->get_domain(), decoder->get_op_type(), decoder->get_op_set());
+            m_translator_map->get_operator(decoder->get_domain(), decoder->get_op_type(), decoder->get_op_set());
         ov::frontend::onnx::Node node_context(*decoder, this);
         std::string error_message{};
         try {
@@ -134,13 +134,14 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             } else {
                 ov_outputs = (*translator)(node_context);
             }
+            auto name = node_context.get_name();
             for (size_t idx = 0; idx < ov_outputs.size() && idx < out_size; ++idx) {
-                const std::string& out_name = decoder->get_output_tensor_name(idx);
+                const std::string& out_name = node_context.output(static_cast<int>(idx));
                 if (is_optimized_out(ov_outputs[idx])) {
                     ov_outputs[idx].add_names({out_name});
                 } else {
                     ov_outputs[idx].set_names({out_name});
-                    ov_outputs[idx].get_node()->set_friendly_name(out_name);
+                    ov_outputs[idx].get_node()->set_friendly_name(!name.empty() ? name : out_name);
                 }
             }
         } catch (const ::ov::frontend::onnx::error::OnnxNodeValidationFailure& e) {
@@ -208,8 +209,18 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         tensor->translate(input);
         result->set_friendly_name(name + "/sink_port_0");
         results.push_back(result);
+        const auto& previous_operation = result->get_input_node_shared_ptr(0);
+        if (!ov::as_type_ptr<ov::op::v0::Parameter>(previous_operation)) {
+            previous_operation->set_friendly_name(name);
+        }
     }
 
     auto model_name = "onnx_Frontend_IR";
     ov_model = std::make_shared<ov::Model>(results, m_parameters, model_name);
+
+    const auto& metadata = model_onnx->get_metadata();
+    const std::string framework_section = "framework";
+    for (const auto& pair : metadata) {
+        ov_model->set_rt_info(pair.second, framework_section, pair.first);
+    }
 }
