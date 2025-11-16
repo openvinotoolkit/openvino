@@ -13,6 +13,7 @@
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "metadata.hpp"
 #include "metrics.hpp"
@@ -65,6 +66,8 @@ public:
 
 private:
     void init_options();
+    void filter_global_config_safe(
+        const std::optional<ov::intel_npu::CompilerType>& compilerChange = std::nullopt) const;
     void filter_config_by_compiler_support(FilteredConfig& cfg) const;
     FilteredConfig fork_local_config(const std::map<std::string, std::string>& rawConfig,
                                      const std::unique_ptr<ICompilerAdapter>& compiler,
@@ -93,12 +96,13 @@ private:
     ov::SoPtr<IEngineBackend> _backend;
 
     std::shared_ptr<OptionsDesc> _options;
-    FilteredConfig _globalConfig;
+    mutable FilteredConfig _globalConfig;
     mutable Logger _logger;
     std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _properties;
 
     static std::atomic<int> _compiledModelLoadCounter;
+    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu

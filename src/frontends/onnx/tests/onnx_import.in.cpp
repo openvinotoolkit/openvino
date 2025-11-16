@@ -7199,3 +7199,22 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_explicit_split_1d) {
 
     test_case.run();
 }
+
+/// @brief Testing ONNX BitShift with an Y output of uint32 type
+/// The input model was taken from a bug report, where parsing the type of the Y input
+/// failed.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_bitshift_uint32_y) {
+    const auto model = convert_model("bitshift_uint32_y.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(
+        Shape{3, 4, 4},
+        {-0.6251511f, -0.5969454f, 0.13909698f,  -0.27613088f, 0.00713499f, -0.06079938f, 0.07727996f,  0.09848484f,
+         -1.3456749f, 1.2606536f,  -2.1878982f,  -0.06534719f, 1.7707846f,  -1.3586597f,  -1.1241275f,  1.1630629f,
+         1.5288247f,  1.5974303f,  -0.09236689f, 1.2441877f,   -0.4477599f, 0.20678943f,  0.2639845f,   -0.38207826f,
+         1.0393754f,  2.0902128f,  -0.4672897f,  1.8636966f,   1.2390026f,  -0.38409668f, -0.29675618f, -2.113882f,
+         -1.2571493f, 0.19212584f, -0.48622572f, 1.3817313f,   0.2130472f,  0.12426434f,  0.18794645f,  -1.4493794f,
+         0.38522267f, 0.55802476f, -1.0083855f,  0.12431115f,  -1.9025584f, -1.1199955f,  -0.97456354f, 0.5826947f});
+
+    test_case.run();
+}

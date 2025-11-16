@@ -20,7 +20,7 @@
 namespace ov::intel_cpu::node {
 
 /**
- * Implements Color Convert shape inference algorithm. Depending on wether it has only single plain H dimension is
+ * Implements Color Convert shape inference algorithm. Depending on whether it has only single plain H dimension is
  * passed through or recalculated as 2/3 of the initial size.
  *
  */

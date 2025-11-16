@@ -109,16 +109,16 @@ void* Tensor::data() {
     OV_TENSOR_STATEMENT(return _impl->data());
 }
 
-void* Tensor::data() const {
-    OV_TENSOR_STATEMENT(return const_cast<void*>(std::as_const(*_impl).data()););
+const void* Tensor::data() const {
+    OV_TENSOR_STATEMENT(return std::as_const(*_impl).data());
 }
 
 void* Tensor::data(const element::Type& element_type) {
     OV_TENSOR_STATEMENT(return _impl->data(element_type));
 }
 
-void* Tensor::data(const element::Type& element_type) const {
-    OV_TENSOR_STATEMENT(return const_cast<void*>(std::as_const(*_impl).data(element_type)););
+const void* Tensor::data(const element::Type& element_type) const {
+    OV_TENSOR_STATEMENT(return std::as_const(*_impl).data(element_type));
 }
 
 bool Tensor::operator!() const noexcept {
