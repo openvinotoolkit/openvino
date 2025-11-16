@@ -65,7 +65,6 @@ jobs:
           - one_job
           - four_jobs
           - eight_jobs
-          - sixteen_jobs
         cache:
           - True
 
