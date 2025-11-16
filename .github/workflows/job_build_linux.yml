@@ -75,7 +75,6 @@ env:
 jobs:
   Build:
     name: Build
-    timeout-minutes: 150
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
