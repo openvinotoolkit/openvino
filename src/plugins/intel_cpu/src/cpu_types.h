@@ -9,13 +9,12 @@
 #include <string>
 #include <vector>
 
-#include "openvino/core/shape.hpp"
 #include "utils/caseless.hpp"
 
 namespace ov::intel_cpu {
 
-using VectorDims = ov::Shape;
-using Dim = typename VectorDims::value_type;
+using Dim = std::size_t;
+using VectorDims = std::vector<Dim>;
 
 std::string dim2str(Dim dim);
 std::string dims2str(const VectorDims& dims);
