@@ -1898,6 +1898,24 @@ void primitive_inst::do_runtime_skip_lora() {
     }
 }
 
+void primitive_inst::do_runtime_skip_resample() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_resample: " + id()));
+    if (!get_node().is_type<resample>() || !get_node().is_runtime_skippable())
+        return;
+
+    const auto& input_layout = _impl_params->get_input_layout(0);
+    const auto& output_layout = _impl_params->get_output_layout();
+    bool is_unchanged = input_layout == output_layout;
+    if (is_unchanged) {
+        set_can_be_optimized(true);
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_resample] " << id() << " can be optimized due to same input/output" << std::endl;
+    } else {
+        set_can_be_optimized(false);
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_resample] " << id() << " cannot be optimized, input: " << input_layout.to_short_string()
+                               << " , output: " << output_layout.to_short_string() << std::endl;
+    }
+}
+
 bool primitive_inst::has_inner_networks() const {
     return (_impl_params->inner_nets.size() > 0);
 }
@@ -2008,6 +2026,7 @@ void primitive_inst::prepare_primitive() {
         do_runtime_skip_scatter_update();
         do_runtime_skip_lora();
         do_runtime_in_place_crop();
+        do_runtime_skip_resample();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
