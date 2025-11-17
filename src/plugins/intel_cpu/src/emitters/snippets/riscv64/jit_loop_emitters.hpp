@@ -46,7 +46,7 @@ private:
     bool evaluate_once = false;
     size_t work_amount = 0LU;
     size_t wa_increment = 0;
-    size_t loop_id = 0;
+    size_t loop_args_offset = 0;
     bool is_work_amount_dynamic = false;
     mutable std::shared_ptr<Xbyak_riscv::Label> loop_begin_label = nullptr;
     mutable std::shared_ptr<const Xbyak_riscv::Label> loop_end_label = nullptr;
@@ -81,11 +81,10 @@ private:
     size_t num_outputs = 0;
     int64_t work_amount = 0;
     size_t wa_increment = 0;
-    size_t loop_id = 0;
+    size_t loop_args_offset = 0;
     bool evaluate_once = false;
     bool are_ptr_increments_dynamic = false;
     bool are_final_offsets_dynamic = false;
-    size_t loop_args_offset = 0;
     jit_snippets_call_args::loop_args_t loop_args;
     mutable std::shared_ptr<const Xbyak_riscv::Label> loop_begin_label = nullptr;
     mutable std::shared_ptr<Xbyak_riscv::Label> loop_end_label = nullptr;

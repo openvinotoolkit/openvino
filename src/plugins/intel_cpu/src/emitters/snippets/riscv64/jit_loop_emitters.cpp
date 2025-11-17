@@ -15,8 +15,8 @@
 #include <vector>
 
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
-#include "emitters/snippets/common/jit_loop_args_helper.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/type.hpp"
@@ -33,47 +33,6 @@ namespace ov::intel_cpu::riscv64 {
 
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-namespace {
-// RAII holder for one temporary GPR: uses pool if available, otherwise preserves a caller-saved reg on stack
-class jit_aux_gpr_holder {
-public:
-    jit_aux_gpr_holder(ov::intel_cpu::riscv64::jit_generator_t* host,
-                       std::vector<size_t>& pool_gpr_idxs,
-                       const std::vector<size_t>& used_gpr_idxs)
-        : m_h(host),
-          m_pool_gpr_idxs(pool_gpr_idxs) {
-        if (!m_pool_gpr_idxs.empty()) {
-            m_reg = Xbyak_riscv::Reg(static_cast<int>(m_pool_gpr_idxs.back()));
-            m_pool_gpr_idxs.pop_back();
-        } else {
-            // choose an available caller-saved reg not in used set
-            m_reg = ov::intel_cpu::riscv64::utils::get_aux_gpr(used_gpr_idxs);
-            m_preserved = true;
-            // Maintain 16-byte alignment; reserve 16 bytes and save at 0
-            m_h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, -16);
-            m_h->sd(m_reg, Xbyak_riscv::sp, 0);
-        }
-    }
-    ~jit_aux_gpr_holder() {
-        if (m_preserved) {
-            m_h->ld(m_reg, Xbyak_riscv::sp, 0);
-            m_h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, 16);
-        } else {
-            m_pool_gpr_idxs.push_back(static_cast<size_t>(m_reg.getIdx()));
-        }
-    }
-    [[nodiscard]] const Xbyak_riscv::Reg& get_reg() const {
-        return m_reg;
-    }
-
-private:
-    ov::intel_cpu::riscv64::jit_generator_t* m_h;
-    std::vector<size_t>& m_pool_gpr_idxs;
-    Xbyak_riscv::Reg m_reg;
-    bool m_preserved = false;
-};
-}  // namespace
-
 /* ================== jit_loop_begin_emitter ====================== */
 
 jit_loop_begin_emitter::jit_loop_begin_emitter(ov::intel_cpu::riscv64::jit_generator_t* h,
@@ -89,7 +48,7 @@ jit_loop_begin_emitter::jit_loop_begin_emitter(ov::intel_cpu::riscv64::jit_gener
     work_amount = loop_end->get_work_amount();
     wa_increment = loop_end->get_increment();
     evaluate_once = loop_end->get_evaluate_once();
-    loop_id = loop_end->get_id();
+    loop_args_offset = loop_end->get_id() * sizeof(ov::intel_cpu::jit_snippets_call_args::loop_args_t);
     is_work_amount_dynamic = ov::snippets::utils::is_dynamic_value(work_amount);
     OV_CPU_JIT_EMITTER_ASSERT(wa_increment > 0, "Loop increment must be > 0");
 
@@ -119,19 +78,18 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
                                        const std::vector<size_t>& out) const {
     auto reg_work_amount = Xbyak_riscv::Reg(out[0]);
     if (is_work_amount_dynamic) {
-        const auto id_offset = loop_id * sizeof(ov::intel_cpu::jit_snippets_call_args::loop_args_t);
         // Acquire two scratch regs
         std::vector<size_t> used = {out[0]};
-        jit_aux_gpr_holder h_ptr(h, aux_gpr_idxs, used);
-        jit_aux_gpr_holder h_tmp(h, aux_gpr_idxs, used);
+        ov::intel_cpu::riscv64::utils::jit_aux_gpr_holder h_ptr(h, aux_gpr_idxs, used);
+        ov::intel_cpu::riscv64::utils::jit_aux_gpr_holder h_tmp(h, aux_gpr_idxs, used);
         auto reg_loop_args_ptr = h_ptr.get_reg();
         auto addr = h_tmp.get_reg();
         // reg_loop_args_ptr = *(a0 + GET_OFF(loop_args))
         h->uni_li(addr, GET_OFF(loop_args));
         h->add(addr, Xbyak_riscv::a0, addr);
         h->ld(reg_loop_args_ptr, addr, 0);
-        // reg_loop_args_ptr += id_offset + OFF(m_work_amount)
-        h->uni_li(addr, id_offset + GET_OFF_LOOP_ARGS(m_work_amount));
+        // reg_loop_args_ptr += loop_args_offset + OFF(m_work_amount)
+        h->uni_li(addr, loop_args_offset + GET_OFF_LOOP_ARGS(m_work_amount));
         h->add(reg_loop_args_ptr, reg_loop_args_ptr, addr);
         // load m_work_amount
         h->ld(reg_work_amount, reg_loop_args_ptr, 0);
@@ -144,11 +102,10 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
         return;
     }
     // Compare work amount with increment and jump to end if less
-    size_t eff_inc =
-        (evaluate_once && ov::snippets::utils::is_dynamic_value(wa_increment)) ? 1 : static_cast<size_t>(wa_increment);
+    size_t eff_inc = (evaluate_once && ov::snippets::utils::is_dynamic_value(wa_increment)) ? 1 : wa_increment;
     // Use scratch for increment immediate
     std::vector<size_t> used2 = {out[0]};
-    jit_aux_gpr_holder h_inc(h, aux_gpr_idxs, used2);
+    ov::intel_cpu::riscv64::utils::jit_aux_gpr_holder h_inc(h, aux_gpr_idxs, used2);
     Xbyak_riscv::Reg reg_inc = h_inc.get_reg();
     h->uni_li(reg_inc, eff_inc);
     h->blt(reg_work_amount, reg_inc, *loop_end_label);
@@ -174,9 +131,8 @@ jit_loop_end_emitter::jit_loop_end_emitter(ov::intel_cpu::riscv64::jit_generator
     are_ptr_increments_dynamic = ov::snippets::utils::has_dynamic_values(loop_end->get_ptr_increments());
     are_final_offsets_dynamic = ov::snippets::utils::has_dynamic_values(loop_end->get_finalization_offsets());
     OV_CPU_JIT_EMITTER_ASSERT(wa_increment > 0, "Loop increment must be > 0");
-    loop_id = loop_end->get_id();
-    loop_args_offset = loop_id * sizeof(ov::intel_cpu::jit_snippets_call_args::loop_args_t);
-    loop_args = ov::intel_cpu::snippets_common::compose_loop_args(loop_end);
+    loop_args_offset = loop_end->get_id() * sizeof(ov::intel_cpu::jit_snippets_call_args::loop_args_t);
+    loop_args = ov::intel_cpu::utils::compose_loop_args(loop_end);
     OV_CPU_JIT_EMITTER_ASSERT(loop_args.m_num_data_ptrs == static_cast<int64_t>(num_inputs + num_outputs),
                               "Invalid loop args size for LoopEnd");
 
@@ -218,19 +174,16 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
     auto apply_increments = [&](const int64_t* increments, bool use_runtime_args, size_t field_offset) {
-        if (increments == nullptr || data_ptr_reg_idxs.empty()) {
-            return;
-        }
-
         std::vector<size_t> used = in;
-        std::unique_ptr<jit_aux_gpr_holder> reg_increments_holder;
+        std::unique_ptr<ov::intel_cpu::riscv64::utils::jit_aux_gpr_holder> reg_increments_holder;
         std::optional<Xbyak_riscv::Reg> reg_increments;
         if (use_runtime_args) {
-            reg_increments_holder = std::make_unique<jit_aux_gpr_holder>(h, aux_gpr_idxs, used);
+            reg_increments_holder =
+                std::make_unique<ov::intel_cpu::riscv64::utils::jit_aux_gpr_holder>(h, aux_gpr_idxs, used);
             reg_increments = reg_increments_holder->get_reg();
             used.push_back(static_cast<size_t>(reg_increments->getIdx()));
         }
-        jit_aux_gpr_holder h_tmp(h, aux_gpr_idxs, used);
+        ov::intel_cpu::riscv64::utils::jit_aux_gpr_holder h_tmp(h, aux_gpr_idxs, used);
         Xbyak_riscv::Reg tmp = h_tmp.get_reg();
 
         if (use_runtime_args) {
@@ -267,9 +220,9 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
         auto reg_work_amount = Xbyak_riscv::Reg(in.back());
         // reg_work_amount -= wa_increment
         // use scratch for increment immediate
-        jit_aux_gpr_holder h_inc(h, aux_gpr_idxs, in);
+        ov::intel_cpu::riscv64::utils::jit_aux_gpr_holder h_inc(h, aux_gpr_idxs, in);
         auto reg_inc = h_inc.get_reg();
-        h->uni_li(reg_inc, static_cast<size_t>(wa_increment));
+        h->uni_li(reg_inc, wa_increment);
         h->sub(reg_work_amount, reg_work_amount, reg_inc);
         // if reg_work_amount >= wa_increment -> loop
         h->bge(reg_work_amount, reg_inc, *loop_begin_label);

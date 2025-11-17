@@ -18,8 +18,8 @@
 #include <vector>
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/snippets/common/jit_loop_args_helper.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/snippets/x64/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type.hpp"
@@ -131,7 +131,7 @@ jit_loop_end_base_emitter::jit_loop_end_base_emitter(jit_generator_t* h,
     m_evaluate_once = loop_end->get_evaluate_once();
     m_are_ptr_increments_dynamic = ov::snippets::utils::has_dynamic_values(loop_end->get_ptr_increments());
     m_are_final_offsets_dynamic = ov::snippets::utils::has_dynamic_values(loop_end->get_finalization_offsets());
-    m_loop_args = ov::intel_cpu::snippets_common::compose_loop_args(loop_end);
+    m_loop_args = ov::intel_cpu::utils::compose_loop_args(loop_end);
 }
 
 ov::snippets::lowered::ExpressionPtr jit_loop_end_base_emitter::get_loop_begin_expr(

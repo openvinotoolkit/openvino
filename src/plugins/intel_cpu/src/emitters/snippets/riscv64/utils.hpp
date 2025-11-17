@@ -28,6 +28,34 @@ inline static std::vector<Xbyak_riscv::Reg> transform_idxs_to_regs(const std::ve
 }
 
 /**
+ * @brief RAII wrapper for acquiring and managing auxiliary general-purpose registers in JIT compilation.
+ * The class supports two allocation strategies:
+ * - If a register pool is available, it borrows a register from the pool and returns it upon destruction
+ * - If the pool is empty, it manually allocates an available register and preserves its original value
+ *   on the stack, restoring it upon destruction
+ * This ensures that temporary register usage doesn't interfere with the existing register state
+ * and provides safe register management in complex JIT scenarios like loop emitters.
+ */
+class jit_aux_gpr_holder {
+public:
+    jit_aux_gpr_holder(ov::intel_cpu::riscv64::jit_generator_t* host,
+                       std::vector<size_t>& pool_gpr_idxs,
+                       const std::vector<size_t>& used_gpr_idxs);
+
+    ~jit_aux_gpr_holder();
+
+    [[nodiscard]] const Xbyak_riscv::Reg& get_reg() const {
+        return m_reg;
+    }
+
+private:
+    ov::intel_cpu::riscv64::jit_generator_t* m_h;
+    std::vector<size_t>& m_pool_gpr_idxs;
+    Xbyak_riscv::Reg m_reg;
+    bool m_preserved = false;
+};
+
+/**
  * @brief Find the available register from the pool excepting: a0, a1, sp, ra and `used_gpr_idxs`
  * @param used_gpr_idxs current used gpr register indexes
  * @return register
