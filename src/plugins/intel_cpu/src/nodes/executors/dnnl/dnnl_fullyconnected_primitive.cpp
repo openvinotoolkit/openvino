@@ -37,6 +37,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -107,7 +108,10 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
                   attrs.modelType};
 
     auto builder = [&context](const Key& dnnlKey) {
-        return std::make_shared<DnnlFCPrimitive>(dnnlKey, context->getEngine(), context->getImplPriorities());
+        return std::make_shared<DnnlFCPrimitive>(dnnlKey,
+                                                 context->getEngine(),
+                                                 context->getThreadPool(),
+                                                 context->getImplPriorities());
     };
 
     auto runtimeCache = context->getRuntimeCache();
@@ -479,8 +483,9 @@ static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc)
 
 DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
                                  const dnnl::engine& engine,
+                                 const std::shared_ptr<ThreadPool>& threadPool,
                                  const std::vector<impl_desc_type>& implPriorities)
-    : m_stream(dnnl::stream(engine)),
+    : m_stream(make_stream(engine, threadPool)),
       m_primDesc(createPrimitiveDesc(
           key.src->getDnnlDesc(),
           key.wei->getDnnlDesc(),
