@@ -140,12 +140,14 @@ std::vector<snippets::Reg> CPUTargetMachine::get_gp_reg_pool() const {
     const auto num_gp_regs = 32;
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 1; i < num_gp_regs; i++) {
-        // Reserve: x0 (zero), x1 (ra), x2 (sp), x3 (gp), x4 (tp), x8 (s0/fp)
+        // Reserve: x0 (zero), x1 (ra), x2 (sp), x3 (gp), x4 (tp), x5 (t0), x6 (t1), x8 (s0/fp)
         if (none_of(static_cast<int>(i),
                     Xbyak_riscv::ra.getIdx(),
                     Xbyak_riscv::sp.getIdx(),
                     Xbyak_riscv::gp.getIdx(),
                     Xbyak_riscv::tp.getIdx(),
+                    Xbyak_riscv::t0.getIdx(),
+                    Xbyak_riscv::t1.getIdx(),
                     Xbyak_riscv::s0.getIdx())) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
         }
