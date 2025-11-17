@@ -1412,23 +1412,13 @@ struct WS_COMPILE_CALL_NUMBER final : OptionBase<WS_COMPILE_CALL_NUMBER, uint32_
     }
 };
 
-struct MODEL_SERIALIZER_ALGORITHM final
-    : OptionBase<MODEL_SERIALIZER_ALGORITHM, ov::intel_npu::ModelSerializerAlgorithm> {
+struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, bool> {
     static std::string_view key() {
-        return ov::intel_npu::model_serializer_algorithm.name();
+        return ov::intel_npu::use_base_model_serializer.name();
     }
 
-    static constexpr std::string_view getTypeName() {
-        return "ov::intel_npu::ModelSerializerAlgorithm";
-    }
-
-    static ov::intel_npu::ModelSerializerAlgorithm defaultValue() {
-        return ov::intel_npu::ModelSerializerAlgorithm::COPY_WEIGHTS;  // base model serialization algorithm
-    }
-
-    static std::vector<ValueType> supportedValues() {
-        return {ov::intel_npu::ModelSerializerAlgorithm::COPY_WEIGHTS,
-                ov::intel_npu::ModelSerializerAlgorithm::POINTERS_TO_ADDRESSES};
+    static bool defaultValue() {
+        return true;
     }
 
     static OptionMode mode() {

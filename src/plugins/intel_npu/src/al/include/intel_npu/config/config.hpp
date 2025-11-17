@@ -19,7 +19,6 @@
 #include <utility>
 #include <vector>
 
-#include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -114,11 +113,6 @@ struct OptionParser<ov::hint::ExecutionMode> final {
     static ov::hint::ExecutionMode parse(std::string_view val);
 };
 
-template <>
-struct OptionParser<ov::intel_npu::ModelSerializerAlgorithm> final {
-    static ov::intel_npu::ModelSerializerAlgorithm parse(std::string_view val);
-};
-
 void splitAndApply(const std::string& str, char delim, std::function<void(std::string_view)> callback);
 
 template <typename T>
@@ -166,12 +160,6 @@ struct OptionParser<std::chrono::duration<Rep, Period>> final {
         OPENVINO_THROW("Can't parse '", val.data(), "' as time duration");
     }
 };
-
-//
-// ModelSerializerAlgorithm
-//
-
-std::string_view stringifyEnum(ov::intel_npu::ModelSerializerAlgorithm val);
 
 //
 // OptionPrinter
