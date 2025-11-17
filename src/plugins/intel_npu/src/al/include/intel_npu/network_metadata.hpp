@@ -119,6 +119,13 @@ struct IODescriptor {
      * by the compiler).
      */
     std::optional<ov::PartialShape> shapeFromIRModel = std::nullopt;
+
+    /**
+     * @brief The driver index of the descriptor.
+     * @details This value is used by the driver to identify the input/output buffer. Driver indices for inputs and
+     * outputs are assigned in the same vector and could have different indexing.
+     */
+    uint32_t indexUsedByDriver;
 };
 
 struct NetworkMetadata final {
