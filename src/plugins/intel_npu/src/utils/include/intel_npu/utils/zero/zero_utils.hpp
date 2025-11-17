@@ -15,22 +15,6 @@
 
 namespace intel_npu {
 
-struct ArgumentDescriptor {
-    ze_graph_argument_properties_3_t info;
-    uint32_t idx;
-    std::string to_string() const {
-        std::stringstream sstream;
-        sstream << "dims_count: " << info.dims_count << " - [";
-        for (uint32_t i = 0; i < std::min<uint32_t>(info.dims_count, ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE); i ++) {
-            sstream << info.dims[i] << ",";
-        }
-        sstream << "]"
-                << ", networkLayout: " << std::to_string(static_cast<size_t>(info.networkLayout))
-                << ", deviceLayout: " << std::to_string(static_cast<size_t>(info.deviceLayout));
-        return sstream.str();
-    }
-};
-
 namespace zeroUtils {
 
 #define THROW_ON_FAIL_FOR_LEVELZERO_EXT(step, result, graph_ddi_table_ext)                  \
