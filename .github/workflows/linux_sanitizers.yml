@@ -307,6 +307,7 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_inference_functional_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceFunc.xml
 
+      # gtest_filter Ticket: 176780
       - name: OpenVINO Inference Unit Tests
         if: ${{ !cancelled() }}
         run: |
@@ -336,6 +337,7 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-IRFrontend.xml
 
+      # gtest_filter Ticket: 176780
       - name: PaddlePaddle frontend tests
         if: ${{ !cancelled() }}
         run: |
@@ -374,6 +376,7 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowLiteFrontend.xml
 
+      # gtest_filter Ticket: 176780
       - name: Transformations func tests
         if: ${{ !cancelled() }}
         run: |
