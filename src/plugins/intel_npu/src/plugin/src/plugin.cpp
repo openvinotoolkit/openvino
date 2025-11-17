@@ -158,7 +158,7 @@ std::string getDeviceFromProperties(const ov::AnyMap& propertiesMap) {
     return defaultDevice;
 }
 
-void  checkUpdateforspecialPlatform(const FilteredConfig& base_conf, ov::AnyMap& propertiesMap, Logger& log) {
+void checkUpdateforspecialPlatform(const FilteredConfig& base_conf, ov::AnyMap& propertiesMap, Logger& log) {
     // if there is no compiler_type provided, use base_config value, check and update by the device
     // update the compilerType by device:
     //  3720 -> DRIVER
@@ -169,13 +169,14 @@ void  checkUpdateforspecialPlatform(const FilteredConfig& base_conf, ov::AnyMap&
         const ov::AnyMap localProperties = propertiesMap;
         std::string getdevice = getDeviceFromProperties(localProperties);
         if (getdevice == std::string((ov::intel_npu::Platform::NPU3720))) {
-            if(base_conf.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::DRIVER) {
+            if (base_conf.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::DRIVER) {
                 log.warning(
                     "Platform '3720' is selected, but the used compiler_type is not set to 'DRIVER'. Forcely use the "
                     "compiler_type to 'DRIVER'. Maybe cause the compilerType inconsistency issues.");
             }
             // To avoid compilerType inconsistency issues, only set DRIVER if compiler_type is not set by user
-            propertiesMap[std::string(COMPILER_TYPE::key())] = COMPILER_TYPE::toString(ov::intel_npu::CompilerType::DRIVER);
+            propertiesMap[std::string(COMPILER_TYPE::key())] =
+                COMPILER_TYPE::toString(ov::intel_npu::CompilerType::DRIVER);
         }
     }
 }
@@ -662,7 +663,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // activate the NPUW path
     auto useNpuwKey = ov::intel_npu::use_npuw.name();
     ov::AnyMap localProperties = properties;
-
     if (localProperties.count(useNpuwKey)) {
         if (localProperties.at(useNpuwKey).as<bool>() == true) {
             return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), localProperties);
