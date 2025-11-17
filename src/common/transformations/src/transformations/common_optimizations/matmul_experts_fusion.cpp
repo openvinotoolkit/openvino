@@ -75,6 +75,10 @@ ov::pass::FuseVectorizedMOE2GEMM::FuseVectorizedMOE2GEMM() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
 
+        if (transformation_callback(m.get_match_root())) {
+            return false;
+        }
+
         auto experts_input_node = pm.at(experts_input).get_node()->input_value(0);
 
         auto routing_weights_node = pm.at(unsqueeze_routing_weights).get_node_shared_ptr();
@@ -156,6 +160,11 @@ ov::pass::FuseVectorizedMOE3GEMM::FuseVectorizedMOE3GEMM() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
+
+        if (transformation_callback(m.get_match_root())) {
+            return false;
+        }
+
         auto experts_input_node = pm.at(experts_input).get_node()->input_value(0);
         auto routing_weights_node = pm.at(unsqueeze_routing_weights).get_node_shared_ptr();
         auto gate_weight = pm.at(gate_matmul).get_node()->input_value(1).get_node_shared_ptr();

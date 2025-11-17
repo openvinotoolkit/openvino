@@ -37,6 +37,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -137,6 +138,7 @@ std::shared_ptr<DnnlMatMulPrimitive> DnnlMatMulPrimitive::create(const MemoryArg
     auto builder = [&context, defaultImplType](const Key& dnnlKey) {
         return std::make_shared<DnnlMatMulPrimitive>(dnnlKey,
                                                      context->getEngine(),
+                                                     context->getThreadPool(),
                                                      context->getImplPriorities(),
                                                      defaultImplType);
     };
@@ -528,7 +530,7 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
                                                        attrs.transposeA,
                                                        attrs.transposeB,
                                                        dstDesc->getShape().getRank());
-        if (attrs.weightsNonTransposed) {
+        if (attrs.fcSemantic && weiDymmyDims.size() == 3) {
             std::swap(weiDymmyDims[weiDymmyDims.size() - 1], weiDymmyDims[weiDymmyDims.size() - 2]);
         }
         srcDesc = std::make_shared<DnnlBlockedMemoryDesc>(srcDesc->getPrecision(), Shape(inDymmyDims));
@@ -584,9 +586,10 @@ static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc)
 
 DnnlMatMulPrimitive::DnnlMatMulPrimitive(const Key& key,
                                          const dnnl::engine& engine,
+                                         const std::shared_ptr<ThreadPool>& threadPool,
                                          const std::vector<impl_desc_type>& implPriorities,
                                          const impl_desc_type defaultImplType)
-    : m_stream(dnnl::stream(engine)),
+    : m_stream(make_stream(engine, threadPool)),
       m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
                                      key.wei->getDnnlDesc(),
                                      key.bias->getDnnlDesc(),

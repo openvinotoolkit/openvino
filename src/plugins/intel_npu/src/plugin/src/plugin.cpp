@@ -14,7 +14,6 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/npuw.hpp"
-#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "npuw/compiled_model.hpp"
@@ -322,6 +321,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(USE_BASE_MODEL_SERIALIZER);
+    REGISTER_OPTION(SERIALIZATION_WEIGHTS_SIZE_THRESHOLD);
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
@@ -333,9 +333,6 @@ void Plugin::init_options() {
 
     // parse again env_variables to update registered configs which have env vars set
     _globalConfig.parseEnvVars();
-
-    // filter out unsupported options
-    filter_config_by_compiler_support(_globalConfig);
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
@@ -351,6 +348,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_ONLINE_MIN_SIZE);
     REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCKS);
     REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCK_SIZE);
+    REGISTER_OPTION(NPUW_ATTN);
     REGISTER_OPTION(NPUW_FOLD);
     REGISTER_OPTION(NPUW_CWAI);
     REGISTER_OPTION(NPUW_DQ);
@@ -393,6 +391,11 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_GENERATE_ATTENTION_HINT);
     REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
+
+    _globalConfig.enableRuntimeOptions();
+
+    // Special cases
+    _globalConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -481,32 +484,65 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     }
 }
 
+void Plugin::filter_global_config_safe(const std::optional<ov::intel_npu::CompilerType>& compilerChange) const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (compilerChange.has_value()) {
+        _globalConfig.update({{std::string(COMPILER_TYPE::key()), COMPILER_TYPE::toString(compilerChange.value())}});
+    }
+    if (!_globalConfig.wasInitialized() || compilerChange.has_value()) {
+        // filter out unsupported options
+        filter_config_by_compiler_support(_globalConfig);
+        // reset properties for the new options
+        _properties->registerProperties();
+        // set globalConfig as filtered
+        _globalConfig.markAsInitialized();
+    }
+}
+
 FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
                                          const std::unique_ptr<ICompilerAdapter>& compiler,
                                          OptionMode mode) const {
     update_log_level(rawConfig);
     // create a copy of the global config
-    FilteredConfig localConfig = _globalConfig;
+    std::unique_ptr<FilteredConfig>
+        localConfigPtr;  // no default constructor from FilteredConfig, needed to switch to ptr
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        localConfigPtr = std::make_unique<FilteredConfig>(_globalConfig);
+    }
     bool compiler_changed = false;
 
     // Check if compiler was changed
     // 1. Check for compiler change
     auto it = rawConfig.find(std::string(COMPILER_TYPE::key()));
     if (it != rawConfig.end()) {
-        if (localConfig.getString<COMPILER_TYPE>() != it->second) {
+        if (localConfigPtr->getString<COMPILER_TYPE>() != it->second) {
             // Compiler type has changed!
             // Set new compiler type
-            localConfig.update({{std::string(COMPILER_TYPE::key()), it->second}});
+            localConfigPtr->update({{std::string(COMPILER_TYPE::key()), it->second}});
             // enable/disable config keys based on what the new compiler supports
-            filter_config_by_compiler_support(localConfig);
+            filter_config_by_compiler_support(*localConfigPtr);
             compiler_changed = true;
+            // set localConfig as filtered
+            localConfigPtr->markAsInitialized();
         }
     }
+
+    // If localConfig was not initialized not even by compiler type change, then both localConfig and _globalConfig need
+    // to be initialized
+    if (!localConfigPtr->wasInitialized()) {
+        filter_global_config_safe();
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            localConfigPtr = std::make_unique<FilteredConfig>(_globalConfig);
+        }
+    }
+
     // 2. Revalidate unknown internal configs
     // look for unsupported internals
     // first in what we inherited from globalconfig by forking it - ONLY if compiler has changed
     if (compiler_changed) {
-        localConfig.walkInternals([&](const std::string& key) {
+        localConfigPtr->walkInternals([&](const std::string& key) {
             if (!compiler->is_option_supported(key)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
             }
@@ -515,12 +551,12 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
     // secondly, in the new config provided by user
     std::map<std::string, std::string> cfgs_to_set;
     for (const auto& [key, value] : rawConfig) {
-        if (!localConfig.hasOpt(key)) {
+        if (!localConfigPtr->hasOpt(key)) {
             // not a known config key
             if (!compiler->is_option_supported(key)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
             } else {
-                localConfig.addOrUpdateInternal(key, value);
+                localConfigPtr->addOrUpdateInternal(key, value);
             }
         } else {
             cfgs_to_set.emplace(key, value);
@@ -528,29 +564,38 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
     }
 
     // 3. If all good so far, update values
-    localConfig.update(cfgs_to_set, mode);
-    return localConfig;
+    localConfigPtr->update(cfgs_to_set, mode);
+    return *localConfigPtr;
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
+    if (properties.empty()) {
+        return;
+    }
+
     // 1. Check for compiler change
     if (properties.count(std::string(COMPILER_TYPE::key())) != 0) {
         // Compiler change detected
         // Set new compiler in _globalConfig
         auto it = properties.find(std::string(COMPILER_TYPE::key()));
         if (it != properties.end()) {
-            _globalConfig.update({{std::string(COMPILER_TYPE::key()), it->second.as<std::string>()}});
             // enable/disable config keys based on what the new compiler supports
-            filter_config_by_compiler_support(_globalConfig);
-            // 2. Reset properties for the new options
-            _properties->registerProperties();
+            filter_global_config_safe(COMPILER_TYPE::parse(it->second.as<std::string>()));
         }
     }
 
-    // 2. Set the property via Properties interface
+    // 2. Check if configs have been initialized
+    for (const auto& prop : properties) {
+        if (!_properties->isPropertyRegistered(prop.first)) {
+            filter_global_config_safe();
+            break;
+        }
+    }
+
+    // 3. Set the property via Properties interface
     _properties->set_property(properties);
 
-    // 3. Extra hooks
+    // 4. Extra hooks
     // Update log level if it was provided
     if (properties.count(std::string(LOG_LEVEL::key())) != 0) {
         Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
@@ -564,6 +609,10 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     auto npu_plugin_properties = arguments;
     exclude_model_ptr_from_map(npu_plugin_properties);
+
+    if ((!_properties->isPropertyRegistered(name) || name == ov::supported_properties.name())) {
+        filter_global_config_safe();
+    }
     return _properties->get_property(name, npu_plugin_properties);
 }
 
@@ -605,8 +654,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
-        if (compilerType == ov::intel_npu::CompilerType::MLIR) {
-            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with MLIR compiler type");
+        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
         }
     }
 
@@ -701,14 +750,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
+    auto compileWithConfig = [&](const auto& modelToCompile, const auto& config) {
+        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
+            return compiler->compile(modelToCompile, config);
+        } else {
+            check_weightless_cache_attribute_occurrence(model);
+            return compiler->compileWS(modelToCompile, config);
+        }
+    };
+
     try {
         _logger.debug("performing compile");
 
-        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
-            graph = compiler->compile(successfullyDebatched ? batchedModel : model->clone(), localConfig);
+        // Determine which model to use
+        auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
+
+        if (successfullyDebatched && localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
+            _logger.info("Override performance mode to THROUGHPUT for compilation");
+
+            auto modifiedConfig = localConfig;  // Copy only when needed
+            std::stringstream strStream;
+            strStream << ov::hint::PerformanceMode::THROUGHPUT;
+            modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+
+            graph = compileWithConfig(modelToCompile, modifiedConfig);
         } else {
-            check_weightless_cache_attribute_occurrence(model);
-            graph = compiler->compileWS(successfullyDebatched ? batchedModel : model->clone(), localConfig);
+            graph = compileWithConfig(modelToCompile, localConfig);  // No copy
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
