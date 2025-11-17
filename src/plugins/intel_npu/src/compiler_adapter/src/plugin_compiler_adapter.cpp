@@ -292,16 +292,19 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
-    NetworkMetadata networkMeta;
-    std::vector<uint8_t> network(mainBlob.get_byte_size());
-    GraphDescriptor mainGraphDesc;
-
     _logger.debug("parse start");
+    std::vector<uint8_t> network(mainBlob.get_byte_size());
     network.assign(reinterpret_cast<const uint8_t*>(mainBlob.data()),
                    reinterpret_cast<const uint8_t*>(mainBlob.data()) + mainBlob.get_byte_size());
-    networkMeta = _compiler->parse(network, config);
+    NetworkMetadata networkMeta = _compiler->parse(network, config);
+    network.clear();
+    network.shrink_to_fit();
+
+    GraphDescriptor mainGraphDesc;
 
     if (_zeGraphExt) {
+        mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
+
         // if use vcl lib to compile, the metadata is empty and get the info from driver parser
         if (networkMeta.inputs.empty() && networkMeta.outputs.empty()) {
             // If the metadata is empty, we can try to get it from the driver parser
@@ -315,12 +318,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
         }
     } else {
         _logger.warning("no zeGraphExt, metadata is empty from vcl compiler.");
-    }
-    network.clear();
-    network.shrink_to_fit();
-
-    if (_zeGraphExt) {
-        mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
     }
 
     _logger.debug("main schedule parse end");
