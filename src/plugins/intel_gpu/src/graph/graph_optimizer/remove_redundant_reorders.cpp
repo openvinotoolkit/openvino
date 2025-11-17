@@ -72,8 +72,7 @@ void remove_redundant_reorders::run(program& p) {
             auto node_ptr = *itr++;
             if (!node_ptr->is_type<reorder>())  // only care for reorders
                 continue;
-            if (node_ptr->get_org_primitive_id() == "reorder:Reshape_277979_reorder" || node_ptr->get_org_primitive_id() == "reorder:Reshape_65_reorder")
-                std::cout << "check reshape reorder" << std::endl;
+
             auto& node = node_ptr->as<reorder>();
 
             auto& input = node.input();
@@ -155,8 +154,7 @@ void remove_redundant_reorders::run(program& p) {
         if (!node->is_type<reorder>())  // only care for reorders
             continue;
         auto& r_node = node->as<reorder>();
-        if (node->get_org_primitive_id() == "reorder:Reshape_277979_reorder")
-            std::cout << "check reshape reorder" << std::endl;
+
         // Do not opt out result reorder of Loop body network
         bool is_loop_body_network_output = (r_node.get_program().is_body_program() && r_node.is_output());
         if (is_loop_body_network_output)
@@ -231,8 +229,7 @@ void remove_redundant_reorders::run(program& p) {
         auto node = *itr++;
         if (!node->is_type<reorder>())
             continue;
-        if (node->get_org_primitive_id() == "reorder:Reshape_277979_reorder")
-            std::cout << "check reshape reorder" << std::endl;
+
         auto& r_node = node->as<reorder>();
         if (!r_node.get_primitive()->has_surface_input() ||
             r_node.is_output() ||
@@ -283,8 +280,6 @@ void remove_redundant_reorders::run(program& p) {
         if (node->is_dynamic())
             continue;
 
-        if (node->get_org_primitive_id() == "reorder:Reshape_277979_reorder")
-            std::cout << "check reshape reorder" << std::endl;
         auto& r_node = node->as<reorder>();
         auto& dep_node = r_node.get_dependency(0);
 
@@ -390,8 +385,7 @@ void remove_redundant_reorders::run(program& p) {
         auto& node = *itr++;
         if (!node->is_type<reorder>())
             continue;
-        if (node->get_org_primitive_id() == "reorder:Reshape_277979_reorder")
-            std::cout << "check reshape reorder" << std::endl;
+
         std::list<program_node*> r_nodes_to_remove;
 
         if (node->get_dependencies().size() != 1)
