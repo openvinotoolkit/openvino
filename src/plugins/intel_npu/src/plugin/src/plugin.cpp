@@ -144,6 +144,42 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
     }
 }
 
+std::string getDeviceFromProperties(const ov::AnyMap& propertiesMap) {
+    const std::string defaultDevice = std::string(ov::intel_npu::Platform::NPU4000);
+    auto it = propertiesMap.find(std::string(DEVICE_ID::key()));
+    if (it != propertiesMap.end()) {
+        return it->second.as<std::string>();
+    }
+
+    it = propertiesMap.find(std::string(PLATFORM::key()));
+    if (it != propertiesMap.end()) {
+        return it->second.as<std::string>();
+    }
+    return defaultDevice;
+}
+
+void  checkUpdateforspecialPlatform(const FilteredConfig& base_conf, ov::AnyMap& propertiesMap, Logger& log) {
+    // if there is no compiler_type provided, use base_config value, check and update by the device
+    // update the compilerType by device:
+    //  3720 -> DRIVER
+    //  4000 and later -> MLIR
+    auto it_compiler_type = propertiesMap.find(std::string(COMPILER_TYPE::key()));
+    if (it_compiler_type == propertiesMap.end()) {
+        // if platform is provided by local config = use that
+        const ov::AnyMap localProperties = propertiesMap;
+        std::string getdevice = getDeviceFromProperties(localProperties);
+        if (getdevice == std::string((ov::intel_npu::Platform::NPU3720))) {
+            if(base_conf.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::DRIVER) {
+                log.warning(
+                    "Platform '3720' is selected, but the used compiler_type is not set to 'DRIVER'. Forcely use the "
+                    "compiler_type to 'DRIVER'. Maybe cause the compilerType inconsistency issues.");
+            }
+            // To avoid compilerType inconsistency issues, only set DRIVER if compiler_type is not set by user
+            propertiesMap[std::string(COMPILER_TYPE::key())] = COMPILER_TYPE::toString(ov::intel_npu::CompilerType::DRIVER);
+        }
+    }
+}
+
 static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
     // first look if provided config changes compiler type
     auto it = local_conf.find(std::string(COMPILER_TYPE::key()));
@@ -151,30 +187,7 @@ static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& bas
         // if compiler_type is provided by local config = use that
         return COMPILER_TYPE::parse(it->second.as<std::string>());
     }
-
     // if there is no compiler_type provided = use base_config value
-    // update the compilerType by device id:
-    //  3720 -> DRIVER
-    //    4000 and later -> MLIR (default value)
-    auto it_device = local_conf.find(std::string(DEVICE_ID::key()));
-    if (it_device != local_conf.end()) {
-        // if platform is provided by local config = use that
-        if (it_device->second.as<std::string>() == ov::intel_npu::Platform::NPU3720) {
-            return ov::intel_npu::CompilerType::DRIVER;
-        }
-    }
-
-    // if there is no compiler_type provided = use base_config value
-    // update the compilerType by platform:
-    //  3720 -> DRIVER
-    //    4000 and later -> MLIR (default value)
-    auto it_platform = local_conf.find(std::string(PLATFORM::key()));
-    if (it_platform != local_conf.end()) {
-        // if platform is provided by local config = use that
-        if (it_platform->second.as<std::string>() == ov::intel_npu::Platform::NPU3720) {
-            return ov::intel_npu::CompilerType::DRIVER;
-        }
-    }
     return base_conf.get<COMPILER_TYPE>();
 }
 
@@ -248,20 +261,6 @@ std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properti
         properties.erase(ov::hint::model.name());
     }
     return modelPtr;
-}
-
-std::string getDeviceFromProperties(const std::map<std::string, std::string>& propertiesMap) {
-    const std::string defaultDevice = "4000";
-    auto it = propertiesMap.find(std::string(DEVICE_ID::key()));
-    if (it != propertiesMap.end()) {
-        return it->second;
-    }
-
-    it = propertiesMap.find(std::string(PLATFORM::key()));
-    if (it != propertiesMap.end()) {
-        return it->second;
-    }
-    return defaultDevice;
 }
 
 }  // namespace
@@ -663,6 +662,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // activate the NPUW path
     auto useNpuwKey = ov::intel_npu::use_npuw.name();
     ov::AnyMap localProperties = properties;
+
     if (localProperties.count(useNpuwKey)) {
         if (localProperties.at(useNpuwKey).as<bool>() == true) {
             return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), localProperties);
@@ -677,6 +677,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (exclude_model_ptr_from_map(localProperties)) {
         _logger.warning("Model received in config will be ignored as it was already provided by parameter.");
     }
+
+    // For 3720, need check and update its compiler_type
+    checkUpdateforspecialPlatform(_globalConfig, localProperties, _logger);
 
     const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
     update_log_level(localPropertiesMap);
@@ -980,7 +983,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     exclude_model_ptr_from_map(npu_plugin_properties);
     const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
-    std::string device_id = getDeviceFromProperties(propertiesMap);
+    checkUpdateforspecialPlatform(_globalConfig, npu_plugin_properties, _logger);
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
@@ -1017,7 +1020,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     CompilerAdapterFactory compilerAdapterFactory;
     const auto propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
-    std::string device_id = getDeviceFromProperties(propertiesMap);
+    checkUpdateforspecialPlatform(_globalConfig, npu_plugin_properties, _logger);
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
 
