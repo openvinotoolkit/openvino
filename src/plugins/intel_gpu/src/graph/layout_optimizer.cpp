@@ -971,59 +971,64 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
     OPENVINO_ASSERT(rank == output_layout.get_partial_shape().size(), "Input and output ranks must match");
     OPENVINO_ASSERT(rank <= 5, "Not supported rank");
 
-    // Data type classification
-    bool i8_u8_input = (input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8);
-    bool i8_u8_output = (output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8);
-    bool is_fp16_input = (input_layout.data_type == data_types::f16);
+    if (node.get_program().get_config().get_enable_dynamic_batch_mode()) {
+        node.set_preferred_input_fmt(0, format::get_default_format(rank));
+        node.set_preferred_output_fmt(0, format::get_default_format(rank));
+    } else {
+        // Data type classification
+        bool i8_u8_input = (input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8);
+        bool i8_u8_output = (output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8);
+        bool is_fp16_input = (input_layout.data_type == data_types::f16);
 
-    // Helper functions to get appropriate formats based on rank
-    auto get_fsv32_format = [](size_t rank) {
-        return (rank <= 4) ? cldnn::format::b_fs_yx_fsv32 : cldnn::format::b_fs_zyx_fsv32;
-    };
+        // Helper functions to get appropriate formats based on rank
+        auto get_fsv32_format = [](size_t rank) {
+            return (rank <= 4) ? cldnn::format::b_fs_yx_fsv32 : cldnn::format::b_fs_zyx_fsv32;
+        };
 
-    auto get_fsv16_format = [](size_t rank) {
-        return (rank <= 4) ? cldnn::format::b_fs_yx_fsv16 : cldnn::format::b_fs_zyx_fsv16;
-    };
+        auto get_fsv16_format = [](size_t rank) {
+            return (rank <= 4) ? cldnn::format::b_fs_yx_fsv16 : cldnn::format::b_fs_zyx_fsv16;
+        };
 
-    auto get_f_inner_planar_format = [](size_t rank) {
-        return (rank <= 4) ? cldnn::format::byxf : cldnn::format::bzyxf;
-    };
+        auto get_f_inner_planar_format = [](size_t rank) {
+            return (rank <= 4) ? cldnn::format::byxf : cldnn::format::bzyxf;
+        };
 
-    // Get channel counts once
-    auto input_channels = get_convolution_channel_count(node, input_layout, true);
-    auto output_channels = get_convolution_channel_count(node, output_layout, false);
+        // Get channel counts once
+        auto input_channels = get_convolution_channel_count(node, input_layout, true);
+        auto output_channels = get_convolution_channel_count(node, output_layout, false);
 
-    if (i8_u8_input) {
-        // Set default input format for i8/u8 input
-        node.set_preferred_input_fmt(0, get_fsv32_format(rank));
+        if (i8_u8_input) {
+            // Set default input format for i8/u8 input
+            node.set_preferred_input_fmt(0, get_fsv32_format(rank));
 
-        // Set output format based on output data type
-        if (i8_u8_output) {
-            node.set_preferred_output_fmt(0, get_fsv32_format(rank));
-        } else {
+            // Set output format based on output data type
+            if (i8_u8_output) {
+                node.set_preferred_output_fmt(0, get_fsv32_format(rank));
+            } else {
+                node.set_preferred_output_fmt(0, get_fsv16_format(rank));
+            }
+
+            // Override with planar format for shallow channels (≤ 16)
+            if (input_channels > 0 && input_channels <= 16) {
+                node.set_preferred_input_fmt(0, get_f_inner_planar_format(rank));
+            }
+
+            if (output_channels > 0 && output_channels <= 16) {
+                node.set_preferred_output_fmt(0, get_f_inner_planar_format(rank));
+            }
+        } else if (is_fp16_input) {
+            // Set default formats for FP16 input
+            node.set_preferred_input_fmt(0, get_fsv16_format(rank));
             node.set_preferred_output_fmt(0, get_fsv16_format(rank));
-        }
 
-        // Override with planar format for shallow channels (≤ 16)
-        if (input_channels > 0 && input_channels <= 16) {
-            node.set_preferred_input_fmt(0, get_f_inner_planar_format(rank));
-        }
+            // Override with default format for small channels (≤ 4)
+            if (input_channels > 0 && input_channels <= 4) {
+                node.set_preferred_input_fmt(0, format::get_default_format(rank));
+            }
 
-        if (output_channels > 0 && output_channels <= 16) {
-            node.set_preferred_output_fmt(0, get_f_inner_planar_format(rank));
-        }
-    } else if (is_fp16_input) {
-        // Set default formats for FP16 input
-        node.set_preferred_input_fmt(0, get_fsv16_format(rank));
-        node.set_preferred_output_fmt(0, get_fsv16_format(rank));
-
-        // Override with default format for small channels (≤ 4)
-        if (input_channels > 0 && input_channels <= 4) {
-            node.set_preferred_input_fmt(0, format::get_default_format(rank));
-        }
-
-        if (output_channels > 0 && output_channels <= 4) {
-            node.set_preferred_output_fmt(0, format::get_default_format(rank));
+            if (output_channels > 0 && output_channels <= 4) {
+                node.set_preferred_output_fmt(0, format::get_default_format(rank));
+            }
         }
     }
 }
