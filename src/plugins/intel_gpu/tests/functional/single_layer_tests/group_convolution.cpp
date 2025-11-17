@@ -103,17 +103,17 @@ protected:
             auto scaling_node = std::make_shared<ov::op::v0::Constant>(scaling_tensor);
             auto multiply_node = std::make_shared<ov::op::v1::Multiply>(convert_node, scaling_node);
             ov::Output<ov::Node> filter_node;
-            // if (weightsReshape) {
-            //     ov::Shape reshaped_weights_shape = {group, convOutChannels, convInChannels};
-            //     reshaped_weights_shape.insert(reshaped_weights_shape.end(), kernel.begin(), kernel.end());
-            //     filter_node = std::make_shared<ov::op::v1::Reshape>(multiply_node,
-            //                                                          ov::op::v0::Constant::create(ov::element::i64,
-            //                                                                                       {reshaped_weights_shape.size()},
-            //                                                                                       reshaped_weights_shape),
-            //                                                          false);
-            // } else {
+            if (weightsReshape) {
+                ov::Shape reshaped_weights_shape = {group, convOutChannels, convInChannels};
+                reshaped_weights_shape.insert(reshaped_weights_shape.end(), kernel.begin(), kernel.end());
+                filter_node = std::make_shared<ov::op::v1::Reshape>(multiply_node,
+                                                                     ov::op::v0::Constant::create(ov::element::i64,
+                                                                                                  {reshaped_weights_shape.size()},
+                                                                                                  reshaped_weights_shape),
+                                                                     false);
+            } else {
                 filter_node = multiply_node;
-            // }
+            }
             groupConvolutionNode = ov::test::utils::make_group_convolution(inputParams.front(), filter_node, netType, stride, padBegin,
                                                                            padEnd, dilation, padType);
         } else {
