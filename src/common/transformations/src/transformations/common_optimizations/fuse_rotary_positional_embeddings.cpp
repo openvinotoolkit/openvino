@@ -145,13 +145,13 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
         auto old_node = root;
         auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
-        ov::copy_runtime_info({pattern_map.at(x1).get_node_shared_ptr(),
-                               pattern_map.at(split).get_node_shared_ptr(),
-                               pattern_map.at(x2).get_node_shared_ptr(),
-                               pattern_map.at(x3).get_node_shared_ptr(),
-                               pattern_map.at(y1).get_node_shared_ptr(),
-                               pattern_map.at(y2).get_node_shared_ptr(),
-                               pattern_map.at(result).get_node_shared_ptr()},
+        ov::copy_runtime_info({std::move(pattern_map.at(x1)).get_node_shared_ptr(),
+                               std::move(pattern_map.at(split)).get_node_shared_ptr(),
+                               std::move(pattern_map.at(x2)).get_node_shared_ptr(),
+                               std::move(pattern_map.at(x3)).get_node_shared_ptr(),
+                               std::move(pattern_map.at(y1)).get_node_shared_ptr(),
+                               std::move(pattern_map.at(y2)).get_node_shared_ptr(),
+                               std::move(pattern_map.at(result)).get_node_shared_ptr()},
                               new_node);
 
         ov::replace_node(old_node, new_node);
@@ -235,11 +235,11 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
         auto old_node = root;
         auto new_node = std::make_shared<internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
-        ov::copy_runtime_info({pattern_map.at(x2neg).get_node_shared_ptr(),
-                               pattern_map.at(x_rotate_half).get_node_shared_ptr(),
-                               pattern_map.at(mul_cos).get_node_shared_ptr(),
-                               pattern_map.at(mul_sin).get_node_shared_ptr(),
-                               pattern_map.at(result).get_node_shared_ptr()},
+        ov::copy_runtime_info({std::move(pattern_map.at(x2neg)).get_node_shared_ptr(),
+                               std::move(pattern_map.at(x_rotate_half)).get_node_shared_ptr(),
+                               std::move(pattern_map.at(mul_cos)).get_node_shared_ptr(),
+                               std::move(pattern_map.at(mul_sin)).get_node_shared_ptr(),
+                               std::move(pattern_map.at(result)).get_node_shared_ptr()},
                               new_node);
         ov::replace_node(old_node, new_node);
 
@@ -303,7 +303,7 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-        auto rope_node = as_type_ptr<op::internal::RoPE>(pattern_map.at(rope).get_node_shared_ptr());
+        auto rope_node = as_type_ptr<op::internal::RoPE>(std::move(pattern_map.at(rope)).get_node_shared_ptr());
         if (!rope_node)
             return false;
 
@@ -370,7 +370,7 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
         // remove slice & concat
         rope_node->input(0).replace_source_output(pattern_map.at(data));
         rope_node->set_friendly_name(root->get_friendly_name());
-        ov::copy_runtime_info({rope_node, pattern_map.at(result).get_node_shared_ptr()}, rope_node);
+        ov::copy_runtime_info({rope_node, std::move(pattern_map.at(result)).get_node_shared_ptr()}, rope_node);
         ov::replace_node(root, rope_node);
 
         rope_node->validate_and_infer_types();
@@ -523,15 +523,15 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
-        NodeVector rt_from = {pattern_map.at(varsplit).get_node_shared_ptr(),
-                              pattern_map.at(repeat_interleave_sin).get_node_shared_ptr(),
-                              pattern_map.at(repeat_interleave_cos).get_node_shared_ptr(),
-                              pattern_map.at(neg_Multiply_1177).get_node_shared_ptr(),
-                              pattern_map.at(stack_1182).get_node_shared_ptr(),
-                              pattern_map.at(mul_cos).get_node_shared_ptr(),
-                              pattern_map.at(mul_sin).get_node_shared_ptr(),
-                              pattern_map.at(rotary_emb).get_node_shared_ptr(),
-                              pattern_map.at(result).get_node_shared_ptr()};
+        NodeVector rt_from = {std::move(pattern_map.at(varsplit)).get_node_shared_ptr(),
+                              std::move(pattern_map.at(repeat_interleave_sin)).get_node_shared_ptr(),
+                              std::move(pattern_map.at(repeat_interleave_cos)).get_node_shared_ptr(),
+                              std::move(pattern_map.at(neg_Multiply_1177)).get_node_shared_ptr(),
+                              std::move(pattern_map.at(stack_1182)).get_node_shared_ptr(),
+                              std::move(pattern_map.at(mul_cos)).get_node_shared_ptr(),
+                              std::move(pattern_map.at(mul_sin)).get_node_shared_ptr(),
+                              std::move(pattern_map.at(rotary_emb)).get_node_shared_ptr(),
+                              std::move(pattern_map.at(result)).get_node_shared_ptr()};
         config.rotary_ndims = static_cast<size_t>(ndims.i());
 
         // Fuse output transpose to Rope.
@@ -561,7 +561,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         ov::replace_node(old_node, new_node);
         // shapeof may be moved up from transpose to add,
         // After RoPE fusion, shapeof must be moved to the data input of RoPE otherwise extra subgraph exists
-        std::shared_ptr<ov::Node> rotary_emb_node = pattern_map.at(rotary_emb).get_node_shared_ptr();
+        std::shared_ptr<ov::Node> rotary_emb_node = std::move(pattern_map.at(rotary_emb)).get_node_shared_ptr();
         auto rotary_emb_out = rotary_emb_node->output(0);
         if (rotary_emb_out.get_target_inputs().size() == 2) {
             for (auto& input : rotary_emb_out.get_target_inputs()) {
@@ -982,19 +982,19 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
         new_args.push_back(pattern_map.at(rotary_emb_cos));
         new_args.push_back(pattern_map.at(rotary_emb_sin));
 
-        ov::NodeVector rt_from = {pattern_map.at(Multiply_567527).get_node_shared_ptr(),
-                                  pattern_map.at(cat_Concat_593).get_node_shared_ptr(),
-                                  pattern_map.at(mul_Multiply_594).get_node_shared_ptr(),
-                                  pattern_map.at(result).get_node_shared_ptr()};
+        ov::NodeVector rt_from = {std::move(pattern_map.at(Multiply_567527)).get_node_shared_ptr(),
+                                  std::move(pattern_map.at(cat_Concat_593)).get_node_shared_ptr(),
+                                  std::move(pattern_map.at(mul_Multiply_594)).get_node_shared_ptr(),
+                                  std::move(pattern_map.at(result)).get_node_shared_ptr()};
 
         if (pattern_map.count(position_ids)) {
             new_args.push_back(pattern_map.at(position_ids));
             config.gather_position_arg_id = 3;
-            rt_from.push_back(pattern_map.at(ListUnpack_Squeeze_0_1).get_node_shared_ptr());
-            rt_from.push_back(pattern_map.at(ListUnpack_Squeeze_1).get_node_shared_ptr());
+            rt_from.push_back(std::move(pattern_map.at(ListUnpack_Squeeze_0_1)).get_node_shared_ptr());
+            rt_from.push_back(std::move(pattern_map.at(ListUnpack_Squeeze_1)).get_node_shared_ptr());
         } else {
-            rt_from.push_back(pattern_map.at(ListUnpack_586_Squeeze_0).get_node_shared_ptr());
-            rt_from.push_back(pattern_map.at(ListUnpack_586_Squeeze).get_node_shared_ptr());
+            rt_from.push_back(std::move(pattern_map.at(ListUnpack_586_Squeeze_0)).get_node_shared_ptr());
+            rt_from.push_back(std::move(pattern_map.at(ListUnpack_586_Squeeze)).get_node_shared_ptr());
         }
         auto old_node = root;
         auto new_node = std::make_shared<internal::RoPE>(new_args, config);

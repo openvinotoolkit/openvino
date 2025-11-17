@@ -79,14 +79,14 @@ ov::pass::FuseVectorizedMOE2GEMM::FuseVectorizedMOE2GEMM() {
             return false;
         }
 
-        auto experts_input_node = pm.at(experts_input).get_node()->input_value(0);
+        auto experts_input_node = std::move(pm.at(experts_input)).get_node()->input_value(0);
 
-        auto routing_weights_node = pm.at(unsqueeze_routing_weights).get_node_shared_ptr();
-        auto gate_up_weight = pm.at(gate_up_matmul).get_node()->input_value(1).get_node_shared_ptr();
-        auto gate_up_bias_node = pm.at(gate_up_add).get_node()->input_value(1).get_node_shared_ptr();
-        auto down_proj_weight = pm.at(down_proj_matmul).get_node()->input_value(1).get_node_shared_ptr();
-        auto down_proj_bias_node = pm.at(down_proj_add).get_node()->input_value(1).get_node_shared_ptr();
-        auto topk_indices_node = pm.at(scatter_elements_update).get_node()->input_value(1);
+        auto routing_weights_node = std::move(pm.at(unsqueeze_routing_weights)).get_node_shared_ptr();
+        auto gate_up_weight = std::move(pm.at(gate_up_matmul)).get_node()->input_value(1).get_node_shared_ptr();
+        auto gate_up_bias_node = std::move(pm.at(gate_up_add)).get_node()->input_value(1).get_node_shared_ptr();
+        auto down_proj_weight = std::move(pm.at(down_proj_matmul)).get_node()->input_value(1).get_node_shared_ptr();
+        auto down_proj_bias_node = std::move(pm.at(down_proj_add)).get_node()->input_value(1).get_node_shared_ptr();
+        auto topk_indices_node = std::move(pm.at(scatter_elements_update)).get_node()->input_value(1);
 
         ov::OutputVector moe_inputs = {experts_input_node,
                                        routing_weights_node,
@@ -99,12 +99,12 @@ ov::pass::FuseVectorizedMOE2GEMM::FuseVectorizedMOE2GEMM() {
         ov::op::internal::MOE::Config config;
 
         // Extract expert_beta from Swish beta attribute
-        auto swish_beta_const = ov::as_type_ptr<ov::op::v0::Constant>(pm.at(swish_beta).get_node_shared_ptr());
+        auto swish_beta_const = ov::as_type_ptr<ov::op::v0::Constant>(std::move(pm.at(swish_beta)).get_node_shared_ptr());
         auto swish_beta_const_val = swish_beta_const->cast_vector<float>()[0];
         config.expert_beta = swish_beta_const_val;
 
         // Extract expert_alpha from Clamp max attribute
-        if (auto clamp_op = ov::as_type_ptr<ov::op::v0::Clamp>(pm.at(clamp).get_node_shared_ptr())) {
+        if (auto clamp_op = ov::as_type_ptr<ov::op::v0::Clamp>(std::move(pm.at(clamp)).get_node_shared_ptr())) {
             config.expert_alpha = static_cast<float>(clamp_op->get_max());
         }
 
@@ -165,12 +165,12 @@ ov::pass::FuseVectorizedMOE3GEMM::FuseVectorizedMOE3GEMM() {
             return false;
         }
 
-        auto experts_input_node = pm.at(experts_input).get_node()->input_value(0);
-        auto routing_weights_node = pm.at(unsqueeze_routing_weights).get_node_shared_ptr();
-        auto gate_weight = pm.at(gate_matmul).get_node()->input_value(1).get_node_shared_ptr();
-        auto up_weight = pm.at(up_matmul).get_node()->input_value(1).get_node_shared_ptr();
-        auto down_weight = pm.at(down_matmul).get_node()->input_value(1).get_node_shared_ptr();
-        auto topk_indices_node = pm.at(scatter_elements_update).get_node()->input_value(1);
+        auto experts_input_node = std::move(pm.at(experts_input)).get_node()->input_value(0);
+        auto routing_weights_node = std::move(pm.at(unsqueeze_routing_weights)).get_node_shared_ptr();
+        auto gate_weight = std::move(pm.at(gate_matmul)).get_node()->input_value(1).get_node_shared_ptr();
+        auto up_weight = std::move(pm.at(up_matmul)).get_node()->input_value(1).get_node_shared_ptr();
+        auto down_weight = std::move(pm.at(down_matmul)).get_node()->input_value(1).get_node_shared_ptr();
+        auto topk_indices_node = std::move(pm.at(scatter_elements_update)).get_node()->input_value(1);
 
         ov::OutputVector moe_inputs = {
             experts_input_node,
@@ -184,7 +184,7 @@ ov::pass::FuseVectorizedMOE3GEMM::FuseVectorizedMOE3GEMM() {
         ov::op::internal::MOE::Config config;
         config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
         // Extract expert_beta if Swish has beta input provided
-        if (auto swish_op = ov::as_type_ptr<ov::op::v4::Swish>(pm.at(swish).get_node_shared_ptr())) {
+        if (auto swish_op = ov::as_type_ptr<ov::op::v4::Swish>(std::move(pm.at(swish)).get_node_shared_ptr())) {
             if (swish_op->get_input_size() > 1) {
                 if (auto swish_beta_const =
                         ov::as_type_ptr<ov::op::v0::Constant>(swish_op->get_input_node_shared_ptr(1))) {

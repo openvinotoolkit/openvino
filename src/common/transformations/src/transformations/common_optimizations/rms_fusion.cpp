@@ -105,19 +105,19 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
 
         const auto& x_output = pattern_map.at(x);
 
-        auto const_eps_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(eps).get_node_shared_ptr());
+        auto const_eps_node = ov::as_type_ptr<ov::op::v0::Constant>(std::move(pattern_map.at(eps)).get_node_shared_ptr());
         float eps_value;
         if (!ov::op::util::get_single_value(const_eps_node, eps_value)) {
             return false;
         }
 
-        auto gamma_node = pattern_map.at(gamma).get_node_shared_ptr();
+        auto gamma_output = pattern_map.at(gamma);
         if (pattern_map.find(gamma_convert) != pattern_map.end()) {
-            gamma_node = pattern_map.at(gamma_convert).get_node_shared_ptr();
+            gamma_output = pattern_map.at(gamma_convert);
         }
 
-        const auto& mean_node = pattern_map.at(mean).get_node_shared_ptr();
-        const auto& axes = pattern_map.at(mean_axes).get_node_shared_ptr();
+        auto mean_node = std::move(pattern_map.at(mean)).get_node_shared_ptr();
+        auto axes = std::move(pattern_map.at(mean_axes)).get_node_shared_ptr();
         auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(axes);
         auto axes_val = axes_constant->cast_vector<int64_t>();
         // allow last dimension only
@@ -127,7 +127,7 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
         }
 
         auto output_type = m.get_match_root()->get_output_element_type(0);
-        auto rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type);
+        auto rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_output, eps_value, output_type);
         rms->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), rms);
         ov::replace_node(m.get_match_root(), rms);

@@ -274,7 +274,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
                 continue;
             if (shape_size(constop->get_shape()) > 64)
                 continue;
-            literal_consts[op] = to_code(constop);
+            literal_consts[op] = std::move(to_code(constop));
         }
     }
 
@@ -312,7 +312,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
         if (idx)
             name += std::to_string(idx);
 
-        opname[op.get()] = name;
+        opname[op.get()] = std::move(name);
     }
 
     for (const auto& op : f.get_ordered_ops()) {
@@ -333,7 +333,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
 
         if (auto constop = ov::as_type_ptr<op::v0::Constant>(op)) {
             os << "auto " << name << " = makeConst(" << to_code(op->get_output_element_type(0)) << ", "
-               << to_code(op->get_output_shape(0)) << ", " << to_code(constop, true) << ");" << std::endl;
+               << to_code(op->get_output_shape(0)) << ", " << std::move(to_code(constop, true)) << ");" << std::endl;
         } else {
             os << "auto " << name << " = makeOP<" << type << ">({";
             // input args
