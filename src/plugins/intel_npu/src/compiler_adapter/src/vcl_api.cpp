@@ -66,11 +66,11 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
         }                                               \
     }
 
-VCLApi::VCLApi() : _logger("VCLApi", ov::log::Level::DEBUG) {
-    const std::string baseName = "npu_vcl_compiler";
+VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
+    const std::string baseName = "openvino_intel_npu_compiler";
     try {
         auto libpath = ov::util::make_plugin_library_name({}, baseName);
-        _logger.debug("Try to load npu_vcl_compiler");
+        _logger.debug("Try to load openvino_intel_npu_compiler");
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
@@ -78,7 +78,7 @@ VCLApi::VCLApi() : _logger("VCLApi", ov::log::Level::DEBUG) {
         this->lib = ov::util::load_shared_object(libpath.c_str());
 #endif
     } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to load npu_vcl_compiler");
+        _logger.debug("Failed to load openvino_intel_npu_compiler");
         OPENVINO_THROW(error.what());
     }
 
@@ -88,7 +88,7 @@ VCLApi::VCLApi() : _logger("VCLApi", ov::log::Level::DEBUG) {
         vcl_symbols_list();
 #undef vcl_symbol_statement
     } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to get formal symbols from npu_vcl_compiler");
+        _logger.debug("Failed to get formal symbols from openvino_intel_npu_compiler");
         OPENVINO_THROW(error.what());
     }
 
@@ -96,7 +96,7 @@ VCLApi::VCLApi() : _logger("VCLApi", ov::log::Level::DEBUG) {
     try {                                                                                                     \
         this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol)); \
     } catch (const std::runtime_error&) {                                                                     \
-        _logger.debug("Failed to get %s from npu_vcl_compiler", #vcl_symbol);                                 \
+        _logger.debug("Failed to get %s from openvino_intel_npu_compiler", #vcl_symbol);                      \
         this->vcl_symbol = nullptr;                                                                           \
     }
     vcl_weak_symbols_list();

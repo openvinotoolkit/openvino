@@ -634,7 +634,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     update_log_level(localPropertiesMap);
 
     // create compiler
-    std::string device_id = getDeviceFromProperties(localPropertiesMap);
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
