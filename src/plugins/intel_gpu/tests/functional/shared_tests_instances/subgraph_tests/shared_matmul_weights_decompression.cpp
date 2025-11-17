@@ -42,7 +42,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulSharedCompressedWeights,
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::ValuesIn(transpose_weights),
-                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(true),
                                             ::testing::Values(additional_config)),
                          SharedMatmulWeightsDecompression::getTestCaseName);
