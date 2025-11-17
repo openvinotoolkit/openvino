@@ -194,8 +194,12 @@ void ov::npuw::WhisperInferRequest::infer() {
     OPENVINO_ASSERT(ov::element::f32 == encoder_hidden_states->get_element_type());
 
     // NB: Check the sequence length provided for input_ids
-    // in order to distinguish prefill / generate stages
-    if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] != 1) {
+    // in order to distinguish prefill / generate stages.
+    // It's possible that for language detection, the first prefill
+    // will be for a single token. So we also run prefill if
+    // m_kvcache_desc.num_stored_tokens is 0.
+    if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] != 1 ||
+        m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens == 0) {
         infer_prefill(input_ids, encoder_hidden_states);
     } else {
         infer_generate(input_ids);
