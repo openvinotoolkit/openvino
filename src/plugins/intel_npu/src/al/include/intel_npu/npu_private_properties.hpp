@@ -394,37 +394,7 @@ static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: enum, default is COPY_WEIGHTS.
- * Type of model serializaiton algorithm
- * @note Configuration API v 2.0
- */
-enum class ModelSerializerAlgorithm { /* BASE = */ COPY_WEIGHTS = 0, POINTERS_TO_ADDRESSES = 1 };
-
-/**
- * @brief Prints a string representation of ov::intel_npu::ModelSerializerAlgorithm to a stream
- * @param out An output stream to send to
- * @param fmt A model serialization algorithm value to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
- */
-inline std::ostream& operator<<(std::ostream& out, const ModelSerializerAlgorithm& fmt) {
-    switch (fmt) {
-    case ModelSerializerAlgorithm::COPY_WEIGHTS: {
-        out << "COPY_WEIGHTS";
-    } break;
-    case ModelSerializerAlgorithm::POINTERS_TO_ADDRESSES: {
-        out << "POINTERS_TO_ADDRESSES";
-    } break;
-    default:
-        out << static_cast<uint32_t>(fmt);
-        break;
-    }
-    return out;
-}
-
-/**
- * @brief [Only for NPU Plugin]
- * Type: ModelSerializerAlgorithm enum. Default is COPY_WEIGHTS.
+ * Type: bool. Default is "true".
  *
  * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
  * passed through the driver.
@@ -434,7 +404,7 @@ inline std::ostream& operator<<(std::ostream& out, const ModelSerializerAlgorith
  * process by storing metadata (memory location & bytes size) instead of weights values. However, this solution may be
  * less reliable.
  */
-static constexpr ov::Property<ModelSerializerAlgorithm> model_serializer_algorithm{"NPU_MODEL_SERIALIZER_ALGORITHM"};
+static constexpr ov::Property<bool> use_base_model_serializer{"NPU_USE_BASE_MODEL_SERIALIZER"};
 
 /**
  * @brief [Only for NPU Plugin]
