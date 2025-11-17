@@ -2035,15 +2035,16 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
         if (is_weightless) {
             auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
 
-            compiled->m_kvcache_compiled->m_weights_bank = bank;
-            compiled->m_prefill_compiled->m_weights_bank = bank;
+            for (const auto& kvcache_variant : compiled->m_kvcache_compiled_variants) {
+                kvcache_variant->m_weights_bank = bank;
+                kvcache_variant->finalize_weights_bank();
+            }
 
-            compiled->m_kvcache_compiled->finalize_weights_bank();
+            compiled->m_prefill_compiled->m_weights_bank = bank;
             compiled->m_prefill_compiled->finalize_weights_bank();
 
             if (compiled->m_lm_head_compiled) {
                 compiled->m_lm_head_compiled->m_weights_bank = bank;
-
                 compiled->m_lm_head_compiled->finalize_weights_bank();
             }
         } else {
@@ -2051,14 +2052,16 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
 
             compiled->m_kvcache_compiled->m_weights_bank = bank;
-            compiled->m_prefill_compiled->m_weights_bank = bank;
+            for (const auto& kvcache_variant : compiled->m_kvcache_compiled_variants) {
+                kvcache_variant->m_weights_bank = bank;
+                kvcache_variant->reconstruct_closure();
+            }
 
-            compiled->m_kvcache_compiled->reconstruct_closure();
+            compiled->m_prefill_compiled->m_weights_bank = bank;
             compiled->m_prefill_compiled->reconstruct_closure();
 
             if (compiled->m_lm_head_compiled) {
                 compiled->m_lm_head_compiled->m_weights_bank = bank;
-
                 compiled->m_lm_head_compiled->reconstruct_closure();
             }
         }
