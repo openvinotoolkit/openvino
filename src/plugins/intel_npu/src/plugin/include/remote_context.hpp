@@ -21,6 +21,8 @@ class RemoteContextImpl : public ov::IRemoteContext {
 public:
     RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBackend, const ov::AnyMap& remote_properties = {});
 
+    ~RemoteContextImpl() override = default;
+
     /**
      * @brief Returns name of a device on which underlying object is allocated.
      * @return A device name string in fully specified format `<device_name>[.<device_id>[.<tile_id>]]` (e.g. GPU.0.1).

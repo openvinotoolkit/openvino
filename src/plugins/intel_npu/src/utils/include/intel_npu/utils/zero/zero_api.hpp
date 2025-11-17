@@ -78,7 +78,7 @@ public:
 
     ~ZeroApi() = default;
 
-    static const std::shared_ptr<ZeroApi>& getInstance();
+    static const std::shared_ptr<ZeroApi> getInstance();
 
 #define symbol_statement(symbol) decltype(&::symbol) symbol;
     symbols_list();
