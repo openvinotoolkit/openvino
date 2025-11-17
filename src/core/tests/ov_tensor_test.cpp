@@ -17,6 +17,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -951,6 +952,19 @@ TEST_F(OVTensorTest, createAllocationOverflow) {
     OV_EXPECT_THROW(Tensor(element::i32, Shape{std::numeric_limits<size_t>::max(), 2}),
                     Exception,
                     HasSubstr("Cannot allocate memory"));
+}
+
+TEST_F(OVTensorTest, getOwnerTensor) {
+    const ov::Tensor tensor(ov::element::f32, ov::Shape{3, 5, 32, 128});
+
+    ov::Tensor roi_tensor;
+    OV_ASSERT_NO_THROW(roi_tensor = ov::Tensor(tensor, {1, 2, 5, 64}, {2, 3, 10, 128}));
+    ov::SoPtr<ITensor> roi_owner_itensor;
+    OV_ASSERT_NO_THROW(roi_owner_itensor = ov::get_owner_tensor(ov::get_tensor_impl(roi_tensor)));
+    ov::Shape roi_shape = {1, 1, 5, 64};
+    EXPECT_EQ(roi_tensor.get_shape(), roi_shape);
+    EXPECT_EQ(tensor.get_shape(), roi_owner_itensor->get_shape());
+    EXPECT_EQ(tensor.get_byte_size(), roi_owner_itensor->get_byte_size());
 }
 
 struct TestParams {

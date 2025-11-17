@@ -575,6 +575,33 @@ TEST_P(ZeroTensorTests, CreateSmallerZeroTensorsFromLargerRemoteTensor) {
     ASSERT_FALSE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), data));
 }
 
+TEST_P(ZeroTensorTests, ImportOwnerTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (init_struct->isExternalMemoryStandardAllocationSupported()) {
+        auto shape = ov::Shape{4, 8, 32};
+
+        auto data =
+            static_cast<float*>(::operator new(ov::shape_size(shape) * element_type.size(), std::align_val_t(4096)));
+        const auto tensor = ov::make_tensor(element_type, shape, data);
+
+        std::shared_ptr<ov::ITensor> roi_tensor;
+        OV_ASSERT_NO_THROW(roi_tensor = ov::make_tensor(tensor, {1, 2, 2}, {1, 4, 4}));
+        std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor;
+        OV_ASSERT_NO_THROW(zero_tensor =
+                               std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, roi_tensor));
+        EXPECT_EQ(roi_tensor->get_shape(), zero_tensor->get_shape());
+        EXPECT_EQ(roi_tensor->get_byte_size(), zero_tensor->get_byte_size());
+
+        ov::SoPtr<ov::ITensor> roi_owner_itensor;
+        OV_ASSERT_NO_THROW(roi_owner_itensor = ov::get_owner_tensor(roi_tensor));
+        EXPECT_EQ(tensor->get_shape(), roi_owner_itensor->get_shape());
+        EXPECT_EQ(tensor->get_byte_size(), roi_owner_itensor->get_byte_size());
+
+        ::operator delete(data, std::align_val_t(4096));
+    }
+}
+
 using ZeroTensorTestsCheckDataType = ZeroTensorTests;
 
 TEST_P(ZeroTensorTestsCheckDataType, CopyZeroTensorAndCheckTensorDataType) {
