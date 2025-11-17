@@ -135,7 +135,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                          "allowed. Only exports are available");
         }
     } else {
-        _logger.debug("no zeGraphExt, metadata is empty from vcl compiler");
+        _logger.warning("no zeGraphExt, metadata is empty from vcl compiler");
     }
 
     return std::make_shared<Graph>(
