@@ -80,6 +80,44 @@ struct FileTraits<wchar_t> {
     }
 };
 
+inline std::filesystem::path library_prefix() {
+#if defined(_WIN32) && (defined(__MINGW32__) || defined(__MINGW64__))
+    return {"lib"};
+#elif defined(_WIN32)
+    return {};
+#else
+    return {"lib"};
+#endif
+}
+inline std::filesystem::path library_extension() {
+#ifdef _WIN32
+    return {".dll"};
+#else
+    return {".so"};
+#endif
+}
+
+/**
+ * @brief Creates std::filesystem::path provided by source.
+ *
+ * The purpose of this function is to hide platform specific issue with path creation like on Windows create from
+ * literal std::string with unicode characters can lead to different path name than expected.
+ *
+ * @param source  Source to create path. Supported types are same as for std::filesystem::path constructor.
+ * @return std::filesystem::path object.
+ */
+template <class Source>
+std::filesystem::path make_path(const Source& source) {
+    if constexpr (std::is_same_v<std::decay_t<Source>, wchar_t*>) {
+        return {std::wstring(source)};
+    } else if constexpr (std::is_same_v<std::filesystem::path::value_type, std::wstring::value_type> &&
+                         std::is_same_v<Source, std::string>) {
+        return {ov::util::string_to_wstring(source)};
+    } else {
+        return {source};
+    }
+}
+
 /**
  * @brief Convert path as char string to to a single-byte chain.
  * @param path Path as char string.
@@ -123,14 +161,6 @@ std::string get_file_name(const std::string& path);
 std::string get_absolute_file_path(const std::string& path);
 
 /**
- * @brief Interface function to check path to file is absolute or not
- * @param path - path to file, can be relative to current working directory
- * @return True if path is absolute and False otherwise
- * @throw runtime_error if any error occurred
- */
-bool is_absolute_file_path(const std::string& path);
-
-/**
  * @brief Interface function to create directories recursively by given path
  * @param path - path to file, can be relative to current working directory
  * @throw runtime_error if any error occurred
@@ -172,46 +202,29 @@ inline int64_t file_size(const char* path) {
 #endif
 
 /**
- * @brief      Returns file size for file
+ * @brief      Returns true if file exists at given path.
  * @param[in]  path  The file name
- * @return     file size
+ * @return     true if file exists
  */
-inline bool file_exists(const char* path) {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = ov::util::string_to_wstring(path);
-    const wchar_t* file_name = widefilename.c_str();
-#elif defined(__ANDROID__) || defined(ANDROID)
-    std::string file_name = path;
-    std::string::size_type pos = file_name.find('!');
-    if (pos != std::string::npos) {
-        file_name = file_name.substr(0, pos);
-    }
+inline bool file_exists(const std::filesystem::path& path) noexcept {
+#if defined(__ANDROID__) || defined(ANDROID)
+    const auto pos = path.native().find('!');
+    const auto f_status = (pos == std::string::npos) ? std::filesystem::status(path)
+                                                     : std::filesystem::status(path.native().substr(0, pos));
 #else
-    const char* file_name = path;
+    const auto f_status = std::filesystem::status(path);
 #endif
-    std::ifstream in(file_name, std::ios_base::binary | std::ios_base::ate);
-    return in.good();
+    return std::filesystem::exists(f_status) && !std::filesystem::is_directory(f_status);
 }
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
 /**
- * @brief      Returns true if file exists
+ * @brief      Returns true if file exists at given path.
  * @param[in]  path  The file name
  * @return     true if file exists
  */
-inline bool file_exists(const std::wstring& path) {
-    return file_exists(wstring_to_string(path).c_str());
-}
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-/**
- * @brief      Returns true if file exists
- * @param[in]  path  The file name
- * @return     true if file exists
- */
-inline bool file_exists(const std::string& path) {
-    return file_exists(path.c_str());
+template <class T>
+inline bool file_exists(const std::basic_string<T>& path) noexcept {
+    return file_exists(make_path(path));
 }
 
 std::string get_file_ext(const std::string& path);
@@ -236,16 +249,6 @@ using FilePath = ov::util::Path::string_type;
 inline std::string from_file_path(const ov::util::Path& path) {
     return path.string();
 }
-
-// TODO: remove this function after all calls use Path
-inline FilePath to_file_path(const ov::util::Path& path) {
-#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-    return ov::util::string_to_wstring(path.string());
-#else
-    return path.native();
-#endif
-}
-
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
@@ -277,6 +280,15 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
            FileTraits<C>::library_ext();
 }
 
+inline std::filesystem::path make_plugin_library_name(const std::filesystem::path& lib_name) {
+    return library_prefix().concat(lib_name.filename().native()).concat(library_extension().native());
+}
+
+inline std::filesystem::path make_plugin_library_name(const std::filesystem::path& dir_path,
+                                                      const std::filesystem::path& lib_name) {
+    return dir_path / make_plugin_library_name(lib_name);
+}
+
 /**
  * @brief Format plugin path (canonicalize, complete to absolute or complete to file name) for further
  * dynamic loading by OS
@@ -284,7 +296,7 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
  * shared library suffix and prefix to identify library full name
  * @return absolute path or file name with extension (to be found in ENV)
  */
-FilePath get_plugin_path(const std::string& plugin);
+std::filesystem::path get_plugin_path(const std::filesystem::path& plugin);
 
 /**
  * @brief Find the plugins which are located together with OV library
@@ -292,7 +304,7 @@ FilePath get_plugin_path(const std::string& plugin);
  * shared library suffix and prefix to identify library full name
  * @return absolute path or file name with extension (to be found in ENV)
  */
-FilePath get_compiled_plugin_path(const std::string& plugin);
+std::filesystem::path get_compiled_plugin_path(const std::filesystem::path& plugin);
 
 /**
  * @brief Format plugin path (canonicalize, complete to absolute or complete to file name) for further
@@ -303,7 +315,9 @@ FilePath get_compiled_plugin_path(const std::string& plugin);
  * @param as_abs_only - Bool value, allows return file names or not
  * @return absolute path or file name with extension (to be found in ENV)
  */
-FilePath get_plugin_path(const std::string& plugin, const std::string& xml_path, bool as_abs_only = false);
+std::filesystem::path get_plugin_path(const std::filesystem::path& plugin,
+                                      const std::filesystem::path& xml_path,
+                                      bool as_abs_only = false);
 
 /**
  * @brief load binary data from file
@@ -345,27 +359,5 @@ inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const 
         return file;
     return folder + ov::util::FileTraits<C>::file_separator + file;
 }
-
-/**
- * @brief Creates std::filesystem::path provided by source.
- *
- * The purpose of this function is to hide platform specific issue with path creation like on Windows create from
- * literal std::string with unicode characters can lead to different path name than expected.
- *
- * @param source  Source to create path. Supported types are same as for std::filesystem::path constructor.
- * @return std::filesystem::path object.
- */
-template <class Source>
-std::filesystem::path make_path(const Source& source) {
-    if constexpr (std::is_same_v<std::decay_t<Source>, wchar_t*>) {
-        return {std::wstring(source)};
-    } else if constexpr (std::is_same_v<std::filesystem::path::value_type, std::wstring::value_type> &&
-                         std::is_same_v<Source, std::string>) {
-        return {ov::util::string_to_wstring(source)};
-    } else {
-        return {source};
-    }
-}
-
 }  // namespace util
 }  // namespace ov
