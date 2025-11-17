@@ -40,7 +40,7 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::hint::PerformanceMode parse(std::string_view val) {
@@ -125,7 +125,7 @@ struct PERFORMANCE_HINT_NUM_REQUESTS final : OptionBase<PERFORMANCE_HINT_NUM_REQ
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::RunTime;
     }
 };
 
@@ -155,7 +155,7 @@ struct INFERENCE_PRECISION_HINT final : OptionBase<INFERENCE_PRECISION_HINT, ov:
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::element::Type parse(std::string_view val) {
@@ -257,7 +257,7 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::PropertyMutability mutability() {
