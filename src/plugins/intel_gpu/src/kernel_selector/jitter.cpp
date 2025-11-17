@@ -1525,6 +1525,18 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type_size = "2";
             is_fp = false;
             break;
+        case Datatype::F4E2M1:
+            type = "fp4e2m1_t";
+            max_val = "(fp4e2m1_t){as_uchar((uchar)0x7)}"; // 6.0
+            min_val = "(fp4e2m1_t){as_uchar((uchar)0xF)}"; // -6.0
+            val_one = "(fp4e2m1_t){as_uchar((uchar)0x2)}";
+            val_zero = "(fp4e2m1_t){as_uchar((uchar)0x0)}";
+            to_type = "_convert_fp4e2m1_t(v)";
+            to_type_sat = "_convert_fp4e2m1_t_sat(v)";
+            as_type = "as_fp4e2m1_t(v)";
+            type_size = "1"; //?
+            is_fp = true;
+            break;
         case Datatype::F8E4M3:
             type = "fp8e4m3_t";
             max_val = "(fp8e4m3_t){as_char((char)0x7E)}"; // 448.0
@@ -1614,6 +1626,8 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::INT32, macroName);
         case WeightsType::BF16:
             return MakeTypeJitConstants(Datatype::BF16, macroName);
+        case WeightsType::F4E2M1:
+            return MakeTypeJitConstants(Datatype::F4E2M1, macroName);
         case WeightsType::F8E4M3:
             return MakeTypeJitConstants(Datatype::F8E4M3, macroName);
         case WeightsType::F8E5M2:

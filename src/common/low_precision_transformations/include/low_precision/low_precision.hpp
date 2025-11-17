@@ -74,7 +74,7 @@ public:
         const std::set<levels>& supported_levels = all_levels);
     static bool isFQLevelsPresent(const std::shared_ptr<const ov::Model>& model, const std::set<size_t>& levels);
 
-    static bool doesFunctionContainF8DynQuanPatterns(const std::shared_ptr<const ov::Model>& model);
+    static bool doesFunctionContainMXFPDynQuanPatterns(const std::shared_ptr<const ov::Model>& model);
 
     template <typename T, class... Args>
     std::shared_ptr<T> add_main(Args&&... args) {

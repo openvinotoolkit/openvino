@@ -319,6 +319,18 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         type_size = "4";
         is_fp = true;
         break;
+    case ov::element::f4e2m1:
+        type = "fp4e2m1_t";
+        max_val = "(fp4e2m1_t){as_uchar((uchar)0x7)}"; // 6.0
+        min_val = "(fp4e2m1_t){as_uchar((uchar)0xF)}"; // -6.0
+        val_one = "(fp4e2m1_t){as_uchar((uchar)0x2)}";
+        val_zero = "(fp4e2m1_t){as_uchar((uchar)0x0)}";
+        to_type = "_convert_fp4e2m1_t(v)";
+        to_type_sat = "_convert_fp4e2m1_t_sat(v)";
+        as_type = "as_fp4e2m1_t(v)";
+        type_size = "1"; //?
+        is_fp = true;
+        break;
     case ov::element::f8e4m3:
         type = "fp8e4m3_t";
         max_val = "(fp8e4m3_t){as_char((char)0x7E)}"; // 448.0

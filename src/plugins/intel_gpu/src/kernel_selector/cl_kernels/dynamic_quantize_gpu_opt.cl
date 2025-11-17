@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/f8_utils.cl"
+#include "include/batch_headers/f4_utils.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #if OUTPUT_DIMS != 4 && OUTPUT_DIMS != 2
@@ -20,7 +21,7 @@
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
 
-#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
+#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT || F4E2M1_OUTPUT)
 
 // ***********************************************
 #if DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS

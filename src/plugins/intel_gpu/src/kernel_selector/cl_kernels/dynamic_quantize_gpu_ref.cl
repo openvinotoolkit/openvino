@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/f8_utils.cl"
+#include "include/batch_headers/f4_utils.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
@@ -14,6 +15,9 @@
 #elif F8E4M3_OUTPUT
     #define TO_OUTPUT_TYPE_CUSTOM(val)  _convert_fp8e4m3_t_sat(val)
     #define TO_OUTPUT_VEC_TYPE_CUSTOM(val)  _convert_fp8e4m3_t8_sat(val)
+#elif F4E2M1_OUTPUT
+    #define TO_OUTPUT_TYPE_CUSTOM(val)  _convert_fp4e2m1_t_sat(val)
+    #define TO_OUTPUT_VEC_TYPE_CUSTOM(val)  _convert_fp4e2m1_t8_sat(val)
 #elif (ASYMMETRIC_QUANTIZATION && UNSIGNED_OUTPUT)
     #define TO_OUTPUT_TYPE_CUSTOM(val)  convert_uchar_rte(val)
     #define TO_OUTPUT_VEC_TYPE_CUSTOM(val)  convert_uchar8_rte(val)
@@ -38,7 +42,7 @@ inline uint FUNC(get_scales_offset)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint
 #endif
 }
 
-#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
+#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT || F4E2M1_OUTPUT)
 
 KERNEL(dynamic_quantize_gpu_ref)(
     OPTIONAL_SHAPE_INFO_ARG

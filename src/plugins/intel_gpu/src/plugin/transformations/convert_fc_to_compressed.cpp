@@ -34,6 +34,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 output.get_element_type() == ov::element::i8 ||
                 output.get_element_type() == ov::element::u4 ||
                 output.get_element_type() == ov::element::i4 ||
+                output.get_element_type() == ov::element::f4e2m1 ||
                 output.get_element_type() == ov::element::f8e4m3 ||
                 output.get_element_type() == ov::element::f8e5m2);
     };

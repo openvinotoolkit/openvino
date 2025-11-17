@@ -371,7 +371,7 @@ bool ov::pass::low_precision::LowPrecision::isFQLevelsPresent(
     return false;
 }
 
-bool ov::pass::low_precision::LowPrecision::doesFunctionContainF8DynQuanPatterns(
+bool ov::pass::low_precision::LowPrecision::doesFunctionContainMXFPDynQuanPatterns(
         const std::shared_ptr<const ov::Model>& model) {
     std::vector<std::shared_ptr<ov::Node>> nodes = model->get_ops();
     for (auto& node : nodes) {
@@ -407,7 +407,8 @@ bool ov::pass::low_precision::LowPrecision::doesFunctionContainF8DynQuanPatterns
         const auto weight_shape = weight->get_shape();
 
         bool weight_dtype_check = (weight->get_element_type() == ov::element::f8e4m3 ||
-                                   weight->get_element_type() == ov::element::f8e5m2);
+                                   weight->get_element_type() == ov::element::f8e5m2 ||
+                                   weight->get_element_type() == ov::element::f4e2m1);
 
         std::vector<size_t> possible_group_sizes{32}; // TODO: check all possible group sizes
         bool shape_check = scale_shape.size() == weight_shape.size();

@@ -40,6 +40,7 @@
 
 #define AS_TYPE_PREFIX_uchar as_
 #define AS_TYPE_PREFIX_char as_
+#define AS_TYPE_PREFIX_fp4e2m1_t _as_
 #define AS_TYPE_PREFIX_fp8e5m2_t _as_
 #define AS_TYPE_PREFIX_fp8e4m3_t _as_
 #define AS_TYPE_PREFIX_fp8e8m0_t _as_
@@ -61,6 +62,7 @@
 // ====================================================================================================================
 #define TYPE_SIZE_uchar  1
 #define TYPE_SIZE_char   1
+#define TYPE_SIZE_fp4e2m1_t 1
 #define TYPE_SIZE_fp8e5m2_t 1
 #define TYPE_SIZE_fp8e4m3_t 1
 #define TYPE_SIZE_fp8e8m0_t 1

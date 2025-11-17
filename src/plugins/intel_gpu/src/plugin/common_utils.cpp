@@ -141,6 +141,7 @@ bool is_supported(ov::element::Type_t et) {
         case ov::element::Type_t::u32: return true; // converted to i32
         case ov::element::Type_t::u64: return true; // converted to i32
         case ov::element::Type_t::nf4: return false;
+        case ov::element::Type_t::f4e2m1: return true;
         case ov::element::Type_t::f8e4m3: return true;
         case ov::element::Type_t::f8e5m2: return true;
         case ov::element::Type_t::string: return false;

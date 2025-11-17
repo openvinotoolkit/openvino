@@ -362,7 +362,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types =
-        {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f8e8m0};
+        {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::f4e2m1,
+         ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f8e8m0};
     bool enableInt8;
     ov::element::Type infer_precision = ov::element::dynamic;
     bool unroll_loop = config.get_enable_loop_unrolling();
@@ -379,17 +380,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
-        bool does_model_contain_f8_dyn_quan_patterns = ov::pass::low_precision::LowPrecision::doesFunctionContainF8DynQuanPatterns(func);
+        bool does_model_contain_mxfp_dyn_quan_patterns = ov::pass::low_precision::LowPrecision::doesFunctionContainMXFPDynQuanPatterns(func);
 
         manager.register_pass<ov::pass::MarkDequantization>(std::vector<ov::element::Type>{ov::element::i8,
                                                                                            ov::element::u8,
                                                                                            ov::element::i4,
                                                                                            ov::element::u4,
+                                                                                           ov::element::f4e2m1,
                                                                                            ov::element::f8e4m3,
                                                                                            ov::element::f8e5m2,
                                                                                            ov::element::f8e8m0},
                                                             !device_info.supports_immad,
-                                                            !does_model_contain_f8_dyn_quan_patterns);
+                                                            !does_model_contain_mxfp_dyn_quan_patterns);
 
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();

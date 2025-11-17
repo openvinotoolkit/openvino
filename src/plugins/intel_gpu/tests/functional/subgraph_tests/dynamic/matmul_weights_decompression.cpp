@@ -209,7 +209,7 @@ protected:
             mul_parent = std::make_shared<ov::op::v1::Subtract>(weights_convert, shift_convert);
         }
 
-        bool is_mxfp = cldnn::one_of(weights_precision, {ov::element::f8e4m3, ov::element::f8e5m2});
+        bool is_mxfp = cldnn::one_of(weights_precision, {ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f4e2m1});
         ov::element::Type scale_data_precision = is_mxfp ? ov::element::f8e8m0 : data_precision;
 
         ov::test::utils::InputGenerateData in_data;
@@ -491,6 +491,21 @@ INSTANTIATE_TEST_SUITE_P(
     MatmulWeightsDecompression,
     ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 32}, {{2, 1, 32}, {1, 1, 32}, {2, 1, 32}}}, {32, 16}, 32}),  // shape
                        ::testing::Values(ov::element::f8e5m2),
+                       ::testing::Values(ov::element::f16),
+                       ::testing::Values(true),
+                       ::testing::Values(false),
+                       ::testing::Values(false),  // ?
+                       ::testing::Values(false),  // ?
+                       ::testing::Values(false),  // per_tensor_zp
+                       ::testing::Values(32),
+                       ::testing::Values(2.0f)),  // Note: this is because of potential cldnn accuracy issue
+    MatmulWeightsDecompression::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MatMulCompressedWeights_dyn_quan_mxfp4_e4m1,
+    MatmulWeightsDecompression,
+    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 32}, {{2, 1, 32}, {1, 1, 32}, {2, 1, 32}}}, {32, 16}, 32}),  // shape
+                       ::testing::Values(ov::element::f4e2m1),
                        ::testing::Values(ov::element::f16),
                        ::testing::Values(true),
                        ::testing::Values(false),

@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/f8_utils.cl"
+#include "include/batch_headers/f4_utils.cl"
 #include "include/reshape_dims.cl"
 #include "include/fetch_utils.cl"
 

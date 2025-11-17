@@ -81,7 +81,8 @@ protected:
 
             auto input_dt = instance.get_input_layout(0).data_type;
             bool is_dyn_quan_input =
-                input_dt == data_types::i8 || input_dt == data_types::u8 || input_dt == data_types::f8e4m3 || input_dt == data_types::f8e5m2;
+                input_dt == data_types::i8 || input_dt == data_types::u8 || input_dt == data_types::f4e2m1 ||
+                input_dt == data_types::f8e4m3 || input_dt == data_types::f8e5m2;
 
             if (is_dyn_quan_input && prim->activation_scale.is_valid()) {
                 auto activation_scale_idx = idx++;
@@ -331,7 +332,8 @@ public:
         }
 
         auto input_dt = impl_params->get_input_layout(0).data_type;
-        bool is_dyn_quan_input = input_dt == data_types::i8 || input_dt == data_types::u8 || input_dt == data_types::f8e4m3 || input_dt == data_types::f8e5m2;
+        bool is_dyn_quan_input = input_dt == data_types::i8 || input_dt == data_types::u8 ||
+        input_dt == data_types::f4e2m1  || input_dt == data_types::f8e4m3 || input_dt == data_types::f8e5m2;
         if (is_dyn_quan_input && dynamic_quantized_activation) {
             auto src_scale_idx = ++idx;
             auto partial_shape = impl_params->get_input_layout(0).get_partial_shape();
@@ -373,7 +375,8 @@ public:
         if (prim->compressed_weights) {
             auto input_dt = impl_params.get_input_layout(0).data_type;
             bool is_dyn_quan_input =
-                input_dt == data_types::i8 || input_dt == data_types::u8 || input_dt == data_types::f8e4m3 || input_dt == data_types::f8e5m2;
+                input_dt == data_types::i8 || input_dt == data_types::u8 || input_dt == data_types::f4e2m1 ||
+                input_dt == data_types::f8e4m3 || input_dt == data_types::f8e5m2;
             if (!is_dyn_quan_input)
                 attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
 
