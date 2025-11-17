@@ -127,7 +127,7 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
         // WA for legacy flow, mostly for unit tests as sometimes grouped conv has non-grouped weights
         if (legacy_flow && input_shapes[1].size() == 4 && input_shapes[0].size() == 4) {
             // Extend grouped 1d conv weights shape from 4d to 5d when conv input shape is canonicalized to 4d by allow_new_shape_infer=false
-            if (desc->grouped_weights_shape && desc->groups > 1 && (static_cast<int64_t>(desc->groups) == input_shapes[1][0].get_length())) {
+            if (desc->is_1d_conv && desc->grouped_weights_shape && desc->groups > 1 && (static_cast<int64_t>(desc->groups) == input_shapes[1][0].get_length())) {
                 // 1d convolution with groups, e.g. shape [g,oc,ic,x] -> [g,oc,ic,x,1]
                 weights_shape.insert(weights_shape.end(), 1);
             } else {
@@ -214,7 +214,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
     auto filter_inst = node.weights().get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
 
     // Extend grouped 1d conv weights shape from 4d to 5d when conv input shape is canonicalized to 4d by allow_new_shape_infer=false
-    const bool needs_filter_extension = !network.get_program()->is_new_shape_infer() &&
+    const bool needs_filter_extension = argument->is_1d_conv &&
                                         argument->grouped_weights_shape &&
                                         argument->groups > 1 &&
                                         filter_inst.get_rank() == 4 &&
