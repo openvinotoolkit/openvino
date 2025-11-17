@@ -770,13 +770,13 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                                                           dev_properties);
                 else
                     blobId = ov::ModelCache::compute_hash(model_path, dev_properties);
-                const auto cached_model_path = ov::util::path_join({cache_dir, blobId + ".blob"});
+                const auto cached_model_path = ov::util::make_path(cache_dir) / (blobId + ".blob");
                 bool is_blob_file_exist = ov::util::file_exists(cached_model_path);
                 num_blob_files += is_blob_file_exist;
                 LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
                               device.c_str(),
                               is_blob_file_exist ? "found" : "not found",
-                              cached_model_path);
+                              cached_model_path.string().c_str());
             }
 
             if (enable_startup_cpu && num_blob_files) {
