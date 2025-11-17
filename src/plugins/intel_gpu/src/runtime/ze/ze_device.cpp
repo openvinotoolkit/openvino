@@ -55,6 +55,32 @@ gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
 }
 #endif
 
+gfx_version parse_version(uint32_t gmdid) {
+    union GMDID {
+        uint32_t value;
+        struct {
+            uint32_t revision : 6;
+            uint32_t reserved : 8;
+            uint32_t release : 8;
+            uint32_t architecture : 10;
+        };
+    };
+
+    GMDID gmd_id = {gmdid};
+    if (gmd_id.architecture > 0 && gmd_id.architecture < 100) {
+        // New format
+        return { static_cast<uint16_t>(gmd_id.architecture), static_cast<uint8_t>(gmd_id.release), static_cast<uint8_t>(gmd_id.revision)};
+    } else {
+        // Old format
+        uint32_t ver = gmdid;
+        uint16_t major = ver >> 16;
+        uint8_t minor = (ver >> 8) & 0xFF;
+        uint8_t revision = ver & 0xFF;
+
+        return {major, minor, revision};
+    }
+}
+
 bool supports_extension(const std::vector<ze_driver_extension_properties_t>& extensions, const std::string& ext_name, uint32_t ext_ver) {
     return std::find_if(extensions.begin(), extensions.end(), [&ext_name, &ext_ver](const ze_driver_extension_properties_t& ep) {
         return std::string(ep.name) == ext_name && ep.version == ext_ver;
@@ -190,7 +216,6 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
 
     // FIXME: Could not find how to retrieve those from L0
-    info.gfx_ver = {0, 0, 0};
     info.supports_work_group_collective_functions = false;
     info.supports_intel_planar_yuv = false;
     info.supports_khr_subgroups = true;
@@ -200,7 +225,10 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_intel_required_subgroup_size = true;
     info.supports_queue_families = true;
 
-    info.ip_version = ip_version_properties.ipVersion;
+    if (supports_ip_version) {
+        info.ip_version = ip_version_properties.ipVersion;
+        info.gfx_ver = parse_version(ip_version_properties.ipVersion);
+    }
     info.sub_device_idx = (std::numeric_limits<uint32_t>::max)();
 
     info.device_id = device_properties.deviceId;
