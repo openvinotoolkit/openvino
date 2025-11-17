@@ -544,6 +544,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::grid_sampler", op::translate_grid_sampler},
         {"aten::group_norm", op::translate_group_norm},
         {"aten::gru", op::translate_gru},
+        {"aten::greater", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
         {"aten::gt", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
         {"aten::hann_window", op::translate_hann_window},
         {"aten::hardsigmoid", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSigmoid>>},
@@ -576,6 +577,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::len", op::translate_len},
         {"aten::lerp", op::translate_lerp},
+        {"aten::less", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         // lift op is torchscript specific op responsible for tensors coping with guarantee of new memory allocation
         {"aten::lift", op::skip_node},
         {"aten::lift_fresh", op::skip_node},
@@ -642,6 +644,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::norm", op::translate_norm},
         {"aten::normal", op::translate_normal},
         {"aten::normal_", op::translate_normal_},
+        {"aten::not_equal", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::numel", op::translate_numel},
         {"aten::numpy_T", op::translate_t},
         {"aten::one_hot", op::translate_one_hot},
