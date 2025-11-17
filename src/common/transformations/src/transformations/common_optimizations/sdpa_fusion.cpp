@@ -150,7 +150,8 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         const auto& mask_node = pm.at(mask);
         auto post_sdpa_node = std::move(pm.at(post_sdpa)).get_node_shared_ptr();
 
-        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(std::move(pm.at(sdpa_pattern)).get_node_shared_ptr());
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(
+            std::move(pm.at(sdpa_pattern)).get_node_shared_ptr());
         if (!sdpa) {
             return false;
         }
@@ -212,8 +213,8 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
 }
 
 static ov::Output<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_pattern,
-                                       element::Type default_scale_type,
-                                       ov::pass::pattern::Matcher& matcher) {
+                                      element::Type default_scale_type,
+                                      ov::pass::pattern::Matcher& matcher) {
     auto& pm = matcher.get_pattern_value_map();
     if (pm.count(scale_pattern)) {
         auto scale_node = pm.at(scale_pattern);
@@ -241,10 +242,10 @@ static ov::Output<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_pattern,
 }
 
 static ov::Output<ov::Node> get_mask(std::shared_ptr<ov::Node> mask_pattern,
-                                      std::shared_ptr<ov::Node> opt_mask_add,
-                                      element::Type default_mask_type,
-                                      bool mask_present,
-                                      ov::pass::pattern::Matcher& matcher) {
+                                     std::shared_ptr<ov::Node> opt_mask_add,
+                                     element::Type default_mask_type,
+                                     bool mask_present,
+                                     ov::pass::pattern::Matcher& matcher) {
     auto& pm = matcher.get_pattern_value_map();
     if (mask_present && pm.count(opt_mask_add)) {
         const auto& qk_out = pm.at(opt_mask_add);

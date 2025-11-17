@@ -105,7 +105,8 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
 
         const auto& x_output = pattern_map.at(x);
 
-        auto const_eps_node = ov::as_type_ptr<ov::op::v0::Constant>(std::move(pattern_map.at(eps)).get_node_shared_ptr());
+        auto const_eps_node =
+            ov::as_type_ptr<ov::op::v0::Constant>(std::move(pattern_map.at(eps)).get_node_shared_ptr());
         float eps_value;
         if (!ov::op::util::get_single_value(const_eps_node, eps_value)) {
             return false;

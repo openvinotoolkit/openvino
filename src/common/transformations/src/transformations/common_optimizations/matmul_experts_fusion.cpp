@@ -99,7 +99,8 @@ ov::pass::FuseVectorizedMOE2GEMM::FuseVectorizedMOE2GEMM() {
         ov::op::internal::MOE::Config config;
 
         // Extract expert_beta from Swish beta attribute
-        auto swish_beta_const = ov::as_type_ptr<ov::op::v0::Constant>(std::move(pm.at(swish_beta)).get_node_shared_ptr());
+        auto swish_beta_const =
+            ov::as_type_ptr<ov::op::v0::Constant>(std::move(pm.at(swish_beta)).get_node_shared_ptr());
         auto swish_beta_const_val = swish_beta_const->cast_vector<float>()[0];
         config.expert_beta = swish_beta_const_val;
 

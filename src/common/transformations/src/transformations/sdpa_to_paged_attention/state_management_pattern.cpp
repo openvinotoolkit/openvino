@@ -572,7 +572,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         } else if (pattern_map.find(jais_13b_alibi) != pattern_map.end()) {
             alibi_slopes = handle_jais_13b_alibi(std::move(pattern_map.at(jais_13b_alibi)).get_node_shared_ptr());
         } else if (pattern_map.find(baichuan2_13b_alibi) != pattern_map.end()) {
-            alibi_slopes = handle_baichuan2_13b_alibi(std::move(pattern_map.at(baichuan2_13b_alibi)).get_node_shared_ptr());
+            alibi_slopes =
+                handle_baichuan2_13b_alibi(std::move(pattern_map.at(baichuan2_13b_alibi)).get_node_shared_ptr());
         } else {
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         }
