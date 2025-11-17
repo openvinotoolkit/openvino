@@ -11,9 +11,10 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "onednn/iml_type_mapper.h"
-#include "openvino/core/parallel.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/util/env_util.hpp"
+#include "utils/threading.hpp"
 
 namespace ov::intel_cpu {
 
@@ -168,33 +169,47 @@ std::stringstream& printDuration(std::stringstream& stream, const NodePtr& node)
     return stream;
 }
 
+template <typename... Args>
+void log(Args&&... args) {
+    std::ostringstream oss;
+    (oss << ... << std::forward<Args>(args));
+    ov::util::log_message(oss.str());
+}
+
 static void printPluginInfo() {
     const auto& ov_version = ov::get_openvino_version();
     const auto& dnnl_version = dnnl::version();
-    std::cout << "ov_cpu_verbose,info,intel_cpu_plugin,version: " << ov_version.buildNumber << '\n';
-    std::cout << "ov_cpu_verbose,info,onednn,version: " << dnnl_version->major << "." << dnnl_version->minor << "."
-              << dnnl_version->patch << " (commit " << dnnl_version->hash << ")" << '\n';
+    log("ov_cpu_verbose,info,intel_cpu_plugin,version: ", ov_version.buildNumber);
+    log("ov_cpu_verbose,info,onednn,version: ",
+        dnnl_version->major,
+        ".",
+        dnnl_version->minor,
+        ".",
+        dnnl_version->patch,
+        " (commit ",
+        dnnl_version->hash,
+        ")");
     // @todo add more info regarding other backends if available
-    std::cout << "ov_cpu_verbose,info,isa: " << dnnl::impl::cpu::x64::get_isa_info() << '\n';
-    std::cout << "ov_cpu_verbose,info,intel_cpu_plugin,runtime: " << OV_THREAD_NAME << std::endl;
+    log("ov_cpu_verbose,info,isa: ", dnnl::impl::cpu::x64::get_isa_info());
+    log("ov_cpu_verbose,info,intel_cpu_plugin,runtime: ", threadingType());
 }
 
 void printPluginInfoOnce() {
-    static std::atomic_flag info_printed = ATOMIC_FLAG_INIT;
-    if (info_printed.test_and_set()) {
+    static std::atomic_flag infoPrinted = ATOMIC_FLAG_INIT;
+    if (infoPrinted.test_and_set()) {
         return;
     }
 
     // @todo To avoid dealing with environment variables in multiple places
     //       read them all in one place and pass to CPU plugin / config as a parameter
-    const auto& ov_cpu_verbose = ov::util::getenv_string("OV_CPU_VERBOSE");
+    const auto& ovCpuVerbose = ov::util::getenv_string("OV_CPU_VERBOSE");
 #if defined(CPU_DEBUG_CAPS)
     // in case of debug caps enabled print info if OV_CPU_VERBOSE is set to any value
-    if (ov_cpu_verbose.empty()) {
+    if (ovCpuVerbose.empty()) {
         return;
     }
 #else
-    if (ov_cpu_verbose != "info") {
+    if (ovCpuVerbose != "info") {
         return;
     }
 #endif
