@@ -76,7 +76,7 @@ function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
 endfunction()
 
 macro(ov_find_package_tbb)
-    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
+    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" OR THREADING STREQUAL "TBB_ADAPTIVE" AND NOT TBB_FOUND)
         # conan generates TBBConfig.cmake files, which follows cmake's
         # SameMajorVersion scheme, while TBB itself follows AnyNewerVersion one
         # see https://cmake.org/cmake/help/latest/module/CMakePackageConfigHelpers.html#generating-a-package-version-file
@@ -340,7 +340,7 @@ macro(ov_find_package_openmp)
 endmacro()
 
 function(ov_set_threading_interface_for TARGET_NAME)
-    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
+    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" OR THREADING STREQUAL "TBB_ADAPTIVE" AND NOT TBB_FOUND)
         # find TBB
         ov_find_package_tbb()
 
@@ -383,9 +383,13 @@ function(ov_set_threading_interface_for TARGET_NAME)
         add_library(openvino::threading ALIAS openvino_threading)
     endif()
 
-    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" OR THREADING STREQUAL "TBB_ADAPTIVE")
         if(TBB_FOUND)
-            set(_ov_thread_define "OV_THREAD_TBB")
+            if(THREADING STREQUAL "TBB_ADAPTIVE")
+                set(_ov_thread_define "OV_THREAD_TBB_ADAPTIVE")
+            else()
+                set(_ov_thread_define "OV_THREAD_TBB")
+            endif()
             set(_ov_threading_lib TBB::tbb)
         else()
             set(THREADING "SEQ" PARENT_SCOPE)
