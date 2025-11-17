@@ -134,6 +134,8 @@ private:
 
     std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback);
 
+    std::shared_ptr<py::object> wrap_pyobject_to_sp(py::object obj);
+
     std::filesystem::path to_fs_path(const py::object& path);
 }; // namespace utils
 }; // namespace Common
