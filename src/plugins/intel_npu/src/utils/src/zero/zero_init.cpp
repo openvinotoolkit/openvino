@@ -7,6 +7,7 @@
 #include <ze_command_queue_npu_ext.h>
 #include <ze_mem_import_system_memory_ext.h>
 
+#include <mutex>
 #include <regex>
 
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -331,8 +332,16 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     }
 }
 
-const std::shared_ptr<ZeroInitStructsHolder>& ZeroInitStructsHolder::getInstance() {
-    static std::shared_ptr<ZeroInitStructsHolder> instance = std::make_shared<ZeroInitStructsHolder>();
+const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {
+    static std::mutex mutex;
+    static std::weak_ptr<ZeroInitStructsHolder> weak_instance;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto instance = weak_instance.lock();
+    if (!instance) {
+        instance = std::make_shared<ZeroInitStructsHolder>();
+        weak_instance = instance;
+    }
     return instance;
 }
 
@@ -340,6 +349,7 @@ ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     if (context) {
         log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
         auto result = zeContextDestroy(context);
+        context = nullptr;
         if (result != ZE_RESULT_SUCCESS) {
             if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
                 log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
