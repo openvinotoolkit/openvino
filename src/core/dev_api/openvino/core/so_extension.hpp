@@ -28,8 +28,8 @@ private:
 
 inline std::filesystem::path resolve_extension_path(const std::filesystem::path& path) {
     try {
-        auto absolute_path = std::filesystem::weakly_canonical(path);
-        return std::filesystem::exists(absolute_path) ? absolute_path : path;
+        auto absolute_path = std::filesystem::absolute(std::filesystem::weakly_canonical(path));
+        return ov::util::file_exists(absolute_path) ? absolute_path : path;
     } catch (const std::runtime_error&) {
         return path;
     }
