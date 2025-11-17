@@ -66,9 +66,10 @@ private:
     MemoryPtr m_weightsMemory = nullptr;
     MemoryPtr m_scalesMemory = nullptr;
     MemoryPtr m_zpMemory = nullptr;
+
     MemoryPtr m_tmpInpBuffer = nullptr;
-    MemoryPtr m_tmpInput = nullptr;
-    MemoryPtr m_tmpOutput = nullptr;
+    MemoryDescPtr m_tmpInputDesc = nullptr;
+    MemoryDescPtr m_tmpOutputDesc = nullptr;
 
     bool bf16_amx_mode = false;
 };
