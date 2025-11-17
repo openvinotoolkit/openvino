@@ -59,16 +59,43 @@ jobs:
       fail-fast: false
       matrix:
         variant:
+          - name: tempdisk
+            runner: aks-win-32-cores-128gb-tdsk-st
+            build_jobs: thirtytwo_jobs
           - name: d-size_lessram
             runner: aks-win-32-cores-64gb-d-st
             build_jobs: thirtytwo_jobs
+          - name: tempdisk_lessram_lesscores
+            runner: aks-win-16-cores-64gb-tdsk-st
+            build_jobs: sixteen_jobs
         link_jobs:
-          - one_job
-          - four_jobs
           - eight_jobs
+          - twelve_jobs
           - sixteen_jobs
+          - twenty_jobs
+          - twenty_four_jobs
+          - twenty_eight_jobs
         cache:
           - True
+        exclude:
+          - variant:
+              name: tempdisk
+            link_jobs:
+              - eight_jobs
+              - twelve_jobs
+              - sixteen_jobs
+          - variant:
+              name: d-size_lessram
+            link_jobs:
+              - eight_jobs
+              - sixteen_jobs
+          - variant:
+              name: tempdisk_lessram_lesscores
+            link_jobs:
+              - twenty_jobs
+              - twenty_four_jobs
+              - twenty_eight_jobs
+
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
     name: "Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}, Link jobs: ${{ matrix.link_jobs }}"

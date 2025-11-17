@@ -58,15 +58,45 @@ jobs:
       fail-fast: false
       matrix:
         variant:
+          - name: tempdisk
+            runner: aks-win-32-cores-128gb-tdsk-st
+            build_jobs: thirtytwo_jobs
           - name: d-size_lessram
             runner: aks-win-32-cores-64gb-d-st
             build_jobs: thirtytwo_jobs
+          - name: tempdisk_lessram_lesscores
+            runner: aks-win-16-cores-64gb-tdsk-st
+            build_jobs: sixteen_jobs
         link_jobs:
-          - one_job
-          - four_jobs
           - eight_jobs
+          - twelve_jobs
+          - sixteen_jobs
+          - twenty_jobs
+          - twenty_four_jobs
+          - twenty_eight_jobs
         cache:
           - True
+        exclude:
+          - variant:
+              name: tempdisk
+            link_jobs:
+              - eight_jobs
+              - twelve_jobs
+              - sixteen_jobs
+          - variant:
+              name: d-size_lessram
+            link_jobs:
+              - eight_jobs
+              - sixteen_jobs
+              - twenty_jobs
+              - twenty_four_jobs
+              - twenty_eight_jobs
+          - variant:
+              name: tempdisk_lessram_lesscores
+            link_jobs:
+              - twenty_jobs
+              - twenty_four_jobs
+              - twenty_eight_jobs
 
     name: "Build OpenVINO - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}, Link jobs: ${{ matrix.link_jobs }}"
     needs: Smart_CI
@@ -216,14 +246,14 @@ jobs:
         if: ${{ matrix.cache == true }}
         run: '& ccache --show-stats'
 
-      - name: Clean ccache stats
-        if: ${{ matrix.cache == true }}
-        run: '& ccache --zero-stats'
-
       - name: Cmake install - OpenVINO
         run: |
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
+
+      - name: Clean ccache stats
+        if: ${{ matrix.cache == true }}
+        run: '& ccache --zero-stats'
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
@@ -231,7 +261,7 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Show ccache stats
-        if: ${{ inputs.cache }}
+        if: ${{ matrix.cache == true }}
         run: '& ccache --show-stats'
 
       - name: Ctest - OpenVINO unit tests
@@ -315,6 +345,6 @@ jobs:
           CMAKE_GENERATOR: "Visual Studio 17 2022"
 
       - name: Show ccache stats
-        if: ${{ inputs.cache }}
+        if: ${{ matrix.cache == true }}
         run: '& ccache --show-stats'
 
