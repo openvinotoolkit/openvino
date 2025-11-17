@@ -1440,4 +1440,48 @@ struct SERIALIZATION_WEIGHTS_SIZE_THRESHOLD final : OptionBase<SERIALIZATION_WEI
     }
 };
 
+struct INPUTS_WITH_DYNAMIC_STRIDES final : OptionBase<INPUTS_WITH_DYNAMIC_STRIDES, std::vector<int>> {
+    static std::string_view key() {
+        return ov::intel_npu::inputs_with_dynamic_strides.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "std::vector<int>";
+    }
+
+    static std::vector<int> defaultValue() {
+        return {};
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
+struct OUTPUTS_WITH_DYNAMIC_STRIDES final : OptionBase<OUTPUTS_WITH_DYNAMIC_STRIDES, std::vector<int>> {
+    static std::string_view key() {
+        return ov::intel_npu::outputs_with_dynamic_strides.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "std::vector<int>";
+    }
+
+    static std::vector<int> defaultValue() {
+        return {};
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
 }  // namespace intel_npu

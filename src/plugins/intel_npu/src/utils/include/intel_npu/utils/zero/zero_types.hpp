@@ -215,6 +215,12 @@ public:
         throwWhenUnsupported("pfnBuildLogDestroy", ZE_GRAPH_EXT_VERSION_1_12);
         return _impl->pfnBuildLogDestroy(hGraphBuildLog);
     }
+
+    // version 1.15
+    ze_result_t ZE_APICALL pfnSetArgumentValue2(ze_graph_handle_t hGraph, uint32_t argIndex, const void* pArgValue) {
+        throwWhenUnsupported("pfnSetArgumentValue2", ZE_GRAPH_EXT_VERSION_1_15);
+        return _impl->pfnSetArgumentValue2(hGraph, argIndex, pArgValue);
+    }
 };
 
 /**
