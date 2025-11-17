@@ -141,4 +141,53 @@ ov::SoPtr<ov::ITensor> VariableState::get_state() const {
     return tensor;
 }
 
+void VariableState::gather_by_axis(const std::vector<size_t>& src_indices, const std::vector<size_t>& dst_indices) {
+    OPENVINO_ASSERT(m_context != nullptr, "m_context should not be null.");
+    OPENVINO_ASSERT(m_layout.format == cldnn::format::bfyx, "m_format should be bfyx.");
+    const auto& pshape = m_layout.get_partial_shape();
+    const auto& shape = get_tensor_shape(pshape);
+    ov::AnyMap params;
+    params["SHARED_MEM_TYPE"] = ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER;
+    params["MEM_HANDLE"] = m_memory->buffer_ptr();
+    auto remote_state = m_context->create_tensor(m_layout.data_type, shape, params);
+
+    // Validate tensor shape (expecting 4D: [batch_size, num_heads, seq_len, head_size])
+    if (shape.size() != 4) {
+        GPU_DEBUG_TRACE_DETAIL << "gather_by_axis: Expected 4D tensor, got " << shape.size() << "D tensor. Skipping this state.";
+        return;
+    }
+
+    const size_t batch_size = shape[0];
+    const size_t H = shape[1];  // num_heads
+    const size_t seq_len = shape[2];
+    const size_t D = shape[3];  // head_size
+
+    auto update_shape = ov::Shape({batch_size, H, 1, D});
+
+    // Perform reordering for each src_idx -> dst_idx pair
+    for (size_t i = 0; i < src_indices.size(); ++i) {
+        const size_t src_idx = src_indices[i];
+        const size_t dst_idx = dst_indices[i];
+
+        // Validate indices
+        if (src_idx >= seq_len || dst_idx >= seq_len) {
+            GPU_DEBUG_TRACE_DETAIL << "gather_by_axis: Index out of bounds. " << "src_idx=" << src_idx << ", dst_idx=" << dst_idx << ", seq_len=" << seq_len
+                                   << ". Skipping this pair.";
+            continue;
+        }
+
+        size_t src_offset = src_idx * D * ov::element::Type(m_layout.data_type).size();
+        size_t dst_offset = dst_idx * D * ov::element::Type(m_layout.data_type).size();
+        remote_state->copy_from(remote_state._ptr, src_offset, dst_offset, update_shape);
+        /*for (int b = 0; b < batch_size; ++b) {
+            for (int h = 0; h < H; ++h) {
+                size_t src_offset = ((b * H + h) * seq_len + src_idx) * D * ov::element::Type(m_layout.data_type).size();
+                size_t dst_offset = ((b * H + h) * seq_len + dst_idx) * D * ov::element::Type(m_layout.data_type).size();
+                size_t len = D * ov::element::Type(m_layout.data_type).size();
+                m_memory->copy_from(m_context->get_engine().get_service_stream(), *m_memory, src_offset, dst_offset, len, true);
+            }
+        }*/
+    }
+}
+
 }  // namespace ov::intel_gpu
