@@ -132,11 +132,9 @@ bool BrgemmKernelExecutorHelper::is_out_buffer_inside_n_loop(const std::vector<L
                                                              const LoopManagerPtr& loop_manager,
                                                              const std::optional<size_t>& inner_loop_idx) {
     auto is_port_inside_n_loop = [&n_loop_out_ports](const ExpressionPort& port) {
-        auto found_n_loop_port =
-            std::find_if(n_loop_out_ports.cbegin(), n_loop_out_ports.cend(), [&port](const LoopPort& lp) {
-                return *lp.get_expr_port() == port;
-            });
-        return found_n_loop_port == n_loop_out_ports.cend();
+        return std::none_of(n_loop_out_ports.cbegin(), n_loop_out_ports.cend(), [&port](const LoopPort& lp) {
+            return *lp.get_expr_port() == port;
+        });
     };
     if (!inner_loop_idx) {
         return is_port_inside_n_loop(cur_brgemm_out_port);

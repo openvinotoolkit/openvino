@@ -25,7 +25,7 @@
 namespace ov::snippets::lowered::pass {
 
 #define INFORMATIVE_ASSERT(cond, ...) \
-    OPENVINO_ASSERT((cond), "Failed to validate Expanded loop with id ", loop_id, " :", __VA_ARGS__)
+    OPENVINO_ASSERT((cond), "Failed to validate Expanded loop with id ", loop_id, ": ", __VA_ARGS__)
 
 namespace {
 bool is_inner_splitted_tail(const ExpressionPtr& loop_expr, const LoopManagerPtr& loop_manager) {

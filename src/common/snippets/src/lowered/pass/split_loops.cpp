@@ -69,8 +69,8 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
             return false;
         }
 
-        const auto& loop_to_split = split_parent ? parent_loop : current_loop;
-        const auto& loop_to_fuse = !split_parent ? parent_loop : current_loop;
+        const auto& [loop_to_split, loop_to_fuse] =
+            split_parent ? std::tie(parent_loop, current_loop) : std::tie(current_loop, parent_loop);
         if (!allow_loop_to_fuse_with_tail) {
             const auto work_amount = loop_to_fuse->get_work_amount();
             const auto increment = loop_to_fuse->get_increment();
@@ -80,11 +80,11 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         }
         if (can_be_split(loop_to_split, loop_to_fuse)) {
             const auto& to_split_id = split_parent ? parent_loop_id : current_loop_id;
-            OPENVINO_ASSERT(std::find_if(loops_to_split.begin(),
+            OPENVINO_ASSERT(std::none_of(loops_to_split.begin(),
                                          loops_to_split.end(),
                                          [to_split_id](const auto& p) {
                                              return p.first == to_split_id;
-                                         }) == loops_to_split.end(),
+                                         }),
                             "Loop with ID ",
                             to_split_id,
                             " has already been marked for splitting!");
@@ -108,7 +108,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
             const auto& parent_port = input_port.get_expr_port()->get_port_connector_ptr()->get_source();
             const auto& parent_expr = parent_port.get_expr();
 
-            // Note: loop idces are copied intentionally,
+            // Note: loop ids are copied intentionally,
             // because the splitting logic should work with original loops, not the split ones
             const auto loop_ids = expr->get_loop_ids();
             const auto parent_loop_ids = parent_expr->get_loop_ids();
@@ -120,6 +120,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
             if (mark_splittable_loop_pair(loop_id, parent_loop_id, loops_to_split, true)) {
                 // After successfully marking the outermost loop, try to split inner loops (from outer to inner)
                 for (size_t i = 1; i < loop_ids.size(); ++i) {
+                    // Ticket: 176701
                     // WA: currently, inner loops splitting has a limited support:
                     // only loops without tail iteration can be split
                     bool allow_loop_to_fuse_with_tail = false;
@@ -133,12 +134,10 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                 break;
             }
         }
-        if (!loops_to_split.empty()) {
-            // Split should be performed from inner to outer loops, to keep the blocking loop order
-            // (the new blocking loop must be outermost, as was outermost loop before the split)
-            for (auto it = loops_to_split.rbegin(); it != loops_to_split.rend(); ++it) {
-                split(linear_ir, it->first, it->second);
-            }
+        // Split should be performed from inner to outer loops, to keep the blocking loop order
+        // (the new blocking loop must be outermost, as was outermost loop before the split)
+        for (auto it = loops_to_split.rbegin(); it != loops_to_split.rend(); ++it) {
+            split(linear_ir, it->first, it->second);
             loop_was_split = true;
         }
     }

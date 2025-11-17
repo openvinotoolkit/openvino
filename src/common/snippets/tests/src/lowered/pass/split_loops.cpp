@@ -124,7 +124,7 @@ TEST_F(SplitLoopsTest, BrgemmAdd) {
                                   LoopPort::create<PortType::Incremented>((*brgemm.first)->get_input_port(1), 0),
                                   LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)},
-        false);
+            false);
         const auto blocking_n_loop_id = loop_manager->add_loop_info(blocking_n_loop);
 
         const auto add_n_split_loop = make_inner_split_loop_info(
@@ -415,7 +415,7 @@ TEST_F(SplitLoopsTest, BrgemmAddBrgemm) {
                                   LoopPort::create<PortType::Incremented>((*brgemm1.first)->get_input_port(1), 0),
                                   LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)},
-        false);
+            false);
         const auto blocking_n_loop_id = loop_manager->add_loop_info(blocking_n_loop);
 
         const auto add_n_split_loop = make_inner_split_loop_info(
