@@ -10,6 +10,7 @@
 #include <common_test_utils/test_assertions.hpp>
 #include <sstream>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -238,6 +239,25 @@ TEST_P(OVCompileAndInferRequestTurbo, CompiledModelTurbo) {
         OV_EXPECT_THROW_HAS_SUBSTRING(core->compile_model(function, target_device, configuration),
                                       ov::Exception,
                                       "[ NOT_FOUND ] Option 'NPU_TURBO' is not supported for current configuration");
+    }
+}
+
+using OVCompileAndInferRequestSerializers = OVCompileAndInferRequest;
+
+TEST_P(OVCompileAndInferRequestSerializers, AccurateResults) {
+    try {
+        execNet = core->compile_model(function, target_device, configuration);
+        ov::InferRequest inference_request;
+        OV_ASSERT_NO_THROW(inference_request = execNet.create_infer_request());
+        OV_ASSERT_NO_THROW(inference_request.infer());
+
+        const ov::Tensor output = inference_request.get_tensor("tensor_output");
+        const ov::Tensor expected = utils::create_tensor(ov::element::f32, ov::Shape{1}, std::vector<float>{2.0f});
+        OV_ASSERT_NO_THROW(utils::compare(expected, output));
+    } catch (const ov::Exception& exception) {
+        ASSERT_STR_CONTAINS(
+            exception.what(),
+            "[ NOT_FOUND ] Option 'NPU_USE_BASE_MODEL_SERIALIZER' is not supported for current configuration");
     }
 }
 
