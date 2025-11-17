@@ -78,7 +78,11 @@ class TestCompMixedTypes(PytorchLayerTest):
             "lt": torch.lt,
             "gt": torch.gt,
             "ge": torch.ge,
-            "le": torch.le
+            "le": torch.le,
+            "equal": torch.equal,
+            "not_equal": torch.not_equal,
+            "greater": torch.greater,
+            "less": torch.less,
         }
 
         op_fn = ops[op]
@@ -124,7 +128,8 @@ class TestCompMixedTypes(PytorchLayerTest):
                                                           ([2, 3], []),
                                                           ([], [2, 3]),
                                                           ])
-    @pytest.mark.parametrize("op", ["eq", "ne", "lt", "gt", "le", "ge"])
+    @pytest.mark.parametrize("op", ["eq", "ne", "lt", "gt", "le", "ge",
+                                    "equal", "not_equal", "greater", "less"])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
