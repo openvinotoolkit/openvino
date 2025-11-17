@@ -27,17 +27,15 @@ namespace driver_compiler_utils {
 /**
  * @brief Serializes the model using a format supported by the "VCL" interface.
  *
+ * @param compilerVersion The compiler version reported by the driver.
  * @param supportedOpsetVersion The last operators set version supported by the compiler.
  * @param useBaseModelSerializer "true" means the legacy serializer will be used (weights will be copied), "false" means
- * the optimized one is used instead (weights pointers are stored).
- * @param weightsSizeThreshold Relevant only if "useBaseModelSerializer" is false. The weights smaller than this value
- * will be copied into a separate buffer. The rest will have only their memory location stored.
+ * the optimized one is used instead (weights pointers are stored instead).
  */
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          ze_graph_compiler_version_info_t compilerVersion,
                          const uint32_t supportedOpsetVersion,
-                         const bool useBaseModelSerializer = true,
-                         const size_t weightsSizeThreshold = 0);
+                         const bool useBaseModelSerializer = true);
 
 /**
  * @brief Serialize input / output information to string format.
