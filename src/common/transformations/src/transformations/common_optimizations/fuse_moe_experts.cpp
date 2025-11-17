@@ -307,16 +307,20 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     auto last_add = wrap_type<ov::op::v1::Add>({residual_input, last_reshape}, {{"auto_broadcast", "numpy"}});
 
     auto callback = [=](const std::unordered_map<std::shared_ptr<Node>, std::vector<PatternValueMap>>& matches) {
+        auto expert_scatter1 = matches.at(expert_scatter);
+        if (!matches.count(last_add)) {
+            // in case last_add is not matched,
+            // for example qwen2moe, adding shared_experts is included in the graph before adding residual.
+            return false;
+        }
         auto num_last_add = matches.at(last_add).size();
 
         // Collect expert data from all matched patterns
-        std::cout << "Fuse Moe Pattern For DeepSeek|" << num_last_add << std::endl;
         std::vector<expert_data> all_experts;
         all_experts.reserve(matches.at(expert_scatter).size());
         for (const auto& pm : matches.at(expert_scatter)) {
             auto slice_end_anchor = expert_scatter->get_anchor("slice_end_const", pm);
             if (!slice_end_anchor.has_value() || !is_slice_to_end(slice_end_anchor.value().get_node_shared_ptr())) {
-                std::cout << "Fuse Moe Pattern For DeepSeek|" << "311" << std::endl;
                 return false;
             }
             auto gate_proj_node = expert_scatter->get_anchor("gate_proj_weight", pm).value().get_node_shared_ptr();
@@ -338,7 +342,6 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
         for (const auto& expert : all_experts) {
             experts_by_permute[expert.permute_node.get()].push_back(expert);
         }
-        std::cout << "Fuse Moe Pattern For DeepSeek|" << "332" << std::endl;
         // Create shared constants (used across all MoE layers)
         auto const_0 = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
         auto const_1 = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
@@ -525,7 +528,6 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
 
             ov::replace_node(last_add_node, final_add);
         }
-        std::cout << "Fuse Moe Pattern For DeepSeek|" << "519" << std::endl;
         return true;
     };
 
