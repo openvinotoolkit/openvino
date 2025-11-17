@@ -105,7 +105,6 @@ ov_add_test_target(
         DEFINES ${DEFINES}
         DEPENDENCIES ${DEPENDENCIES}
         LINK_LIBRARIES ${LINK_LIBRARIES}
-        ADD_CPPLINT
         LABELS OV CPU
 )
 

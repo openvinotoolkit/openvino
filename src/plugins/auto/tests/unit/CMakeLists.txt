@@ -19,7 +19,6 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src
         LINK_LIBRARIES
             unit_test_utils
-        ADD_CPPLINT
         DEPENDENCIES
             openvino_template_extension
             mock_engine

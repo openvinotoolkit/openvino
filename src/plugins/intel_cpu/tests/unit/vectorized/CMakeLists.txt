@@ -54,7 +54,6 @@ ov_add_test_target(
             snippets_test_utils
             ${MLAS_LIBRARY}
             ${SHL_LIBRARY}
-        ADD_CPPLINT
         LABELS
             OV UNIT CPU
 )

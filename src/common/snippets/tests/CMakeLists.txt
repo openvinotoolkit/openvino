@@ -14,7 +14,6 @@ ov_add_test_target(
             openvino::runtime::dev
             common_test_utils
             ov_snippets_models
-        ADD_CPPLINT
         LABELS
             OV UNIT SNIPPETS
 )

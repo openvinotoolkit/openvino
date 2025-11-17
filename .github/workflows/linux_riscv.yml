@@ -201,7 +201,6 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/conanbuild.sh
           cmake \
             -G 'Ninja' \
-            -DENABLE_CPPLINT=OFF \
             -DENABLE_INTEL_GPU=ON \
             -DENABLE_PYTHON=ON \
             -DENABLE_WHEEL=ON \
