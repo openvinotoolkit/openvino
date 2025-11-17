@@ -13,6 +13,13 @@ namespace ov::intel_cpu::x64::gemmv_jit {
 enum class a_dtype_t { fp32, bf16 };
 enum class w_dtype_t { i8, u8, i4, u4 };
 enum class quant_granularity_t { per_tensor, per_channel, per_group };
+enum class w_layout_t {
+    interleave_m16 = 0,
+    k4_m16,
+    k64_m16,
+    k64_tile_i8,
+    k64_tile_bf16
+};
 
 struct gemmv_ukr_params_t {
     // Input vector X[K]
@@ -23,12 +30,18 @@ struct gemmv_ukr_params_t {
     // Layout for int8/i8: for each k in [0..K), 16 bytes of {w[m..m+15,k]} (M_blk=16)
     const uint8_t* wq = nullptr;
     int ld_w_bytes = 0; // stride between M-blocks in bytes (usually K * M_blk)
+    const int32_t* sumW_precomp = nullptr; // optional precomputed per-row sumW (size >= padded M)
 
     // Quantization metadata
     const float* scales = nullptr;     // length depends on granularity
     const int32_t* zps = nullptr;      // nullable
     quant_granularity_t gran = quant_granularity_t::per_tensor;
     int group_size = 0;               // for per_group granularity: number of rows per group (along M)
+
+    // Optional per-lane metadata (length >= padded M of the panel)
+    const float* lane_scales = nullptr;
+    const float* lane_bias = nullptr;
+    const int32_t* lane_zps = nullptr;
 
     // Output Y[M]
     void* y = nullptr;                 // fp32
@@ -48,6 +61,7 @@ struct gemmv_ukr_params_t {
     // Types
     a_dtype_t a_type = a_dtype_t::fp32;
     w_dtype_t w_type = w_dtype_t::i8;
+    w_layout_t w_layout = w_layout_t::interleave_m16;
 
     // Optional debug (INT4 capture)
     int dbg_enable = 0;            // 1 to enable capture in JIT
@@ -66,6 +80,7 @@ struct gemmv_ukr_params_t {
     const uint8_t* x_q8 = nullptr; // if null, implementation may quantize x on the fly or fallback
     float x_scale = 1.f;           // per-tensor scale for X (u8 path)
     int32_t x_zp = 128;            // per-tensor zero-point for X (u8 path)
+    int32_t sum_x_q = 0;           // sum of quantized X entries (for zp compensation)
 };
 
 // Reference mini-GEMM (small-N) using packed quantized W and fp32 X

@@ -2,11 +2,27 @@
 
 #include "jit_gemmv_avx512_simple.hpp"
 
+#include "jit_prebuilt_pool.hpp"
+#include "openvino/core/except.hpp"
+
 namespace ov::intel_cpu::x64::gemmv_jit {
 
-JitGemmvAvx512Simple::JitGemmvAvx512Simple() : Xbyak::CodeGenerator(16384) {
+jit_gemmv_avx512_simple_kernel::jit_gemmv_avx512_simple_kernel()
+    : dnnl::impl::cpu::x64::jit_generator_t("jit_gemmv_avx512_simple_kernel",
+            dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
+    auto st = create_kernel();
+    if (st != dnnl::impl::status::success) {
+        OPENVINO_THROW("Failed to build jit_gemmv_avx512_simple kernel");
+    }
+    fn_ = reinterpret_cast<fn_t>(jit_ker());
+}
+
+void jit_gemmv_avx512_simple_kernel::generate() {
     using namespace Xbyak;
     setDefaultJmpNEAR(true);
+#if defined(OPENVINO_ARCH_X86_64)
+    endbr64();
+#endif
     // Prologue
     push(r12); push(r13); push(r14); push(r15);
     Reg64 reg_args = rdi;
@@ -26,16 +42,16 @@ JitGemmvAvx512Simple::JitGemmvAvx512Simple() : Xbyak::CodeGenerator(16384) {
     // no k-mask path (benchmark allocates Y with M_pad)
 
     // Load args
-    mov(reg_x, ptr[reg_args + offsetof(CallArgs, x)]);
-    mov(reg_w, ptr[reg_args + offsetof(CallArgs, wq)]);
-    mov(reg_y, ptr[reg_args + offsetof(CallArgs, y)]);
-    mov(eax, dword[reg_args + offsetof(CallArgs, K)]);
+    mov(reg_x, ptr[reg_args + offsetof(gemmv_avx512_simple_call_args, x)]);
+    mov(reg_w, ptr[reg_args + offsetof(gemmv_avx512_simple_call_args, wq)]);
+    mov(reg_y, ptr[reg_args + offsetof(gemmv_avx512_simple_call_args, y)]);
+    mov(eax, dword[reg_args + offsetof(gemmv_avx512_simple_call_args, K)]);
     mov(reg_k, rax);
 
     // No tail mask setup
 
     // Load pre-expanded scales vector svec[16]
-    mov(rax, ptr[reg_args + offsetof(CallArgs, svec)]);
+    mov(rax, ptr[reg_args + offsetof(gemmv_avx512_simple_call_args, svec)]);
     vmovups(zS, ptr[rax]);
     // svec is always provided by host code; no fallback needed
 
@@ -56,7 +72,7 @@ JitGemmvAvx512Simple::JitGemmvAvx512Simple() : Xbyak::CodeGenerator(16384) {
     // sign/zero by w_is_u8
     {
         Label L_is_i8, L_cvt_done;
-        mov(eax, dword[reg_args + offsetof(CallArgs, w_is_u8)]);
+        mov(eax, dword[reg_args + offsetof(gemmv_avx512_simple_call_args, w_is_u8)]);
         test(eax, eax);
         jz(L_is_i8);
         vpmovzxbd(yIlo, xWlo);
@@ -77,7 +93,7 @@ JitGemmvAvx512Simple::JitGemmvAvx512Simple() : Xbyak::CodeGenerator(16384) {
     // pack-only debug: directly accumulate unpacked W and continue
     {
         Label L_after_pack_only;
-        mov(eax, dword[reg_args + offsetof(CallArgs, pack_only)]);
+        mov(eax, dword[reg_args + offsetof(gemmv_avx512_simple_call_args, pack_only)]);
         test(eax, eax);
         jz(L_after_pack_only);
         vaddps(zC, zC, zW);
@@ -88,7 +104,7 @@ JitGemmvAvx512Simple::JitGemmvAvx512Simple() : Xbyak::CodeGenerator(16384) {
     // dequant: optionally w *= s (skip via debug flag)
     {
         Label L_after_mul;
-        mov(eax, dword[reg_args + offsetof(CallArgs, skip_mul)]);
+        mov(eax, dword[reg_args + offsetof(gemmv_avx512_simple_call_args, skip_mul)]);
         test(eax, eax);
         jnz(L_after_mul);
         vmulps(zW, zW, zS);
@@ -98,7 +114,7 @@ JitGemmvAvx512Simple::JitGemmvAvx512Simple() : Xbyak::CodeGenerator(16384) {
     // x broadcast (or const 1.0f if debug x_const_one)
     {
         Label L_use_mem, L_x_done;
-        mov(eax, dword[reg_args + offsetof(CallArgs, x_const_one)]);
+        mov(eax, dword[reg_args + offsetof(gemmv_avx512_simple_call_args, x_const_one)]);
         test(eax, eax);
         jz(L_use_mem);
         mov(eax, 0x3f800000); // 1.0f
@@ -111,17 +127,18 @@ JitGemmvAvx512Simple::JitGemmvAvx512Simple() : Xbyak::CodeGenerator(16384) {
     }
     {
         Label L_do_add;
-        mov(eax, dword[reg_args + offsetof(CallArgs, no_fma)]);
+        Label L_acc_done;
+        mov(eax, dword[reg_args + offsetof(gemmv_avx512_simple_call_args, no_fma)]);
         test(eax, eax);
         jz(L_do_add);
         // no_fma==0 -> use FMA
         vfmadd231ps(zC, zW, zX);
-        jmp("3f");
+        jmp(L_acc_done);
         L(L_do_add);
         // no_fma != 0 -> MUL + ADD
         vmulps(zTmp, zW, zX);
         vaddps(zC, zC, zTmp);
-        L("3");
+        L(L_acc_done);
     }
 
     inc(reg_it);
@@ -131,33 +148,45 @@ JitGemmvAvx512Simple::JitGemmvAvx512Simple() : Xbyak::CodeGenerator(16384) {
     // apply bias and zp compensation: C += bias - s*zp*sum_x
     // Add bias vector if provided: y += bvec
     {
-        mov(rax, ptr[reg_args + offsetof(CallArgs, bvec)]);
-        test(rax, rax); jz("1f");
+        Label L_bias_skip;
+        Label L_bias_done;
+        mov(rax, ptr[reg_args + offsetof(gemmv_avx512_simple_call_args, bvec)]);
+        test(rax, rax); jz(L_bias_skip);
         vmovups(zTmp, ptr[rax]);
         vaddps(zC, zC, zTmp);
-        L("1");
+        jmp(L_bias_done);
+        L(L_bias_skip);
+        L(L_bias_done);
     }
     // Subtract precomputed zcomp if provided: y -= zcomp
     {
-        mov(rax, ptr[reg_args + offsetof(CallArgs, zcomp)]);
-        test(rax, rax); jz("2f");
+        Label L_zcomp_skip;
+        Label L_zcomp_done;
+        mov(rax, ptr[reg_args + offsetof(gemmv_avx512_simple_call_args, zcomp)]);
+        test(rax, rax); jz(L_zcomp_skip);
         vmovups(zTmp, ptr[rax]);
         vsubps(zC, zC, zTmp);
-        L("2");
+        jmp(L_zcomp_done);
+        L(L_zcomp_skip);
+        L(L_zcomp_done);
     }
 
     vmovups(ptr[reg_y], zC);
 
     pop(r15); pop(r14); pop(r13); pop(r12);
     ret();
-    fn_ = getCode<fn_t>();
+}
+
+JitGemmvAvx512Simple::JitGemmvAvx512Simple() {
+    fn_ = jit_prebuilt_pool::get_typed<fn_t>(kernel_kind::avx512_simple);
+    OPENVINO_ASSERT(fn_ != nullptr, "jit_gemmv_avx512_simple kernel pointer is null");
 }
 
 void JitGemmvAvx512Simple::operator()(const gemmv_ukr_params_t* p) const {
     const int M_blk = 16;
     const int full = p->M / M_blk;
     const int tail = p->M % M_blk;
-    CallArgs a{};
+    gemmv_avx512_simple_call_args a{};
     a.x = static_cast<const float*>(p->x);
     a.K = p->K;
     a.gran = static_cast<int>(p->gran);

@@ -5,14 +5,13 @@
 
 #include "gemmv_ukernel.hpp"
 
-// Xbyak
-#include "xbyak/xbyak.h"
+#include "cpu/x64/jit_generator.hpp"
 
 namespace ov::intel_cpu::x64::gemmv_jit {
 
 // AVX-512 FP32 mini-GEMM (small N) for int8/u8 -> fp32, M block = 16
 // Skeleton supports per_tensor and per_channel; per_group falls back to ref.
-class JitMiniGemmAvx512Fp32 : private Xbyak::CodeGenerator {
+class JitMiniGemmAvx512Fp32 : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     struct CallArgs {
         // Up to 4 columns of X and Y
@@ -42,6 +41,11 @@ public:
 
     using fn_t = void(*)(const CallArgs*);
     fn_t get() const { return fn_; }
+
+protected:
+    const char* name() const override { return "jit_minigemm_avx512_fp32"; }
+    const char* source_file() const override { return __FILE__; }
+    void generate() override;
 
 private:
     fn_t fn_ = nullptr;

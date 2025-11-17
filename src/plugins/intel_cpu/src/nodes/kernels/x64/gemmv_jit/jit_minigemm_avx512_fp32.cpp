@@ -3,6 +3,8 @@
 
 #include "jit_minigemm_avx512_fp32.hpp"
 
+#include "jit_prebuilt_pool.hpp"
+#include "openvino/core/except.hpp"
 #include "xbyak/xbyak_util.h"
 #include <algorithm>
 
@@ -10,9 +12,22 @@ namespace ov::intel_cpu::x64::gemmv_jit {
 
 static inline int to_int(quant_granularity_t q) { return static_cast<int>(q); }
 
-JitMiniGemmAvx512Fp32::JitMiniGemmAvx512Fp32() : Xbyak::CodeGenerator(24 * 1024) {
+JitMiniGemmAvx512Fp32::JitMiniGemmAvx512Fp32()
+    : dnnl::impl::cpu::x64::jit_generator_t("jit_minigemm_avx512_fp32",
+            dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
+    auto st = create_kernel();
+    if (st != dnnl::impl::status::success) {
+        OPENVINO_THROW("Failed to build jit_minigemm_avx512_fp32 kernel");
+    }
+    fn_ = reinterpret_cast<fn_t>(jit_ker());
+}
+
+void JitMiniGemmAvx512Fp32::generate() {
     using namespace Xbyak;
     setDefaultJmpNEAR(true);
+#if defined(OPENVINO_ARCH_X86_64)
+    endbr64();
+#endif
 
     // rdi holds CallArgs*
     const Reg64 reg_args = rdi;
@@ -92,8 +107,9 @@ JitMiniGemmAvx512Fp32::JitMiniGemmAvx512Fp32() : Xbyak::CodeGenerator(24 * 1024)
     xor_(reg_k_iter, reg_k_iter);
     // rolling W pointer in rax
     mov(rax, reg_w);
-    L("L_kloop");
-    cmp(reg_k_iter, reg_k); jge("L_kdone");
+    Xbyak::Label loop_label, done_label;
+    L(loop_label);
+    cmp(reg_k_iter, reg_k); jge(done_label);
 
     // Load Wq bytes (16 for 8-bit, 8 for 4-bit), convert to fp32 in zW
     {
@@ -400,8 +416,8 @@ JitMiniGemmAvx512Fp32::JitMiniGemmAvx512Fp32() : Xbyak::CodeGenerator(24 * 1024)
         L(L_after_second);
     }
 
-    jmp("L_kloop");
-    L("L_kdone");
+        jmp(loop_label);
+    L(done_label);
 
     // Bias add + ZP compensation per column
     // Load bias (per_tensor/per_channel) to zTmp and add to each C
@@ -544,9 +560,6 @@ JitMiniGemmAvx512Fp32::JitMiniGemmAvx512Fp32() : Xbyak::CodeGenerator(24 * 1024)
     // Restore
     pop(rbx); pop(r15); pop(r14); pop(r13); pop(r12);
     ret();
-
-    ready();
-    fn_ = getCode<fn_t>();
 }
 
 bool run_minigemm_jit_i8u8_fp32(const float* x, int K, int N,
@@ -560,8 +573,8 @@ bool run_minigemm_jit_i8u8_fp32(const float* x, int K, int N,
     if (gran == quant_granularity_t::per_group) return false; // ref path for now
     if (N <= 0) return true;
 
-    static JitMiniGemmAvx512Fp32 jit;
-    auto fn = jit.get();
+    auto fn = jit_prebuilt_pool::get_typed<JitMiniGemmAvx512Fp32::fn_t>(kernel_kind::minigemm_avx512_fp32);
+    OPENVINO_ASSERT(fn != nullptr, "mini-GEMM kernel pointer is null");
 
     const int M_blk = 16;
     const int M_full = M / M_blk;
@@ -684,8 +697,8 @@ bool run_minigemm_jit_q_fp32(const float* x, int K, int N,
     if (!cpu.has(Xbyak::util::Cpu::tAVX512F)) return false;
     if (N <= 0) return true;
 
-    static JitMiniGemmAvx512Fp32 jit;
-    auto fn = jit.get();
+    auto fn = jit_prebuilt_pool::get_typed<JitMiniGemmAvx512Fp32::fn_t>(kernel_kind::minigemm_avx512_fp32);
+    OPENVINO_ASSERT(fn != nullptr, "mini-GEMM kernel pointer is null");
 
     const int M_blk = 16;
     const int M_full = M / M_blk;

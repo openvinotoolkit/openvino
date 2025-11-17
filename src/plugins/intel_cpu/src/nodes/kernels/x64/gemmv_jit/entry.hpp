@@ -58,5 +58,13 @@ bool run_gemmv_vnni_q8s8_ex(const float* x_fp32, int K,
                             int dbg_block = -1, int32_t* dbg_acc = nullptr, int32_t* dbg_sumw = nullptr,
                             const int32_t* sumW_precomp = nullptr);
 
+struct gemmv_profile_snapshot {
+    double quant_ns = 0.0;
+    double kernel_ns = 0.0;
+    double total_ns = 0.0;
+};
+
+gemmv_profile_snapshot get_last_gemmv_profile();
+void set_gemmv_profile_override(bool enable);
 
 } // namespace ov::intel_cpu::x64::gemmv_jit

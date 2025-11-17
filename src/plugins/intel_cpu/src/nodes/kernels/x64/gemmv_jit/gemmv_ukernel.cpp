@@ -6,6 +6,9 @@
 #include "jit_gemmv_avx2_fp32.hpp"
 #include "jit_gemmv_avx512_zero.hpp"
 #include "jit_gemmv_avx512_simple.hpp"
+#include "jit_gemmv_avx512_vnni_s32.hpp"
+#include "jit_gemmv_amx_kernels.hpp"
+#include "gemmv_force_isa.hpp"
 
 #include <memory>
 #include <new>
@@ -38,13 +41,96 @@ private:
 GemmvKernel* create_gemmv_kernel(const gemmv_ukr_params_t& proto) {
     Xbyak::util::Cpu cpu;
     const bool has_avx512f  = cpu.has(Xbyak::util::Cpu::tAVX512F);
-    if (has_avx512f) {
-        // Cache a single JIT instance (covers i8/u8/i4/u4 via runtime switches)
+    const bool has_avx2     = cpu.has(Xbyak::util::Cpu::tAVX2);
+    const bool has_vnni     = cpu.has(Xbyak::util::Cpu::tAVX512_VNNI) && cpu.has(Xbyak::util::Cpu::tAVX512BW);
+    const bool has_amx_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::amx_int8);
+    const bool has_amx_bf16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::amx_bf16);
+
+    const gemmv_force_isa_t force_mode = get_gemmv_force_isa();
+    auto make_avx512 = [](){
         static JitGemmvAvx512Fp32* shared = nullptr;
         if (!shared) shared = new JitGemmvAvx512Fp32();
-        return new SharedKernelProxy(shared);
+        return (GemmvKernel*)new SharedKernelProxy(shared);
+    };
+    auto make_avx2 = [](){
+        // No dedicated AVX2 JIT yet: fall back to portable REF (vectorized C++)
+        return (GemmvKernel*)new RefGemmvFp32();
+    };
+    auto make_amx_int8 = [](){
+        static JitGemmvAmxInt8Kernel* shared = nullptr;
+        if (!shared) shared = new JitGemmvAmxInt8Kernel();
+        return (GemmvKernel*)new SharedKernelProxy(shared);
+    };
+    auto make_amx_bf16 = [](){
+        static JitGemmvAmxBf16Kernel* shared = nullptr;
+        if (!shared) shared = new JitGemmvAmxBf16Kernel();
+        return (GemmvKernel*)new SharedKernelProxy(shared);
+    };
+    auto make_vnni = []() {
+        static JitGemmvAvx512VnniKernel* shared = nullptr;
+        if (!shared) shared = new JitGemmvAvx512VnniKernel();
+        return (GemmvKernel*)new SharedKernelProxy(shared);
+    };
+
+    if (force_mode == gemmv_force_isa_t::avx512_fp32) {
+        if (has_avx512f) return make_avx512();
+        if (has_avx2)    return make_avx2();
+        return new RefGemmvFp32();
     }
-    // Fallback: portable REF path (create per-call; trivial)
+    if (force_mode == gemmv_force_isa_t::avx2_fp32) return make_avx2();
+    if (force_mode == gemmv_force_isa_t::ref_fp32) {
+        return new RefGemmvFp32();
+    }
+    if (force_mode == gemmv_force_isa_t::amx_int8) {
+        // When forced, instantiate AMX kernel regardless of mayiuse() to let the caller
+        // handle XCR0/XFD enablement (ensure_amx_thread_state).
+        if (proto.w_layout == w_layout_t::k64_tile_i8 &&
+            proto.w_type == w_dtype_t::i8 && proto.a_type == a_dtype_t::fp32) {
+            return make_amx_int8();
+        }
+        return new RefGemmvFp32();
+    }
+    if (force_mode == gemmv_force_isa_t::amx_bf16) {
+        if (has_amx_bf16 && proto.w_layout == w_layout_t::k64_tile_bf16 &&
+            proto.a_type == a_dtype_t::fp32) {
+            return make_amx_bf16();
+        }
+        return new RefGemmvFp32();
+    }
+    if (force_mode == gemmv_force_isa_t::vnni) {
+        if (has_vnni &&
+            proto.w_layout == w_layout_t::k4_m16 &&
+            proto.w_type == w_dtype_t::i8 &&
+            proto.a_type == a_dtype_t::fp32 &&
+            proto.x_q8 != nullptr) {
+            return make_vnni();
+        }
+        if (has_avx512f) return make_avx512();
+        if (has_avx2) return make_avx2();
+        return new RefGemmvFp32();
+    }
+
+    // AUTO (default): prefer AMX (when layout ready), then AVX-512, then AVX2, else REF
+    if (has_amx_int8 &&
+        proto.w_layout == w_layout_t::k64_tile_i8 &&
+        proto.w_type == w_dtype_t::i8 &&
+        proto.a_type == a_dtype_t::fp32) {
+        return make_amx_int8();
+    }
+    if (has_amx_bf16 &&
+        proto.w_layout == w_layout_t::k64_tile_bf16 &&
+        proto.a_type == a_dtype_t::fp32) {
+        return make_amx_bf16();
+    }
+    if (has_vnni &&
+        proto.w_layout == w_layout_t::k4_m16 &&
+        proto.w_type == w_dtype_t::i8 &&
+        proto.a_type == a_dtype_t::fp32 &&
+        proto.x_q8 != nullptr) {
+        return make_vnni();
+    }
+    if (has_avx512f) return make_avx512();
+    if (has_avx2)    return make_avx2();
     return new RefGemmvFp32();
 }
 
@@ -204,11 +290,11 @@ size_t repack_interleave_m16_to_k64_m16_tile(uint8_t* dst,
                                              int M_blk,
                                              int K_blk,
                                              int32_t* sumW_out) {
-    // Output layout for AMX tile: for each K64 group g and for each k in [0..63],
-    // emit a 16-byte row consisting of lanes m0..m0+15 at that k.
+    // Output layout: row-major by M (rows) then K within each K64 block.
+    // Each row stores contiguous K_blk bytes so tileloadd with colsb=64 consumes one row.
     const int M_pad = ((M + M_blk - 1) / M_blk) * M_blk;
     const int K_grp = (K + K_blk - 1) / K_blk;
-    size_t bytes_written = static_cast<size_t>(M_pad) * static_cast<size_t>(K_grp) * K_blk * 16;
+    size_t bytes_written = static_cast<size_t>(M_pad) * static_cast<size_t>(K_grp) * K_blk * M_blk;
     uint8_t* out = dst;
     for (int m0 = 0; m0 < M_pad; m0 += M_blk) {
         const uint8_t* wblk = src_interleave + (size_t)(m0 / M_blk) * (size_t)ld_w_bytes_interleave;
@@ -217,15 +303,15 @@ size_t repack_interleave_m16_to_k64_m16_tile(uint8_t* dst,
             for (int kb = 0; kb < K_blk; ++kb) {
                 const int k = k0 + kb;
                 for (int im = 0; im < M_blk; ++im) {
+                    uint8_t val = 0;
                     const int m = m0 + im;
-                    uint8_t b = 0;
                     if (m < M && k < K) {
                         const uint8_t* wk = wblk + (size_t)k * M_blk;
-                        b = wk[im];
+                        val = wk[im];
                     }
-                    *out++ = b;
-                    if (sumW_out && (k < K)) {
-                        sumW_out[m0 + im] += (int32_t)(int8_t)b;
+                    *out++ = val;
+                    if (sumW_out && k < K) {
+                        sumW_out[m0 + im] += static_cast<int32_t>(static_cast<int8_t>(val));
                     }
                 }
             }
@@ -259,7 +345,9 @@ size_t repack_interleave_m16_to_k4_m16(uint8_t* dst,
                     if (wk3) b3 = wk3[im];
                 }
                 *out++ = b0; *out++ = b1; *out++ = b2; *out++ = b3;
-                if (sumW_out) sumW_out[m0 + im] += (int32_t)(int8_t)b0 + (int32_t)(int8_t)b1 + (int32_t)(int8_t)b2 + (int32_t)(int8_t)b3;
+                if (sumW_out) {
+                    sumW_out[m0 + im] += (int32_t)(int8_t)b0 + (int32_t)(int8_t)b1 + (int32_t)(int8_t)b2 + (int32_t)(int8_t)b3;
+                }
             }
         }
     }

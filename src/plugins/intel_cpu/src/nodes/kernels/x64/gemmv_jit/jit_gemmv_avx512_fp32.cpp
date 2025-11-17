@@ -5,6 +5,8 @@
 
 #include <cstring>
 #include <cmath>
+#include "openvino/core/except.hpp"
+#include "jit_prebuilt_pool.hpp"
 #include "xbyak/xbyak_util.h"
 #include <immintrin.h>
 
@@ -117,10 +119,23 @@ static inline void vnni_norepack_block_u8s8_to_fp32(
     }
 }
 
+jit_gemmv_avx512_fp32_kernel::jit_gemmv_avx512_fp32_kernel()
+    : dnnl::impl::cpu::x64::jit_generator_t("jit_gemmv_avx512_fp32_kernel",
+            dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
+    auto st = create_kernel();
+    if (st != dnnl::impl::status::success) {
+        OPENVINO_THROW("Failed to build jit_gemmv_avx512_fp32 kernel");
+    }
+    fn_ = reinterpret_cast<fn_t>(jit_ker());
+}
+
 // JIT generator body
-JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
+void jit_gemmv_avx512_fp32_kernel::generate() {
     using namespace Xbyak;
     this->setDefaultJmpNEAR(true);
+#if defined(OPENVINO_ARCH_X86_64)
+    endbr64();
+#endif
 
     // Registers
     const Reg64 reg_args = rdi;
@@ -161,13 +176,13 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
     push(r15);
 
     // Load args
-    mov(reg_x, ptr[reg_args + offsetof(CallArgs, x)]);
-    mov(reg_w, ptr[reg_args + offsetof(CallArgs, wq)]);
-    mov(reg_sc, ptr[reg_args + offsetof(CallArgs, scales)]);
-    mov(reg_zp, ptr[reg_args + offsetof(CallArgs, zps)]);
-    mov(reg_bias, ptr[reg_args + offsetof(CallArgs, bias)]);
-    mov(reg_y, ptr[reg_args + offsetof(CallArgs, y)]);
-    mov(eax, dword[reg_args + offsetof(CallArgs, K)]);
+    mov(reg_x, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, x)]);
+    mov(reg_w, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, wq)]);
+    mov(reg_sc, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, scales)]);
+    mov(reg_zp, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, zps)]);
+    mov(reg_bias, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, bias)]);
+    mov(reg_y, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, y)]);
+    mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, K)]);
     mov(reg_k, rax);
 
     // Prepare constants for INT4 decode
@@ -184,7 +199,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
     // if per_tensor: broadcast s[0]; else load 16 floats with tail mask if needed
     {
         Label L_not_pt, L_after_s;
-        mov(eax, ptr[reg_args + offsetof(CallArgs, gran)]);
+        mov(eax, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, gran)]);
         cmp(eax, to_int(quant_granularity_t::per_tensor));
         jne(L_not_pt);
         // per_tensor
@@ -193,7 +208,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         L(L_not_pt);
         {
             Label L_s_full, L_s_done;
-            mov(eax, dword[reg_args + offsetof(CallArgs, M_tail)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, M_tail)]);
             test(eax, eax);
             jz(L_s_full);
             // k1 mask for tail
@@ -214,7 +229,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
     // Optional VNNI path: branch early if enabled
     {
         Label L_no_vnni;
-        mov(eax, dword[reg_args + offsetof(CallArgs, use_vnni)]);
+        mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, use_vnni)]);
         test(eax, eax);
         jz(L_no_vnni);
 
@@ -245,7 +260,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         vpxord(zSumW, zSumW, zSumW);
 
         // Precompute zSsx = zmmS * s_x
-        vbroadcastss(zTmp, dword[reg_args + offsetof(CallArgs, s_x)]);
+        vbroadcastss(zTmp, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, s_x)]);
         vmulps(zSsx, zmmS, zTmp);
 
         // K loop in groups of up to 4 (handle tail)
@@ -263,7 +278,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
                 jge(L_step_done);
                 // Load 16 weight bytes for this k
                 vmovdqu8(xWb, ptr[reg_w]);
-                add(reg_w, dword[reg_args + offsetof(CallArgs, k_step_bytes)]);
+                add(reg_w, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, k_step_bytes)]);
                 // Expand to 32-bit lanes (signed)
                 vpmovsxbd(yIlo, xWb);
                 vpsrldq(xWb, xWb, 8);
@@ -275,7 +290,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
                 // SumW accumulation if needed
                 {
                     Label L_no_sumw;
-                    mov(eax, dword[reg_args + offsetof(CallArgs, need_sumw)]);
+                    mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, need_sumw)]);
                     test(eax, eax); jz(L_no_sumw);
                     vpaddd(zSumW, zSumW, zW32);
                     L(L_no_sumw);
@@ -291,7 +306,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
 
                 // Broadcast x_q8 byte and replicate to all bytes of each dword
                 // eax = xq[k_iter + j]
-                mov(rax, ptr[reg_args + offsetof(CallArgs, x_q8)]);
+                mov(rax, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, x_q8)]);
                 movzx(eax, byte[rax + reg_k_iter]);
                 add(reg_k_iter, 1);
                 // eax *= 0x01010101 to replicate byte across dword
@@ -312,9 +327,9 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         // acc += (-zp_x) * sumW
         {
             Label L_skip_sumw;
-            mov(eax, dword[reg_args + offsetof(CallArgs, need_sumw)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, need_sumw)]);
             test(eax, eax); jz(L_skip_sumw);
-            mov(eax, dword[reg_args + offsetof(CallArgs, zp_x)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, zp_x)]);
             neg(eax);
             movd(xmm0, eax);
             vpbroadcastd(zTmp, xmm0);          // zTmp = -zp_x (int32)
@@ -329,15 +344,15 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
             mov(rax, reg_zp);
             test(rax, rax); jz(L_no_zp);
             // c = K*zp_x - sum_x_q
-            mov(eax, dword[reg_args + offsetof(CallArgs, zp_x)]);
-            imul(eax, dword[reg_args + offsetof(CallArgs, K)]);
-            sub(eax, dword[reg_args + offsetof(CallArgs, sum_x_q)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, zp_x)]);
+            imul(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, K)]);
+            sub(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, sum_x_q)]);
             movd(xmm0, eax);
             vpbroadcastd(zTmp, xmm0);          // zTmp = c (int32)
 
             // per_tensor vs vector
             Label L_pt, L_vec, L_done_comp;
-            mov(eax, dword[reg_args + offsetof(CallArgs, gran)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, gran)]);
             cmp(eax, to_int(quant_granularity_t::per_tensor)); jne(L_vec);
             // per_tensor: scalar zp_w
             mov(eax, dword[reg_zp]);
@@ -349,7 +364,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
             L(L_vec);
             {
                 Label L_zp_full, L_zp_done;
-                mov(eax, dword[reg_args + offsetof(CallArgs, M_tail)]);
+                mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, M_tail)]);
                 test(eax, eax); jz(L_zp_full);
                 mov(ecx, eax); mov(eax, 1); shl(eax, cl); sub(eax, 1); kmovw(k1, eax);
                 vmovdqu32(zZP | k1 | T_z, ptr[reg_zp]);
@@ -373,7 +388,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
             Label L_no_bias2, L_bias_pt2, L_bias_done2;
             mov(rax, reg_bias);
             test(rax, rax); jz(L_no_bias2);
-            mov(eax, ptr[reg_args + offsetof(CallArgs, gran)]);
+            mov(eax, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, gran)]);
             cmp(eax, to_int(quant_granularity_t::per_tensor)); jne(L_bias_pt2);
             vbroadcastss(zTmp, dword[reg_bias]);
             vaddps(zF0, zF0, zTmp);
@@ -381,7 +396,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
             L(L_bias_pt2);
             {
                 Label L_b_full2, L_b_done2;
-                mov(eax, dword[reg_args + offsetof(CallArgs, M_tail)]);
+                mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, M_tail)]);
                 test(eax, eax); jz(L_b_full2);
                 mov(ecx, eax); mov(eax, 1); shl(eax, cl); sub(eax, 1); kmovw(k1, eax);
                 vmovups(zTmp | k1 | T_z, ptr[reg_bias]);
@@ -398,15 +413,15 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         // Gate and activation (ReLU) then store
         {
             Label L_no_gate2;
-            mov(eax, dword[reg_args + offsetof(CallArgs, fuse_gate)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, fuse_gate)]);
             test(eax, eax); jz(L_no_gate2);
-            vbroadcastss(zTmp, dword[reg_args + offsetof(CallArgs, gate)]);
+            vbroadcastss(zTmp, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, gate)]);
             vmulps(zF0, zF0, zTmp);
             L(L_no_gate2);
         }
         {
             Label L_no_act2;
-            mov(eax, dword[reg_args + offsetof(CallArgs, act_kind)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, act_kind)]);
             cmp(eax, 1); jne(L_no_act2);
             vxorps(zTmp, zTmp, zTmp);
             vmaxps(zF0, zF0, zTmp);
@@ -414,7 +429,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         }
         {
             Label L_full2, L_store_done2;
-            mov(eax, dword[reg_args + offsetof(CallArgs, M_tail)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, M_tail)]);
             test(eax, eax); jz(L_full2);
             mov(ecx, eax); mov(eax, 1); shl(eax, cl); sub(eax, 1); kmovw(k1, eax);
             vmovups(ptr[reg_y] | k1, zF0);
@@ -437,7 +452,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
     // bias accum init: zmmC = accumulate? load(y) : 0
     {
         Label L_acc, L_init_done;
-        mov(eax, ptr[reg_args + offsetof(CallArgs, accumulate)]);
+        mov(eax, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, accumulate)]);
         test(eax, eax);
         jz(L_acc);
         // accumulate==1 -> load
@@ -457,7 +472,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         // load zp -> int32 -> fp32
         // if per_tensor: broadcast; else load with tail mask if needed
         Label L_not_pt_zp, L_zp_cont;
-        mov(eax, ptr[reg_args + offsetof(CallArgs, gran)]);
+        mov(eax, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, gran)]);
         cmp(eax, to_int(quant_granularity_t::per_tensor));
         jne(L_not_pt_zp);
         {
@@ -469,7 +484,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         L(L_not_pt_zp);
         {
             Label L_zp_full, L_zp_done;
-            mov(eax, dword[reg_args + offsetof(CallArgs, M_tail)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, M_tail)]);
             test(eax, eax);
             jz(L_zp_full);
             mov(ecx, eax);
@@ -485,7 +500,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         }
         L(L_zp_cont);
         vcvtdq2ps(zmmZP, zmmZP);
-        vbroadcastss(zmmZPComp, dword[reg_args + offsetof(CallArgs, sum_x)]);
+        vbroadcastss(zmmZPComp, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, sum_x)]);
         vmulps(zmmZPComp, zmmZPComp, zmmS);    // s * sum_x
         vmulps(zmmZPComp, zmmZPComp, zmmZP);   // s * sum_x * zp
         vsubps(zmmC, zmmC, zmmZPComp);         // C -= s*zp*sum_x
@@ -505,14 +520,14 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
     // decode weights: int8/u8 or int4/u4
     {
         Label L_bits8, L_after_decode;
-        mov(eax, dword[reg_args + offsetof(CallArgs, w_nbits)]);
+        mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, w_nbits)]);
         cmp(eax, 8);
         je(L_bits8);
         // --- 4-bit path ---
         // load 8 bytes per k-step
         prefetcht0(ptr[reg_w + 64]);
         vmovq(xmmWbytes, ptr[reg_w]);
-        add(reg_w, dword[reg_args + offsetof(CallArgs, k_step_bytes)]);
+        add(reg_w, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, k_step_bytes)]);
         // widen to words (8->8)
         Xbyak::Xmm xA = Xbyak::Xmm(8);    // expanded words
         Xbyak::Xmm xB = Xbyak::Xmm(11);   // mask 0x000F words
@@ -543,7 +558,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         vpmovzxbd(ymmIhi, xmmWbytes);
         {
             Label L_u4_cvt, L_after_cvt4;
-            mov(eax, dword[reg_args + offsetof(CallArgs, w_unsigned)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, w_unsigned)]);
             test(eax, eax);
             jnz(L_u4_cvt);
             // i4: apply (q ^ 8) - 8 on dword lanes
@@ -572,10 +587,10 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         // software prefetch for the next k-step
         prefetcht0(ptr[reg_w + 64]);
         vmovdqu(xmmWbytes, ptr[reg_w]);
-        add(reg_w, dword[reg_args + offsetof(CallArgs, k_step_bytes)]);
+        add(reg_w, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, k_step_bytes)]);
         {
             Label L_u8, L_after_cvt8;
-            mov(eax, dword[reg_args + offsetof(CallArgs, w_unsigned)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, w_unsigned)]);
             test(eax, eax);
             jz(L_u8);
             // u8: zero-extend via ymm halves
@@ -606,15 +621,15 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
     // debug capture: if enabled and k==dbg_k, store q (pre-scale)
     {
         Label L_no_dbg, L_after_dbg, L_no_q, L_no_qs;
-        mov(eax, dword[reg_args + offsetof(CallArgs, dbg_enable)]);
+        mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, dbg_enable)]);
         test(eax, eax);
         jz(L_no_dbg);
         // compare k
-        mov(eax, dword[reg_args + offsetof(CallArgs, dbg_k)]);
+        mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, dbg_k)]);
         cmp(eax, reg_k_iter.cvt32());
         jne(L_no_dbg);
         // store q pre-scale if dbg_q provided
-        mov(rax, ptr[reg_args + offsetof(CallArgs, dbg_q)]);
+        mov(rax, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, dbg_q)]);
         test(rax, rax); jz(L_no_q);
         vmovups(ptr[rax], zmmW);
         L(L_no_q);
@@ -628,14 +643,14 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
     // debug capture: if enabled and k==dbg_k, store q*s
     {
         Label L_no_dbg2, L_after_dbg2, L_no_qs;
-        mov(eax, dword[reg_args + offsetof(CallArgs, dbg_enable)]);
+        mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, dbg_enable)]);
         test(eax, eax);
         jz(L_no_dbg2);
-        mov(eax, dword[reg_args + offsetof(CallArgs, dbg_k)]);
+        mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, dbg_k)]);
         cmp(eax, reg_k_iter.cvt32());
         jne(L_no_dbg2);
         // store q*s if dbg_qs provided
-        mov(rax, ptr[reg_args + offsetof(CallArgs, dbg_qs)]);
+        mov(rax, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, dbg_qs)]);
         test(rax, rax); jz(L_no_qs);
         vmovups(ptr[rax], zmmW);
         L(L_no_qs);
@@ -659,7 +674,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         test(rax, rax);
         jz(L_no_bias);
         // bias per_tensor vs per_channel
-        mov(eax, ptr[reg_args + offsetof(CallArgs, gran)]);
+        mov(eax, ptr[reg_args + offsetof(gemmv_avx512_fp32_call_args, gran)]);
         cmp(eax, to_int(quant_granularity_t::per_tensor));
         jne(L_bias_pt);
         // per_tensor: broadcast bias[0]
@@ -670,7 +685,7 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         // per_channel: load vector (masked if tail) then add
         {
             Label L_b_full, L_b_done;
-            mov(eax, dword[reg_args + offsetof(CallArgs, M_tail)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, M_tail)]);
             test(eax, eax);
             jz(L_b_full);
             mov(ecx, eax);
@@ -695,23 +710,23 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         // Optional gate multiply: y *= gate
         {
             Label L_no_gate;
-            mov(eax, dword[reg_args + offsetof(CallArgs, fuse_gate)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, fuse_gate)]);
             test(eax, eax); jz(L_no_gate);
-            vbroadcastss(zmmTmp, dword[reg_args + offsetof(CallArgs, gate)]);
+            vbroadcastss(zmmTmp, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, gate)]);
             vmulps(zmmC, zmmC, zmmTmp);
             L(L_no_gate);
         }
         // Optional activation: act_kind==1 -> ReLU
         {
             Label L_no_act;
-            mov(eax, dword[reg_args + offsetof(CallArgs, act_kind)]);
+            mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, act_kind)]);
             cmp(eax, 1); jne(L_no_act);
             vxorps(zmmTmp, zmmTmp, zmmTmp);
             vmaxps(zmmC, zmmC, zmmTmp);
             L(L_no_act);
         }
-        Label L_full, L_store_done;
-        mov(eax, dword[reg_args + offsetof(CallArgs, M_tail)]);
+        Label L_full, L_store_done, L_aligned_nt, L_after_nt;
+        mov(eax, dword[reg_args + offsetof(gemmv_avx512_fp32_call_args, M_tail)]);
         test(eax, eax);
         jz(L_full);
         // Compute mask k1 = (1 << M_tail) - 1
@@ -723,6 +738,14 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
         vmovups(ptr[reg_y] | k1, zmmC);
         jmp(L_store_done);
         L(L_full);
+        // If y is 64B-aligned, prefer non-temporal store (stream) to reduce cache pollution
+        mov(rax, reg_y);
+        and_(rax, 63);
+        test(rax, rax);
+        jnz(L_after_nt);
+        vmovntps(ptr[reg_y], zmmC);
+        jmp(L_store_done);
+        L(L_after_nt);
         vmovups(ptr[reg_y], zmmC);
         L(L_store_done);
     }
@@ -734,15 +757,16 @@ JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() : Xbyak::CodeGenerator(16384) {
     pop(r12);
 
     ret();
+}
 
-    // Make code RX (W^X) and fetch function pointer
-    this->ready();
-    fn_ = getCode<fn_t>();
+JitGemmvAvx512Fp32::JitGemmvAvx512Fp32() {
+    fn_ = jit_prebuilt_pool::get_typed<fn_t>(kernel_kind::avx512_fp32);
+    OPENVINO_ASSERT(fn_ != nullptr, "jit_gemmv_avx512_fp32 kernel pointer is null");
 }
 
 void JitGemmvAvx512Fp32::operator()(const gemmv_ukr_params_t* p) const {
     // Orchestrate over M in blocks of 16; pack layout advances by 16 bytes per K-step.
-    CallArgs a{};
+    gemmv_avx512_fp32_call_args a{};
     a.K = p->K;
     a.gran = static_cast<int>(p->gran);
     a.w_nbits = (p->w_type == w_dtype_t::i4 || p->w_type == w_dtype_t::u4) ? 4 : 8;
