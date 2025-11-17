@@ -97,8 +97,6 @@ jobs:
       fail-fast: false
       matrix:
         variant:
-          - name: baseline_smaller
-            runner: aks-linux-8-cores-16gb-st
           - name: baseline
             runner: aks-linux-16-cores-32gb-st
           - name: baseline_x_2
