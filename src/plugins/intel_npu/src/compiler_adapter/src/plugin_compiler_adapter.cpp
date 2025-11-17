@@ -61,6 +61,13 @@ ov::Tensor make_tensor_from_vector(std::vector<uint8_t>& vector) {
     return ov::make_tensor(impl);
 }
 
+bool isInitMetadata(const intel_npu::NetworkMetadata& networkMetadata) {
+    if (networkMetadata.inputs.size() == 0) {
+        return false;
+    }
+    return networkMetadata.inputs.at(0).isInitInputWeights;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -156,24 +163,14 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
                                                          const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
+    OPENVINO_ASSERT(_zeGraphExt);
 
     std::vector<std::shared_ptr<NetworkDescription>> initNetworkDescriptions;
     std::shared_ptr<NetworkDescription> mainNetworkDescription;
 
     _logger.debug("compile start");
 
-    const auto starts_with = [](const std::string& str, const std::string& prefix) {
-        return str.substr(0, prefix.size()) == prefix;
-    };
-    const auto isInit = [&](std::string name) {
-        return starts_with(name, "init");
-    };
-
-    const auto isMain = [&](std::string name) {
-        return starts_with(name, "main");
-    };
-
-    Config localConfig = config;
+    FilteredConfig localConfig = config;
     if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
         localConfig.update({{ov::intel_npu::separate_weights_version.name(), "ONE_SHOT"}});
     }
@@ -185,6 +182,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
     if (_logger.level() >= ov::log::Level::INFO) {
         compile_model_mem_start = get_peak_memory_usage();
     }
+
+    std::vector<GraphDescriptor> initGraphDescriptors;
+    std::vector<ov::Tensor> tensorsInits;
+    std::vector<NetworkMetadata> initNetworkMetadata;
+
+    ov::Tensor tensorMain;
+    GraphDescriptor mainGraphDesc;
+    NetworkMetadata mainNetworkMetadata;
+
     switch (localConfig.get<SEPARATE_WEIGHTS_VERSION>()) {
     case ov::intel_npu::WSVersion::ONE_SHOT: {
         std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
@@ -199,6 +205,44 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         mainNetworkDescription = initMainNetworkDescriptions.back();
         initMainNetworkDescriptions.pop_back();
         initNetworkDescriptions = std::move(initMainNetworkDescriptions);
+
+        ov::Tensor tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
+        GraphDescriptor mainGraphDesc;
+        NetworkMetadata mainNetworkMetadata;
+        if (_zeGraphExt) {
+            // Depending on the config, we may get an error when trying to
+            // get the graph handle from the compiled network
+            try {
+                mainGraphDesc = _zeGraphExt->getGraphDescriptor(tensorMain.data(), tensorMain.get_byte_size());
+                mainNetworkMetadata = _zeGraphExt->getNetworkMeta(mainGraphDesc);
+            } catch (...) {
+                _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
+                             "allowed. Only exports are available");
+            }
+        }
+
+        std::vector<GraphDescriptor> initGraphDescriptors;
+        std::vector<ov::Tensor> tensorsInits;
+        std::vector<NetworkMetadata> initNetworkMetadata;
+        initGraphDescriptors.reserve(initNetworkDescriptions.size());
+        tensorsInits.reserve(initNetworkDescriptions.size());
+        initNetworkMetadata.reserve(initNetworkDescriptions.size());
+        for (auto& networkDesc : initNetworkDescriptions) {
+            ov::Tensor tensor = make_tensor_from_vector(networkDesc->compiledNetwork);
+            GraphDescriptor initGraphDesc;
+            NetworkMetadata initNetworkMeta;
+            if (_zeGraphExt) {
+                try {
+                    initGraphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
+                    initNetworkMeta = _zeGraphExt->getNetworkMeta(initGraphDesc);
+                } catch (...) {
+                }
+            }
+
+            initGraphDescriptors.push_back(initGraphDesc);
+            tensorsInits.push_back(std::move(tensor));
+            initNetworkMetadata.push_back(std::move(initNetworkMeta));
+        }
     } break;
     case ov::intel_npu::WSVersion::ITERATIVE: {
         const std::shared_ptr<ov::Model> originalModel = model->clone();
@@ -207,16 +251,23 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
         while (auto networkDescription =
                    std::make_shared<NetworkDescription>(_compiler->compileWsIterative(targetModel, localConfig, i++))) {
-            if (isInit(networkDescription->metadata.name)) {
+            ov::Tensor tensor = make_tensor_from_vector(networkDescription->compiledNetwork);
+            GraphDescriptor graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
+            NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphDesc);
+
+            if (isInitMetadata(networkDescription->metadata)) {
                 initNetworkDescriptions.push_back(networkDescription);
                 targetModel = originalModel->clone();
+                initGraphDescriptors.push_back(graphDesc);
+                tensorsInits.push_back(std::move(tensor));
+                initNetworkMetadata.push_back(std::move(networkMetadata));
                 continue;
             }
-            OPENVINO_ASSERT(isMain(networkDescription->metadata.name),
-                            "Unexpected network name: ",
-                            networkDescription->metadata.name);
 
             mainNetworkDescription = std::move(networkDescription);
+            tensorMain = std::move(tensor);
+            mainGraphDesc = graphDesc;
+            mainNetworkMetadata = std::move(networkMetadata);
             break;
         }
     } break;
@@ -235,44 +286,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
     }
 
     _logger.debug("compile end");
-
-    ov::Tensor tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
-    GraphDescriptor mainGraphDesc;
-    NetworkMetadata mainNetworkMetadata;
-    if (_zeGraphExt) {
-        // Depending on the config, we may get an error when trying to
-        // get the graph handle from the compiled network
-        try {
-            mainGraphDesc = _zeGraphExt->getGraphDescriptor(tensorMain.data(), tensorMain.get_byte_size());
-            mainNetworkMetadata = _zeGraphExt->getNetworkMeta(mainGraphDesc);
-        } catch (...) {
-            _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
-                         "allowed. Only exports are available");
-        }
-    }
-
-    std::vector<GraphDescriptor> initGraphDescriptors;
-    std::vector<ov::Tensor> tensorsInits;
-    std::vector<NetworkMetadata> initNetworkMetadata;
-    initGraphDescriptors.reserve(initNetworkDescriptions.size());
-    tensorsInits.reserve(initNetworkDescriptions.size());
-    initNetworkMetadata.reserve(initNetworkDescriptions.size());
-    for (auto& networkDesc : initNetworkDescriptions) {
-        ov::Tensor tensor = make_tensor_from_vector(networkDesc->compiledNetwork);
-        GraphDescriptor initGraphDesc;
-        NetworkMetadata initNetworkMeta;
-        if (_zeGraphExt) {
-            try {
-                initGraphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
-                initNetworkMeta = _zeGraphExt->getNetworkMeta(initGraphDesc);
-            } catch (...) {
-            }
-        }
-
-        initGraphDescriptors.push_back(initGraphDesc);
-        tensorsInits.push_back(std::move(tensor));
-        initNetworkMetadata.push_back(std::move(initNetworkMeta));
-    }
 
     return std::make_shared<WeightlessGraph>(
         _zeGraphExt,
