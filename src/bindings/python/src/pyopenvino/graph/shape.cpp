@@ -60,10 +60,7 @@ void regclass_graph_Shape(py::module m) {
         self[key] = d.get_length();
     });
     shape.def("__getitem__", [](const ov::Shape& v, int64_t key) {
-        if (key < 0) {
-            key += v.size();
-        }
-        return v[key];
+        return v(key);
     });
 
     shape.def("__getitem__", [](const ov::Shape& v, py::slice& slice) {
