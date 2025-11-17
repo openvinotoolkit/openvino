@@ -164,6 +164,7 @@ void checkUpdateforspecialPlatform(const FilteredConfig& base_conf, ov::AnyMap& 
     //  3720 -> DRIVER
     //  4000 and later -> MLIR
     auto it_compiler_type = propertiesMap.find(std::string(COMPILER_TYPE::key()));
+    // if user set compilerType, will not update auto
     if (it_compiler_type == propertiesMap.end()) {
         // if platform is provided by local config = use that
         const ov::AnyMap localProperties = propertiesMap;
@@ -663,6 +664,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // activate the NPUW path
     auto useNpuwKey = ov::intel_npu::use_npuw.name();
     ov::AnyMap localProperties = properties;
+
     if (localProperties.count(useNpuwKey)) {
         if (localProperties.at(useNpuwKey).as<bool>() == true) {
             return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), localProperties);
@@ -871,6 +873,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remo
     return std::make_shared<RemoteContextImpl>(_backend);
 }
 
+// duo
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
@@ -907,9 +910,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
         }
         stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
+        std::cout << "=======just to check issue========" << std ::endl;
         return parse(tensor, std::move(metadata), npu_plugin_properties);
     } catch (const std::exception& ex) {
-        OPENVINO_THROW("Can't import network: ", ex.what());
+        OPENVINO_THROW("Can't import network: ", ex.what());  /// get issue message
     } catch (...) {
         OPENVINO_THROW("NPU import_model got unexpected exception from CompiledModel");
     }
@@ -981,9 +985,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     CompilerAdapterFactory compilerAdapterFactory;
     auto npu_plugin_properties = properties;
     exclude_model_ptr_from_map(npu_plugin_properties);
+    checkUpdateforspecialPlatform(_globalConfig, npu_plugin_properties, _logger);
     const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
-    checkUpdateforspecialPlatform(_globalConfig, npu_plugin_properties, _logger);
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
@@ -1016,11 +1020,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
     auto originalModel = exclude_model_ptr_from_map(npu_plugin_properties);
-
+    checkUpdateforspecialPlatform(_globalConfig, npu_plugin_properties, _logger);
     CompilerAdapterFactory compilerAdapterFactory;
     const auto propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
-    checkUpdateforspecialPlatform(_globalConfig, npu_plugin_properties, _logger);
+
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
 
