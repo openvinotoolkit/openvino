@@ -101,14 +101,13 @@ jobs:
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
         -G 'Ninja'
-        -DENABLE_CPPLINT=OFF
-        -DENABLE_NCC_STYLE=OFF
-        -DENABLE_INTEL_NPU=OFF
-        -DENABLE_TESTS=ON
-        -DENABLE_STRICT_DEPENDENCIES=OFF
-        -DENABLE_SYSTEM_OPENCL=ON
-        -DCPACK_GENERATOR=TGZ
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        -DENABLE_NCC_STYLE=OFF 
+        -DENABLE_INTEL_NPU=OFF 
+        -DENABLE_TESTS=ON 
+        -DENABLE_STRICT_DEPENDENCIES=OFF 
+        -DENABLE_SYSTEM_OPENCL=ON 
+        -DCPACK_GENERATOR=TGZ 
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON 
         -DCMAKE_BUILD_TYPE=Release
 
   RPM_Packages:
