@@ -225,8 +225,7 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gpt_oss_
     auto bitwise_and_3 = pattern::wrap_type<v13::BitwiseAnd>({bitwise_and_2, any_input()});
     auto broadcast = pattern::wrap_type<v3::Broadcast>({bitwise_and_3, any_input()});
     auto select = pattern::wrap_type<v1::Select>({broadcast, any_input(), any_input()});
-    auto mask = pattern::wrap_type<v8::Slice>({select, any_input(), any_input(), any_input(), any_input()}) |
-                pattern::wrap_type<v1::StridedSlice>({select, any_input(), any_input(), any_input()});
+    auto mask = pattern::wrap_type<v8::Slice>({select, any_input(), any_input(), any_input(), any_input()});
 
     return {mask, offset};
 }
@@ -448,8 +447,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &xattention_threshold_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
-
-        std::cout << "pattern_map.count(gpt_oss_mask): " << pattern_map.count(gpt_oss_mask) << std::endl;
 
         auto sdpa_node = pattern_map
                              .at(pattern_map.count(sdpa_with_4_inputs)   ? sdpa_with_4_inputs
