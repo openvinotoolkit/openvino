@@ -81,14 +81,14 @@ KERNEL(dynamic_quantize_gpu_opt)(
         max_value = fmax(max_value, max[i]);
     }
 
-#if IS_F8
+#if IS_MXFP
     float out_dt_max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)));
     float max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(max_value));
     half quan_scale = out_dt_max_val_rounded_down / max_val_rounded_down;
 #else
     half quan_scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
     FOR_PRECOMPUTED_REDUCTION(int precomputed_reduction = 0);
-#endif // IS_F8
+#endif // MXFP
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
 #if IS_F8
@@ -212,7 +212,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
     OUTPUT2_TYPE zp = (OUTPUT2_TYPE)(-min_value * scale);
 #else
-    OUTPUT1_TYPE scale = 127.0h / max_value;
+    OUTPUT1_TYPE scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
 #endif
 
     val *= scale;
@@ -222,7 +222,9 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #else // ASYMMETRIC_QUANTIZATION
 #if IS_F8
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
-    BLOCK_WRITEN(OUTPUT_TYPE, VEC_SIZE, output + output_offset + (local_id * block_size), 0, out);
+    // BLOCK_WRITEN(OUTPUT_TYPE, VEC_SIZE, output + output_offset + (local_id * block_size), 0, out);
+    for (uint i = 0; i < VEC_SIZE; ++i)
+        output[output_offset + (local_id * block_size) + i] = AS_OUTPUT_TYPE(out.data[j]);
 #else // IS_F8
     VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
 #endif // IS_F8
@@ -343,7 +345,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
     OUTPUT2_TYPE zp = (OUTPUT2_TYPE)(-min_value * scale);
 #else
-    OUTPUT1_TYPE scale = 127.0h / max_value;
+    OUTPUT1_TYPE scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
 #endif
 
 
@@ -358,7 +360,10 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #else // ASYMMETRIC_QUANTIZATION
 #if IS_F8
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val[i]);
-        BLOCK_WRITEN(OUTPUT_TYPE, VEC_SIZE, output + offset + ((local_id * iteration + i) * block_size), 0, out);
+        // VSTORE_N(AS_TYPE_N(char, VEC_SIZE, out), 0, (char*)output + offset + ((local_id * iteration + i) * block_size));
+        // BLOCK_WRITEN(OUTPUT_TYPE, VEC_SIZE, output + offset + ((local_id * iteration + i) * block_size), 0, out);
+        for (uint j = 0; j < VEC_SIZE; ++j)
+            output[offset + ((local_id * iteration + i) * block_size) + j] = AS_OUTPUT_TYPE(out.data[j]);
 #else // IS_F8
         VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
 #endif // IS_F8
