@@ -39,94 +39,103 @@ inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
-// f8e4m3 -> f16 (16x float8_e4m3 packed in __m128i -> 16x f16 packed in __m256i)
+// f8e4m3 -> f16
+// Layout f8e4m3: 1 sign | 4 exp (bias=7) | 3 mantissa
+// Layout f16:    1 sign | 5 exp (bias=15) | 10 mantissa
+// Normal: exp16 = exp8 + (15 - 7) = exp8 + 8, mantissa <<= 7
+// Zero/Subnormal: flushed to 0
+// Inf/NaN: exp8==0xF -> exp16=0x1F, mantissa preserved (payload) if non-zero
 inline __m256i f8e4m3tof16(__m128i vf8) {
-    // 1. Extend to 16 uint16_t elements
-    __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8);  // 16 x uint16_t
+    __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8);
+    const __m256i sm = _mm256_set1_epi16(0x80);
+    const __m256i em = _mm256_set1_epi16(0x78);
+    const __m256i mm = _mm256_set1_epi16(0x07);
 
-    // 2. Extract each part
-    const __m256i sign_mask = _mm256_set1_epi16(0x80);
-    const __m256i exp_mask = _mm256_set1_epi16(0x78);
-    const __m256i man_mask = _mm256_set1_epi16(0x07);
+    __m256i sign = _mm256_and_si256(vf8_16, sm);
+    __m256i exp_raw = _mm256_srli_epi16(_mm256_and_si256(vf8_16, em), 3);  // 0..15
+    __m256i man = _mm256_and_si256(vf8_16, mm);
 
-    __m256i sign = _mm256_and_si256(vf8_16, sign_mask);
-    __m256i exp = _mm256_and_si256(vf8_16, exp_mask);
-    __m256i man = _mm256_and_si256(vf8_16, man_mask);
+    __m256i zero = _mm256_cmpeq_epi16(exp_raw, _mm256_setzero_si256());
+    __m256i maxe = _mm256_cmpeq_epi16(exp_raw, _mm256_set1_epi16(0x0F));
 
-    // 3. Calculate f16 exponent and mantissa
-    // f8 bias = 7, f16 bias = 15, so f16_exp = f8_exp - 7 + 15 = f8_exp + 8
-    __m256i exp16 = _mm256_srli_epi16(exp, 3);              // shift right 3 bits to get raw exponent
-    exp16 = _mm256_add_epi16(exp16, _mm256_set1_epi16(8));  // add 8
+    // Normal exponent bias adjust (+8)
+    __m256i exp_norm = _mm256_add_epi16(exp_raw, _mm256_set1_epi16(8));
+    exp_norm = _mm256_andnot_si256(_mm256_or_si256(zero, maxe), exp_norm);
 
-    // f16 format: |S|EEEEE|MMMMMMMMMM| (1|5|10)
-    // shift f8's 3-bit mantissa left by 7 to align with f16's high bits
+    // Inf/NaN exponent (0x1F)
+    __m256i exp_inf = _mm256_and_si256(maxe, _mm256_set1_epi16(0x1F));
+    __m256i exp16 = _mm256_or_si256(exp_norm, exp_inf);
+
+    // Mantissa: normal / NaN payload (<<7), zero/subnormal flushed
     __m256i man16 = _mm256_slli_epi16(man, 7);
+    man16 = _mm256_andnot_si256(zero, man16);
 
-    // Compose f16: sign(1) << 15 | exp16(5) << 10 | man16(10)
-    __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15);  // move sign to bit 15
-    __m256i exp16w = _mm256_slli_epi16(exp16, 10);                       // move exponent to bits 10~14
-
-    __m256i f16 = _mm256_or_si256(sign16, _mm256_or_si256(exp16w, man16));
-
-    return f16;
+    __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15);
+    __m256i exp16w = _mm256_slli_epi16(exp16, 10);
+    return _mm256_or_si256(sign16, _mm256_or_si256(exp16w, man16));
 }
 
-// f8e5m2 -> f16 (16x float8_e5m2 packed in __m128i -> 16x f16 packed in __m256i)
+// f8e5m2 -> f16
+// Layout f8e5m2: 1 sign | 5 exp (bias=15) | 2 mantissa
+// Same bias -> exponent unchanged; mantissa <<= 8
+// Zero/Subnormal: flushed to 0
+// Inf/NaN: exp8==0x1F -> exp16=0x1F, payload kept if mantissa!=0
 inline __m256i f8e5m2tof16(__m128i vf8) {
-    // 1. Extend to 16 uint16_t elements
     __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8);
+    const __m256i sm = _mm256_set1_epi16(0x80);
+    const __m256i em = _mm256_set1_epi16(0x7C);
+    const __m256i mm = _mm256_set1_epi16(0x03);
 
-    // 2. Extract each part
-    const __m256i sign_mask = _mm256_set1_epi16(0x80);  // 1000 0000
-    const __m256i exp_mask = _mm256_set1_epi16(0x7C);   // 0111 1100
-    const __m256i man_mask = _mm256_set1_epi16(0x03);   // 0000 0011
+    __m256i sign = _mm256_and_si256(vf8_16, sm);
+    __m256i exp_raw = _mm256_srli_epi16(_mm256_and_si256(vf8_16, em), 2);  // 0..31
+    __m256i man = _mm256_and_si256(vf8_16, mm);
 
-    __m256i sign = _mm256_and_si256(vf8_16, sign_mask);
-    __m256i exp = _mm256_and_si256(vf8_16, exp_mask);
-    __m256i man = _mm256_and_si256(vf8_16, man_mask);
+    __m256i zero = _mm256_cmpeq_epi16(exp_raw, _mm256_setzero_si256());
+    __m256i maxe = _mm256_cmpeq_epi16(exp_raw, _mm256_set1_epi16(0x1F));
 
-    // 3. Calculate f16 exponent and mantissa
-    // f8 bias = 15, f16 bias = 15, so f16_exp = f8_exp - 15 + 15 = f8_exp
-    __m256i exp16 = _mm256_srli_epi16(exp, 2);  // shift right 2 bits to get raw exponent
+    // Normal exponent (unchanged), mask out specials
+    __m256i exp_norm = _mm256_andnot_si256(_mm256_or_si256(zero, maxe), exp_raw);
+    __m256i exp_inf = _mm256_and_si256(maxe, _mm256_set1_epi16(0x1F));
+    __m256i exp16 = _mm256_or_si256(exp_norm, exp_inf);
 
-    // f16: |S|EEEEE|MMMMMMMMMM| (1|5|10)
-    // shift f8's 2-bit mantissa left by 8 to align with f16's high bits
+    // Mantissa <<=8; zero/subnormals flushed
     __m256i man16 = _mm256_slli_epi16(man, 8);
+    man16 = _mm256_andnot_si256(zero, man16);
 
-    // Compose f16: sign(1) << 15 | exp16(5) << 10 | man16(10)
     __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15);
     __m256i exp16w = _mm256_slli_epi16(exp16, 10);
-
-    __m256i f16 = _mm256_or_si256(sign16, _mm256_or_si256(exp16w, man16));
-    return f16;
+    return _mm256_or_si256(sign16, _mm256_or_si256(exp16w, man16));
 }
 
-// f8e8m0 -> f16 (16x float8_e8m0 packed in __m128i -> 16x f16 packed in __m256i)
+// f8e8m0 -> f16
+// Layout f8e8m0: 1 sign | 8 exp (bias=127) | 0 mantissa
+// Mapping: exp16 = exp8 - (127 - 15) = exp8 - 112
+// Underflow (exp8 -112 <= 0) -> 0; Overflow / max exp -> Inf
+// No mantissa
 inline __m256i f8e8m0tof16(__m128i vf8) {
-    // 1. Extend to 16 uint16_t elements
     __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8);
+    const __m256i sm = _mm256_set1_epi16(0x80);
+    const __m256i em = _mm256_set1_epi16(0x7F);
 
-    // 2. Extract each part
-    const __m256i sign_mask = _mm256_set1_epi16(0x80);  // 1000 0000
-    const __m256i exp_mask = _mm256_set1_epi16(0x7F);   // 0111 1111
-    // No mantissa
+    __m256i sign = _mm256_and_si256(vf8_16, sm);
+    __m256i exp_raw = _mm256_and_si256(vf8_16, em);                       // 0..127
+    __m256i exp_adj = _mm256_sub_epi16(exp_raw, _mm256_set1_epi16(112));  // bias delta
 
-    __m256i sign = _mm256_and_si256(vf8_16, sign_mask);
-    __m256i exp = _mm256_and_si256(vf8_16, exp_mask);
+    __m256i underflow = _mm256_cmpgt_epi16(_mm256_setzero_si256(), exp_adj);
+    __m256i zero = _mm256_cmpeq_epi16(exp_raw, _mm256_setzero_si256());
+    __m256i maxe = _mm256_cmpeq_epi16(exp_raw, _mm256_set1_epi16(127));
+    __m256i overflow = _mm256_cmpgt_epi16(exp_adj, _mm256_set1_epi16(30));  // >30 => exp16>0x1F
+    __m256i inf_mask = _mm256_or_si256(maxe, overflow);
 
-    // 3. Calculate f16 exponent
-    // f8 bias = 127, f16 bias = 15, so f16_exp = f8_exp - 127 + 15 = f8_exp - 112
-    __m256i exp16 = _mm256_sub_epi16(exp, _mm256_set1_epi16(112));  // exp - 112
+    __m256i specials = _mm256_or_si256(_mm256_or_si256(underflow, zero), inf_mask);
+    __m256i exp_norm = _mm256_andnot_si256(specials, exp_adj);
+    __m256i exp_inf = _mm256_and_si256(inf_mask, _mm256_set1_epi16(0x1F));
+    __m256i exp16 = _mm256_or_si256(exp_norm, exp_inf);
+    exp16 = _mm256_andnot_si256(_mm256_or_si256(underflow, zero), exp16);
 
-    // No mantissa, so man16 = 0
-    // __m256i man16 = _mm256_setzero_si256();
-
-    // Compose f16: sign(1) << 15 | exp16(5) << 10 | man16(10)
     __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15);
     __m256i exp16w = _mm256_slli_epi16(exp16, 10);
-
-    __m256i f16 = _mm256_or_si256(sign16, exp16w);
-    return f16;
+    return _mm256_or_si256(sign16, exp16w);
 }
 
 inline int32_t pack_4bit_avx2_reduction(__m256i ymm) {
@@ -1823,9 +1832,9 @@ void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& fro
     NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
     NPUW_ASSERT(to->get_element_type() == ov::element::f16);
 
-    const uint8_t* src = from->data<uint8_t>();
-    const float* scl = scale->data<float>();
-    uint16_t* dst = to->data<uint16_t>();
+    const uint8_t* src = static_cast<uint8_t*>(from->data());
+    const float* scl = static_cast<float*>(scale->data());
+    uint16_t* dst = static_cast<uint16_t*>(to->data());
 
     const size_t total = from->get_size();    // total number of f8 elements
     const size_t stotal = scale->get_size();  // number of scale factors

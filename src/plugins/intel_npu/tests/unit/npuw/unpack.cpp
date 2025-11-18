@@ -73,7 +73,7 @@ const auto TestCasesScaleF8 = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::f32}),
         ::testing::ValuesIn({ov::element::Type_t::dynamic}), // no used in this test
         ::testing::ValuesIn({3lu, 0lu}),
-        ::details::ShapesIn({Tensors{input={1, 32, 128};     scale = {1, 1, 128};
+        ::details::ShapesIn({Tensors{input={1, 64, 128};     scale = {1, 1, 128};
 }
 , Tensors {
     input = {32, 128};
