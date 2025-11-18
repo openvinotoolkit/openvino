@@ -35,6 +35,11 @@ if(NOT DEFINED OpenVINODeveloperPackage_RELOCATABLE)
     set(OpenVINODeveloperPackage_RELOCATABLE OFF)
 endif()
 
+ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OV_LIBRARY_OUTPUT_DIRECTORY})
+ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OV_ARCHIVE_OUTPUT_DIRECTORY})
+ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OV_PDB_OUTPUT_DIRECTORY})
+ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OV_RUNTIME_OUTPUT_DIRECTORY})
+
 #
 # Check python requirements
 #
@@ -210,6 +215,9 @@ add_subdirectory(src/pyopenvino)
 macro(ov_define_setup_py_packaging_vars)
     # Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined inside pybind11
     set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
+    if(Python3_SOABI AND Python3_SOABI MATCHES "cpython-[0-9]+t-")
+        set(pyversion "${pyversion}t")
+    endif()
 
     # define version (syncronize with tools/openvino_dev/CMakeLists.txt)
     if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")

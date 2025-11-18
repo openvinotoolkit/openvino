@@ -37,8 +37,6 @@ public:
     template <typename I>
     explicit bfloat16(I value) : m_value{bfloat16{static_cast<float>(value)}.m_value} {}
 
-    std::string to_string() const;
-    size_t size() const;
     template <typename T>
     bool operator==(const T& other) const;
     template <typename T>

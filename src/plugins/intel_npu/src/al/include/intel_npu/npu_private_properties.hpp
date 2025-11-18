@@ -85,11 +85,11 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: string, default is MLIR.
+ * Type: string, default is DRIVER.
  * Type of NPU compiler to be used for compilation of a network
  * @note Configuration API v 2.0
  */
-enum class CompilerType { MLIR, DRIVER };
+enum class CompilerType { MLIR = 0, PLUGIN = MLIR, DRIVER = 1 };
 
 /**
  * @brief Prints a string representation of ov::intel_npu::CompilerType to a stream
@@ -100,8 +100,8 @@ enum class CompilerType { MLIR, DRIVER };
  */
 inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
     switch (fmt) {
-    case CompilerType::MLIR: {
-        out << "MLIR";
+    case CompilerType::PLUGIN: {
+        out << "PLUGIN";
     } break;
     case CompilerType::DRIVER: {
         out << "DRIVER";
@@ -347,6 +347,20 @@ static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_
  * external means.
  */
 static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: bool. Default is "true".
+ *
+ * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
+ * passed through the driver.
+ *
+ * The base serializer is the OV implementation of the "XmlSerializer" without any extensions. All weights are copied in
+ * a separate buffer. By turning this off, the NPU extension of the serializer is enabled. This allows optimizing the
+ * process by storing metadata (memory location & bytes size) instead of weights values. However, this solution may be
+ * less reliable.
+ */
+static constexpr ov::Property<bool> use_base_model_serializer{"NPU_USE_BASE_MODEL_SERIALIZER"};
 
 /**
  * @brief [Experimental, only for NPU Plugin]

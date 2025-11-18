@@ -7,7 +7,6 @@
 
 #include <cstdio>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -17,13 +16,16 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/codec_xor.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
-#include "openvino/op/matmul.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #ifndef WIN32
 #    include <unistd.h>
 #endif
@@ -56,12 +58,12 @@ std::string import_api_to_string(Import_API api) {
     }
 }
 
-typedef std::tuple<Import_API, bool, ov::element::Type, ov::element::Type> testParams;
+typedef std::tuple<Import_API, bool, ov::element::Type, ov::element::Type, ov::AnyMap> testParams;
 
 class CheckWeightlessCacheAccuracy : public ::testing::Test, public ::testing::WithParamInterface<testParams> {
 public:
     static std::string get_test_case_name(::testing::TestParamInfo<testParams> obj) {
-        const auto& [import_api_, do_encryption_, inference_mode_, model_dtype_] = obj.param;
+        const auto& [import_api_, do_encryption_, inference_mode_, model_dtype_, config_] = obj.param;
 
         std::ostringstream result;
         const char separator = '_';
@@ -69,6 +71,10 @@ public:
         result << "do_encryption=" << do_encryption_ << separator;
         result << "inference_mode=" << inference_mode_ << separator;
         result << "model_dtype=" << model_dtype_;
+        result << "_config=";
+        for (const auto& [name, value] : config_) {
+            result << name << "[" << value.as<std::string>() << "]|";
+        }
         return result.str();
     }
 
@@ -95,7 +101,7 @@ void CheckWeightlessCacheAccuracy::SetUp() {
     cache_path = filePrefix + ".blob";
     cache_dir = filePrefix + "_cache_dir";
 
-    std::tie(import_api, do_encryption, inference_mode, model_dtype) = GetParam();
+    std::tie(import_api, do_encryption, inference_mode, model_dtype, std::ignore) = GetParam();
 }
 
 void CheckWeightlessCacheAccuracy::TearDown() {
@@ -109,12 +115,16 @@ void CheckWeightlessCacheAccuracy::TearDown() {
 }
 
 void CheckWeightlessCacheAccuracy::run() {
-    ov::AnyMap config = {ov::cache_dir(cache_dir),
-                         ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE),
-                         ov::hint::inference_precision(inference_mode)};
-    ov::AnyMap config_with_weights_path = {ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE),
-                                           ov::weights_path(bin_path),
-                                           ov::hint::inference_precision(inference_mode)};
+    ov::AnyMap config = {ov::cache_dir(cache_dir), ov::hint::inference_precision(inference_mode)};
+    for (const auto& property : std::get<4>(GetParam())) {
+        config.insert(property);
+    }
+
+    auto config_with_weights_path = config;
+    if (ov::util::is_weightless_enabled(config).value_or(false)) {
+        config_with_weights_path.insert(ov::weights_path(bin_path));
+    }
+    config_with_weights_path.erase(ov::cache_dir.name());
 
     if (do_encryption) {
         ov::EncryptionCallbacks encryption_callbacks;
@@ -246,16 +256,16 @@ TEST_P(CheckWeightlessCacheAccuracyLowPrecision, MatmulWeightsDecompression) {
         dynShape = shape_params.data_shape.second.front();
     }
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, dynShape)};
-    const auto weights_subgraph = ov::test::initMatMulDecompressionSubgraph(shape_params.weights_shape,
-                                                                            shape_params.decompression_group_size,
-                                                                            ov::element::f32,
-                                                                            model_dtype,
-                                                                            ov::element::f32,
-                                                                            ov::element::dynamic,
-                                                                            true,
-                                                                            ov::test::DecompressionType::full,
-                                                                            ov::test::DecompressionType::full,
-                                                                            false);
+    const auto weights_subgraph = ov::test::utils::initMatMulDecompressionSubgraph(shape_params.weights_shape,
+                                                                                   shape_params.decompression_group_size,
+                                                                                   ov::element::f32,
+                                                                                   model_dtype,
+                                                                                   ov::element::f32,
+                                                                                   ov::element::dynamic,
+                                                                                   true,
+                                                                                   ov::test::utils::DecompressionType::full,
+                                                                                   ov::test::utils::DecompressionType::full,
+                                                                                   false);
     auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
 
     ov::ResultVector results;
@@ -295,7 +305,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracy,
                          ::testing::Combine(::testing::ValuesIn(import_api_types),
                                             ::testing::Bool(),
                                             ::testing::ValuesIn(inference_modes),
-                                            ::testing::ValuesIn(model_dtypes)),
+                                            ::testing::ValuesIn(model_dtypes),
+                                            ::testing::Values(ov::AnyMap{ov::enable_weightless("ON"), ov::cache_mode("OPTIMIZE_SPEED")},
+                                                              ov::AnyMap{ov::cache_mode("OPTIMIZE_SIZE")},
+                                                              ov::AnyMap{ov::enable_weightless("OFF"), ov::cache_mode("OPTIMIZE_SIZE")})),
                          CheckWeightlessCacheAccuracy::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracyLowPrecision,
@@ -303,7 +316,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracyLowPrecision,
                          ::testing::Combine(::testing::ValuesIn(import_api_types),
                                             ::testing::Bool(),
                                             ::testing::ValuesIn(inference_modes),
-                                            ::testing::ValuesIn(low_precision_dtypes)),
+                                            ::testing::ValuesIn(low_precision_dtypes),
+                                            ::testing::Values(ov::AnyMap{ov::cache_mode("OPTIMIZE_SIZE")},
+                                                              ov::AnyMap{ov::enable_weightless("OFF"), ov::cache_mode("OPTIMIZE_SIZE")})),
                          CheckWeightlessCacheAccuracy::get_test_case_name);
 
 TEST(smoke_CheckWeightlessCacheAccuracy, ConstantFoldingAttrPropagation) {

@@ -51,7 +51,6 @@
 #    include <cpu/x64/cpu_isa_traits.hpp>
 
 #    include "cpu/x64/jit_generator.hpp"
-#    include "openvino/core/parallel.hpp"
 
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
@@ -88,7 +87,7 @@ protected:
     void foreach (const Xbyak::Reg64& idx,
                   size_t step,
                   const Xbyak::Reg64& end,
-                  std::function<void(const Xbyak::Reg64&)> && fn) {
+                  const std::function<void(const Xbyak::Reg64&)>& fn) {
         Label loop;
         Label exit;
 
@@ -452,6 +451,7 @@ void Input::cloneBlobIfRequired() {
 #if defined(OPENVINO_ARCH_X86_64)
             auto fn = jit_has_subnormals_function();
             auto fn_bf16_check = jit_has_bf16_overflows_function();
+            const auto& cpu_parallel = context->getCpuParallel();
             if (fn && fn_bf16_check) {
                 static const size_t batch_size = 2048;
                 const size_t iterations_num = size / batch_size + 1;
@@ -459,7 +459,7 @@ void Input::cloneBlobIfRequired() {
                 std::atomic<bool> has_subnormals_local(false);
                 std::atomic<bool> has_bf16_overflows_local(false);
                 if (needFlushDenormalsToZero || do_bf16_saturation_check) {
-                    parallel_for(iterations_num, [&](int n) {
+                    cpu_parallel->parallel_for(iterations_num, [&](int n) {
                         const auto* ptr = f32data + n * batch_size;
                         jit_has_special_value_base::args_t args = {
                             reinterpret_cast<const float*>(ptr),
@@ -772,6 +772,7 @@ void Input::initSupportedPdDefault() {
 
 void Input::initSupportedPdFromMemDesc() {
     NodeConfig config;
+    CPU_NODE_ASSERT(extMemDesc, "has invalid extMemDesc in initSupportedPdFromMemDesc");
     PortConfig portConfig(extMemDesc, BlockedMemoryDesc::FULL_MASK, m_isInPlace ? 0 : -1, false);
 
     if (any_of(getType(), Type::Input, Type::MemoryInput)) {

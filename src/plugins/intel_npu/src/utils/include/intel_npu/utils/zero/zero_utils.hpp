@@ -15,22 +15,6 @@
 
 namespace intel_npu {
 
-struct ArgumentDescriptor {
-    ze_graph_argument_properties_3_t info;
-    uint32_t idx;
-    std::string to_string() const {
-        std::stringstream sstream;
-        sstream << "dims_count: " << info.dims_count << " - [";
-        for (uint32_t i = 0; i < std::min<uint32_t>(info.dims_count, ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE); i ++) {
-            sstream << info.dims[i] << ",";
-        }
-        sstream << "]"
-                << ", networkLayout: " << std::to_string(static_cast<size_t>(info.networkLayout))
-                << ", deviceLayout: " << std::to_string(static_cast<size_t>(info.deviceLayout));
-        return sstream.str();
-    }
-};
-
 namespace zeroUtils {
 
 #define THROW_ON_FAIL_FOR_LEVELZERO_EXT(step, result, graph_ddi_table_ext)                  \
@@ -220,20 +204,17 @@ static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _gra
     }
 }
 
-static inline bool memory_was_allocated_in_the_same_l0_context(ze_context_handle_t hContext, const void* ptr) {
+static inline uint64_t get_l0_context_memory_allocation_id(ze_context_handle_t handle, const void* ptr) {
     ze_memory_allocation_properties_t desc = {};
     desc.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
-    auto res = intel_npu::zeMemGetAllocProperties(hContext, ptr, &desc, nullptr);
-    if (res == ZE_RESULT_SUCCESS) {
-        if (desc.id) {
-            if ((desc.type == ZE_MEMORY_TYPE_HOST) || (desc.type == ZE_MEMORY_TYPE_DEVICE) ||
-                (desc.type == ZE_MEMORY_TYPE_SHARED)) {
-                return true;
-            }
-        }
+    auto res = intel_npu::zeMemGetAllocProperties(handle, ptr, &desc, nullptr);
+    if (res == ZE_RESULT_SUCCESS && desc.id > 0 &&
+        ((desc.type == ZE_MEMORY_TYPE_HOST) || (desc.type == ZE_MEMORY_TYPE_DEVICE) ||
+         (desc.type == ZE_MEMORY_TYPE_SHARED))) {
+        return desc.id;
     }
 
-    return false;
+    return 0;
 }
 
 }  // namespace zeroUtils

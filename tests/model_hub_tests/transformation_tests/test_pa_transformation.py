@@ -1,8 +1,10 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from huggingface_hub import snapshot_download
 from openvino._offline_transformations import paged_attention_transformation
 from openvino._pyopenvino.op import _PagedAttentionExtension
+from openvino._pyopenvino import Type as OVType
 from optimum.intel import OVModelForCausalLM
 from optimum.intel.openvino import OVModelForVisualCausalLM
 from typing import Union
@@ -51,10 +53,11 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         names = list(input.get_names()) # names stored in as set (in this case usually of 1 element)
         for name in names:
             if (("key_cache." in name) or ("value_cache." in name)):
+                assert input.get_element_type() == OVType.dynamic
                 shape = input.get_partial_shape()
-                # PagedAttention uses key_cache and value_cache inputs so the last 2 dimensions have to be static
-                assert shape[-1].is_static, f"Dimension {len(shape) - 1} of input '{name}' in '{model_id}' is not static: {shape}"
-                assert shape[-2].is_static, f"Dimension {len(shape) - 2} of input '{name}' in '{model_id}' is not static: {shape}"
+                for i in range(shape.rank.get_length()):
+                    # PagedAttention uses key_cache and value_cache inputs with all 4 dims being dynamic
+                    assert shape[i].is_dynamic, "Dimension {i} of input '{name}' in '{model_id}' is not dynamic: {shape}" 
 
     interesting_input_patterns = {}
     interesting_output_patterns = {}
@@ -127,7 +130,9 @@ def run_pa(tmp_path,
            allow_cache_rotation,
            allow_xattention,
            ie_device):
-    model = cls.from_pretrained(model_id, export=True, trust_remote_code=True)
+    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
+
     ov_model = model.model if cls is OVModelForCausalLM else model.lm_model
 
     apply_transformation_and_compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, ie_device)

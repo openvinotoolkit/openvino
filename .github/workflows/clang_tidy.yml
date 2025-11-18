@@ -153,13 +153,12 @@ jobs:
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CLANG_TIDY=ON \
-            -DENABLE_PROFILING_ITT=ON \
+            -DENABLE_PROFILING_ITT=FULL \
             -DENABLE_DEBUG_CAPS=ON \
             -DSELECTIVE_BUILD=COLLECT \
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_CPPLINT=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
@@ -219,13 +218,12 @@ jobs:
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CLANG_TIDY=ON \
-            -DENABLE_PROFILING_ITT=ON \
+            -DENABLE_PROFILING_ITT=FULL \
             -DENABLE_DEBUG_CAPS=ON \
             -DSELECTIVE_BUILD=COLLECT \
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_CPPLINT=OFF \
             -DCMAKE_RULE_MESSAGES=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
@@ -288,13 +286,12 @@ jobs:
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64-100-xuantie-gnu.toolchain.cmake \
             -DENABLE_CLANG_TIDY=ON \
-            -DENABLE_PROFILING_ITT=ON \
+            -DENABLE_PROFILING_ITT=FULL \
             -DENABLE_DEBUG_CAPS=ON \
             -DSELECTIVE_BUILD=COLLECT \
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_CPPLINT=OFF \
             -DCMAKE_RULE_MESSAGES=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \

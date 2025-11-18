@@ -74,12 +74,12 @@ ov_add_test_target(
             openvino::shape_inference
             openvino_runtime_s
             unit_test_utils
+            openvino_xml_util
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
             ${SHL_LIBRARY}
             ${KLEIDIAI_LIBRARY}
-        ADD_CPPLINT
         LABELS
             OV UNIT CPU
 )

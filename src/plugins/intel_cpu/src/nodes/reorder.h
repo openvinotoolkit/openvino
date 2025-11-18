@@ -71,7 +71,10 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc& parentDesc, const MemoryDesc& childDesc);
 
-    static void reorderData(const IMemory& input, const IMemory& output, const MultiCachePtr& cache = nullptr);
+    static void reorderData(const IMemory& input,
+                            const IMemory& output,
+                            const MultiCachePtr& cache = nullptr,
+                            const std::shared_ptr<ThreadPool>& threadPool = nullptr);
 
 private:
     dnnl::reorder::primitive prim;
