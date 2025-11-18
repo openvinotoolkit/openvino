@@ -58,37 +58,50 @@ jobs:
       fail-fast: false
       matrix:
         variant:
-          - name: tempdisk
-            runner: aks-win-32-cores-128gb-tdsk-st
+          - name: nvme
+            runner: aks-win-32-cores-128gb-nvme-st
             build_jobs: thirtytwo_jobs
             link_jobs: twenty_jobs
-            cache: False
 
-          - name: d-size_lessram
-            runner: aks-win-32-cores-64gb-d-st
+          - name: nvme_lessram
+            runner: aks-win-32-cores-64gb-nvme-st
             build_jobs: thirtytwo_jobs
             link_jobs: twelve_jobs
-            cache: False
 
-          - name: tempdisk_lessram_lesscores
-            runner: aks-win-16-cores-64gb-tdsk-st
+          - name: nvme_lessram_lesscores
+            runner: aks-win-16-cores-64gb-nvme-st
             build_jobs: sixteen_jobs
             link_jobs: twelve_jobs
-            cache: False
 
-          - name: amd_nvme
+          - name: nvme_more_cores_same_ram
+            runner: aks-win-64-cores-128gb-nvme-st
+            build_jobs: sixtyfour_jobs
+            link_jobs: forty_jobs
+
+          - name: amd-nvme
+            runner: aks-win-32-cores-128gb-amd-nvme-st
+            build_jobs: thirtytwo_jobs
+            link_jobs: twenty_jobs
+
+          - name: amd-nvme_lessram
+            runner: aks-win-32-cores-64gb-amd-nvme-st
+            build_jobs: thirtytwo_jobs
+            link_jobs: twelve_jobs
+
+          - name: amd-nvme_lessram_lesscores
+            runner: aks-win-16-cores-64gb-amd-nvme-st
+            build_jobs: sixteen_jobs
+            link_jobs: twelve_jobs
+
+          - name: amd-nvme_more_cores_same_ram
             runner: aks-win-64-cores-128gb-amd-nvme-st
             build_jobs: sixtyfour_jobs
-            link_jobs: fortyeight_jobs
-            cache: False
+            link_jobs: forty_jobs
+        cache:
+          - True
+          - False
 
-          - name: amd_nvme
-            runner: aks-win-64-cores-128gb-amd-nvme-st
-            build_jobs: sixtyfour_jobs
-            link_jobs: fortyeight_jobs
-            cache: True
-
-    name: "Build OpenVINO - ${{ matrix.variant.name }} - Cache: ${{ matrix.variant.cache }}, Link jobs: ${{ matrix.variant.link_jobs }}"
+    name: "Build OpenVINO - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}, Link jobs: ${{ matrix.variant.link_jobs }}"
     needs: Smart_CI
     timeout-minutes: 300 # 5 hours without cache
     defaults:
@@ -187,7 +200,7 @@ jobs:
 
       - name: Setup ccache
         uses: ./openvino/.github/actions/cache
-        if: ${{ matrix.variant.cache == true }}
+        if: ${{ matrix.cache == true }}
         with:
           save-always: true
           cleanup-always: true
@@ -223,7 +236,7 @@ jobs:
             -B ${{ env.BUILD_DIR }}
 
       - name: Clean ccache stats
-        if: ${{ matrix.variant.cache == true }}
+        if: ${{ matrix.cache == true }}
         run: '& ccache --zero-stats'
 
       - name: Cmake build - CC COLLECT
@@ -232,7 +245,7 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
       - name: Show ccache stats
-        if: ${{ matrix.variant.cache == true }}
+        if: ${{ matrix.cache == true }}
         run: '& ccache --show-stats'
 
       - name: Cmake install - OpenVINO
@@ -241,7 +254,7 @@ jobs:
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
 
       - name: Clean ccache stats
-        if: ${{ matrix.variant.cache == true }}
+        if: ${{ matrix.cache == true }}
         run: '& ccache --zero-stats'
 
       - name: Build C++ samples - OpenVINO build tree
@@ -250,7 +263,7 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Show ccache stats
-        if: ${{ matrix.variant.cache == true }}
+        if: ${{ matrix.cache == true }}
         run: '& ccache --show-stats'
 
       - name: Ctest - OpenVINO unit tests
@@ -315,7 +328,7 @@ jobs:
           Compress-Archive @compress
 
       - name: Clean ccache stats
-        if: ${{ matrix.variant.cache == true }}
+        if: ${{ matrix.cache == true }}
         run: '& ccache --zero-stats'
 
       - name: Build C samples - OpenVINO install tree
@@ -332,6 +345,6 @@ jobs:
           CMAKE_GENERATOR: "Visual Studio 17 2022"
 
       - name: Show ccache stats
-        if: ${{ matrix.variant.cache == true }}
+        if: ${{ matrix.cache == true }}
         run: '& ccache --show-stats'
 
