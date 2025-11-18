@@ -34,8 +34,7 @@ endif()
 
 if(POLICY CMP0141)
     cmake_policy(SET CMP0141 NEW)
-    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
-    message (STATUS "MSVC DEBUG INFORMATION FORMAT is set")
+    message (STATUS "MSVC DEBUG INFORMATION FORMAT is set to ${CMAKE_MSVC_DEBUG_INFORMATION_FORMAT}")
 endif()
 
 

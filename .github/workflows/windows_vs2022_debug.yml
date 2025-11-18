@@ -61,27 +61,38 @@ jobs:
         variant:
           - name: tempdisk
             runner: aks-win-32-cores-128gb-tdsk-st
-            build_jobs: thirtytwo_jobs
 
           - name: d-size_lessram
             runner: aks-win-32-cores-64gb-d-st
-            build_jobs: thirtytwo_jobs
 
           - name: tempdisk_lessram_lesscores
             runner: aks-win-16-cores-64gb-tdsk-st
-            build_jobs: sixteen_jobs
-        link_jobs:
-          - twelve_jobs
-          - sixteen_jobs
-          - twenty_jobs
-          - twenty_four_jobs
-          - twenty_eight_jobs
+
+          - name: nvme
+            runner: aks-win-32-cores-128gb-nvme-st
+
+          - name: nvme_lessram
+            runner: aks-win-32-cores-64gb-nvme-st
+
+          - name: nvme_lessram_lesscores
+            runner: aks-win-16-cores-64gb-nvme-st
+
+          - name: amd-nvme
+            runner: aks-win-32-cores-128gb-amd-nvme-st
+
+          - name: amd-nvme_lessram
+            runner: aks-win-32-cores-64gb-amd-nvme-st
+
+          - name: amd-nvme_lessram_lesscores
+            runner: aks-win-16-cores-64gb-amd-nvme-st
+
         cache:
           - False
+          - True
 
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
-    name: "Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}, Link jobs: ${{ matrix.link_jobs }}"
+    name: "Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"
     uses: ./.github/workflows/job_build_windows.yml
     with:
       cache: ${{ matrix.cache }}
@@ -96,5 +107,5 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
-        -DCMAKE_JOB_POOL_LINK:STRING=${{ matrix.link_jobs }}
-        -DCMAKE_JOB_POOL_COMPILE:STRING=${{ matrix.variant.build_jobs}}
+        ${{ matrix.cache == 'True' && '-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>"' || '' }}
+
