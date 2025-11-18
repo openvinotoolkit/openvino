@@ -203,6 +203,12 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
                            cpu_config_offsets.end(),
                            recalculated_offsets.begin(),
                            [orig_size, wei_size](size_t offset) {
+                               OPENVINO_ASSERT(offset % wei_size == 0,
+                                               "Offset (",
+                                               offset,
+                                               ") must be divisible on wei_size (",
+                                               wei_size,
+                                               ")");
                                return offset / wei_size * orig_size;
                            });
             return recalculated_offsets;
