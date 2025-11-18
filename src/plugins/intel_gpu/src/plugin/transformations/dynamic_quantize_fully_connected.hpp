@@ -5,13 +5,14 @@
 #pragma once
 
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_gpu {
 
 class DynamicQuantizeFullyConnected: public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("DynamicQuantizeFullyConnected");
-    DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric = false, bool precompute_sum = true, bool use_gs128_for_int8_per_token = false);
+    DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric = false, bool precompute_sum = true, bool use_gs128_for_int8_per_token = false, ov::hint::DynamicQuantizationDataType dtype_scheme = ov::hint::DynamicQuantizationDataType::INT8);
     static bool ShouldUseGs128(uint64_t is_wei_i8u8, bool use_gs128_for_int8_per_token, uint64_t group_size) {
         return (is_wei_i8u8 && use_gs128_for_int8_per_token && group_size == UINT64_MAX);
     }

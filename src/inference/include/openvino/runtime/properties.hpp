@@ -596,6 +596,19 @@ static constexpr Property<ExecutionMode> execution_mode{"EXECUTION_MODE_HINT"};
 static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size{
     "DYNAMIC_QUANTIZATION_GROUP_SIZE"};
 
+enum class DynamicQuantizationDataType {
+    INT8,
+    F8E4M3,
+    F8E5M2,
+    F4E2M1,
+    MXF8E4M3,
+    MXF8E5M2,
+    MXF4E2M1,
+};
+
+static constexpr Property<DynamicQuantizationDataType, PropertyMutability::RW> dynamic_quantization_data_type{
+    "DYNAMIC_QUANTIZATION_TARGET_TYPE"};
+
 /**
  * @brief Hint for device to use specified precision for kv cache compression
  * @ingroup ov_runtime_cpp_prop_api
