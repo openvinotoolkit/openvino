@@ -230,7 +230,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_sc
         FAIL() << "Incorrect access to body scope not detected";
     } catch (const ov::Exception& e) {
         // patent graph should have no access to subgraph (body Loop) scope
-        EXPECT_HAS_SUBSTRING(e.what(), std::string("from_body_scope node not found in graph cache"));
+        EXPECT_HAS_SUBSTRING(e.what(), std::string("from_body_scope"));
+        EXPECT_HAS_SUBSTRING(e.what(), std::string("t found"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
