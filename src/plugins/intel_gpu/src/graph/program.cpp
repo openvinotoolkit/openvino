@@ -1153,15 +1153,12 @@ bool program::move_node(program_node& node,
 void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,
                          std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
-    auto peer_layouts = peer_node.get_output_layouts();
-    OPENVINO_ASSERT(peer_layouts.size() == 1 || (peer_layouts.size() == 2 && peer_node.is_type<dynamic_quantize>()));
-
-    auto peer_layout = peer_layouts[0];
+    auto peer_layout = peer_node.get_output_layout();
     fused_primitive_desc local_desc(peer_node.get_primitive());
     local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.input_layout = peer_node.get_input_layout(0);
-    local_desc.output_layout = peer_layout; // TODO: what if this is used with dynamic quantize?
+    local_desc.output_layout = peer_layout;
 
     if (fused_node.in_shape_of_subgraph && !peer_node.in_shape_of_subgraph) {
         fused_node.in_shape_of_subgraph = false;
@@ -1255,9 +1252,6 @@ void program::fuse_nodes(program_node &fused_node,
     // Update output layout. Recalculation is not needed.
     fused_node.merge_output_padding(needed_padding);
     fused_node.set_output_layout(peer_layout, false);
-    if (peer_node.is_type<dynamic_quantize>()) {
-        fused_node.set_output_layout(peer_layouts[1], false, 1);
-    }
     fused_node.recalc_output_layout(true);
 }
 
