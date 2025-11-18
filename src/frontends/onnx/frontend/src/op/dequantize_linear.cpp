@@ -240,15 +240,14 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     axis = common::normalize_axis(node.get_description(), axis, src_x.get_partial_shape().rank());
 
     // Check that dimension at axis is divisible by block_size
-    FRONT_END_GENERAL_CHECK(
-        src_x.get_shape()[axis] % block_size == 0,
-        "DequantizeLinear doesn't support case when dimension of X at axis ",
-        axis,
-        " (",
-        src_x.get_shape()[axis],
-        ") cannot be divided by block_size (",
-        block_size,
-        ")");
+    FRONT_END_GENERAL_CHECK(src_x.get_shape()[axis] % block_size == 0,
+                            "DequantizeLinear doesn't support case when dimension of X at axis ",
+                            axis,
+                            " (",
+                            src_x.get_shape()[axis],
+                            ") cannot be divided by block_size (",
+                            block_size,
+                            ")");
 
     // Check if this is channel-wise quantization (block_size equals dimension size at axis)
     bool is_cw_quantize = (src_x.get_shape()[axis] == block_size);
@@ -284,7 +283,8 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     // Unsqueeze position for scale/zero_point:
     // block_size is always at position axis+1, so unsqueeze at axis+1
     const auto unsqueeze_axis = axis + 1;
-    const auto& unsqueezed_axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{unsqueeze_axis});
+    const auto& unsqueezed_axes =
+        std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{unsqueeze_axis});
 
     const auto scale_type = scale.get_element_type();
     if (inputs.size() > 2) {
