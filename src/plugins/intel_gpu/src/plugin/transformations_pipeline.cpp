@@ -1416,6 +1416,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
                 && group_dyn_quan_allowed;
 
+            auto dynamic_quantization_data_type = config.get_dynamic_quantization_data_type();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
                 const int64_t dyn_quan_single = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_single(), 0);    // 0 will be ignored from GPU_DEBUG_IF
@@ -1497,7 +1498,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size,
                                                                                     asymmetric_dyn_quant,
                                                                                     precomputed_reduction,
-                                                                                    use_gs128_for_int8_per_token);
+                                                                                    use_gs128_for_int8_per_token,
+                                                                                    dynamic_quantization_data_type);
                 manager.register_pass<ov::intel_gpu::MergeDynamicQuantize>();
             }
         }
