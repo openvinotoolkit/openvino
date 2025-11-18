@@ -433,8 +433,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*proposal_params/.*)");
     // Quantized models unsupported
     retVector.emplace_back(R"(.*Quantized.*)");
-    // 176707: Accuracy issues
-    retVector.emplace_back(R"(.*smoke_IsOp/ComparisonLayerTest.*)");
 
     if (!ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
         // Integer division is supported only by JIT Executor which is available on platforms with GV instruction sets.
