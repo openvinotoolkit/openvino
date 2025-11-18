@@ -118,6 +118,57 @@ void find_minmax(const T* src, size_t n, float& min, float& max) {
     hmin(v0_min);
     max = _mm256_cvtss_f32(v0_max);
     min = _mm256_cvtss_f32(v0_min);
+#elif defined(OPENVINO_ARCH_ARM64)
+#    if defined(HAVE_SVE)
+    if constexpr (std::is_same_v<T, float>) {
+        auto v_max = svdup_f32(max);
+        auto v_min = svdup_f32(min);
+        for (; i < n; i += svcntw()) {
+            svbool_t pg = svwhilelt_b32(i, n);
+            auto va = svld1_f32(pg, src + i);
+            v_max = svmax_f32_m(pg, v_max, va);
+            v_min = svmin_f32_m(pg, v_min, va);
+        }
+        max = svmaxv(svptrue_b32(), v_max);
+        min = svminv(svptrue_b32(), v_min);
+    } else if constexpr (std::is_same_v<T, ov::float16>) {
+        auto v_max = svdup_f16(max);
+        auto v_min = svdup_f16(min);
+        for (; i < n; i += svcnth()) {
+            svbool_t pg = svwhilelt_b16(i, n);
+            auto va = svld1_f16(pg, reinterpret_cast<const float16_t*>(src + i));
+            v_max = svmax_f16_m(pg, v_max, va);
+            v_min = svmin_f16_m(pg, v_min, va);
+        }
+        max = svmaxv(svptrue_b16(), v_max);
+        min = svminv(svptrue_b16(), v_min);
+    }
+#    else
+    if constexpr (std::is_same_v<T, float>) {
+        auto v_max = vdupq_n_f32(max);
+        auto v_min = vdupq_n_f32(min);
+        for (; i + 4 <= n; i += 4) {
+            auto va = vld1q_f32(src + i);
+            v_max = vmaxq_f32(v_max, va);
+            v_min = vminq_f32(v_min, va);
+        }
+        max = vmaxvq_f32(v_max);
+        min = vminvq_f32(v_min);
+    }
+#        if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+    if constexpr (std::is_same_v<T, ov::float16>) {
+        auto v_max = vdupq_n_f16(max);
+        auto v_min = vdupq_n_f16(min);
+        for (; i + 8 < n; i += 8) {
+            auto va = vld1q_f16(reinterpret_cast<const float16_t*>(src) + i);
+            v_max = vmaxq_f16(v_max, va);
+            v_min = vminq_f16(v_min, va);
+        }
+        max = vmaxvq_f16(v_max);
+        min = vminvq_f16(v_min);
+    }
+#        endif
+#    endif
 #endif
     for (; i < n; i++) {
         float tmp = src[i];
