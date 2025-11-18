@@ -6,6 +6,7 @@
 
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/options.hpp"
+#pragma message("included options.hpp")
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -222,15 +223,18 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     if (filteredConfig == nullptr) {
         OPENVINO_THROW("config is not FilteredConfig");
     }
+    ////
+    static_assert(std::is_class_v<intel_npu::SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>, "SERIALIZATION_WEIGHTS_SIZE_THRESHOLD not found");
+    ///
     FilteredConfig updatedConfig = *filteredConfig;
     auto serializedIR =
         driver_compiler_utils::serializeIR(model,
                                            compilerVersion,
                                            maxOpsetVersion,
                                            updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())
-                                               ? updatedConfig.get<intel_npu::USE_BASE_MODEL_SERIALIZER>()
+                                               ? updatedConfig.get<ov::intel_npu::USE_BASE_MODEL_SERIALIZER>()
                                                : true,
-                                           updatedConfig.get<intel_npu::SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
+                                           updatedConfig.get<ov::intel_npu::SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
