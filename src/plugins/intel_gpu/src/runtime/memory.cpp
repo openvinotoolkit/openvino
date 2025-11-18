@@ -54,7 +54,7 @@ std::unique_ptr<surfaces_lock> surfaces_lock::create(engine_types engine_type, s
     }
 }
 
-bool surfaces_lock::is_surface_lock_check_needed(const shared_mem_type& mem_type) {
+bool surfaces_lock::is_lock_needed(const shared_mem_type& mem_type) {
     return mem_type == shared_mem_type::shared_mem_vasurface ||
            mem_type == shared_mem_type::shared_mem_dxbuffer ||
            mem_type == shared_mem_type::shared_mem_image;

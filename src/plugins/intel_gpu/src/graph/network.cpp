@@ -686,18 +686,18 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     std::vector<memory::ptr> in_out_mem;
     bool shared_mem_found = std::any_of(_in_out_shared_mem_types.begin(),
                                         _in_out_shared_mem_types.end(),
-                                        surfaces_lock::is_surface_lock_check_needed);
+                                        surfaces_lock::is_lock_needed);
 
     if (shared_mem_found) {
         for (auto& inst : _inputs) {
             if (inst->output_memory_ptr() &&
-                surfaces_lock::is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
+                surfaces_lock::is_lock_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
 
         for (auto& inst : _outputs) {
             if (inst->output_memory_ptr() &&
-                surfaces_lock::is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
+                surfaces_lock::is_lock_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
     }
