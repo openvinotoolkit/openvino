@@ -13,6 +13,7 @@
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
@@ -212,22 +213,20 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gpt_oss_
     auto q_idx = pattern::any_input();
     auto kv_idx = pattern::any_input();
 
-    auto kv_idx_opt_conv_0 = pattern::optional<v0::Convert>();
-    auto kv_idx_opt_conv_1 = pattern::optional<v0::Convert>(kv_idx_opt_conv_0);
-    auto less_eq = pattern::wrap_type<v1::LessEqual>({q_idx, kv_idx_opt_conv_1});
+    auto kv_idx_opt_conv = pattern::optional<v0::Convert>(kv_idx);
 
     auto offset = wrap_type<v0::Constant>();
 
     auto add = wrap_type<v1::Add>({q_idx, offset});
-    auto opt_conv_2 = pattern::optional<v0::Convert>(add);
-    auto greater = pattern::wrap_type<v1::Greater>({kv_idx_opt_conv_1, opt_conv_2});
+    auto greater = pattern::wrap_type<v1::Greater>({kv_idx_opt_conv, add});
     auto bitwise_and = pattern::wrap_type<v13::BitwiseAnd>({any_input(), greater});
     auto bitwise_and_1 = pattern::wrap_type<v13::BitwiseAnd>({bitwise_and, any_input()});
     auto bitwise_and_2 = pattern::wrap_type<v13::BitwiseAnd>({any_input(), bitwise_and_1});
     auto bitwise_and_3 = pattern::wrap_type<v13::BitwiseAnd>({bitwise_and_2, any_input()});
     auto broadcast = pattern::wrap_type<v3::Broadcast>({bitwise_and_3, any_input()});
     auto select = pattern::wrap_type<v1::Select>({broadcast, any_input(), any_input()});
-    auto mask = pattern::wrap_type<v1::StridedSlice>({select, any_input(), any_input(), any_input()});
+    auto mask = pattern::wrap_type<v8::Slice>({select, any_input(), any_input(), any_input(), any_input()}) |
+                pattern::wrap_type<v1::StridedSlice>({select, any_input(), any_input(), any_input()});
 
     return {mask, offset};
 }
@@ -449,6 +448,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &xattention_threshold_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
+
+        std::cout << "pattern_map.count(gpt_oss_mask): " << pattern_map.count(gpt_oss_mask) << std::endl;
 
         auto sdpa_node = pattern_map
                              .at(pattern_map.count(sdpa_with_4_inputs)   ? sdpa_with_4_inputs
