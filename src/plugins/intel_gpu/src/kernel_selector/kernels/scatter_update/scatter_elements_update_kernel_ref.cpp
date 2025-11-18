@@ -48,6 +48,10 @@ static bool is_dynamic_global_memory_kernel(size_t index) {
             (index == static_cast<size_t>(DynamicKernelStage::STAGE2_GLOBAL)));
 }
 
+static bool is_global_memory(const scatter_elements_update_params& params) {
+    return (params.outputs[0].PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize);
+}
+
 static size_t GetScatterElementsUpdateChannelIndex(const scatter_elements_update_params& params) {
     Tensor::DataChannelName name = Tensor::DataChannelName::X;
 
@@ -201,8 +205,7 @@ JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_eleme
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetScatterElementsUpdateChannelIndex(params)));
 
     if (!params.is_shape_agnostic) {
-        const auto& output = params.outputs[0];
-        if (output.PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize) {
+        if (is_global_memory(params)) {
             jit.AddConstant(MakeJitConstant("NO_LOCAL_MEMORY", 1));
         }
     }
@@ -254,9 +257,8 @@ void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) c
             OPENVINO_ASSERT(kd.kernels.size() == 5, "[GPU] Invalid kernels size for update dispatch data func");
         }
 
+        const bool use_local_memory = !is_global_memory(prim_params);
         const auto& output = prim_params.outputs[0];
-        const bool use_local_memory = !(output.PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize);
-
         if (prim_params.mode != ScatterUpdateReduction::NONE) {
             kd.internalBuffers.clear();
             kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2);
@@ -277,7 +279,7 @@ void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) c
 
             bool is_skip = false;
             if (prim_params.mode != ScatterUpdateReduction::NONE) {
-                is_skip = ((use_local_memory && is_dynamic_global_memory_kernel(i)) || (!use_local_memory && is_dynamic_local_memory_kernel(i)));
+                is_skip = (use_local_memory && is_dynamic_global_memory_kernel(i)) || (!use_local_memory && is_dynamic_local_memory_kernel(i));
             }
 
             kd.kernels[i].skip_execution = is_skip || SkipKernelExecution(prim_params, i);
@@ -310,8 +312,8 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
 
     GetUpdateDispatchDataFunc(kd);
 
+    const bool use_local_memory_for_static_shape = !is_global_memory(newParams);
     const auto& output = newParams.outputs[0];
-    const bool use_local_memory_for_static_shape = !(output.PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize);
 
     if (!params.is_shape_agnostic && newParams.mode != ScatterUpdateReduction::NONE) {
         kd.internalBuffers.clear();
@@ -327,6 +329,18 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
         }
     }
 
+    // Define adjustment map for ITER based on kernel index
+    const std::unordered_map<size_t, int> iter_adjust_map = {
+        {2, -1}, // Kernel 2: decrement by 1
+        {3, -1}, // Kernel 3: decrement by 1
+        {4, -2}  // Kernel 4: decrement by 2
+    };
+
+    auto adjust_iter = [&](size_t index) {
+        auto it = iter_adjust_map.find(index);
+        return (it != iter_adjust_map.end()) ? it->second : 0;
+    };
+
     for (size_t i = 0; i < kernel_size; i++) {
         auto dispatchData = SetDefault(newParams, is_second_stage(prim_params, i));
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
@@ -339,8 +353,7 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
                 if (is_dynamic_global_memory_kernel(i)) {
                     cldnn_jit.AddConstant(MakeJitConstant("NO_LOCAL_MEMORY", 1));
                 }
-                if (i >= 2) iter--;
-                if (i == 4) iter--;
+                iter += adjust_iter(i);
             }
         } else {
             if (i >= 1 && newParams.mode != ScatterUpdateReduction::NONE && use_local_memory_for_static_shape) {
