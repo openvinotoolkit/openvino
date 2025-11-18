@@ -18,6 +18,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "partitioning/partitioning.hpp"
 #include "perf.hpp"
+#include "pyramid_attention.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
@@ -78,6 +79,7 @@ private:
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
+    void compile_pyramid_attention_models(std::size_t id, const std::string& device);
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
 
@@ -177,6 +179,14 @@ private:
         Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
         std::optional<ov::npuw::compiled::Attention> attention;
+        std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
+
+        // Infer requests for pyramid attention models (if pyramid_attention is present)
+        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;
+
+        // Pipeline infer requests for pyramid attention models (if pyramid_attention is present and pipelining is
+        // enabled)
+        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_pipeline_requests;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
@@ -212,7 +222,9 @@ private:
         execution_stats stat;
 
         void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
-        void deserialize(std::istream& stream, const ov::npuw::s11n::WeightsContext& ctx);
+        void deserialize(std::istream& stream,
+                         const ov::npuw::s11n::WeightsContext& ctx,
+                         const ov::npuw::s11n::PyramidCtx& pyramid_ctx);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

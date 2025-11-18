@@ -171,6 +171,19 @@ static const TypeMapping dnnlMatMulTypeMapping {
     return config.attrs.postOps.empty();
 }
 
+[[maybe_unused]] static inline bool dnnlMatMulSupportedPrecision(const FCConfig& config) {
+    // support regular float type matmul
+    if (any_of(srcType(config), f32, f16, bf16) && any_of(weiType(config), f32, f16, bf16)) {
+        return true;
+    }
+    // i32 can be up converted to f32
+    if (any_of(srcType(config), i32) && any_of(weiType(config), i32)) {
+        return true;
+    }
+    // support integer type quantization matmul
+    return any_of(srcType(config), u8, i8) && any_of(weiType(config), u8, i8);
+}
+
 struct CreateOptimalConfigDefault {
     std::optional<ConvConfig> operator()(const ConvConfig& config) const {
         return createOptimalConfigCommon(config, dnnlMatMulTypeMapping, dnnlFCLayoutConfig, fcMappingNotation);
@@ -408,7 +421,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                         return true;
                     })
-                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(dnnlMatMulSupportedPrecision(config), UNSUPPORTED_SRC_WEI_PRECISIONS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
                 VERIFY(weiDims(config)[0] > 1, UNSUPPORTED_WEI_RANK);

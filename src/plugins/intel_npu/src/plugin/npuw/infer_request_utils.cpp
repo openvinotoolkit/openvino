@@ -128,7 +128,8 @@ void ov::npuw::util::copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
         // for multiple heads, while dst_tensor will still have [1, heads, d_v, seq_len!=1],
         // shape, awaiting updates at column dimension, as value vectors are columns now.
         if (src_shape[kv_dim_src] == 1 && src_tensor->is_continuous()) {
-            ov::npuw::util::XARCH::copy_row_as_column(src_tensor, dst_tensor);
+            // FIXME: ov::npuw::util::XARCH::copy_row_as_column(src_tensor, dst_tensor) throws when used here
+            copy_columns_by_row_chunks(src_tensor, dst_tensor);
         } else {
             copy_columns_by_row_chunks(src_tensor, dst_tensor);
         }

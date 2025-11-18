@@ -263,8 +263,13 @@ class TaskManager:
                         self.kill_process_tree(self._process_list[pid].pid)
                         self._process_list[pid].kill()
                         self._process_list[pid].wait(timeout=1)
-                    self._process_list[pid].wait(timeout=0)
+                    returncode = self._process_list[pid].wait(timeout=0)
                     args = self._process_list[pid].args
+                    if returncode != 0:
+                        logger.warning(
+                            f"Process PID {pid} called with arguments {args} " +
+                            f"was finished with non-zero return code {returncode}"
+                        )
                     if constants.IS_WIN:
                         args = args.split()
                     device = get_device_by_args(args)

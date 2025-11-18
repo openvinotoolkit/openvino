@@ -424,6 +424,15 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
+    auto gate_up_group_size = desc->_config.group_size;
+    auto down_group_size = desc->_config.group_size;
+    if (desc->_config.group_size == std::numeric_limits<size_t>::max()) {
+        gate_up_group_size = desc->_config.hidden_size;
+        down_group_size = desc->_config.inter_size;
+    }
+
+    GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt: group_size=" << desc->_config.group_size << ", gate_up_group_size=" << gate_up_group_size
+                           << ", down_group_size=" << down_group_size << std::endl;
     jit.make("MAX_TOPK", desc->_config.top_k);
     jit.make("EXPERT_NUM", desc->_config.num_expert);
     jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
@@ -431,7 +440,8 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("N_BLOCK", N_BLOCK);
     jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
     jit.make("SUBGROUP_NUM", SUBGROUP_NUM);
-    jit.make("GROUP_SIZE", desc->_config.group_size);
+    jit.make("GATE_UP_GROUP_SIZE", gate_up_group_size);
+    jit.make("DOWN_GROUP_SIZE", down_group_size);
     jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
     jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
 }
@@ -576,7 +586,8 @@ public:
     std::vector<std::vector<dnnl_weights>> _dnnl_weights;
     int _hidden_size;
     int _intermediate_size;
-    int _group_size;
+    int _gate_up_group_size;
+    int _down_group_size;
 
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
@@ -593,7 +604,16 @@ public:
     void init(const std::shared_ptr<const moe_3gemm_fused_compressed>& cur_moe) {
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
-        _group_size = static_cast<int>(cur_moe->_config.group_size);
+        _gate_up_group_size = static_cast<int>(cur_moe->_config.group_size);
+        _down_group_size = static_cast<int>(cur_moe->_config.group_size);
+
+        if (cur_moe->_config.group_size == std::numeric_limits<size_t>::max()) {
+            _gate_up_group_size = static_cast<int>(cur_moe->_config.hidden_size);
+            _down_group_size = static_cast<int>(cur_moe->_config.inter_size);
+        }
+
+        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt prefill: group_size=" << cur_moe->_config.group_size
+                               << ", gate_up_group_size=" << _gate_up_group_size << ", down_group_size=" << _down_group_size << std::endl;
     }
 
     void init_dnnl_weights(const std::shared_ptr<const moe_3gemm_fused_compressed>& cur_moe,
@@ -608,13 +628,13 @@ public:
             auto& dnnl_weights = _dnnl_weights[j];
             dnnl_weights.resize(3);
             dnnl_weights[0].ic = _hidden_size;
-            dnnl_weights[0].ic_group_size = _group_size;
+            dnnl_weights[0].ic_group_size = _gate_up_group_size;
             dnnl_weights[0].oc = _intermediate_size;
             dnnl_weights[1].ic = _hidden_size;
-            dnnl_weights[1].ic_group_size = _group_size;
+            dnnl_weights[1].ic_group_size = _gate_up_group_size;
             dnnl_weights[1].oc = _intermediate_size;
             dnnl_weights[2].ic = _intermediate_size;
-            dnnl_weights[2].ic_group_size = _group_size;
+            dnnl_weights[2].ic_group_size = _down_group_size;
             dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
                 // weight shape: [ic, oc], type: u4
@@ -650,7 +670,8 @@ public:
         cur_moe->_dnnl_weights = _dnnl_weights;
         cur_moe->_hidden_size = _hidden_size;
         cur_moe->_intermediate_size = _intermediate_size;
-        cur_moe->_group_size = _group_size;
+        cur_moe->_gate_up_group_size = _gate_up_group_size;
+        cur_moe->_down_group_size = _down_group_size;
         return cur_moe;
     }
 
@@ -671,8 +692,9 @@ public:
         internal_buffers.emplace_back(layout_topk_id, true);       // 0: topk_id
         internal_buffers.emplace_back(layout_topk_weights, true);  // 1: topk_weights
         // fast single batch: scratch.up = up(x) * silu(gate(x)); scratch.y = down(scratch.up) * weight[expert_no]
-        layout layout_gateup_out(ov::PartialShape{batch, static_cast<int>(config.inter_size)}, data_type, cldnn::format::bfyx);
-        layout layout_down_out(ov::PartialShape{batch, static_cast<int>(config.hidden_size)}, data_type, cldnn::format::bfyx);
+        auto max_batch = (batch == 1 ? max_topk : batch);
+        layout layout_gateup_out(ov::PartialShape{max_batch, static_cast<int>(config.inter_size)}, data_type, cldnn::format::bfyx);
+        layout layout_down_out(ov::PartialShape{max_batch, static_cast<int>(config.hidden_size)}, data_type, cldnn::format::bfyx);
         internal_buffers.emplace_back(layout_gateup_out, true);  // 2: up
         internal_buffers.emplace_back(layout_down_out, true);    // 3: y
         // onednn: scratch.x, scratch.routing_weights = gather(x, ...)
@@ -832,7 +854,9 @@ public:
         return std::make_tuple(mem, layout);
     }
 
-    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch) {
+    cldnn::event::ptr exec_single_batch(const std::vector<cldnn::event::ptr>& events,
+                                        typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                        scratch_buffers& scratch) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         int max_topk = static_cast<int>(cur_moe->_config.top_k);
 
@@ -865,8 +889,8 @@ public:
 
         {
             // scratch.up = up(x) * silu(gate(x))
-            execute_stage(
-                {},
+            auto ret_event = execute_stage(
+                events,
                 instance,
                 *mlp_gate_up,
                 {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem, hidden_states_mem_ptr},
@@ -875,16 +899,16 @@ public:
                 {1, subgroup_size, SUBGROUP_NUM});
 
             // scratch.y = down(scratch.up) * weight[expert_no]
-            execute_stage({},
-                          instance,
-                          *mlp_down,
-                          {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem, scratch.up, routing_mem_ptr},
-                          {scratch.y},
-                          {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
-                          {1, subgroup_size, SUBGROUP_NUM});
+            ret_event = execute_stage({ret_event},
+                                      instance,
+                                      *mlp_down,
+                                      {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem, scratch.up, routing_mem_ptr},
+                                      {scratch.y},
+                                      {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
+                                      {1, subgroup_size, SUBGROUP_NUM});
 
             // final = sum(scratch.y)
-            ret = execute_stage({},
+            ret = execute_stage({ret_event},
                                 instance,
                                 *mlp_reduce,
                                 {scratch.y},
@@ -1014,7 +1038,7 @@ public:
         // and we can apply optimal kernels against memory bound to improve performance.
         // It is very important for MoE's second token performance.
         if (batch == 1) {
-            return exec_single_batch(instance, scratch);
+            return exec_single_batch({topk_event}, instance, scratch);
         }
 
         auto& engine = instance.get_network().get_engine();
@@ -1034,7 +1058,7 @@ public:
         get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
 
         auto& dnn_stream = stream.get_onednn_stream();
-        cldnn::event::ptr result_event;
+        cldnn::event::ptr result_event = nullptr;
 
         auto routing_mem_ptr = scratch.topk_weights;
         auto get_best_lws = [](size_t hidden_size) {
@@ -1069,13 +1093,14 @@ public:
             onednn_kernel& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
 
             // gather
-            execute_stage(events,
-                          instance,
-                          *gather,
-                          {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem.batch, expert_mask_mem.topk},
-                          {scratch.x, scratch.routing_weights},
-                          {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
-                          {1, lws_size});
+            result_event = execute_stage({result_event},
+                                         instance,
+                                         *gather,
+                                         {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem.batch, expert_mask_mem.topk},
+                                         {scratch.x, scratch.routing_weights},
+                                         {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
+                                         {1, lws_size},
+                                         instance.needs_completion_event());
 
             // up
             kernel.up.forward(dnn_stream,
@@ -1096,9 +1121,9 @@ public:
                                 n_token,
                                 convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.y, {static_cast<int>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.routing_weights, {n_token * max_topk}, dnnl::memory::format_tag::a));
+                                convert2dnnl(scratch.routing_weights, {static_cast<int>(n_token * max_topk)}, dnnl::memory::format_tag::a));
             // index_add
-            result_event = execute_stage(events,
+            result_event = execute_stage({result_event},
                                          instance,
                                          *scatter,
                                          {scratch.y, expert_mask_mem.batch},

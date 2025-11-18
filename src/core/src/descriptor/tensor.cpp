@@ -149,9 +149,6 @@ Tensor::Tensor(const element::Type& element_type,
                const std::unordered_set<std::string>& names)
     : m_impl(std::make_shared<BasicTensor>(element_type, pshape, names)) {}
 
-Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, ov::Node* node, size_t)
-    : m_impl(std::make_shared<BasicTensor>(element_type, pshape, std::unordered_set<std::string>{})) {}
-
 void Tensor::invalidate_values() {
     if (ov::skip_invalidation(*this))
         return;

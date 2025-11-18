@@ -237,6 +237,14 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 /**
  * @brief
  * Type: boolean.
+ * Apply attention optimizations (e.g. DYNAMIC, PYRAMID, and others) when attention block detected.
+ * Default value: true
+ */
+static constexpr ov::Property<bool> attn{"NPUW_ATTN"};
+
+/**
+ * @brief
+ * Type: boolean.
  * Enable dynamic dispatch for the attention block, if detected
  * Default value: true
  */

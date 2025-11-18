@@ -52,6 +52,11 @@ public:
      */
     void set_property(const ov::AnyMap& properties);
 
+    /**
+     * @brief Checks whether a property was registered by its name
+     */
+    bool isPropertyRegistered(const std::string& propertyName) const;
+
 private:
     PropertiesType _pType;
     FilteredConfig& _config;
@@ -91,6 +96,7 @@ private:
         ov::intel_npu::npuw::partitioning::online::min_size.name(),
         ov::intel_npu::npuw::partitioning::online::keep_blocks.name(),
         ov::intel_npu::npuw::partitioning::online::keep_block_size.name(),
+        ov::intel_npu::npuw::partitioning::attn.name(),
         ov::intel_npu::npuw::partitioning::fold.name(),
         ov::intel_npu::npuw::partitioning::cwai.name(),
         ov::intel_npu::npuw::partitioning::dyn_quant.name(),

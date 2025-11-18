@@ -5,11 +5,6 @@
 #include "include/batch_headers/common.cl"
 #include "include/fetch_utils.cl"
 
-#define VLOAD CAT(vload, VEC_BLK_SIZE)
-#define VSTORE CAT(vstore, VEC_BLK_SIZE)
-#define INPUT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLK_SIZE)
-#define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_BLK_SIZE)
-
 KERNEL(moe_scatter_reduction_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -22,94 +17,34 @@ KERNEL(moe_scatter_reduction_ref)(
     __global OUTPUT_TYPE* output
 )
 {
-    const uint token_group_id = (uint)get_group_id(0);
-    const uint threads_index = (uint)get_local_id(0);
-
-    OUTPUT_VEC_TYPE output_vec[BATCHES_PER_THREAD];
-   // start_offset_idx[i] = n : info for i-th expert in this thread is in the nth slot of the mask
-   __local uint start_offset_index[ACTIVE_EXPERTS];
-   __local uint input_offset;
-
-   if (threads_index < ACTIVE_EXPERTS) {
-       INPUT1_TYPE expert_id = experts_per_token[token_group_id * ACTIVE_EXPERTS  + threads_index];
-       for (int i = 0; i < INPUT6_BATCH_NUM; i++) {
+    uint token_id = (uint)get_global_id(0);
+    uint output_base_idx = token_id * HIDDEN_SIZE;
+    for (int e_iter = 0; e_iter < ACTIVE_EXPERTS; ++e_iter) {
+        INPUT1_TYPE expert_id = experts_per_token[token_id * ACTIVE_EXPERTS + e_iter];
+        INPUT2_TYPE weight = expert_weights[token_id * ACTIVE_EXPERTS + e_iter];
+        int idx = 0;
+        for (int i = 0; i < INPUT6_BATCH_NUM; ++i) {
             if (experts_ids[i] == expert_id) {
-               start_offset_index[threads_index] = i;
-               break;
-           }
-       }
-   }
-
-   if (threads_index == 0)
-       input_offset = 0;
-
-   barrier(CLK_LOCAL_MEM_FENCE);
-
-#if UNALIGNED_ELEMENTS > 0
-    OUTPUT_TYPE output_scalar[UNALIGNED_ELEMENTS];
-#endif
-
-    uint dest_index = token_group_id * HIDDEN_SIZE;
-    uint output_pos = dest_index + threads_index * VEC_BLK_SIZE * BATCHES_PER_THREAD;
-
-    for (uint i = 0; i < BATCHES_PER_THREAD; i++) {
-        output_vec[i] = TO_OUTPUT_TYPE(0);
-    }
-
-#if UNALIGNED_ELEMENTS > 0
-    for (uint i = 0; i < UNALIGNED_ELEMENTS; i++) {
-        output_scalar[i] = TO_OUTPUT_TYPE(0);
-    }
-#endif
-
-    for (uint i = 0; i < ACTIVE_EXPERTS; i++) {
-        INPUT1_TYPE expert_id = experts_per_token[token_group_id * ACTIVE_EXPERTS  + i];
-        INPUT2_TYPE expert_weight = expert_weights[token_group_id * ACTIVE_EXPERTS  + i];
-        INPUT5_TYPE token_len = tokens_len_per_expert[start_offset_index[i]];
-        INPUT4_TYPE expert_offset = experts_start_offset[start_offset_index[i]];
-
-        for (uint tid = threads_index; tid < token_len; tid += get_local_size(0)) {
-            if (tokens_per_expert[expert_offset + tid] == token_group_id) {
-                input_offset = expert_offset + tid;
+                idx = i;
                 break;
             }
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
-        for (uint j = 0; j < BATCHES_PER_THREAD; j++) {
-            const uint input_pos = input_offset * HIDDEN_SIZE + j * VEC_BLK_SIZE + threads_index * VEC_BLK_SIZE * BATCHES_PER_THREAD;
-
-#if UNALIGNED_ELEMENTS > 0
-            if ((threads_index == get_local_size(0) - 1) && (j == 0)) {
-                uint input_pos_unaligned = input_pos;
-                for (uint k = 0; k < UNALIGNED_ELEMENTS; k++) {
-                    output_scalar[k] += input[input_pos_unaligned] * expert_weight;
-                    input_pos_unaligned++;
-                }
-            } else {
-#endif
-                INPUT_VEC_TYPE input_data = VLOAD(0, &input[input_pos]);
-                input_data *= expert_weight;
-                output_vec[j] += input_data;
-#if UNALIGNED_ELEMENTS > 0
+        uint exp_offset_start = experts_start_offset[idx];
+        uint input_len = tokens_len_per_expert[idx];
+        uint input_offset = 0;
+        for (uint t = 0; t < input_len; ++t) {
+            if (tokens_per_expert[exp_offset_start + t] == token_id) {
+                input_offset = exp_offset_start + t;
+                break;
             }
-#endif
+        }
+        uint in_pos = input_offset * HIDDEN_SIZE;
+        uint out_pos = token_id * HIDDEN_SIZE;
+        for (uint h = 0; h < HIDDEN_SIZE; h++) {
+            if (e_iter == 0)
+                output[out_pos + h] = input[in_pos + h] * weight;
+            else
+                output[out_pos + h] += input[in_pos + h] * weight;
         }
     }
-
-#if UNALIGNED_ELEMENTS > 0
-    if ((threads_index == get_local_size(0) - 1)) {
-        uint output_pos_unaligned = output_pos;
-        for (uint s = 0; s < UNALIGNED_ELEMENTS; s++) {
-            output[output_pos_unaligned] = output_scalar[s];
-            output_pos_unaligned++;
-        }
-    } else {
-#endif
-        for (uint v = 0; v < BATCHES_PER_THREAD; v++) {
-            const uint out_pos = output_pos + v * VEC_BLK_SIZE;
-            VSTORE(output_vec[v], 0, &output[out_pos]);
-        }
-#if UNALIGNED_ELEMENTS > 0
-    }
-#endif
 }

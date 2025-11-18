@@ -78,6 +78,94 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
     register_matcher(std::make_shared<opp::Matcher>(reshape, "TagSDPA"), std::move(callback));
 }
 
+/*
+    Decomposed SDPA Pattern:
+            Convert
+                \       /
+                 Concat
+                    |
+                Unsqueeze
+                    |
+                Broadcast   Convert
+                    |       \       /
+                Reshape       Concat
+        \           /           |
+            MatMul           Unsqueeze
+    \       /                   |
+       Add                   Broadcast
+        |                       |
+     Softmax                Reshape
+            \               /
+                  MatMul
+                    |
+                Transpose
+                    |
+                Reshape
+                    |
+*/
+
+SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+                               const std::string& isol_tag) {
+    auto convert1 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
+    auto concat1 = opp::wrap_type<ov::op::v0::Concat>({convert1, opp::any_input()});
+    auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({concat1, opp::any_input()});
+    auto broadcast1 = opp::wrap_type<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()});
+    auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({broadcast1, opp::any_input()});
+
+    auto convert2 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
+    auto concat2 = opp::wrap_type<ov::op::v0::Concat>({convert2, opp::any_input()});
+    auto unsqueeze2 = opp::wrap_type<ov::op::v0::Unsqueeze>({concat2, opp::any_input()});
+    auto broadcast2 = opp::wrap_type<ov::op::v3::Broadcast>({unsqueeze2, opp::any_input()});
+    auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({broadcast2, opp::any_input()});
+
+    auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), reshape1});
+    auto add = opp::wrap_type<ov::op::v1::Add>({matmul1, opp::any_input()});
+    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({add});
+
+    auto matmul2 = opp::wrap_type<ov::op::v0::MatMul>({softmax, reshape2});
+    auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul2, opp::any_input()});
+    auto reshape3 = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        LOG_DEBUG("Decomposed SDPA pattern matched!");
+
+        auto& node_to_output = m.get_pattern_value_map();
+
+        // Helper lambda to extract and isolate matched nodes
+        auto isolate_matched = [&](const auto& pattern) {
+            auto matched_node = node_to_output.at(pattern).get_node_shared_ptr();
+            node_to_gptr->at(matched_node)->isolate(isol_tag);
+        };
+
+        // Isolate all matched nodes in the pattern
+        isolate_matched(convert1);
+        isolate_matched(concat1);
+        isolate_matched(unsqueeze1);
+        isolate_matched(broadcast1);
+        isolate_matched(reshape1);
+
+        isolate_matched(convert2);
+        isolate_matched(concat2);
+        isolate_matched(unsqueeze2);
+        isolate_matched(broadcast2);
+        isolate_matched(reshape2);
+
+        isolate_matched(matmul1);
+        isolate_matched(add);
+        isolate_matched(softmax);
+        isolate_matched(matmul2);
+        isolate_matched(transpose);
+        isolate_matched(reshape3);
+
+        return false;  // root hasn't changed
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(reshape3, "TagSDPADecomposed"), std::move(callback));
+}
+
 }  // namespace attn
 
 namespace regularize {

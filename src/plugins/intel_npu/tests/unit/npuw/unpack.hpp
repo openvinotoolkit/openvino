@@ -389,6 +389,13 @@ TEST_P(UnpackTests, i4) {
     ASSERT_TRUE(details::fp16ArraysMatch(output, ref_output, input));
 }
 
+using UnpackTestsU4 = UnpackTestsTmpl<UnpackTestsBase>;
+
+TEST_P(UnpackTestsU4, u4) {
+    ASSERT_NO_THROW_WITH_MESSAGE(ov::npuw::util::unpack(from, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
+    ASSERT_TRUE(details::fp16ArraysMatch(output, ref_output, input));
+}
+
 class UnpackWithScaleTestsBase : public UnpackTestsBase {
 protected:
     bool isNegative() const override {
@@ -443,6 +450,58 @@ TEST_P(UnpackWithScaleTests, i4_scale) {
     }
 }
 
+class UnpackWithScaleTestsI4F16Base : public UnpackTestsBase {
+protected:
+    bool isNegative() const override {
+        if (scale_shape.size() != 3 && scale_shape.size() != 2) return true;
+        if (input_shape.back() % 64) return true;
+        if (toType != ov::element::f16) return true;
+
+        return false;
+    }
+
+    void make_ref_output() override {
+        if (isNegative()) return;
+
+        size_t nElements = from->get_size();
+
+        details::unpack_i4f16(input.data(), ref_output.data(), static_cast<int>(nElements));
+
+        uint16_t * ref = reinterpret_cast<uint16_t*>(ref_output.data());
+        uint16_t * scale_f16 = reinterpret_cast<uint16_t*>(scale->data());
+        float * scale_f32 = reinterpret_cast<float*>(scale->data());
+
+        auto C = input_shape[0];
+        auto H = input_shape[1];
+        auto W = input_shape[2];
+        for (size_t c = 0; c < C; c++) {
+            for (size_t h = 0; h < H; h++) {
+                for (size_t w = 0; w < W; w++) {
+                    size_t ref_index = c * H * W + h * W + w;
+                    float ref_scaled = details::half_to_float(ref[ref_index]);
+                    size_t scale_index = c * W + w;
+                    if (scaleType == ov::element::f32) {
+                        ref_scaled *= scale_f32[scale_index];
+                    } else if (scaleType == ov::element::f16) {
+                        ref_scaled *= details::half_to_float(scale_f16[scale_index]);
+                    }
+                    *(ref + ref_index) = details::float_to_half(ref_scaled);
+                }
+            }
+        }
+    }
+
+};
+
+using UnpackWithScaleTestsI4F16 = UnpackTestsTmpl<UnpackWithScaleTestsI4F16Base>;
+
+TEST_P(UnpackWithScaleTestsI4F16, i4f16_scale) {
+    ASSERT_NO_THROW_IF(!isNegative(),
+                      ov::npuw::util::unpack(from, scale, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
+    if (!isNegative()) {
+        ASSERT_TRUE(details::fp16ArraysMatch(output, ref_output, input));
+    }
+}
 
 class UnpackTestsWithScaleAndZeroPointBase : public UnpackTestsBase {
 protected:

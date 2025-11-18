@@ -17,6 +17,7 @@ ParamsKey FullyConnected_GEMV::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::INT4);
     k.EnableInputWeightsType(WeightsType::UINT4);
     k.EnableInputLayout(DataLayout::bf);
@@ -64,7 +65,7 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
     }
 
     // Data type re-check: only support f16:int4:f16
-    if (input.GetDType() != Datatype::F16 || output.GetDType() != Datatype::F16 ||
+    if (input.GetDType() != Datatype::F16 || (output.GetDType() != Datatype::F16 && output.GetDType() != Datatype::F32) ||
         (weights.GetDType() != WeightsType::INT4 && weights.GetDType() != WeightsType::UINT4)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }

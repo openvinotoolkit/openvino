@@ -111,9 +111,6 @@ Files: \src\*, \cmake\*
 Comment: gflags
 Copyright: Copyright (c) 2006, Google Inc.
  
- Google cpplint
- Copyright (C) 2009 Google Inc
- 
  Google Mock
  Copyright 2008, Google Inc.
  

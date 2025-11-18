@@ -155,30 +155,20 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
       _log("CommandQueue", Logger::global().level()) {
     ze_command_queue_desc_t queue_desc =
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
+    ze_command_queue_desc_npu_ext_t turbo_cfg = {};
+    ze_command_queue_desc_npu_ext_2_t command_queue_desc = {};
 
     if (command_queue_options) {
         if (_init_structs->getCommandQueueDdiTable().version() == ZE_MAKE_VERSION(1, 0)) {
-            ze_command_queue_desc_npu_ext_t turbo_cfg = {};
-
             turbo_cfg.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT;
             turbo_cfg.turbo = command_queue_options & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
 
             queue_desc.pNext = &turbo_cfg;
-
-            THROW_ON_FAIL_FOR_LEVELZERO(
-                "zeCommandQueueCreate",
-                zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &queue_desc, &_handle));
         } else if (_init_structs->getCommandQueueDdiTable().version() > ZE_MAKE_VERSION(1, 0)) {
-            ze_command_queue_desc_npu_ext_2_t command_queue_desc = {};
-
             command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT_2;
             command_queue_desc.options = command_queue_options;
 
             queue_desc.pNext = &command_queue_desc;
-
-            THROW_ON_FAIL_FOR_LEVELZERO(
-                "zeCommandQueueCreate",
-                zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &queue_desc, &_handle));
         }
     }
 

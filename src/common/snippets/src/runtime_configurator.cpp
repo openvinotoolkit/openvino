@@ -357,7 +357,7 @@ void RuntimeConfigurator::update_data_offsets() const {
         auto& offsets = m_config->io_data_offsets[i];
         const auto& layout = layouts[i];
         if (!layout.empty()) {
-            VectorDims reordered_offsets(offsets.size());
+            std::vector<size_t> reordered_offsets(offsets.size());
             const auto is_input = i < m_in_num;
             for (size_t i = 0; i < layout.size(); i++) {
                 const auto& src_idx = is_input ? layout[i] : i;
@@ -377,8 +377,8 @@ std::vector<VectorDims> RuntimeConfigurator::extract_shapes() const {
     return shapes;
 }
 
-std::vector<VectorDims> RuntimeConfigurator::extract_layouts() const {
-    std::vector<VectorDims> layouts(m_io_num);
+std::vector<std::vector<size_t>> RuntimeConfigurator::extract_layouts() const {
+    std::vector<std::vector<size_t>> layouts(m_io_num);
     for (size_t i = 0; i < m_io_num; ++i) {
         layouts[i] = m_io_descs[i]->get_layout();
     }

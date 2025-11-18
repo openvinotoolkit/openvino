@@ -1021,10 +1021,5 @@ void copy_tensor_data(ov::Tensor& dst, const ov::Tensor& src) {
             "Source and destination tensors shapes and byte sizes are expected to be equal for data copying.");
         // std::cout << "Dynamic pipeline support mismatch tensor shape" << std::endl;
     }
-    // size_t result_size = src.get_byte_size() < dst.get_byte_size() ? src.get_byte_size() : dst.get_byte_size();
-    // std::cout << "Finally copy size: " << result_size << std::endl;
-    OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
-                                        // memcpy(dst.data(), src.data(), result_size);
-        memcpy(dst.data(), src.data(), src.get_byte_size());
-    OPENVINO_SUPPRESS_DEPRECATED_END  // keep until 2026.0 release
+    memcpy(dst.data(), src.data(), src.get_byte_size());
 }

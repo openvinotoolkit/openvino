@@ -8,7 +8,6 @@ ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        ADD_CPPLINT
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
