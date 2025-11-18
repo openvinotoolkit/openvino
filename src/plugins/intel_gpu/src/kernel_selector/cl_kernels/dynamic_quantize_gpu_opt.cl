@@ -78,7 +78,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
 #if IS_F8
         quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale);
-        //BLOCK_WRITEN(OUTPUT_TYPE, 4, output + output_offset + i * 4, 0, quantized_value[i]);
+        // BLOCK_WRITEN(OUTPUT_TYPE, 4, output, output_offset + i * 4, quantized_value[i]);
         output[output_offset + i * 4] = AS_OUTPUT_TYPE(quantized_value[i].data[0]);
         output[output_offset + i * 4 + 1] = AS_OUTPUT_TYPE(quantized_value[i].data[1]);
         output[output_offset + i * 4 + 2] = AS_OUTPUT_TYPE(quantized_value[i].data[2]);
@@ -191,9 +191,14 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if ASYMMETRIC_QUANTIZATION
     val += zp;
     VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
-#else
+#else // ASYMMETRIC_QUANTIZATION
+#if IS_F8
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
+    BLOCK_WRITEN(OUTPUT_TYPE, VEC_SIZE, output + output_offset + (local_id * block_size), 0, out);
+#else // IS_F8
     VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
-#endif
+#endif // IS_F8
+#endif // ASYMMETRIC_QUANTIZATION
 
     if (sglid == 0 && local_id == 0) {
 #if OUTPUT_DIMS == 2
@@ -307,9 +312,14 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if ASYMMETRIC_QUANTIZATION
         val[i] += zp;
         VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
-#else
+#else // ASYMMETRIC_QUANTIZATION
+#if IS_F8
+        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val[i]);
+        BLOCK_WRITEN(OUTPUT_TYPE, VEC_SIZE, output + offset + ((local_id * iteration + i) * block_size), 0, out);
+#else // IS_F8
         VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
-#endif
+#endif // IS_F8
+#endif // ASYMMETRIC_QUANTIZATION
     }
 
     if (sglid == 0 && local_id == 0) {
