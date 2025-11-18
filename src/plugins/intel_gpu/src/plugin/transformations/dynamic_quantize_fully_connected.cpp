@@ -84,9 +84,9 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             return false;
         }
 
-        if (adj_group_size == 16) {
+        if (adj_group_size < 32) {
             GPU_DEBUG_LOG << "Dynamic quantization: quantized activation by group size " << adj_group_size
-                            << " is not supported by onednn matmul" << std::endl;
+                            << " is not supported by onednn matmul if it is less than 32" << std::endl;
             return false;
         }
 

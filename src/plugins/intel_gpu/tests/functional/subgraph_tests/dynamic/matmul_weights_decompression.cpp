@@ -514,8 +514,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_scalar_wzp,
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_precomputed_reduction_with_gs16,
                          MatmulWeightsDecompression,
-                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1024, 1, 1024}}},
-                                                                            {1024, 1024}, 16}),  // shape
+                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 128}, {{128, 1, 128}}},
+                                                                            {128, 128}, 16}),  // shape
                                             ::testing::Values(ov::element::u8),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(false),
