@@ -18,20 +18,20 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
                                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                    const ov::element::Type& element_type,
                                    const ov::Shape& shape,
-                                   TensorType tensor_type,
-                                   MemType mem_type,
-                                   const void* mem,
-                                   const std::optional<ov::intel_npu::FileDescriptor>& file_descriptor)
+                                   TensorType zero_tensor_type,
+                                   MemType memory_type,
+                                   const void* memory,
+                                   const std::optional<FileDescriptor>& file_desc)
     : _context(context),
       _init_structs(init_structs),
       _element_type(element_type),
       _shape(shape),
       _capacity(shape),
       _logger("ZeroRemoteContext", Logger::global().level()),
-      _tensor_type(tensor_type),
-      _mem_type(mem_type),
-      _file_descriptor(file_descriptor),
-      _mem(mem) {
+      _tensor_type(zero_tensor_type),
+      _mem_type(memory_type),
+      _file_descriptor(file_desc),
+      _mem(memory) {
     OPENVINO_ASSERT(shape_size(_shape) != 0);
     OPENVINO_ASSERT(_element_type.is_static());
 
@@ -205,6 +205,16 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         }
         break;
     }
+    case MemType::CPU_VA: {
+        _host_memory = ZeroMemPool::get_instance().import_standard_allocation_memory(
+            _init_structs,
+            _mem,
+            bytes,
+            _tensor_type == TensorType::INPUT ? true : false);
+        _data = _host_memory->data();
+
+        break;
+    }
     default:
         _data = nullptr;
     }
@@ -223,12 +233,11 @@ void ZeroRemoteTensor::update_properties() {
     switch (_mem_type) {
     case MemType::L0_INTERNAL_BUF:
     case MemType::MMAPED_FILE:
+    case MemType::CPU_VA:
         _properties = {mem_type(_mem_type), mem_handle(_data), tensor_type(_tensor_type)};
-
         break;
     case MemType::SHARED_BUF:
-        _properties = {mem_type(_mem_type), mem_handle(_data)};
-
+        _properties = {mem_type(_mem_type), mem_handle(_data), tensor_type(_tensor_type)};
         break;
     default:
         OPENVINO_THROW("Unsupported object type ", static_cast<int>(_mem_type));
