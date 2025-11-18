@@ -682,6 +682,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     checkUpdateforSpecialPlatform(_globalConfig, localProperties, _logger);
 
     const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
+    for(auto it : localPropertiesMap) {
+        _logger.debug("Local property: %s=%s", it.first.c_str(), it.second.c_str());
+    }
     update_log_level(localPropertiesMap);
 
     // create compiler
@@ -690,6 +693,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
+    std::cout << " ===== the final config is: " << localConfig.toString() << std::endl;
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
