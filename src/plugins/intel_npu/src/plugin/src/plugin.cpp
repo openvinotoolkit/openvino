@@ -158,7 +158,7 @@ std::string getDeviceFromProperties(const ov::AnyMap& propertiesMap) {
     return defaultDevice;
 }
 
-void checkUpdateforspecialPlatform(const FilteredConfig& base_conf, ov::AnyMap& propertiesMap, Logger& log) {
+void checkUpdateforSpecialPlatform(const FilteredConfig& base_conf, ov::AnyMap& propertiesMap, Logger& log) {
     // If there is no compiler_type provided, use base_config value, check and update by the device
     // update the compilerType by device:
     //  3720 -> DRIVER
@@ -679,7 +679,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     // For 3720, need check and update its compiler_type
-    checkUpdateforspecialPlatform(_globalConfig, localProperties, _logger);
+    checkUpdateforSpecialPlatform(_globalConfig, localProperties, _logger);
 
     const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
     update_log_level(localPropertiesMap);
@@ -981,7 +981,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     CompilerAdapterFactory compilerAdapterFactory;
     auto npu_plugin_properties = properties;
     exclude_model_ptr_from_map(npu_plugin_properties);
-    checkUpdateforspecialPlatform(_globalConfig, npu_plugin_properties, _logger);
+    checkUpdateforSpecialPlatform(_globalConfig, npu_plugin_properties, _logger);
     const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
     auto compiler =
@@ -1016,7 +1016,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
     auto originalModel = exclude_model_ptr_from_map(npu_plugin_properties);
-    checkUpdateforspecialPlatform(_globalConfig, npu_plugin_properties, _logger);
+    checkUpdateforSpecialPlatform(_globalConfig, npu_plugin_properties, _logger);
 
     CompilerAdapterFactory compilerAdapterFactory;
     const auto propertiesMap = any_copy(npu_plugin_properties);
