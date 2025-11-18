@@ -126,7 +126,8 @@ protected:
                                               const bool add_subtract,
                                               const bool reshape_on_decompression,
                                               const bool extra_multiply,
-                                              const bool per_tensor_zp) {
+                                              const bool per_tensor_zp,
+                                              const std::optional<ov::hint::DynamicQuantizationDataType> dyn_quan_dtype_scheme) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(data_precision, data_shape)};
         const auto weights_subgraph = init_compressed_weights_subgraph(weights_shape,
                                                                        group_size,
@@ -136,7 +137,8 @@ protected:
                                                                        add_subtract,
                                                                        reshape_on_decompression,
                                                                        extra_multiply,
-                                                                       per_tensor_zp);
+                                                                       per_tensor_zp,
+                                                                       dyn_quan_dtype_scheme);
 
         auto mat_mul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
         return std::make_shared<ov::Model>(ov::OutputVector{mat_mul}, params, "MatmulWeightsDecompression");
@@ -150,7 +152,8 @@ protected:
                                                                const bool add_subtract,
                                                                const bool reshape_on_decompression_constant,
                                                                const bool extra_multiply,
-                                                               const bool per_tensor_zp) {
+                                                               const bool per_tensor_zp,
+                                                               const std::optional<ov::hint::DynamicQuantizationDataType> dyn_quan_dtype_scheme) {
         auto transpose_if_necessary = [&](const ov::Shape& shape) {
             auto result_shape = shape;
             if (transpose_weights)
@@ -215,7 +218,10 @@ protected:
             mul_parent = std::make_shared<ov::op::v1::Subtract>(weights_convert, shift_convert);
         }
 
-        bool is_mxfp = cldnn::one_of(weights_precision, {ov::element::f8e4m3, ov::element::f8e5m2});
+        bool is_mxfp = cldnn::one_of(dyn_quan_dtype_scheme,
+                                     {ov::hint::DynamicQuantizationDataType::MXF8E4M3,
+                                      ov::hint::DynamicQuantizationDataType::MXF8E5M2,
+                                      ov::hint::DynamicQuantizationDataType::MXF4E2M1});
         ov::element::Type scale_data_precision = is_mxfp ? ov::element::f8e8m0 : data_precision;
 
         ov::test::utils::InputGenerateData in_data;
@@ -302,7 +308,8 @@ protected:
                                  decompression_sub,
                                  reshape_on_decompression,
                                  extra_multiply,
-                                 per_tensor_zp);
+                                 per_tensor_zp,
+                                 dyn_quan_dtype_scheme);
 
 
         if (activations_precision == ov::element::f16) {

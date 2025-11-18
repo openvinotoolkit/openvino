@@ -134,7 +134,6 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             node->validate_and_infer_types();
         }
 
-
         OutputVector replacements(node->get_output_size());
         if (node->constant_fold(replacements, node->input_values())) {
             OPENVINO_ASSERT(!constant_folding_is_disabled(original_node),
@@ -143,7 +142,6 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             OPENVINO_ASSERT(replacements.size() == node->get_output_size(),
                             "constant_fold_default returned incorrect number of replacements for ",
                             node);
-
 
             for (size_t i = 0; i < replacements.size(); ++i) {
                 auto node_output = original_node->output(i);
