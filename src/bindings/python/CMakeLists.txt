@@ -192,9 +192,7 @@ endif()
 #
 
 if(CMAKE_CROSSCOMPILING)
-    set(pybind11_min_version 2.12.0)
-else()
-    set(pybind11_min_version 2.12.0)
+    set(pybind11_min_version 3.0.1)
 endif()
 # search for FindPython3.cmake instead of legacy modules
 set(PYBIND11_FINDPYTHON ON)
