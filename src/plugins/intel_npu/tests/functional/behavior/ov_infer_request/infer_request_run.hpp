@@ -82,7 +82,8 @@ public:
         auto hash = std::to_string(std::hash<std::string>()(test_name));
         std::stringstream ss;
         auto ts = duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch());
-        ss << hash << "_" << "_" << ts.count();
+        ss << hash << "_"
+           << "_" << ts.count();
         return ss.str();
     }
 
@@ -466,7 +467,7 @@ TEST_P(BatchingRunTests, CheckBatchingSupportInfer) {
 TEST_P(BatchingRunTests, CheckBatchingSupportAsync) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        ov::CompiledModel compiled_model;
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     auto batch_shape = Shape{4, 2, 32, 32};
     std::shared_ptr<ov::Model> ov_model_batch = createModel(element::f32, batch_shape, "N...");
@@ -556,6 +557,7 @@ TEST_P(BatchingRunTests, SetInputTensorAsync) {
 }
 
 TEST_P(BatchingRunTests, SetInputTensorInfer_Caching) {
+    // need to skip or set driver compiler type
     auto batch_shape = Shape{4, 2, 2, 2};
     auto shape_size = ov::shape_size(batch_shape);
     auto model = createModel(element::f32, batch_shape, "N...");
@@ -565,6 +567,7 @@ TEST_P(BatchingRunTests, SetInputTensorInfer_Caching) {
 
     m_cache_dir = generateCacheDirName(GetTestName());
     core->set_property({ov::cache_dir(m_cache_dir)});
+    core->set_property({ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)});
     auto compiled_model_no_cache = core->compile_model(model, target_device, configuration);
     compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;

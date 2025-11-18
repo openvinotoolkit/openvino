@@ -11,6 +11,7 @@
 
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/core/log_util.hpp"
+// #include "intel_npu/npu_private_properties.hpp"
 
 namespace ov {
 namespace test {
@@ -20,6 +21,7 @@ using OVCompileModelLoadFromFileTestBaseNPU = CompileModelLoadFromFileTestBase;
 
 TEST_P(OVCompileModelLoadFromFileTestBaseNPU, BlobWithOVHeaderAligmentCanBeImported) {
     core->set_property(ov::cache_dir(m_cacheFolderName));
+    // core->set_property({intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)});
 
     ze_device_external_memory_properties_t externalMemorydDesc = {};
     externalMemorydDesc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
