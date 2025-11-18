@@ -641,6 +641,25 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _logger.warning("Model received in config will be ignored as it was already provided by parameter.");
     }
 
+    // There is an on-going migration from "USE_BASE_MODEL_SERIALIZER" to "MODEL_SERIALIZER_VERSION". Until done, make
+    // sure only the option supported by the compiler is registered in the config.
+    bool useBaseModelSerializer = true;
+    bool modelSerializerChosenExplicitly = false;
+    const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
+    const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
+    if (localProperties.count(useBaseModelSerializerKey)) {
+        modelSerializerChosenExplicitly = true;
+        useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
+        localProperties.erase(useBaseModelSerializerKey);
+        localProperties.erase(modelSerializerVersionKey);
+    } else if (localProperties.count(modelSerializerVersionKey)) {
+        modelSerializerChosenExplicitly = true;
+        const auto modelSerializerVersion =
+            localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
+        useBaseModelSerializer = !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
+        localProperties.erase(modelSerializerVersionKey);
+    }
+
     const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
     update_log_level(localPropertiesMap);
 
@@ -748,16 +767,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localConfig.update({{ov::intel_npu::weightless_blob.name(), cacheModeOptimizeSize ? "YES" : "NO"}});
     }
 
-    // There is an on-going migration from "USE_BASE_MODEL_SERIALIZER" to "MODEL_SERIALIZER_VERSION". Until done, make
-    // sure both options have the same value if only one is defined.
-    if (localConfig.has<MODEL_SERIALIZER_VERSION>() && !localConfig.has<USE_BASE_MODEL_SERIALIZER>()) {
-        const bool useBaseModelSerializer =
-            (localConfig.get<MODEL_SERIALIZER_VERSION>() == ov::intel_npu::ModelSerializerVersion::AUTO ||
-             localConfig.get<MODEL_SERIALIZER_VERSION>() == ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
-        localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), useBaseModelSerializer ? "YES" : "NO"}});
-    } else if (!localConfig.has<MODEL_SERIALIZER_VERSION>() && localConfig.has<USE_BASE_MODEL_SERIALIZER>()) {
-        localConfig.update({{ov::intel_npu::model_serializer_version.name(),
-                             localConfig.get<USE_BASE_MODEL_SERIALIZER>() ? "ALL_WEIGHTS_COPY" : "NO_WEIGHTS_COPY"}});
+    if (modelSerializerChosenExplicitly) {
+        if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+            localConfig.update(
+                {{ov::intel_npu::use_base_model_serializer.name(), useBaseModelSerializer ? "YES" : "NO"}});
+        } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+            localConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                                 useBaseModelSerializer ? "ALL_WEIGHTS_COPY" : "NO_WEIGHTS_COPY"}});
+        }
     }
 
     std::shared_ptr<intel_npu::IGraph> graph;
