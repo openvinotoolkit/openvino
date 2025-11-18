@@ -290,8 +290,10 @@ public:
 
     void reset_events();
 
+    virtual void before_prepare() {}
     void prepare_primitive();
     void execute();
+    virtual void cleanup() {}
     void init_kernels(const kernels_cache& kernels_cache) {
         _impl->init_kernels(kernels_cache, *_impl_params);
     }

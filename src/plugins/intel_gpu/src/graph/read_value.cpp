@@ -38,6 +38,17 @@ void read_value_inst::on_execute() {
     update_output_memory();
 }
 
+void read_value_inst::cleanup() {
+    // readvalue simply assign outputs from variablestate, 
+    // does not need to keep reference in outputs after execution
+    if (!can_be_optimized() || !get_network().has_variable(variable_id()))
+        return;
+    for (size_t i = 0; i < _outputs.size() && i < 3; ++i) {
+        auto& output = _outputs[i];
+        output.reset();
+    }
+}
+
 void read_value_inst::update_output_memory() {
     if (!can_be_optimized() || !get_network().has_variable(variable_id()))
         return;

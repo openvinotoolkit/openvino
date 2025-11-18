@@ -86,12 +86,15 @@ public:
         return max_pad;
     }
     void update_shape_info_tensor(const kernel_impl_params& params) override;
+    void before_prepare() override;
+    void cleanup() override;
 
     typed_primitive_inst(network& network, const kv_cache_node& desc);
     typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
 
 private:
     size_t kv_cache_id = 0;
+    std::vector<std::weak_ptr<memory>> _shallow_outputs;
 };
 
 using kv_cache_inst = typed_primitive_inst<kv_cache>;

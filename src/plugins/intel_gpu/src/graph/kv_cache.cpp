@@ -149,4 +149,32 @@ void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
     }
 }
 
+void kv_cache_inst::before_prepare() {
+    if (_shallow_outputs.size() != _outputs.size())
+        _shallow_outputs.resize(_outputs.size());
+    // if resources has been moved to shallow in previour execution, try recover it
+    for (size_t i = 0; i < _outputs.size(); ++i) {
+        auto& shallow_output = _shallow_outputs[i];
+        auto& output = _outputs[i];
+        if (!output && !shallow_output.expired()) {
+            output = shallow_output.lock();
+        }
+        shallow_output.reset();
+    }
+}
+
+void kv_cache_inst::cleanup() {
+    // if there's variable state, it should hold a reference of tensor same as outputs
+    if (!get_network().has_variable(variable_id()))
+        return;
+    if (_shallow_outputs.size() != _outputs.size())
+        _shallow_outputs.resize(_outputs.size());
+    // move outputs to shallow, so it can be released when varaiblestate get reset
+    for (size_t i = 0; i < _outputs.size(); ++i) {
+        auto& output = _outputs[i];
+        _shallow_outputs[i] = output;
+        output.reset();
+    }
+}
+
 } // namespace cldnn
