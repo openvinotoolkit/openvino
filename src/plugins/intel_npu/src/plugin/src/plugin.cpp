@@ -321,6 +321,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(USE_BASE_MODEL_SERIALIZER);
+    REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
@@ -745,6 +746,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
 
         localConfig.update({{ov::intel_npu::weightless_blob.name(), cacheModeOptimizeSize ? "YES" : "NO"}});
+    }
+
+    // There is an on-going migration from "USE_BASE_MODEL_SERIALIZER" to "MODEL_SERIALIZER_VERSION". Until done, make
+    // sure both options have the same value if only one is defined.
+    if (localConfig.has<MODEL_SERIALIZER_VERSION>() && !localConfig.has<USE_BASE_MODEL_SERIALIZER>()) {
+        const bool useBaseModelSerializer =
+            (localConfig.get<MODEL_SERIALIZER_VERSION>() == ov::intel_npu::ModelSerializerVersion::AUTO ||
+             localConfig.get<MODEL_SERIALIZER_VERSION>() == ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
+        localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), useBaseModelSerializer ? "YES" : "NO"}});
+    } else if (!localConfig.has<MODEL_SERIALIZER_VERSION>() && localConfig.has<USE_BASE_MODEL_SERIALIZER>()) {
+        localConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                             localConfig.get<USE_BASE_MODEL_SERIALIZER>() ? "ALL_WEIGHTS_COPY" : "NO_WEIGHTS_COPY"}});
     }
 
     std::shared_ptr<intel_npu::IGraph> graph;
