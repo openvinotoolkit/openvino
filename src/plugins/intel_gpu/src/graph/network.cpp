@@ -768,6 +768,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     for (auto& inst : _exec_order) {
         NODE_DEBUG(*inst);
 
+        inst->before_prepare();
+
         inst->reset_events();
 
         if (inst->is_input()) {
@@ -790,6 +792,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // Reset all flags for the next execution
     for (auto& inst : _exec_order) {
         inst->reset_flags();
+        inst->cleanup();
     }
 }
 
