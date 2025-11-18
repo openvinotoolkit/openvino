@@ -228,9 +228,8 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                                            compilerVersion,
                                            maxOpsetVersion,
                                            updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())
-                                               ? updatedConfig.get<USE_BASE_MODEL_SERIALIZER>()
-                                               : true,
-                                           updatedConfig.get<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
+                                               ? config.get<USE_BASE_MODEL_SERIALIZER>()
+                                               : true);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -435,9 +434,8 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
                                            compilerVersion,
                                            maxOpsetVersion,
                                            updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())
-                                               ? updatedConfig.get<USE_BASE_MODEL_SERIALIZER>()
-                                               : true,
-                                           updatedConfig.get<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
+                                               ? config.get<USE_BASE_MODEL_SERIALIZER>()
+                                               : true);
 
     std::string buildFlags;
     buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
