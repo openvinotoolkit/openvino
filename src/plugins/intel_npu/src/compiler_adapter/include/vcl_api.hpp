@@ -93,8 +93,8 @@ public:
 
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    // std::vector<std::shared_ptr<NetworkDescription>> compileWsOneShot(const std::shared_ptr<ov::Model>& model,
-    //                                                                   const Config& config) const override;
+    std::vector<std::shared_ptr<NetworkDescription>> compileWsOneShot(const std::shared_ptr<ov::Model>& model,
+                                                                      const Config& config) const override;
 
     NetworkDescription compileWsIterative(const std::shared_ptr<ov::Model>& model,
                                           const Config& config,
