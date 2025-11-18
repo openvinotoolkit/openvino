@@ -6,7 +6,6 @@
 
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/options.hpp"
-#pragma message("included options.hpp")
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -223,9 +222,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     if (filteredConfig == nullptr) {
         OPENVINO_THROW("config is not FilteredConfig");
     }
-    ////
-    static_assert(std::is_class_v<ov::intel_npu::SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>, "SERIALIZATION_WEIGHTS_SIZE_THRESHOLD not found");
-    ///
+
     FilteredConfig updatedConfig = *filteredConfig;
     auto serializedIR =
         driver_compiler_utils::serializeIR(model,
