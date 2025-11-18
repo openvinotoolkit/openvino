@@ -161,9 +161,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     OPENVINO_ASSERT(_zeGraphExt);
 
-    std::vector<std::shared_ptr<NetworkDescription>> initNetworkDescriptions;
-    std::shared_ptr<NetworkDescription> mainNetworkDescription;
-
     _logger.debug("compile start");
 
     FilteredConfig localConfig = config;
@@ -182,29 +179,23 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
     std::vector<GraphDescriptor> initGraphDescriptors;
     std::vector<ov::Tensor> tensorsInits;
     std::vector<NetworkMetadata> initNetworkMetadata;
+    std::vector<std::shared_ptr<NetworkDescription>> initNetworkDescriptions;
 
     ov::Tensor tensorMain;
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;
+    std::shared_ptr<NetworkDescription> mainNetworkDescription;
 
     switch (localConfig.get<SEPARATE_WEIGHTS_VERSION>()) {
     case ov::intel_npu::WSVersion::ONE_SHOT: {
         std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
             _compiler->compileWsOneShot(model, localConfig);
 
-#if 0  // TODO: it is not clear whether we should change the name
-            OPENVINO_ASSERT(isMain(initMainNetworkDescriptions.back()->metadata.name),
-                            "Unexpected network name for main:",
-                            initMainNetworkDescriptions.back()->metadata.name);
-#endif
-
         mainNetworkDescription = initMainNetworkDescriptions.back();
         initMainNetworkDescriptions.pop_back();
         initNetworkDescriptions = std::move(initMainNetworkDescriptions);
 
-        ov::Tensor tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
-        GraphDescriptor mainGraphDesc;
-        NetworkMetadata mainNetworkMetadata;
+        tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
         if (_zeGraphExt) {
             // Depending on the config, we may get an error when trying to
             // get the graph handle from the compiled network
@@ -217,9 +208,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
             }
         }
 
-        std::vector<GraphDescriptor> initGraphDescriptors;
-        std::vector<ov::Tensor> tensorsInits;
-        std::vector<NetworkMetadata> initNetworkMetadata;
         initGraphDescriptors.reserve(initNetworkDescriptions.size());
         tensorsInits.reserve(initNetworkDescriptions.size());
         initNetworkMetadata.reserve(initNetworkDescriptions.size());
@@ -241,6 +229,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         }
     } break;
     case ov::intel_npu::WSVersion::ITERATIVE: {
+        OPENVINO_ASSERT(_zeGraphExt,
+                        "The \"iterative\" implementation of the weights separation feature requires a Level Zero "
+                        "graph handle to compile a model.");
+
+        // The state of the model needs to be reset every iteration
         const std::shared_ptr<ov::Model> originalModel = model->clone();
         std::shared_ptr<ov::Model> targetModel = model;
         size_t i = 0;
@@ -252,18 +245,18 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
             NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphDesc);
 
             if (isInitMetadata(networkDescription->metadata)) {
-                initNetworkDescriptions.push_back(networkDescription);
                 targetModel = originalModel->clone();
                 initGraphDescriptors.push_back(graphDesc);
                 tensorsInits.push_back(std::move(tensor));
                 initNetworkMetadata.push_back(std::move(networkMetadata));
+                initNetworkDescriptions.push_back(networkDescription);
                 continue;
             }
 
-            mainNetworkDescription = std::move(networkDescription);
             tensorMain = std::move(tensor);
             mainGraphDesc = graphDesc;
             mainNetworkMetadata = std::move(networkMetadata);
+            mainNetworkDescription = std::move(networkDescription);
             break;
         }
     } break;

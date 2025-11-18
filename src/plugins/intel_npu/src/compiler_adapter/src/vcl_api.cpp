@@ -360,6 +360,60 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     }
 }
 
+std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneShot(
+    const std::shared_ptr<ov::Model>& model,
+    const Config& config) const {
+    _logger.debug("compileWsOneShot start");
+
+    const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
+    _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
+
+    _logger.debug("serialize IR");
+    ze_graph_compiler_version_info_t compilerVersion;
+    compilerVersion.major = _compilerProperties.version.major;
+    compilerVersion.minor = _compilerProperties.version.minor;
+
+    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
+    if (filteredConfig == nullptr) {
+        OPENVINO_THROW("config is not FilteredConfig");
+    }
+    FilteredConfig updatedConfig = *filteredConfig;
+    auto serializedIR =
+        driver_compiler_utils::serializeIR(model,
+                                           compilerVersion,
+                                           maxOpsetVersion,
+                                           updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())
+                                               ? updatedConfig.get<USE_BASE_MODEL_SERIALIZER>()
+                                               : true,
+                                           updatedConfig.get<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
+
+    std::string buildFlags;
+    const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
+
+    _logger.debug("create build flags");
+    buildFlags += driver_compiler_utils::serializeIOInfo(model, useIndices);
+    buildFlags += " ";
+    buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
+    _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
+
+    vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
+                                     serializedIR.first,
+                                     buildFlags.c_str(),
+                                     buildFlags.size()};
+    _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
+
+    _logger.debug("Using vclAllocatedExecutableCreateWS");
+    vcl_allocator_vector allocator;
+    uint8_t* blob = nullptr;
+    size_t size = 0;
+
+    // TODO fill the rest. Call "vclAllocatedExecutableCreateWS" and any other remote function required to retrieve the
+    // vector of blobs and use them to construct the vector of "NetworkDescription". The metadata objects can be empty.
+
+    _logger.debug("compile end, blob size:%d", allocator.m_vec.size());
+    return {};
+}
+
 NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>& model,
                                                        const Config& config,
                                                        size_t callNumber) const {
