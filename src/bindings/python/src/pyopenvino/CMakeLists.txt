@@ -7,6 +7,8 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(OpenVINODeveloperPackage REQUIRED)
 endif()
 
+ov_get_pyversion(pyversion)
+
 if(OV_GENERATOR_MULTI_CONFIG)
     set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python/openvino)
 else()
