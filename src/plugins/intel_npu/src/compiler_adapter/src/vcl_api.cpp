@@ -224,7 +224,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         OPENVINO_THROW("config is not FilteredConfig");
     }
     ////
-    static_assert(std::is_class_v<intel_npu::SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>, "SERIALIZATION_WEIGHTS_SIZE_THRESHOLD not found");
+    static_assert(std::is_class_v<ov::intel_npu::SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>, "SERIALIZATION_WEIGHTS_SIZE_THRESHOLD not found");
     ///
     FilteredConfig updatedConfig = *filteredConfig;
     auto serializedIR =
