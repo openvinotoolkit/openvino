@@ -61,44 +61,34 @@ jobs:
           - name: tempdisk
             runner: aks-win-32-cores-128gb-tdsk-st
             build_jobs: thirtytwo_jobs
+            link_jobs: twenty_jobs
+            cache: False
+
           - name: d-size_lessram
             runner: aks-win-32-cores-64gb-d-st
             build_jobs: thirtytwo_jobs
+            link_jobs: twelve_jobs
+            cache: False
+
           - name: tempdisk_lessram_lesscores
             runner: aks-win-16-cores-64gb-tdsk-st
             build_jobs: sixteen_jobs
-        link_jobs:
-          - eight_jobs
-          - twelve_jobs
-          - sixteen_jobs
-          - twenty_jobs
-          - twenty_four_jobs
-          - twenty_eight_jobs
-        cache:
-          - True
-        exclude:
-          - variant:
-              name: tempdisk
-            link_jobs:
-              - eight_jobs
-              - twelve_jobs
-              - sixteen_jobs
-          - variant:
-              name: d-size_lessram
-            link_jobs:
-              - eight_jobs
-              - sixteen_jobs
-              - twenty_jobs
-              - twenty_four_jobs
-              - twenty_eight_jobs
-          - variant:
-              name: tempdisk_lessram_lesscores
-            link_jobs:
-              - twenty_jobs
-              - twenty_four_jobs
-              - twenty_eight_jobs
+            link_jobs: twelve_jobs
+            cache: False
 
-    name: "Build OpenVINO - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}, Link jobs: ${{ matrix.link_jobs }}"
+          - name: amd_nvme
+            runner: aks-win-64-cores-128gb-amd-nvme-st
+            build_jobs: sixtyfour_jobs
+            link_jobs: fortyeight_jobs
+            cache: False
+
+          - name: amd_nvme
+            runner: aks-win-64-cores-128gb-amd-nvme-st
+            build_jobs: sixtyfour_jobs
+            link_jobs: fortyeight_jobs
+            cache: True
+
+    name: "Build OpenVINO - ${{ matrix.variant.name }} - Cache: ${{ matrix.variant.cache }}, Link jobs: ${{ matrix.variant.link_jobs }}"
     needs: Smart_CI
     timeout-minutes: 300 # 5 hours without cache
     defaults:
@@ -197,7 +187,7 @@ jobs:
 
       - name: Setup ccache
         uses: ./openvino/.github/actions/cache
-        if: ${{ matrix.cache == true }}
+        if: ${{ matrix.variant.cache == true }}
         with:
           save-always: true
           cleanup-always: true
@@ -228,13 +218,13 @@ jobs:
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCMAKE_JOB_POOL_LINK:STRING=${{ matrix.link_jobs }} `
+            -DCMAKE_JOB_POOL_LINK:STRING=${{ matrix.variant.link_jobs }} `
             -DCMAKE_JOB_POOL_COMPILE:STRING=${{ matrix.variant.build_jobs }} `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
       - name: Clean ccache stats
-        if: ${{ matrix.cache == true }}
+        if: ${{ matrix.variant.cache == true }}
         run: '& ccache --zero-stats'
 
       - name: Cmake build - CC COLLECT
@@ -243,7 +233,7 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
       - name: Show ccache stats
-        if: ${{ matrix.cache == true }}
+        if: ${{ matrix.variant.cache == true }}
         run: '& ccache --show-stats'
 
       - name: Cmake install - OpenVINO
@@ -252,7 +242,7 @@ jobs:
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
 
       - name: Clean ccache stats
-        if: ${{ matrix.cache == true }}
+        if: ${{ matrix.variant.cache == true }}
         run: '& ccache --zero-stats'
 
       - name: Build C++ samples - OpenVINO build tree
@@ -261,12 +251,10 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Show ccache stats
-        if: ${{ matrix.cache == true }}
+        if: ${{ matrix.variant.cache == true }}
         run: '& ccache --show-stats'
 
       - name: Ctest - OpenVINO unit tests
-        # fails due to "illegal" (probably illegal instruction) error
-        if: ${{ matrix.variant.name != 'amd' }}
         shell: cmd
         run: |
           set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
@@ -328,7 +316,7 @@ jobs:
           Compress-Archive @compress
 
       - name: Clean ccache stats
-        if: ${{ matrix.cache == true }}
+        if: ${{ matrix.variant.cache == true }}
         run: '& ccache --zero-stats'
 
       - name: Build C samples - OpenVINO install tree
@@ -345,6 +333,6 @@ jobs:
           CMAKE_GENERATOR: "Visual Studio 17 2022"
 
       - name: Show ccache stats
-        if: ${{ matrix.cache == true }}
+        if: ${{ matrix.variant.cache == true }}
         run: '& ccache --show-stats'
 
