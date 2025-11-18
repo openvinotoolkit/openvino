@@ -196,12 +196,13 @@ bool OptionsDesc::has(std::string_view key) const {
     return false;
 }
 
-std::map<std::string, std::vector<std::string>> OptionsDesc::getSupported(bool includePrivate) const {
-    std::map<std::string, std::vector<std::string>> res;
+std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
+    std::vector<std::string> res;
+    res.reserve(_impl.size());
 
     for (const auto& p : _impl) {
         if (p.second.isPublic() || includePrivate) {
-            res.emplace(p.first, p.second.getSupportedValues());
+            res.push_back(p.first);
         }
     }
 

@@ -298,8 +298,14 @@ struct OptionBase {
         return ONEAPI_MAKE_VERSION(7, 23);
     }
 
-    static std::vector<ValueType> supportedValues() {
-        return {};
+    static bool isValueSupported(std::string_view val) {
+        try {
+            (void)ActualOpt::parse(val);
+            return true;
+        } catch (...) {
+            // failed to parse, return false below
+        }
+        return false;
     }
 
     static std::string toString(const ValueType& val) {
@@ -366,8 +372,8 @@ struct OptionConcept final {
     bool (*isPublic)() = nullptr;
     ov::PropertyMutability (*mutability)() = nullptr;
     uint32_t (*compilerSupportVersion)() = nullptr;
+    bool (*isValueSupported)(std::string_view val) = nullptr;
     std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
-    std::vector<std::string> (*getSupportedValues)() = nullptr;
 };
 
 template <class Opt>
@@ -384,16 +390,6 @@ std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
 }
 
 template <class Opt>
-std::vector<std::string> getSupportedValues() {
-    std::vector<std::string> res;
-    const auto& supportedValues = Opt::supportedValues();
-    for (const auto& value : supportedValues) {
-        res.push_back(Opt::toString(value));
-    }
-    return res;
-}
-
-template <class Opt>
 OptionConcept makeOptionModel() {
     return {&Opt::key,
             &Opt::envVar,
@@ -401,8 +397,8 @@ OptionConcept makeOptionModel() {
             &Opt::isPublic,
             &Opt::mutability,
             &Opt::compilerSupportVersion,
-            &validateAndParse<Opt>,
-            &getSupportedValues<Opt>};
+            &Opt::isValueSupported,
+            &validateAndParse<Opt>};
 }
 
 }  // namespace details
@@ -420,7 +416,7 @@ public:
 
     void reset();
 
-    std::map<std::string, std::vector<std::string>> getSupported(bool includePrivate = false) const;
+    std::vector<std::string> getSupported(bool includePrivate = false) const;
     std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
     std::string getSupportedAsString(bool includePrivate = false) const;
 
