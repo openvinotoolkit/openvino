@@ -78,9 +78,11 @@ static std::string getTestCaseName(const testing::TestParamInfo<compileModelLoad
 
 const std::vector<ov::AnyMap> LoadFromFileConfigs = {
     {ov::device::properties(ov::test::utils::DEVICE_NPU, {}),
-     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+     ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)},
     {ov::device::properties(ov::test::utils::DEVICE_NPU, {}),
-     ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
+     ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+     ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}};
 
 const std::vector<std::string> TestTargets = {
     ov::test::utils::DEVICE_AUTO,
@@ -94,8 +96,10 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Auto_BehaviorTests_CachingSupportCase_NP
                          getTestCaseName);
 
 const std::vector<ov::AnyMap> NPULoadFromFileConfigs = {
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+     ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)},
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+     ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}};
 
 const std::vector<std::pair<ov::AnyMap, std::string>> NPUCompiledKernelsCacheTest = {
     std::make_pair<ov::AnyMap, std::string>({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},

@@ -153,7 +153,15 @@ std::string getDeviceFromProperties(const ov::AnyMap& propertiesMap) {
 
     it = propertiesMap.find(std::string(PLATFORM::key()));
     if (it != propertiesMap.end()) {
-        return it->second.as<std::string>();
+        auto platformStr = it->second.as<std::string>();
+        if (platformStr == ov::intel_npu::Platform::AUTO_DETECT) {
+            return defaultDevice;
+        }
+
+        platformStr = utils::getPlatformByDeviceName(platformStr);
+        platformStr = ov::intel_npu::Platform::standardize(platformStr);
+        std::cout << "S====tandardized platform is: " << platformStr << std::endl;
+        return platformStr;
     }
     return defaultDevice;
 }
@@ -174,31 +182,38 @@ void checkUpdateforSpecialPlatform(const FilteredConfig& base_conf,
     if (deviceName.empty() && getdevice.empty()) {
         OPENVINO_THROW("Device name is empty!");
     }
-
+    std::cout << " ==checkUpdateforSpecialPlatform==1==" << std::endl;
     std::string usedDevice = deviceName;
     if (deviceName != getdevice) {
         log.info("The device from properties '%s' is different from the actual device '%s', use device '%s' to check "
                  "compiler_type.",
                  getdevice.c_str(),
+                 deviceName.c_str(),
                  deviceName.c_str());
 
         usedDevice = deviceName.empty() ? getdevice : deviceName;
+        std::cout << " ==checkUpdateforSpecialPlatform==2==" << std::endl;
     }
-
+    std::cout << " ==checkUpdateforSpecialPlatform==3==" << std::endl;
     // If the platform is not 3720 or user set compilerType, will not update by device
     auto it = propertiesMap.find(std::string(COMPILER_TYPE::key()));
     if (usedDevice != std::string(ov::intel_npu::Platform::NPU3720) || it != propertiesMap.end()) {
+        std::cout << " ==checkUpdateforSpecialPlatform==3==" << std::endl;
         return;
     }
-
+    std::cout << " ==checkUpdateforSpecialPlatform==4==" << std::endl;
     if (it == propertiesMap.end()) {
+        std::cout << " ==checkUpdateforSpecialPlatform==5==" << std::endl;
         if (base_conf.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::DRIVER) {
+            std::cout << " ==checkUpdateforSpecialPlatform==6==" << std::endl;
             log.warning(
                 "Platform '3720' is selected, but the used compiler_type is not set to 'DRIVER'. Forcely use the "
                 "compiler_type to 'DRIVER'. Maybe cause the compilerType inconsistency issues.");
         }
+        std::cout << " ==checkUpdateforSpecialPlatform==7==" << std::endl;
         // To avoid compilerType inconsistency issues, only set DRIVER if compiler_type is not set by user
         propertiesMap[std::string(COMPILER_TYPE::key())] = COMPILER_TYPE::toString(ov::intel_npu::CompilerType::DRIVER);
+        std::cout << " ==checkUpdateforSpecialPlatform==8==" << std::endl;
     }
 }
 
@@ -223,6 +238,10 @@ static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& bas
         std::string getdevice = getDeviceFromProperties(local_conf);
         if (getdevice == std::string(ov::intel_npu::Platform::NPU3720)) {
             return ov::intel_npu::CompilerType::DRIVER;
+        }
+        if (getdevice == std::string(ov::intel_npu::Platform::AUTO_DETECT)) {
+            Logger::global().warning("Device is set to AUTO_DETECT, cannot decide the default compiler_type by device, "
+                                     "use the default compiler_type.");
         }
     }
 
@@ -721,11 +740,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto deviceTmp = _backend == nullptr ? nullptr : _backend->getDevice();
     std::string deviceName = deviceTmp != nullptr ? deviceTmp->getName() : "";
     checkUpdateforSpecialPlatform(_globalConfig, localProperties, deviceName, _logger);
-
+    std::cout << " ==compile_model=========2====" << std::endl;
     const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
     for (auto it : localPropertiesMap) {
-        std::cout << "Compile_model: Local property: " << it.first << "=" << it.second << std::endl;
+        std::cout << "Compile_model2: Local property: " << it.first << "=" << it.second << std::endl;
     }
+
     update_log_level(localPropertiesMap);
 
     // create compiler
@@ -751,10 +771,27 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
                                       localConfig.get<DEVICE_ID>(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+    std::string getPlatfrom1 = getDeviceFromProperties(localProperties);
+    std::cout << "The platform from properties is: '" << getPlatfrom1 << "'" << std::endl;
+    std::cout << "The platform from getCompilationPlatform is: '" << platform << "'" << std::endl;
+
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
 
     if (deviceTmp == device) {
-        std::cout << "The selected device is: " << device->getName() << std::endl;
+        if (deviceTmp != nullptr) {
+            std::cout << "The selected device is: " << device->getName() << std::endl;
+        } else {
+            if (deviceTmp == nullptr) {
+                std::cout << "The selected device from driver is: nullptr" << std::endl;
+            } else {
+                std::cout << "The selected device from driver is: " << deviceTmp->getName() << std::endl;
+            }
+            if (device == nullptr) {
+                std::cout << "The selected device from config and driver is: nullptr" << std::endl;
+            } else {
+                std::cout << "The selected device from config and driver is: " << device->getName() << std::endl;
+            }
+        }
     } else {
         std::cout << "The selected device is NOT EQUAL, deviceTmp is " << deviceTmp->getName() << ", device is "
                   << device->getName() << std::endl;
