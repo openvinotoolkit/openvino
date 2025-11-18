@@ -206,7 +206,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
                                OPENVINO_ASSERT(offset % wei_size == 0,
                                                "Offset (",
                                                offset,
-                                               ") must be divisible on wei_size (",
+                                               ") must be divisible by wei_size (",
                                                wei_size,
                                                ")");
                                return offset / wei_size * orig_size;
