@@ -104,6 +104,99 @@ void unpack_i4f16(const int8_t* in, int8_t* out, int size) {
     }
 }
 
+void unpack_f8e4m3f16(const int8_t* in, int8_t* out, int size) {
+    // f8 layout: 1 sign | 4 exponent (bias=7) | 3 mantissa
+    // f16 layout: 1 sign | 5 exponent (bias=15) | 10 mantissa
+    // Mapping: if normal -> exp16 = exp8 + 8, man16 = man8 << 7
+    // Zero / subnormal (exp8==0) -> treat as 0
+    // Inf/NaN (exp8==0xF): map to Inf/NaN (simplified: mantissa==0 -> Inf else NaN payload)
+    uint16_t* hFloatOut = reinterpret_cast<uint16_t*>(out);
+    for (int i = 0; i < size; ++i) {
+        uint8_t v = static_cast<uint8_t>(in[i]);
+        uint16_t sign = (v & 0x80) ? 0x8000 : 0x0000;
+        uint8_t exp8 = (v >> 3) & 0x0F;
+        uint8_t man8 = v & 0x07;
+
+        uint16_t h;
+        if (exp8 == 0) {
+            // zero / subnormal -> flush to zero
+            h = sign;
+        } else if (exp8 == 0x0F) {
+            // Inf / NaN
+            if (man8 == 0) {
+                h = sign | 0x7C00; // Inf
+            } else {
+                h = sign | 0x7C00 | (static_cast<uint16_t>(man8) << 7); // NaN payload
+            }
+        } else {
+            uint16_t exp16 = static_cast<uint16_t>(exp8 + 8); // bias adjust
+            uint16_t man16 = static_cast<uint16_t>(man8) << 7;
+            h = sign | (exp16 << 10) | man16;
+        }
+        hFloatOut[i] = h;
+    }
+}
+
+void unpack_f8e5m2f16(const int8_t* in, int8_t* out, int size) {
+    // f8 layout: 1 sign | 5 exponent (bias=15) | 2 mantissa
+    // Mapping: normal -> same exponent, mantissa << 8
+    // Zero/subnormal exp==0 -> zero; Inf/NaN exp==0x1F
+    uint16_t* hFloatOut = reinterpret_cast<uint16_t*>(out);
+    for (int i = 0; i < size; ++i) {
+        uint8_t v = static_cast<uint8_t>(in[i]);
+        uint16_t sign = (v & 0x80) ? 0x8000 : 0x0000;
+        uint8_t exp8 = (v >> 2) & 0x1F;
+        uint8_t man8 = v & 0x03;
+
+        uint16_t h;
+        if (exp8 == 0) {
+            h = sign; // flush subnormals to zero
+        } else if (exp8 == 0x1F) {
+            if (man8 == 0) {
+                h = sign | 0x7C00; // Inf
+            } else {
+                h = sign | 0x7C00 | (static_cast<uint16_t>(man8) << 8); // NaN payload
+            }
+        } else {
+            uint16_t exp16 = exp8;           // same bias
+            uint16_t man16 = static_cast<uint16_t>(man8) << 8;
+            h = sign | (exp16 << 10) | man16;
+        }
+        hFloatOut[i] = h;
+    }
+}
+
+void unpack_f8e8m0f16(const int8_t* in, int8_t* out, int size) {
+    // f8 layout: 1 sign | 7 exponent (bias=127) | 0 mantissa
+    // Mapping: exp16 = exp8 - 112 (clamp to [0,31]), mantissa = 0
+    // Zero exp8==0 -> zero, exp8==0x7F -> Inf
+    uint16_t* hFloatOut = reinterpret_cast<uint16_t*>(out);
+    for (int i = 0; i < size; ++i) {
+        uint8_t v = static_cast<uint8_t>(in[i]);
+        uint16_t sign = (v & 0x80) ? 0x8000 : 0x0000;
+        uint8_t exp8 = v & 0x7F;
+
+        uint16_t h;
+        if (exp8 == 0) {
+            h = sign; // zero
+        } else if (exp8 == 0x7F) {
+            h = sign | 0x7C00; // Inf
+        } else {
+            int16_t expAdj = static_cast<int16_t>(exp8) - 112; // exp8 - (127 - 15)
+            if (expAdj <= 0) {
+                // underflow -> zero
+                h = sign;
+            } else if (expAdj >= 0x1F) {
+                // overflow -> Inf
+                h = sign | 0x7C00;
+            } else {
+                h = sign | (static_cast<uint16_t>(expAdj) << 10);
+            }
+        }
+        hFloatOut[i] = h;
+    }
+}
+
 /*u4 order*/
 void unpack_u4f32(const int8_t* in, float* out, int size) {
     for (int i = 0; i < size / 2; i++) {
@@ -498,6 +591,65 @@ using UnpackWithScaleTestsI4F16 = UnpackTestsTmpl<UnpackWithScaleTestsI4F16Base>
 TEST_P(UnpackWithScaleTestsI4F16, i4f16_scale) {
     ASSERT_NO_THROW_IF(!isNegative(),
                       ov::npuw::util::unpack(from, scale, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
+    if (!isNegative()) {
+        ASSERT_TRUE(details::fp16ArraysMatch(output, ref_output, input));
+    }
+}
+
+class UnpackF8WithScaleTestsBase : public UnpackTestsBase {
+protected:
+    bool isNegative() const override {
+        if (scale_shape.size() != 3 && scale_shape.size() != 2) return true;
+        if (input_shape.back() % 64) return true;
+        if ((from->get_size() / scale->get_size()) % 64) return true;
+        if (toType != ov::element::f16) return true;
+
+        return false;
+    }
+
+    void make_ref_output() override {
+        if (isNegative()) return;
+
+        size_t nElements = from->get_size();
+
+        const size_t nOutputElementsPerScale = ref_output.size() / (toType.bitwidth() / 8) / scale->get_size();
+
+        if (from->get_element_type() == ov::element::f8e4m3) {
+            details::unpack_f8e4m3f16(input.data(), ref_output.data(), static_cast<int>(nElements));
+        } else if(from->get_element_type() == ov::element::f8e5m2) {
+            details::unpack_f8e5m2f16(input.data(), ref_output.data(), static_cast<int>(nElements));
+        } else if(from->get_element_type() == ov::element::f8e8m0) {
+            details::unpack_f8e8m0f16(input.data(), ref_output.data(), static_cast<int>(nElements));
+        }
+
+        // lets apply per channel scale
+        uint16_t * pRef = reinterpret_cast<uint16_t*>(ref_output.data());
+        uint16_t * pScale_f16 = reinterpret_cast<uint16_t*>(scale->data());
+        float * pScale_f32 = reinterpret_cast<float*>(scale->data());
+
+        for (size_t i = 0; i < scale->get_size(); i++) {
+            for (size_t sc = 0; sc != nOutputElementsPerScale; sc++) {
+                float ref_scaled = details::half_to_float(pRef[0]);
+                if (scaleType == ov::element::f32) {
+                    ref_scaled *= pScale_f32[0];
+                } else if (scaleType == ov::element::f16) {
+                    ref_scaled *= details::half_to_float(pScale_f16[0]);
+                }
+                *pRef = details::float_to_half(ref_scaled);
+                pRef++;
+            }
+            pScale_f32++;
+            pScale_f16++;
+        }
+    }
+
+};
+
+using UnpackF8WithScaleTests = UnpackTestsTmpl<UnpackF8WithScaleTestsBase>;
+
+TEST_P(UnpackF8WithScaleTests, f8_scale) {
+    ASSERT_NO_THROW_IF(!isNegative(),
+                       ov::npuw::util::unpack(from, scale, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
     if (!isNegative()) {
         ASSERT_TRUE(details::fp16ArraysMatch(output, ref_output, input));
     }
