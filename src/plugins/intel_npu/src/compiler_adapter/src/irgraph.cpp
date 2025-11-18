@@ -311,7 +311,9 @@ void IRGraphImpl::prepareMetadata(NetworkMetadata& metadata,
         // TODO: follow graph ext to support Optional metadata for weightless model
         ze_graph_argument_properties_3_t arg;
         ze_graph_argument_metadata_t meta;
-        if (npuMLIRRuntimeGetMetadata(_engine, i, &arg, &meta) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+        std::vector<int64_t> upperBound;
+        upperBound.reserve(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE);
+        if (npuMLIRRuntimeGetMetadata(_engine, i, &arg, &meta, upperBound.data()) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to get MLIR runtime metadata");
         }
         switch (arg.type) {

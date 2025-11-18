@@ -26,18 +26,6 @@ extern "C" {
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Supported versions
-///
-/// @details
-///     - Graph extension versions contain major and minor attributes, use
-///       ::NPU_MLIR_RUNTIME_MAJOR_VERSION and ::NPU_MLIR_RUNTIME_MINOR_VERSION
-typedef enum _npu_mlir_runtime_version_t {
-    NPU_MLIR_RUNTIME_VERSION_1_0 = ZE_MAKE_VERSION(1, 0),             ///< version 1.0
-    NPU_MLIR_RUNTIME_VERSION_CURRENT = NPU_MLIR_RUNTIME_VERSION_1_0,  ///< latest known version
-    NPU_MLIR_RUNTIME_VERSION_FORCE_UINT32 = 0x7fffffff,
-} npu_mlir_runtime_version_t;
-
-///////////////////////////////////////////////////////////////////////////////
 #ifndef NPU_MLIR_RUNTIME_APICALL
 #    if defined(_WIN32)
 /// @brief Calling convention for all API functions
@@ -56,6 +44,36 @@ typedef enum _npu_mlir_runtime_version_t {
 #        define NPU_MLIR_RUNTIME_APIEXPORT
 #    endif  // defined(_WIN32)
 #endif      // NPU_MLIR_RUNTIME_APIEXPORT
+
+///////////////////////////////////////////////////////////////////////////////
+#ifndef NPU_MLIR_RUNTIME_MAKE_VERSION
+/// @brief Generates generic API versions
+#    define NPU_MLIR_RUNTIME_MAKE_VERSION(_major, _minor) ((_major << 16) | (_minor & 0x0000ffff))
+#endif  // NPU_MLIR_RUNTIME_MAKE_VERSION
+
+///////////////////////////////////////////////////////////////////////////////
+#ifndef NPU_MLIR_RUNTIME_MAJOR_VERSION
+/// @brief Extracts API major version
+#    define NPU_MLIR_RUNTIME_MAJOR_VERSION(_ver) (_ver >> 16)
+#endif  // NPU_MLIR_RUNTIME_MAJOR_VERSION
+
+///////////////////////////////////////////////////////////////////////////////
+#ifndef NPU_MLIR_RUNTIME_MINOR_VERSION
+/// @brief Extracts API minor version
+#    define NPU_MLIR_RUNTIME_MINOR_VERSION(_ver) (_ver & 0x0000ffff)
+#endif  // NPU_MLIR_RUNTIME_MINOR_VERSION
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Supported versions
+///
+/// @details
+///     - MLIR runtime versions contain major and minor attributes, use
+///       ::NPU_MLIR_RUNTIME_MAJOR_VERSION and ::NPU_MLIR_RUNTIME_MINOR_VERSION
+typedef enum _npu_mlir_runtime_version_t {
+    NPU_MLIR_RUNTIME_VERSION_1_0 = ZE_MAKE_VERSION(1, 0),             ///< version 1.0
+    NPU_MLIR_RUNTIME_VERSION_CURRENT = NPU_MLIR_RUNTIME_VERSION_1_0,  ///< latest known version
+    NPU_MLIR_RUNTIME_VERSION_FORCE_UINT32 = 0x7fffffff,
+} npu_mlir_runtime_version_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief NPU MLIR runtime handle
@@ -88,8 +106,9 @@ typedef struct _npu_mlir_runtime_mem_ref_t {
     const void* basePtr;
     const void* data;
     int64_t offset;
-    int64_t sizes[4];
-    int64_t strides[4];
+    int64_t sizes[ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE];
+    int64_t strides[ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE];
+    uint32_t dimsCount;
 } npu_mlir_runtime_mem_ref_t;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -110,11 +129,17 @@ typedef struct _npu_mlir_runtime_execute_params_t {
 } npu_mlir_runtime_execute_params_t;
 
 ///////////////////////////////////////////////////////////////////////////////
+/// @brief Returns the API version
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeGetAPIVersion(
+    npu_mlir_runtime_version_t* pVersion  ///< [out] pointer to version information
+);
+
+///////////////////////////////////////////////////////////////////////////////
 /// @brief Init MLIR runtime instance and return handle
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeCreate(
     const npu_mlir_runtime_blob_desc_t* desc,   ///< [in] pointer to graph descriptor
     npu_mlir_runtime_handle_t* phRuntime,       ///< [out] pointer to handle of mlir runtime object created
-    npu_mlir_runtime_properties_t* pProperties  ///< [in] pointer to properties of the runtime
+    npu_mlir_runtime_properties_t* pProperties  ///< [out] pointer to properties of the runtime
 );
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -125,24 +150,24 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Get metadata from MLIR runtime instance
-NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
-npuMLIRRuntimeGetMetadata(npu_mlir_runtime_handle_t hRuntime,  ///< [in][release] handle of mlir runtime object
-                          uint32_t argIndex,
-                          ze_graph_argument_properties_3_t*
-                              pGraphArgumentProperties,  ///< [in,out] query result for graph argument properties.
-                          _ze_graph_argument_metadata_t* pGraphArgumentMetadata);
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeGetMetadata(
+    npu_mlir_runtime_handle_t hRuntime,                          ///< [in] handle of mlir runtime object
+    uint32_t argIndex,                                           ///< [in] index of the argument
+    ze_graph_argument_properties_3_t* pGraphArgumentProperties,  ///< [out] query result for graph argument properties
+    ze_graph_argument_metadata_t* pGraphArgumentMetadata,        ///< [out] query result for graph argument metadata
+    int64_t* upperBound);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Execute MLIR runtime with params
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeExecute(
-    npu_mlir_runtime_handle_t hRuntime,         ///< [in][release] handle of mlir runtime object
+    npu_mlir_runtime_handle_t hRuntime,         ///< [in] handle of mlir runtime object
     npu_mlir_runtime_execute_params_t* pParams  ///< [in] pointer to execution parameters
 );
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Predit output shape based on input shape
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimePredictOutputShape(
-    npu_mlir_runtime_handle_t hRuntime,        ///< [in][release] handle of mlir runtime object
+    npu_mlir_runtime_handle_t hRuntime,        ///< [in] handle of mlir runtime object
     npu_mlir_runtime_mem_ref_t** pInputArgs,   ///< [in] pointer to input argument mem descriptor pointer array
     uint32_t numOfInputArgs,                   ///< [in] number of input arguments
     npu_mlir_runtime_mem_ref_t** pOutputArgs,  ///< [out] pointer to output argument mem descriptor pointer array

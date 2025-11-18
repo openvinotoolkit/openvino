@@ -89,7 +89,7 @@ Metadata<METADATA_VERSION_2_3>::Metadata(uint64_t blobSize,
                                          const std::optional<std::vector<uint64_t>>& initSizes,
                                          const std::optional<int64_t> batchSize,
                                          const std::optional<std::vector<ov::Layout>>& inputLayouts,
-                                         const std::optional<std::vector<ov::Layout>>& outputLayouts，)
+                                         const std::optional<std::vector<ov::Layout>>& outputLayouts)
     : Metadata<METADATA_VERSION_2_2>{blobSize, ovVersion, initSizes, batchSize},
       _inputLayouts{inputLayouts},
       _outputLayouts{outputLayouts} {
@@ -105,7 +105,7 @@ Metadata<METADATA_VERSION_2_4>::Metadata(uint64_t blobSize,
                                          BlobType blobType)
     : Metadata<METADATA_VERSION_2_3>{blobSize, ovVersion, initSizes, batchSize, inputLayouts, outputLayouts},
       _blobType{blobType} {
-    _version = METADATA_VERSION_2_4;{
+    _version = METADATA_VERSION_2_4;
 }
 
 void MetadataBase::read(std::istream& tensor) {
@@ -271,13 +271,13 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
 
     writeLayouts(_inputLayouts);
     writeLayouts(_outputLayouts);
-
-    append_padding_blob_size_and_magic(stream);
 }
 
 void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_3>::write(stream);
     stream.write(reinterpret_cast<const char*>(&_blobType), sizeof(_blobType));
+
+    append_padding_blob_size_and_magic(stream);
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
@@ -293,8 +293,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize);
     case METADATA_VERSION_2_2:
         return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
-    case METADATA_VERSION_2_4:
-        return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
+    case METADATA_VERSION_2_3:
+        return std::make_unique<Metadata<METADATA_VERSION_2_3>>(blobSize);
     default:
         OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
                        MetadataBase::get_major(version),

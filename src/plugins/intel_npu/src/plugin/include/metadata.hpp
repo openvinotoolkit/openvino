@@ -150,6 +150,7 @@ constexpr uint32_t METADATA_VERSION_2_4{MetadataBase::make_version(2, 4)};
 constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_4};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
+constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
 
 class OpenvinoVersion final {
 public:
