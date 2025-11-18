@@ -28,12 +28,17 @@ public:
         ze_kernel_flags_t flags = 0;
         ze_kernel_desc_t kernel_desc = {
             ZE_STRUCTURE_TYPE_KERNEL_DESC, nullptr, flags, nullptr};
-        for (auto name : kernel_names) {
-            kernel_desc.pKernelName = name;
+        for (auto name_cstr : kernel_names) {
+            auto name = std::string(name_cstr);
+            // L0 returns Intel_Symbol_Table_Void_Program that does not correspond to actual kernel
+            if (name == "Intel_Symbol_Table_Void_Program") {
+                continue;
+            }
+            kernel_desc.pKernelName = name_cstr;
             ze_kernel_handle_t kernel_handle;
             OV_ZE_EXPECT(zeKernelCreate(module_handle, &kernel_desc, &kernel_handle));
             auto kernel_holder = std::make_shared<ze_kernel_holder>(kernel_handle, module);
-            out.push_back(std::make_shared<ze_kernel>(kernel_holder, std::string(name)));
+            out.push_back(std::make_shared<ze_kernel>(kernel_holder, name));
         }
     }
 
