@@ -522,35 +522,35 @@ INSTANTIATE_TEST_SUITE_P(
     MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_MatMulCompressedWeights_dyn_quan_fp8e4m3_uint4,
+    smoke_MatMulCompressedWeights_dyn_quan_fp8e4m3_int4,
     MatmulWeightsDecompression,
     ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 128}, {{2, 1, 128}, {1, 1, 128}, {2, 1, 128}}}, {128, 16}, 128}),  // shape
-                       ::testing::Values(ov::element::u4),
+                       ::testing::Values(ov::element::i4),
                        ::testing::Values(ov::element::f16),
                        ::testing::Values(true),
-                       ::testing::Values(true),
+                       ::testing::Values(false),
                        ::testing::Values(false),
                        ::testing::Values(true),
-                       ::testing::Values(true),
+                       ::testing::Values(false),
                        ::testing::Values(std::numeric_limits<uint64_t>::max()),
                        ::testing::Values(ov::hint::DynamicQuantizationDataType::F8E4M3),
-                       ::testing::Values(2.0f)),  // Note: this is because of potential cldnn accuracy issue
+                       ::testing::Values(0.2f)),  // Note: this is because of potential cldnn accuracy issue
     MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_MatMulCompressedWeights_dyn_quan_fp8e5m2_uint4,
+    smoke_MatMulCompressedWeights_dyn_quan_fp8e5m2_int4,
     MatmulWeightsDecompression,
     ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 128}, {{2, 1, 128}, {1, 1, 128}, {2, 1, 128}}}, {128, 16}, 128}),  // shape
-                       ::testing::Values(ov::element::u4),
+                       ::testing::Values(ov::element::i4),
                        ::testing::Values(ov::element::f16),
                        ::testing::Values(true),
-                       ::testing::Values(true),
+                       ::testing::Values(false),
                        ::testing::Values(false),
                        ::testing::Values(true),
-                       ::testing::Values(true),
+                       ::testing::Values(false),
                        ::testing::Values(std::numeric_limits<uint64_t>::max()),
                        ::testing::Values(ov::hint::DynamicQuantizationDataType::F8E5M2),
-                       ::testing::Values(2.0f)),  // Note: this is because of potential cldnn accuracy issue
+                       ::testing::Values(0.2f)),  // Note: this is because of potential cldnn accuracy issue
     MatmulWeightsDecompression::get_test_case_name);
 
 } // namespace
