@@ -80,9 +80,6 @@ public:
         return 0;
     }
 
-    static jit_snippets_call_args::loop_args_t compose_loop_args(
-        const std::shared_ptr<ov::snippets::op::LoopEnd>& loop_end);
-
     // `jit_loop_end_base_emitter` handles manually aux_gpr allocation using `jit_aux_gpr_holder`
     size_t aux_gprs_count() const override {
         return 0;
