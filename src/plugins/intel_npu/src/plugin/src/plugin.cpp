@@ -175,7 +175,7 @@ void checkUpdateforSpecialPlatform(const FilteredConfig& base_conf,
         OPENVINO_THROW("Device name is empty!");
     }
 
-    std::string usedDevice;
+    std::string usedDevice = deviceName;
     if (deviceName != getdevice) {
         log.info("The device from properties '%s' is different from the actual device '%s', use device '%s' to check "
                  "compiler_type.",
@@ -699,6 +699,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // activate the NPUW path
     auto useNpuwKey = ov::intel_npu::use_npuw.name();
     ov::AnyMap localProperties = properties;
+    for (auto it : localProperties) {
+        std::cout << "Compile_model: Local property: " << it.first << "=" << it.second.as<std::string>() << std::endl;
+    }
     if (localProperties.count(useNpuwKey)) {
         if (localProperties.at(useNpuwKey).as<bool>() == true) {
             return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), localProperties);
@@ -726,9 +729,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     update_log_level(localPropertiesMap);
 
     // create compiler
+    std::cout << " ==compile_model=== compile create ==========1====" << std::endl;
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, localProperties, deviceName));
+    std::cout << " ==compile_model=== compile create ==========2====" << std::endl;
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
@@ -1034,14 +1039,20 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     for (auto it : npu_plugin_properties) {
         std::cout << "Query_model: Local property: " << it.first << "=" << it.second.as<std::string>() << std::endl;
     }
+
     auto device = _backend == nullptr ? nullptr : _backend->getDevice();
     std::string deviceName = device != nullptr ? device->getName() : "";
     checkUpdateforSpecialPlatform(_globalConfig, npu_plugin_properties, deviceName, _logger);
+    for (auto it : npu_plugin_properties) {
+        std::cout << "Query_model2: Local property: " << it.first << "=" << it.second.as<std::string>() << std::endl;
+    }
     const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
+    std::cout << " ==query_model=== compile create ==========1====" << std::endl;
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend,
                                            resolveCompilerType(_globalConfig, npu_plugin_properties, deviceName));
+    std::cout << " ==query_model=== compile create ==========1====" << std::endl;
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -1073,18 +1084,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     // list of properties
     auto originalModel = exclude_model_ptr_from_map(npu_plugin_properties);
     for (auto it : npu_plugin_properties) {
-        std::cout << "Parse: Local property: " << it.first << "=" << it.second.as<std::string>() << std::endl;
+        std::cout << "Parse: Local property1: " << it.first << "=" << it.second.as<std::string>() << std::endl;
     }
     auto deviceTmp = _backend == nullptr ? nullptr : _backend->getDevice();
     std::string deviceName = deviceTmp != nullptr ? deviceTmp->getName() : "";
     checkUpdateforSpecialPlatform(_globalConfig, npu_plugin_properties, deviceName, _logger);
+    for (auto it : npu_plugin_properties) {
+        std::cout << "Parse2: Local property: " << it.first << "=" << it.second.as<std::string>() << std::endl;
+    }
 
     CompilerAdapterFactory compilerAdapterFactory;
     const auto propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
+    std::cout << " ==parse=== compile create ==========1====" << std::endl;
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend,
                                            resolveCompilerType(_globalConfig, npu_plugin_properties, deviceName));
+    std::cout << " ==parse=== compile create ==========2====" << std::endl;
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
