@@ -110,7 +110,9 @@ public:
     }
 
     void TearDown() override {
-        std::remove(lib_path.c_str());
+        if (ov::util::file_exists(lib_path)) {
+            std::ignore = std::filesystem::remove(lib_path);
+        }
     }
 
     std::filesystem::path lib_name = ov::util::make_plugin_library_name("test_name");  // libtest_name.so
