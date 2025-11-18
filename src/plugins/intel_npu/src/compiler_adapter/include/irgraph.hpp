@@ -23,8 +23,9 @@ public:
             memRef.basePtr = nullptr;
             memRef.data = nullptr;
             memRef.offset = 0;
-            std::fill(std::begin(memRef.sizes), std::end(memRef.sizes), 0);
-            std::fill(std::begin(memRef.strides), std::end(memRef.strides), 0);
+            memRef.dimsCount = 4;
+            std::fill(std::begin(memRef.sizes), std::end(memRef.sizes), 1);
+            std::fill(std::begin(memRef.strides), std::end(memRef.strides), 1);
         }
 
         void setArg(const void* arg);
