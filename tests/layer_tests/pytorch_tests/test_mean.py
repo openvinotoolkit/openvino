@@ -96,7 +96,7 @@ class TestMean(PytorchLayerTest):
             pytest.skip(reason="export fails for out")
         self._test(*self.create_model(axes, keep_dim, dtype, out),
                    ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"out": out,
+                   kwargs_to_prepare_input={"use_out": out,
                                             "axis": axes,
                                             "dtype": dtype,
                                             "keep_dim": keep_dim})
