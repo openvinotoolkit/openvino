@@ -9851,8 +9851,6 @@ INSTANTIATE_TEST_SUITE_P(conv_onednn_cases,
                             TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true, format::byxf, true),
                             TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false, format::bs_fs_yx_bsv32_fsv16, false),
                             TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false, format::byxf, true)
-                            // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true),
-                            // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false)
                         ),
                         convolution_gpu_onednn::PrintToStringParamName);
 
@@ -10198,6 +10196,81 @@ TEST(convolution_gpu_onednn, spatial_1d) {
     for (size_t i = 0; i < output_memory_ref->count(); i++) {
         ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test_blocked.data()[i]);
         ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test_planar.data()[i]);
+    }
+}
+
+TEST(convolution_gpu_onednn, spatial_1d_dynamic) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    ov::PartialShape target_pshape = {1, 16, 6};
+    ov::PartialShape input_pshape = {ov::Dimension(), 16, 6};
+    ov::PartialShape weights_pshape = {16, 16, 3};
+    layout in_layout{ input_pshape, data_types::f16, format::bfyx };
+    layout in_ref_layout{ target_pshape, data_types::f16, format::bfyx };
+    layout weights_layout{ weights_pshape, data_types::f16, format::bfyx };
+    auto input_data = rg.generate_random_1d<ov::float16>(ov::shape_size(target_pshape.get_shape()), -1, 1);
+    auto input_mem = engine.allocate_memory({target_pshape, data_types::f16, format::bfyx});
+    set_values(input_mem, input_data);
+
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1);
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, weights_data);
+
+    auto input = input_layout("input", in_layout);
+    auto input_ref = input_layout("input", in_ref_layout);
+    auto weights = data("weights", weights_mem);
+    auto conv = convolution("conv",
+                            input_info("input"),
+                            "weights",
+                            no_bias,
+                            1,
+                            ov::Strides{1},
+                            ov::Strides{1},
+                            ov::CoordinateDiff{0},
+                            ov::CoordinateDiff{0},
+                            false);
+    auto output_reorder = reorder("reorder", input_info("conv"), format::bfyx, data_types::f32 );
+
+    topology t(input, weights, conv, output_reorder);
+    topology t_ref(input_ref, weights, conv, output_reorder);
+
+    ExecutionConfig config_test_dynamic = get_test_default_config(engine);
+    config_test_dynamic.set_property(ov::intel_gpu::optimize_data(true));
+    config_test_dynamic.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    ExecutionConfig config_ref = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "", impl_types::ocl };
+    config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "conv", conv_impl_ref } }));
+    config_ref.set_property(ov::intel_gpu::optimize_data(true));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network_ref(engine, t_ref, config_ref);
+    network_ref.set_input_data("input", input_mem);
+    auto outputs_ref = network_ref.execute();
+    ASSERT_EQ(outputs_ref.size(), size_t(1));
+    ASSERT_EQ(outputs_ref.begin()->first, "reorder");
+    auto output_memory_ref = outputs_ref.at("reorder").get_memory();
+    auto output_layout_ref = output_memory_ref->get_layout();
+    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+
+    network network_test_dynamic(engine, t, config_test_dynamic);
+    network_test_dynamic.set_input_data("input", input_mem);
+    auto outputs_test_dynamic = network_test_dynamic.execute();
+    ASSERT_EQ(outputs_test_dynamic.size(), size_t(1));
+    ASSERT_EQ(outputs_test_dynamic.begin()->first, "reorder");
+    auto output_memory_test_dynamic = outputs_test_dynamic.at("reorder").get_memory();
+    auto output_layout_test_dynamic = output_memory_test_dynamic->get_layout();
+    cldnn::mem_lock<float> output_ptr_test_dynamic(output_memory_test_dynamic, get_test_stream());
+
+    ov::PartialShape expected_shape = {1, 16, 4};
+    ASSERT_EQ(output_layout_test_dynamic.get_partial_shape(), expected_shape);
+    ASSERT_EQ(output_layout_ref.get_partial_shape(), expected_shape);
+
+    for (size_t i = 0; i < output_memory_ref->count(); i++) {
+        ASSERT_EQ(output_ptr_ref.data()[i] , output_ptr_test_dynamic.data()[i]);
     }
 }
 
