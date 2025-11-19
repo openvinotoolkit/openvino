@@ -242,22 +242,21 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
 
     if (enable_cpu_wa) {
-        // Apply CPU workaround for all KV cache variant requests
-        for (auto& kvcache_req : m_generate_requests) {
-            const auto& kvcache_compiled = kvcache_req->get_compiled_model();
-            const auto& variant_in_ports = m_generate_variant_in_ports.at(kvcache_req);
-            // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs
-            // exist
-            for (std::size_t i = layer_ids::kStartOutputKVCacheLayers; i < kvcache_compiled->outputs().size(); ++i) {
-                const auto& output_name = kvcache_compiled->outputs()[i].get_any_name();
-                const auto& input_name =
-                    std::regex_replace(output_name, std::regex("present"), layer_names::past_key_values);
-                if (variant_in_ports.find(input_name) == variant_in_ports.end()) {
-                    continue;
-                }
-                auto kvcache_in_tensor = kvcache_req->get_tensor(variant_in_ports.at(input_name));
-                ov::npuw::util::fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+        // Apply CPU workaround only for the largest variant since all variants share its past KV tensors
+        auto& largest_kvcache_req = m_generate_requests.back();
+        const auto& kvcache_compiled = largest_kvcache_req->get_compiled_model();
+        const auto& variant_in_ports = m_generate_variant_in_ports.at(largest_kvcache_req);
+        // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs
+        // exist
+        for (std::size_t i = layer_ids::kStartOutputKVCacheLayers; i < kvcache_compiled->outputs().size(); ++i) {
+            const auto& output_name = kvcache_compiled->outputs()[i].get_any_name();
+            const auto& input_name =
+                std::regex_replace(output_name, std::regex("present"), layer_names::past_key_values);
+            if (variant_in_ports.find(input_name) == variant_in_ports.end()) {
+                continue;
             }
+            auto kvcache_in_tensor = largest_kvcache_req->get_tensor(variant_in_ports.at(input_name));
+            ov::npuw::util::fill_tensor<ov::float16>(kvcache_in_tensor, 0);
         }
     }
 
