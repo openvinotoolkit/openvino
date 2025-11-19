@@ -382,9 +382,8 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
                                            compilerVersion,
                                            maxOpsetVersion,
                                            updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())
-                                               ? updatedConfig.get<USE_BASE_MODEL_SERIALIZER>()
-                                               : true,
-                                           updatedConfig.get<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
+                                               ? config.get<USE_BASE_MODEL_SERIALIZER>()
+                                               : true);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -395,21 +394,25 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
-    vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
-                                     serializedIR.first,
-                                     buildFlags.c_str(),
-                                     buildFlags.size()};
-    _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
+    std::cout << " serializedIR.first(size_t) is " << serializedIR.first << std::endl;
+    std::cout << " build flags in compileWsOneShot is " << buildFlags << std::endl;
 
-    _logger.debug("Using vclAllocatedExecutableCreateWS");
-    vcl_allocator_vector allocator;
-    uint8_t* blob = nullptr;
-    size_t size = 0;
+    // vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
+    //                                  serializedIR.first,
+    //                                  buildFlags.c_str(),
+    //                                  buildFlags.size()};
+    // _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
 
-    // TODO fill the rest. Call "vclAllocatedExecutableCreateWS" and any other remote function required to retrieve the
-    // vector of blobs and use them to construct the vector of "NetworkDescription". The metadata objects can be empty.
+    // _logger.debug("Using vclAllocatedExecutableCreateWS");
+    // vcl_allocator_vector allocator;
+    // uint8_t* blob = nullptr;
+    // size_t size = 0;
 
-    _logger.debug("compile end, blob size:%d", allocator.m_vec.size());
+    // // TODO fill the rest. Call "vclAllocatedExecutableCreateWS" and any other remote function required to retrieve the
+    // // vector of blobs and use them to construct the vector of "NetworkDescription". The metadata objects can be empty.
+
+    // _logger.debug("compile end, blob size:%d", allocator.m_vec.size());
+    _logger.debug("compileWsOneShot end");
     return {};
 }
 

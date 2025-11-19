@@ -160,7 +160,6 @@ std::string getDeviceFromProperties(const ov::AnyMap& propertiesMap) {
 
         platformStr = utils::getPlatformByDeviceName(platformStr);
         platformStr = ov::intel_npu::Platform::standardize(platformStr);
-        std::cout << "S====tandardized platform is: " << platformStr << std::endl;
         return platformStr;
     }
     return defaultDevice;
@@ -175,14 +174,18 @@ void checkUpdateforSpecialPlatform(const FilteredConfig& base_conf,
     //  3720 -> DRIVER
     //  4000 and later -> default
 
-    // const ov::AnyMap localProperties = propertiesMap;
+    // If user set compilerType in config, will not update by device
+    auto it = propertiesMap.find(std::string(COMPILER_TYPE::key()));
+    if (it != propertiesMap.end()) {
+        return;
+    }
+
     std::string getdevice = getDeviceFromProperties(propertiesMap);
-    std::cout << "The device from properties '" << getdevice << "' VS actual device from backend'" << deviceName << "'"
-              << std::endl;
+
     if (deviceName.empty() && getdevice.empty()) {
         OPENVINO_THROW("Device name is empty!");
     }
-    std::cout << " ==checkUpdateforSpecialPlatform==1==" << std::endl;
+
     std::string usedDevice = deviceName;
     if (deviceName != getdevice) {
         log.info("The device from properties '%s' is different from the actual device '%s', use device '%s' to check "
@@ -192,28 +195,22 @@ void checkUpdateforSpecialPlatform(const FilteredConfig& base_conf,
                  deviceName.c_str());
 
         usedDevice = deviceName.empty() ? getdevice : deviceName;
-        std::cout << " ==checkUpdateforSpecialPlatform==2==" << std::endl;
     }
-    std::cout << " ==checkUpdateforSpecialPlatform==3==" << std::endl;
-    // If the platform is not 3720 or user set compilerType, will not update by device
-    auto it = propertiesMap.find(std::string(COMPILER_TYPE::key()));
-    if (usedDevice != std::string(ov::intel_npu::Platform::NPU3720) || it != propertiesMap.end()) {
-        std::cout << " ==checkUpdateforSpecialPlatform==3==" << std::endl;
+
+    // If the platform is not 3720, will not update by device
+    if (usedDevice != std::string(ov::intel_npu::Platform::NPU3720)) {
         return;
     }
-    std::cout << " ==checkUpdateforSpecialPlatform==4==" << std::endl;
+
     if (it == propertiesMap.end()) {
-        std::cout << " ==checkUpdateforSpecialPlatform==5==" << std::endl;
         if (base_conf.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::DRIVER) {
-            std::cout << " ==checkUpdateforSpecialPlatform==6==" << std::endl;
             log.warning(
                 "Platform '3720' is selected, but the used compiler_type is not set to 'DRIVER'. Forcely use the "
                 "compiler_type to 'DRIVER'. Maybe cause the compilerType inconsistency issues.");
         }
-        std::cout << " ==checkUpdateforSpecialPlatform==7==" << std::endl;
+
         // To avoid compilerType inconsistency issues, only set DRIVER if compiler_type is not set by user
         propertiesMap[std::string(COMPILER_TYPE::key())] = COMPILER_TYPE::toString(ov::intel_npu::CompilerType::DRIVER);
-        std::cout << " ==checkUpdateforSpecialPlatform==8==" << std::endl;
     }
 }
 
@@ -718,9 +715,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // activate the NPUW path
     auto useNpuwKey = ov::intel_npu::use_npuw.name();
     ov::AnyMap localProperties = properties;
-    for (auto it : localProperties) {
-        std::cout << "Compile_model: Local property: " << it.first << "=" << it.second.as<std::string>() << std::endl;
-    }
+
     if (localProperties.count(useNpuwKey)) {
         if (localProperties.at(useNpuwKey).as<bool>() == true) {
             return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), localProperties);
@@ -740,31 +735,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto deviceTmp = _backend == nullptr ? nullptr : _backend->getDevice();
     std::string deviceName = deviceTmp != nullptr ? deviceTmp->getName() : "";
     checkUpdateforSpecialPlatform(_globalConfig, localProperties, deviceName, _logger);
-    std::cout << " ==compile_model=========2====" << std::endl;
     const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
-    for (auto it : localPropertiesMap) {
-        std::cout << "Compile_model2: Local property: " << it.first << "=" << it.second << std::endl;
-    }
-
     update_log_level(localPropertiesMap);
 
     // create compiler
-    std::cout << " ==compile_model=== compile create ==========1====" << std::endl;
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, localProperties, deviceName));
-    std::cout << " ==compile_model=== compile create ==========2====" << std::endl;
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
-    std::cout << " ===== the final config is: " << localConfig.toString() << std::endl;
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
-        std::cout << "----call set_cache_dir and compilertype is mlir---" << std::endl;
         if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-            std::cout << "----throw ov::cache dir excpetion--" << std::endl;
             OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
         }
     }
@@ -773,31 +758,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
                                       localConfig.get<DEVICE_ID>(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
-    std::string getPlatfrom1 = getDeviceFromProperties(localProperties);
-    std::cout << "The platform from properties is: '" << getPlatfrom1 << "'" << std::endl;
-    std::cout << "The platform from getCompilationPlatform is: '" << platform << "'" << std::endl;
 
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
 
-    if (deviceTmp == device) {
-        if (deviceTmp != nullptr) {
-            std::cout << "The selected device is: " << device->getName() << std::endl;
-        } else {
-            if (deviceTmp == nullptr) {
-                std::cout << "The selected device from driver is: nullptr" << std::endl;
-            } else {
-                std::cout << "The selected device from driver is: " << deviceTmp->getName() << std::endl;
-            }
-            if (device == nullptr) {
-                std::cout << "The selected device from config and driver is: nullptr" << std::endl;
-            } else {
-                std::cout << "The selected device from config and driver is: " << device->getName() << std::endl;
-            }
-        }
-    } else {
-        std::cout << "The selected device is NOT EQUAL, deviceTmp is " << deviceTmp->getName() << ", device is "
-                  << device->getName() << std::endl;
-    }
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
@@ -1075,23 +1038,17 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     CompilerAdapterFactory compilerAdapterFactory;
     auto npu_plugin_properties = properties;
     exclude_model_ptr_from_map(npu_plugin_properties);
-    for (auto it : npu_plugin_properties) {
-        std::cout << "Query_model: Local property: " << it.first << "=" << it.second.as<std::string>() << std::endl;
-    }
-
     auto device = _backend == nullptr ? nullptr : _backend->getDevice();
     std::string deviceName = device != nullptr ? device->getName() : "";
     checkUpdateforSpecialPlatform(_globalConfig, npu_plugin_properties, deviceName, _logger);
-    for (auto it : npu_plugin_properties) {
-        std::cout << "Query_model2: Local property: " << it.first << "=" << it.second.as<std::string>() << std::endl;
-    }
+
     const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
-    std::cout << " ==query_model=== compile create ==========1====" << std::endl;
+
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend,
                                            resolveCompilerType(_globalConfig, npu_plugin_properties, deviceName));
-    std::cout << " ==query_model=== compile create ==========1====" << std::endl;
+
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -1122,24 +1079,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
     auto originalModel = exclude_model_ptr_from_map(npu_plugin_properties);
-    for (auto it : npu_plugin_properties) {
-        std::cout << "Parse: Local property1: " << it.first << "=" << it.second.as<std::string>() << std::endl;
-    }
+
     auto deviceTmp = _backend == nullptr ? nullptr : _backend->getDevice();
     std::string deviceName = deviceTmp != nullptr ? deviceTmp->getName() : "";
     checkUpdateforSpecialPlatform(_globalConfig, npu_plugin_properties, deviceName, _logger);
-    for (auto it : npu_plugin_properties) {
-        std::cout << "Parse2: Local property: " << it.first << "=" << it.second.as<std::string>() << std::endl;
-    }
 
     CompilerAdapterFactory compilerAdapterFactory;
     const auto propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
-    std::cout << " ==parse=== compile create ==========1====" << std::endl;
+
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend,
                                            resolveCompilerType(_globalConfig, npu_plugin_properties, deviceName));
-    std::cout << " ==parse=== compile create ==========2====" << std::endl;
+
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
@@ -1149,12 +1101,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
-    if (deviceTmp == device) {
-        std::cout << "2The selected device is: " << device->getName() << std::endl;
-    } else {
-        std::cout << "2The selected device is NOT EQUAL, deviceTmp is " << deviceTmp->getName() << ", device is "
-                  << device->getName() << std::endl;
-    }
 
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
     if (!loadedFromCache) {
