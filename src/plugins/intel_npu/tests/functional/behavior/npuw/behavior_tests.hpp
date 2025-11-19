@@ -8,7 +8,7 @@
 #include <memory>
 #include <random>
 
-#include "test_engine/generators/model_generator.hpp"
+#include "test_engine/models/model_generator.hpp"
 #include "test_engine/mocks/mock_plugins.hpp"
 #include "test_engine/mocks/register_in_ov.hpp"
 #include "intel_npu/npuw_private_properties.hpp"

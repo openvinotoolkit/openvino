@@ -71,10 +71,10 @@ int main(int argc, char** argv, char** envp) {
         if (core != nullptr) {
             availableDevices = core->get_available_devices();
             auto it = std::find(availableDevices.begin(), availableDevices.end(), "NPU");
-            if (it == availableDevices.end()) {
-                std::cerr << "Driver not found, exiting." << std::endl;
-                return -1;
-            }
+            // if (it == availableDevices.end()) {
+            //     std::cerr << "Driver not found, exiting." << std::endl;
+            //     return -1;
+            // }
         } else {
             std::cerr << "Failed to get OpenVINO Core from cache!" << std::endl;
         }

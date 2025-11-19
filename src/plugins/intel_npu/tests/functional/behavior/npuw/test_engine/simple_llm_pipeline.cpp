@@ -22,14 +22,6 @@ void update_config(ov::AnyMap& config, const std::pair<std::string, ov::Any>& pa
     }
 }
 
-ov::Tensor make_tensor_slice(ov::Tensor tensor, size_t dim, size_t start_pos, size_t end_pos) {
-    ov::Shape start_shape(std::vector<size_t>(tensor.get_shape().size(), 0u));
-    start_shape[dim] = start_pos;
-    ov::Shape end_shape = tensor.get_shape();
-    end_shape[dim] = end_pos;
-    return ov::Tensor(tensor, start_shape, end_shape);
-}
-
 int64_t get_token_as_max_logit(ov::Tensor logits) {
     size_t vocab_size = logits.get_shape().back();
     size_t sequence_offset = (logits.get_shape()[1] - 1) * vocab_size;
@@ -41,7 +33,7 @@ int64_t get_token_as_max_logit(ov::Tensor logits) {
 
 void SimpleLLMPipeline::initialize(const std::string& model_path, ov::Core& core, const ov::AnyMap& config) {
     ov::AnyMap properties(config);
-    m_max_prompt_len = get_or_default(properties, "NPUW_LLM_MAX_PROMPT_LEN", 1024);
+    m_max_prompt_len = get_or_default(properties, "NPUW_LLM_MAX_PROMPT_LEN", 128);
     m_min_response_len = get_or_default(properties, "NPUW_LLM_MIN_RESPONSE_LEN", 4);
     m_kvcache_total = m_max_prompt_len + m_min_response_len;
 
@@ -84,13 +76,9 @@ std::vector<int64_t> SimpleLLMPipeline::generate(const std::vector<int64_t>& inp
     m_request->set_tensor("position_ids", position_ids);
     m_request->infer();
 
-    auto padded_logits = m_request->get_tensor("logits");
-    auto logits = padded_logits;
-    auto padded_sequence_len = padded_logits.get_shape()[1];
-    if (padded_sequence_len > 1) {
-        // If SliceOut is not applied:
-        logits = make_tensor_slice(padded_logits, 1, padded_sequence_len - prompt_len, padded_sequence_len);
-    }
+    auto logits = m_request->get_tensor("logits");
+    // SliceOut is always applied.
+    OPENVINO_ASSERT(logits.get_shape()[1] == 1);
 
     // Get token with greedy search
     int64_t out_token = get_token_as_max_logit(logits);

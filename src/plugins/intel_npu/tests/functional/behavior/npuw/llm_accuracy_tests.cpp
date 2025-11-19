@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_engine/models/minicpm4_05b.hpp"
 #include "test_engine/comparators/nrmse.hpp"
 #include "test_engine/simple_llm_pipeline.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
@@ -24,19 +25,45 @@ using namespace ov::intel_npu::npuw;
 const char* cpu_plugin_file_name = "openvino_intel_cpu_plugin";
 
 namespace {
-const std::vector<int64_t> What_is_OpenVINO =
-    {529, 29989, 1792, 29989, 29958, 13, 5618, 338, 4673, 29963, 1177,
-     29949, 29973, 2, 29871, 13, 29966, 29989, 465, 22137, 29989, 29958, 13};
-const std::vector<int64_t> OpenVINO =
-    {6585, 29963, 1177, 29949}; 
 
-using LLMTestParams = std::tuple<std::string, ov::AnyMap, 
-                                 std::vector<int64_t>, std::vector<int64_t>>;
+struct GroundTruth {
+    std::vector<int64_t> prompt;
+    std::vector<int64_t> answer;
+};
+
+const GroundTruth What_is_OpenVINO_templated = {
+    // Prompt:
+    // <|im_start|>user
+    // What is OpenVINO?<|im_end|>
+    // <|im_start|>assistant
+    {73441, 3060, 5, 5856, 1410, 6404, 59408, 2097, 59383, 74, 73440, 59320, 5, 73441, 16434, 5},
+    // Answer: OpenVINO
+    { 9254, 59408, 2097, 59383}
+};
+
+const GroundTruth What_is_OpenVINO = {
+    // Prompt: What is OpenVINO?
+    {1, 3067, 1410, 6404, 59408, 2097, 59383, 74},
+    // Answer: [A]
+    {5, 59399, 59353, 59400}
+};
+
+using LLMTestParams = std::tuple<std::string, ov::AnyMap, GroundTruth>;
 } // anonymous namespace
 
 class LLMAccuracyTestsNPUW : public ::testing::TestWithParam<LLMTestParams> {
 public:
     void SetUp() override {
+        auto param = GetParam();
+        ov::AnyMap config;
+        GroundTruth input_and_reference_ids;
+        std::tie(model_path, config, input_and_reference_ids) = param;
+        if (model_path == "") {
+            GTEST_SKIP() << "Test model is not found, skipping the test!";
+        }
+        input_ids = input_and_reference_ids.prompt;
+        reference_ids = input_and_reference_ids.answer;
+
         // NOTE: TEMPLATE plugin in OpenVINO works for ~20 minute to generate
         //       first token from prefill model and crashes on launch of
         //       3rd subrequest in generate model.
@@ -52,10 +79,8 @@ public:
             }
         }
 
-        auto param = GetParam();
-        ov::AnyMap config;
-        std::tie(model_path, config, input_ids, reference_ids) = param;
         config["NPUW_DEVICES"] = "CPU";
+        config["NPUW_LLM_MAX_PROMPT_LEN"] = 128;
         config["NPUW_LLM_MIN_RESPONSE_LEN"] = 4;
         simple_llm.initialize(model_path, core, config);
     }
@@ -77,23 +102,20 @@ TEST_P(LLMAccuracyTestsNPUW, ConfigIsAccurate) {
 }
 
 INSTANTIATE_TEST_SUITE_P(LLMAccuracyNPUW_FAST_COMPILE, LLMAccuracyTestsNPUW,
-    ::testing::Combine(testing::Values("C:\\apronina\\models\\TinyLlama-1.1B-Chat-v1.0_int4_sym_group128_dyn_stateful\\TinyLlama-1.1B-Chat-v1.0_int4_sym_group128_dyn_stateful\\openvino_model.xml"),
+    ::testing::Combine(testing::Values(get_minicpm4_05b_path()),
                        testing::Values(ov::AnyMap{}),
-                       testing::Values(What_is_OpenVINO),
-                       testing::Values(OpenVINO)));
+                       testing::Values(What_is_OpenVINO_templated, What_is_OpenVINO)));
 
 INSTANTIATE_TEST_SUITE_P(LLMAccuracyNPUW_BEST_PERF, LLMAccuracyTestsNPUW,
-::testing::Combine(testing::Values("C:\\apronina\\models\\TinyLlama-1.1B-Chat-v1.0_int4_sym_group128_dyn_stateful\\TinyLlama-1.1B-Chat-v1.0_int4_sym_group128_dyn_stateful\\openvino_model.xml"),
+::testing::Combine(testing::Values(get_minicpm4_05b_path()),
                     testing::Values(ov::AnyMap{{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}}),
-                    testing::Values(What_is_OpenVINO),
-                    testing::Values(OpenVINO)));
+                    testing::Values(What_is_OpenVINO_templated, What_is_OpenVINO)));
 
 INSTANTIATE_TEST_SUITE_P(LLMAccuracyNPUW_DYNAMIC_BEST_PERF, LLMAccuracyTestsNPUW,
-    ::testing::Combine(testing::Values("C:\\apronina\\models\\TinyLlama-1.1B-Chat-v1.0_int4_sym_group128_dyn_stateful\\TinyLlama-1.1B-Chat-v1.0_int4_sym_group128_dyn_stateful\\openvino_model.xml"),
+    ::testing::Combine(testing::Values(get_minicpm4_05b_path()),
                         testing::Values(ov::AnyMap{{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"},
                                                    {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}}),
-                        testing::Values(What_is_OpenVINO),
-                        testing::Values(OpenVINO)));
+                        testing::Values(What_is_OpenVINO_templated, What_is_OpenVINO)));
 
 #endif // defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #endif // WITH_CPU_PLUGIN

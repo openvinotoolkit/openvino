@@ -5,6 +5,7 @@
 #include "test_engine/simple_llm_pipeline.hpp"
 #include "test_engine/mocks/mock_plugins.hpp"
 #include "test_engine/mocks/register_in_ov.hpp"
+#include "test_engine/models/minicpm4_05b.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/file_util.hpp"
@@ -94,6 +95,11 @@ private:
 }  // namespace ov
 
 TEST_F(LLMBehaviorTestsNPUW, LLMBehaviorNPUW_FAST_COMPILE) {
+    const std::string model_path = get_minicpm4_05b_path();
+    if (model_path == "") {
+        GTEST_SKIP() << "Test model is not found, skipping the test!";
+    }
+
     // Set expectations first:
     {
         InSequence seq;
@@ -144,12 +150,16 @@ TEST_F(LLMBehaviorTestsNPUW, LLMBehaviorNPUW_FAST_COMPILE) {
     register_mock_plugins_in_ov();
 
     // Do the actual test:
-    simple_llm.initialize("C:\\apronina\\models\\TinyLlama-1.1B-Chat-v1.0_int4_sym_group128_dyn_stateful\\TinyLlama-1.1B-Chat-v1.0_int4_sym_group128_dyn_stateful\\openvino_model.xml",
-                          core, config); 
+    simple_llm.initialize(model_path, core, config); 
     EXPECT_NO_THROW(simple_llm.generate(What_is_OpenVINO));
 }
  
 TEST_F(LLMBehaviorTestsNPUW, LLMBehaviorNPUW_BEST_PERF) {
+    const std::string model_path = get_minicpm4_05b_path();
+    if (model_path == "") {
+        GTEST_SKIP() << "Test model is not found, skipping the test!";
+    }
+
     // Set expectations first:
     {
         InSequence seq;
@@ -190,8 +200,7 @@ TEST_F(LLMBehaviorTestsNPUW, LLMBehaviorNPUW_BEST_PERF) {
     // Do the actual test:
 
     config["NPUW_LLM_GENERATE_HINT"] = "BEST_PERF";
-    simple_llm.initialize("C:\\apronina\\models\\TinyLlama-1.1B-Chat-v1.0_int4_sym_group128_dyn_stateful\\TinyLlama-1.1B-Chat-v1.0_int4_sym_group128_dyn_stateful\\openvino_model.xml",
-                            core, config); 
+    simple_llm.initialize(model_path, core, config); 
     EXPECT_NO_THROW(simple_llm.generate(What_is_OpenVINO));
 }
 
