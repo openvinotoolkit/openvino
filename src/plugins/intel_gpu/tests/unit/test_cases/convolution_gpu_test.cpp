@@ -9809,7 +9809,9 @@ using TestParamType_convolution_gpu_onednn = ::testing::tuple<  int,    // 0 - I
         int,            // 10 - Batch
         format,         // 11 - Input data format
         std::string,    // 12 - Implementation name
-        bool>;          // 13 - With bias
+        bool,           // 13 - With bias
+        format,         // 14 - Expected convolution format
+        bool>;          // 15 - Is dynamic
 
 struct convolution_gpu_onednn : public ::testing::TestWithParam<TestParamType_convolution_gpu_onednn> {
     static std::string PrintToStringParamName(
@@ -9827,7 +9829,9 @@ struct convolution_gpu_onednn : public ::testing::TestWithParam<TestParamType_co
                           std::to_string(testing::get<9>(param_info.param)) + "_batch" +
                           std::to_string(testing::get<10>(param_info.param)) + "_format" +
                           std::to_string(testing::get<11>(param_info.param)) + "_with_bias_" +
-                          std::to_string(testing::get<13>(param_info.param));
+                          std::to_string(testing::get<13>(param_info.param)) + "_conv_format_" +
+                          std::to_string(testing::get<14>(param_info.param)) + "_is_dynamic_" +
+                          std::to_string(testing::get<15>(param_info.param));
 
         if (testing::get<12>(param_info.param) != "") {
             res += "_kernel_" + testing::get<12>(param_info.param);
@@ -9842,9 +9846,11 @@ INSTANTIATE_TEST_SUITE_P(conv_onednn_cases,
                         ::testing::Values(
                             // Input X size, Input Y size, Input Z size, Input features, Output features,
                             // Kernel size X, Kernel size Y, Kernel size Z, Groups number, Stride, Batch,
-                            // Input data format, Implementation name, WithBias
-                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true),
-                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false)
+                            // Input data format, Implementation name, WithBias, Expected Conv format, Is-dynamic
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true, format::bs_fs_yx_bsv32_fsv16, false),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true, format::byxf, true),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false, format::bs_fs_yx_bsv32_fsv16, false),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false, format::byxf, true)
                             // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true),
                             // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false)
                         ),
@@ -9876,11 +9882,25 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     auto input_data_format = testing::get<11>(GetParam());
     auto impl_name = testing::get<12>(GetParam());
     auto with_bias = testing::get<13>(GetParam());
+    auto expected_conv_format = testing::get<14>(GetParam());
+    auto is_dynamic = testing::get<15>(GetParam());
 
-    auto input_size = tensor(batch_num, input_f, input_x, input_y);
+    ov::PartialShape target_pshape = {batch_num, input_f, input_x, input_y};
+    ov::PartialShape input_pshape;
+
+    if (is_dynamic) {
+        for (size_t i = 0; i < target_pshape.size(); ++i) {
+            input_pshape.emplace_back(ov::Dimension());
+        }
+        input_pshape[1] = target_pshape[1];
+    } else {
+        input_pshape = target_pshape;
+    }
+    layout in_layout{input_pshape, data_types::f16, format::bfyx};
+
     auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
-    auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    auto input_mem = engine.allocate_memory({ target_pshape, data_types::f16, format::bfyx });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_y, filter_x, 1);
@@ -9912,10 +9932,10 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
             }
         }
 
-        topology.add(input_layout("input", input_mem->get_layout()),
+        topology.add(input_layout("input", in_layout),
                      data("weights_fsv", weights_mem),
                      data("bias", biases_mem),
-                     reorder("input_fsv", input_info("input"), { data_types::f16, input_data_format, input_size }));
+                     reorder("input_fsv", input_info("input"), input_data_format, data_types::f16));
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("input_fsv"),
@@ -9943,9 +9963,9 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
             }
         }
 
-        topology.add(input_layout("input", input_mem->get_layout()),
+        topology.add(input_layout("input", in_layout),
                      data("weights_fsv", weights_mem),
-                     reorder("input_fsv", input_info("input"), { data_types::f16, input_data_format, input_size }));
+                     reorder("input_fsv", input_info("input"), input_data_format, data_types::f16));
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("input_fsv"),
@@ -9964,6 +9984,8 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"conv_fsv","reorder_bfyx"}));
+    if (is_dynamic)
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
@@ -9974,8 +9996,10 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     for (auto& p : network.get_primitives_info())
         std::cerr << p.original_id << " " << p.kernel_id << std::endl;
 
-    auto out_ptr = get_output_values_to_float<ov::float16>(network, outputs.find("conv_fsv")->second);
-    auto out_lay = network.get_primitive("conv_fsv")->get_node_output_layout();
+    auto out_ptr = get_output_values_to_float<float>(network, outputs.find("reorder_bfyx")->second);
+    auto output_memory = outputs.at("reorder_bfyx").get_memory();
+    auto out_lay = output_memory->get_layout();
+
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());
     ASSERT_EQ(out_lay.spatial(1), expected_result[0][0].size());
@@ -9998,6 +10022,9 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
                     }
                     ASSERT_TRUE(equal);
                 }
+
+    out_lay = network.get_primitive("conv_fsv")->get_node_output_layout();
+    ASSERT_EQ(out_lay.get_format(), expected_conv_format);
 }
 
 TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
