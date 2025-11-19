@@ -179,7 +179,6 @@ jobs:
               python3.12 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt
               cmake \
                 -DPython3_EXECUTABLE=/usr/local/bin/python3.12 \
-                -DENABLE_CPPLINT=OFF \
                 -DENABLE_NCC_STYLE=OFF \
                 -DENABLE_TESTS=ON \
                 -DENABLE_OV_JAX_FRONTEND=OFF \

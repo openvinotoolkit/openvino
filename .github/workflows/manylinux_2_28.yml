@@ -160,7 +160,6 @@ jobs:
         run: |
           python3.12 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
           /usr/bin/cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 \
-                         -DENABLE_CPPLINT=OFF \
                          -DENABLE_NCC_STYLE=OFF \
                          -DENABLE_TESTS=ON \
                          -DCMAKE_VERBOSE_MAKEFILE=ON \

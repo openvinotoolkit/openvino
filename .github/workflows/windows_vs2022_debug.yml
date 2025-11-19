@@ -72,7 +72,6 @@ jobs:
       cmake-options: >-
         -G 'Ninja'
         -DENABLE_PYTHON=OFF
-        -DENABLE_CPPLINT=OFF
         -DENABLE_TESTS=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
