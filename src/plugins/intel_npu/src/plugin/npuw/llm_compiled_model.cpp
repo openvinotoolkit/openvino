@@ -1381,6 +1381,8 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
                               axes,
                               m_max_lora_rank,
                               whisper_lhs_seq_size);
+            // Set unique name for the main variant
+            generate_model->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
             generate_model_variants.push_back(generate_model);
         } else {
             // Clone and create smaller variants
@@ -1399,6 +1401,8 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
                               m_max_lora_rank,
                               whisper_lhs_seq_size);
 
+            // Set unique name for this variant
+            generate_variant->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
             generate_model_variants.push_back(generate_variant);
         }
     }
