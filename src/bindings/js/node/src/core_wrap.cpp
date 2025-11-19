@@ -392,10 +392,12 @@ void importModelThread(ImportModelContext* context, std::mutex& mutex) {
         const std::lock_guard<std::mutex> lock(mutex);
         if (context->_use_tensor) {
             // Import from tensor
-            context->_compiled_model = context->_core.import_model(context->_tensor, context->_device, context->_config);
+            context->_compiled_model =
+                context->_core.import_model(context->_tensor, context->_device, context->_config);
         } else {
             // Import from stream
-            context->_compiled_model = context->_core.import_model(context->_stream, context->_device, context->_config);
+            context->_compiled_model =
+                context->_core.import_model(context->_stream, context->_device, context->_config);
         }
         success = true;
     } catch (const std::exception& e) {
