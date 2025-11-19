@@ -12,7 +12,7 @@ using namespace ov::test::behavior;
 
 namespace {
 
-std::vector<ov::AnyMap> config = {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}};
+std::vector<ov::AnyMap> config = {{}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCompileModelLoadFromFileTestBaseNPU,
