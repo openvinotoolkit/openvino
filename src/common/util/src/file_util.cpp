@@ -66,11 +66,15 @@
 #endif
 
 std::string ov::util::get_file_name(const std::string& s) {
-    return make_path(s).filename().string();
+    if (const auto path = make_path(s); path.has_parent_path()) {
+        return path_to_string(path.filename());
+    } else {
+        return s;
+    }
 }
 
 std::string ov::util::get_file_ext(const std::string& path) {
-    return make_path(path).extension().string();
+    return path_to_string(make_path(path).extension());
 }
 
 ov::util::Path ov::util::get_directory(const ov::util::Path& path) {

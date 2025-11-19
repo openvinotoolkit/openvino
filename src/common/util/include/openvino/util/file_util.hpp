@@ -123,8 +123,7 @@ std::filesystem::path make_path(const Source& source) {
  * @param path Path as char string.
  * @return Reference to input path (no conversion).
  */
-template <class Path,
-          typename std::enable_if<std::is_same<typename std::decay<Path>::type, std::string>::value>::type* = nullptr>
+template <class Path, typename std::enable_if_t<std::is_same_v<std::decay_t<Path>, std::string>>* = nullptr>
 const std::string& path_to_string(const Path& path) {
     return path;
 }
@@ -135,13 +134,22 @@ const std::string& path_to_string(const Path& path) {
  * @param path  Path as wide-char string.
  * @return A char string
  */
-template <class Path,
-          typename std::enable_if<std::is_same<typename std::decay<Path>::type, std::wstring>::value>::type* = nullptr>
+template <class Path, typename std::enable_if_t<std::is_same_v<std::decay_t<Path>, std::wstring>>* = nullptr>
 std::string path_to_string(const Path& path) {
     return ov::util::wstring_to_string(path);
 }
 
 #endif
+
+/**
+ * @brief Convert std::filesystem::path single-byte chain.
+ * Function resolve issue when path create from std::string which contains unicode characters.
+ * @param path  Path.
+ * @return A char string.
+ */
+inline const auto& path_to_string(const std::filesystem::path& path) {
+    return ov::util::path_to_string(path.native());
+}
 
 /// \brief Remove path components which would allow traversing up a directory tree.
 /// \param path A path to file
