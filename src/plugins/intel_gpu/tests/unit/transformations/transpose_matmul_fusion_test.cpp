@@ -219,7 +219,7 @@ TEST_F(TransformationTestsF, TransposeMatmulFusion8) {
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose_a, input_b);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_a, input_b});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input_a, input_b});
         manager.register_pass<TransposeFusion>();
 
         model_ref = model->clone();
@@ -238,7 +238,7 @@ TEST_F(TransformationTestsF, TransposeMatmulFusion9) {
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose_a, input_b);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_a, input_b});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input_a, input_b});
         bool support_immad = false;
         manager.register_pass<TransposeFusion>(support_immad);
 

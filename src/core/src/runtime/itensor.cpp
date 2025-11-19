@@ -10,7 +10,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape_util.hpp"
-#include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"

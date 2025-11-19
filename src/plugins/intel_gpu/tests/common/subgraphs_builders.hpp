@@ -55,7 +55,7 @@ inline std::shared_ptr<ov::Model> makeLBRGRUSequence(ov::element::Type_t model_t
     Y_out->set_friendly_name("Y_out");
     Ho->set_friendly_name("Ho");
 
-    auto fn_ptr = std::make_shared<ov::Model>(ov::NodeVector{Y_out, Ho}, ov::ParameterVector{X, Y});
+    auto fn_ptr = std::make_shared<ov::Model>(ov::OutputVector{Y_out, Ho}, ov::ParameterVector{X, Y});
     fn_ptr->set_friendly_name("GRUSequence");
     return fn_ptr;
 }

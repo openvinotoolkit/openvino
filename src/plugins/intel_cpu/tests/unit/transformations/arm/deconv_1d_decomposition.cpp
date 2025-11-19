@@ -210,7 +210,7 @@ public:
         auto output_3d_shape = ov::op::util::make_try_fold<ov::op::v8::Slice>(conv_shape, zero_1d, three_1d, one_const);
         auto output_3d = std::make_shared<ov::op::v1::Reshape>(conv, output_3d_shape, false);
 
-        return std::make_shared<ov::Model>(ov::NodeVector{output_3d}, ov::ParameterVector{input_e});
+        return std::make_shared<ov::Model>(ov::OutputVector{output_3d}, ov::ParameterVector{input_e});
     }
 
 protected:
@@ -261,7 +261,7 @@ protected:
                                                                            p.pad_type);
         }
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{deconv}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{deconv}, ov::ParameterVector{input});
 
         if (p.expect_transformation && rank == 3) {
             model_ref = buildExpectedModel(p);

@@ -47,7 +47,7 @@ static std::shared_ptr<ov::Model> create_model_to_match() {
     auto rms_m = std::make_shared<ov::op::internal::RMS>(add_1_m, rms_const_2, 1e-5);
     rms_m->set_friendly_name(name_rms_2);
 
-    return std::make_shared<ov::Model>(ov::NodeVector{rms_m}, ov::ParameterVector{input1, input2, input3});
+    return std::make_shared<ov::Model>(ov::OutputVector{rms_m}, ov::ParameterVector{input1, input2, input3});
 }
 
 // This model has a similar structure but doesn't match the specific pattern.
@@ -64,7 +64,7 @@ static std::shared_ptr<ov::Model> create_model_not_to_match() {
     auto rms_2 = std::make_shared<ov::op::internal::RMS>(some_other_op, rms_const_2, 1e-5);
     rms_2->set_friendly_name(name_rms_2);
 
-    return std::make_shared<ov::Model>(ov::NodeVector{rms_2}, ov::ParameterVector{input1});
+    return std::make_shared<ov::Model>(ov::OutputVector{rms_2}, ov::ParameterVector{input1});
 }
 
 static void run_test(std::shared_ptr<ov::Model> model,

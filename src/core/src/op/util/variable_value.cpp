@@ -8,7 +8,6 @@
 
 #include "openvino/core/shape.hpp"
 #include "openvino/core/shape_util.hpp"
-#include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 

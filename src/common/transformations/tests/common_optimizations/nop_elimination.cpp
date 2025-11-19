@@ -354,7 +354,7 @@ TEST(nop_elimination, reshape_elimination_v1_check_consumer_count) {
 TEST(nop_elimination, concat_elimination_single_node) {
     int64_t a = 0;
     auto A = make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
-    auto f = make_shared<ov::Model>(make_shared<op::v0::Concat>(NodeVector{A}, a), ParameterVector{A});
+    auto f = make_shared<ov::Model>(make_shared<op::v0::Concat>(OutputVector{A}, a), ParameterVector{A});
 
     pass::Manager pass_manager;
     pass_manager.register_pass<ov::pass::Validate>();
