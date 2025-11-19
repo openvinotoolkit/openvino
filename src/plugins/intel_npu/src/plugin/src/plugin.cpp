@@ -765,15 +765,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
         // auto vclCompiler = VCLApi::getInstance();
         auto compilerPtr = compiler->get_compiler();
-        if(compilerPtr) {
-            std::cout << "compilerPtr is NOT EMPTY.  compilerType is " << compilerType << std::endl;
+        if(compilerPtr) {  //null is drivercompiler,  contian is mlir
+            std::cout << "1compilerPtr is NOT EMPTY.  compilerType is " << compilerType << std::endl;
+            std::cout << "2ss=====test 1120:0007======" << std::endl;
+            VCLCompilerImpl* vclCompiler = dynamic_cast<VCLCompilerImpl*>(compilerPtr.get());
+            if (vclCompiler != nullptr) {
+                std::cout << "3Compiler type: VCL" << std::endl;
+            } else {
+                std::cout << "4Compiler pure type: MLIR" << std::endl;
+                std::cout << "5----call set_cache_dir and compilertype is mlir---" << std::endl;
+                if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+                    std::cout << "6----throw ov::cache dir excpetion, Now is Comment out-!!!!-" << std::endl;
+                    OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
+                }
+            }
         } else {
             std::cout << "compilerPtr is NULLPTR.  compilerType is " << compilerType << std::endl;
-        }
-        std::cout << "----call set_cache_dir and compilertype is mlir---" << std::endl;
-        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-            std::cout << "----throw ov::cache dir excpetion, Now is Comment out-!!!!-" << std::endl;
-            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
         }
     }
 
