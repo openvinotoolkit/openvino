@@ -52,6 +52,7 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
+#include "transformations/common_optimizations/pack_GQA.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/common_optimizations/prelu_fusion.hpp"
 #include "transformations/common_optimizations/pull_through_reduce.hpp"
@@ -95,6 +96,7 @@
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "openvino/pass/serialize.hpp"
 
 using namespace ov::element;
 
@@ -251,7 +253,11 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ConvertU4WeightsZeroPointToScalar)
     common_fusions->set_name("ov::pass::CommonFusions");
 
+    manager.register_pass<ov::pass::Serialize>("moc_transformations_CommonFusions.xml", "moc_transformations_CommonFusions.bin");
+    REGISTER_PASS(manager, PackGQA)
+    manager.register_pass<ov::pass::Serialize>("moc_transformations_PackGQA.xml", "moc_transformations_PackGQA.bin");
     REGISTER_PASS(manager, SDPAFusion)
+    manager.register_pass<ov::pass::Serialize>("moc_transformations_SDPAFusion.xml", "moc_transformations_SDPAFusion.bin");
     REGISTER_PASS(manager, BinarizeWeights)
     REGISTER_PASS(manager, ConvToBinaryConv)
 

@@ -24,8 +24,9 @@ std::shared_ptr<Node> l2_norm_block(const Output<Node>& input) {
 
     auto scale = wrap_type<v1::Multiply>({div, any_input()});
     auto shift = optional<v1::Add>({scale, any_input()});
+    auto reshape = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale, any_input()});
 
-    return std::make_shared<pattern::op::Block>(OutputVector{input}, OutputVector{shift}, "l2_norm");
+    return std::make_shared<pattern::op::Block>(OutputVector{input}, OutputVector{reshape}, "l2_norm");
 }
 
 std::shared_ptr<Node> dq_constant_block() {
@@ -65,23 +66,27 @@ std::shared_ptr<Node> sdpa_preprocessing_block(const Output<Node>& input) {
     auto var_split = wrap_type<v1::VariadicSplit>({transpose_1, any_input(), any_input()});
     var_split->set_output_size(2);
 
-    auto mul_1 = wrap_type<v1::Multiply>({var_split->output(0), any_input()});
+    auto mul_1 = wrap_type<v1::Multiply,v0::Negative>({var_split->output(0), any_input()});
     auto concat = wrap_type<v0::Concat>({mul_1, var_split->output(1)});
-    auto mul_2 = wrap_type<v1::Multiply>({concat, any_input()});
+    auto transpose_2 = optional<v1::Transpose>({concat, any_input()});
+    auto mul_2 = wrap_type<v1::Multiply>({transpose_2, any_input()});
 
-    auto mul_3 = wrap_type<v1::Multiply>({reshape, any_input()});
-    auto transpose_2 = optional<v1::Transpose>({mul_3, any_input()});
-    auto add = wrap_type<v1::Add>({transpose_2, any_input()});  // todo: use mul_2 as 2nd input
+    auto mul_3 = wrap_type<v1::Multiply>({transpose_1, any_input()});
+    auto transpose_3 = optional<v1::Transpose>({mul_3, any_input()});
+    auto add = wrap_type<v1::Add>({transpose_3, any_input()});  // todo: use mul_2 as 2nd input
 
     return std::make_shared<pattern::op::Block>(OutputVector{input}, OutputVector{add}, "sdpa_preprocessing");
 }
 
 std::shared_ptr<Node> sdpa_block(const Output<Node>& q, const Output<Node>& k, const Output<Node>& v) {
-    auto kT = wrap_type<v1::Transpose>({k, any_input()});
-    auto scale = optional<v1::Multiply>({kT, any_input()});
-    auto qk = wrap_type<v0::MatMul>({q, scale});
-    auto bias_add = wrap_type<v1::Add>({qk, any_input()});
+    auto k_scale = optional<v1::Multiply>({k, any_input()});
+
+    auto qk = wrap_type<v0::MatMul>({q, k_scale});
+    auto qk_scale = optional<v1::Divide>({qk, any_input()});
+    auto bias_add = wrap_type<v1::Add>({qk_scale, any_input()});
+
     auto softmax = wrap_type<v8::Softmax>({bias_add});
+    
     auto qkv = wrap_type<v0::MatMul>({softmax, v});
 
     return std::make_shared<pattern::op::Block>(OutputVector{q, k, v}, OutputVector{qkv}, "sdpa");

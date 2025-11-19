@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/multi_matcher.hpp"
 #include "transformations_visibility.hpp"
 
@@ -87,12 +88,36 @@ namespace ov::pass {
 }  // namespace ov::pass
 
 namespace ov::pass {
-
-class TRANSFORMATIONS_API PackGQA : public ov::pass::MultiMatcher {
+    
+class TRANSFORMATIONS_API PackGQAFusion : public ov::pass::MultiMatcher {
 public:
-    OPENVINO_RTTI("PackGQA");
+    PackGQAFusion();
+};
 
-    PackGQA();
+class TRANSFORMATIONS_API SDPAMerge : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("SDPAMerge");
+    SDPAMerge();
+};
+
+class TRANSFORMATIONS_API MergeTwoUnrolledSDPAAdd : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MergeTwoUnrolledSDPAAdd");
+    MergeTwoUnrolledSDPAAdd();
+};
+
+class TRANSFORMATIONS_API MergeTwoUnrolledRoPEConcat : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MergeTwoUnrolledRoPEConcat");
+    MergeTwoUnrolledRoPEConcat();
+};
+
+class TRANSFORMATIONS_API PackGQA : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("PackGQA");
+    PackGQA() = default;
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
 };
 
 }  // namespace ov::pass
