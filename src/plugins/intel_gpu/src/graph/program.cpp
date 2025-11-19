@@ -1441,10 +1441,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t total_crop_layers = 0;
     size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
 
-    // Currently, OneDNN uses format like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on the batch size.
-    // But in the case of dynamic batches, it is difficult to effectively use the format according to the batch size.
-    // So we plan to transition to byxf where it will support various batch size.
-    // Below whitelist is 1st scope target network: CVS-176149
+    // OneDNN currently selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
+    // For dynamic batches, this approach is inefficient.
+    // We plan to switch to byxf for better flexibility across varying batch sizes.
+    // The whitelist below defines the initial target scope (CVS-176149).
     const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::input_layout::type_id(),
                                                                               cldnn::permute::type_id(),
                                                                               cldnn::convolution::type_id(),
