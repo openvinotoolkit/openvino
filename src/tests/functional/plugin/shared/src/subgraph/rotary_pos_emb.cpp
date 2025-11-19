@@ -1472,8 +1472,9 @@ std::shared_ptr<ov::Model> RoPETestGPTOSS::buildROPE_GPTOSS(int num_head,
     auto first_half_mul_cos = makeOP<opset1::Multiply>({variadicSplit->output(0), cos}, {{"auto_broadcast", "numpy"}});
     
     auto second_half_mul_sin = makeOP<opset1::Multiply>({variadicSplit->output(1), sin}, {{"auto_broadcast", "numpy"}});
-    auto neg = makeOP<opset1::Multiply>({second_half_mul_sin, -1.000000f}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f32[?,64,?,32]> Multiply_9680(__module.model.layers.0.self_attn/aten::mul/Multiply_1, Constant_9679)
-    auto sub_Subtract = makeOP<opset1::Add>({first_half_mul_cos, neg}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f32[?,64,?,32]> __module.model.layers.0.self_attn/aten::sub/Subtract(__module.model.layers.0.self_attn/aten::mul/Multiply, Multiply_9680)
+    auto neg_one = makeConst(element_type, {}, std::vector<float>{-1.0f});
+    auto neg = makeOP<opset1::Multiply>({second_half_mul_sin, neg_one}, {{"auto_broadcast", "numpy"}});
+    auto sub_Subtract = makeOP<opset1::Add>({first_half_mul_cos, neg}, {{"auto_broadcast", "numpy"}});
     
     
     auto second_half_mul_cos = makeOP<opset1::Multiply>({variadicSplit->output(1), cos}, {{"auto_broadcast", "numpy"}});

@@ -54,6 +54,7 @@ protected:
         jit.make("HEAD_SIZE", desc->config.head_size);
         jit.make("ROTARY_NDIMS", desc->config.rotary_ndims);
         jit.make("HALF_ROTARY_NDIMS", desc->config.rotary_ndims / 2);
+        jit.make("COS_SIN_TABLE_OFFSET", (desc->config.cos_sin_ndims == (desc->config.rotary_ndims / 2)) ? 0 : desc->config.rotary_ndims / 2);
         jit.make("HEAD_COUNT", desc->config.head_cnt);
 
         if (desc->config.head_size > desc->config.rotary_ndims) {
