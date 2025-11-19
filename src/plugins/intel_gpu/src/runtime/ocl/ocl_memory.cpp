@@ -709,7 +709,7 @@ std::vector<cl_mem> ocl_surfaces_lock::get_handles(std::vector<memory::ptr> mem)
     std::vector<cl_mem> res;
     for (auto& m : mem) {
         auto mem_type = m->get_internal_params().mem_type;
-        if (mem_type == shared_mem_type::shared_mem_vasurface || mem_type == shared_mem_type::shared_mem_dxbuffer) {
+        if (is_lock_needed(mem_type)) {
             res.push_back(static_cast<cl_mem>(m->get_internal_params().mem));
         }
     }
