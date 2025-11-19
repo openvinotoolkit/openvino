@@ -46,8 +46,9 @@
 
 #    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "executors/x64/subgraph.hpp"
+#    include "snippets/lowered/port_descriptor.hpp"
 #    include "snippets/op/brgemm.hpp"
-#    include "snippets/pass/matmul_to_brgemm.hpp"
+#    include "snippets/utils/utils.hpp"
 #    include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #elif defined(OPENVINO_ARCH_ARM64)
 #    include <cpu/aarch64/cpu_isa_traits.hpp>
