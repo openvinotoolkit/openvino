@@ -93,8 +93,8 @@ private:
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::CompiledModel> m_lm_head_compiled;
 
-    // Multiple KV cache models with different static KV cache shapes (1K, 2K, 4K, 8K stepping)
-    std::vector<std::shared_ptr<ov::npuw::CompiledModel>> m_kvcache_compiled_variants;
+    // Multiple generate models with different static KV cache shapes (1K, 2K, 4K, 8K stepping)
+    std::vector<std::shared_ptr<ov::npuw::CompiledModel>> m_generate_compiled_variants;
     std::vector<uint32_t> m_kvcache_sizes;  // Corresponding KV cache sizes for each variant
 
     // Support LoRA
@@ -114,16 +114,16 @@ private:
 
     bool m_is_whisper = false;
 
-    // Create KV cache model variants with different sizes
-    std::vector<std::shared_ptr<ov::Model>> create_kvcache_model_variants(
-        const std::shared_ptr<ov::Model>& kvcache_model,
+    // Create generate model variants with different sizes
+    std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(
+        const std::shared_ptr<ov::Model>& generate_model,
         const KVAxesPosition& axes,
         const uint32_t whisper_lhs_seq_size);
 
-    // Create compiled KV cache model variants
-    void create_kvcache_compiled_model_variants(const std::vector<std::shared_ptr<ov::Model>>& kvcache_variant_models,
-                                                const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                const ov::AnyMap& generate_config);
+    // Create compiled generate model variants
+    void create_generate_compiled_model_variants(const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
+                                                 const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                 const ov::AnyMap& generate_config);
 };
 
 }  // namespace npuw

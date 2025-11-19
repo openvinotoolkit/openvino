@@ -60,10 +60,10 @@ protected:
     void copy_kvcache();
 
     // Create and initialize KV cache variant requests with memory sharing
-    void create_kvcache_variant_requests(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
+    void create_generate_request_variants(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
     // Select appropriate kvcache request for inference
-    std::shared_ptr<ov::IAsyncInferRequest> select_kvcache_request(int64_t num_tokens);
+    std::shared_ptr<ov::IAsyncInferRequest> select_generate_request(int64_t num_tokens);
 
     void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
                             const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
@@ -92,7 +92,7 @@ protected:
                         ov::SoPtr<ov::ITensor> input_token_ids);
 
     // Multiple KV cache model variants with different sizes
-    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_kvcache_requests;
+    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;
     std::vector<uint32_t> m_kvcache_sizes;
 
     // Currently selected KV cache request (selected in infer_prefill, used throughout the conversation)
@@ -120,10 +120,10 @@ protected:
     // Maps from request pointer to its input/output ports
     std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
                        std::unordered_map<std::string, ov::Output<const ov::Node>>>
-        m_kvcache_variant_in_ports;
+        m_generate_variant_in_ports;
     std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
                        std::unordered_map<std::string, ov::Output<const ov::Node>>>
-        m_kvcache_variant_out_ports;
+        m_generate_variant_out_ports;
 
     ov::Output<const ov::Node> m_lm_head_logits_port;
 
