@@ -71,6 +71,7 @@ public:
     Napi::Value query_model(const Napi::CallbackInfo& info);
 
     void add_extension(const Napi::CallbackInfo& info);
+
 protected:
     Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
                                    const Napi::Object& model,
@@ -98,7 +99,7 @@ protected:
 
     /** @brief Returns devices available for inference. */
     Napi::Value get_available_devices(const Napi::CallbackInfo& info);
-    
+
     /** @brief Returns list of available frontends (IR, ONNX, etc.). */
     Napi::Value get_available_front_ends(const Napi::CallbackInfo& info);
 
