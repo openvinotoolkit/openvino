@@ -172,83 +172,98 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
     this->register_matcher(m, callback);
 }
 
+// TODO : To have a fused rope kernel for this pattern
 IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
     using namespace ov::pass::pattern;
     using ov::pass::pattern::op::Or;
 
     auto broadcast_freq = wrap_type<ov::op::v3::Broadcast>({any_input(), any_input()});
+    auto convert_broadcast_freq = wrap_type<ov::op::v0::Convert>({broadcast_freq});
 
     auto convert_pos_id_to_i32 = wrap_type<ov::op::v0::Convert>({any_input()});
-    auto unsqueeze_pos_id = wrap_type<ov::op::v0::Unsqueeze>({convert_pos_id_to_i32, any_input()});
+    auto unsqueeze_pos_id_1 = wrap_type<ov::op::v0::Unsqueeze>({convert_pos_id_to_i32, any_input()});
+    auto unsqueeze_pos_id_2 = wrap_type<ov::op::v1::Reshape>({convert_pos_id_to_i32, any_input()});
+    auto unsqueeze_pos_id = std::make_shared<Or>(OutputVector{unsqueeze_pos_id_1, unsqueeze_pos_id_2});
     auto convert_pos_id_to_f16 = wrap_type<ov::op::v0::Convert>({unsqueeze_pos_id});
-
-    auto convert_broadcast_freq = wrap_type<ov::op::v0::Convert>({broadcast_freq});
 
     auto broadcast_freq_ = std::make_shared<Or>(OutputVector{broadcast_freq, convert_broadcast_freq});
 
     auto matmul_freq_pos_id = wrap_type<ov::op::v0::MatMul>({broadcast_freq_, convert_pos_id_to_f16});
-    auto transpose = wrap_type<ov::op::v1::Transpose>({matmul_freq_pos_id, any_input()});
+    auto reshape_matmul = wrap_type<ov::op::v1::Reshape>({matmul_freq_pos_id, any_input()});
+    auto transpose_matmul = wrap_type<ov::op::v1::Transpose>({matmul_freq_pos_id, any_input()});
+    auto transpose_or_reshape = std::make_shared<Or>(OutputVector{transpose_matmul, reshape_matmul});
 
-    auto sin = wrap_type<ov::op::v0::Sin>({transpose});
-    auto sin_convert = wrap_type<ov::op::v0::Convert>({sin});
-    auto sin_ = std::make_shared<Or>(OutputVector{sin, sin_convert});
+    auto sin_ = wrap_type<ov::op::v0::Sin>({transpose_or_reshape});
+    auto sin_convert = wrap_type<ov::op::v0::Convert>({sin_});
+    auto sin = std::make_shared<Or>(OutputVector{sin_, sin_convert});
 
-    auto cos = wrap_type<ov::op::v0::Cos>({transpose});
+    auto cos = wrap_type<ov::op::v0::Cos>({transpose_or_reshape});
     auto cos_convert = wrap_type<ov::op::v0::Convert>({cos});
     auto cos_ = std::make_shared<Or>(OutputVector{cos, cos_convert});
 
     auto scale_const_sin = wrap_type<ov::op::v0::Constant>();
     auto scale_const_sin_convert = wrap_type<ov::op::v0::Convert>({scale_const_sin});
     auto scale_const_sin_ = std::make_shared<Or>(OutputVector{scale_const_sin, scale_const_sin_convert});
-    auto mul_sin_scale = wrap_type<ov::op::v1::Multiply>({sin_, scale_const_sin_});
+    auto mul_sin_scale = wrap_type<ov::op::v1::Multiply>({sin, scale_const_sin_});
 
     auto scale_const_cos = wrap_type<ov::op::v0::Constant>();
     auto scale_const_cos_convert = wrap_type<ov::op::v0::Convert>({scale_const_cos});
     auto scale_const_cos_ = std::make_shared<Or>(OutputVector{scale_const_cos, scale_const_cos_convert});
     auto mul_cos_scale = wrap_type<ov::op::v1::Multiply>({cos_, scale_const_cos_});
 
-    auto unsqueeze_mul_sin_scale = wrap_type<ov::op::v0::Unsqueeze>({mul_sin_scale, any_input()});
-    auto mul_q_sin = wrap_type<ov::op::v1::Multiply>({any_input()/* q_second_half*/, unsqueeze_mul_sin_scale});
+    auto unsqueeze_mul_sin_scale_ = wrap_type<ov::op::v0::Unsqueeze>({mul_sin_scale, any_input()});
+    auto reshape_mul_sin_scale_ = wrap_type<ov::op::v1::Reshape>({mul_sin_scale, any_input()});
+    auto reshape_mul_sin_scale = std::make_shared<Or>(OutputVector{unsqueeze_mul_sin_scale_, reshape_mul_sin_scale_});
 
-    auto unsqueeze_mul_cos_scale = wrap_type<ov::op::v0::Unsqueeze>({mul_cos_scale, any_input()});
-    auto mul_q_cos = wrap_type<ov::op::v1::Multiply>({any_input()/* q_second_half*/, unsqueeze_mul_cos_scale});
+    auto mul_qk_sin = wrap_type<ov::op::v1::Multiply>({any_input()/*second_half*/, reshape_mul_sin_scale});
 
-    auto q_half_mul1 = wrap_type<ov::op::v1::Multiply>({any_input(), any_input()});
-    auto q_half_mul2 = wrap_type<ov::op::v1::Multiply>({q_half_mul1, any_input()});
-    auto q_half_first  = wrap_type<ov::op::v1::Add>({mul_q_cos, q_half_mul2});
+    auto unsqueeze_mul_cos_scale_ = wrap_type<ov::op::v0::Unsqueeze>({mul_cos_scale, any_input()});
+    auto reshape_mul_cos_scale_ = wrap_type<ov::op::v1::Reshape>({mul_cos_scale, any_input()});
+    auto reshape_mul_cos_scale = std::make_shared<Or>(OutputVector{unsqueeze_mul_cos_scale_, reshape_mul_cos_scale_});
+    auto mul_qk_cos = wrap_type<ov::op::v1::Multiply>({any_input()/* first_half*/, reshape_mul_cos_scale});
 
-    auto q_half_mul4 = wrap_type<ov::op::v1::Multiply>({any_input(), any_input()});
-    auto q_half_second  = wrap_type<ov::op::v1::Add>({mul_q_sin, q_half_mul4});
+    auto qk_half_mul1 = wrap_type<ov::op::v1::Multiply>({any_input(), any_input()});
+    auto qk_half_mul2_1 = wrap_type<ov::op::v1::Multiply>({qk_half_mul1, any_input()});
+    auto qk_half_mul2_2 = wrap_type<ov::op::v1::Multiply>({any_input(), qk_half_mul1});
+    auto qk_half_mul2 = std::make_shared<Or>(OutputVector{qk_half_mul2_1, qk_half_mul2_2});
+    auto qk_half_first_1  = wrap_type<ov::op::v1::Add>({mul_qk_cos, qk_half_mul2});
+    auto qk_half_first_2  = wrap_type<ov::op::v1::Add>({qk_half_mul2, mul_qk_cos});
+    auto qk_half_first = std::make_shared<Or>(OutputVector{qk_half_first_1, qk_half_first_2});
 
-    auto concat_q_1 = wrap_type<ov::op::v0::Concat>({q_half_second, q_half_first});
-    auto concat_q_2 = wrap_type<ov::op::v0::Concat>({q_half_first, q_half_second});
-    auto concat_q = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat_q_1, concat_q_2});
+    auto qk_half_mul4 = wrap_type<ov::op::v1::Multiply>({any_input(), any_input()});
+    auto qk_half_second_1  = wrap_type<ov::op::v1::Add>({mul_qk_sin, qk_half_mul4});
+    auto qk_half_second_2  = wrap_type<ov::op::v1::Add>({qk_half_mul4, mul_qk_sin});
+    auto qk_half_second = std::make_shared<Or>(OutputVector{qk_half_second_1, qk_half_second_2});
+
+    auto concat_qk_1 = wrap_type<ov::op::v0::Concat>({qk_half_second, qk_half_first});
+    auto concat_qk_2 = wrap_type<ov::op::v0::Concat>({qk_half_first, qk_half_second});
+    auto concat_qk = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat_qk_1, concat_qk_2});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         bool matched = false;
-        if (pattern_map.count(concat_q_1) > 0) {
+        if (pattern_map.count(concat_qk_1) > 0) {
             matched = true;
-        } else if (pattern_map.count(concat_q_2) > 0) {
+        } else if (pattern_map.count(concat_qk_2) > 0) {
             matched = true;
         }
-        if (!matched || transformation_callback(concat_q))
+        if (!matched || transformation_callback(concat_qk))
             return false;
 
         std::shared_ptr<ov::op::v0::Concat> output_concat_node;
-        if (pattern_map.count(concat_q_1) > 0) {
-            output_concat_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_q_1).get_node_shared_ptr());
-        } else if (pattern_map.count(concat_q_2) > 0) {
-            output_concat_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_q_2).get_node_shared_ptr());
+        if (pattern_map.count(concat_qk_1) > 0) {
+            output_concat_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_qk_1).get_node_shared_ptr());
+        } else if (pattern_map.count(concat_qk_2) > 0) {
+            output_concat_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_qk_2).get_node_shared_ptr());
         }
         auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul_freq_pos_id).get_node_shared_ptr());
         auto mul_node1 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_sin_scale).get_node_shared_ptr());
         auto mul_node2 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_cos_scale).get_node_shared_ptr());
-        auto mul_node3 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_q_sin).get_node_shared_ptr());
-        auto mul_node4 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_q_cos).get_node_shared_ptr());
-        auto mul_node5 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(q_half_mul1).get_node_shared_ptr());
-        auto mul_node6 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(q_half_mul2).get_node_shared_ptr());
-        auto mul_node8 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(q_half_mul4).get_node_shared_ptr());
+        auto mul_node3 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_qk_sin).get_node_shared_ptr());
+        auto mul_node4 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_qk_cos).get_node_shared_ptr());
+        auto mul_node5 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(qk_half_mul1).get_node_shared_ptr());
+        auto mul_node6 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(qk_half_mul2).get_node_shared_ptr());
+        auto mul_node8 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(qk_half_mul4).get_node_shared_ptr());
 
         const auto desired_et = ov::element::f32;
         const auto original_et = output_concat_node->get_output_element_type(0);
@@ -268,7 +283,7 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_q, "IncreasePositionIdsPrecisionForGPTOSS");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_qk, "IncreasePositionIdsPrecisionForGPTOSS");
     this->register_matcher(m, callback);
 }
 
