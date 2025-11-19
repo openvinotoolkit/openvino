@@ -28,10 +28,6 @@ bool has_input(const std::shared_ptr<ov::Model>& model, const std::string& name)
 // SDPA-unroll and transpose transformations
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill);
 
-void patch_broadcast_for_reshape(std::shared_ptr<ov::Model> model,
-                                 const uint32_t old_kvcache_size,
-                                 const uint32_t new_kvcache_size);
-
 std::shared_ptr<ov::Model> prepare_whisper_prefill_model(std::shared_ptr<ov::Model>& model,
                                                          const uint32_t& max_prompt_size,
                                                          const uint32_t& lhs_seq_size);

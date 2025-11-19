@@ -1371,40 +1371,21 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
     for (size_t i = 0; i < m_kvcache_sizes.size(); ++i) {
         const uint32_t kv_size = m_kvcache_sizes[i];
 
-        if (kv_size == total_kv_size) {
-            // Last variant uses the main model directly - reshape it first
-            LOG_DEBUG("Variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " (size=" << kv_size
-                                 << "): using and reshaping main model");
-            reshape_to_static(generate_model,
-                              max_generation_token_len,
-                              total_kv_size,
-                              axes,
-                              m_max_lora_rank,
-                              whisper_lhs_seq_size);
-            // Set unique name for the main variant
-            generate_model->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
-            generate_model_variants.push_back(generate_model);
-        } else {
-            // Clone and create smaller variants
-            LOG_DEBUG("Variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " (size=" << kv_size
-                                 << "): cloning and reshaping");
-            auto generate_variant = generate_model->clone();
+        auto generate_variant = (kv_size == total_kv_size) ? generate_model : generate_model->clone();
+        LOG_DEBUG("Variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " (size=" << kv_size
+                             << "): reshaping to static");
 
-            // Patch broadcast constants: total_size -> kv_size
-            ov::npuw::util::patch_broadcast_for_reshape(generate_variant, total_kv_size, kv_size);
+        // Reshape to target size
+        reshape_to_static(generate_variant,
+                          max_generation_token_len,
+                          kv_size,
+                          axes,
+                          m_max_lora_rank,
+                          whisper_lhs_seq_size);
 
-            // Reshape to target size
-            reshape_to_static(generate_variant,
-                              max_generation_token_len,
-                              kv_size,
-                              axes,
-                              m_max_lora_rank,
-                              whisper_lhs_seq_size);
-
-            // Set unique name for this variant
-            generate_variant->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
-            generate_model_variants.push_back(generate_variant);
-        }
+        // Set unique name for this variant
+        generate_variant->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
+        generate_model_variants.push_back(generate_variant);
     }
     LOG_INFO("Generated all generate model variants");
 
