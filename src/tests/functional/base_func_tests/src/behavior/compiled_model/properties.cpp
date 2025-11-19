@@ -308,9 +308,9 @@ TEST_P(OVClassCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
     for (auto&& supported_property : supported_properties) {
         Any property;
         OV_ASSERT_NO_THROW(property = compiled_model.get_property(supported_property));
-        std::cout << supported_property << ":" << property.as<std::string>() << std::endl;
+        std::cout << "   " << supported_property << ":" << property.as<std::string>() << std::endl;
     }
-    for (auto&& default_property : properties) {
+    for (auto&& default_property : properties) {  /// member var:  AnyMap properties;, config
         auto supported = util::contains(supported_properties, default_property.first);
         ASSERT_TRUE(supported) << "default_property=" << default_property.first;
         Any property;

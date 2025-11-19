@@ -123,6 +123,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     ov::Tensor tensor = make_tensor_from_vector(networkDesc.compiledNetwork);
     GraphDescriptor graphDesc;
     NetworkMetadata networkMeta;
+    std::cout << "====1====networkMeta.name is =" << networkMeta.name << "-" << std::endl;
 
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled
@@ -130,6 +131,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         try {
             graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
             networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
+            std::cout << "====2====networkMeta.name is =" << networkMeta.name << "-" << std::endl;
+            networkMeta.name = model->get_friendly_name();
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -137,6 +140,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     } else {
         _logger.warning("no zeGraphExt, metadata is empty from vcl compiler");
     }
+    std::cout << "====3====networkMeta.name is =" << networkMeta.name << "-" << std::endl;
 
     return std::make_shared<Graph>(
         _zeGraphExt,
@@ -310,9 +314,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
             // If the metadata is empty, we can try to get it from the driver parser
             _logger.info("Metadata is empty, trying to get it from the driver parser");
             networkMeta = _zeGraphExt->getNetworkMeta(mainGraphDesc);
+            std::cout << "RUN here == for vcl adapter call===" << std::endl;
             if (model) {
+                std::cout << "RUN here == for vcl adapter call 1===" << std::endl;
                 networkMeta.name = model.value()->get_friendly_name();
             } else {
+                std::cout << "RUN here == for vcl adapter call 2===" << std::endl;
                 _logger.warning("networkMeta name is empty!");
             }
         }

@@ -166,11 +166,16 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
+    std::cout << "=========CompiledModel::get_property() ov::model_name.name() is " << ov::model_name.name()
+              << std::endl;
+    std::cout << "=========CompiledModel::get_property() passed name is " << name << std::endl;
     // special cases
     if (name == ov::model_name.name()) {
         OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
+        std::cout << "=========CompiledModel::get_property() 1 " << std::endl;
         return _graph->get_metadata().name;
     } else {
+        std::cout << "=========CompiledModel::get_property() 2 " << std::endl;
         // default behaviour
         return _properties->get_property(name);
     }

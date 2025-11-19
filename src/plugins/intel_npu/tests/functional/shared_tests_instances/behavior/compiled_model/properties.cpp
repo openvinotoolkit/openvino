@@ -62,7 +62,7 @@ const std::vector<ov::AnyMap> compatibilityPublicCompiledModelConfigs = {
     {{ov::execution_devices.name(), ov::Any(ov::test::utils::DEVICE_NPU)}},
     {{ov::loaded_from_cache.name(), ov::Any(false)}},
     {{ov::model_name.name(), ov::Any(expectedModelName)}},
-    {{ov::optimal_number_of_infer_requests.name(), ov::Any(1u)}},
+    {{ov::optimal_number_of_infer_requests.name(), ov::Any(1u)}},  ///
     {{ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::LATENCY)}},
     {{ov::hint::num_requests.name(), ov::Any(1u)}}};
 
@@ -260,11 +260,12 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(ov::test::utils::DEVICE_NPU),
     (ov::test::utils::appendPlatformTypeTestName<OVCompiledModelPropertiesDefaultSupportedTests, true>));
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
-                         OVClassCompiledModelPropertiesDefaultTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(compatibilityPublicCompiledModelConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelPropertiesDefaultTests>);
+INSTANTIATE_TEST_SUITE_P(
+    compatibility_smoke_BehaviorTests,
+    OVClassCompiledModelPropertiesDefaultTests,
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                       ::testing::ValuesIn(compatibilityPublicCompiledModelConfigs)),
+    ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelPropertiesDefaultTests>);  /////
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVClassCompiledModelPropertiesDefaultTests,
