@@ -56,7 +56,6 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("getAvailableFrontEnds", &CoreWrap::get_available_front_ends),
                         InstanceMethod("importModel", &CoreWrap::import_model_async),
                         InstanceMethod("importModelSync", &CoreWrap::import_model),
-                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("getVersions", &CoreWrap::get_versions),
                         InstanceMethod("setProperty", &CoreWrap::set_property),
                         InstanceMethod("getProperty", &CoreWrap::get_property),
