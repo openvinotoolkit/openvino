@@ -19,7 +19,7 @@ PYBIND11_MAKE_OPAQUE(ov::TensorVector);
 
 inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs, bool decode_strings) {
     {
-        ConditionalGILScopedRelease release;
+        py::gil_scoped_release release;
         *self.m_start_time = Time::now();
         self.m_request->infer();
         *self.m_end_time = Time::now();
@@ -320,7 +320,7 @@ void regclass_InferRequest(py::module m) {
                     PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function to pass `userdata` into!", 1);
                 }
             }
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             *self.m_start_time = Time::now();
             self.m_request->start_async();
         },
@@ -359,7 +359,7 @@ void regclass_InferRequest(py::module m) {
                     PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function!", 1);
                 }
             }
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             *self.m_start_time = Time::now();
             self.m_request->start_async();
         },
@@ -392,7 +392,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "wait",
         [](InferRequestWrapper& self) {
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             self.m_request->wait();
         },
         R"(
@@ -405,7 +405,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "wait_for",
         [](InferRequestWrapper& self, const int timeout) {
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             return self.m_request->wait_for(std::chrono::milliseconds(timeout));
         },
         py::arg("timeout"),
@@ -698,7 +698,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self.m_request->get_profiling_info();
         },
-        CallGuardConditionalGILRelease(),
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Queries performance is measured per layer to get feedback on what
             is the most time-consuming operation, not all plugins provide
@@ -715,7 +715,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self.m_request->query_state();
         },
-        CallGuardConditionalGILRelease(),
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Gets state control interface for given infer request.
 
@@ -819,7 +819,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self.m_request->get_profiling_info();
         },
-        CallGuardConditionalGILRelease(),
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Performance is measured per layer to get feedback on the most time-consuming operation.
             Not all plugins provide meaningful data!
