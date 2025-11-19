@@ -372,8 +372,16 @@ struct OptionConcept final {
     bool (*isPublic)() = nullptr;
     ov::PropertyMutability (*mutability)() = nullptr;
     uint32_t (*compilerSupportVersion)() = nullptr;
-    bool (*isValueSupported)(std::string_view val) = nullptr;
+    bool (OptionConcept::*isValueSupported)(std::string_view val) = nullptr;
     std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
+    std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt;
+    template <class Opt>
+    bool isValueSupportedImpl(std::string_view val) {
+        if (customValueCheckerOpt.has_value()) {
+            return customValueCheckerOpt.value()(val);
+        }
+        return Opt::isValueSupported(val);
+    }
 };
 
 template <class Opt>
@@ -397,7 +405,7 @@ OptionConcept makeOptionModel() {
             &Opt::isPublic,
             &Opt::mutability,
             &Opt::compilerSupportVersion,
-            &Opt::isValueSupported,
+            &OptionConcept::isValueSupportedImpl<Opt>,
             &validateAndParse<Opt>};
 }
 
@@ -410,7 +418,7 @@ OptionConcept makeOptionModel() {
 class OptionsDesc final {
 public:
     template <class Opt>
-    void add();
+    void add(std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt);
 
     bool has(std::string_view key) const;
 
@@ -429,9 +437,10 @@ private:
 };
 
 template <class Opt>
-void OptionsDesc::add() {
+void OptionsDesc::add(std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt) {
     OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0, "Option '", Opt::key().data(), "' was already registered");
-    _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
+    auto element = _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
+    element.first->second.customValueCheckerOpt = customValueCheckerOpt;
 
     for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
         OPENVINO_ASSERT(_deprecated.count(deprecatedKey.data()) == 0,
