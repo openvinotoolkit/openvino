@@ -439,8 +439,11 @@ private:
 template <class Opt>
 void OptionsDesc::add(std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt) {
     OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0, "Option '", Opt::key().data(), "' was already registered");
-    auto element = _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
-    element.first->second.customValueCheckerOpt = customValueCheckerOpt;
+    auto [elementIt, ret] = _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
+    if (!ret) {
+        OPENVINO_THROW("Cannot register option: ", Opt::key());
+    }
+    elementIt->second.customValueCheckerOpt = std::move(customValueCheckerOpt);
 
     for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
         OPENVINO_ASSERT(_deprecated.count(deprecatedKey.data()) == 0,
