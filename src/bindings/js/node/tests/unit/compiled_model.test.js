@@ -14,7 +14,7 @@ describe("ov.CompiledModel tests", () => {
   let skipCompiledModelTests = false;
 
   // Quick synchronous check: some test runners/environments don't have the
-  // BATCH device plugin available. Try probing at module load time and
+  // BATCH device plugin available. Try probing when the test suite initializes and
   // mark the suite to be skipped early to avoid running hooks that attempt
   // to compile and then fail.
   try {

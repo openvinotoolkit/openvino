@@ -411,7 +411,7 @@ void importModelThread(ImportModelContext* context, std::mutex& mutex) {
         context->tsfn.BlockingCall(context, callback);
     } else {
         // On error, reject the Promise with the error message
-        auto callback = [&error_msg](Napi::Env env, Napi::Function, ImportModelContext* context) {
+        auto callback = [error_msg](Napi::Env env, Napi::Function, ImportModelContext* context) {
             context->deferred.Reject(Napi::Error::New(env, error_msg).Value());
         };
         context->tsfn.BlockingCall(context, callback);

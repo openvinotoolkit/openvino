@@ -341,8 +341,6 @@ describe("ov basic tests.", () => {
         assert.ok(e instanceof Error);
       }
     });
-
-
     it("Test importModelSync(stream, device) throws", () => {
       assert.throws(
         () => core.importModelSync(userStream, tensor),
