@@ -178,6 +178,9 @@ void VariableState::gather_by_axis(const std::vector<size_t>& src_indices, const
 
         size_t src_offset = src_idx * D * ov::element::Type(m_layout.data_type).size();
         size_t dst_offset = dst_idx * D * ov::element::Type(m_layout.data_type).size();
+        //size_t len = batch_size * H * D * src_indices.size() * ov::element::Type(m_layout.data_type).size();
+        //m_memory->copy_from(m_context->get_engine().get_service_stream(), *m_memory, src_offset, dst_offset, len, true);
+        //break;
         remote_state->copy_from(remote_state._ptr, src_offset, dst_offset, update_shape);
         /*for (int b = 0; b < batch_size; ++b) {
             for (int h = 0; h < H; ++h) {

@@ -16,6 +16,8 @@
 #include "beam_table_update/beam_table_update_kernel_ref.hpp"
 #include "dynamic_quantize/dynamic_quantize_kernel_selector.h"
 #include "dynamic_quantize/dynamic_quantize_kernel_kv_cache.h"
+#include "reorder_kv_cache/reorder_kv_cache_kernel_selector.hpp"
+#include "reorder_kv_cache/reorder_kv_cache_kernel_ref.hpp"
 #include "openvino/core/dimension.hpp"
 
 #include <limits.h>
@@ -71,11 +73,12 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         return make_deep_copy<kv_cache_impl, kernel_params_t>(*this);
     }
 
-    const size_t concat_stage = 0;
-    const size_t beam_table_stage = 1;
-    const size_t dq_stage = 2;
-    const size_t scale_concat_stage = 3;
-    const size_t zp_concat_stage = 4;
+    const size_t reorder_trim_stage = 0;
+    const size_t concat_stage = 1;
+    const size_t beam_table_stage = 2;
+    const size_t dq_stage = 3;
+    const size_t scale_concat_stage = 4;
+    const size_t zp_concat_stage = 5;
 
     cldnn::memory::ptr beam_table_prev = nullptr;
     cldnn::memory::ptr beam_table_new = nullptr;
@@ -112,7 +115,10 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         // output buffers order: [current, (beam_table), (current_scale), (current_zp)]
         kernel_arguments_data args;
         args.shape_info = instance.shape_info_memory_ptr();
-        if (stage == concat_stage) {
+        if (stage == reorder_trim_stage) {
+            args.inputs = {instance.input_memory_ptr(0), instance.input_memory_ptr(3), instance.input_memory_ptr(4)};
+            args.outputs = {instance.output_memory_ptr(0)};
+        } else if (stage == concat_stage) {
             args.inputs = { instance.input_memory_ptr(0), instance.input_memory_ptr(1) };
             args.outputs = { instance.output_memory_ptr(0) };
         } else if (stage == beam_table_stage) {
@@ -186,10 +192,14 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         const auto& desc = instance.get_typed_desc<kv_cache>();
         auto& variable = instance.get_network().get_variable(desc->variable_info.variable_id);
         std::vector<event::ptr> res_events;
+        const auto& impl_param = *instance.get_impl_params();
+
+        if (impl_param.input_layouts.size() == 4) {
+            execute_stage(events, instance, res_events, reorder_trim_stage);
+        }
 
         execute_stage(events, instance, res_events, concat_stage);
 
-        const auto& impl_param = *instance.get_impl_params();
         const auto& kv_in_shape = impl_param.input_layouts[0].get_partial_shape();
         const auto& kv_out_shape = impl_param.output_layouts[0].get_partial_shape();
         if (desc->indirect && ((kv_out_shape[desc->gather_axis].get_length() > 1) ||
@@ -296,6 +306,42 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         return layout{beam_table_shape, impl_param.output_layouts[1].data_type, format::get_default_format(beam_table_shape.size())};
     }
 
+    static kernel_selector::reorder_kv_cache_params get_reorder_trim_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<kv_cache>();
+        auto params = get_default_params<kernel_selector::reorder_kv_cache_params>(impl_param, true);
+        auto indirect_axis = primitive->gather_axis;
+
+        auto inputs_count = 3;
+
+        params.inputs.resize(inputs_count);
+        params.inputs[0] = convert_data_tensor(impl_param.input_layouts[0]);
+        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[3]);
+        params.inputs[2] = convert_data_tensor(impl_param.input_layouts[4]);
+        params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0]);
+        params.inputs.resize(inputs_count);
+        params.indirect_axis = indirect_axis;
+        params.seq_len = indirect_axis;
+
+        const auto& desc = impl_param.typed_desc<kv_cache>();
+        const auto compression_inputs = desc->get_compression_scales_inputs_num() + desc->get_compression_zp_inputs_num();
+        const auto beam_table_past_idx = 3 + compression_inputs;
+
+        const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;  // [kv_past, kv_new_token, [beam_idx, [scale_past], [zp_past], beam_table_past]]
+        const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;  // [kv_present, beam_table_present, compression_scale_present]
+        std::map<size_t, size_t> in_tensor_to_offset_map = {
+            {0, in_offsets_map.at(0)},  // kv_past
+            {1, in_offsets_map.at(3)},  // src_idx
+            {0, in_offsets_map.at(4)},  // dst_idx
+        };
+        std::map<size_t, size_t> out_tensor_to_offset_map = {
+            {0, out_offsets_map.at(0)},  // kv_present
+        };
+
+        params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
+
+        return params;
+    }
+
     static kernel_params_t get_concat_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<kv_cache>();
         auto params = get_default_params<kernel_selector::concatenation_params>(impl_param, is_shape_agnostic);
@@ -304,7 +350,14 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         const auto inputs_count = 2;
         params.inputs.resize(inputs_count);
         for (size_t i = 0; i < inputs_count; ++i) {
-            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
+            auto target_layout = impl_param.input_layouts[i];
+            // Trim the cache
+            if (i == 0 && primitive->trim) {
+                auto shape = target_layout.get_partial_shape();
+                shape[axis] = shape[axis] - primitive->trim;
+                target_layout.set_partial_shape(shape);
+            }
+            params.inputs[i] = convert_data_tensor(target_layout);
         }
 
         params.axis = convert_axis(axis, impl_param.get_output_layout().get_rank());
@@ -454,6 +507,11 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
     static std::unique_ptr<primitive_impl> create(const typed_program_node<kv_cache>& arg, const kernel_impl_params& impl_param) {
         std::vector<kernel_selector::kernel_data> kernels_data;
+        if (impl_param.typed_desc<kv_cache>()->trim) {
+            auto reorder_kernel_params = get_reorder_trim_kernel_params(impl_param);
+            auto& reorder_kernel_selector = kernel_selector::reorder_kv_cache_kernel_selector::Instance();
+            kernels_data.push_back(reorder_kernel_selector.get_best_kernel(reorder_kernel_params));
+        }
         auto concat_kernel_params = get_concat_kernel_params(impl_param, impl_param.is_dynamic());
         auto& concat_kernel_selector = kernel_selector_t::Instance();
         kernels_data.push_back(concat_kernel_selector.get_best_kernel(concat_kernel_params));
@@ -486,6 +544,10 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto reorder_kernel_params = get_reorder_trim_kernel_params(impl_param);
+        (_kernels_data[reorder_trim_stage].update_dispatch_data_func)(reorder_kernel_params, _kernels_data[reorder_trim_stage]);
+        _kernels_data[reorder_trim_stage].kernels[0].skip_execution = 0;
+
         // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
         if (_kernels_data[concat_stage].params == nullptr) {
             _kernels_data[concat_stage].params = std::make_shared<kernel_params_t>(get_concat_kernel_params(impl_param, true));
