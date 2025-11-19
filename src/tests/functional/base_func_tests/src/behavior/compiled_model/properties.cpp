@@ -81,7 +81,6 @@ void OVCompileModelGetExecutionDeviceTests::SetUp() {
 TEST_P(OVClassCompiledModelPropertiesTests, CanUseCache) {
     std::string cache_dir = "./test_cache";
     core->set_property(ov::cache_dir(cache_dir));
-    // core->set_property({ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)});
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
     ov::test::utils::removeFilesWithExt<opt::FORCE>(cache_dir, "blob");
@@ -308,9 +307,9 @@ TEST_P(OVClassCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
     for (auto&& supported_property : supported_properties) {
         Any property;
         OV_ASSERT_NO_THROW(property = compiled_model.get_property(supported_property));
-        std::cout << "   " << supported_property << ":" << property.as<std::string>() << std::endl;
+        std::cout << supported_property << ":" << property.as<std::string>() << std::endl;
     }
-    for (auto&& default_property : properties) {  /// member var:  AnyMap properties;, config
+    for (auto&& default_property : properties) {
         auto supported = util::contains(supported_properties, default_property.first);
         ASSERT_TRUE(supported) << "default_property=" << default_property.first;
         Any property;

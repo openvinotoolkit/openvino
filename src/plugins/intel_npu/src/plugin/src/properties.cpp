@@ -232,13 +232,13 @@ namespace intel_npu {
  *
  * @note This macro does not offer any compiled-model specific checks
  */
-#define REGISTER_SIMPLE_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETVAL)                     \
-    do {                                                                                    \
-        _properties.emplace(PROP_NAME.name(),                                               \
-                            std::make_tuple(                                                \
-                                PROP_VISIBILITY,                                            \
-                                ov::PropertyMutability::RO,                                 \
-                                [&](const Config& config) -> auto{ return PROP_RETVAL; })); \
+#define REGISTER_SIMPLE_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETVAL)                                      \
+    do {                                                                                                     \
+        _properties.emplace(                                                                                 \
+            PROP_NAME.name(),                                                                                \
+            std::make_tuple(PROP_VISIBILITY, ov::PropertyMutability::RO, [&](const Config& config) -> auto { \
+                return PROP_RETVAL;                                                                          \
+            }));                                                                                             \
     } while (0)
 
 /**
@@ -646,12 +646,11 @@ void Properties::registerCompiledModelProperties() {
     // REGISTER_CUSTOM_METRIC format: (property, public true/false, return value function)
 
     REGISTER_CUSTOM_METRIC(ov::model_name, true, [](const Config&) {
-        std::cout << "========RUN into REGISTER_CUSTOM_METRIC(ov::model_name)" << std::endl;
         // TODO: log an error here as the code shouldn't have gotten here
         // this property is implemented in compiled model directly
         // this implementation here servers only to publish it in supported_properties
         return std::string("invalid");
-    });  ///////////
+    });
     REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
                            true,
                            static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(config)));
