@@ -110,7 +110,6 @@ jobs:
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'
-            -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
@@ -260,7 +259,7 @@ jobs:
             -d=TEMPLATE \
             -t=${{ matrix.TEST_TYPE }} \
             -w=${CONFORMANCE_ARTIFACTS_DIR} \
-            -f=${CONFORMANCE_TOOLS_DIR}/github/skip_configs/${TEST_DEVICE}/expected_failures_${{ matrix.TEST_TYPE }}.csv \
+            -f=${CONFORMANCE_TOOLS_DIR}/github/skip_configs/TEMPLATE/expected_failures_${{ matrix.TEST_TYPE }}.csv \
             -sm=mandatory
 
       - name: Pack Conformance Artifacts

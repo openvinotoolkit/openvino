@@ -244,6 +244,7 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
         logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
                     ex.what());
     }
+
     return {reshapedModel, successfullyDebatched};
 }
 
