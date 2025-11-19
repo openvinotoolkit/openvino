@@ -38,6 +38,7 @@ bool LLMMLPNode::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("hidden_size", m_config.hidden_size);
     visitor.on_attribute("up_size", m_config.up_size);
     visitor.on_attribute("gate_up_combined", m_config.gate_up_combined);
+    visitor.on_attribute("gate_up_swapped", m_config.gate_up_swapped);
     visitor.finish_structure();
     return true;
 }

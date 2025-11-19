@@ -32,6 +32,7 @@ public:
         int hidden_size;
         int up_size;
         bool gate_up_combined;
+        bool gate_up_swapped;  // true when VariadicSplit output[1] connects to gate instead of up
     };
 
     // args:
