@@ -35,6 +35,7 @@ class CompiledBlobHeader final {
     std::string m_ieVersion;
     std::string m_fileInfo;
     std::string m_runtimeInfo;
+    std::string m_blobVersion;
     uint32_t m_headerSizeAlignment{0};
 
 public:
@@ -42,6 +43,7 @@ public:
     CompiledBlobHeader(const std::string& ieVersion,
                        const std::string& fileInfo,
                        const std::string& runtimeInfo,
+                       const std::string& blobVersion,
                        const uint32_t headerSizeAlignment = 0);
 
     const std::string& get_openvino_version() const {
@@ -54,6 +56,10 @@ public:
 
     const std::string& get_runtime_info() const {
         return m_runtimeInfo;
+    }
+
+    const std::string& get_blob_version() const {
+        return m_blobVersion;
     }
 
     const uint32_t get_header_size_alignment() const {

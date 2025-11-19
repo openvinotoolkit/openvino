@@ -176,10 +176,12 @@ CompiledBlobHeader::CompiledBlobHeader() {}
 CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion,
                                        const std::string& fileInfo,
                                        const std::string& runtimeInfo,
+                                       const std::string& blobVersion,
                                        const uint32_t headerSizeAlignment)
     : m_ieVersion(ieVersion),
       m_fileInfo(fileInfo),
       m_runtimeInfo(runtimeInfo),
+      m_blobVersion(blobVersion),
       m_headerSizeAlignment(headerSizeAlignment) {}
 
 std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
@@ -197,6 +199,7 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     header.m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");
     header.m_fileInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "file_info");
     header.m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
+    header.m_blobVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "blob_version");
     header.m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
 
     if (const auto pad = util::align_padding_size(header.m_headerSizeAlignment, bytes_read); pad > 0) {
@@ -213,6 +216,7 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     compiledBlobNode.append_attribute("ie_version").set_value(header.m_ieVersion.c_str());
     compiledBlobNode.append_attribute("file_info").set_value(header.m_fileInfo.c_str());
     compiledBlobNode.append_attribute("runtime_info").set_value(header.m_runtimeInfo.c_str());
+    compiledBlobNode.append_attribute("blob_version").set_value(header.m_blobVersion.c_str());
     compiledBlobNode.append_attribute("header_size_alignment")
         .set_value(std::to_string(header.m_headerSizeAlignment).c_str());
 
@@ -261,6 +265,7 @@ void CompiledBlobHeader::read_from_buffer(const char* buffer, size_t buffer_size
     m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");
     m_fileInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "file_info");
     m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
+    m_blobVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "blob_version");
     m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
 
     pos += util::align_padding_size(m_headerSizeAlignment, pos - start);
