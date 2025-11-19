@@ -313,6 +313,21 @@ Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
 
 Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
     try {
+
+        if (info.Length() == 1 &&
+            info[0].IsObject() &&
+            info[0].As<Napi::Object>().InstanceOf(TensorWrap::get_class(info.Env()))) {
+
+            Napi::Object tensorObj = info[0].As<Napi::Object>();
+            TensorWrap* tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(tensorObj);
+
+            ov::Tensor nativeTensor = tensorWrap->get_tensor();
+
+            ov::CompiledModel compiled = _core.import_model(nativeTensor);
+
+            return CompiledModelWrap::wrap(info.Env(), compiled);
+        }
+
         if (!info[0].IsBuffer()) {
             OPENVINO_THROW("The first argument must be of type Buffer.");
         }
