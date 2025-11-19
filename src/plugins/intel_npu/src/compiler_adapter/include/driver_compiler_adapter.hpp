@@ -40,6 +40,10 @@ public:
 
     uint32_t get_version() const override;
 
+    std::shared_ptr<ICompiler> get_compiler() {
+        return nullptr;
+    }
+
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;

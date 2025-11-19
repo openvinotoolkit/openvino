@@ -41,6 +41,10 @@ public:
 
     uint32_t get_version() const override;
 
+    std::shared_ptr<ICompiler> get_compiler() {
+        return _compiler._ptr;
+    }
+
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 

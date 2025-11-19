@@ -27,6 +27,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "remote_context.hpp"
 #include "transformations.hpp"
+// #include "vcl_api.hpp"
 
 using namespace intel_npu;
 
@@ -762,9 +763,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
+        // auto vclCompiler = VCLApi::getInstance();
+        auto compilerPtr = compiler->get_compiler();
+        if(compilerPtr) {
+            std::cout << "compilerPtr is NOT EMPTY.  compilerType is " << compilerType << std::endl;
+        } else {
+            std::cout << "compilerPtr is NULLPTR.  compilerType is " << compilerType << std::endl;
+        }
         std::cout << "----call set_cache_dir and compilertype is mlir---" << std::endl;
         if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-            std::cout << "----throw ov::cache dir excpetion--" << std::endl;
+            std::cout << "----throw ov::cache dir excpetion, Now is Comment out-!!!!-" << std::endl;
             OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
         }
     }
