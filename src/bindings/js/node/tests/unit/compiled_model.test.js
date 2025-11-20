@@ -23,7 +23,7 @@ describe("ov.CompiledModel tests", () => {
     if (!_devices.includes("BATCH")) {
       skipCompiledModelTests = true;
     }
-  } catch (e) {
+  } catch {
     skipCompiledModelTests = true;
   }
 
@@ -38,7 +38,7 @@ describe("ov.CompiledModel tests", () => {
       if (!devices.includes("BATCH")) {
         skipCompiledModelTests = true;
       }
-    } catch (e) {
+    } catch {
       // If getting devices fails for some reason, skip as well.
       skipCompiledModelTests = true;
     }
@@ -54,7 +54,7 @@ describe("ov.CompiledModel tests", () => {
     };
     try {
       compiledModel = core.compileModelSync(testModelFP32.xml, "BATCH:CPU", properties);
-    } catch (e) {
+    } catch {
       // If compilation fails (device/plugin missing), skip these tests instead
       // of failing the whole suite in this environment.
       this.skip();

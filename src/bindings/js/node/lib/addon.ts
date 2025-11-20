@@ -147,7 +147,7 @@ interface Core {
     device: string,
     config?: Record<string, OVAny>,
   ): CompiledModel;
-    /**
+  /**
    * Asynchronously imports a previously exported compiled model from a tensor.
    * @param tensor The tensor containing serialized model data.
    * @param device The name of a device to import the model for.
@@ -165,11 +165,7 @@ interface Core {
    * @param device The name of a device to import the model for.
    * @param config Optional configuration object for this import operation.
    */
-  importModelSync(
-    tensor: Tensor,
-    device: string,
-    config?: Record<string, OVAny>,
-  ): CompiledModel;
+  importModelSync(tensor: Tensor, device: string, config?: Record<string, OVAny>): CompiledModel;
 
   /**
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
