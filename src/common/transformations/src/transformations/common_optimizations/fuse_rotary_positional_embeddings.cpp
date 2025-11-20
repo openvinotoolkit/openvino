@@ -1125,20 +1125,20 @@ ov::pass::RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
     auto x = pattern::any_input(pattern::rank_equals(4));
     auto t_cos = pattern::any_input(pattern::shape_matches("[?, 1, ?, half_ndims]"));
     auto t_sin = pattern::any_input(pattern::shape_matches("[?, 1, ?, half_ndims]"));
-    auto varsplit = pattern::wrap_type<v1::VariadicSplit>({x, -1, {"half_ndims", "?"}});
-    varsplit->set_output_size(2);
 
-    auto first_half_mul_cos =
-        pattern::wrap_type<v1::Multiply>({varsplit->output(0), t_cos}, {{"auto_broadcast", "numpy"}});
-    auto second_half_mul_sin =
-        pattern::wrap_type<v1::Multiply>({varsplit->output(1), t_sin}, {{"auto_broadcast", "numpy"}});
+    auto vsplit_out0 = pattern::wrap_type<op::v1::VariadicSplit>(
+        {x, -1, {"half_ndims", "?"}},
+        pattern::output_index_matches(0) && pattern::shape_matches("[?, ?, ?, half_ndims]"));
+    auto vsplit_out1 = pattern::wrap_type<op::v1::VariadicSplit>(
+        {x, -1, {"half_ndims", "?"}},
+        pattern::output_index_matches(1) && pattern::shape_matches("[?, ?, ?, half_ndims]"));
+    auto first_half_mul_cos = pattern::wrap_type<v1::Multiply>({vsplit_out0, t_cos}, {{"auto_broadcast", "numpy"}});
+    auto second_half_mul_sin = pattern::wrap_type<v1::Multiply>({vsplit_out1, t_sin}, {{"auto_broadcast", "numpy"}});
     auto neg = pattern::wrap_type<v1::Multiply>({second_half_mul_sin, -1.0f}, {{"auto_broadcast", "numpy"}});
     auto sub_Subtract = pattern::wrap_type<v1::Add>({first_half_mul_cos, neg}, {{"auto_broadcast", "numpy"}});
 
-    auto second_half_mul_cos =
-        pattern::wrap_type<v1::Multiply>({varsplit->output(1), t_cos}, {{"auto_broadcast", "numpy"}});
-    auto first_half_mul_sin =
-        pattern::wrap_type<v1::Multiply>({varsplit->output(0), t_sin}, {{"auto_broadcast", "numpy"}});
+    auto second_half_mul_cos = pattern::wrap_type<v1::Multiply>({vsplit_out1, t_cos}, {{"auto_broadcast", "numpy"}});
+    auto first_half_mul_sin = pattern::wrap_type<v1::Multiply>({vsplit_out0, t_sin}, {{"auto_broadcast", "numpy"}});
     auto add_Add =
         pattern::wrap_type<v1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
     auto concat_result = pattern::wrap_type<opset1::Concat>({sub_Subtract, add_Add}, {{"axis", -1}});

@@ -1460,7 +1460,6 @@ std::string RoPETestChatGLMHF::getTestCaseName(const testing::TestParamInfo<rope
 std::shared_ptr<ov::Model> RoPETestGPTOSS::buildROPE_GPTOSS(int num_head,
                                                             int rotary_dims,
                                                             ov::element::Type element_type) {
-    auto int32_max = std::numeric_limits<std::int32_t>::max();
     auto input = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{-1, -1, num_head, rotary_dims});
     input->set_friendly_name("input");
     auto permute_Transpose = makeOP<opset1::Transpose>({input, {0, 2, 1, 3}}, {});
