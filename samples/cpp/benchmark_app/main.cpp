@@ -562,7 +562,8 @@ int main(int argc, char* argv[]) {
                     // set to user defined value
                     if (supported(ov::hint::inference_precision.name())) {
                         device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
-                        if (device_config[ov::hint::inference_precision.name()].as<std::string>() == "dynamic" )
+                        if (device_config[ov::hint::inference_precision.name()].as<std::string>() == "dynamic" &&
+                            it_device_infer_precision->second != "dynamic")
                             slog::warn << "Inference precision was not recognized and was set to dynamic by default" << slog::endl;
                     } else if (is_virtual_device(device)) {
                         update_device_config_for_virtual_device(it_device_infer_precision->second,
