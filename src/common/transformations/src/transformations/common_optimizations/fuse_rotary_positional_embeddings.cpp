@@ -125,14 +125,15 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
         auto root = m.get_match_root();
 
         auto symbols = m.get_symbols();
-        auto num_heads = symbols["PRESERVED_DIMS"].g()[1];
+        auto num_heads1 = symbols["PRESERVED_DIMS"].g()[1];
+        auto num_heads2 = symbols["PRESERVED_DIMS"].g()[2];
         auto head_size = symbols["head_size"];
-        if (!num_heads.is_static() || !head_size.is_static()) {
+        if ((!num_heads1.is_static() && !num_heads2.is_static()) || !head_size.is_static()) {
             return false;
         }
 
         op::internal::RoPE::Config config;
-        config.head_cnt = static_cast<size_t>(num_heads.i());
+        config.head_cnt = num_heads1.is_static() ? static_cast<size_t>(num_heads1.i()) : static_cast<size_t>(num_heads2.i());
         config.head_size = static_cast<size_t>(head_size.i());
         config.rotary_ndims = config.head_size;
         config.is_interleaved = true;
