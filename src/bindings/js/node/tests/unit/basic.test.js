@@ -346,10 +346,9 @@ describe("ov basic tests.", () => {
 
     it("Test importModelSync(stream, device, config: unsupported property) \
     throws", () => {
-      const tmpDir = "/tmp";
       assert.throws(
-        () => core.importModelSync(userStream, "CPU", { CACHE_DIR: tmpDir }),
-        /Unsupported property CACHE_DIR by CPU plugin./,
+        () => core.importModelSync(userStream, "CPU", { NPU_DEVICE_TOTAL_MEM_SIZE: 1024 }),
+        /Unsupported property NPU_DEVICE_TOTAL_MEM_SIZE by CPU plugin./,
       );
     });
 
