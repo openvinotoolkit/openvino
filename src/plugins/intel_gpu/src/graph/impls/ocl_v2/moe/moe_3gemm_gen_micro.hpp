@@ -1,0 +1,83 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <mutex>
+
+#include "../utils/kernel_generator.hpp"
+#include "common_utils/jitter.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "moe_3gemm_base.hpp"
+// #include "intel_gpu/primitives/moe_gemm.hpp"
+#include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
+#include "micro_utils.hpp"
+#include "moe_gemm_gen_opt.hpp"
+#include "moe_gemm_inst.h"
+#include "ocl_v2/utils/jitter.hpp"
+using namespace cldnn;  // TODO: Remove once namespaces are aligned
+namespace ov::intel_gpu::ocl {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#    include "micro_utils.hpp"
+
+class MoE3GemmMicroGenerator : public MoEGemmOptGeneratorBase {
+public:
+    explicit MoE3GemmMicroGenerator(MoE3GemmMicroKernelType type)
+        : MoEGemmOptGeneratorBase("moe_3gemm_prefill_mlp",
+                                  type == MoE3GemmMicroKernelType::MLP_GATE ? "_gate"
+                                  : type == MoE3GemmMicroKernelType::MLP_UP ? "_up"
+                                                                            : "_down"),
+          m_type(type) {
+        switch (m_type) {
+        case MoE3GemmMicroKernelType::MLP_GATE:
+            m_wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_0);
+            m_scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_0);
+            m_zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_0);
+            break;
+        case MoE3GemmMicroKernelType::MLP_UP:
+            m_wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_1);
+            m_scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_1);
+            m_zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_1);
+            break;
+        case MoE3GemmMicroKernelType::MLP_DOWN:
+            m_wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_2);
+            m_scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_2);
+            m_zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_2);
+            break;
+        default:
+            OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");
+            break;
+        }
+    }
+
+    [[nodiscard]] std::string get_build_options(const kernel_impl_params& params) const override;
+
+    [[nodiscard]] KernelData get_kernel_data(const kernel_impl_params& params) const override;
+
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
+        OPENVINO_THROW("Use overloaded version instead");
+    }
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params, const micro::Package& moe_gemm, const moe_3gemm_config& cfg) const;
+
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+
+    static const moe_3gemm_config get_moe_3gemm_cfg(const kernel_impl_params& params) {
+        moe_3gemm_config cfg;
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        cfg.weight_group_size = desc->_config.group_size;
+        cfg.has_batch_dim = desc->_config.has_batch_dim;
+        return cfg;
+    }
+
+    static void init_microkernels(const kernel_impl_params& params, micro::Package& gemm_moe, MoE3GemmMicroKernelType type) noexcept;
+    MoE3GemmMicroKernelType m_type;
+    int m_wei_idx;
+    int m_scale_idx;
+    int m_zp_idx;
+    static std::mutex mtx;
+};
+#endif
+}  // namespace ov::intel_gpu::ocl

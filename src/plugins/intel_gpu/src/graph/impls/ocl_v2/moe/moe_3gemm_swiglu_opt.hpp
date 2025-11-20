@@ -9,28 +9,12 @@
 
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+#include "moe_3gemm_base.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
-
-//  mlp_gate: 0
-//  mlp_up: 1
-//  mlp_down: 2
-enum class MOEInputIndex : uint8_t {
-    HIDDEN_STATES = 0,
-    ROUTING_WEIGHTS = 1,
-    WEIGHT_0 = 2,
-    SCALE_0 = 3,
-    ZP_0 = 4,
-    WEIGHT_1 = 5,
-    SCALE_1 = 6,
-    ZP_1 = 7,
-    WEIGHT_2 = 8,
-    SCALE_2 = 9,
-    ZP_2 = 10
-};
 
 struct moe_3gemm_swiglu_opt : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::moe::moe_3gemm_swiglu_opt")
@@ -46,7 +30,7 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             ov::element::f16,
         };
 
-        const auto& in0_layout = node.get_input_layout(static_cast<size_t>(MOEInputIndex::HIDDEN_STATES));
+        const auto& in0_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         const auto& out_layout = node.get_output_layout(0);
         if (!one_of(in0_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {
             return false;
@@ -60,7 +44,7 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
         static constexpr std::array supported_wei_type = {
             ov::element::u4,
         };
-        const auto& wei_layout = node.get_input_layout(static_cast<size_t>(MOEInputIndex::WEIGHT_0));
+        const auto& wei_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
         if (!one_of(wei_layout.data_type, supported_wei_type)) {
             return false;
         }
@@ -69,7 +53,7 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
         static constexpr std::array supported_scale_type = {
             ov::element::f16,
         };
-        const auto& scale_layout = node.get_input_layout(static_cast<size_t>(MOEInputIndex::SCALE_0));
+        const auto& scale_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0));
         if (!one_of(scale_layout.data_type, supported_scale_type)) {
             return false;
         }
@@ -78,7 +62,7 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
         static constexpr std::array supported_zp_type = {
             ov::element::u4,
         };
-        const auto& zp_layout = node.get_input_layout(static_cast<size_t>(MOEInputIndex::ZP_0));
+        const auto& zp_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0));
         if (!one_of(zp_layout.data_type, supported_zp_type)) {
             return false;
         }

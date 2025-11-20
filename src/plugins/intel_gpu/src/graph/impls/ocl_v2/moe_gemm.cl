@@ -66,7 +66,11 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef WEIGHT_COMPRESSED_INT4
     weight_scales += experts_ids[batch] * m * NUM_GROUPS;
     #ifdef WEIGHT_ZP_DT
+    #ifdef WEIGHT_COMPRESSED_ZP_INT4
+    weight_zps += experts_ids[batch] * m * NUM_GROUPS / 2;
+    #else
     weight_zps += experts_ids[batch] * m * NUM_GROUPS;
+    #endif
     #endif
 #endif
     int ld_weight = k;
