@@ -11,6 +11,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "vcl_api.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
@@ -39,6 +40,10 @@ public:
     bool is_option_supported(std::string optname) const override;
 
     uint32_t get_version() const override;
+
+    std::shared_ptr<ICompiler> get_compiler() const override {
+        return _compiler._ptr;
+    }
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;

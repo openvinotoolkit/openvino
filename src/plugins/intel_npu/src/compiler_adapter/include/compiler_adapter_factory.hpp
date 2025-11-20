@@ -21,13 +21,14 @@ public:
             if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
                 return std::make_unique<PluginCompilerAdapter>(nullptr);
             }
+            std::cout << "===== Creating PluginCompilerAdapter with ZeroInitStructsHolder" << std::endl;
             return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
         }
         case ov::intel_npu::CompilerType::DRIVER: {
             if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
                 OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
             }
-
+            std::cout << "===== Creating DriverCompilerAdapter with ZeroInitStructsHolder" << std::endl;
             return std::make_unique<DriverCompilerAdapter>(engineBackend->getInitStructs());
         }
         default:

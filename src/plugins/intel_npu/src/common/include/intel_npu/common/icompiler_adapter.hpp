@@ -6,6 +6,7 @@
 
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
+#include "intel_npu/icompiler.hpp"
 
 namespace intel_npu {
 
@@ -56,6 +57,7 @@ public:
     virtual std::vector<std::string> get_supported_options() const = 0;
     virtual bool is_option_supported(std::string optname) const = 0;
 
+    virtual std::shared_ptr<ICompiler> get_compiler() const = 0;
     virtual ~ICompilerAdapter() = default;
 };
 
