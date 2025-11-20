@@ -383,9 +383,8 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
                                            compilerVersion,
                                            maxOpsetVersion,
                                            updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())
-                                               ? updatedConfig.get<USE_BASE_MODEL_SERIALIZER>()
-                                               : true,
-                                           updatedConfig.get<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD>());
+                                               ? config.get<USE_BASE_MODEL_SERIALIZER>()
+                                               : true);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -401,16 +400,19 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
                                      buildFlags.c_str(),
                                      buildFlags.size()};
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
+    std::cout << "Build flag is " << buildFlags << std::endl;
+    std::cout << "exeDesc.optionsSize is " << exeDesc.optionsSize << std::endl;
 
-    _logger.debug("Using vclAllocatedExecutableCreateWS");
-    vcl_allocator_vector allocator;
-    uint8_t* blob = nullptr;
-    size_t size = 0;
+    // _logger.debug("Using vclAllocatedExecutableCreateWS");
+    // vcl_allocator_vector allocator;
+    // uint8_t* blob = nullptr;
+    // size_t size = 0;
 
-    // TODO fill the rest. Call "vclAllocatedExecutableCreateWS" and any other remote function required to retrieve the
-    // vector of blobs and use them to construct the vector of "NetworkDescription". The metadata objects can be empty.
+    // // TODO fill the rest. Call "vclAllocatedExecutableCreateWS" and any other remote function required to retrieve the
+    // // vector of blobs and use them to construct the vector of "NetworkDescription". The metadata objects can be empty.
 
-    _logger.debug("compile end, blob size:%d", allocator.m_vec.size());
+    // _logger.debug("compile end, blob size:%d", allocator.m_vec.size());
+    _logger.debug("compile end, --for fake return--");
     return {};
 }
 

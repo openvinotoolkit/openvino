@@ -2,17 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_infer_request/batched_tensors.hpp"
-
 #include <gtest/gtest.h>
-
-#include <chrono>
-
-#include "common_test_utils/file_utils.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
+#include "behavior/ov_infer_request/batched_tensors.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include <chrono>
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/opsets/opset8_decl.hpp"
 
 namespace ov {
 namespace test {
@@ -29,8 +26,7 @@ std::string OVInferRequestBatchedTests::generateCacheDirName(const std::string& 
     auto hash = std::to_string(std::hash<std::string>()(test_name));
     std::stringstream ss;
     auto ts = duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch());
-    ss << hash << "_"
-       << "_" << ts.count();
+    ss << hash << "_" << "_" << ts.count();
     return ss.str();
 }
 
@@ -52,10 +48,8 @@ void OVInferRequestBatchedTests::TearDown() {
     APIBaseTest::TearDown();
 }
 
-std::shared_ptr<Model> OVInferRequestBatchedTests::create_n_inputs(size_t n,
-                                                                   element::Type type,
-                                                                   const PartialShape& shape,
-                                                                   const ov::Layout& layout) {
+std::shared_ptr<Model> OVInferRequestBatchedTests::create_n_inputs(size_t n, element::Type type,
+                                              const PartialShape& shape, const ov::Layout& layout) {
     ResultVector res;
     ParameterVector params;
     for (size_t i = 0; i < n; i++) {
@@ -99,12 +93,12 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsBase) {
     auto actual_tensor = req.get_tensor("tensor_output0");
     auto* actual = actual_tensor.data<float>();
     for (auto i = 0; i < batch; ++i) {
-        auto* f = tensors[i].data<float>();
+        auto *f = tensors[i].data<float>();
         for (auto j = 0; j < one_shape_size; ++j) {
             f[j] = 5.f;
         }
     }
-    req.infer();  // Adds '1' to each element
+    req.infer(); // Adds '1' to each element
     for (auto j = 0; j < one_shape_size * batch; ++j) {
         EXPECT_NEAR(actual[j], 6.f, 1e-5) << "Expected=6, actual=" << actual[j] << " for index " << j;
     }
@@ -133,12 +127,12 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsAsync) {
     auto actual_tensor = req.get_tensor("tensor_output0");
     auto* actual = actual_tensor.data<float>();
     for (auto i = 0; i < batch; ++i) {
-        auto* f = tensors[i].data<float>();
+        auto *f = tensors[i].data<float>();
         for (auto j = 0; j < one_shape_size; ++j) {
             f[j] = 5.f;
         }
     }
-    req.start_async();  // Adds '1' to each element
+    req.start_async(); // Adds '1' to each element
     req.wait_for(std::chrono::milliseconds(1000));
     for (auto j = 0; j < one_shape_size * batch; ++j) {
         EXPECT_NEAR(actual[j], 6.f, 1e-5) << "Expected=6, actual=" << actual[j] << " for index " << j;
@@ -169,13 +163,13 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_override_with_set) {
     auto actual_tensor = req.get_tensor("tensor_output0");
     auto* actual = actual_tensor.data<float>();
     for (auto i = 0; i < batch; ++i) {
-        auto* f = tensors[i].data<float>();
+        auto *f = tensors[i].data<float>();
         for (auto j = 0; j < one_shape_size; ++j) {
             f[j] = 5.f;
             buffer2[j + i * one_shape_size] = 55.f;
         }
     }
-    req.infer();  // Adds '1' to each element
+    req.infer(); // Adds '1' to each element
     for (auto j = 0; j < one_shape_size * batch; ++j) {
         EXPECT_NEAR(actual[j], 56.f, 1e-5) << "Expected=56, actual=" << actual[j] << " for index " << j;
     }
@@ -189,7 +183,6 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsBase_Caching) {
     auto one_shape_size = ov::shape_size(one_shape);
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "N...");
     ie->set_property({ov::cache_dir(m_cache_dir)});
-    // ie->set_property({ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)});
     auto execNet_no_cache = ie->compile_model(model, target_device);
     auto execNet_cache = ie->compile_model(model, target_device);
     // Allocate 8 chunks, set 'user tensors' to 0, 2, 4, 6 chunks
@@ -209,12 +202,12 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsBase_Caching) {
     auto* actual = actual_tensor.data<float>();
     for (auto testNum = 0; testNum < 5; testNum++) {
         for (auto i = 0; i < batch; ++i) {
-            auto* f = tensors[i].data<float>();
+            auto *f = tensors[i].data<float>();
             for (auto j = 0; j < one_shape_size; ++j) {
                 f[j] = static_cast<float>(testNum + 10);
             }
         }
-        req.infer();  // Adds '1' to each element
+        req.infer(); // Adds '1' to each element
         for (auto j = 0; j < one_shape_size * batch; ++j) {
             EXPECT_EQ(actual[j], testNum + 11) << "Infer " << testNum << ": Expected=" << testNum + 11
                                                << ", actual=" << actual[j] << " for index " << j;
@@ -246,12 +239,12 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Multiple_Infer) {
     auto* actual = actual_tensor.data<float>();
     for (auto testNum = 0; testNum < 5; testNum++) {
         for (auto i = 0; i < batch; ++i) {
-            auto* f = tensors[i].data<float>();
+            auto *f = tensors[i].data<float>();
             for (auto j = 0; j < one_shape_size; ++j) {
                 f[j] = static_cast<float>(testNum + 20);
             }
         }
-        req.infer();  // Adds '1' to each element
+        req.infer(); // Adds '1' to each element
         for (auto j = 0; j < one_shape_size * batch; ++j) {
             EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                << ", actual=" << actual[j] << " for index " << j;
@@ -281,19 +274,19 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Can_Infer_Dynamic) {
 
     for (size_t testNum = 0; testNum < 2; testNum++) {
         for (size_t i = 0; i < batch; ++i) {
-            auto* f = tensors[i].data<float>();
+            auto *f = tensors[i].data<float>();
             for (size_t j = 0; j < one_shape_size; ++j) {
                 f[j] = static_cast<float>(testNum + i);
             }
         }
-        req.infer();  // Adds '1' to each element
+        req.infer(); // Adds '1' to each element
         auto actual_tensor = req.get_tensor("tensor_output0");
         auto* actual = actual_tensor.data<float>();
         for (size_t i = 0; i < batch; ++i) {
             for (size_t j = 0; j < one_shape_size; ++j) {
                 EXPECT_EQ(actual[j + i * one_shape_size], testNum + i + 1)
-                    << "Infer " << testNum << ": Expected=" << testNum + i + 1
-                    << ", actual=" << actual[+i * one_shape_size] << " for index " << j;
+                                    << "Infer " << testNum << ": Expected=" << testNum + i + 1
+                                    << ", actual=" << actual[ + i * one_shape_size] << " for index " << j;
             }
         }
     }
@@ -479,14 +472,13 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Cache_CheckDeepCopy) {
     std::vector<float> buffer_out(ov::shape_size(batch_shape), 1);
     auto model = OVInferRequestBatchedTests::create_n_inputs(2, element::f32, batch_shape, "NCHW");
     ie->set_property({ov::cache_dir(m_cache_dir)});
-    // ie->set_property({ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)});
     auto execNet_no_cache = ie->compile_model(model, target_device);
     auto execNet = ie->compile_model(model, target_device);
     ov::InferRequest req;
     req = execNet.create_infer_request();
-    model->input(0).set_names({"updated_input0"});  // Change param name of original model
+    model->input(0).set_names({"updated_input0"}); // Change param name of original model
     model->get_parameters()[0]->set_layout("????");
-    model->output(0).set_names({"updated_output0"});  // Change result name of original model
+    model->output(0).set_names({"updated_output0"}); // Change result name of original model
     std::vector<ov::Tensor> tensors;
     tensors.emplace_back(element::f32, one_shape, buffer.data());
     tensors.emplace_back(element::f32, one_shape, buffer.data() + ov::shape_size(one_shape));
@@ -523,6 +515,7 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Incorrect_tensor_shape) {
     tensors.emplace_back(element::f32, Shape{1, 4, 2, 8});
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
+
 
 }  // namespace behavior
 }  // namespace test

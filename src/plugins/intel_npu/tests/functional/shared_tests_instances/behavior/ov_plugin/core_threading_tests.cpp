@@ -10,30 +10,17 @@
 
 namespace {
 
-// const Params params[] = {
-//     std::tuple<Device, Config>{ov::test::utils::DEVICE_NPU,
-//                                {{ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}}},
-//     std::tuple<Device, Config>{ov::test::utils::DEVICE_NPU,
-//                                {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}}}};
-
-// const Params params_disable_umd_cache[] = {std::tuple<Device, Config>{
-//     ov::test::utils::DEVICE_NPU,
-//     {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT), ov::intel_npu::bypass_umd_caching(true)}}}};
-
-// const Params params_cached[] = {std::tuple<Device, Config>{ov::test::utils::DEVICE_NPU, {}}};
-
 const Params params[] = {
     std::tuple<Device, Config>{ov::test::utils::DEVICE_NPU,
-                               {{ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}}},
+                               {{ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}}},
     std::tuple<Device, Config>{ov::test::utils::DEVICE_NPU,
-                               {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT), ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}}}
-                        };
+                               {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}}}};
 
 const Params params_disable_umd_cache[] = {std::tuple<Device, Config>{
     ov::test::utils::DEVICE_NPU,
-    {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT), ov::intel_npu::bypass_umd_caching(true), ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}}}};
+    {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT), ov::intel_npu::bypass_umd_caching(true)}}}};
 
-const Params params_cached[] = {std::tuple<Device, Config>{ov::test::utils::DEVICE_NPU, {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}}};
+const Params params_cached[] = {std::tuple<Device, Config>{ov::test::utils::DEVICE_NPU, {}}};
 
 }  // namespace
 
