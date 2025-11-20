@@ -785,12 +785,12 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
                                                    pattern::shape_matches("[?, head_cnt, 1, head_size]"),
                                                    {{"special_zero", false}});
 
-    auto qkv_proj = pattern::wrap_type<v1::VariadicSplit>({reshape, 3, {"ndims", "ndims"}});
-    qkv_proj->set_output_size(2);
-    auto vsplit_out0 =
-        pattern::wrap_type<op::v1::VariadicSplit>({reshape, 3, {"ndims", "ndims"}}, pattern::output_index_matches(0));
-    auto vsplit_out1 =
-        pattern::wrap_type<op::v1::VariadicSplit>({reshape, 3, {"ndims", "ndims"}}, pattern::output_index_matches(1));
+    auto vsplit_out0 = pattern::wrap_type<op::v1::VariadicSplit>(
+        {reshape, 3, {"ndims", "ndims"}},
+        pattern::output_index_matches(0) && pattern::shape_matches("[?, head_cnt, 1, ndims]"));
+    auto vsplit_out1 = pattern::wrap_type<op::v1::VariadicSplit>(
+        {reshape, 3, {"ndims", "ndims"}},
+        pattern::output_index_matches(1) && pattern::shape_matches("[?, head_cnt, 1, ndims]"));
     auto slice_1 = NewGenSlice(reshape, 0, "ndims", 1, 3) | vsplit_out0;
 
     auto const_idx =
