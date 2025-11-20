@@ -19,6 +19,7 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/shl/shl_utils.hpp"
 #include "openvino/core/except.hpp"
@@ -83,7 +84,7 @@ bool ShlFCExecutor::supports(const FCConfig& config) {
         return false;
     }
 
-    if (config.attrs.withBias) {
+    if (hasBias(config)) {
         const auto& biaDesc = config.descs.at(ARG_BIAS);
         if (biaDesc->getPrecision() != ov::element::f32) {
             DEBUG_LOG("ShlFCExecutor: supports only f32 bias");
@@ -104,7 +105,9 @@ bool ShlFCExecutor::supports(const FCConfig& config) {
     return true;
 }
 
-ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context)
+ShlFCExecutor::ShlFCExecutor([[maybe_unused]] const FCAttrs& attrs,
+                             const MemoryArgs& memory,
+                             const ExecutorContext::CPtr& context)
     : packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context)) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
@@ -121,7 +124,8 @@ ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs, const MemoryArgs& memory, con
                     weiDesc->getShape().getStaticDims());
     dst = ShlTensor(sess, precisionToShlDataType(dstDesc->getPrecision()), getShlDataLayoutByMemoryDesc(dstDesc));
 
-    if (attrs.withBias) {
+    const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
+    if (hasBias) {
         const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
         bias = ShlTensor(sess,
                          precisionToShlDataType(biasDesc->getPrecision()),

@@ -109,8 +109,6 @@ private:
         kai_get_dst_size_matmul_clamp_f32_qai8dxp4x8_qsi4cxp8x8_8x8x32_neon_i8mm,
         kai_run_matmul_clamp_f32_qai8dxp4x8_qsi4cxp8x8_8x8x32_neon_i8mm};
 
-    const FCAttrs& m_attrs;
-    const MemoryArgs& m_memoryArgs;
     DnnlScratchPadPtr scratchPad;
     ACLFCAttrs aclfcAttrs;
     MemoryPtr biasMem;
@@ -127,7 +125,6 @@ private:
     size_t BLOCK_SIZE_M_LOWP;
     size_t packedlhs_block_in_bytes = 0UL;
     bool INT4_IMPL;
-    int curNumaNode = -1;
     bool useDynamicQuant = false;
 };
 
