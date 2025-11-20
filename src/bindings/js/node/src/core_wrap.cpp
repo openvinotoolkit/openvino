@@ -12,7 +12,6 @@
 #include "node/include/read_model_args.hpp"
 #include "node/include/type_validation.hpp"
 #include "openvino/core/model_util.hpp"
-#include "openvino/frontend/manager.hpp"
 #include "openvino/util/common_util.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
@@ -53,7 +52,6 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
                         InstanceMethod("compileModel", &CoreWrap::compile_model_async),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
-                        InstanceMethod("getAvailableFrontEnds", &CoreWrap::get_available_front_ends),
                         InstanceMethod("importModel", &CoreWrap::import_model_async),
                         InstanceMethod("importModelSync", &CoreWrap::import_model),
                         InstanceMethod("getVersions", &CoreWrap::get_versions),
@@ -287,20 +285,6 @@ Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
     return js_devices;
 }
 
-Napi::Value CoreWrap::get_available_front_ends(const Napi::CallbackInfo& info) {
-    // Use FrontEndManager to query available frontends and return as JS array
-    ov::frontend::FrontEndManager fem;
-    const auto& frontends = fem.get_available_front_ends();
-
-    Napi::Array js_frontends = Napi::Array::New(info.Env(), frontends.size());
-    uint32_t i = 0;
-    for (const auto& fe_name : frontends) {
-        js_frontends[i++] = Napi::String::New(info.Env(), fe_name);
-    }
-
-    return js_frontends;
-}
-
 Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
     if (info.Length() == 0) {
         reportError(info.Env(), "getVersions() method expects 1 argument of string type.");
@@ -329,6 +313,7 @@ Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
 Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
     try {
         // --- Added support: importModelSync(tensor, device[, config]) ---
+        // importModelSync(tensor, device[, config]) overload
         if (ov::js::validate<TensorWrap, Napi::String>(info) ||
             ov::js::validate<TensorWrap, Napi::String, Napi::Object>(info)) {
             const auto tensor = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject())->get_tensor();
@@ -346,7 +331,7 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
             return CompiledModelWrap::wrap(info.Env(), compiled);
         }
 
-        // existing code below
+        // fallback: import from Buffer stream
         if (!info[0].IsBuffer()) {
             OPENVINO_THROW("The first argument must be of type Buffer.");
         }
