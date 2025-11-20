@@ -9,7 +9,7 @@
 #include "minicpm4_05b.hpp"
 
 const std::string get_minicpm4_05b_path() {
-    static constexpr char* model_name = "MiniCPM4-0.5B_int4_sym_group128_dyn_stateful";
+    static constexpr const char* model_name = "MiniCPM4-0.5B_int4_sym_group128_dyn_stateful";
     const char* pdir = std::getenv("NPU_TESTS_MODELS_PATH");
     if (pdir != nullptr) {
         std::filesystem::path dir(pdir);
