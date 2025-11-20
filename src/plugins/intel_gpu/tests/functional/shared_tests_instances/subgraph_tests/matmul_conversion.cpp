@@ -349,7 +349,7 @@ INSTANTIATE_TEST_SUITE_P(MatmulConversionsOtherTypeSibling_basic_2,
                                             ::testing::Values(false)),
                          MatmulConversionsOtherTypeSibling::getTestCaseName);
 
-using MatmulModel9Params = std::tuple<std::vector<InputShape>,  // input shapes
+using MatmulConversionConstantParams = std::tuple<std::vector<InputShape>,  // input shapes
                                         ov::element::Type>;     // infer precision
 
 /*
@@ -362,10 +362,10 @@ using MatmulModel9Params = std::tuple<std::vector<InputShape>,  // input shapes
  *              \        /
  *               MatMul_0
  */
-class MatMulConversionConstantInput : public testing::WithParamInterface<MatmulModel9Params>,
+class MatMulConversionConstantInput : public testing::WithParamInterface<MatmulConversionConstantParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MatmulModel9Params>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulConversionConstantParams>& obj) {
         const auto& [input_shapes, input_precision] = obj.param;
 
         std::ostringstream result;

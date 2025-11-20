@@ -664,32 +664,29 @@ void program::mark_if_data_flow(program_node& node) {
         }
     }
 
-    // Legacy (non new-shape-infer) rank promotion for data_flow:
-    // - Only runs when node not already marked data_flow.
-    // - Collects rank requirements from Gemm users (ports 0 and 1 only; bias and others ignored).
-    // - If any Gemm user output rank > current node rank, set promote flag and track max_required_rank.
-    // - Promote to data_flow only when there is at least one higher rank and max_required_rank > current_rank.
+    // Rank promotion for data_flow in static shape models:
+    // - In static-shape models, patterns like Constant -> Convert -> Gemm can
+    //   leave the Convert node non-data_flow even when its output rank (e.g. bfyx)
+    //   is lower than the rank required by the Gemm inputs/outputs (e.g. bfzyx).
+    // - In such cases input_reorder may skip inserting a reorder after Convert,
+    //   which later leads to input dimension mismatch in gemm::calc_output_layout.
+    // - To avoid this, if any Gemm user has an output rank greater than the current
+    //   node rank, we promote this node to data_flow so that required reorders are
+    //   inserted on the legacy path.
     if (!is_new_shape_infer() && !node.data_flow) {
         const size_t current_rank = node.get_output_layout().get_rank();
-        size_t max_required_rank = current_rank;
-        bool promote = false;
         for (auto* user : node.get_users()) {
             if (!user->is_type<gemm>())
                 continue;
             int port = user->get_port_from_deps(node.id());
-            if (port < 0 || port >= 2) // ignore bias or other ports
+            if (port < 0 || port >= 2)
                 continue;
+
             size_t user_rank = user->get_output_layout().get_rank();
-            if (user_rank > max_required_rank)
-                max_required_rank = user_rank;
-            if (user_rank > current_rank)
-                promote = true;
-        }
-        if (promote && current_rank < max_required_rank) {
-            GPU_DEBUG_TRACE_DETAIL << "[mark_if_data_flow] Promote node '" << node.id()
-                      << "' to data_flow: current_rank=" << current_rank
-                      << " max_required_rank=" << max_required_rank << std::endl;
-            node.data_flow = true;
+            if (user_rank > current_rank) {
+                node.data_flow = true;
+                break;
+            }
         }
     }
 }

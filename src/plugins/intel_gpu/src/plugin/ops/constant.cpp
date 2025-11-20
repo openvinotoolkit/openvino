@@ -197,7 +197,7 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     for (auto& node : constUsers) {
         auto outOp = node.get_node();
         size_t user_index = node.get_index();
-        auto has_matmul_consumer = [&](ov::Node* convert_node, size_t& matmul_input_index_ref) -> bool {
+        auto is_convert_matmul_pattern = [&](ov::Node* convert_node, size_t& matmul_input_index_ref) -> bool {
             if (ov::is_type<ov::op::v0::Convert>(convert_node) && !p.use_new_shape_infer()) {
                 auto convert_consumers = convert_node->get_output_target_inputs(0);
                 for (auto& consumer_input : convert_consumers) {
@@ -266,7 +266,7 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             // And each layout will be like Parameter->Result [N, 1, 1, 1], Constant->Result [1, N, 1, 1], that produces layout mismatch error.
             // For that case, Constant->Result needs to be [N, 1, 1, 1]
             consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if (has_matmul_consumer(outOp, user_index)) {
+        } else if (is_convert_matmul_pattern(outOp, user_index)) {
             const size_t const_static_max_dims = 4;
             // MatMul constant reshape WA (legacy shape infer path):
             // - Only reshape when constant is consumed as activation(0) or weight(1)
@@ -292,7 +292,6 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                 }
                 constDims = std::move(reshaped_const_dims);
             }
-            break;
         }
     }
 
