@@ -40,7 +40,7 @@ public:
 
     uint32_t get_version() const override;
 
-    std::shared_ptr<ICompiler> get_compiler() const {
+    std::shared_ptr<ICompiler> get_compiler() const override {
         return nullptr;
     }
 
