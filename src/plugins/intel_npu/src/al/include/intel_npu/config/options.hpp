@@ -842,7 +842,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static ov::intel_npu::CompilerType defaultValue() {
-        return ov::intel_npu::CompilerType::DRIVER;
+        return ov::intel_npu::CompilerType::MLIR;
     }
 
     static ov::intel_npu::CompilerType parse(std::string_view val) {
@@ -1418,7 +1418,7 @@ struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, b
     }
 
     static bool defaultValue() {
-        return true;
+        return false;
     }
 
     static OptionMode mode() {
