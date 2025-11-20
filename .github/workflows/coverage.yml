@@ -1,5 +1,5 @@
 name: Code coverage
-on: workflow_dispatch
+on: [pull_request, workflow_dispatch]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -132,7 +132,7 @@ jobs:
           pwd
       - name: Generate raport
         run: |
-          lcov --capture --directory ${{ github.workspace }}/. --output-file coverage.info
+          lcov --capture --directory ${{ github.workspace }}/. --output-file coverage.info --ignore-errors mismatch
           genhtml coverage.info --output-directory coverage-report
       - name: Collect coverage
         uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
