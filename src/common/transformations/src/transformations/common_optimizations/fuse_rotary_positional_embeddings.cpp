@@ -133,7 +133,8 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
         }
 
         op::internal::RoPE::Config config;
-        config.head_cnt = num_heads1.is_static() ? static_cast<size_t>(num_heads1.i()) : static_cast<size_t>(num_heads2.i());
+        config.head_cnt =
+            num_heads1.is_static() ? static_cast<size_t>(num_heads1.i()) : static_cast<size_t>(num_heads2.i());
         config.head_size = static_cast<size_t>(head_size.i());
         config.rotary_ndims = config.head_size;
         config.is_interleaved = true;
