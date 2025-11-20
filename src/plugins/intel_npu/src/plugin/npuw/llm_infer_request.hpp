@@ -59,10 +59,10 @@ protected:
     void init_tensor(const ov::Output<const ov::Node>& port);
     void copy_kvcache();
 
-    // Create and initialize KV cache variant requests with memory sharing
+    // Create and initialize generate variant requests with memory sharing
     void create_generate_request_variants(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
-    // Select appropriate kvcache request for inference
+    // Select appropriate generate request for inference
     std::shared_ptr<ov::IAsyncInferRequest> select_generate_request(int64_t num_tokens);
 
     void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
@@ -91,11 +91,11 @@ protected:
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> input_token_ids);
 
-    // Multiple KV cache model variants with different sizes
+    // Multiple generate inference request variants, each with a different KV cache size
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;
-    std::vector<uint32_t> m_kvcache_sizes;
 
-    // Currently selected KV cache request (selected in infer_prefill, used throughout the conversation)
+    // Currently selected generate inference request variant (selected in prepare_for_new_conversation based on prompt
+    // length)
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
 
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
@@ -111,13 +111,12 @@ protected:
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
 
-    // Ports for the currently selected KV cache variant (selected in infer_prefill)
-    // These are updated once per conversation and remain constant during generation
+    // Ports for the currently selected generate model variant (set once per conversation in
+    // prepare_for_new_conversation)
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
 
-    // Ports for all KV cache model variants (used for variant selection)
-    // Maps from request pointer to its input/output ports
+    // Ports for all generate model variants - maps from request pointer to its input/output ports
     std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
                        std::unordered_map<std::string, ov::Output<const ov::Node>>>
         m_generate_variant_in_ports;

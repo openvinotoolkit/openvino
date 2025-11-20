@@ -1329,7 +1329,7 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
     const KVAxesPosition& axes,
     const uint32_t whisper_lhs_seq_size) {
     const uint32_t total_kv_size = m_kvcache_desc.total_size;
-    const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
+    const uint32_t min_response_len = total_kv_size - m_kvcache_desc.max_prompt_size;
     const uint32_t max_generation_token_len = m_kvcache_desc.max_generation_token_len;
     const bool enable_generate_pyramid = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_PYRAMID>();
 
@@ -1363,8 +1363,8 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
         m_kvcache_sizes = {total_kv_size};
     }
 
-    // Generate generate model variants
-    LOG_INFO("Generating " << m_kvcache_sizes.size() << " generate model variants...");
+    // Create generate model variants
+    LOG_INFO("Creating " << m_kvcache_sizes.size() << " generate model variants...");
     std::vector<std::shared_ptr<ov::Model>> generate_model_variants;
     generate_model_variants.reserve(m_kvcache_sizes.size());
 
@@ -1387,7 +1387,7 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
         generate_variant->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
         generate_model_variants.push_back(generate_variant);
     }
-    LOG_INFO("Generated all generate model variants");
+    LOG_INFO("Created all generate model variants");
 
     return generate_model_variants;
 }

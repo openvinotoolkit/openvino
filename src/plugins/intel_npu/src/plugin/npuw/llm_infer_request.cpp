@@ -266,8 +266,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
 void ov::npuw::LLMInferRequest::create_generate_request_variants(
     const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model) {
-    // Create multiple KV cache model variant requests
-    m_kvcache_sizes = compiled_model->m_kvcache_sizes;
+    // Create multiple generate model variants' requests
     m_generate_requests.reserve(compiled_model->m_generate_compiled_variants.size());
 
     // First, create the largest variant request (last one in the list)
@@ -307,6 +306,8 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
                             nullptr);
 
                         generate_request->set_tensor(input_port, shared_tensor);
+                    } else {
+                        OPENVINO_ASSERT(false, "Unexpected input name: ", input_name);
                     }
                 }
             }
@@ -334,17 +335,18 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::LLMInferRequest::select_generate_request(int64_t num_tokens) {
-    // Find the smallest variant that can accommodate expected token count
-    for (size_t i = 0; i < m_kvcache_sizes.size(); ++i) {
-        if (num_tokens <= m_kvcache_sizes[i]) {
-            LOG_DEBUG("Selected KV cache variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " with size "
-                                                   << m_kvcache_sizes[i] << " for " << num_tokens << " tokens");
+    const auto& kvcache_sizes = m_npuw_llm_compiled_model->m_kvcache_sizes;
+    // Find the smallest variant that can accommodate the expected token count
+    for (size_t i = 0; i < kvcache_sizes.size(); ++i) {
+        if (num_tokens <= kvcache_sizes[i]) {
+            LOG_DEBUG("Selected KV cache variant " << (i + 1) << "/" << kvcache_sizes.size() << " with size "
+                                                   << kvcache_sizes[i] << " for " << num_tokens << " tokens");
             return m_generate_requests[i];
         }
     }
 
-    // Fallback to the largest variant
-    LOG_WARN("No suitable KV cache variant found, using largest variant");
+    // Fallback to the largest variant if num_tokens exceeds all predefined sizes
+    LOG_WARN("No suitable KV cache variant found for " << num_tokens << " tokens, using largest variant");
     return m_generate_requests.back();
 }
 
@@ -484,7 +486,7 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
 
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 
-    // Select the appropriate KV cache variant based on input prompt length
+    // Select the appropriate generate inference request variant based on input prompt length
     // Select the largest variant if prompt_length is 0 (unknown)
     m_kvcache_request = prompt_length == 0 ? m_generate_requests.back() : select_generate_request(prompt_length);
     m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
