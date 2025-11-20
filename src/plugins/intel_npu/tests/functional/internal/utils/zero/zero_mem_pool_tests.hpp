@@ -167,8 +167,8 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyIt) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     if (init_struct->isExternalMemoryStandardAllocationSupported()) {
-        const int threads_no = 256;
-        const int no_of_buffers = 5;
+        constexpr int threads_no = 256;
+        constexpr int no_of_buffers = 5;
         std::array<std::thread, threads_no> threads;
         std::array<void*, no_of_buffers> data;
 
