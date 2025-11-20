@@ -1430,7 +1430,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     bool can_use_fsv16 = true;
     bool can_use_bs_fs_yx_bsv16_fsv16 = true;
     bool is_quantized_int8_model = false;
-    bool is_dynamic_batch_conv = false;
+    bool is_dynamic_batch_onednn_conv = false;
     size_t total_asym_quantized_conv_layers = 0;
     size_t total_dw_conv_layers = 0;
     size_t total_dw_splitted_conv_layers = 0;
@@ -1462,7 +1462,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
 
             if (conv.is_dynamic()) {
-                is_dynamic_batch_conv = !node->get_output_layout().get_partial_shape()[0].is_static();
+                bool is_dynamic_batch = !node->get_output_layout().get_partial_shape()[0].is_static();
+                bool is_fp32_conv = (node->get_input_layout().data_type == data_types::f32) &&
+                                    (node->get_output_layout().data_type == data_types::f32);
+                is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
             } else {
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
@@ -1684,7 +1687,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             }
         }
     }
-    bool should_use_byxf_onednn_conv = is_dynamic_batch_conv && (total_non_byxf_onednn_conv_whitelist_layers == 0);
+    bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv && (total_non_byxf_onednn_conv_whitelist_layers == 0);
     if (should_use_byxf_onednn_conv)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::byxf_onednn_convolution, 1);
 #endif
