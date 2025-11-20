@@ -69,7 +69,7 @@ public:
     void prevent_reuse();
     bool can_be_reused();
 
-    ~ZeroTensor() override = default;
+    ~ZeroTensor() override;
 
 private:
     void update_strides() const;

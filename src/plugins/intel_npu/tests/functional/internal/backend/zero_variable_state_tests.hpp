@@ -190,6 +190,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensor) {
     EXPECT_EQ(zero_state->get_state()->get_element_type(), zero_state->get_zero_state()->get_element_type());
 
     OV_ASSERT_NO_THROW(zero_state->reset());
+
+    ::operator delete(data);
 }
 
 TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensorAfterGetState) {
@@ -230,6 +232,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensorAfte
     EXPECT_EQ(zero_state->get_state()->get_element_type(), zero_state->get_zero_state()->get_element_type());
 
     OV_ASSERT_NO_THROW(zero_state->reset());
+
+    ::operator delete(data);
 }
 
 TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithHostTensor) {
