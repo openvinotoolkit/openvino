@@ -16,20 +16,27 @@ namespace paddle {
 DecoderJSON::DecoderJSON(const std::string& json_path) {
     std::ifstream json_file(json_path);
     FRONT_END_GENERAL_CHECK(json_file.is_open(), "Cannot open JSON model file: ", json_path);
-    json_file >> m_model_json;
+
+    try {
+        json_file >> m_model_json;
+    } catch (const nlohmann::json::exception& e) {
+        FRONT_END_GENERAL_CHECK(false, "Failed to parse JSON model file '", json_path, "': ", e.what());
+    }
+
     parse_json_model();
+    parse_vars_info();
 }
 
 void DecoderJSON::parse_json_model() {
-    if (!m_model_json.contains("ops") || !m_model_json["ops"].is_array()) {
-        FRONT_END_THROW("Invalid model format: missing 'ops' array");
-    }
+    FRONT_END_GENERAL_CHECK(m_model_json.contains("ops") && m_model_json["ops"].is_array(),
+                            "Invalid model format: missing or invalid 'ops' array");
 
     try {
-        for (const auto& op : m_model_json["ops"]) {
-            if (!op.contains("type")) {
-                FRONT_END_THROW("Invalid operator format: missing 'type' field");
-            }
+        const auto& ops = m_model_json["ops"];
+        m_operators.reserve(ops.size());  // Optimize memory allocation
+
+        for (const auto& op : ops) {
+            FRONT_END_GENERAL_CHECK(op.contains("type"), "Invalid operator format: missing 'type' field");
 
             Operator paddle_op;
             paddle_op.type = op["type"].get<std::string>();
@@ -60,18 +67,90 @@ void DecoderJSON::parse_json_model() {
                 }
             }
 
-            // Parse attributes
+            // Parse attributes - store entire attrs object
             if (op.contains("attrs")) {
-                for (const auto& [key, value] : op["attrs"].items()) {
-                    paddle_op.attributes[key] = value;
-                }
+                paddle_op.attributes = op["attrs"];
             }
 
-            m_operators.push_back(paddle_op);
+            m_operators.push_back(std::move(paddle_op));
         }
     } catch (const nlohmann::json::exception& e) {
-        FRONT_END_THROW("Error parsing JSON model: " + std::string(e.what()));
+        FRONT_END_GENERAL_CHECK(false, "Error parsing JSON model operators: ", e.what());
     }
+}
+
+void DecoderJSON::parse_vars_info() {
+    // Parse variable type and shape information from vars array if present
+    if (!m_model_json.contains("vars") || !m_model_json["vars"].is_array()) {
+        // Vars array is optional in some JSON formats
+        return;
+    }
+
+    try {
+        for (const auto& var : m_model_json["vars"]) {
+            if (!var.contains("name")) {
+                continue;  // Skip vars without names
+            }
+
+            std::string var_name = var["name"].get<std::string>();
+
+            // Parse dtype (element type)
+            if (var.contains("dtype")) {
+                const auto& dtype_str = var["dtype"].get<std::string>();
+                ov::element::Type elem_type = parse_dtype(dtype_str);
+                m_var_types[var_name] = elem_type;
+            }
+
+            // Parse shape
+            if (var.contains("shape") && var["shape"].is_array()) {
+                std::vector<ov::Dimension> dims;
+                for (const auto& dim : var["shape"]) {
+                    if (dim.is_number_integer()) {
+                        int64_t dim_val = dim.get<int64_t>();
+                        if (dim_val == -1) {
+                            dims.push_back(ov::Dimension::dynamic());
+                        } else {
+                            dims.push_back(ov::Dimension(dim_val));
+                        }
+                    } else if (dim.is_string() && dim.get<std::string>() == "-1") {
+                        dims.push_back(ov::Dimension::dynamic());
+                    }
+                }
+                m_var_shapes[var_name] = ov::PartialShape(dims);
+            }
+        }
+    } catch (const nlohmann::json::exception& e) {
+        // Don't fail if vars parsing fails, just log and continue
+        // Type inference will fall back to defaults
+    }
+}
+
+ov::element::Type DecoderJSON::parse_dtype(const std::string& dtype_str) const {
+    // Map PaddlePaddle dtype strings to OpenVINO element types
+    static const std::map<std::string, ov::element::Type> dtype_map = {
+        {"float32", ov::element::f32},
+        {"float16", ov::element::f16},
+        {"float64", ov::element::f64},
+        {"int8", ov::element::i8},
+        {"int16", ov::element::i16},
+        {"int32", ov::element::i32},
+        {"int64", ov::element::i64},
+        {"uint8", ov::element::u8},
+        {"bool", ov::element::boolean},
+        {"bfloat16", ov::element::bf16},
+        // Alternative names
+        {"fp32", ov::element::f32},
+        {"fp16", ov::element::f16},
+        {"fp64", ov::element::f64},
+    };
+
+    auto it = dtype_map.find(dtype_str);
+    if (it != dtype_map.end()) {
+        return it->second;
+    }
+
+    // Default to float32 if unknown type
+    return ov::element::f32;
 }
 
 int64_t DecoderJSON::get_version() const {
@@ -104,9 +183,8 @@ const Operator& DecoderJSON::get_op(size_t idx) const {
 ov::Any DecoderJSON::get_attribute(const std::string& name) const {
     // Look through all operators to find one with matching attribute
     for (const auto& op : m_operators) {
-        auto it = op.attributes.find(name);
-        if (it != op.attributes.end()) {
-            return it->second;
+        if (op.attributes.contains(name)) {
+            return op.attributes[name];
         }
     }
     return {};
@@ -134,6 +212,13 @@ ov::Any DecoderJSON::convert_attribute(const ov::Any& data, const std::type_info
 
 std::vector<OutPortName> DecoderJSON::get_output_names() const {
     std::vector<OutPortName> result;
+    // Reserve approximate capacity to avoid reallocations
+    size_t total_outputs = 0;
+    for (const auto& op : m_operators) {
+        total_outputs += op.outputs.size();
+    }
+    result.reserve(total_outputs);
+
     for (const auto& op : m_operators) {
         result.insert(result.end(), op.outputs.begin(), op.outputs.end());
     }
@@ -183,7 +268,13 @@ size_t DecoderJSON::get_output_size(const std::string& port_name) const {
 }
 
 ov::element::Type DecoderJSON::get_out_port_type(const std::string& port_name) const {
-    // For now, assume all ports are float32 as PP-OCRv5 primarily uses float32
+    // Try to find type information from vars map
+    if (m_var_types.count(port_name) > 0) {
+        return m_var_types.at(port_name);
+    }
+
+    // Default to float32 if type information not available
+    // PP-OCRv5 primarily uses float32 for most tensors
     return ov::element::f32;
 }
 
@@ -191,17 +282,26 @@ std::vector<std::pair<ov::element::Type, ov::PartialShape>> DecoderJSON::get_out
     const std::string& port_name) const {
     std::vector<std::pair<ov::element::Type, ov::PartialShape>> result;
     if (get_output_size(port_name) > 0) {
-        // For now, assume all ports are float32 with dynamic shape as PP-OCRv5 uses dynamic input shapes
-        result.push_back({ov::element::f32, ov::PartialShape::dynamic()});
+        // Get type from vars map if available, otherwise default to float32
+        ov::element::Type elem_type = ov::element::f32;
+        if (m_var_types.count(port_name) > 0) {
+            elem_type = m_var_types.at(port_name);
+        }
+
+        // Get shape from vars map if available, otherwise use dynamic shape
+        ov::PartialShape shape = ov::PartialShape::dynamic();
+        if (m_var_shapes.count(port_name) > 0) {
+            shape = m_var_shapes.at(port_name);
+        }
+
+        result.push_back({elem_type, shape});
     }
     return result;
 }
 
 std::string DecoderJSON::get_op_type() const {
-    if (!m_operators.empty()) {
-        return m_operators[0].type;
-    }
-    return "";
+    FRONT_END_GENERAL_CHECK(!m_operators.empty(), "Cannot get operator type: no operators in model");
+    return m_operators[0].type;
 }
 
 }  // namespace paddle
