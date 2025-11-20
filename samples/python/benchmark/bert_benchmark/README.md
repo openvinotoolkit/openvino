@@ -13,9 +13,9 @@ The following Python API is used in the application:
 | Feature                  | API                                             | Description                                  |
 | -------------------------| ------------------------------------------------|----------------------------------------------|
 | OpenVINO API Version     | [openvino.\_\_version__]                          | Get Openvino API version.                    |
-| Basic Infer Flow         | [openvino.runtime.Core],                        | Common API to do inference: compile a model. |
-|                          | [openvino.runtime.Core.compile_model]           |                                              |
-| Asynchronous Infer       | [openvino.runtime.AsyncInferQueue],             | Do asynchronous inference.                   |
-|                          | [openvino.runtime.AsyncInferQueue.start_async], |                                              |
-|                          | [openvino.runtime.AsyncInferQueue.wait_all]     |                                              |
-| Model Operations         | [openvino.runtime.CompiledModel.inputs]         | Get inputs of a model.                       |
+| Basic Infer Flow         | [openvino.Core],                        | Common API to do inference: compile a model. |
+|                          | [openvino.Core.compile_model]           |                                              |
+| Asynchronous Infer       | [openvino.AsyncInferQueue],             | Do asynchronous inference.                   |
+|                          | [openvino.AsyncInferQueue.start_async], |                                              |
+|                          | [openvino.AsyncInferQueue.wait_all]     |                                              |
+| Model Operations         | [openvino.CompiledModel.inputs]         | Get inputs of a model.                       |

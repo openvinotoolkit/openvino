@@ -3,7 +3,7 @@
 
 import numpy as np
 import openvino as ov
-import openvino.runtime.opset12 as ops
+import openvino.opset12 as ops
 
 INPUT_SIZE = 1_000_000  # Use bigger values if necessary, i.e.: 300_000_000
 

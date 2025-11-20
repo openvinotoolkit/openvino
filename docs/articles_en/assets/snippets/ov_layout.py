@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import openvino as ov
-import openvino.runtime.opset12 as ops
+import openvino.opset12 as ops
 
 # ! [ov:layout:simple]
 from openvino import Layout
@@ -33,7 +33,7 @@ layout = Layout('...C')
 # ! [ov:layout:dynamic]
 
 # ! [ov:layout:predefined]
-from openvino.runtime import layout_helpers
+from openvino import layout_helpers
 # returns 0 for batch
 layout_helpers.batch_idx(Layout('NCDHW'))
 

@@ -337,7 +337,7 @@ def test_onnx_conversion_extension_check_attributes():
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.onnx import ConversionExtension
     from openvino.frontend import NodeContext
-    import openvino.runtime.opset8 as ops
+    import openvino.opset8 as ops
 
     # use the model with attributes
     fe = fem.load_by_model(onnx_model_with_custom_attributes_filename)
@@ -391,7 +391,7 @@ def test_onnx_conversion_extension_attribute_with_default_value():
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.onnx import ConversionExtension
     from openvino.frontend import NodeContext
-    import openvino.runtime.opset8 as ops
+    import openvino.opset8 as ops
 
     # use the model without attributes
     fe = fem.load_by_model(onnx_model_filename)
@@ -458,8 +458,8 @@ def test_onnx_conversion_extension_cast_attributes():
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.onnx import ConversionExtension
     from openvino.frontend import NodeContext
-    from openvino.runtime import Type
-    import openvino.runtime.opset8 as ops
+    from openvino import Type
+    import openvino.opset8 as ops
 
     # use the model without attributes
     fe = fem.load_by_model(onnx_model_with_custom_attributes_filename)
@@ -515,7 +515,7 @@ def test_onnx_conversion_extension_common():
     # use common (openvino.frontend) import here
     from openvino.frontend import ConversionExtension
     from openvino.frontend import NodeContext
-    import openvino.runtime.opset8 as ops
+    import openvino.opset8 as ops
 
     fe = fem.load_by_model(onnx_model_filename)
     assert fe
@@ -545,7 +545,7 @@ def test_onnx_conversion_extension():
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.onnx import ConversionExtension
     from openvino.frontend import NodeContext
-    import openvino.runtime.opset8 as ops
+    import openvino.opset8 as ops
 
     fe = fem.load_by_model(onnx_model_filename)
     assert fe
@@ -575,7 +575,7 @@ def test_onnx_conversion_extension_with_custom_domain():
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.onnx import ConversionExtension
     from openvino.frontend import NodeContext
-    import openvino.runtime.opset8 as ops
+    import openvino.opset8 as ops
 
     fe = fem.load_by_model(onnx_model_extension_with_custom_domain)
     assert fe
@@ -630,7 +630,7 @@ def test_op_extension_specify_opset(opset_prefix):
 
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.onnx import OpExtension
-    from openvino.runtime import Core
+    from openvino import Core
 
     core = Core()
 
@@ -655,7 +655,7 @@ def test_op_extension_specify_wrong_opset(opset_prefix):
 
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.onnx import OpExtension
-    from openvino.runtime import Core
+    from openvino import Core
 
     core = Core()
 
@@ -672,7 +672,7 @@ def test_op_extension_via_onnx_extension_set_attrs_values():
 
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.onnx import OpExtension
-    from openvino.runtime import Core
+    from openvino import Core
 
     core = Core()
 
@@ -712,7 +712,7 @@ def test_op_extension_via_frontend_extension_set_attrs_values():
 
     # use common (openvino.frontend) import here
     from openvino.frontend import OpExtension
-    from openvino.runtime import Core
+    from openvino import Core
 
     core = Core()
     # check the model is valid
@@ -751,7 +751,7 @@ def test_op_extension_via_frontend_extension_map_attributes():
 
     # use common (openvino.frontend) import here
     from openvino.frontend import OpExtension
-    from openvino.runtime import Core
+    from openvino import Core
 
     core = Core()
     # check the model is valid
@@ -855,7 +855,7 @@ def test_add_extension_unicode_paths():
 
 
 def test_load_bytesio_model():
-    from openvino.runtime import Core
+    from openvino import Core
 
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     model_from_fe = fe.load(model_stream)

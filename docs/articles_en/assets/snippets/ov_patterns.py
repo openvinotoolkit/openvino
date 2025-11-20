@@ -5,10 +5,10 @@
 # ! [ov:imports]
 import pytest
 from openvino import PartialShape
-from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import Matcher, WrapType, Or, AnyInput, Optional
+from openvino import opset13 as ops
+from openvino.passes import Matcher, WrapType, Or, AnyInput, Optional
 # ! [ov:imports]
-from openvino.runtime.passes import (
+from openvino.passes import (
     consumers_count,
     has_static_dim,
     has_static_dims,

@@ -7,7 +7,7 @@ import numpy as np
 from sys import platform
 
 import openvino as ov
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 
 
 def get_dynamic_model():

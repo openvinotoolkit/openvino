@@ -10,7 +10,7 @@ import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 
 from openvino.frontend import FrontEndManager, GeneralFailure
-from openvino.runtime import Dimension, PartialShape, Type
+from openvino import Dimension, PartialShape, Type
 
 
 # ------Test input model 1------

@@ -20,10 +20,10 @@ The following Python API is used in the application:
 | Feature                   | API                                             | Description                                  |
 | --------------------------| ------------------------------------------------|----------------------------------------------|
 | OpenVINO API Version      | [openvino.\_\_version__]                          | Get Openvino API version.                    |
-| Basic Infer Flow          | [openvino.runtime.Core],                        | Common API to do inference: compile a model, |
-|                           | [openvino.runtime.Core.compile_model],          | configure input tensors.                     |
-|                           | [openvino.runtime.InferRequest.get_tensor]      |                                              |
-| Synchronous Infer         | [openvino.runtime.InferRequest.infer],          | Do synchronous inference.                    |
-| Model Operations          | [openvino.runtime.CompiledModel.inputs]         | Get inputs of a model.                       |
-| Tensor Operations         | [openvino.runtime.Tensor.get_shape],            | Get a tensor shape and its data.             |
-|                           | [openvino.runtime.Tensor.data]                  |                                              |
+| Basic Infer Flow          | [openvino.Core],                        | Common API to do inference: compile a model, |
+|                           | [openvino.Core.compile_model],          | configure input tensors.                     |
+|                           | [openvino.InferRequest.get_tensor]      |                                              |
+| Synchronous Infer         | [openvino.InferRequest.infer],          | Do synchronous inference.                    |
+| Model Operations          | [openvino.CompiledModel.inputs]         | Get inputs of a model.                       |
+| Tensor Operations         | [openvino.Tensor.get_shape],            | Get a tensor shape and its data.             |
+|                           | [openvino.Tensor.data]                  |                                              |
