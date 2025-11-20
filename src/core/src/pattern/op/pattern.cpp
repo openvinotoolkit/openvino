@@ -23,10 +23,6 @@ Pattern::Pattern(const NodeVector& patterns) : Pattern(as_output_vector(patterns
 Pattern::Pattern(const OutputVector& patterns, const op::Predicate& pred) : Node(patterns), m_predicate(pred) {}
 Pattern::Pattern(const NodeVector& patterns, const op::Predicate& pred) : Pattern(as_output_vector(patterns), pred) {}
 
-Predicate as_value_predicate(NodePredicate pred) {
-    return Predicate(pred);
-}
-
 std::ostream& Pattern::write_type_description(std::ostream& out) const {
     auto version = get_type_info().version_id;
     if (version)

@@ -176,6 +176,28 @@ CM_INLINE void cm_load_2d(matrix_ref<half, M, N> out, SurfaceIndex base, uint of
     }
 }
 
+template <int M, int N, int num_elem>
+CM_INLINE void cm_load_2d_with_tail(matrix_ref<uint, M, N> out, SurfaceIndex base, uint offset, uint pitch) {
+    #pragma unroll
+    for(int i = 0; i < out.n_rows(); i++) {
+        auto row_data = out.row(i).format<uint>();
+        row_data = 0;
+        auto src = cm_load<uint, N>(base, offset + i * pitch);
+        row_data.select<num_elem, 1>(0) = src.select<num_elem, 1>(0);
+    }
+}
+
+template <int M, int N, int num_elem>
+CM_INLINE void cm_load_2d_with_tail(matrix_ref<half, M, N> out, SurfaceIndex base, uint offset, uint pitch) {
+    #pragma unroll
+    for(int i = 0; i < out.n_rows(); i++) {
+        auto row_data = out.row(i).format<uint>();
+        row_data = 0;
+        auto src = cm_load<uint, N/2>(base, offset + i * pitch);
+        row_data.select<num_elem/2, 1>(0) = src.select<num_elem/2, 1>(0);
+    }
+}
+
 template <int M, int N>
 CM_INLINE void cm_store_2d(matrix_ref<half, M, N> out, SurfaceIndex base, uint offset, uint pitch) {
     #pragma unroll
