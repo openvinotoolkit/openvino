@@ -66,37 +66,37 @@ jobs:
           - name: nvme_lessram
             runner: aks-win-32-cores-64gb-nvme-st
             build_jobs: thirtytwo_jobs
-            link_jobs: twelve_jobs
+            link_jobs: eight_jobs
 
           - name: nvme_lessram_lesscores
             runner: aks-win-16-cores-64gb-nvme-st
             build_jobs: sixteen_jobs
-            link_jobs: twelve_jobs
+            link_jobs: eight_jobs
 
           - name: nvme_more_cores_same_ram
             runner: aks-win-64-cores-128gb-nvme-st
             build_jobs: sixtyfour_jobs
-            link_jobs: forty_jobs
+            link_jobs: twenty_jobs
 
           - name: amd-nvme
             runner: aks-win-32-cores-128gb-amd-nvme-st
             build_jobs: thirtytwo_jobs
-            link_jobs: twenty_jobs
+            link_jobs: eight_jobs
 
           - name: amd-nvme_lessram
             runner: aks-win-32-cores-64gb-amd-nvme-st
             build_jobs: thirtytwo_jobs
-            link_jobs: twelve_jobs
+            link_jobs: eight_jobs
 
           - name: amd-nvme_lessram_lesscores
             runner: aks-win-16-cores-64gb-amd-nvme-st
             build_jobs: sixteen_jobs
-            link_jobs: twelve_jobs
+            link_jobs: eight_jobs
 
           - name: amd-nvme_more_cores_same_ram
             runner: aks-win-64-cores-128gb-amd-nvme-st
             build_jobs: sixtyfour_jobs
-            link_jobs: forty_jobs
+            link_jobs: twenty_jobs
         cache:
           - True
           - False
