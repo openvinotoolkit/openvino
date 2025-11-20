@@ -153,7 +153,7 @@ memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& ne
                                      memory.get_mem_tracker());
     }
 
-    return nullptr;
+    OPENVINO_THROW("[GPU] Trying to reinterpret non usm buffer");
 }
 
 memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_params params) {
@@ -167,7 +167,7 @@ memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_p
                             ") than specified layout (", requested_mem_size, ")");
         return std::make_shared<ze::gpu_usm>(this, new_layout, usm_buffer, nullptr);
     } else {
-        return nullptr;
+        OPENVINO_THROW("[GPU] Unsupported shared memory type: ", params.mem_type);
     }
 }
 

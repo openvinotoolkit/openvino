@@ -26,16 +26,19 @@ struct lockable_gpu_mem {
 
 class UsmHolder {
 public:
-    UsmHolder(ze_context_handle_t context, void* ptr, bool shared_memory = false) : _context(context), _ptr(ptr), _shared_memory(shared_memory) { }
+    UsmHolder(ze_context_handle_t context, void* ptr, bool shared_memory = false) : _context(context), _ptr(ptr), _shared_memory(shared_memory) {
+        if (ptr == nullptr)
+            OPENVINO_THROW("[GPU] Can not create UsmHolder with nullptr");
+    }
+    UsmHolder(const UsmHolder&) = delete;
+    UsmHolder& operator=(const UsmHolder&) = delete;
+
     void* ptr() { return _ptr; }
     void memFree() {
-        try {
-            if (!_shared_memory)
-                zeMemFree(_context, _ptr);
-        } catch (...) {
-            // Exception may happen only when clMemFreeINTEL function is unavailable, thus can't free memory properly
+        if (!_shared_memory && _ptr != nullptr) {
+            OV_ZE_WARN(zeMemFree(_context, _ptr));
+            _ptr = nullptr;
         }
-        _ptr = nullptr;
     }
 
     ~UsmHolder() {
@@ -58,7 +61,6 @@ public:
         , _device(device)
         , _usm_pointer(std::make_shared<UsmHolder>(_context, reinterpret_cast<uint8_t*>(usm_ptr) + offset, true)) {}
 
-    // Get methods returns original pointer allocated by openCL.
     void* get() const { return _usm_pointer->ptr(); }
 
     void allocateHost(size_t size) {
@@ -69,7 +71,7 @@ public:
 
         void* memory = nullptr;
         OV_ZE_EXPECT(zeMemAllocHost(_context, &host_desc, size, 1, &memory));
-        _allocate(memory);
+        _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
     }
 
     void allocateShared(size_t size, uint32_t ordinal) {
@@ -86,7 +88,7 @@ public:
 
         void* memory = nullptr;
         OV_ZE_EXPECT(zeMemAllocShared(_context, &device_desc, &host_desc, size, 1, _device, &memory));
-        _allocate(memory);
+        _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
     }
 
     void allocateDevice(size_t size, uint32_t ordinal) {
@@ -98,12 +100,12 @@ public:
 
         void* memory = nullptr;
         OV_ZE_EXPECT(zeMemAllocDevice(_context, &device_desc, size, 4096, _device, &memory));
-        _allocate(memory);
+        _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
     }
 
     void freeMem() {
         if (!_usm_pointer)
-            throw std::runtime_error("[CL ext] Can not free memory of empty UsmHolder");
+            OPENVINO_THROW("[GPU] Can not free memory of empty UsmHolder");
         _usm_pointer->memFree();
     }
 
@@ -113,13 +115,6 @@ protected:
     ze_context_handle_t _context;
     ze_device_handle_t _device;
     std::shared_ptr<UsmHolder> _usm_pointer = nullptr;
-
-private:
-    void _allocate(void* ptr) {
-        if (!ptr)
-            throw std::runtime_error("[CL ext] Can not allocate nullptr for USM type.");
-        _usm_pointer = std::make_shared<UsmHolder>(_context, ptr);
-    }
 };
 
 struct gpu_usm : public lockable_gpu_mem, public memory {
