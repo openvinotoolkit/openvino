@@ -1356,7 +1356,7 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
         }
 
         // Store the sizes for runtime selection
-        m_kvcache_sizes = kv_size_steps;
+        m_kvcache_sizes = std::move(kv_size_steps);
     } else {
         LOG_INFO("KV cache variants feature is DISABLED - using single model");
         // Use only the total size (traditional single-model approach)
