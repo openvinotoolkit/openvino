@@ -20,4 +20,4 @@ const std::string get_minicpm4_05b_path() {
                   << "models' location is unknown!" << std::endl;
     }
     return "";
-} 
+}

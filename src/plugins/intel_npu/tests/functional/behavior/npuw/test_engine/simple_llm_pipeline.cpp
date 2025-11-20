@@ -1,11 +1,8 @@
-#include "simple_llm_pipeline.hpp"
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
-#define PRINT_ARRAY(a, len)              \
-    std::cout << #a << std::endl;        \
-    for (int i = 0; i < len; i++) {      \
-        std::cout << a[i] << ", ";       \
-    }                                    \
-    std::cout << std::endl;
+#include "simple_llm_pipeline.hpp"
 
 template <typename T>
 T get_or_default(ov::AnyMap& config, const std::string& key, const T& default_value) {
