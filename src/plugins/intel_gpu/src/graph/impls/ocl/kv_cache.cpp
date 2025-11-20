@@ -82,6 +82,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
     cldnn::memory::ptr beam_table_prev = nullptr;
     cldnn::memory::ptr beam_table_new = nullptr;
+    size_t indirect_offset = 0;
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
@@ -116,8 +117,8 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         kernel_arguments_data args;
         args.shape_info = instance.shape_info_memory_ptr();
         if (stage == reorder_trim_stage) {
-            args.inputs = {instance.input_memory_ptr(0), instance.input_memory_ptr(3), instance.input_memory_ptr(4)};
-            args.outputs = {instance.output_memory_ptr(0)};
+            args.inputs = {instance.input_memory_ptr(0), instance.input_memory_ptr(2 + indirect_offset), instance.input_memory_ptr(3 + indirect_offset)};
+            args.outputs = {instance.input_memory_ptr(0)};
         } else if (stage == concat_stage) {
             args.inputs = { instance.input_memory_ptr(0), instance.input_memory_ptr(1) };
             args.outputs = { instance.output_memory_ptr(0) };
@@ -195,6 +196,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         const auto& impl_param = *instance.get_impl_params();
 
         if (impl_param.input_layouts.size() == 4) {
+            indirect_offset = desc->indirect ? 1 : 0;
             execute_stage(events, instance, res_events, reorder_trim_stage);
         }
 
@@ -315,9 +317,9 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         params.inputs.resize(inputs_count);
         params.inputs[0] = convert_data_tensor(impl_param.input_layouts[0]);
-        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[3]);
-        params.inputs[2] = convert_data_tensor(impl_param.input_layouts[4]);
-        params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0]);
+        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[2 + impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0]);
+        params.inputs[2] = convert_data_tensor(impl_param.input_layouts[3 + impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0]);
+        params.outputs[0] = convert_data_tensor(impl_param.input_layouts[0]);
         params.inputs.resize(inputs_count);
         params.indirect_axis = indirect_axis;
         params.seq_len = indirect_axis;
@@ -330,11 +332,11 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;  // [kv_present, beam_table_present, compression_scale_present]
         std::map<size_t, size_t> in_tensor_to_offset_map = {
             {0, in_offsets_map.at(0)},  // kv_past
-            {1, in_offsets_map.at(3)},  // src_idx
-            {0, in_offsets_map.at(4)},  // dst_idx
+            {1, in_offsets_map.at(2 + impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0)},  // src_idx
+            {2, in_offsets_map.at(3 + impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0)},  // dst_idx
         };
         std::map<size_t, size_t> out_tensor_to_offset_map = {
-            {0, out_offsets_map.at(0)},  // kv_present
+            {0, in_offsets_map.at(0)},  // kv_present
         };
 
         params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
@@ -507,7 +509,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
     static std::unique_ptr<primitive_impl> create(const typed_program_node<kv_cache>& arg, const kernel_impl_params& impl_param) {
         std::vector<kernel_selector::kernel_data> kernels_data;
-        if (impl_param.typed_desc<kv_cache>()->trim) {
+        if (impl_param.typed_desc<kv_cache>()->input.size() >= 4) {
             auto reorder_kernel_params = get_reorder_trim_kernel_params(impl_param);
             auto& reorder_kernel_selector = kernel_selector::reorder_kv_cache_kernel_selector::Instance();
             kernels_data.push_back(reorder_kernel_selector.get_best_kernel(reorder_kernel_params));

@@ -18,6 +18,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/sink.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
@@ -39,7 +40,12 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
     auto beam_idx = wrap_type<ov::op::v0::Parameter>();
     auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
     auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
-    auto trim_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
+    auto processed_read = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
+    auto src_idx = wrap_type<ov::op::v0::Parameter>();
+    auto dst_idx = wrap_type<ov::op::v0::Parameter>();
+    auto gather_valid = wrap_type<ov::op::v8::Gather>({processed_read, src_idx, wrap_type<ov::op::v0::Constant>()});
+    auto reorder_past = wrap_type<ov::op::v3::ScatterElementsUpdate>({processed_read, dst_idx, gather_valid, wrap_type<ov::op::v0::Constant>()});
+    auto trim_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{processed_read, reorder_past});
     auto start = wrap_type<ov::op::v0::Constant>();
     auto past_seq_len = any_input();
     auto step = wrap_type<ov::op::v0::Constant>();
@@ -89,9 +95,12 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
 
         if (pattern_map.count(gather_past) > 0) {
             if(pattern_map.count(trim_past) > 0) {
+                OPENVINO_ASSERT(pattern_map.count(reorder_past));
                 kv_cache_node = std::make_shared<op::KVCache>(pattern_map.at(gather_past).get_node_shared_ptr(),
                                                           concat_node->input(1).get_source_output(),
                                                           pattern_map.at(past_seq_len).get_node_shared_ptr(),
+                                                          pattern_map.at(src_idx).get_node_shared_ptr(),
+                                                          pattern_map.at(dst_idx).get_node_shared_ptr(),
                                                           variable,
                                                           concat_axis,
                                                           new_read_value_node->get_output_element_type(0));
@@ -105,9 +114,12 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
            
         } else {
             if(pattern_map.count(trim_past) > 0) {
+                OPENVINO_ASSERT(pattern_map.count(reorder_past));
                 kv_cache_node = std::make_shared<op::KVCache>(new_read_value_node,
                                                           concat_node->input(1).get_source_output(),
                                                           pattern_map.at(past_seq_len).get_node_shared_ptr(),
+                                                          pattern_map.at(src_idx).get_node_shared_ptr(),
+                                                          pattern_map.at(dst_idx).get_node_shared_ptr(),
                                                           variable,
                                                           concat_axis,
                                                           new_read_value_node->get_output_element_type(0));

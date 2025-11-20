@@ -95,7 +95,9 @@ bool ReorderKVCacheKernelRef::Validate(const Params& params) const {
 
 JitConstants ReorderKVCacheKernelRef::GetJitConstants(const reorder_kv_cache_params& kernel_params) const {
     JitConstants jit = MakeBaseParamsJitConstants(kernel_params);
-    jit.AddConstant({MakeJitConstant("INDIRECT_AXIS", kernel_params.indirect_axis)});
+    auto output = kernel_params.outputs[0];
+    jit.AddConstant({MakeJitConstant("INPUT0_SEQ_PITCH", output.Batch().v * output.Feature().v)});
+    jit.AddConstant({MakeJitConstant("OUTPUT_SEQ_PITCH", output.Batch().v * output.Feature().v)});
     return jit;
 }
 
