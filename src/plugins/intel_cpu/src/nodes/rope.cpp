@@ -154,11 +154,11 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             t_sin = t_sin.reshape({1, t_sin.size(0), t_sin.size(1), t_sin.size(2)});
         }
 
-        auto batch_size = t_src.size(0);
-        auto head_cnt = t_src.size(1);
-        auto seq_len = t_src.size(2);
-        auto feature_size = t_src.size(3);
-        auto half_rotary_dims = rotary_dims / 2;
+        const auto batch_size = t_src.size(0);
+        const auto head_cnt = t_src.size(1);
+        const auto seq_len = t_src.size(2);
+        const auto feature_size = t_src.size(3);
+        const auto half_rotary_dims = rotary_dims / 2;
         const size_t cos_sin_offset = (m_config.cos_sin_ndims == half_rotary_dims) ? 0 : half_rotary_dims;
         parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
             auto cos_pos = p;

@@ -1165,9 +1165,8 @@ ov::pass::RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
         new_args.push_back(x_val);
         new_args.push_back(v_cos);
         new_args.push_back(pattern_map.at(t_sin));
-        auto old_node = root;
         auto new_node = std::make_shared<internal::RoPE>(new_args, config);
-        new_node->set_friendly_name(old_node->get_friendly_name());
+        new_node->set_friendly_name(root->get_friendly_name());
         ov::copy_runtime_info({pattern_map.at(neg).get_node_shared_ptr(),
                                pattern_map.at(sub_Subtract).get_node_shared_ptr(),
                                pattern_map.at(first_half_mul_cos).get_node_shared_ptr(),
@@ -1177,9 +1176,7 @@ ov::pass::RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
                                pattern_map.at(add_Add).get_node_shared_ptr(),
                                pattern_map.at(result).get_node_shared_ptr()},
                               new_node);
-        ov::replace_node(old_node, new_node);
-
-        // this new node may match following additional matchers
+        ov::replace_node(root, new_node);
         register_new_node(new_node);
         return true;
     };
