@@ -400,8 +400,8 @@ std::tuple<VecMemoryDescs, MemoryDescPtr> Convolution::initMemoryDescriptors(ov:
             srcDescs.push_back(MemoryDescUtils::makeEmptyDesc());
             continue;
         }
-        auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcTypes[i], getInputShapeAtPort(i));
-        srcDescs.push_back(srcDesc);
+            auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcTypes[i], getInputShapeAtPort(i));
+            srcDescs.push_back(srcDesc);
     }
 
     auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstType, getOutputShapeAtPort(0));
@@ -427,8 +427,14 @@ std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecis
         }
     };
 
-// ACL requires dst precision matches src precision for int8
+// ACL requires fp32 dst precision for i8 activation and fp bias
+// in other int8 cases dst precision matches src precision
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+   if (getOriginalInputPrecisionAtPort(0) == ov::element::i8 &&
+        m_attrs.withBias &&
+        getOriginalInputPrecisionAtPort(2) != ov::element::i32) {
+        return {ov::element::f32, ov::element::dynamic};
+    }
     if (canBeExecutedInInt8()) {
         return {getOriginalInputPrecisionAtPort(0), ov::element::dynamic};
     }

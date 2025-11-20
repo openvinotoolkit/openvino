@@ -919,11 +919,6 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
 
 void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
-// zero points fusing is skipped on ARM platforms because oneDNN is not involved into int8 convolution inference
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    return;
-#endif
-
     auto isSuitableConvNode = [](const NodePtr& node) {
         bool retVal = false;
         if (node->getType() == Type::Convolution) {
@@ -976,6 +971,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
             return false;
         }
 
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_ARM)
         if (subtractArg1->getOriginalOutputPrecisionAtPort(0) != ov::element::u8) {
             return false;
         }
@@ -1014,6 +1010,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
             return false;
         }
         convNode->initializeInputZeroPoints(zeroPointsData, zeroPointDataSize);
+#endif
         return true;
     };
 
@@ -1079,6 +1076,24 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
         }
     };
 
+    auto initializeActivationShifts = [](const NodePtr& node) {
+            auto* convNode = dynamic_cast<Convolution*>(node.get());
+            OPENVINO_ASSERT(convNode, "Cannot get convolution node ", node->getName());
+            auto dataEltwise = convNode->getParentEdgeAt(0)->getParent();
+            auto* substructConstant = dynamic_cast<node::Input*>(dataEltwise->getParentEdgeAt(1)->getParent().get());
+            if (!substructConstant || !substructConstant->isConstant()) {
+                //std::cout << "[FuseConvolutionAndZeroPoints] substructConstant is not constant: " << substructConstant->getName() << std::endl;
+                return;
+            }
+            const auto& substructConstantDims = substructConstant->outputShapes[0].getStaticDims();
+            auto substructBlob = substructConstant->getMemoryPtr();
+            const auto* substructPtr = static_cast<const int8_t*>(substructBlob->getData());
+            //auto w = static_cast<int32_t>(substructPtr[0]);
+            //std::cout << "[FuseConvolutionAndZeroPoints] substructPtr[0]: " << w << " " << substructConstantDims << std::endl;
+            const auto elems = std::accumulate(substructConstantDims.begin(), substructConstantDims.end(), 1, std::multiplies<int>());
+            convNode->setArmActivationShifts(std::vector<int8_t>(substructPtr, substructPtr + elems));
+    };
+
     for (const auto& conv : graphNodes) {
         if (!isSuitableConvNode(conv)) {
             continue;
@@ -1088,16 +1103,26 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
 
         auto dataEltwise = conv->getParentEdgeAt(0)->getParent();
         auto weightsEltwise = conv->getParentEdgeAt(1)->getParent();
+        /*std::cout << "[FuseConvolutionAndZeroPoints] Convolution node: "
+                  << conv->getName() << ", data parent node: " << dataEltwise->getName()
+                  << ", weights parent node: " << weightsEltwise->getName() << std::endl;*/
         if (initializeInputZeroPoints(conv, dataEltwise, weightsEltwise)) {
+            //std::cout << "[FuseConvolutionAndZeroPoints] into if" << std::endl;
             auto p_edge = dataEltwise->getParentEdgeAt(1);
             DEBUG_LOG("[GraphOptimizer##FusingZeorPoint]:Eltwise Subtract Node ##",
                       dataEltwise->getName(),
                       " is optimized as zeropoint of Conv ##",
                       conv->getName());
             conv->setOriginalInputPrecisionAtPort(0, dataEltwise->getOriginalInputPrecisionAtPort(0));
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+            initializeActivationShifts(conv);
+#endif
             graph.RemoveEdge(p_edge);
             graph.DropNode(dataEltwise);
+
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_ARM)
             initializeOutputCompensation(conv);
+#endif
         }
     }
 }

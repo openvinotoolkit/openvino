@@ -26,6 +26,8 @@ struct ConvAttrs {
     std::vector<ptrdiff_t> paddingR;
     AutoPaddingType autoPadding = AutoPaddingType::None;
 
+    // FIXME: temporary solution for arm activation shifts
+    std::vector<int8_t> armActivationShifts;
     bool withBias = false;
     bool weightsNonTransposed = false;
     bool isGrouped = false;

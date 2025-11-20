@@ -81,6 +81,10 @@ public:
     const std::vector<ptrdiff_t>& getPaddingR() const {
         return m_attrs.paddingR;
     }
+    // FIXME: temporary solution for arm activation shifts
+    void setArmActivationShifts(const std::vector<int8_t>& shifts) {
+        m_attrs.armActivationShifts = shifts;
+    }
 
     bool canFuse(const NodePtr& node) const override;
     bool isDepthWise() const {

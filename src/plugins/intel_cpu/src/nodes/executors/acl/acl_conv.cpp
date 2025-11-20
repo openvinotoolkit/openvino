@@ -35,7 +35,8 @@ namespace ov::intel_cpu {
 ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                const MemoryArgs& memory,
                                                [[maybe_unused]] const ExecutorContext::CPtr& context)
-    : weightScale(attrs.dqScales) {
+    : weightScale(attrs.dqScales),
+      activationShifts(attrs.armActivationShifts) {
     MemoryDescPtr srcMemPtr = memory.at(ARG_SRC_0)->getDescPtr();
     MemoryDescPtr weiMemPtr = memory.at(ARG_WEI)->getDescPtr();
     MemoryDescPtr dstMemPtr = memory.at(ARG_DST)->getDescPtr();
@@ -95,7 +96,7 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
 
     VERIFY(isQuantized, UNSUPPORTED_SRC_PRECISIONS);
     if (config.attrs.withBias) {
-        VERIFY(config.descs.at(ARG_BIAS)->getPrecision() == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
+        VERIFY(none_of(config.descs.at(ARG_BIAS)->getPrecision(), ov::element::i32, ov::element::f32), UNSUPPORTED_BIAS_PRECISIONS);
     }
     VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
 
@@ -110,7 +111,8 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     //            shift is not supported
     // - destination: scale is formed based on requantization FakeQuantize parameters: scale = 1.0 / input scale
     //                shift = input shift
-    aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
+    aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(
+        arm_compute::QuantizationInfo(1.0, activationShifts.empty() ? 0 : activationShifts[0]));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
         arm_compute::QuantizationInfo(weightScale.empty() ? 1.0F : weightScale[0]));
     aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
