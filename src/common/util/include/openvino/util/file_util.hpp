@@ -147,7 +147,7 @@ std::string path_to_string(const Path& path) {
  * @param path  Path.
  * @return A char string.
  */
-inline const auto& path_to_string(const std::filesystem::path& path) {
+inline auto path_to_string(const std::filesystem::path& path) -> decltype(path_to_string(path.native())) {
     return ov::util::path_to_string(path.native());
 }
 
