@@ -1438,6 +1438,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
     size_t opt_deconv_layers_b_fs_yx_fsv16 = 0;
     size_t total_crop_layers = 0;
+    size_t total_deconv = 0;
 
     for (auto& node : get_processing_order()) {
         auto &prim = *node;
@@ -1471,6 +1472,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 opt_deconv_layers_b_fs_zyx_fsv16 += 1;
             else if (lo.is_format_supported(prim.as<deconvolution>(), format::b_fs_yx_fsv16))
                 opt_deconv_layers_b_fs_yx_fsv16 += 1;
+
+            total_deconv++;
         }
 
         // list of layers that do not support yxfb or perform worse than bfyx
@@ -1617,9 +1620,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
     bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
                                          (can_use_fsv16 &&
-                                          total_conv_layers > 11 &&
+                                          total_conv_layers + total_deconv > 9 &&
                                           (num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f || opt_deconv_layers_b_fs_yx_fsv16 >= 1) &&
-                                          num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
+                                          (num_of_conv_b_fs_yx_fsv16 + opt_deconv_layers_b_fs_yx_fsv16) * 2 > total_crop_layers);
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
                                          total_grouped_conv_layers == 0 &&
