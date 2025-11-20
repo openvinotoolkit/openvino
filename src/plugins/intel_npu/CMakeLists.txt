@@ -20,6 +20,10 @@ include(cmake/features.cmake)
 
 set(CMAKE_CXX_STANDARD 17)
 
+if(ENABLE_VCL_FOR_COMPILER)
+    include(cmake/download_compiler_libs.cmake)
+endif()
+
 if(ENABLE_NPU_DEBUG_CAPS)
     add_compile_definitions(NPU_PLUGIN_DEVELOPER_BUILD)
 endif()
