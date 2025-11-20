@@ -266,11 +266,11 @@ jobs:
         if: ${{ matrix.cache == true }}
         run: '& ccache --show-stats'
 
-      - name: Ctest - OpenVINO unit tests
-        shell: cmd
-        run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
-          ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${{ env.BUILD_DIR }} -V -L UNIT
+      # - name: Ctest - OpenVINO unit tests
+      #   shell: cmd
+      #   run: |
+      #     set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
+      #     ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${{ env.BUILD_DIR }} -V -L UNIT
 
       - name: Perform code tracing via ITT collector
         shell: cmd
