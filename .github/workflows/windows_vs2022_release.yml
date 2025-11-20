@@ -70,7 +70,6 @@ jobs:
             -G 'Ninja Multi-Config'
             -DENABLE_PYTHON=ON
             -DENABLE_WHEEL=OFF
-            -DENABLE_CPPLINT=OFF
             -DENABLE_TESTS=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF

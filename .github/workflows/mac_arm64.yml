@@ -181,7 +181,6 @@ jobs:
         run: |
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
-            -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_WHEEL=OFF \
@@ -524,7 +523,7 @@ jobs:
 
       - name: Store artifacts to a shared drive
         id: store_artifacts
-        if: ${{ always() }}
+        if: ${{ github.event_name != 'merge_group' }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |

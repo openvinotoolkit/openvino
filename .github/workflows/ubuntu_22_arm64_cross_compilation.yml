@@ -137,7 +137,6 @@ jobs:
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja'
-            -DENABLE_CPPLINT=OFF
             -DOV_CPU_ARM_TARGET_ARCH=arm64-v8a
             -DTHREADS_PTHREAD_ARG=-pthread
             -DPYTHON_MODULE_EXTENSION=.cpython-311-aarch64-linux-gnu.so

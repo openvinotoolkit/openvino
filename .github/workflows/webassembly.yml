@@ -120,6 +120,7 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+            -DTHREADING=SEQ \
             -S ${OPENVINO_REPO} \
             -B ${OPENVINO_BUILD_DIR}
 
