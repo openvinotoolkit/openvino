@@ -9,7 +9,6 @@
 #include <limits>
 
 #include "base_reference_test.hpp"
-#include "openvino/runtime/allocator.hpp"
 
 using namespace ov;
 
