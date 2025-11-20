@@ -1014,6 +1014,21 @@ OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_nonmaxsuppression_default_sco
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, reduce_log_sum_none_input) {
+    auto model = convert_model("reduce_log_sum_none_input.onnx");
+
+    // No runtime inputs needed - using model initializers
+    Inputs inputs{};
+
+    // output data shape: scalar
+    auto expected_output = ov::test::NDArray<float, 4>({{{{0.7971231937408447}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum) {
     auto model = convert_model("reduce_log_sum.onnx");
 
@@ -3546,6 +3561,120 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gatherND_float) {
     test_case.add_input<float>({0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f});
     test_case.add_input<int64_t>({0, 1, 1, 0});
     test_case.add_expected_output<float>(Shape{2, 2}, {2.f, 3.f, 4.f, 5.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gatherND_batch_dims_1_broadcast) {
+    // Test GatherND with batch_dims=1 and broadcasting
+    // data shape: [1, 3, 4, 4] -> broadcasts to [2, 3, 4, 4]
+    // indices shape: [2, 2, 2]
+    // output shape: [2, 2, 4]
+    const auto model = convert_model("gatherND_batch_dims_1_broadcast.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // data: [1, 3, 4, 4] - random values with seed=42, validated against ONNXRuntime
+    test_case.add_input<float>({
+        0.496714f,  -0.138264f, 0.647689f,  1.523030f,  -0.234153f, -0.234137f, 1.579213f,  0.767435f,
+        -0.469474f, 0.542560f,  -0.463418f, -0.465730f, 0.241962f,  -1.913280f, -1.724918f, -0.562288f,
+        -1.012831f, 0.314247f,  -0.908024f, -1.412304f, 1.465649f,  -0.225776f, 0.067528f,  -1.424748f,
+        -0.544383f, 0.110923f,  -1.150994f, 0.375698f,  -0.600639f, -0.291694f, -0.601707f, 1.852278f,
+        -0.013497f, -1.057711f, 0.822545f,  -1.220844f, 0.208864f,  -1.959670f, -1.328186f, 0.196861f,
+        0.738467f,  0.171368f,  -0.115648f, -0.301104f, -1.478522f, -0.719844f, -0.460639f, 1.057122f,
+    });
+
+    // indices: [2, 2, 2] - batch_dims=1 means first dim is batch
+    test_case.add_input<int64_t>({
+        0,
+        0,  // batch 0: index (0, 0) -> data[0, 0, 0, :]
+        1,
+        1,  // batch 0: index (1, 1) -> data[0, 1, 1, :]
+        0,
+        1,  // batch 1: index (0, 1) -> data[0, 0, 1, :] (broadcasted)
+        2,
+        3,  // batch 1: index (2, 3) -> data[0, 2, 3, :]
+    });
+
+    // Expected output: [2, 2, 4] - reference from ONNXRuntime
+    test_case.add_expected_output<float>(Shape{2, 2, 4},
+                                         {
+                                             0.496714f,
+                                             -0.138264f,
+                                             0.647689f,
+                                             1.523030f,  // batch 0: data[0, 0, 0, :]
+                                             1.465649f,
+                                             -0.225776f,
+                                             0.067528f,
+                                             -1.424748f,  // batch 0: data[0, 1, 1, :]
+                                             -0.234153f,
+                                             -0.234137f,
+                                             1.579213f,
+                                             0.767435f,  // batch 1: data[0, 0, 1, :]
+                                             -1.478522f,
+                                             -0.719844f,
+                                             -0.460639f,
+                                             1.057122f,  // batch 1: data[0, 2, 3, :]
+                                         });
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gatherND_batch_dims_1_no_broadcast) {
+    // Test GatherND with batch_dims=1 and NO broadcasting needed
+    // data shape: [2, 3, 4, 4] - batch dimension is 2
+    // indices shape: [2, 2, 2] - batch dimension is also 2
+    // No broadcast needed - dimensions are equal
+    // Reference output generated with ONNXRuntime
+    const auto model = convert_model("gatherND_batch_dims_1_no_broadcast.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // data: [2, 3, 4, 4] - random values with seed=123
+    test_case.add_input<float>({
+        -1.085631f, 0.997345f,  0.282979f,  -1.506295f, -0.578600f, 1.651437f,  -2.426679f, -0.428913f, 1.265936f,
+        -0.866740f, -0.678886f, -0.094709f, 1.491390f,  -0.638902f, -0.443982f, -0.434351f, 2.205930f,  2.186786f,
+        1.004054f,  0.386186f,  0.737369f,  1.490732f,  -0.935834f, 1.175829f,  -1.253881f, -0.637752f, 0.907105f,
+        -1.428681f, -0.140069f, -0.861755f, -0.255619f, -2.798589f, -1.771533f, -0.699877f, 0.927462f,  -0.173636f,
+        0.002846f,  0.688223f,  -0.879536f, 0.283627f,  -0.805367f, -1.727669f, -0.390900f, 0.573806f,  0.338589f,
+        -0.011830f, 2.392365f,  0.412912f,  0.978736f,  2.238143f,  -1.294085f, -1.038788f, 1.743712f,  -0.798063f,
+        0.029683f,  1.069316f,  0.890706f,  1.754886f,  1.495644f,  1.069393f,  -0.772709f, 0.794863f,  0.314272f,
+        -1.326265f, 1.417299f,  0.807237f,  0.045490f,  -0.233092f, -1.198301f, 0.199524f,  0.468439f,  -0.831155f,
+        1.162204f,  -1.097203f, -2.123100f, 1.039727f,  -0.403366f, -0.126030f, -0.837517f, -1.605963f, 1.255237f,
+        -0.688869f, 1.660952f,  0.807308f,  -0.314758f, -1.085902f, -0.732462f, -1.212523f, 2.087113f,  0.164441f,
+        1.150205f,  -1.267352f, 0.181035f,  1.177862f,  -0.335011f, 1.031114f,
+    });
+
+    // indices: [2, 2, 2] - batch_dims=1, equal batch dimensions (no broadcast)
+    test_case.add_input<int64_t>({
+        0,
+        0,  // batch 0: index (0, 0) -> data[0, 0, 0, :]
+        1,
+        2,  // batch 0: index (1, 2) -> data[0, 1, 2, :]
+        2,
+        3,  // batch 1: index (2, 3) -> data[1, 2, 3, :]
+        0,
+        1,  // batch 1: index (0, 1) -> data[1, 0, 1, :]
+    });
+
+    // Expected output: [2, 2, 4] - reference from ONNXRuntime
+    test_case.add_expected_output<float>(Shape{2, 2, 4},
+                                         {
+                                             -1.085631f,
+                                             0.997345f,
+                                             0.282979f,
+                                             -1.506295f,  // batch 0: data[0, 0, 0, :]
+                                             -1.253881f,
+                                             -0.637752f,
+                                             0.907105f,
+                                             -1.428681f,  // batch 0: data[0, 1, 2, :]
+                                             0.181035f,
+                                             1.177862f,
+                                             -0.335011f,
+                                             1.031114f,  // batch 1: data[1, 2, 3, :]
+                                             1.743712f,
+                                             -0.798063f,
+                                             0.029683f,
+                                             1.069316f,  // batch 1: data[1, 0, 1, :]
+                                         });
 
     test_case.run();
 }
@@ -6223,6 +6352,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_constant_of_shape_null_node) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, cast_float32_to_int4) {
+    auto model = convert_model("cast_float32_to_int4.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{4}, std::vector<float>{1.6f, 2.4f, -1.6f, -2.4f});
+    test_case.add_expected_output<uint8_t>({0x22, 0xEE});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, castlike_float16_to_uint32) {
     auto model = convert_model("castlike_float16_to_uint32.onnx");
 
@@ -7170,6 +7310,25 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_explicit_split_1d) {
 
     test_case.add_input<float>(Shape{4, 2}, {1., 2., 3., 4., 5., 6., 7., 8.});
     test_case.add_expected_output<float>(Shape{2, 2}, {1., 2., 3., 4.});
+
+    test_case.run();
+}
+
+/// @brief Testing ONNX BitShift with an Y output of uint32 type
+/// The input model was taken from a bug report, where parsing the type of the Y input
+/// failed.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_bitshift_uint32_y) {
+    const auto model = convert_model("bitshift_uint32_y.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(
+        Shape{3, 4, 4},
+        {-0.6251511f, -0.5969454f, 0.13909698f,  -0.27613088f, 0.00713499f, -0.06079938f, 0.07727996f,  0.09848484f,
+         -1.3456749f, 1.2606536f,  -2.1878982f,  -0.06534719f, 1.7707846f,  -1.3586597f,  -1.1241275f,  1.1630629f,
+         1.5288247f,  1.5974303f,  -0.09236689f, 1.2441877f,   -0.4477599f, 0.20678943f,  0.2639845f,   -0.38207826f,
+         1.0393754f,  2.0902128f,  -0.4672897f,  1.8636966f,   1.2390026f,  -0.38409668f, -0.29675618f, -2.113882f,
+         -1.2571493f, 0.19212584f, -0.48622572f, 1.3817313f,   0.2130472f,  0.12426434f,  0.18794645f,  -1.4493794f,
+         0.38522267f, 0.55802476f, -1.0083855f,  0.12431115f,  -1.9025584f, -1.1199955f,  -0.97456354f, 0.5826947f});
 
     test_case.run();
 }

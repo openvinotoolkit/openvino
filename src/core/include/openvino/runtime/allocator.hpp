@@ -135,17 +135,6 @@ public:
             bool> = true>
     Allocator(A&& a) : _impl{std::make_shared<Impl<typename std::decay_t<A>>>(std::forward<A>(a))} {}
 
-    template <typename A,
-              typename std::enable_if_t<!std::is_same_v<typename std::decay_t<A>, Allocator> &&
-                                            !std::is_abstract_v<typename std::decay_t<A>> &&
-                                            !std::is_convertible_v<typename std::decay_t<A>, std::shared_ptr<Base>> &&
-                                            !has_noexcept_deallocate_v<A>,
-                                        bool> = true>
-    OPENVINO_DEPRECATED("Please annotate your allocator's deallocate method with noexcept. This method will be "
-                        "removed in 2026.0.0 release")
-    Allocator(A&& a)
-        : _impl{std::make_shared<Impl<typename std::decay_t<A>>>(std::forward<A>(a))} {}
-
     /**
      * @brief Allocates memory
      *

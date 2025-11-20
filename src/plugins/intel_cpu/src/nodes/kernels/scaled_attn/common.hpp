@@ -388,35 +388,6 @@ inline void hmin(__m256& x) {
 #ifdef OPENVINO_ARCH_ARM64
 #    if defined(HAVE_SVE)
 inline svfloat32_t exp_ps_sve(svbool_t& pg, svfloat32_t& src) {
-    // Constants
-    const auto log2_e = svdup_n_f32(1.4426950409f);
-    const auto ln2 = svdup_n_f32(0.6931473921f);
-    const auto half_ln2_sq = svdup_n_f32(0.2413862043f);
-    const auto not_mask17 = svdup_n_u32(~((1U << 17) - 1));
-    const auto one = svdup_n_f32(1.0f);
-
-    // Algorithm starts here
-    svfloat32_t t0 = svmul_f32_z(pg, src, log2_e);  // y = x * log2(e)
-    svfloat32_t t1 = svrintm_f32_z(pg, t0);         // rount to int (float)
-    svint32_t t2 = svcvt_s32_f32_z(pg, t1);         // n
-
-    t1 = svsub_f32_z(pg, t0, t1);   // a = y - floor(y)
-    t1 = svadd_f32_z(pg, t1, one);  // b = a + 1
-
-    svuint32_t t3 = svlsr_n_u32_z(pg, svreinterpret_u32_f32(t1), 17);  // v = b >> 17 (u32)
-    svfloat32_t t4 = svexpa_f32(t3);                                   // c = fexpa(v)
-    t4 = svscale_f32_z(pg, t4, t2);                                    // fexpa(v) * 2^(n)
-
-    // and_(t2.d, t1.d, not_mask17.d)
-    svfloat32_t t5 = svreinterpret_f32_u32(svand_u32_z(pg, svreinterpret_u32_f32(t1), not_mask17));
-    t5 = svsub_f32_z(pg, t1, t5);                // z
-    t0 = svmla_f32_z(pg, ln2, t5, half_ln2_sq);  // ln2 + half_ln2_sq * z
-    t0 = svmla_f32_z(pg, one, t5, t0);           // 1 + (ln2 * z) + (half_ln2_sq * z * z)
-    t0 = svmul_f32_z(pg, t0, t4);                // Final result
-
-    return t0;
-}
-inline svfloat32_t exp_ps_sve_legacy(svbool_t& pg, svfloat32_t& src) {
     const auto c1 = svreinterpret_f32_u32(svdup_n_u32(0x3f7ffff6));
     const auto c2 = svreinterpret_f32_u32(svdup_n_u32(0x3efffedb));
     const auto c3 = svreinterpret_f32_u32(svdup_n_u32(0x3e2aaf33));
