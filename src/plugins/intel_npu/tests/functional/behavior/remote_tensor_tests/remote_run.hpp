@@ -466,10 +466,6 @@ TEST_P(RemoteRunTests, TryImportCpuVAExpectedErrorUnalignedSize) {
     if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
         auto shape = Shape{1, 64};
         auto shape_size = ov::shape_size(shape);
-        auto model = createModel(element::f32, shape, "N...");
-
-        ov::CompiledModel compiled_model;
-        ov::InferRequest inference_request;
 
         auto data = ::operator new(shape_size * sizeof(float), std::align_val_t(4096));
         for (size_t i = 0; i < shape_size; ++i) {
@@ -494,10 +490,6 @@ TEST_P(RemoteRunTests, TryImportCpuVAExpectedErrorUnalignedAddress) {
     if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
         auto shape = Shape{1, 1024};
         auto shape_size = ov::shape_size(shape);
-        auto model = createModel(element::f32, shape, "N...");
-
-        ov::CompiledModel compiled_model;
-        ov::InferRequest inference_request;
 
         auto data = ::operator new(shape_size * sizeof(float) + 64, std::align_val_t(4096));
         auto unaligned_data = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(data) + 64);
@@ -540,16 +532,20 @@ TEST_P(RemoteRunTests, ImportCpuVAUsingNpuRemoteTensorAPI) {
         OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
 
         ov::intel_npu::level_zero::ZeroBufferTensor input_remote_tensor, output_remote_tensor;
-        OV_ASSERT_NO_THROW(
-            input_remote_tensor =
-                zero_context.create_tensor(ov::element::f32, shape, input_data, ov::intel_npu::MemType::CPU_VA));
+        OV_ASSERT_NO_THROW(input_remote_tensor = zero_context.create_tensor(ov::element::f32,
+                                                                            shape,
+                                                                            input_data,
+                                                                            ov::intel_npu::MemType::CPU_VA,
+                                                                            ov::intel_npu::TensorType::INPUT));
 
-        OV_ASSERT_NO_THROW(
-            output_remote_tensor =
-                zero_context.create_tensor(ov::element::f32, shape, input_data, ov::intel_npu::MemType::CPU_VA));
+        OV_ASSERT_NO_THROW(output_remote_tensor = zero_context.create_tensor(ov::element::f32,
+                                                                             shape,
+                                                                             output_data,
+                                                                             ov::intel_npu::MemType::CPU_VA,
+                                                                             ov::intel_npu::TensorType::OUTPUT));
 
         OV_ASSERT_NO_THROW(inference_request.set_input_tensor(input_remote_tensor));
-        OV_ASSERT_NO_THROW(inference_request.set_output_tensor(input_remote_tensor));
+        OV_ASSERT_NO_THROW(inference_request.set_output_tensor(output_remote_tensor));
         OV_ASSERT_NO_THROW(inference_request.infer());
 
         float* output_tensor_data = reinterpret_cast<float*>(output_remote_tensor.get());
@@ -565,9 +561,22 @@ TEST_P(RemoteRunTests, ImportCpuVAUsingNpuRemoteTensorAPI) {
         output_remote_tensor = {};
 
         ::operator delete(input_data, std::align_val_t(4096));
+        ::operator delete(output_data, std::align_val_t(4096));
     } else {
         GTEST_SKIP() << "Standard allocation is not supported by the driver";
     }
+}
+
+TEST_P(RemoteRunTests, ImportCpuVAUwithoutSettingBufferExpectedError) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    auto shape = Shape{1, 1024};
+
+    auto zero_context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+
+    ov::intel_npu::level_zero::ZeroBufferTensor remote_tensor;
+    ASSERT_THROW(
+        remote_tensor = zero_context.create_tensor(ov::element::f32, shape, nullptr, ov::intel_npu::MemType::CPU_VA),
+        std::exception);
 }
 
 TEST_P(RemoteRunTests, ImportCpuVAUsingStandardRemoteTensorAPI) {
