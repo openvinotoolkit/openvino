@@ -1,6 +1,5 @@
 -c ./constraints.txt
 numpy
-packaging
 bandit
 black
 flake8<=7.3.0
