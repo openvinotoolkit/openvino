@@ -331,6 +331,7 @@ public:
     void createFunction(const std::string& func_name);
     void matchRepeatedSubgraphs(const std::string& func_name);
     void spatial(const std::string& func_name);
+    void attention(const std::string& func_name);
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -1881,6 +1882,41 @@ void Partitioner::spatial(const std::string& func_name) {
     LOG_VERB("Done");
 }
 
+void Partitioner::attention(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    // Support only attention at the time
+    if (f._tag != "attn") {
+        LOG_VERB("No dynamic handling be done to  " << func_name << " in model " << model->get_friendly_name()
+                                                    << "...");
+        return;
+    }
+
+    if (!cfg.get<::intel_npu::NPUW_ATTN>()) {
+        LOG_VERB("Dynamic handling is possible for  " << func_name << " in model " << model->get_friendly_name()
+                                                      << " but is disabled explicitly");
+        return;
+    }
+
+    LOG_VERB("Turn " << func_name << " into dynamic Attention block in model " << model->get_friendly_name() << "...");
+    LOG_BLOCK();
+
+    f._attention = ov::npuw::function::Attention::from(f._model);
+    if (f._attention) {
+        LOG_VERB("Done");
+        return;
+    }
+
+    LOG_WARN("No dynamic ranges found in the ATTN block");
+    f._pyramid_attention = ov::npuw::function::PyramidAttention::from(f._model);
+    if (f._pyramid_attention) {
+        LOG_VERB("Done");
+        return;
+    }
+
+    LOG_WARN("No pyramid attention found in the ATTN block");
+}
+
 void Partitioner::optimize(const std::string& func_name) {
     using namespace ov::npuw::weights;
 
@@ -2476,6 +2512,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
                 p.spatial(func_group);
+                p.attention(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }

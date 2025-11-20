@@ -17,7 +17,7 @@ public:
     std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
                                                   const ov::intel_npu::CompilerType type) const {
         switch (type) {
-        case ov::intel_npu::CompilerType::MLIR: {
+        case ov::intel_npu::CompilerType::PLUGIN: {
             if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
                 return std::make_unique<PluginCompilerAdapter>(nullptr);
             }

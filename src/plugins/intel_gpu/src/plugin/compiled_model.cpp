@@ -184,11 +184,9 @@ void CompiledModel::export_model(std::ostream& model) const {
 
     const ov::EncryptionCallbacks encryption_callbacks = m_config.get_cache_encryption_callbacks();
 
-    // Do not allow encryption for CacheMode::OPTIMIZE_SPEED - the cache size may cause severe memory penalty.
     const ov::CacheMode cache_mode = m_config.get_cache_mode();
-    const bool encryption_enabled = encryption_callbacks.encrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
     std::unique_ptr<cldnn::BinaryOutputBuffer> ob_ptr =
-        encryption_enabled
+        encryption_callbacks.encrypt
             ? std::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
             : std::make_unique<cldnn::BinaryOutputBuffer>(model);
     auto& ob = *ob_ptr;
@@ -251,7 +249,7 @@ std::shared_ptr<Graph> CompiledModel::get_graph(size_t n) const {
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::supported_properties) {
-        return decltype(ov::supported_properties)::value_type {
+        return decltype(ov::supported_properties)::value_type{
             // Metrics
             ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
             ov::PropertyName{ov::model_name.name(), PropertyMutability::RO},

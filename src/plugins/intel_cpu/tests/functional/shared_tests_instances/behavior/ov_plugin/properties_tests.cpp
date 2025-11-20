@@ -121,11 +121,11 @@ const std::vector<ov::AnyMap> configsDevicePropertiesDouble = {
 
 
 // OV Class load and check network with ov::device::properties
-INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest,
+INSTANTIATE_TEST_SUITE_P(nightly_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest,
                          OVClassCompileModelAndCheckSecondaryPropertiesTest,
                          ::testing::Combine(::testing::Values("CPU"), ::testing::ValuesIn(configsDeviceProperties)));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest,
+INSTANTIATE_TEST_SUITE_P(nightly_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest,
                          OVClassCompileModelAndCheckSecondaryPropertiesTest,
                          ::testing::Combine(::testing::Values("CPU"),
                                             ::testing::ValuesIn(configsDevicePropertiesDouble)));

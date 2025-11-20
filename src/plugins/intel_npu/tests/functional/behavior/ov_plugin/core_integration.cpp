@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "overload/ov_plugin/core_integration.hpp"
+#include "core_integration.hpp"
 
 using namespace ov::test::behavior;
 

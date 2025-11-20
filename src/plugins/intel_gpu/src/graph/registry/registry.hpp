@@ -166,6 +166,12 @@ REGISTER_IMPLS(strided_slice);
 REGISTER_IMPLS(tile);
 REGISTER_IMPLS(col2im);
 REGISTER_IMPLS(vl_sdpa);
+REGISTER_IMPLS(moe_3gemm_fused_compressed);
+REGISTER_IMPLS(moe_mask_gen);
+REGISTER_IMPLS(moe_mask_gen_reshape);
+REGISTER_IMPLS(moe_gemm);
+REGISTER_IMPLS(moe_scatter_reduction);
+REGISTER_IMPLS(moe_gather);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);

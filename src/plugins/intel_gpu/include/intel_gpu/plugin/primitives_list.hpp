@@ -284,6 +284,7 @@ REGISTER_FACTORY(v16, ISTFT);
 REGISTER_FACTORY(v16, SparseFillEmptyRows);
 REGISTER_FACTORY(v16, AvgPool);
 REGISTER_FACTORY(v16, OneHot);
+REGISTER_FACTORY(v16, Identity);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
@@ -311,3 +312,5 @@ REGISTER_FACTORY(internal, PagedAttentionExtension);
 REGISTER_FACTORY(internal, LoraSubgraph);
 REGISTER_FACTORY(internal, LoraSubgraphFused);
 REGISTER_FACTORY(internal, VLSDPA);
+REGISTER_FACTORY(internal, MOE3GemmFusedCompressed);
+REGISTER_FACTORY(internal, MOECompressed);

@@ -163,6 +163,63 @@ void calculate_auto_pads(const ov::Shape& data_shape,
     }
 }
 
+void calculate_transpose_auto_pads(const ov::Shape& data_shape,
+                                   const ov::Shape& filter_shape,
+                                   const ov::Strides& strides,
+                                   const ov::Strides& dilations,
+                                   const ov::op::PadType& pad_type,
+                                   const ov::CoordinateDiff& output_padding,
+                                   ov::CoordinateDiff& padding_below,
+                                   ov::CoordinateDiff& padding_above) {
+    if (pad_type == ov::op::PadType::SAME_UPPER || pad_type == ov::op::PadType::SAME_LOWER) {
+        const auto num_spatial = strides.size();
+        padding_below.resize(num_spatial);
+        padding_above.resize(num_spatial);
+
+        auto data_dim = data_shape.cend() - num_spatial;
+        auto filter_dim = filter_shape.cend() - num_spatial;
+
+        // For SAME_UPPER: padding_above gets the extra value when padding is odd
+        // For SAME_LOWER: padding_below gets the extra value when padding is odd
+        const auto padding_swap = pad_type == ov::op::PadType::SAME_UPPER;
+        auto pad_b = padding_swap ? padding_below.begin() : padding_above.begin();
+        auto pad_e = padding_swap ? padding_above.begin() : padding_below.begin();
+
+        auto stride = strides.begin();
+        auto dilation = dilations.begin();
+        auto output_pad = output_padding.begin();
+
+        for (; data_dim != data_shape.cend();
+             ++data_dim, ++pad_b, ++pad_e, ++filter_dim, ++stride, ++dilation, ++output_pad) {
+            // For ConvTranspose with SAME_UPPER/SAME_LOWER padding:
+            // Per ONNX spec: desired_output = input * stride
+            int64_t desired_output = static_cast<int64_t>(*data_dim) * (*stride);
+
+            // Calculate dilated kernel size
+            // dilated_kernel = (kernel - 1) * dilation + 1
+            int64_t dilated_kernel = (static_cast<int64_t>(*filter_dim) - 1) * (*dilation) + 1;
+
+            // ConvTranspose formula:
+            // output = (input - 1) * stride + dilated_kernel - 2*padding + output_padding
+            //
+            // Solving for padding to achieve desired_output:
+            // desired_output = (input - 1) * stride + dilated_kernel - 2*padding + output_padding
+            // 2*padding = (input - 1) * stride + dilated_kernel - desired_output + output_padding
+            // total_padding = [(input - 1) * stride + dilated_kernel - desired_output + output_padding]
+            //
+            // Note: total_padding = padding_begin + padding_end (not 2*padding!)
+            int64_t total_padding = (*data_dim - 1) * (*stride) + dilated_kernel - desired_output + (*output_pad);
+            total_padding = std::max<int64_t>(0, total_padding);
+
+            // Distribute padding between begin and end
+            // For SAME_UPPER: if padding is odd, padding_above gets the extra 1
+            // For SAME_LOWER: if padding is odd, padding_below gets the extra 1
+            *pad_b = total_padding / 2;
+            *pad_e = total_padding - *pad_b;
+        }
+    }
+}
+
 Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t groups) {
     const auto zero_node = v0::Constant::create(ov::element::i64, ov::Shape(), {0});
     const auto split_lengths = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, -1});

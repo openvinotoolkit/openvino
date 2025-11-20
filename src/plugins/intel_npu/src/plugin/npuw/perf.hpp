@@ -64,8 +64,8 @@ public:
         }
         vmin = std::min(vmin, t);
         vmax = std::max(vmax, t);
-        records.push_back(std::move(t));
         total += t;
+        records.push_back(std::move(t));
     }
 
     float avg() const {
@@ -184,7 +184,12 @@ struct Profile {
 
     ~Profile() {
         if (report_on_die) {
-            report();
+            try {
+                // avg() & others may throw exceptions if
+                // enabled behavior is broken
+                report();
+            } catch (...) {
+            }
         }
     }
 };

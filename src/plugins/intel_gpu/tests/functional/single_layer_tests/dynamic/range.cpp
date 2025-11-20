@@ -18,7 +18,8 @@ typedef std::tuple<
         std::vector<InputShape>,            // input shapes
         std::vector<float>,                 // input values
         ov::element::Type,                  // Model type
-        std::string                        // Device name
+        bool,                               // Use constant for start input
+        std::string                         // Device name
 > RangeDynamicGPUTestParamsSet;
 
 class RangeDynamicGPUTest : public testing::WithParamInterface<RangeDynamicGPUTestParamsSet>,
@@ -28,7 +29,7 @@ public:
         RangeDynamicGPUTestParamsSet basicParamsSet = obj.param;
         std::ostringstream result;
 
-        const auto& [inputShapes, inputValues, model_type, targetDevice] = basicParamsSet;
+        const auto& [inputShapes, inputValues, model_type, useConstantStart, targetDevice] = basicParamsSet;
 
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -42,6 +43,7 @@ public:
             result << v << "_";
         }
         result << "model_type=" << model_type << "_";
+        result << "useConstantStart=" << useConstantStart << "_";
         result << "targetDevice=" << targetDevice;
         return result.str();
     }
@@ -125,7 +127,7 @@ protected:
         RangeDynamicGPUTestParamsSet basicParamsSet = this->GetParam();
 
         ov::ParameterVector params;
-        const auto& [inputShapes, inputValues, _model_type, _targetDevice] = basicParamsSet;
+        const auto& [inputShapes, inputValues, _model_type, useConstantStart, _targetDevice] = basicParamsSet;
         auto model_type = _model_type;
         targetDevice = _targetDevice;
 
@@ -134,22 +136,32 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        if (model_type == ov::element::dynamic) {
-            std::vector<ov::element::Type> types = { ov::element::f32, ov::element::i32, ov::element::f32 };
-            for (size_t i = 0; i < types.size(); i++) {
-                auto paramNode = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
-                params.push_back(paramNode);
-            }
-            model_type = ov::element::f32;
-        } else {
-            for (auto&& shape : inputDynamicShapes) {
-                params.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
-            }
-        }
-        const auto range = std::make_shared<ov::op::v4::Range>(params[0], params[1], params[2], model_type);
+        if (useConstantStart) {
+            auto start = std::make_shared<ov::op::v0::Constant>(model_type, ov::Shape{}, input_values[0]);
+            auto step = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[1]);
+            auto stop = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[2]);
 
-        ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(range)};
-        function = std::make_shared<ov::Model>(results, params, "shapeof_out");
+            params = {step, stop};
+
+            const auto range = std::make_shared<ov::op::v4::Range>(start, step, stop, model_type);
+            ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(range)};
+            function = std::make_shared<ov::Model>(results, ov::ParameterVector{step, stop}, "RangeGPU");
+        } else {
+            if (model_type == ov::element::dynamic) {
+                std::vector<ov::element::Type> types = { ov::element::f32, ov::element::i32, ov::element::f32 };
+                for (size_t i = 0; i < types.size(); i++) {
+                    params.push_back(std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]));
+                }
+                model_type = ov::element::f32;
+            } else {
+                for (auto&& shape : inputDynamicShapes) {
+                    params.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
+                }
+            }
+            const auto range = std::make_shared<ov::op::v4::Range>(params[0], params[1], params[2], model_type);
+            ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(range)};
+            function = std::make_shared<ov::Model>(results, params, "shapeof_out");
+        }
     }
 
 private:
@@ -190,6 +202,7 @@ const std::vector<ov::element::Type> netPrecisions = {
 const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                  ::testing::ValuesIn(inputValues),
                                                  ::testing::ValuesIn(netPrecisions),
+                                                 ::testing::Values(false),
                                                  ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_range_01, RangeDynamicGPUTest,
@@ -207,11 +220,15 @@ const std::vector<std::vector<float>> inputFloatValues = {
 const std::vector<ov::element::Type> netFloatPrecisions = {
     ov::element::f16,
     ov::element::f32,
+    ov::element::f64,
 };
+
+const std::vector<bool> useConstStart = {true, false};
 
 const auto testFloatParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                       ::testing::ValuesIn(inputFloatValues),
                                                       ::testing::ValuesIn(netFloatPrecisions),
+                                                      ::testing::ValuesIn(useConstStart),
                                                       ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_range_02, RangeDynamicGPUTest,
@@ -232,6 +249,7 @@ const std::vector<ov::element::Type> netMixedPrecisions = {
 const auto testMixedParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                       ::testing::ValuesIn(inputMixedValues),
                                                       ::testing::ValuesIn(netMixedPrecisions),
+                                                      ::testing::Values(false),
                                                       ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_diff_types, RangeDynamicGPUTest,

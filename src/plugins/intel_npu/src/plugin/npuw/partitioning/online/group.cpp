@@ -110,7 +110,7 @@ ov::npuw::Group Group::toGroup() const {
     g.gflops = 0.0001f;  // FIXME: calculate proper flops
 
     if (m_repeated && !isNoFold()) {
-        g.repeated_id = ov::npuw::online::util::repeated_id(m_repeated);
+        g.repeated_id = m_repeated->id();
     }
 
     if (!m_avoided_devices.empty()) {
@@ -251,18 +251,12 @@ void Group::fuseWith(const Group::GPtr& gptr_cons) {
         LOG_DEBUG("Fusing...");
         LOG_BLOCK();
         {
-            LOG_DEBUG("Merger:");
-            LOG_BLOCK();
-            for (auto&& layer : m_content) {
-                LOG_DEBUG(layer);
-            }
+            LOG_DEBUG("Merger: " << this->specialTags());
+            dump();
         }
         {
-            LOG_DEBUG("Mergee:");
-            LOG_BLOCK();
-            for (auto&& layer : gptr_cons->m_content) {
-                LOG_DEBUG(layer);
-            }
+            LOG_DEBUG("Mergee: " << gptr_cons->specialTags());
+            gptr_cons->dump();
         }
     }
 
@@ -493,4 +487,11 @@ void Group::dontIsolate() {
 
 const std::string& Group::isolatedTag() const {
     return m_isol_tag;
+}
+
+void Group::dump() const {
+    LOG_BLOCK();
+    for (auto&& layer : m_content) {
+        LOG_DEBUG(layer);
+    }
 }

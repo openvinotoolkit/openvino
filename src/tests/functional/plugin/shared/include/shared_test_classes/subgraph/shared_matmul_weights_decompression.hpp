@@ -5,7 +5,8 @@
 #pragma once
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 
 namespace ov {
@@ -39,7 +40,7 @@ using MatmulSharedWeightsDecompressionParams =
                ElementType,                          // weights precision
                ElementType,                          // decompression precision
                bool,                                 // transpose on weights
-               DecompressionType,                    // decompression subtract type
+               ov::test::utils::DecompressionType,   // decompression subtract type
                bool,                                 // use matmul decompression implementation
                std::map<std::string, std::string>>;  // additional configeration
 
@@ -56,7 +57,7 @@ protected:
                                             const ov::element::Type weights_precision,
                                             const ov::element::Type decompression_precision,
                                             const bool transpose_weights,
-                                            const DecompressionType decompression_subtract_type);
+                                            const ov::test::utils::DecompressionType decompression_subtract_type);
     void SetUp() override;
     void check_results();
 };

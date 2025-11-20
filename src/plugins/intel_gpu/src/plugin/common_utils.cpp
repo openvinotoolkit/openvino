@@ -18,15 +18,68 @@
 
 namespace {
 
-template <typename src_t, typename dst_t>
-void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
-    OPENVINO_ASSERT(src && dst, "[GPU] Src or Dst ptr is null");
-    for (size_t i = 0; i < size; i++)
-        dst[i] = static_cast<dst_t>(src[i]);
+using namespace cldnn;
+using namespace std;
+
+static inline void get_linear_offset_params(layout& layout, tensor& start_pos, tensor& end_pos, vector<int64_t>& padded_sizes, vector<int64_t>& axes_map) {
+    auto fmt = layout.get_format();
+    auto data_padding = layout.get_padding();
+    auto default_fmt = format::get_default_format(fmt.dimension(), format::is_weights_format(fmt), format::is_grouped(fmt));
+
+    vector<tensor::value_type> lower_sizes, upper_sizes;
+    lower_sizes.assign(data_padding._lower_size.begin(), data_padding._lower_size.begin() + fmt.dimension());
+    upper_sizes.assign(data_padding._upper_size.begin(), data_padding._upper_size.begin() + fmt.dimension());
+    start_pos = tensor(default_fmt, lower_sizes, 0);
+    const auto& u_padd = tensor(default_fmt, upper_sizes, 0);
+
+    auto t = layout.get_tensor();
+    end_pos = t + start_pos;
+
+    replace(t.raw.begin(), t.raw.end(), 0, 1);
+
+    axes_map = format::get_internal_dims(fmt);
+    padded_sizes = (t + start_pos + u_padd).sizes(fmt);
+
+    if (padded_sizes.size() < axes_map.size()) {
+        OPENVINO_THROW("Unsupported padded layout dimension" + to_string(padded_sizes.size()));
+    }
 }
 
 template <typename src_t, typename dst_t>
-void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout layout) {
+static inline void convert_and_copy_padded_source_fast(const src_t* src, dst_t* dst, layout& layout) {
+    tensor axes_start_pos, axes_end_pos;
+    vector<int64_t> padded_sizes, axes_map;
+
+    get_linear_offset_params(layout, axes_start_pos, axes_end_pos, padded_sizes, axes_map);
+    const size_t map_len = axes_map.size();
+
+    for (int64_t b = axes_start_pos.batch[0]; b < axes_end_pos.batch[0]; b++) {
+        for (int64_t f = axes_start_pos.feature[0]; f < axes_end_pos.feature[0]; f++) {
+            for (int64_t w = axes_start_pos.spatial[3]; w < axes_end_pos.spatial[3]; w++) {
+                for (int64_t z = axes_start_pos.spatial[2]; z < axes_end_pos.spatial[2]; z++) {
+                    for (int64_t y = axes_start_pos.spatial[1]; y < axes_end_pos.spatial[1]; y++) {
+                        for (int64_t x = axes_start_pos.spatial[0]; x < axes_end_pos.spatial[0]; x++) {
+                            int64_t element_sizes[6] = {b, f, x, y, z, w};
+                            size_t offset = element_sizes[axes_map[0]];
+
+                            for (size_t i = 1; i < map_len; i++)
+                                offset = offset * padded_sizes[i] + element_sizes[axes_map[i]];
+
+                            *dst++ = static_cast<dst_t>(src[offset]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+template <typename src_t, typename dst_t>
+void convert_and_copy_padded_source(const src_t* src, dst_t* dst, layout& layout) {
+    if (format::is_default_format(layout.get_format())) {
+        return convert_and_copy_padded_source_fast(src, dst, layout);
+    }
+
     cldnn::tensor size = layout.get_tensor();
     for (int64_t b = 0; b < size.batch[0]; b++) {
         for (int64_t f = 0; f < size.feature[0]; f++) {
@@ -41,6 +94,13 @@ void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout 
             }
         }
     }
+}
+
+template <typename src_t, typename dst_t>
+void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
+    OPENVINO_ASSERT(src && dst, "[GPU] Src or Dst ptr is null");
+    for (size_t i = 0; i < size; i++)
+        dst[i] = static_cast<dst_t>(src[i]);
 }
 
 template <typename src_t, typename dst_t>

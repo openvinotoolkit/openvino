@@ -907,7 +907,8 @@ struct MHAHelper {
                                                new_causal,
                                                rnd_up(cur_kv_len, _block_size) - start_idx,
                                                precision_of<DATA_TYPE>::value,
-                                               precision_of<DATA_TYPE>::value);
+                                               precision_of<DATA_TYPE>::value,
+                                               nullptr);
 
                     memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                 } else {
@@ -929,6 +930,7 @@ struct MHAHelper {
                                                rnd_up(cur_kv_len, _block_size),
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
+                                               nullptr,
                                                alibi_slope);
                 }
                 if (score_output && m >= q_start_idx_score) {
@@ -1083,7 +1085,8 @@ struct MHAHelper {
                                                new_causal,
                                                rnd_up(cur_kv_len, _block_size) - start_idx,
                                                precision_of<DATA_TYPE>::value,
-                                               precision_of<DATA_TYPE>::value);
+                                               precision_of<DATA_TYPE>::value,
+                                               nullptr);
 
                     memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                 } else {
@@ -1105,6 +1108,7 @@ struct MHAHelper {
                                                rnd_up(cur_kv_len, _block_size),
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
+                                               nullptr,
                                                alibi_slope);
                 }
                 if (score_output && m >= q_start_idx_score) {
@@ -1223,6 +1227,7 @@ struct MHAHelper {
                                            cur_kv_len,
                                            ov::element::f32,
                                            ov::element::f32,
+                                           nullptr,
                                            alibi_slope);
                 if (score_output) {
                     // aligned to cache line to avoid false sharing
@@ -1400,6 +1405,7 @@ struct MHAHelper {
                                        cur_kv_len,
                                        ov::element::f32,
                                        ov::element::f32,
+                                       nullptr,
                                        alibi_slope);
         };
 
@@ -1870,6 +1876,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               PlainTensor& xattention_threshold,
               int32_t& xattention_block_size,
               int32_t& xattention_stride,
+              PlainTensor& sinks,
               PlainTensor& output_emb,
               PlainTensor& output_score) {
         q.reset(inputs[ID_Q]);  // [B_token, H * S]
@@ -1893,7 +1900,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        OPENVINO_ASSERT(inputs_size == 20);
+        OPENVINO_ASSERT(inputs_size == 21);
         if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
             rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
@@ -1910,6 +1917,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
         xattention_stride = *inputs[ID_XATTENTION_STRIDE]->getDataAs<int32_t>();
         xattention_block_size = *inputs[ID_XATTENTION_BLOCK_SIZE]->getDataAs<int32_t>();
+
+        if (!inputs[ID_SINKS]->getShape().hasZeroDims()) {
+            sinks.reset(inputs[ID_SINKS]);  // [1, 64, 1, 1]
+        }
 
         output_emb.reset(outputs[0]);
         if (outputs.size() == 2) {
@@ -2052,6 +2063,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             // block sparse operation and importance score computation impls
         }
 
+        if (sinks) {
+            sinks.assert_dims({1, H, 1, 1});
+        }
+
         output_emb.assert_dims({B_token, H * SV});
         output_emb = output_emb.reshape({B_token, 1, H * SV});
 
@@ -2147,6 +2162,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         int32_t xattention_block_size = 0;
         int32_t xattention_stride = 0;
 
+        PlainTensor sinks;
+
         PlainTensor output_emb;
         PlainTensor output_score;
 
@@ -2172,6 +2189,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              xattention_threshold,
              xattention_block_size,
              xattention_stride,
+             sinks,
              output_emb,
              output_score);
 

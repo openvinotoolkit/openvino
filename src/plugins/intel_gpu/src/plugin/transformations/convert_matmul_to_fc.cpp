@@ -28,7 +28,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
     };
     auto weights_path = [&static_rank_gt_1](const ov::Output<ov::Node>& output) {
         const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_constant_path(output) &&
+        return ov::op::util::is_on_path<ov::op::v0::Constant>(output) &&
                static_rank_gt_1(output) &&
                pshape.is_static();
     };

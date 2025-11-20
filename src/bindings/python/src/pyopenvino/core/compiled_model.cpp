@@ -30,7 +30,7 @@ void regclass_CompiledModel(py::module m) {
             // Create temporary ov::InferRequest and move it to actual wrapper class.
             ov::InferRequest request;
             {
-                ConditionalGILScopedRelease release;
+                py::gil_scoped_release release;
                 request = self.create_infer_request();
             }
             return std::make_shared<InferRequestWrapper>(std::move(request), self.inputs(), self.outputs());
@@ -171,7 +171,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("get_runtime_model",
             &ov::CompiledModel::get_runtime_model,
-            CallGuardConditionalGILRelease(),
+            py::call_guard<py::gil_scoped_release>(),
             R"(
                 Gets runtime model information from a device.
 
@@ -186,7 +186,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("release_memory",
             &ov::CompiledModel::release_memory,
-            CallGuardConditionalGILRelease(),
+            py::call_guard<py::gil_scoped_release>(),
             R"(
                 Release intermediate memory.
 
@@ -251,6 +251,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("output",
             (const ov::Output<const ov::Node>& (ov::CompiledModel::*)() const) & ov::CompiledModel::output,
+            py::return_value_policy::reference_internal,
             R"(
                 Gets a single output of a compiled model.
                 If the model has more than one output, this method throws an exception.
@@ -261,6 +262,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("output",
             (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(size_t) const) & ov::CompiledModel::output,
+            py::return_value_policy::reference_internal,
             py::arg("index"),
             R"(
                 Gets output of a compiled model identified by an index.
@@ -275,6 +277,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def("output",
             (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&) const) &
                 ov::CompiledModel::output,
+            py::return_value_policy::reference_internal,
             py::arg("tensor_name"),
             R"(
                 Gets output of a compiled model identified by a tensor_name.

@@ -1,0 +1,65 @@
+ir_version: 10
+graph {
+  node {
+    input: "input"
+    output: "sequence"
+    op_type: "SplitToSequence"
+    attribute {
+      name: "axis"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "keepdims"
+      i: 1
+      type: INT
+    }
+  }
+  node {
+    input: "sequence"
+    input: "position"
+    output: "output"
+    op_type: "SequenceAt"
+  }
+  name: "sequence_at_model"
+  initializer {
+    data_type: 7
+    int64_data: 1
+    name: "position"
+  }
+  input {
+    name: "input"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

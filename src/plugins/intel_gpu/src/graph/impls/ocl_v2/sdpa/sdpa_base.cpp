@@ -348,6 +348,21 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
         return pshape;
     };
 
+    auto extend_padding_to_rank_in_num_heads_dim = [](const padding& input_padding, size_t input_rank, size_t target_rank = 4) {
+        if (input_rank == target_rank) {
+            return input_padding;
+        }
+
+        std::vector<ov::Dimension::value_type> pad_low(input_padding._lower_size.begin(), input_padding._lower_size.begin() + input_rank);
+        std::vector<ov::Dimension::value_type> pad_up(input_padding._upper_size.begin(), input_padding._upper_size.begin() + input_rank);
+
+        const size_t num_heads_dim = 1;
+        pad_low.insert(pad_low.begin() + num_heads_dim, 0);
+        pad_up.insert(pad_up.begin() + num_heads_dim, 0);
+
+        return padding(pad_low, pad_up, input_padding._dynamic_dims_mask);
+    };
+
     const auto attn_mask_idx = 3;
     if (updated_impl_params.input_layouts.size() > attn_mask_idx) {
         const auto attn_mask_shape = updated_impl_params.input_layouts[attn_mask_idx].get_partial_shape();
@@ -356,8 +371,12 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
 
     // For scale of 1D tensor or attention_mask of empty shape, use extend_shape_to_rank_from_end as before
     for (auto& input_layout : updated_impl_params.input_layouts) {
-        input_layout.set_partial_shape(input_layout.get_partial_shape().size() <= 1 ? extend_shape_to_rank_from_end(input_layout.get_partial_shape())
-                                                                                    : extend_pshape_to_rank_in_num_heads_dim(input_layout.get_partial_shape()));
+        size_t input_rank = input_layout.get_partial_shape().size();
+        input_layout.set_partial_shape(input_rank <= 1 ? extend_shape_to_rank_from_end(input_layout.get_partial_shape())
+                                                       : extend_pshape_to_rank_in_num_heads_dim(input_layout.get_partial_shape()));
+        if (input_layout.data_padding) {
+            input_layout.data_padding = extend_padding_to_rank_in_num_heads_dim(input_layout.data_padding, input_rank);
+        }
     }
 
     auto& output_layout = updated_impl_params.output_layouts[0];

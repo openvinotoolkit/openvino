@@ -26,9 +26,6 @@ public:
                        emitter_in_out_map in_out_type);
 
 protected:
-    static size_t get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr);
-    static size_t get_consumer_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr);
-
     size_t aux_gprs_count() const override;
 
     std::vector<size_t> get_available_aux_gprs() const;

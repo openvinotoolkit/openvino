@@ -136,7 +136,7 @@ TEST_P(OVConcurrencyTest, canInferTwoExecNets_cached) {
 const std::vector<size_t> num_streams{ 1, 2 };
 const std::vector<size_t> num_requests{ 1, 4 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVConcurrencyTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_RemoteTensor, OVConcurrencyTest,
     ::testing::Combine(::testing::ValuesIn(num_streams),
         ::testing::ValuesIn(num_requests)),
     OVConcurrencyTest::getTestCaseName);

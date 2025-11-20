@@ -9,6 +9,7 @@ import numpy as np
 from tests.utils.helpers import (
     get_relu_model,
     generate_image,
+    tensor_from_bytes,
     generate_model_and_image,
     generate_concat_compiled_model,
     generate_relu_compiled_model,
@@ -38,7 +39,7 @@ def test_get_runtime_model(device):
     assert isinstance(runtime_model, Model)
 
 
-def test_export_import(device):
+def test_export_import_stream(device):
     core = Core()
 
     if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
@@ -49,6 +50,25 @@ def test_export_import(device):
     user_stream = compiled_model.export_model()
 
     new_compiled = core.import_model(user_stream, device)
+
+    img = generate_image()
+    res = new_compiled.infer_new_request({"data": img})
+
+    assert np.argmax(res[new_compiled.outputs[0]]) == 531
+
+
+def test_export_import_tensor(device):
+    core = Core()
+
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
+
+    compiled_model = generate_relu_compiled_model(device)
+
+    user_stream = compiled_model.export_model()
+    exported_model_tensor = tensor_from_bytes(user_stream)
+
+    new_compiled = core.import_model(exported_model_tensor, device)
 
     img = generate_image()
     res = new_compiled.infer_new_request({"data": img})

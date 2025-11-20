@@ -11,13 +11,14 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "ir_serializer.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "vcl_serializer.hpp"
 #include "weightless_graph.hpp"
 
 namespace {
+
 bool isInitMetadata(const intel_npu::NetworkMetadata& networkMetadata) {
     if (networkMetadata.inputs.size() == 0) {
         return false;
@@ -80,7 +81,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const Config& config) const {
+                                                       const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
@@ -88,28 +89,30 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    driver_compiler_utils::IRSerializer irSerializer(model, maxOpsetVersion);
-    SerializedIR serializedIR = irSerializer.serializeIR(model, compilerVersion, maxOpsetVersion);
+
+    auto serializedIR = driver_compiler_utils::serializeIR(
+        model,
+        compilerVersion,
+        maxOpsetVersion,
+        config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? config.get<USE_BASE_MODEL_SERIALIZER>()
+                                                                            : true);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
     _logger.debug("build flags");
-    buildFlags += irSerializer.serializeIOInfo(model, useIndices);
+    buildFlags += driver_compiler_utils::serializeIOInfo(model, useIndices);
     buildFlags += " ";
-    buildFlags += irSerializer.serializeConfig(config, compilerVersion, is_option_supported("NPU_TURBO"));
+    buildFlags += driver_compiler_utils::serializeConfig(config,
+                                                         compilerVersion,
+                                                         _zeGraphExt->isTurboOptionSupported(compilerVersion));
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
-    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-    uint32_t flags = ZE_GRAPH_FLAG_NONE;
-    const auto set_cache_dir = config.get<CACHE_DIR>();
-    if (!set_cache_dir.empty() || config.get<BYPASS_UMD_CACHING>()) {
-        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
-    }
-
     _logger.debug("compile start");
-    auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, flags);
+    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
+    const bool bypassCache = !config.get<CACHE_DIR>().empty() || config.get<BYPASS_UMD_CACHING>();
+    auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, bypassCache);
     _logger.debug("compile end");
 
     OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
@@ -125,7 +128,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
-                                                         const Config& config) const {
+                                                         const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
 
     storeWeightlessCacheAttribute(model);
@@ -148,25 +151,22 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
 
     _logger.debug("serialize IR");
-    driver_compiler_utils::IRSerializer irSerializer(model, maxOpsetVersion);
-    SerializedIR serializedIR = irSerializer.serializeIR(model, compilerVersion, maxOpsetVersion);
+    auto serializedIR = driver_compiler_utils::serializeIR(
+        model,
+        compilerVersion,
+        maxOpsetVersion,
+        config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? config.get<USE_BASE_MODEL_SERIALIZER>()
+                                                                            : true);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
-    const std::string serializedIOInfo = irSerializer.serializeIOInfo(model, useIndices);
+    const std::string serializedIOInfo = driver_compiler_utils::serializeIOInfo(model, useIndices);
     const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
     if (plgConfig == nullptr) {
         OPENVINO_THROW("config is not FilteredConfig");
     }
     FilteredConfig updatedConfig = *plgConfig;
-
-    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-    uint32_t flags = ZE_GRAPH_FLAG_NONE;
-    const auto set_cache_dir = config.get<CACHE_DIR>();
-    if (!set_cache_dir.empty() || config.get<BYPASS_UMD_CACHING>()) {
-        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
-    }
 
     // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
     // the current call iteration.
@@ -188,10 +188,14 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
         _logger.debug("build flags");
         buildFlags = serializedIOInfo;
         buildFlags += " ";
-        buildFlags += irSerializer.serializeConfig(updatedConfig, compilerVersion);
+        buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
+                                                             compilerVersion,
+                                                             _zeGraphExt->isTurboOptionSupported(compilerVersion));
 
         _logger.debug("compile start");
-        auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, flags);
+        // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
+        const bool bypassCache = !config.get<CACHE_DIR>().empty() || config.get<BYPASS_UMD_CACHING>();
+        auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, bypassCache);
         _logger.debug("compile end");
 
         OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
@@ -233,7 +237,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     ov::Tensor mainBlob,
-    const Config& config,
+    const FilteredConfig& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
@@ -287,7 +291,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
-                                                 const Config& config) const {
+                                                 const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(query_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "query");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
@@ -295,11 +299,15 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    driver_compiler_utils::IRSerializer irSerializer(model, maxOpsetVersion);
-    SerializedIR serializedIR = irSerializer.serializeIR(model, compilerVersion, maxOpsetVersion);
+    auto serializedIR = driver_compiler_utils::serializeIR(
+        model,
+        compilerVersion,
+        maxOpsetVersion,
+        config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? config.get<USE_BASE_MODEL_SERIALIZER>()
+                                                                            : true);
 
     std::string buildFlags;
-    buildFlags += irSerializer.serializeConfig(config, compilerVersion);
+    buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     ov::SupportedOpsMap result;

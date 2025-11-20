@@ -23,10 +23,6 @@ Pattern::Pattern(const NodeVector& patterns) : Pattern(as_output_vector(patterns
 Pattern::Pattern(const OutputVector& patterns, const op::Predicate& pred) : Node(patterns), m_predicate(pred) {}
 Pattern::Pattern(const NodeVector& patterns, const op::Predicate& pred) : Pattern(as_output_vector(patterns), pred) {}
 
-Predicate as_value_predicate(NodePredicate pred) {
-    return Predicate(pred);
-}
-
 std::ostream& Pattern::write_type_description(std::ostream& out) const {
     auto version = get_type_info().version_id;
     if (version)
@@ -615,4 +611,22 @@ op::Predicate value_matches(const std::string& value_notation) {
         },
         "value_matches('" + value_notation + "')");
 }
+
+op::Predicate output_index_matches(size_t expected_index) {
+    return op::Predicate(
+        [=](const Output<Node>& output) -> bool {
+            return output.get_index() == expected_index;
+        },
+        "output_index_matches(" + std::to_string(expected_index) + ")");
+}
+
+op::Predicate output_index_matches(const std::vector<size_t>& expected_indices) {
+    return op::Predicate(
+        [=](const Output<Node>& output) -> bool {
+            const auto output_index = output.get_index();
+            return std::find(expected_indices.begin(), expected_indices.end(), output_index) != expected_indices.end();
+        },
+        "output_index_matches({" + ov::util::join(expected_indices) + "})");
+}
+
 }  // namespace ov::pass::pattern

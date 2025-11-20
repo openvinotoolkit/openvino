@@ -361,7 +361,6 @@ OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_linear_awq);
 OP_CONVERTER(translate_linear_bitnet);
 OP_CONVERTER(translate_linear_ext);
-
 }  // namespace op
 
 // Supported ops for TorchScript
@@ -545,6 +544,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::grid_sampler", op::translate_grid_sampler},
         {"aten::group_norm", op::translate_group_norm},
         {"aten::gru", op::translate_gru},
+        {"aten::greater", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
         {"aten::gt", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
         {"aten::hann_window", op::translate_hann_window},
         {"aten::hardsigmoid", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSigmoid>>},
@@ -577,6 +577,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::len", op::translate_len},
         {"aten::lerp", op::translate_lerp},
+        {"aten::less", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         // lift op is torchscript specific op responsible for tensors coping with guarantee of new memory allocation
         {"aten::lift", op::skip_node},
         {"aten::lift_fresh", op::skip_node},
@@ -643,6 +644,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::norm", op::translate_norm},
         {"aten::normal", op::translate_normal},
         {"aten::normal_", op::translate_normal_},
+        {"aten::not_equal", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::numel", op::translate_numel},
         {"aten::numpy_T", op::translate_t},
         {"aten::one_hot", op::translate_one_hot},
@@ -801,6 +803,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::TupleIndex", op::translate_tuple_index},
         // prim::TupleUnpack - Supported in limited set of patterns
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
+        {"prim::data", op::skip_node},
         {"quantized::add", op::translate_quantized_add},
         {"quantized::add_relu", op::translate_quantized_add_relu},
         {"quantized::cat", op::translate_quantized_cat},
@@ -860,6 +863,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.addcmul.default", op::translate_addcmul_fx},
         {"aten.addmm.default", op::translate_addmm_fx},
         {"aten.alias.default", op::skip_node},
+        {"aten.alias_copy.default", op::translate_alias_copy},
         {"aten.all.default", op::translate_all},
         {"aten.amax.default", op::translate_amax},
         {"aten.amin.default", op::translate_amin},

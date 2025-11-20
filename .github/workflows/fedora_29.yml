@@ -1,4 +1,4 @@
-name: Fedora 29 (RHEL 8.4), Python 3.9
+name: Fedora 29 (RHEL 8.4), Python 3.10
 on:
   workflow_dispatch:
     inputs:
@@ -101,7 +101,6 @@ jobs:
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
         -G 'Ninja'
-        -DENABLE_CPPLINT=OFF 
         -DENABLE_NCC_STYLE=OFF 
         -DENABLE_INTEL_NPU=OFF 
         -DENABLE_TESTS=ON 

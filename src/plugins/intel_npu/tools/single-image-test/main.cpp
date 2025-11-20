@@ -896,6 +896,8 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
         }
     } else {
         if (fileBytes == reqTensorBytes) {
+            OPENVINO_ASSERT(reqTensorBytes <= static_cast<size_t>(std::numeric_limits<std::streamsize>::max()),
+                            "Requested tensor size is too big to convert to signed streamsize: ", reqTensorBytes);
             binaryFile.read(reinterpret_cast<char*>(requestedTensor.data()),
                             static_cast<std::streamsize>(reqTensorBytes));
         } else {
@@ -974,6 +976,10 @@ ov::Tensor loadTensor(const ov::element::Type& precision, const ov::Shape& shape
     OPENVINO_ASSERT(file.is_open(), "Can't open file ", filePath, " for read");
 
     const auto dataBuffer = reinterpret_cast<char*>(tensor.data());
+
+    OPENVINO_ASSERT(tensor.get_byte_size() <= static_cast<size_t>(std::numeric_limits<std::streamsize>::max()),
+                    "Tensor size is too big to convert to signed streamsize: ", tensor.get_byte_size());
+
     file.read(dataBuffer, static_cast<std::streamsize>(tensor.get_byte_size()));
 
     return tensor;
@@ -984,6 +990,10 @@ void dumpTensor(const ov::Tensor& tensor, const std::string& filePath) {
     OPENVINO_ASSERT(file.is_open(), "Can't open file ", filePath, " for write");
 
     const auto dataBuffer = reinterpret_cast<const char*>(tensor.data());
+
+    OPENVINO_ASSERT(tensor.get_byte_size() <= static_cast<size_t>(std::numeric_limits<std::streamsize>::max()),
+                    "Tensor size is too big to convert to signed streamsize: ", tensor.get_byte_size());
+
     file.write(dataBuffer, static_cast<std::streamsize>(tensor.get_byte_size()));
 }
 
@@ -2357,7 +2367,7 @@ static int runSingleImageTest() {
                         outLayerModelLayout = getLayoutByRank(shape.size());
                         std::cout << "WARNING: Configuring preprocessing. Since --oml option isn't set, output model "
                                      "layout for layer \""
-                                  << outputInfo[i].get_any_name() << "\" is infered from shape: " << shape.to_shape()
+                                  << outputInfo[i].get_any_name() << "\" is infered from shape: " << shape.to_string()
                                   << " rank (" << shape.size() << ") as " << outLayerModelLayout.to_string()
                                   << std::endl;
                     }
@@ -2550,7 +2560,7 @@ static int runSingleImageTest() {
                     inputLayout = getLayoutByRank(shape.size());
                     std::cout << "WARNING: Loading input data. Since --iml option isn't set, input model layout for "
                                  "layer \""
-                              << inputInfo.get_any_name() << "\" is infered from shape: " << shape.to_shape()
+                              << inputInfo.get_any_name() << "\" is infered from shape: " << shape.to_string()
                               << " rank (" << shape.size() << ") as " << inputLayout.to_string() << std::endl;
                 }
 

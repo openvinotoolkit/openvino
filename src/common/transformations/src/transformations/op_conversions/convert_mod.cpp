@@ -18,6 +18,7 @@
 #include "openvino/op/sign.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/nonconvertible_divide.hpp"
 
 ov::pass::ConvertMod::ConvertMod() {
     MATCHER_SCOPE(ConvertMod);
@@ -36,6 +37,7 @@ ov::pass::ConvertMod::ConvertMod() {
 
         // truncated(a / b)
         auto div = register_new_node<ov::op::v1::Divide>(dividend, divisor);
+        disable_divide_conversion(div);
         auto convert_to_i64 = std::make_shared<ov::op::v0::Convert>(div, ov::element::i64);
         auto convert = std::make_shared<ov::op::v0::Convert>(convert_to_i64, dividend_et);
         // truncated(a / b) * b
