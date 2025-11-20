@@ -94,12 +94,17 @@ ov::unit_test::intel_npu::DummyTestOption intel_npu::OptionParser<ov::unit_test:
     } else if (val == "TESTVALUE_2") {
         return ov::unit_test::intel_npu::DummyTestOption::TESTVALUE_2;
     }
-    OPENVINO_THROW("Cannot parse DummyTestOption", val);
+    OPENVINO_THROW("Cannot parse DummyTestOption: ", val);
 }
+
+namespace {
 
 using ConfigUnitTests = ::testing::Test;
 
 using namespace ov::unit_test::intel_npu;
+
+static constexpr std::string_view hardcodedTestValue3 = "TESTVALUE_3";
+static constexpr std::string_view expectedParseErrorMessage = "Cannot parse DummyTestOption: TESTVALUE_3";
 
 TEST_F(ConfigUnitTests, DefaultOptionValueCheckerWorks) {
     intel_npu::OptionsDesc options;
@@ -123,7 +128,10 @@ TEST_F(ConfigUnitTests, OptionImplementationValueCheckerWorks) {
     options.add<DUMMY_TEST_OPTION>();
     options.add<DUMMY_TEST_OPTION_CUSTOM_CLASS_CHECKER>();
 
-    static constexpr std::string_view hardcodedTestValue3 = "TESTVALUE_3";
+    // make sure TESTVALUE_3 cannot be parsed by DUMMY_TEST_OPTION
+    OV_EXPECT_THROW_HAS_SUBSTRING(DUMMY_TEST_OPTION::parse(hardcodedTestValue3),
+                                  ov::Exception,
+                                  expectedParseErrorMessage.data());
 
     ASSERT_EQ(false,
               std::invoke(options.get(dummy_test_option.name()).isValueSupported,
@@ -148,32 +156,39 @@ TEST_F(ConfigUnitTests, OptionImplementationValueCheckerWorks) {
 
 TEST_F(ConfigUnitTests, CustomValueCheckerWorks) {
     intel_npu::OptionsDesc options;
-    options.add<DUMMY_TEST_OPTION>([](std::string_view val) {  // custom value checker is given on option registration
-        return false;
-    });
-    options.add<DUMMY_TEST_OPTION_CUSTOM_CLASS_CHECKER>([](std::string_view val) {
+    options.add<DUMMY_TEST_OPTION>(
+        [](std::string_view /* unusedVal */) {  // custom value checker is given on option registration
+            return true;
+        });
+    options.add<DUMMY_TEST_OPTION_CUSTOM_CLASS_CHECKER>([](std::string_view /* unusedVal */) {
         return false;
     });
 
-    ASSERT_EQ(false,
-              std::invoke(
-                  options.get(dummy_test_option.name()).isValueSupported,
-                  options.get(dummy_test_option.name()),
-                  DUMMY_TEST_OPTION::toString(DummyTestOption::TESTVALUE_0)));  // even if TESTVALUE_0 can be parsed,
-                                                                                // custom checker should be prioritized
-    ASSERT_EQ(
-        false,
-        (options.get(dummy_test_option.name()).*options.get(dummy_test_option.name()).isValueSupported)(
-            DUMMY_TEST_OPTION::toString(DummyTestOption::TESTVALUE_1)));  // same check as above, but using other syntax
-                                                                          // for calling class member function pointer
+    // make sure TESTVALUE_3 cannot be parsed by DUMMY_TEST_OPTION
+    OV_EXPECT_THROW_HAS_SUBSTRING(DUMMY_TEST_OPTION::parse(hardcodedTestValue3),
+                                  ov::Exception,
+                                  expectedParseErrorMessage.data());
 
-    // same expectations even if class implements self `isValueSupported` method
+    ASSERT_EQ(true,
+              std::invoke(options.get(dummy_test_option.name()).isValueSupported,
+                          options.get(dummy_test_option.name()),
+                          hardcodedTestValue3));  // even if TESTVALUE_3 cannot be parsed,
+                                                  // custom checker should be prioritized
+    ASSERT_EQ(true,
+              (options.get(dummy_test_option.name()).*options.get(dummy_test_option.name()).isValueSupported)(
+                  hardcodedTestValue3));  // same check as above, but using other syntax
+                                          // for calling class member function pointer
+
+    // same prioritization expectation for custom value checker even if class implements self `isValueSupported` method
+    // which returns `true`
     ASSERT_EQ(false,
               std::invoke(options.get(dummy_test_option_custom_class_checker.name()).isValueSupported,
                           options.get(dummy_test_option_custom_class_checker.name()),
-                          DUMMY_TEST_OPTION_CUSTOM_CLASS_CHECKER::toString(DummyTestOption::TESTVALUE_2)));
+                          hardcodedTestValue3));
     ASSERT_EQ(false,
               (options.get(dummy_test_option_custom_class_checker.name()).*
                options.get(dummy_test_option_custom_class_checker.name()).isValueSupported)(
                   DUMMY_TEST_OPTION_CUSTOM_CLASS_CHECKER::toString(DummyTestOption::TESTVALUE_2)));
 }
+
+}  // namespace
