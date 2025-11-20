@@ -169,19 +169,19 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
                         file_descriptor.name(),
                         " found in parameters map");
 
-        if (!_init_structs->isExternalMemoryStandardAllocationSupported()) {
-            _logger.info("Importing mmaped memory isn't supported for this configuration. File data will be copied to "
-                         "the level zero memory");
-            copy_file_data_to_level_zero_memory(bytes);
-            break;
-        }
-
         if (_tensor_type == TensorType::OUTPUT) {
             // It is impossible to work on output today since ov::read_tensor_data opens the file in read-only mode.
             OPENVINO_THROW("Importing memory from a memory-mapped file is supported only for input tensors");
         } else if (_tensor_type == TensorType::BINDED) {
             _logger.warning("Importing memory from a memory-mapped file is supported only for input tensors");
             _tensor_type = TensorType::INPUT;
+        }
+
+        if (!_init_structs->isExternalMemoryStandardAllocationSupported()) {
+            _logger.info("Importing mmaped memory isn't supported for this configuration. File data will be copied to "
+                         "the level zero memory");
+            copy_file_data_to_level_zero_memory(bytes);
+            break;
         }
 
         _mmap_tensor = ov::read_tensor_data(_file_descriptor.value()._file_path,
@@ -212,7 +212,6 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
             bytes,
             _tensor_type == TensorType::INPUT ? true : false);
         _data = _host_memory->data();
-
         break;
     }
     default:
