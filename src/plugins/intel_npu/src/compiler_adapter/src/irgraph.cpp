@@ -30,7 +30,7 @@ void IRGraph::MemRefType::setSize(const intel_npu::IODescriptor& desc) {
 void IRGraph::MemRefType::updateStride() {
     // Note: NCHW layout
     uint64_t stride = 1;
-    for (size_t i = 4 - 1; i > 0; --i) {
+    for (int32_t i = 4 - 1; i >= 0; --i) {
         memRef.strides[i] = stride;
         stride *= memRef.sizes[i];
     }
@@ -508,7 +508,7 @@ void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
     for (auto& out : outputDescriptors) {
         outputs.push_back(&out.memRef);
     }
-    if (npuMLIRRuntimePredictOutputShape(_engine, inputs.data(), inputs.size(), outputs.data(), outputs.size()) !=
+    if (npuMLIRRuntimePredictOutputShape(_engine, inputs.data(), (uint32_t)inputs.size(), outputs.data(), (uint32_t)outputs.size()) !=
         NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute MLIR runtime engine");
     }
