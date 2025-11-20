@@ -19,6 +19,7 @@
 #include "transformations/convert_precision.hpp"
 
 #include "template/properties.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 #include "common_test_utils/graph_comparator.hpp"
 
@@ -70,15 +71,52 @@ void SubgraphBaseTest::run() {
     if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler->StartTimer();
 
+        // Print GPU device information for debugging SEH exception
+        if (targetDevice == "GPU") {
+            try {
+                std::cout << "[DEBUG_CVS-172561] === GPU Device Information ===" << std::endl;
+                auto availableDevices = core->get_available_devices();
+                for (const auto& device : availableDevices) {
+                    if (device.find("GPU") != std::string::npos) {
+                        std::cout << "[DEBUG_CVS-172561] Device: " << device << std::endl;
+                        try {
+                            auto full_name = core->get_property(device, ov::device::full_name);
+                            std::cout << "[DEBUG_CVS-172561]   Full Name: " << full_name << std::endl;
+                        } catch (...) {}
+                        try {
+                            auto driver_ver = core->get_property(device, "GPU_DRIVER_VERSION").as<std::string>();
+                            std::cout << "[DEBUG_CVS-172561]   Driver Version: " << driver_ver << std::endl;
+                        } catch (...) {}
+                    }
+                }
+                std::cout.flush();
+            } catch (const std::exception& e) {
+                std::cout << "[DEBUG_CVS-172561] Failed to get GPU device info: " << e.what() << std::endl;
+                std::cout.flush();
+            }
+        }
+
         ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
         std::string errorMessage;
         try {
+            std::cout << "[DEBUG_CVS-172561] Before compile_model(), function name: " << function->get_friendly_name()
+                      << ", targetDevice: " << targetDevice << std::endl;
             compile_model();
+            std::cout << "[DEBUG_CVS-172561] After compile_model() - SUCCESS" << std::endl;
+            std::cout << "[DEBUG_CVS-172561] targetStaticShapes.size() = " << targetStaticShapes.size() << std::endl;
+            size_t shape_idx = 0;
             for (const auto& targetStaticShapeVec : targetStaticShapes) {
+                std::cout << "[DEBUG_CVS-172561] Processing shape index " << shape_idx++ << ", size: " << targetStaticShapeVec.size() << std::endl;
+                std::cout << "[DEBUG_CVS-172561] Before generate_inputs()" << std::endl;
                 generate_inputs(targetStaticShapeVec);
+                std::cout << "[DEBUG_CVS-172561] After generate_inputs() - SUCCESS, inputs.size() = " << inputs.size() << std::endl;
+                std::cout << "[DEBUG_CVS-172561] Before validate()" << std::endl;
                 validate();
+                std::cout << "[DEBUG_CVS-172561] After validate() - SUCCESS" << std::endl;
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
+            std::cout << "[DEBUG_CVS-172561] All validations passed, test execution completed" << std::endl;
+            std::cout.flush();
         } catch (const std::exception& ex) {
             if (callback_exception != nullptr) {
                 // exception will be checked by callback.
@@ -96,12 +134,35 @@ void SubgraphBaseTest::run() {
         if (status != ov::test::utils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
+
+        // Monitor GPU resource cleanup before test exit
+        if (targetDevice.find("GPU") != std::string::npos) {
+            std::cout << "[DEBUG_CVS-172561] Before GPU resource cleanup, compiledModel valid: " 
+                      << (compiledModel ? "yes" : "no") << std::endl;
+            try {
+                auto mem_stats = core->get_property(targetDevice, ov::intel_gpu::memory_statistics);
+                std::cout << "[DEBUG_CVS-172561] GPU Memory Statistics (before cleanup):" << std::endl;
+                for (const auto& stat : mem_stats) {
+                    std::cout << "[DEBUG_CVS-172561]   " << stat.first << ": " << stat.second << " bytes" << std::endl;
+                }
+            } catch (...) {}
+            std::cout.flush();
+        }
+
+        std::cout << "[DEBUG_CVS-172561] run() method ending normally" << std::endl;
+        std::cout.flush();
     } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
+        std::cout << "[DEBUG_CVS-172561] CRASH DETECTED (anyError)" << std::endl;
+        std::cout.flush();
         OPENVINO_THROW("Crash happens");
     } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
+        std::cout << "[DEBUG_CVS-172561] TIMEOUT DETECTED (alarmErr)" << std::endl;
+        std::cout.flush();
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         OPENVINO_THROW("Crash happens");
     }
+    std::cout << "[DEBUG_CVS-172561] SubgraphBaseTest::run() exiting" << std::endl;
+    std::cout.flush();
 }
 
 void SubgraphBaseTest::serialize() {
@@ -293,11 +354,49 @@ void SubgraphBaseTest::compile_model() {
     if (is_report_stages) {
         std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is started" << std::endl;
     }
+    std::cout << "[DEBUG_CVS-172561] compile_model() started" << std::endl;
     auto start_time = std::chrono::system_clock::now();
 
+    std::cout << "[DEBUG_CVS-172561] Before configure_model()" << std::endl;
     configure_model();
+    std::cout << "[DEBUG_CVS-172561] After configure_model() - SUCCESS" << std::endl;
+    std::cout << "[DEBUG_CVS-172561] Function parameters count: " << function->get_parameters().size() << std::endl;
+    std::cout << "[DEBUG_CVS-172561] Function results count: " << function->get_results().size() << std::endl;
+    std::cout << "[DEBUG_CVS-172561] Before core_configuration()" << std::endl;
     core_configuration(this);
+    std::cout << "[DEBUG_CVS-172561] After core_configuration() - SUCCESS" << std::endl;
+    std::cout << "[DEBUG_CVS-172561] Before core->compile_model(), targetDevice: " << targetDevice << std::endl;
+    std::cout << "[DEBUG_CVS-172561] Configuration size: " << configuration.size() << std::endl;
+
+    // Check GPU memory before compilation
+    if (targetDevice.find("GPU") != std::string::npos) {
+        try {
+            auto mem_stats = core->get_property(targetDevice, ov::intel_gpu::memory_statistics);
+            std::cout << "[DEBUG_CVS-172561] GPU Memory Statistics (before compile):" << std::endl;
+            for (const auto& stat : mem_stats) {
+                std::cout << "[DEBUG_CVS-172561]   " << stat.first << ": " << stat.second << " bytes" << std::endl;
+            }
+        } catch (...) {
+            std::cout << "[DEBUG_CVS-172561] Unable to query GPU memory statistics" << std::endl;
+        }
+        std::cout.flush();
+    }
+
     compiledModel = core->compile_model(function, targetDevice, configuration);
+    std::cout << "[DEBUG_CVS-172561] After core->compile_model() - SUCCESS" << std::endl;
+    std::cout << "[DEBUG_CVS-172561] compiledModel address: " << &compiledModel << std::endl;
+
+    // Check GPU memory after compilation
+    if (targetDevice.find("GPU") != std::string::npos) {
+        try {
+            auto mem_stats = core->get_property(targetDevice, ov::intel_gpu::memory_statistics);
+            std::cout << "[DEBUG_CVS-172561] GPU Memory Statistics (after compile):" << std::endl;
+            for (const auto& stat : mem_stats) {
+                std::cout << "[DEBUG_CVS-172561]   " << stat.first << ": " << stat.second << " bytes" << std::endl;
+            }
+        } catch (...) {}
+        std::cout.flush();
+    }
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
@@ -334,11 +433,23 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
 }
 
 void SubgraphBaseTest::infer() {
+    std::cout << "[DEBUG_CVS-172561] infer() started, thread_id: " << std::this_thread::get_id() << std::endl;
+    std::cout << "[DEBUG_CVS-172561] compiledModel address: " << &compiledModel << std::endl;
+    std::cout << "[DEBUG_CVS-172561] Before create_infer_request()" << std::endl;
+    std::cout.flush();
     inferRequest = compiledModel.create_infer_request();
+    std::cout << "[DEBUG_CVS-172561] After create_infer_request() - SUCCESS" << std::endl;
+    std::cout << "[DEBUG_CVS-172561] inferRequest address: " << &inferRequest << std::endl;
+    std::cout << "[DEBUG_CVS-172561] Setting tensors, inputs.size() = " << inputs.size() << std::endl;
     for (const auto& input : inputs) {
+        std::cout << "[DEBUG_CVS-172561] Setting tensor for input: " << input.first->get_friendly_name() << std::endl;
         inferRequest.set_tensor(input.first, input.second);
     }
+    std::cout << "[DEBUG_CVS-172561] Before inferRequest.infer()" << std::endl;
+    std::cout.flush();
     inferRequest.infer();
+    std::cout << "[DEBUG_CVS-172561] After inferRequest.infer() - SUCCESS" << std::endl;
+    std::cout.flush();
 }
 
 void SubgraphBaseTest::update_ref_model() {
@@ -423,17 +534,25 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     if (is_report_stages) {
         std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
     }
+    std::cout << "[DEBUG_CVS-172561] calculate_refs() started" << std::endl;
     auto start_time = std::chrono::system_clock::now();
 
+    std::cout << "[DEBUG_CVS-172561] Before update_ref_model()" << std::endl;
     update_ref_model();
+    std::cout << "[DEBUG_CVS-172561] After update_ref_model() - SUCCESS" << std::endl;
+    std::cout << "[DEBUG_CVS-172561] Before match_parameters()" << std::endl;
     match_parameters(function->get_parameters(), functionRefs->get_parameters());
+    std::cout << "[DEBUG_CVS-172561] After match_parameters() - SUCCESS" << std::endl;
 
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs_ref;
     for (const auto& param : functionRefs->get_parameters()) {
         inputs_ref[param] = inputs.at(matched_parameters[param]);
     }
+    std::cout << "[DEBUG_CVS-172561] inputs_ref.size() = " << inputs_ref.size() << std::endl;
 
+    std::cout << "[DEBUG_CVS-172561] Before infer_on_template()" << std::endl;
     auto outputs = ov::test::utils::infer_on_template(functionRefs, inputs_ref);
+    std::cout << "[DEBUG_CVS-172561] After infer_on_template() - SUCCESS, outputs.size() = " << outputs.size() << std::endl;
 
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
@@ -447,13 +566,26 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
     if (is_report_stages) {
         std::cout << "[ PLUGIN      ] `SubgraphBaseTest::get_plugin_outputs()` is started"<< std::endl;
     }
+    std::cout << "[DEBUG_CVS-172561] get_plugin_outputs() started, thread_id: " << std::this_thread::get_id() << std::endl;
     auto start_time = std::chrono::system_clock::now();
 
+    std::cout << "[DEBUG_CVS-172561] Before infer()" << std::endl;
+    std::cout.flush();
     infer();
+    std::cout << "[DEBUG_CVS-172561] After infer() - SUCCESS" << std::endl;
     auto outputs = std::vector<ov::Tensor>{};
+    std::cout << "[DEBUG_CVS-172561] Getting outputs, function->outputs().size() = " << function->outputs().size() << std::endl;
+    size_t output_idx = 0;
     for (const auto& output : function->outputs()) {
-        outputs.push_back(inferRequest.get_tensor(output));
+        std::cout << "[DEBUG_CVS-172561] Getting tensor for output[" << output_idx << "], node: " << output.get_node()->get_friendly_name() << std::endl;
+        std::cout.flush();
+        auto tensor = inferRequest.get_tensor(output);
+        std::cout << "[DEBUG_CVS-172561] Got tensor for output[" << output_idx << "], shape: " << tensor.get_shape() << ", element_type: " << tensor.get_element_type() << std::endl;
+        outputs.push_back(tensor);
+        output_idx++;
     }
+    std::cout << "[DEBUG_CVS-172561] All outputs retrieved, outputs.size() = " << outputs.size() << std::endl;
+    std::cout.flush();
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
@@ -463,31 +595,49 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
 }
 
 void SubgraphBaseTest::validate() {
+    std::cout << "[DEBUG_CVS-172561] validate() started" << std::endl;
     std::vector<ov::Tensor> expectedOutputs, actualOutputs;
     std::exception_ptr expected_outputs_error, actual_output_error;
 
 #ifndef NDEBUG
+    std::cout << "[DEBUG_CVS-172561] NDEBUG not defined, using single-threaded execution" << std::endl;
+    std::cout << "[DEBUG_CVS-172561] Before get_plugin_outputs()" << std::endl;
     actualOutputs = get_plugin_outputs();
+    std::cout << "[DEBUG_CVS-172561] After get_plugin_outputs() - SUCCESS, actualOutputs.size() = " << actualOutputs.size() << std::endl;
+    std::cout << "[DEBUG_CVS-172561] Before calculate_refs()" << std::endl;
     expectedOutputs = calculate_refs();
+    std::cout << "[DEBUG_CVS-172561] After calculate_refs() - SUCCESS, expectedOutputs.size() = " << expectedOutputs.size() << std::endl;
 #else
+    std::cout << "[DEBUG_CVS-172561] NDEBUG defined, using multi-threaded execution" << std::endl;
+    std::cout.flush();
     std::thread t_device([this, &actualOutputs, &actual_output_error] {
         // The try ... catch block is required to handle exceptions during output calculations and report as test fail.
         // If exception is not caught then application would be terminated with crash. (CVS-133676)
         try {
+            std::cout << "[DEBUG_CVS-172561] [t_device] Before get_plugin_outputs()" << std::endl;
             actualOutputs = get_plugin_outputs();
+            std::cout << "[DEBUG_CVS-172561] [t_device] After get_plugin_outputs() - SUCCESS" << std::endl;
         } catch (...) {
+            std::cout << "[DEBUG_CVS-172561] [t_device] Exception caught in get_plugin_outputs()" << std::endl;
             actual_output_error = std::current_exception();
         }
     });
     std::thread t_ref([this, &expectedOutputs, &expected_outputs_error] {
         try {
+            std::cout << "[DEBUG_CVS-172561] [t_ref] Before calculate_refs()" << std::endl;
             expectedOutputs = calculate_refs();
+            std::cout << "[DEBUG_CVS-172561] [t_ref] After calculate_refs() - SUCCESS" << std::endl;
         } catch (...) {
+            std::cout << "[DEBUG_CVS-172561] [t_ref] Exception caught in calculate_refs()" << std::endl;
             expected_outputs_error = std::current_exception();
         }
     });
+    std::cout << "[DEBUG_CVS-172561] Waiting for t_device.join()" << std::endl;
     t_device.join();
+    std::cout << "[DEBUG_CVS-172561] t_device.join() completed" << std::endl;
+    std::cout << "[DEBUG_CVS-172561] Waiting for t_ref.join()" << std::endl;
     t_ref.join();
+    std::cout << "[DEBUG_CVS-172561] t_ref.join() completed" << std::endl;
 
     if (actual_output_error) {
         std::rethrow_exception(actual_output_error);
