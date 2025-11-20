@@ -16,7 +16,7 @@ const std::string get_minicpm4_05b_path() {
         auto openvino_xml_full_path = dir / model_name / "openvino_model.xml";
         return openvino_xml_full_path.string();
     } else {
-        std::cout << "[INFO] Environment variable \"NPU_TESTS_MODELS_PATH\" is not, "
+        std::cout << "[INFO] Environment variable \"NPU_TESTS_MODELS_PATH\" is not set, "
                   << "models' location is unknown!" << std::endl;
     }
     return "";

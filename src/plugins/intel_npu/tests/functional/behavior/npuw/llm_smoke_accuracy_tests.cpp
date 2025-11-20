@@ -51,7 +51,7 @@ const GroundTruth What_is_OpenVINO = {
 using LLMTestParams = std::tuple<std::string, ov::AnyMap, GroundTruth>;
 } // anonymous namespace
 
-class LLMAccuracyTestsNPUW : public ::testing::TestWithParam<LLMTestParams> {
+class LLMSmokeAccuracyTestsNPUW : public ::testing::TestWithParam<LLMTestParams> {
 public:
     void SetUp() override {
         auto param = GetParam();
@@ -94,28 +94,28 @@ protected:
     std::vector<int64_t> reference_ids;
 };
 
-TEST_P(LLMAccuracyTestsNPUW, ConfigIsAccurate) {
+TEST_P(LLMSmokeAccuracyTestsNPUW, ConfigIsAccurate) {
     actual_ids = simple_llm.generate(input_ids);
     for (auto i = 0; i < actual_ids.size(); ++i) {
         ASSERT_EQ(actual_ids[i], reference_ids[i]);
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(LLMAccuracyNPUW_FAST_COMPILE, LLMAccuracyTestsNPUW,
+INSTANTIATE_TEST_SUITE_P(LLMSmokeAccuracyNPUW_FAST_COMPILE, LLMSmokeAccuracyTestsNPUW,
     ::testing::Combine(testing::Values(get_minicpm4_05b_path()),
                        testing::Values(ov::AnyMap{}),
                        testing::Values(What_is_OpenVINO_templated, What_is_OpenVINO)));
 
-INSTANTIATE_TEST_SUITE_P(LLMAccuracyNPUW_BEST_PERF, LLMAccuracyTestsNPUW,
+INSTANTIATE_TEST_SUITE_P(LLMSmokeAccuracyNPUW_BEST_PERF, LLMSmokeAccuracyTestsNPUW,
 ::testing::Combine(testing::Values(get_minicpm4_05b_path()),
-                    testing::Values(ov::AnyMap{{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}}),
-                    testing::Values(What_is_OpenVINO_templated, What_is_OpenVINO)));
+                   testing::Values(ov::AnyMap{{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}}),
+                   testing::Values(What_is_OpenVINO_templated, What_is_OpenVINO)));
 
-INSTANTIATE_TEST_SUITE_P(LLMAccuracyNPUW_DYNAMIC_BEST_PERF, LLMAccuracyTestsNPUW,
+INSTANTIATE_TEST_SUITE_P(LLMSmokeAccuracyNPUW_DYNAMIC_BEST_PERF, LLMSmokeAccuracyTestsNPUW,
     ::testing::Combine(testing::Values(get_minicpm4_05b_path()),
-                        testing::Values(ov::AnyMap{{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"},
-                                                   {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}}),
-                        testing::Values(What_is_OpenVINO_templated, What_is_OpenVINO)));
+                       testing::Values(ov::AnyMap{{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"},
+                                                  {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}}),
+                       testing::Values(What_is_OpenVINO_templated, What_is_OpenVINO)));
 
 #endif // defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #endif // WITH_CPU_PLUGIN

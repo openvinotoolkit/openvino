@@ -18,8 +18,7 @@ using namespace ov::intel_npu::npuw;
 
 namespace {
     const std::vector<int64_t> What_is_OpenVINO =
-        {529, 29989, 1792, 29989, 29958, 13, 5618, 338, 4673, 29963, 1177,
-         29949, 29973, 2, 29871, 13, 29966, 29989, 465, 22137, 29989, 29958, 13};
+        {1, 3067, 1410, 6404, 59408, 2097, 59383, 74};
 } // anonymous namespace
 
 #define TIMES(times) times 
@@ -69,8 +68,11 @@ public:
         mock_npu_for_prefill_plugin->create_implementation();
         mock_npu_for_generate_plugin = std::make_shared<MockNpuPluginForGenerate>();
         mock_npu_for_generate_plugin->create_implementation();
+        mock_npu_for_lm_head_plugin = std::make_shared<MockNpuPluginForLMHead>();
+        mock_npu_for_lm_head_plugin->create_implementation();
         config["++NPUW_LLM_PREFILL_CONFIG"] = ov::AnyMap{{"NPUW_DEVICES", "MockNPUForPrefill"}};
         config["++NPUW_LLM_GENERATE_CONFIG"] = ov::AnyMap{{"NPUW_DEVICES", "MockNPUForGenerate"}};
+        config["++NPUW_LLM_SHARED_HEAD_CONFIG"] = ov::AnyMap{{"NPUW_DEVICES", "MockNPUForLMHead"}};
         config["NPUW_LLM_MIN_RESPONSE_LEN"] = 2;
     }
 
@@ -78,6 +80,7 @@ public:
     void register_mock_plugins_in_ov() {
         m_shared_objects.push_back(reg_plugin<MockNpuPluginForPrefill>(core, mock_npu_for_prefill_plugin));
         m_shared_objects.push_back(reg_plugin<MockNpuPluginForGenerate>(core, mock_npu_for_generate_plugin));
+        m_shared_objects.push_back(reg_plugin<MockNpuPluginForLMHead>(core, mock_npu_for_lm_head_plugin));
     }
 
 protected:
@@ -85,6 +88,7 @@ protected:
     SimpleLLMPipeline simple_llm;
     std::shared_ptr<MockNpuPluginForPrefill> mock_npu_for_prefill_plugin;
     std::shared_ptr<MockNpuPluginForGenerate> mock_npu_for_generate_plugin;
+    std::shared_ptr<MockNpuPluginForLMHead> mock_npu_for_lm_head_plugin;
     ov::AnyMap config;
 
 private:
@@ -107,6 +111,8 @@ TEST_F(LLMBehaviorTestsNPUW, LLMBehaviorNPUW_FAST_COMPILE) {
         EXPECT_COMPILE_MODEL(mock_npu_for_generate, TIMES(3));
         // Prefill model:
         EXPECT_COMPILE_MODEL(mock_npu_for_prefill, TIMES(3));
+        // LM Head model:
+        EXPECT_COMPILE_MODEL(mock_npu_for_lm_head, TIMES(1));
     }
 
     // ------------------------ Prefill model ---------------------------
@@ -120,31 +126,41 @@ TEST_F(LLMBehaviorTestsNPUW, LLMBehaviorNPUW_FAST_COMPILE) {
 
     // Head's infer request is called once:
     EXPECT_INFER(mock_npu_for_prefill, MODEL(0), TIMES(1));
-    // There are 20 repeated functions, so:
-    // Repeated block's 1st infer request is called 10 times:
-    EXPECT_INFER_FOR(mock_npu_for_prefill, MODEL(1), INFER_REQ(0), TIMES(10));
-    // Repeated block's 2nd infer request (brother of 1st one) is called 10 times:
-    EXPECT_INFER_FOR(mock_npu_for_prefill, MODEL(1), INFER_REQ(1), TIMES(10));
+    // There are 23 repeated functions, so:
+    // Repeated block's 1st infer request is called 12 times:
+    EXPECT_INFER_FOR(mock_npu_for_prefill, MODEL(1), INFER_REQ(0), TIMES(12));
+    // Repeated block's 2nd infer request (brother of 1st one) is called 11 times:
+    EXPECT_INFER_FOR(mock_npu_for_prefill, MODEL(1), INFER_REQ(1), TIMES(11));
     // Tail's infer request is called once:
     EXPECT_INFER(mock_npu_for_prefill, MODEL(2), TIMES(1));
 
     // ------------------------ Generate model ---------------------------
     // 1 infer request for head:
     EXPECT_CREATE_SYNC_INFER_REQ(mock_npu_for_generate, MODEL(0), TIMES(1));  
-    // `create_sync_infer_request()` should be called 20 times
-    // to create 20 separate infer requests here (due to UNFOLD_IREQS):
-    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu_for_generate, MODEL(1), TIMES(20));
+    // `create_sync_infer_request()` should be called 23 times
+    // to create 23 separate infer requests here (due to UNFOLD_IREQS),
+    // however, we face: "Subgraph[1] requires unpack, unfold can't be done",
+    // thus following default JustInferRequest with FUNCALL_ASYNC routine here:
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu_for_generate, MODEL(1), TIMES(2));
     // 1 infer request for tail:
     EXPECT_CREATE_SYNC_INFER_REQ(mock_npu_for_generate, MODEL(2), TIMES(1));
 
     // Head's infer request is called once:
     EXPECT_INFER(mock_npu_for_generate, MODEL(0), TIMES(1));
-    // Different 20 infer requests of 2nd submodel should be called:
-    for (int i = 0; i < 20; ++i) {
-        EXPECT_INFER_FOR(mock_npu_for_generate, MODEL(1), INFER_REQ(i), TIMES(1));
-    }
+    // There are 23 repeated functions, so:
+    // Repeated block's 1st infer request is called 12 times:
+    EXPECT_INFER_FOR(mock_npu_for_generate, MODEL(1), INFER_REQ(0), TIMES(12));
+    // Repeated block's 2nd infer request (brother of 1st one) is called 11 times:
+    EXPECT_INFER_FOR(mock_npu_for_generate, MODEL(1), INFER_REQ(1), TIMES(11));
     // Tail's infer request is called once:
     EXPECT_INFER(mock_npu_for_generate, MODEL(2), TIMES(1));
+
+    // ------------------------- LM Head model -----------------------------
+    // Or vocabulary projection model.
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu_for_lm_head, MODEL(0), TIMES(1));
+    // Called twice: once for prefill and once for generate
+    // (as we have to output only 2 tokens in this test).
+    EXPECT_INFER(mock_npu_for_lm_head, MODEL(0), TIMES(2));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -167,6 +183,8 @@ TEST_F(LLMBehaviorTestsNPUW, LLMBehaviorNPUW_BEST_PERF) {
         EXPECT_COMPILE_MODEL(mock_npu_for_generate, TIMES(1));
         // Prefill model:
         EXPECT_COMPILE_MODEL(mock_npu_for_prefill, TIMES(3));
+        // LM Head model:
+        EXPECT_COMPILE_MODEL(mock_npu_for_lm_head, TIMES(1));
     }
 
     // ------------------------ Prefill model ---------------------------
@@ -180,11 +198,11 @@ TEST_F(LLMBehaviorTestsNPUW, LLMBehaviorNPUW_BEST_PERF) {
 
     // Head's infer request is called once:
     EXPECT_INFER(mock_npu_for_prefill, MODEL(0), TIMES(1));
-    // There are 20 repeated functions, so:
-    // Repeated block's 1st infer request is called 10 times:
-    EXPECT_INFER_FOR(mock_npu_for_prefill, MODEL(1), INFER_REQ(0), TIMES(10));
-    // Repeated block's 2nd infer request (brother of 1st one) is called 10 times:
-    EXPECT_INFER_FOR(mock_npu_for_prefill, MODEL(1), INFER_REQ(1), TIMES(10));
+    // There are 23 repeated functions, so:
+    // Repeated block's 1st infer request is called 12 times:
+    EXPECT_INFER_FOR(mock_npu_for_prefill, MODEL(1), INFER_REQ(0), TIMES(12));
+    // Repeated block's 2nd infer request (brother of 1st one) is called 11 times:
+    EXPECT_INFER_FOR(mock_npu_for_prefill, MODEL(1), INFER_REQ(1), TIMES(11));
     // Tail's infer request is called once:
     EXPECT_INFER(mock_npu_for_prefill, MODEL(2), TIMES(1));
 
@@ -193,6 +211,14 @@ TEST_F(LLMBehaviorTestsNPUW, LLMBehaviorNPUW_BEST_PERF) {
     EXPECT_CREATE_SYNC_INFER_REQ(mock_npu_for_generate, MODEL(0), TIMES(1));  
     // Infer request is called only once:
     EXPECT_INFER(mock_npu_for_generate, MODEL(0), TIMES(1));
+
+    // ------------------------- LM Head model -----------------------------
+    // Or vocabulary projection model.
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu_for_lm_head, MODEL(0), TIMES(1));
+    // Called twice: once for prefill and once for generate
+    // (as we have to output only 2 tokens in this test).
+    EXPECT_INFER(mock_npu_for_lm_head, MODEL(0), TIMES(2));
+
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
