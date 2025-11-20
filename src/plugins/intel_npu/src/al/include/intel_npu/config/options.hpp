@@ -1418,7 +1418,7 @@ struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, b
     }
 
     static bool defaultValue() {
-        return true;
+        return false;
     }
 
     static OptionMode mode() {
