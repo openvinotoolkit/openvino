@@ -89,7 +89,7 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
  * Type of NPU compiler to be used for compilation of a network
  * @note Configuration API v 2.0
  */
-enum class CompilerType { MLIR = 0, PLUGIN = MLIR, DRIVER = 1 };
+enum class CompilerType { PLUGIN, DRIVER };
 
 /**
  * @brief Prints a string representation of ov::intel_npu::CompilerType to a stream
