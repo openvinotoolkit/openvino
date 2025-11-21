@@ -165,7 +165,7 @@ public:
           _dst_size(sizeof(dst_t)) {
         const auto type = get_f8_type<src_t, dst_t>();
         if (type == f8_type::f8e4m3) {
-            f8_e4m3_emu_ = std::make_shared<fp8_emulation_e4m3_t>(this,
+            f8_e4m3_emu_ = std::make_shared<fp8_conversion_e4m3_t>(this,
                                                                   fp8_emu_reserv_1_,
                                                                   fp8_emu_reserv_2_,
                                                                   fp8_emu_reserv_3_,
@@ -173,7 +173,7 @@ public:
                                                                   fp8_emu_reserv_5_,
                                                                   fp8_emu_scratch_);
         } else if (type == f8_type::f8e5m2) {
-            f8_e5m2_emu_ = std::make_shared<fp8_emulation_e5m2_t>(this,
+            f8_e5m2_emu_ = std::make_shared<fp8_conversion_e5m2_t>(this,
                                                                   fp8_emu_reserv_1_,
                                                                   fp8_emu_reserv_2_,
                                                                   fp8_emu_reserv_3_,
@@ -196,11 +196,11 @@ public:
         return nullptr;
     }
 
-    std::shared_ptr<fp8_emulation_e4m3_t> get_f8_e4m3_emu() const {
+    std::shared_ptr<fp8_conversion_e4m3_t> get_f8_e4m3_emu() const {
         return f8_e4m3_emu_;
     }
 
-    std::shared_ptr<fp8_emulation_e5m2_t> get_f8_e5m2_emu() const {
+    std::shared_ptr<fp8_conversion_e5m2_t> get_f8_e5m2_emu() const {
         return f8_e5m2_emu_;
     }
 
@@ -213,8 +213,8 @@ private:
     size_t _src_size;
     size_t _dst_size;
 
-    std::shared_ptr<fp8_emulation_e4m3_t> f8_e4m3_emu_;
-    std::shared_ptr<fp8_emulation_e5m2_t> f8_e5m2_emu_;
+    std::shared_ptr<fp8_conversion_e4m3_t> f8_e4m3_emu_;
+    std::shared_ptr<fp8_conversion_e5m2_t> f8_e5m2_emu_;
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16_;
 
     const Reg64 fp8_emu_scratch_ = rax;
