@@ -425,6 +425,58 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_dynamic_batch_size_and_seq_len) {
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_high_rank_input) {
+    // Test LSTM with high-rank input (rank 5) that needs to be reduced to rank 3
+    // Input shape [1, 1, 3, 2, 4] should be squeezed to [3, 2, 4]
+    // where seq_length=3, batch_size=2, input_size=4
+    auto model = convert_model("lstm_high_rank_input.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input data generated with random seed 42
+    std::vector<float> X = {
+        0.496714f, -0.138264f, 0.647689f, 1.523030f, -0.234153f, -0.234137f, 1.579213f, 0.767435f,
+        -0.469474f, 0.542560f, -0.463418f, -0.465730f, 0.241962f, -1.913280f, -1.724918f, -0.562288f,
+        -1.012831f, 0.314247f, -0.908024f, -1.412304f, 1.465649f, -0.225776f, 0.067528f, -1.424748f
+    };
+    std::vector<float> W = {
+        -0.544383f, 0.110923f, -1.150994f, 0.375698f, -0.600639f, -0.291694f, -0.601707f, 1.852278f,
+        -0.013497f, -1.057711f, 0.822545f, -1.220844f, 0.208864f, -1.959670f, -1.328186f, 0.196861f,
+        0.738467f, 0.171368f, -0.115648f, -0.301104f, -1.478522f, -0.719844f, -0.460639f, 1.057122f,
+        0.343618f, -1.763040f, 0.324084f, -0.385082f, -0.676922f, 0.611676f, 1.031000f, 0.931280f
+    };
+    std::vector<float> R = {
+        -0.839218f, -0.309212f, 0.331263f, 0.975545f, -0.479174f, -0.185659f, -1.106335f, -1.196207f,
+        0.812526f, 1.356240f, -0.072010f, 1.003533f, 0.361636f, -0.645120f, 0.361396f, 1.538037f
+    };
+    std::vector<float> B = {
+        -0.035826f, 1.564644f, -2.619745f, 0.821903f, 0.087047f, -0.299007f, 0.091761f, -1.987569f,
+        -0.219672f, 0.357113f, 1.477894f, -0.518270f, -0.808494f, -0.501757f, 0.915402f, 0.328751f
+    };
+
+    // Expected outputs from ONNX Runtime
+    std::vector<float> expected_Y = {
+        0.022259f, 0.003388f, 0.052767f, 0.115021f, 0.006480f, -0.266966f, 0.351372f, -0.512179f,
+        0.133793f, -0.428831f, 0.375109f, -0.090797f
+    };
+    std::vector<float> expected_Y_h = {
+        0.133793f, -0.428831f, 0.375109f, -0.090797f
+    };
+    std::vector<float> expected_Y_c = {
+        0.355076f, -0.755317f, 0.609611f, -0.128190f
+    };
+
+    test_case.add_input<float>(Shape{1, 1, 3, 2, 4}, X);
+    test_case.add_input<float>(Shape{1, 8, 4}, W);
+    test_case.add_input<float>(Shape{1, 8, 2}, R);
+    test_case.add_input<float>(Shape{1, 16}, B);
+    test_case.add_expected_output<float>(Shape{3, 1, 2, 2}, expected_Y);
+    test_case.add_expected_output<float>(Shape{1, 2, 2}, expected_Y_h);
+    test_case.add_expected_output<float>(Shape{1, 2, 2}, expected_Y_c);
+
+    test_case.run_with_tolerance_as_fp(1.0e-4f);
+}
+
 // RNNLikeSequenceOp test fixture for test setup reuse
 class GRUSequenceOp : public testing::Test {
 public:
