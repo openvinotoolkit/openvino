@@ -212,7 +212,7 @@ static const auto core_properties_names =
 static const auto auto_batch_properties_names =
     ov::util::make_array(ov::auto_batch_timeout.name(), ov::hint::allow_auto_batching.name());
 
-ov::util::Path extract_weight_path(const std::string& compiled_properties) {
+std::filesystem::path extract_weight_path(const std::string& compiled_properties) {
     if (auto start = compiled_properties.find(ov::weights_path.name()); start != std::string::npos) {
         start += std::string_view{ov::weights_path.name()}.size() + 1;
         auto length = compiled_properties.find(",", start);
@@ -257,7 +257,7 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
         [&cfg, &plugin](const std::string& model_path) {
             if (cfg.count(ov::weights_path.name()) == 0 &&
                 ov::util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
-                ov::util::Path weights_path{model_path};
+                std::filesystem::path weights_path{model_path};
                 weights_path.replace_extension(".bin");
                 if (ov::util::file_exists(weights_path)) {
                     cfg[ov::weights_path.name()] = weights_path.string();
@@ -1569,7 +1569,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 }
 
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
-                    util::Path weights_path;
+                    std::filesystem::path weights_path;
 
                     if (auto&& path_hint = update_config.find(ov::weights_path.name());
                         path_hint != update_config.end()) {

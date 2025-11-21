@@ -151,7 +151,7 @@ void create_directory_recursive(const std::wstring& path);
  * @param path - path to directory
  * @return true if directory exists, false otherwise
  */
-bool directory_exists(const ov::util::Path& path);
+bool directory_exists(const std::filesystem::path& path);
 
 /**
  * @brief      Returns file size for file
@@ -159,7 +159,7 @@ bool directory_exists(const ov::util::Path& path);
  * @return     file size
  */
 
-inline int64_t file_size(const ov::util::Path& path) {
+inline int64_t file_size(const std::filesystem::path& path) {
     std::error_code ec;
     const auto size = std::filesystem::file_size(path, ec);
     return ec ? -1 : static_cast<int64_t>(size);
@@ -215,9 +215,9 @@ inline bool file_exists(const std::string& path) {
 }
 
 std::string get_file_ext(const std::string& path);
-ov::util::Path get_directory(const ov::util::Path& path);
+std::filesystem::path get_directory(const std::filesystem::path& path);
 
-ov::util::Path path_join(std::initializer_list<ov::util::Path>&& paths);
+std::filesystem::path path_join(std::initializer_list<std::filesystem::path>&& paths);
 std::wstring path_join_w(std::initializer_list<std::wstring>&& paths);
 
 void iterate_files(const std::string& path,
@@ -230,15 +230,15 @@ void convert_path_win_style(std::string& path);
 std::string get_ov_lib_path();
 
 // TODO: remove this using. replace with Path.
-using FilePath = ov::util::Path::string_type;
+using FilePath = std::filesystem::path::string_type;
 
 // TODO: remove this function after get_plugin_path using Path
-inline std::string from_file_path(const ov::util::Path& path) {
+inline std::string from_file_path(const std::filesystem::path& path) {
     return path.string();
 }
 
 // TODO: remove this function after all calls use Path
-inline FilePath to_file_path(const ov::util::Path& path) {
+inline FilePath to_file_path(const std::filesystem::path& path) {
 #if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
     return ov::util::string_to_wstring(path.string());
 #else

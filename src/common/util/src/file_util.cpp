@@ -91,7 +91,7 @@ std::string ov::util::get_file_ext(const std::string& s) {
     return rc;
 }
 
-ov::util::Path ov::util::get_directory(const ov::util::Path& path) {
+std::filesystem::path ov::util::get_directory(const std::filesystem::path& path) {
     if (path.empty()) {
         return {};
     } else if (const auto& parent_path = path.parent_path(); parent_path.empty()) {
@@ -101,9 +101,9 @@ ov::util::Path ov::util::get_directory(const ov::util::Path& path) {
     }
 }
 
-template <class Container = std::initializer_list<ov::util::Path>>
-ov::util::Path path_join(Container&& paths) {
-    ov::util::Path joined_path{};
+template <class Container = std::initializer_list<std::filesystem::path>>
+std::filesystem::path path_join(Container&& paths) {
+    std::filesystem::path joined_path{};
 
     for (auto&& path : paths) {
         if (!path.empty()) {
@@ -114,7 +114,7 @@ ov::util::Path path_join(Container&& paths) {
 }
 
 // TODO: Remove string() / wstring() casts on function call site
-ov::util::Path ov::util::path_join(std::initializer_list<ov::util::Path>&& paths) {
+std::filesystem::path ov::util::path_join(std::initializer_list<std::filesystem::path>&& paths) {
     return ::path_join<>(std::move(paths));
 }
 
@@ -312,7 +312,7 @@ void ov::util::create_directory_recursive(const std::filesystem::path& path) {
     }
 }
 
-bool ov::util::directory_exists(const ov::util::Path& path) {
+bool ov::util::directory_exists(const std::filesystem::path& path) {
     return std::filesystem::is_directory(std::filesystem::status(path));
 }
 
