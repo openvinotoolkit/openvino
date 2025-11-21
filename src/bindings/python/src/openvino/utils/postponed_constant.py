@@ -9,8 +9,11 @@ from openvino import Op, Type, Shape, Tensor, PartialShape, TensorVector
 
 
 class PostponedConstant(Op):
-    """Postponed Constant is a way to materialize a big constant only when it is going
-    to be serialized to IR and then immediately dispose."""
+    """Postponed Constant is a way to materialize a big constant.
+
+    This class materializes a big constant only when it is going to be serialized
+    to IR and then immediately disposes of it.
+    """
 
     @overload
     def __init__(

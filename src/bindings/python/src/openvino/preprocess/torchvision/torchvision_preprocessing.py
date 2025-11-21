@@ -270,16 +270,16 @@ class _(TransformConverterBase):
         top_right.append(min(bottom_left[0] + target_size[0], source_size[0] - 1))
         top_right.append(min(bottom_left[1] + target_size[1], source_size[1] - 1))
 
-        bottom_left = (
-            [0] * len(input_shape[:-2]) + bottom_left
-            if meta["layout"] == Layout("NCHW")
-            else [0] + bottom_left + [0]
-        )  # noqa ECE001
-        top_right = (
-            input_shape[:-2] + top_right
-            if meta["layout"] == Layout("NCHW")
-            else input_shape[:1] + top_right + input_shape[-1:]
-        )
+        is_nchw = meta["layout"] == Layout("NCHW")
+        if is_nchw:
+            bottom_left = [0] * len(input_shape[:-2]) + bottom_left
+        else:
+            bottom_left = [0] + bottom_left + [0]
+
+        if is_nchw:
+            top_right = input_shape[:-2] + top_right
+        else:
+            top_right = input_shape[:1] + top_right + input_shape[-1:]
 
         ppp.input(input_idx).preprocess().crop(bottom_left, top_right)
         meta["image_dimensions"] = (target_size[-2], target_size[-1])
