@@ -1521,6 +1521,8 @@ TEST_P(CpuVaTensorsTests, DontDestroyImportedMemory) {
         EXPECT_EQ(memcmp(first_output.data(), second_output.data(), second_output.get_byte_size()), 0);
     }
 
+    inference_request = {};
+
     ::operator delete(data, std::align_val_t(4096));
 }
 
@@ -1583,8 +1585,12 @@ TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
         expected_result++;
     }
 
+    inference_request = {};
+
+    input_tensor = {};
     ::operator delete(input_data, std::align_val_t(4096));
     for (int i = 0; i < inferences; i++) {
+        output_tensor[i] = {};
         ::operator delete(output_data[i], std::align_val_t(4096));
     }
 }
@@ -1651,8 +1657,12 @@ TEST_P(CpuVaTensorsTests, SetMultipleAllignedAndNotAllignedTensors) {
         expected_result++;
     }
 
+    inference_request = {};
+
+    input_tensor = {};
     ::operator delete(input_data, std::align_val_t(4096));
     for (int i = 0; i < inferences; i++) {
+        output_tensor[i] = {};
         if (i % 2 == 0) {
             ::operator delete(output_data[i], std::align_val_t(16));
         } else {
@@ -1730,8 +1740,12 @@ TEST_P(CpuVaTensorsTests, SetMultipleRemoteAllignedAndNotAllignedTensors) {
         expected_result++;
     }
 
+    inference_request = {};
+
+    input_tensor = {};
     ::operator delete(input_data, std::align_val_t(16));
     for (int i = 0; i < inferences; i++) {
+        output_tensor[i] = {};
         if (i % 4 == 0) {
             ::operator delete(output_data[i], std::align_val_t(16));
         } else if (i % 4 == 1) {
@@ -1795,6 +1809,11 @@ TEST_P(CpuVaTensorsTests, SetAndDestroyDifferentAlignedTensors) {
             << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
     }
 
+    inference_request0 = {};
+    inference_request1 = {};
+
+    input_tensor0 = {};
+    input_tensor1 = {};
     ::operator delete(input_data, std::align_val_t(4096));
 }
 
@@ -1883,6 +1902,12 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa0) {
         EXPECT_NEAR(input_data[i], state_data[1][i], 1e-5);
         EXPECT_NEAR(input_data[i], state_data[2][i], 1e-5);
     }
+
+    inference_request = {};
+
+    state_tensor[0] = {};
+    state_tensor[1] = {};
+    state_tensor[2] = {};
 
     ::operator delete(state_data[0], std::align_val_t(4096));
     ::operator delete(state_data[1], std::align_val_t(4096));
@@ -1975,6 +2000,12 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
         EXPECT_NEAR(input_data[i], state_data[1][i], 1e-5);
         EXPECT_NEAR(input_data[i], state_data[2][i], 1e-5);
     }
+
+    inference_request = {};
+
+    state_tensor[0] = {};
+    state_tensor[1] = {};
+    state_tensor[2] = {};
 
     ::operator delete(state_data[0], std::align_val_t(4096));
     ::operator delete(state_data[1], std::align_val_t(64));
