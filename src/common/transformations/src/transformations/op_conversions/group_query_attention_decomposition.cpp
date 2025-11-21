@@ -76,8 +76,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto past_key = node->input_value(3);
     auto past_value = node->input_value(4);
     auto seqlens_k = node->input_value(5);
-    auto cos_cache = node->input_value(6);
-    auto sin_cache = node->input_value(7);
+    auto total_sequence_length = node->input_value(6);
+    auto cos_cache = node->input_value(7);
+    auto sin_cache = node->input_value(8);
 
     // The length of all tokens (past + current) is `seqlens_k` + 1.
     // current = Q.shape[2], past = `seqlens_k` + 1 - current
