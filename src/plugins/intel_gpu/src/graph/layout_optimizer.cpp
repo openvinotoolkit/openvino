@@ -1162,15 +1162,13 @@ format layout_optimizer::get_expected_format(deconvolution_node const& node) {
     if (use_onednn_impls && available.count(impl_types::onednn) > 0) {
         // XXX: need to take the situation into consideration where it is called from prepare_primitive_fusing
         expected_format = node.get_preferred_output_fmt();
-    } else if (_optimization_attributes.b_fs_zyx_fsv16_network &&
-        deconvolution_b_fs_zyx_fsv16_opt(output_layout, weights_layout, prim)) {
+    } else if (deconvolution_b_fs_zyx_fsv16_opt(output_layout, weights_layout, prim)) {
         if ((output_layout.data_type == data_types::f32 && expected_shape[0] % 16 == 0) ||
             (output_layout.data_type == data_types::f16 && expected_shape[0] % 32 == 0))
             expected_format = cldnn::format::bs_fs_zyx_bsv16_fsv16;
         else
             expected_format = cldnn::format::b_fs_zyx_fsv16;
-    } else if ((_optimization_attributes.b_fs_yx_fsv16_network) &&
-               deconvolution_b_fs_yx_fsv16_opt(output_layout, weights_layout, prim)) {
+    } else if (deconvolution_b_fs_yx_fsv16_opt(output_layout, weights_layout, prim)) {
         auto input_shape = input_layout.get_shape();
         auto input_features = input_shape[1];
         auto output_features = expected_shape[1];
