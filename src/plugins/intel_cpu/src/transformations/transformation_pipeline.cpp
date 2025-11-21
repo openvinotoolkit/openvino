@@ -84,6 +84,7 @@
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
+#include "transformations/op_conversions/convert_convolution_to_matmul.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
 #include "transformations/op_conversions/convert_gather_to_compressed.hpp"
@@ -464,6 +465,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // This must be done in order to keep compressed MatMul weights with decompression operations as is
     ov::pass::Manager decompression_handling_manager("CPU:DecompressionHandling");
     decompression_handling_manager.set_per_pass_validation(false);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertConvolutionToMatMul);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::EliminateReshape);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
     const bool useLpt = !defaultPrecisions.empty();
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::CompressedGatherTransformation);
