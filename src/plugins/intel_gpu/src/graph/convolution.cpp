@@ -214,7 +214,8 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
     auto filter_inst = node.weights().get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
 
     // Extend grouped 1d conv weights shape from 4d to 5d when conv input shape is canonicalized to 4d by allow_new_shape_infer=false
-    const bool needs_filter_extension = (argument->filter_rank == 4) &&
+    const bool needs_filter_extension = !network.get_program()->is_new_shape_infer() &&
+                                        argument->filter_rank == 4 &&
                                         argument->grouped_weights_shape &&
                                         argument->groups > 1 &&
                                         filter_inst.get_rank() == 4 &&
