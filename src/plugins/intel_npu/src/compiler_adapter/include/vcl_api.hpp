@@ -37,7 +37,8 @@ namespace intel_npu {
 #define vcl_weak_symbols_list()                             \
     vcl_symbol_statement(vclAllocatedExecutableCreate2)     \
     vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
-    vcl_symbol_statement(vclGetCompilerIsOptionSupported)
+    vcl_symbol_statement(vclGetCompilerIsOptionSupported)   \
+    vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot)
 // clang-format on
 
 class VCLApi {
@@ -94,6 +95,13 @@ public:
     }
 
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+
+    std::vector<std::shared_ptr<NetworkDescription>> compileWsOneShot(const std::shared_ptr<ov::Model>& model,
+                                                                      const Config& config) const override;
+
+    NetworkDescription compileWsIterative(const std::shared_ptr<ov::Model>& model,
+                                          const Config& config,
+                                          size_t callNumber) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 

@@ -275,6 +275,10 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 }
 
 void WeightlessGraph::initialize(const Config& config) {
+    if (!_zeroInitStruct) {
+        _wgLogger.warning("_zeroInitStruct is nullptr!");
+        return;
+    }
     // Simplified version for init schedules
     const size_t numberOfInits = _initsGraphDesc.size();
     _initsCommandQueueOrdinals.resize(numberOfInits);

@@ -185,6 +185,27 @@ struct vcl_allocator_vector : vcl_allocator2_t {
     std::vector<uint8_t> m_vec;
 };
 
+struct vcl_allocator_vector_2 : vcl_allocator2_t {
+    vcl_allocator_vector_2() : vcl_allocator2_t{vector_allocate, vector_deallocate} {}
+
+    static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
+        vcl_allocator_vector_2* vecAllocator = static_cast<vcl_allocator_vector_2*>(allocator);
+        auto newVec = std::make_shared<std::vector<uint8_t>>();
+        newVec->resize(size);
+        uint8_t* ptr = newVec->data();
+        vecAllocator->m_vector.emplace_back(newVec);
+        return ptr;
+    }
+
+    static void vector_deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
+        vcl_allocator_vector_2* vecAllocator = static_cast<vcl_allocator_vector_2*>(allocator);
+        vecAllocator->m_vector.clear();
+        vecAllocator->m_vector.shrink_to_fit();
+    }
+
+    std::vector<std::shared_ptr<std::vector<uint8_t>>> m_vector;
+};
+
 struct vcl_allocator_malloc {
     static uint8_t* vcl_allocate(uint64_t size) {
         return reinterpret_cast<uint8_t*>(malloc(size));
@@ -276,10 +297,9 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
 
     std::string buildFlags;
-    const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
     _logger.debug("create build flags");
-    buildFlags += driver_compiler_utils::serializeIOInfo(model, useIndices);
+    buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
     buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
@@ -392,6 +412,76 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         _logger.debug("compile end, blob size:%d", compiledNetwork.size());
         return NetworkDescription(std::move(compiledNetwork), std::move(metadata));
     }
+}
+
+std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneShot(
+    const std::shared_ptr<ov::Model>& model,
+    const Config& config) const {
+    _logger.debug("compileWsOneShot start");
+
+    const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
+    _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
+
+    _logger.debug("serialize IR");
+    ze_graph_compiler_version_info_t compilerVersion;
+    compilerVersion.major = _compilerProperties.version.major;
+    compilerVersion.minor = _compilerProperties.version.minor;
+
+    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
+    if (filteredConfig == nullptr) {
+        OPENVINO_THROW("config is not FilteredConfig");
+    }
+    FilteredConfig updatedConfig = *filteredConfig;
+    bool useBaseModelSerializer = isUseBaseModelSerializer(updatedConfig);
+    auto serializedIR =
+        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
+
+    std::string buildFlags;
+
+    _logger.debug("create build flags");
+    buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
+    buildFlags += " ";
+    buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
+    _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
+
+    vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
+                                     serializedIR.first,
+                                     buildFlags.c_str(),
+                                     buildFlags.size()};
+    _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
+
+    _logger.debug("Using vclAllocatedExecutableCreateWSOneShot");
+    vcl_allocator_vector_2 allocator;
+
+    THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreateWSOneShot",
+                          vclAllocatedExecutableCreateWSOneShot(_compilerHandle, exeDesc, &allocator),
+                          _logHandle);
+
+    if (allocator.m_vector.size() == 0) {
+        OPENVINO_THROW("Failed to create VCL executable, blobCount is zero");
+    }
+
+    std::vector<std::shared_ptr<NetworkDescription>> networkDescrs;
+    for (uint32_t i = 0; i < allocator.m_vector.size(); i++) {
+        // Use empty metadata as VCL does not support metadata extraction
+        NetworkMetadata metadata;
+        networkDescrs.emplace_back(
+            std::make_shared<NetworkDescription>(std::move(*allocator.m_vector[i]), std::move(metadata)));
+    }
+    return networkDescrs;
+}
+
+NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>& model,
+                                                       const Config& config,
+                                                       size_t callNumber) const {
+    _logger.debug("compileWsIterative start");
+    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
+    if (filteredConfig == nullptr) {
+        OPENVINO_THROW("config is not FilteredConfig");
+    }
+    FilteredConfig updatedConfig = *filteredConfig;
+    updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
+    return compile(model, config);
 }
 
 intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
