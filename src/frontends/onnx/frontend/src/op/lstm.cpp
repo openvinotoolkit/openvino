@@ -183,22 +183,6 @@ struct LSTMNgInputMap {
             init_h = reduce_tensor_rank(init_h, 3, "initial_h_before_reorder");
             init_h = ov::op::util::reorder_axes(init_h, {1, 0, 2});
 
-            // Broadcast initial_h if batch_size=1 and X.batch_size > 1
-            auto init_h_shape = init_h.get_partial_shape();
-            auto x_shape = m_input_map[LSTMInput::LSTM_INPUT_X].get_partial_shape();
-
-            if (init_h_shape.rank().is_static() && x_shape.rank().is_static() &&
-                init_h_shape.rank().get_length() == 3 && x_shape.rank().get_length() == 3 &&
-                init_h_shape[0].is_static() && init_h_shape[0].get_length() == 1) {
-                // Create repeats: [X_batch_size, 1, 1]
-                auto repeats = std::make_shared<v0::Concat>(
-                    ov::OutputVector{batch_size_node,  // X's batch_size
-                                     v0::Constant::create(ov::element::i64, Shape{2}, std::vector<int64_t>{1, 1})},
-                    0);
-
-                init_h = std::make_shared<v0::Tile>(init_h, repeats);
-            }
-
             m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = init_h;
         } else {
             auto init_h_shape =
@@ -216,22 +200,6 @@ struct LSTMNgInputMap {
             // First reduce rank, THEN reorder axes
             init_c = reduce_tensor_rank(init_c, 3, "initial_c_before_reorder");
             init_c = ov::op::util::reorder_axes(init_c, {1, 0, 2});
-
-            // Broadcast initial_c if batch_size=1 and X.batch_size > 1
-            auto init_c_shape = init_c.get_partial_shape();
-            auto x_shape = m_input_map[LSTMInput::LSTM_INPUT_X].get_partial_shape();
-
-            if (init_c_shape.rank().is_static() && x_shape.rank().is_static() &&
-                init_c_shape.rank().get_length() == 3 && x_shape.rank().get_length() == 3 &&
-                init_c_shape[0].is_static() && init_c_shape[0].get_length() == 1) {
-                // Create repeats: [X_batch_size, 1, 1]
-                auto repeats = std::make_shared<v0::Concat>(
-                    ov::OutputVector{batch_size_node,  // X's batch_size
-                                     v0::Constant::create(ov::element::i64, Shape{2}, std::vector<int64_t>{1, 1})},
-                    0);
-
-                init_c = std::make_shared<v0::Tile>(init_c, repeats);
-            }
 
             m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = init_c;
         } else {

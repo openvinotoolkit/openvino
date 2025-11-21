@@ -22,7 +22,7 @@ namespace opset_1 {
 namespace detail {
 ov::OutputVector if_legacy(const ov::frontend::onnx::Node& node) {
     const auto& ng_inputs = node.get_ov_inputs();
-    FRONT_END_GENERAL_CHECK(ng_inputs.size() >= 1, "If operator must have at least one input (condition)");
+    FRONT_END_GENERAL_CHECK(ng_inputs.size() == 1, "If operator takes only one input");
 
     const auto& subgraphs = node.get_subgraphs();
     FRONT_END_GENERAL_CHECK(subgraphs.count("then_branch") == 1, "Missing 'then_branch' attribute");
@@ -121,7 +121,7 @@ ov::OutputVector if_legacy(const ov::frontend::onnx::Node& node) {
 
     // Two cases:
     // 1. Explicit inputs: ONNX If node has inputs, get_inputs_from_parent() returns them
-    // 2. Implicit inputs: Branches use outer scope variables, ng_inputs has them
+    // 2. No inputs: Branches don't use external data
 
     if (then_branch_inputs_from_parent.size() > 0) {
         // Case 1: Explicit inputs from ONNX If node
@@ -141,20 +141,8 @@ ov::OutputVector if_legacy(const ov::frontend::onnx::Node& node) {
             if_node->set_input(from_parent, nullptr, *else_param);
             else_param++;
         }
-    } else if (ng_inputs.size() > 1) {
-        // Case 2: Implicit inputs collected by ONNX Frontend in ng_inputs
-        size_t num_implicit = ng_inputs.size() - 1;  // Exclude condition
-
-        FRONT_END_GENERAL_CHECK(num_implicit == actual_then_params.size(),
-                                "num_implicit (" + std::to_string(num_implicit) + ") != then_params (" +
-                                    std::to_string(actual_then_params.size()) + ")");
-        FRONT_END_GENERAL_CHECK(num_implicit == actual_else_params.size(), "num_implicit != else_params");
-
-        for (size_t i = 0; i < num_implicit; ++i) {
-            if_node->set_input(ng_inputs[i + 1], actual_then_params[i], actual_else_params[i]);
-        }
     } else {
-        // Case 3: No inputs (branches don't use external data)
+        // Case 2: No inputs (branches don't use external data)
         FRONT_END_GENERAL_CHECK(actual_then_params.size() == 0, "Expected 0 then_params");
         FRONT_END_GENERAL_CHECK(actual_else_params.size() == 0, "Expected 0 else_params");
     }

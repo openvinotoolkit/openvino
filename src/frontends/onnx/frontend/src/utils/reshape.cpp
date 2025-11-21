@@ -140,37 +140,6 @@ std::shared_ptr<ov::Node> reshape(const Output<ov::Node>& value, const Shape& sh
 }
 
 std::shared_ptr<ov::Node> reorder_axes(const Output<ov::Node>& value, std::vector<size_t> axes_order) {
-    // If axes_order is empty, return identity (no reordering)
-    if (axes_order.empty()) {
-        return value.get_node_shared_ptr();
-    }
-
-    // Check if input has static rank
-    const auto& input_shape = value.get_partial_shape();
-    if (input_shape.rank().is_static()) {
-        const auto input_rank = input_shape.rank().get_length();
-        const auto axes_order_size = axes_order.size();
-
-        // If axes_order size doesn't match input rank, we need to adjust it
-        if (axes_order_size != static_cast<size_t>(input_rank)) {
-            // Create a new axes_order that accounts for all dimensions
-            std::vector<size_t> extended_axes_order;
-            extended_axes_order.reserve(input_rank);
-
-            // Add leading dimensions in order (identity mapping)
-            for (size_t i = 0; i < (input_rank - axes_order_size); ++i) {
-                extended_axes_order.push_back(i);
-            }
-
-            // Add the permutation for the remaining dimensions, offset by the number of leading dims
-            for (size_t axis : axes_order) {
-                extended_axes_order.push_back(axis + (input_rank - axes_order_size));
-            }
-
-            axes_order = extended_axes_order;
-        }
-    }
-
     const auto axes_order_const =
         ov::op::v0::Constant::create(ov::element::i64,
                                      Shape{axes_order.size()},

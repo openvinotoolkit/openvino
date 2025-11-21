@@ -58,7 +58,6 @@ set(MULTI_TEST_SRC
     onnx_import_convpool.in.cpp
     onnx_import_deprecated.in.cpp
     onnx_import_dyn_shapes.in.cpp
-    onnx_import_lstm_batch_broadcast.in.cpp
     onnx_import_org_openvino.in.cpp
     onnx_import_org_pytorch.in.cpp
     onnx_import_reshape.in.cpp
