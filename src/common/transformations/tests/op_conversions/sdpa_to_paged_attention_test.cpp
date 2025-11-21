@@ -535,8 +535,8 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto block_indices = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
         auto subsequence_begins = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
         auto past_lens = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
-        auto value_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "value_cache.0");
-        auto key_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "key_cache.0");
+        auto value_cache_0 = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, 32, 128}}, el_type_f32});
+        auto key_cache_0 = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, 32, 128}}, el_type_f32});
         auto input_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
         auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
         auto score_aggregation_window = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
@@ -900,8 +900,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto block_indices = make_param(PartialShape{DYN}, element::i32, "block_indices");
         auto subsequence_begins = make_param(PartialShape{DYN}, element::i32, "subsequence_begins");
         auto past_lens = make_param(PartialShape{DYN}, element::i32, "past_lens");
-        auto value_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "value_cache.0");
-        auto key_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "key_cache.0");
+        auto value_cache_0 = make_param(PartialShape{DYN, 40, 128}, element::f32, "value_cache.0");
+        auto key_cache_0 = make_param(PartialShape{DYN, 40, 128}, element::f32, "key_cache.0");
         auto input_ids = make_param(PartialShape{DYN}, element::i64, "input_ids");
         auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
         auto rotated_block_indices = makeConst(element::i32, ov::Shape({0}), {0});
@@ -1216,8 +1216,8 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto block_indices = make_param(PartialShape{DYN}, element::i32, "block_indices");
         auto subsequence_begins = make_param(PartialShape{DYN}, element::i32, "subsequence_begins");
         auto past_lens = make_param(PartialShape{DYN}, element::i32, "past_lens");
-        auto value_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "value_cache.0");
-        auto key_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "key_cache.0");
+        auto value_cache_0 = make_param(PartialShape{DYN, 2, 2}, element::f32, "value_cache_0");
+        auto key_cache_0 = make_param(PartialShape{DYN, 2, 2}, element::f32, "key_cache_0");
         auto inputs_embeds = make_param(PartialShape{DYN, DYN}, element::f32, "inputs_embeds");
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
         auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
@@ -1553,8 +1553,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto block_indices = make_param(PartialShape{DYN}, element::i32, "block_indices");
         auto subsequence_begins = make_param(PartialShape{DYN}, element::i32, "subsequence_begins");
         auto past_lens = make_param(PartialShape{DYN}, element::i32, "past_lens");
-        auto value_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "value_cache.0");
-        auto key_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "key_cache.0");
+        auto value_cache_0 = make_param(PartialShape{DYN, 32, 96}, element::f32, "value_cache_0");
+        auto key_cache_0 = make_param(PartialShape{DYN, 32, 96}, element::f32, "key_cache_0");
         auto inputs_ids = make_param(PartialShape{DYN}, element::i64, "inputs_ids");
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
         auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
@@ -1875,8 +1875,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto block_indices = make_param(PartialShape{DYN}, element::i32, "block_indices");
         auto subsequence_begins = make_param(PartialShape{DYN}, element::i32, "subsequence_begins");
         auto past_lens = make_param(PartialShape{DYN}, element::i32, "past_lens");
-        auto value_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "value_cache.0");
-        auto key_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "key_cache.0");
+        auto value_cache_0 = make_param(PartialShape{DYN, 16, 256}, element::f32, "value_cache_0");
+        auto key_cache_0 = make_param(PartialShape{DYN, 16, 256}, element::f32, "key_cache_0");
         auto input_ids = make_param(PartialShape{DYN}, element::i64, "inputs_ids");
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
         auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
@@ -2378,8 +2378,8 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
         auto block_indices = make_param(PartialShape{DYN}, element::i32, "block_indices");
         auto subsequence_begins = make_param(PartialShape{DYN}, element::i32, "subsequence_begins");
         auto past_lens = make_param(PartialShape{DYN}, element::i32, "past_lens");
-        auto value_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "value_cache.0");
-        auto key_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "key_cache.0");
+        auto value_cache_0 = make_param(PartialShape{DYN, 8, 64}, element::f32, "value_cache_0");
+        auto key_cache_0 = make_param(PartialShape{DYN, 8, 64}, element::f32, "key_cache_0");
         auto input_ids = make_param(PartialShape{DYN}, element::i64, "inputs_ids");
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
 
