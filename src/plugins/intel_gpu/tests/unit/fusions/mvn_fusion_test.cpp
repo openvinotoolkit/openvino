@@ -30,7 +30,6 @@ struct mvn_test_params {
     size_t expected_fused_primitives;
     size_t expected_fused_primitives_onednn;
     size_t expected_not_fused_primitives;
-    bool mvn_ref_non_fusing_network = false;
 };
 
 class MVNFusingTest : public ::BaseFusingTest<mvn_test_params> {

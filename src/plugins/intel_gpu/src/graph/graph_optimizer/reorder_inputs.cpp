@@ -758,6 +758,8 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         }
     };
 
+    // MVN requires input data to be aligned for blocked format opt kernels.
+    // Otherwise need to use bfyx opt kernel for such cases to avoid incorrect results.
     const auto reorder_input_mvn = [&p, &rf](typed_program_node<mvn>& mvn_node) {
         auto& input = mvn_node.input();
         auto input_layout = input.get_output_layout();
