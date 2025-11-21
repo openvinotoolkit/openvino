@@ -1557,6 +1557,45 @@ std::map<primitive_type_id, bool> layout_optimizer::get_all_onednn_impls_optimiz
     return _optimization_attributes.onednn_impls;
 }
 
+void layout_optimizer::save(cldnn::BinaryOutputBuffer& ob) const {
+    ob << _optimization_attributes.group_convolution;
+    ob << _optimization_attributes.bfyx_only_layer;
+    ob << _optimization_attributes.fs_b_yx_fsv32_network;
+    ob << _optimization_attributes.b_fs_zyx_fsv32_network;
+    ob << _optimization_attributes.b_fs_yx_fsv16_network;
+    ob << _optimization_attributes.b_fs_zyx_fsv16_network;
+    ob << _optimization_attributes.bs_fs_yx_bsv16_fsv16_network;
+
+    ob << _optimization_attributes.onednn_impls.size();
+    for (const auto& onednn_impl : _optimization_attributes.onednn_impls) {
+        ob << prim_map_storage::instance().get_type_string(onednn_impl.first);
+        ob << onednn_impl.second;
+    }
+}
+
+void layout_optimizer::load(cldnn::BinaryInputBuffer& ib) {
+    ib >> _optimization_attributes.group_convolution;
+    ib >> _optimization_attributes.bfyx_only_layer;
+    ib >> _optimization_attributes.fs_b_yx_fsv32_network;
+    ib >> _optimization_attributes.b_fs_zyx_fsv32_network;
+    ib >> _optimization_attributes.b_fs_yx_fsv16_network;
+    ib >> _optimization_attributes.b_fs_zyx_fsv16_network;
+    ib >> _optimization_attributes.bs_fs_yx_bsv16_fsv16_network;
+
+    size_t onednn_impls_size = 0;
+    ib >> onednn_impls_size;
+
+    _optimization_attributes.onednn_impls.clear();
+    for (size_t i = 0; i < onednn_impls_size; ++i) {
+        primitive_id p_id{};
+        bool enabled = false;
+        ib >> p_id;
+        ib >> enabled;
+        auto ptype_id = prim_map_storage::instance().get_type_id(p_id);
+        _optimization_attributes.onednn_impls[ptype_id] = enabled;
+    }
+}
+
 bool layout_optimizer::is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions) {
     auto input_layout = node.get_input_layout();
     auto weights_layout = node.weights().get_output_layout();
