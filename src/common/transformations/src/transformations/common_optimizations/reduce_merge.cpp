@@ -127,10 +127,10 @@ pass::ReduceMerge::ReduceMerge() {
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto node = m.get_match_root();
-        if (ov::is_type<op::util::ArithmeticReductionKeepDims>(node)) {
-            return fuse_reduce_operations<op::util::ArithmeticReductionKeepDims>(node);
-        } else if (ov::is_type<op::util::LogicalReductionKeepDims>(node)) {
-            return fuse_reduce_operations<op::util::LogicalReductionKeepDims>(node);
+        if (ov::is_type<ov::op::util::ArithmeticReductionKeepDims>(node)) {
+            return fuse_reduce_operations<ov::op::util::ArithmeticReductionKeepDims>(node);
+        } else if (ov::is_type<ov::op::util::LogicalReductionKeepDims>(node)) {
+            return fuse_reduce_operations<ov::op::util::LogicalReductionKeepDims>(node);
         } else {
             return false;
         }

@@ -170,10 +170,10 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 }
             }
             is_changed |= inherit_output_type(op, {0});
-        } else if (ov::as_type_ptr<op::util::UnaryElementwiseArithmetic>(op)) {
+        } else if (ov::as_type_ptr<ov::op::util::UnaryElementwiseArithmetic>(op)) {
             is_changed |= inherit_output_shape(op, {0});
             is_changed |= inherit_output_type(op, {0});
-        } else if (const auto& eltwise = ov::as_type_ptr<op::util::BinaryElementwiseArithmetic>(op)) {
+        } else if (const auto& eltwise = ov::as_type_ptr<ov::op::util::BinaryElementwiseArithmetic>(op)) {
             if (output_shape.rank().is_static()) {
                 auto in0_rank = op->get_input_partial_shape(0).rank();
                 auto in1_rank = op->get_input_partial_shape(1).rank();

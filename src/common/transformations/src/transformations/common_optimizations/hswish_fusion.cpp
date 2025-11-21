@@ -45,9 +45,9 @@ ov::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
         auto div_const_value =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0) &&
-                                     op::util::has_constant_value<float>(min_const_value, 6.0) &&
-                                     op::util::has_constant_value<float>(div_const_value, 6.0);
+        bool valid_constant_values = ov::op::util::has_constant_value<float>(add_const_value, 3.0) &&
+                                     ov::op::util::has_constant_value<float>(min_const_value, 6.0) &&
+                                     ov::op::util::has_constant_value<float>(div_const_value, 6.0);
 
         if (!valid_constant_values) {
             return false;
@@ -100,9 +100,9 @@ ov::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
         auto mul_const_value =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0f) &&
-                                     op::util::has_constant_value<float>(min_const_value, 6.0f) &&
-                                     op::util::has_constant_value<float>(mul_const_value, (1.0f / 6.0f), 0.0001f);
+        bool valid_constant_values = ov::op::util::has_constant_value<float>(add_const_value, 3.0f) &&
+                                     ov::op::util::has_constant_value<float>(min_const_value, 6.0f) &&
+                                     ov::op::util::has_constant_value<float>(mul_const_value, (1.0f / 6.0f), 0.0001f);
 
         if (!valid_constant_values) {
             return false;
@@ -165,7 +165,7 @@ ov::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
         const auto x_output = pattern_to_output.at(input);
         const auto add_const_value =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        if (!op::util::has_constant_value(add_const_value, 3.0)) {
+        if (!ov::op::util::has_constant_value(add_const_value, 3.0)) {
             return false;
         }
 

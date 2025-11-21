@@ -346,7 +346,7 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::prop::Binary");
     Binary() {
         MATCHER_SCOPE(Binary);
-        auto pattern_root = pattern::wrap_type<op::util::BinaryElementwiseArithmetic, ov::op::v0::FakeQuantize>();
+        auto pattern_root = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic, ov::op::v0::FakeQuantize>();
 
         auto callback = [=](pattern::Matcher& m) {
             const auto& root = m.get_match_root();
@@ -529,9 +529,9 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::prop::PassThrough");
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
-        auto pattern_root = pattern::wrap_type<op::util::UnaryElementwiseArithmetic,
+        auto pattern_root = pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
                                                ov::op::v0::Convert,
-                                               op::util::PadBase,
+                                               ov::op::util::PadBase,
                                                ov::op::v0::PRelu>();
 
         auto callback = [=](pattern::Matcher& m) {
@@ -694,7 +694,7 @@ public:
                                                           pattern::any_input(pattern::has_static_rank()),
                                                           pattern::any_input(pattern::has_static_rank())},
                                                          pattern::has_static_rank());
-        auto binary_elementwise_pattern = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>(
+        auto binary_elementwise_pattern = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
             {pattern::any_input(pattern::has_static_rank()), pattern::any_input(pattern::has_static_rank())},
             pattern::has_static_rank());
 
@@ -823,7 +823,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         RUN_ON_FUNCTION_SCOPE(Constant);
         for (const auto& node : model->get_ordered_ops()) {
-            if ((ov::as_type_ptr<op::util::BinaryElementwiseArithmetic>(node) ||
+            if ((ov::as_type_ptr<ov::op::util::BinaryElementwiseArithmetic>(node) ||
                  ov::as_type_ptr<ov::op::v0::FakeQuantize>(node) || ov::as_type_ptr<ov::op::v0::Convert>(node)) &&
                 node->get_output_partial_shape(0).rank().is_static()) {
                 continue;

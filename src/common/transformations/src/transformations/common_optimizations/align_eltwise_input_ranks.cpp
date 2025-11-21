@@ -16,9 +16,9 @@
 
 ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     auto eltwise_pattern = pattern::wrap_type<ov::op::v0::SquaredDifference,
-                                              op::util::BinaryElementwiseComparison,
-                                              op::util::BinaryElementwiseLogical,
-                                              op::util::BinaryElementwiseArithmetic,
+                                              ov::op::util::BinaryElementwiseComparison,
+                                              ov::op::util::BinaryElementwiseLogical,
+                                              ov::op::util::BinaryElementwiseArithmetic,
                                               ov::op::v0::FakeQuantize>(pattern::has_static_rank());
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
