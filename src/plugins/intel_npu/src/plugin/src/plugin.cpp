@@ -176,7 +176,7 @@ void checkUpdateforSpecialPlatform(const FilteredConfig& base_conf,
 
     // If user set compilerType in config, will not update by device
     auto it = propertiesMap.find(std::string(COMPILER_TYPE::key()));
-    if(it != propertiesMap.end()) {
+    if (it != propertiesMap.end()) {
         return;
     }
 
@@ -203,9 +203,8 @@ void checkUpdateforSpecialPlatform(const FilteredConfig& base_conf,
     }
 
     if (base_conf.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::DRIVER) {
-        log.warning(
-            "Platform '3720' is selected, but the used compiler_type is not set to 'DRIVER'. Forcely use the "
-            "compiler_type to 'DRIVER'. Maybe cause the compilerType inconsistency issues.");
+        log.warning("Platform '3720' is selected, but the used compiler_type is not set to 'DRIVER'. Forcely use the "
+                    "compiler_type to 'DRIVER'. Maybe cause the compilerType inconsistency issues.");
     }
 
     // To avoid compilerType inconsistency issues, only set DRIVER if compiler_type is not set by user

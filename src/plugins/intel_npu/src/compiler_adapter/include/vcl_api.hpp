@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/icompiler.hpp"
 #include "npu_driver_compiler.h"
 #include "openvino/core/except.hpp"
@@ -79,6 +80,7 @@ vcl_symbols_list();
 vcl_weak_symbols_list();
 #undef vcl_symbol_statement
 
+bool isUseBaseModelSerializer(const FilteredConfig& config);
 std::string supportVclCompiler(int major, int minor);
 
 class VCLCompilerImpl final : public intel_npu::ICompiler {
