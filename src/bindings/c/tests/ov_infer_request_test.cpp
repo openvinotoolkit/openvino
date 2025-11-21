@@ -349,24 +349,6 @@ TEST_P(ov_infer_request_test, infer_async_wait_for) {
     }
 }
 
-TEST_P(ov_infer_request_test, DISABLED_infer_async_wait_for_return_busy) {
-    /* Disabled as delaying callback does not keep infer request in Busy state - callback function is called only after
-     * the state changes from Busy to Idle. So this test sporadically fails. */
-    OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
-
-    ov_callback_t callback;
-    callback.callback_func = [](void* args) {
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-    };
-    OV_EXPECT_OK(ov_infer_request_set_callback(infer_request, &callback));
-
-    OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
-
-    if (!HasFatalFailure()) {
-        EXPECT_EQ(ov_status_e::REQUEST_BUSY, ov_infer_request_get_tensor(infer_request, in_tensor_name, &input_tensor));
-    }
-}
-
 TEST_P(ov_infer_request_test, infer_async_wait_for_return_fail) {
     OV_EXPECT_NOT_OK(ov_infer_request_wait_for(infer_request, 10));
 }
