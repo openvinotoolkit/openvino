@@ -58,8 +58,10 @@ private:
     std::shared_ptr<ov::runtime::Backend> m_backend;
     Configuration m_cfg;
     std::shared_ptr<ov::threading::ITaskExecutor> m_waitExecutor;
-};
 
+    static std::string get_compiled_blob_version();
+    static bool verify_compiled_blob(const std::string& compiled_blob_version);
+};
 }  // namespace template_plugin
 }  // namespace ov
    //! [plugin:header]

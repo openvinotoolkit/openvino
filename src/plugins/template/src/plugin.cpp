@@ -394,6 +394,8 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
             ov::PropertyName{ov::internal::threads_per_stream.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::cache_header_alignment.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_blob_version.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::blob_verification_callback.name(), ov::PropertyMutability::RO},
         };
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
@@ -415,11 +417,25 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         return decltype(ov::execution_devices)::value_type{get_device_name()};
     } else if (ov::range_for_async_infer_requests == name) {
         return decltype(ov::range_for_async_infer_requests)::value_type{1, 1, 1};
+    } else if (ov::internal::blob_verification_callback == name) {
+        return decltype(ov::internal::blob_verification_callback)::value_type{[](const std::string& version) {
+            return ov::template_plugin::Plugin::verify_compiled_blob(version);
+        }};
+    } else if (ov::internal::compiled_blob_version == name) {
+        return decltype(ov::internal::compiled_blob_version)::value_type{get_compiled_blob_version()};
     } else {
         return m_cfg.Get(name);
     }
 }
 // ! [plugin:get_property]
+
+std::string ov::template_plugin::Plugin::get_compiled_blob_version() {
+    return "TEMPLATE_PLUGIN_BLOB_V1";
+}
+
+bool ov::template_plugin::Plugin::verify_compiled_blob(const std::string& compiled_blob_version) {
+    return compiled_blob_version == get_compiled_blob_version();
+}
 
 // ! [plugin:create_plugin_engine]
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_template_plugin"};

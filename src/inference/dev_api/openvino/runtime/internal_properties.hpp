@@ -169,5 +169,18 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
  */
 
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
+
+/**
+ * @brief Read-only property to get a compiled blob version.
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<std::string, PropertyMutability::RO> compiled_blob_version{"COMPILED_BLOB_VERSION"};
+
+/**
+ * @brief Read-only property to get a callback to verify compiled blob version compatibility.
+ * @ingroup ov_dev_api_plugin_api
+ */
+using blob_verification_callback_t = std::function<bool(const std::string&)>;
+static constexpr Property<blob_verification_callback_t, PropertyMutability::RO> blob_verification_callback{"BLOB_VERIFICATION_CALLBACK"};
 }  // namespace internal
 }  // namespace ov

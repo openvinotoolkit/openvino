@@ -81,6 +81,8 @@ public:
         return get_property(property.name(), arguments).template as<T>();
     }
     bool supports_model_caching(const AnyMap& arguments = {}) const;
+
+    bool verify_compiled_blob(const std::string& compiled_blob_version) const;
 };
 
 }  // namespace ov

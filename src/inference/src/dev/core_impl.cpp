@@ -1487,9 +1487,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                         plugin.get_property(ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
                 }
 
+                std::string compiled_blob_version;
+                if (device_supports_internal_property(plugin, ov::internal::compiled_blob_version.name())) {
+                    compiled_blob_version =
+                        plugin.get_property(ov::internal::compiled_blob_version.name(), {}).as<std::string>();
+                }
+
                 networkStream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
                                                         ov::ModelCache::calculate_file_info(cacheContent.m_model_path),
                                                         compiled_model_runtime_properties,
+                                                        compiled_blob_version,
                                                         header_size_alignment);
 
                 compiled_model->export_model(networkStream);
@@ -1557,6 +1564,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                             OPENVINO_THROW("Version does not match");
                         }
                     }
+                    OPENVINO_ASSERT(plugin.verify_compiled_blob(header.get_blob_version()), "Incompatible blob version");
                 } catch (...) {
                     throw HeaderException();
                 }

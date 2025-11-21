@@ -119,3 +119,10 @@ bool ov::Plugin::supports_model_caching(const ov::AnyMap& arguments) const {
         util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties);
     return supported;
 }
+
+bool ov::Plugin::verify_compiled_blob(const std::string& compiled_blob_version) const {
+    if (util::contains(get_property(ov::internal::supported_properties), ov::internal::blob_verification_callback)) {
+        return get_property(ov::internal::blob_verification_callback)(compiled_blob_version);
+    }
+    return true;
+}
