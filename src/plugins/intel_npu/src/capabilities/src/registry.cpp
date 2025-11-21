@@ -29,7 +29,7 @@ const Registry& Registry::get() {
 }
 
 Registry::Registry() {
-    Registry::registerCapability<WeightlessBlob>(_hwCapabilities);
+    Registry::registerCapability<WeightsSeparationRequirement>(_swCapabilities);
     Registry::registerCapability<BatchSize>(_swCapabilities);
     // registerNPU4Capabilities(*this);
 }

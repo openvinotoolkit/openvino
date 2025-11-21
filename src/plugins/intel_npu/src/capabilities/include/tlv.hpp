@@ -23,9 +23,7 @@ struct alignas(uint16_t) Header {
     uint16_t type;
 
     uint16_t required : 1;
-    // TODO: revise this
     uint16_t offset   : 3;
-    // uint16_t version;
     uint16_t length   : 12;
 };
 

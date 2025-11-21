@@ -135,6 +135,7 @@ Capabilities parseCapabilities(ByteArrayView capabilities, bool isHW) {
         const auto header = *reinterpret_cast<const Header*>(position);
         position += sizeof(Header) + header.offset;
 
+        // TODO: revise this
         const auto stateless = header.length == 0;
 
         printf("!!! position = %p !!!\n", position);

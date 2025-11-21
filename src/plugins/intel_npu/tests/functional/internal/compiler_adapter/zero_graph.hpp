@@ -461,22 +461,21 @@ TEST_P(ZeroGraphTest, CapabilityRequiredOnly) {
         VPUX_ELF_THROW_WHEN(!compat::isCompatible(capabilities, requirements), ArgsError, "BLOB IS INCOMPATIBLE DUE TO SW CAPABILITIES");
     */
 
-    const auto requirements = compat::tlv::parseRequirements(compat::ByteArrayView{buffer.data(), buffer.size()});
-    ASSERT_TRUE(compat::isCompatible({}, requirements)) << "Not compatible";
+    const auto capabilities = compat::tlv::parseSWCapabilities(compat::ByteArrayView{buffer.data(), buffer.size()});
+    ASSERT_TRUE(compat::isCompatible(capabilities, {})) << "Not compatible";
 }
 
 TEST_P(ZeroGraphTest, AllCapabilities) {
     const auto& registry = compat::Registry::get();
     std::cout << "Registry initialized\n";
 
+    compat::WeightsSeparationRequirement weightlessBlob(8, {1});
     compat::BatchSize batchSize(2);
-    compat::WeightlessBlob weightlessBlob(3);
-    compat::ByteArrayView capabilityByteView(reinterpret_cast<uint8_t*>(&batchSize), sizeof(batchSize));
     std::cout << "Capability serialized\n";
     
     compat::tlv::Serializer serializer;
-    serializer.append(batchSize);
     serializer.append(weightlessBlob);
+    serializer.append(batchSize);
     std::cout << "Serialized capabilities\n";
     
     std::vector<uint8_t> buffer = serializer.done();
@@ -489,7 +488,7 @@ TEST_P(ZeroGraphTest, AllCapabilities) {
     */
 
     const auto requirements = compat::tlv::parseRequirements(compat::ByteArrayView{buffer.data(), buffer.size()});
-    const auto capabilities = compat::tlv::parseSWCapabilities(compat::ByteArrayView(buffer.data(), buffer.size()));
+    const auto capabilities = compat::tlv::parseSWCapabilities(compat::ByteArrayView(buffer.data(), 0));
 
     ASSERT_TRUE(compat::isCompatible(capabilities, requirements)) << "Not compatible";
 }
