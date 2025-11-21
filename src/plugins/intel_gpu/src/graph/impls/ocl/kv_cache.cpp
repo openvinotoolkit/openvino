@@ -119,8 +119,8 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         kernel_arguments_data args;
         args.shape_info = instance.shape_info_memory_ptr();
         if (stage == reorder_trim_stage) {
-            args.inputs = {instance.output_memory_ptr(0), instance.input_memory_ptr(2 + indirect_offset), instance.input_memory_ptr(3 + indirect_offset)};
-            args.outputs = { instance.output_memory_ptr(0) };
+            args.inputs = { instance.input_memory_ptr(0), instance.input_memory_ptr(2 + indirect_offset), instance.input_memory_ptr(3 + indirect_offset) };
+            args.outputs = {instance.input_memory_ptr(0)};
         } else if (stage == concat_stage) {
             args.inputs = { instance.input_memory_ptr(0), instance.input_memory_ptr(1) };
             args.outputs = { instance.output_memory_ptr(0) };
@@ -199,7 +199,9 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         if (impl_param.input_layouts.size() >= 3) {
             indirect_offset = desc->indirect ? 1 : 0;
-            execute_stage(events, instance, res_events, reorder_trim_stage);
+            if (instance.input_memory_ptr(0) && instance.input_memory_ptr(2 + indirect_offset)->size()) {
+                execute_stage(events, instance, res_events, reorder_trim_stage);
+            }
         }
 
         execute_stage(events, instance, res_events, concat_stage);
