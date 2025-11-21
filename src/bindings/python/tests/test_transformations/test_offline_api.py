@@ -44,7 +44,9 @@ def get_lstm_sequence_model():
     const_r = ov.opset9.constant(value=r_val, dtype=np.float32)
     const_b = ov.opset9.constant(value=b_val, dtype=np.float32)
 
-    lstm_sequence = ov.opset9.lstm_sequence(parameter_x, parameter_y, parameter_z, seq_lengths, const_w, const_r, const_b, 128, "FORWARD")
+    lstm_sequence = ov.opset9.lstm_sequence(
+        parameter_x, parameter_y, parameter_z, seq_lengths, const_w, const_r, const_b, 128, "FORWARD"
+    )
     y_out = ov.opset9.result(lstm_sequence.output(0))
     ho = ov.opset9.result(lstm_sequence.output(1))
     co = ov.opset9.result(lstm_sequence.output(2))
@@ -66,7 +68,9 @@ def get_rnn_sequence_model():
     const_r = ov.opset9.constant(value=r_val, dtype=np.float32)
     const_b = ov.opset9.constant(value=b_val, dtype=np.float32)
 
-    rnn_sequence = ov.opset9.rnn_sequence(parameter_x, parameter_y, seq_lengths, const_w, const_r, const_b, 128, "FORWARD")
+    rnn_sequence = ov.opset9.rnn_sequence(
+        parameter_x, parameter_y, seq_lengths, const_w, const_r, const_b, 128, "FORWARD"
+    )
     y_out = ov.opset9.result(rnn_sequence.output(0))
     model = Model([y_out], [parameter_x, parameter_y])
 
@@ -86,7 +90,9 @@ def get_gru_sequence_model():
     const_r = ov.opset9.constant(value=r_val, dtype=np.float32)
     const_b = ov.opset9.constant(value=b_val, dtype=np.float32)
 
-    gru_sequence = ov.opset9.gru_sequence(parameter_x, parameter_y, seq_lengths, const_w, const_r, const_b, 128, "FORWARD")
+    gru_sequence = ov.opset9.gru_sequence(
+        parameter_x, parameter_y, seq_lengths, const_w, const_r, const_b, 128, "FORWARD"
+    )
     y_out = ov.opset9.result(gru_sequence.output(0))
     ho = ov.opset9.result(gru_sequence.output(1))
     model = Model([y_out, ho], [parameter_x, parameter_y])
@@ -206,7 +212,9 @@ def compare_models_and_finalize_after_test(model, xml_path, bin_path):
 )
 @pytest.mark.parametrize("path_suffix", [r"test", r"晚安_пут"])
 def test_serialize_pass_v2(request, tmp_path, is_path_xml, is_path_bin, path_suffix):
-    model, xml_path, bin_path = prepare_test_model_for_serialize(request, tmp_path / path_suffix, is_path_xml, is_path_bin)
+    model, xml_path, bin_path = prepare_test_model_for_serialize(
+        request, tmp_path / path_suffix, is_path_xml, is_path_bin
+    )
     serialize(model, xml_path, bin_path)
     compare_models_and_finalize_after_test(model, xml_path, bin_path)
 
@@ -223,7 +231,9 @@ def test_serialize_pass_v2_path_as_bytes(request, tmp_path, path_suffix):
 @pytest.mark.parametrize("is_path_bin", [True, False])
 @pytest.mark.parametrize("path_suffix", [r"test", r"晚安_пут"])
 def test_save_model(request, tmp_path, is_path_xml, is_path_bin, path_suffix):
-    model, xml_path, bin_path = prepare_test_model_for_serialize(request, tmp_path / path_suffix, is_path_xml, is_path_bin)
+    model, xml_path, bin_path = prepare_test_model_for_serialize(
+        request, tmp_path / path_suffix, is_path_xml, is_path_bin
+    )
     save_model(model, xml_path, compress_to_fp16=False)
     compare_models_and_finalize_after_test(model, xml_path, bin_path)
 
@@ -413,7 +423,8 @@ def test_flush_fp32_subnormals_to_zero():
     result = ov.opset10.result(add_node)
     model = Model([result], [parameter])
 
-    apply_moc_transformations(model, cf=False, smart_reshape=True)  # apply_flush_fp32_subnormals_to_zero is called inside
+    # apply_flush_fp32_subnormals_to_zero is called inside
+    apply_moc_transformations(model, cf=False, smart_reshape=True)
 
     new_weights = add_node.input_value(1).get_node()
     assert np.all(new_weights.data[4:8] != subnorm_val)

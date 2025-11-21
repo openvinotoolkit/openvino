@@ -10,7 +10,10 @@ import warnings
 import operator
 import sysconfig
 
-with pytest.warns(DeprecationWarning, match="The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release."):
+with pytest.warns(
+    DeprecationWarning,
+    match="The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release."
+):
     import openvino.runtime as ov
 
 import openvino.runtime.opset13 as ops
