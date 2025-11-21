@@ -9,10 +9,10 @@
 
 #pragma once
 
+#include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "openvino/runtime/allocator.hpp"
 
 namespace ov {
 
@@ -97,4 +97,15 @@ OPENVINO_RUNTIME_API ov::SoPtr<ov::ITensor> get_tensor_impl(const ov::Tensor& te
  */
 OPENVINO_RUNTIME_API size_t get_tensor_data_offset(const ov::ITensor& tensor);
 
+/**
+ * @brief Checks if the tensor is read-only
+ *
+ * @details A tensor is considered read-only if it was created as a view tensor from a const pointer
+ * using the make_tensor() function that accepts const void* host_ptr.
+ *
+ * @param tensor OpenVINO Tensor to check
+ *
+ * @return true if the tensor is read-only, false otherwise
+ */
+OPENVINO_RUNTIME_API bool is_tensor_read_only(const ov::Tensor& tensor);
 }  // namespace ov
