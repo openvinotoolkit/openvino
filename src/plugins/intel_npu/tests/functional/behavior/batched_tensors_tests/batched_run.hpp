@@ -354,6 +354,8 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferMCL) {
             }
         }
     }
+
+    ::operator delete(buffer, std::align_val_t(4096));
 }
 
 TEST_P(BatchedTensorsRunTests, SetInputDifferentRemoteTensorsMultipleInferMCL) {
