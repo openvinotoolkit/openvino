@@ -90,9 +90,6 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     }
 
     for (int i = 3; i < 9; ++i) {
-        // skip total_sequence_length
-        if (i == 6)
-            continue;
         ov_op_inputs.push_back(onnx_op_inputs[i]);
     }
     return std::make_shared<internal::GroupQueryAttention>(ov_op_inputs,
