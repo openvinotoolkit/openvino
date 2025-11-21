@@ -221,23 +221,6 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> scale = inputs[1];
     ov::Output<ov::Node> zp = inputs.size() > 2 ? inputs[2] : ov::Output<ov::Node>{};
 
-    // squeeze input constant to 2d, [N, C, 1, 1] -> [N, C]
-    auto squeeze_to_2d = [&](ov::Output<ov::Node>& tensor) {
-        auto shape = tensor.get_partial_shape();
-        if (shape.rank().is_static() && shape.rank().get_length() > 2) {
-            for (int64_t i = 2; i < shape.rank().get_length(); ++i) {
-                FRONT_END_GENERAL_CHECK(shape[i].is_static() && shape[i].get_length() == 1,
-                                        "DequantizeLinear squeeze_to_2d failed, shape is not supported");
-            }
-            auto const_node = ov::as_type_ptr<v0::Constant>(tensor.get_node_shared_ptr());
-            FRONT_END_GENERAL_CHECK(const_node, "DequantizeLinear squeeze_to_2d failed, input should be a Constant.");
-            tensor = std::make_shared<v0::Constant>(
-                const_node->get_element_type(),
-                Shape{static_cast<size_t>(shape[0].get_length()), static_cast<size_t>(shape[1].get_length())},
-                const_node->get_data_ptr());
-        }
-    };
-
     auto output_shape = std::make_shared<v0::ShapeOf>(src_x);
     const auto& scale_shape = scale.get_partial_shape();
 
@@ -246,19 +229,31 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         return ai_onnx::opset_13::dequantize_linear(node);
     }
 
+    // squeeze constant input to 2d, [N, C, 1, 1] -> [N, C]
+    auto const_input_to_2d = [&](ov::Output<ov::Node>& tensor) {
+        auto const_node = ov::as_type_ptr<v0::Constant>(tensor.get_node_shared_ptr());
+        auto shape = tensor.get_partial_shape();
+        if (const_node && shape.rank().is_static() && shape.rank().get_length() > 2) {
+            for (int64_t i = 2; i < shape.rank().get_length(); ++i) {
+                FRONT_END_GENERAL_CHECK(shape[i].is_static() && shape[i].get_length() == 1,
+                                        "DequantizeLinear const_input_to_2d failed, shape is not supported");
+            }
+            tensor = std::make_shared<v0::Constant>(
+                const_node->get_element_type(),
+                Shape{static_cast<size_t>(shape[0].get_length()), static_cast<size_t>(shape[1].get_length())},
+                const_node->get_data_ptr());
+        }
+    };
+
     if (scale_shape.rank().is_static() && scale_shape.rank().get_length() > 2) {
-        squeeze_to_2d(src_x);
-        squeeze_to_2d(scale);
+        const_input_to_2d(src_x);
+        const_input_to_2d(scale);
         if (zp.get_node_shared_ptr()) {
-            squeeze_to_2d(zp);
+            const_input_to_2d(zp);
         }
     }
 
-    const auto& new_scale_shape = scale.get_partial_shape();
-    FRONT_END_GENERAL_CHECK(new_scale_shape.rank().is_static(),
-                            "Rank of the input data tensor has to be known (static).");
-    FRONT_END_GENERAL_CHECK(new_scale_shape.rank().get_length() == 2,
-                            "DequantizeLinear cannot operate with more than 2D scales");
+    FRONT_END_GENERAL_CHECK(scale_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
     FRONT_END_GENERAL_CHECK(src_x.get_partial_shape().is_static(),
                             "DequantizeLinear cannot operate with dynamic shapes of input X");
 
@@ -283,19 +278,24 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         return {scaled_x};
     }
 
+    // Compatible to multi-dimension of input, not only 2D.
     // For further broadcasting scales and zp - reshape input to a shape
-    // axis == 0, [x.shape[0]/block_size, block_size, x.shape[1]]
-    // axis == 1, [x.shape[0], block_size, x.shape[1]/block_size]
-    ov::Output<ov::Node> broadcastable_x;
+    // axis == 0, [x.shape[0]/block_size, block_size, x.shape[1], x.shape[2,...]]
+    // axis == 1, [x.shape[0], block_size, x.shape[1]/block_size, x.shape[2,...]]
+    std::vector<size_t> target_shape_vector;
     if (axis == 0) {
-        broadcastable_x = op::util::reshape(
-            src_x,
-            Shape{static_cast<size_t>(src_x.get_shape()[0]) / block_size, block_size, src_x.get_shape()[1]});
+        target_shape_vector = {static_cast<size_t>(src_x.get_partial_shape()[0].get_length()) / block_size,
+                               block_size,
+                               static_cast<size_t>(src_x.get_partial_shape()[1].get_length())};
     } else {
-        broadcastable_x = op::util::reshape(
-            src_x,
-            Shape{src_x.get_shape()[0], block_size, static_cast<size_t>(src_x.get_shape()[1]) / block_size});
+        target_shape_vector = {static_cast<size_t>(src_x.get_partial_shape()[0].get_length()),
+                               block_size,
+                               static_cast<size_t>(src_x.get_partial_shape()[1].get_length()) / block_size};
     }
+    for (int64_t i = 2; i < src_x.get_partial_shape().rank().get_length(); i++) {
+        target_shape_vector.push_back(static_cast<size_t>(src_x.get_partial_shape()[i].get_length()));
+    }
+    ov::Output<ov::Node> broadcastable_x = op::util::reshape(src_x, ov::Shape(target_shape_vector));
     const auto& unsqueezed_axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{1});
 
     const auto scale_type = scale.get_element_type();
