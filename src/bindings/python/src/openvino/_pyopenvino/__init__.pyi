@@ -16,7 +16,7 @@ import typing
 """
 Package openvino._pyopenvino which wraps openvino C++ APIs
 """
-__all__: list[str] = ['AsyncInferQueue', 'AttributeVisitor', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'ConversionExtension', 'ConversionExtensionBase', 'Coordinate', 'CoordinateDiff', 'Core', 'DecoderTransformationExtension', 'DescriptorTensor', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InferRequest', 'InitializationFailure', 'Input', 'InputModel', 'Iterator', 'Layout', 'Model', 'Node', 'NodeContext', 'NodeFactory', 'NotImplementedFailure', 'OVAny', 'Op', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Output', 'PartialShape', 'Place', 'ProfilingInfo', 'ProgressReporterExtension', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'TelemetryExtension', 'Tensor', 'TensorVector', 'Type', 'VAContext', 'VASurfaceTensor', 'VariableState', 'Version', 'experimental', 'frontend', 'get_batch', 'get_version', 'layout_helpers', 'op', 'passes', 'preprocess', 'properties', 'save_model', 'serialize', 'set_batch', 'shutdown', 'util']
+__all__: list[str] = ['AsyncInferQueue', 'AttributeVisitor', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'ConversionExtension', 'ConversionExtensionBase', 'Coordinate', 'CoordinateDiff', 'Core', 'DecoderTransformationExtension', 'DescriptorTensor', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InferRequest', 'InitializationFailure', 'Input', 'InputModel', 'Iterator', 'Layout', 'Model', 'Node', 'NodeContext', 'NodeFactory', 'NotImplementedFailure', 'OVAny', 'Op', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Output', 'PartialShape', 'Place', 'ProfilingInfo', 'ProgressReporterExtension', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'TelemetryExtension', 'Tensor', 'TensorVector', 'Type', 'VAContext', 'VASurfaceTensor', 'VariableState', 'Version', 'experimental', 'frontend', 'get_batch', 'get_version', 'layout_helpers', 'op', 'passes', 'preprocess', 'properties', 'save_model', 'serialize', 'set_batch', 'shutdown', 'util', 'read_tensor_data']
 class AsyncInferQueue:
     """
     openvino.AsyncInferQueue represents a helper that creates a pool of asynchronousInferRequests and provides synchronization functions to control flow of a simple pipeline.
@@ -5266,6 +5266,8 @@ def get_batch(arg0: Model) -> Dimension:
 def get_batch(model: typing.Any) -> Dimension:
     ...
 def get_version() -> str:
+    ...
+def read_tensor_data(path: typing.Any) -> Tensor:
     ...
 def save_model(model: typing.Any, output_model: typing.Any, compress_to_fp16: bool = True) -> None:
     """

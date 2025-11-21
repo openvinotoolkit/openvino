@@ -52,6 +52,7 @@ from openvino._pyopenvino import get_batch
 from openvino._pyopenvino import set_batch
 from openvino._pyopenvino import serialize
 from openvino._pyopenvino import save_model
+from openvino._pyopenvino import read_tensor_data
 from openvino._pyopenvino import shutdown
 
 # Import opsets
