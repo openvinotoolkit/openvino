@@ -596,6 +596,13 @@ std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
     return callback_sp;
 }
 
+std::shared_ptr<py::object> wrap_pyobject_to_sp(py::object obj) {
+    return std::shared_ptr<py::object>(new py::object(std::move(obj)), [](py::object* o) {
+        py::gil_scoped_acquire acquire;
+        delete o;
+    });
+}
+
 std::filesystem::path to_fs_path(const py::object& path) {
     // import pathlib.Path
     py::object Path = py::module_::import("pathlib").attr("Path");
