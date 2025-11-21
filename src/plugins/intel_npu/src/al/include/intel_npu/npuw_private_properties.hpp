@@ -237,6 +237,14 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 /**
  * @brief
  * Type: boolean.
+ * Apply attention optimizations (e.g. DYNAMIC, PYRAMID, and others) when attention block detected.
+ * Default value: true
+ */
+static constexpr ov::Property<bool> attn{"NPUW_ATTN"};
+
+/**
+ * @brief
+ * Type: boolean.
  * Enable dynamic dispatch for the attention block, if detected
  * Default value: true
  */
@@ -497,6 +505,37 @@ static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
  * Default value: 1024.
  */
 static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHUNK_SIZE"};
+
+/**
+ * @brief
+ * Type: bool.
+ * This toggle enables the prefix caching feature.
+ * When activated, it stores the prefilled key-value pairs (KV) for current prompts in the cache during each
+ * conversation round.
+ * In subsequent rounds, if the prompt's KV is found in the cache, it allows skipping the prefill for certain tokens,
+ * thereby enhancing the latency of the first token.
+ * Default value: false.
+ */
+static constexpr ov::Property<uint64_t> enable_prefix_caching{"NPUW_LLM_ENABLE_PREFIX_CACHING"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Prefilled KV tensors are cached in blocks when prefix caching is enabled.
+ * This value describes the number of tokens in each block.
+ * This value should be not greater than prefill_chunk_size.
+ * Default value: 256.
+ */
+static constexpr ov::Property<uint64_t> prefix_caching_block_size{"NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Prefilled KV tensors are cached in blocks when prefix caching is enabled.
+ * This value describes the maximum number of blocks in cache.
+ * Default value: 128.
+ */
+static constexpr ov::Property<uint64_t> prefix_caching_max_num_blocks{"NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS"};
 
 /**
  * @brief

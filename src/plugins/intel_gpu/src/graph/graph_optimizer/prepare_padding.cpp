@@ -16,47 +16,52 @@ using namespace cldnn;
 using namespace ov::intel_gpu;
 
 void prepare_padding::run(program& p) {
-    if (p.get_config().get_use_onednn()) {
-        const auto allow_new_shape_infer = p.get_config().get_allow_new_shape_infer();
-        for (const auto& node : p.get_processing_order()) {
-            if (!node->is_type<fully_connected>())
-                continue;
+    for (const auto& node : p.get_processing_order()) {
+        if (!node->is_type<fully_connected>())
+            continue;
 
-            if (node->get_preferred_impl_type() != impl_types::onednn)
-                continue;
+        auto& weight_node = node->get_dependency(1);
+        if (weight_node.is_constant()) {
+            const size_t alignment = 2;
+            auto weight_layout = weight_node.get_output_layout(0);
+            const auto const_shape = weight_layout.get_partial_shape().to_shape();
+            OPENVINO_ASSERT(const_shape.size() > 0, "Data padding for int4 type data with an odd innermost dimension does not support zero dimension.");
+            auto inner_most_idx = node->as<fully_connected>().get_primitive()->weights_rank - 1;
 
-            auto& weight_node = node->get_dependency(1);
-            if (weight_node.is_type<data>()
-                && weight_node.is_constant()
-                && (weight_node.get_output_layout(0).data_type == cldnn::data_types::u4
-                    || weight_node.get_output_layout(0).data_type == cldnn::data_types::i4)) {
-                const size_t alignment = 2;
-                auto weight_layout = weight_node.get_output_layout(0);
-                const auto const_shape = weight_layout.get_partial_shape().to_shape();
-                OPENVINO_ASSERT(const_shape.size() > 0, "Data padding for int4 type data with an odd innermost dimension does not support zero dimension.");
-                auto inner_most_idx = static_cast<ov::Dimension::value_type>(const_shape.size()) - 1;
-                if (!allow_new_shape_infer) {
-                    // Get the innermost index after trimming trailing elements in the canonicalized legacy shape such as [4, 64, 1, 1].
-                    while (inner_most_idx > 0 && const_shape[inner_most_idx] == 1) {
-                        --inner_most_idx;
-                    }
-                    OPENVINO_ASSERT(const_shape[inner_most_idx] % alignment == 0, "inner most dimension for the legacy shape should be even.");
-                }
+            if (const_shape[inner_most_idx] % alignment != 0) {
+                std::vector<ov::Dimension::value_type> new_paddings(const_shape.size(), 0);
+                new_paddings[inner_most_idx] = 1;
 
-                if (const_shape[inner_most_idx] % alignment != 0) {
+                if (node->get_preferred_impl_type() == impl_types::onednn &&
+                    weight_node.is_type<data>() &&
+                    (weight_node.get_output_layout(0).data_type == cldnn::data_types::u4 ||
+                     weight_node.get_output_layout(0).data_type == cldnn::data_types::i4)) {
                     auto weight_in_layout  = weight_layout.convert_to_weights_layout(false);
                     auto weight_out_layout = weight_in_layout;
-                    std::vector<ov::Dimension::value_type> new_paddings(const_shape.size(), 0);
-                    new_paddings[inner_most_idx] = 1;
                     weight_out_layout.data_padding = padding::max(weight_out_layout.data_padding, padding({0}, new_paddings));
                     auto weights_reorder_params = std::make_shared<WeightsReorderParams>(weight_in_layout, weight_out_layout, false, false);
-
                     auto new_reorder = std::make_shared<reorder>("padding_reorder_for_" + weight_node.id(),
                                                                     weight_node.id(), weights_reorder_params);
                     auto& new_reorder_node = p.get_or_create(new_reorder);
                     p.add_intermediate(new_reorder_node, *node, weight_node, new_reorder_node.get_dependencies().empty());
-
                     new_reorder_node.recalc_output_layouts(false);
+                } else if (node->get_preferred_impl_type() == impl_types::ocl &&
+                           p.get_config().get_force_implementations().find(node->id()) == p.get_config().get_force_implementations().end() &&
+                           node->get_input_layout(0).data_type == cldnn::data_types::f16 &&
+                           node->get_input_layout(0).format == cldnn::format::bfyx &&
+                           node->get_input_layout(0).get_partial_shape()[1].is_static() && // feature dim of input should be static
+                           node->as<fully_connected>().get_primitive()->input_size == 2 && // only 2D fc is supported
+                           node->as<fully_connected>().get_primitive()->weights_rank == 2 &&
+                           weight_node.get_output_layout(0).data_type == cldnn::data_types::f16) {
+                    // fully_connected_bf_tiled_opt requires 4-bytes aligned input.
+                    auto input0_new_layout = node->get_input_layout(0);
+                    input0_new_layout.data_padding = padding::max(input0_new_layout.data_padding, padding({0}, new_paddings));
+                    auto new_input_reorder = std::make_shared<reorder>("padding_reorder_for_" + node->get_dependency(0).id(),
+                                                                        input_info(node->get_dependency(0).id()),
+                                                                        input0_new_layout);
+                    auto& new_input_reorder_node = p.get_or_create(new_input_reorder);
+                    p.add_intermediate(new_input_reorder_node, *node, node->get_dependency(0), new_input_reorder_node.get_dependencies().empty());
+                    new_input_reorder_node.recalc_output_layouts(false);
                 }
             }
         }

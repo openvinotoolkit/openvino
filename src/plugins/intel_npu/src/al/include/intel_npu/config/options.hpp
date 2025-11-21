@@ -40,7 +40,7 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::hint::PerformanceMode parse(std::string_view val) {
@@ -125,7 +125,7 @@ struct PERFORMANCE_HINT_NUM_REQUESTS final : OptionBase<PERFORMANCE_HINT_NUM_REQ
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::RunTime;
     }
 };
 
@@ -155,7 +155,7 @@ struct INFERENCE_PRECISION_HINT final : OptionBase<INFERENCE_PRECISION_HINT, ov:
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::element::Type parse(std::string_view val) {
@@ -257,7 +257,7 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::PropertyMutability mutability() {
@@ -287,7 +287,7 @@ struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::RunTime;
     }
 };
 
@@ -442,6 +442,7 @@ struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPE
     }
 };
 
+// BATCH_MODE is required to maintain backward/forward compatibility
 struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     static std::string_view key() {
         return ov::intel_npu::batch_mode.name();
@@ -845,8 +846,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static ov::intel_npu::CompilerType parse(std::string_view val) {
-        if (val == "MLIR") {
-            return ov::intel_npu::CompilerType::MLIR;
+        if (val == "PLUGIN") {
+            return ov::intel_npu::CompilerType::PLUGIN;
         } else if (val == "DRIVER") {
             return ov::intel_npu::CompilerType::DRIVER;
         }
@@ -856,8 +857,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
 
     static std::string toString(const ov::intel_npu::CompilerType& val) {
         std::stringstream strStream;
-        if (val == ov::intel_npu::CompilerType::MLIR) {
-            strStream << "MLIR";
+        if (val == ov::intel_npu::CompilerType::PLUGIN) {
+            strStream << "PLUGIN";
         } else if (val == ov::intel_npu::CompilerType::DRIVER) {
             strStream << "DRIVER";
         } else {
@@ -1418,6 +1419,37 @@ struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, b
 
     static bool defaultValue() {
         return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
+struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov::intel_npu::ModelSerializerVersion> {
+    static std::string_view key() {
+        return ov::intel_npu::model_serializer_version.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::ModelSerializerVersion";
+    }
+
+    static ov::intel_npu::ModelSerializerVersion defaultValue() {
+        return ov::intel_npu::ModelSerializerVersion::AUTO;
+    }
+
+    static ov::intel_npu::ModelSerializerVersion parse(std::string_view val) {
+        std::istringstream stringStream = std::istringstream(std::string(val));
+        ov::intel_npu::ModelSerializerVersion version;
+        stringStream >> version;
+        return version;
+    }
+
+    static std::string toString(const ov::intel_npu::ModelSerializerVersion& val) {
+        std::stringstream strStream;
+        strStream << val;
+        return strStream.str();
     }
 
     static OptionMode mode() {

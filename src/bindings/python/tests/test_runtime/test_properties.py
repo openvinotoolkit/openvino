@@ -117,6 +117,13 @@ def test_properties_rw_base():
             ),
         ),
         (
+            intel_cpu.TbbPartitioner,
+            (
+                (intel_cpu.TbbPartitioner.STATIC, "TbbPartitioner.STATIC", 1),
+                (intel_cpu.TbbPartitioner.AUTO, "TbbPartitioner.AUTO", 2),
+            ),
+        ),
+        (
             intel_auto.SchedulePolicy,
             (
                 (intel_auto.SchedulePolicy.ROUND_ROBIN, "SchedulePolicy.ROUND_ROBIN", 0),
@@ -314,9 +321,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.model_distribution_policy,
             "MODEL_DISTRIBUTION_POLICY",
-            (
-                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),
-            ),
+            (({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),),
         ),
         (
             hints.enable_hyper_threading,
@@ -365,6 +370,14 @@ def test_properties_ro(ov_property_ro, expected_value):
             (
                 (0.1, np.float32(0.1)),
                 (2.0, 2.0),
+            ),
+        ),
+        (
+            intel_cpu.tbb_partitioner,
+            "TBB_PARTITIONER",
+            (
+                (intel_cpu.TbbPartitioner.STATIC, intel_cpu.TbbPartitioner.STATIC),
+                (intel_cpu.TbbPartitioner.AUTO, intel_cpu.TbbPartitioner.AUTO),
             ),
         ),
         (
@@ -483,6 +496,7 @@ def test_properties_ro(ov_property_ro, expected_value):
             "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
             ((True, True),),
         ),
+        (props.enable_weightless, "ENABLE_WEIGHTLESS", ((True, True), (False, False))),
     ],
 )
 def test_properties_rw(ov_property_rw, expected_value, test_values):
