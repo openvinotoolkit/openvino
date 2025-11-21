@@ -504,6 +504,9 @@ void Subgraph::infer_inputs_from_parent() {
 
         parameter->set_element_type(node.get_element_type());
         parameter->set_partial_shape(node.get_partial_shape());
+        // validate_and_infer_types() is required to update parameter's output type
+        // because set_partial_shape() only updates internal m_partial_shape member
+        // but does not propagate it to the output port
         parameter->validate_and_infer_types();
     }
 }

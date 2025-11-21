@@ -1,0 +1,211 @@
+ir_version: 10
+producer_name: "openvino_test"
+graph {
+  node {
+    input: "X"
+    input: "W"
+    input: "R"
+    input: "B"
+    input: ""
+    input: "initial_h"
+    input: "initial_c"
+    output: "Y"
+    output: "Y_h"
+    output: "Y_c"
+    op_type: "LSTM"
+    attribute {
+      name: "hidden_size"
+      i: 2
+      type: INT
+    }
+  }
+  name: "lstm_batch_broadcast_test"
+  initializer {
+    dims: 1
+    dims: 8
+    dims: 2
+    data_type: 1
+    float_data: 0.049671415
+    float_data: -0.01382643
+    float_data: 0.06476886
+    float_data: 0.15230298
+    float_data: -0.023415338
+    float_data: -0.023413695
+    float_data: 0.15792128
+    float_data: 0.076743476
+    float_data: -0.04694744
+    float_data: 0.054256003
+    float_data: -0.04634177
+    float_data: -0.046572976
+    float_data: 0.024196228
+    float_data: -0.19132803
+    float_data: -0.17249179
+    float_data: -0.056228753
+    name: "W"
+  }
+  initializer {
+    dims: 1
+    dims: 8
+    dims: 2
+    data_type: 1
+    float_data: -0.10128311
+    float_data: 0.031424735
+    float_data: -0.09080241
+    float_data: -0.14123037
+    float_data: 0.14656489
+    float_data: -0.02257763
+    float_data: 0.00675282
+    float_data: -0.14247482
+    float_data: -0.054438274
+    float_data: 0.01109226
+    float_data: -0.11509936
+    float_data: 0.037569802
+    float_data: -0.06006387
+    float_data: -0.029169375
+    float_data: -0.06017066
+    float_data: 0.18522783
+    name: "R"
+  }
+  initializer {
+    dims: 1
+    dims: 16
+    data_type: 1
+    float_data: -0.0013497225
+    float_data: -0.10577109
+    float_data: 0.08225449
+    float_data: -0.12208437
+    float_data: 0.02088636
+    float_data: -0.195967
+    float_data: -0.13281861
+    float_data: 0.019686123
+    float_data: 0.07384666
+    float_data: 0.017136829
+    float_data: -0.011564828
+    float_data: -0.030110369
+    float_data: -0.1478522
+    float_data: -0.071984425
+    float_data: -0.046063878
+    float_data: 0.10571223
+    name: "B"
+  }
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "initial_h"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "initial_c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_h"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 14
+}

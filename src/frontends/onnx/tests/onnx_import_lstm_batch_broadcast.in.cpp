@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Tests for LSTM batch broadcasting feature (CVS-162986)
+// Tests for LSTM batch broadcasting feature
 //
 // These tests verify that LSTM correctly handles the case where initial_h/initial_c
 // have batch_size=1 but input X has batch_size>1. The implementation should broadcast
