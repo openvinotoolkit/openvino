@@ -334,19 +334,33 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
     m_kvcache_request = m_generate_requests.back();
 }
 
-std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::LLMInferRequest::select_generate_request(int64_t num_tokens) {
+std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::LLMInferRequest::select_generate_request(int64_t prompt_length) {
+    // Select the largest variant if prompt_length is 0 (unknown)
+    if (prompt_length == 0) {
+        LOG_DEBUG("Prompt length unknown, using largest variant");
+        return m_generate_requests.back();
+    }
+
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    // Calculate expected total tokens: prompt + min_response_len
+    // min_response_len = total_size - max_prompt_size
+    uint32_t min_response_len = kvcache_desc.total_size - kvcache_desc.max_prompt_size;
+    int64_t expected_total_tokens = prompt_length + min_response_len;
+
     const auto& kvcache_sizes = m_npuw_llm_compiled_model->m_kvcache_sizes;
     // Find the smallest variant that can accommodate the expected token count
     for (size_t i = 0; i < kvcache_sizes.size(); ++i) {
-        if (num_tokens <= kvcache_sizes[i]) {
-            LOG_DEBUG("Selected KV cache variant " << (i + 1) << "/" << kvcache_sizes.size() << " with size "
-                                                   << kvcache_sizes[i] << " for " << num_tokens << " tokens");
+        if (expected_total_tokens <= kvcache_sizes[i]) {
+            LOG_DEBUG("Selected generate request " << (i + 1) << "/" << kvcache_sizes.size() << " with size "
+                                                   << kvcache_sizes[i] << " for prompt_length=" << prompt_length
+                                                   << " (expected_total=" << expected_total_tokens << " tokens)");
             return m_generate_requests[i];
         }
     }
 
-    // Fallback to the largest variant if num_tokens exceeds all predefined sizes
-    LOG_WARN("No suitable KV cache variant found for " << num_tokens << " tokens, using largest variant");
+    // Fallback to the largest variant if expected_total_tokens exceeds all predefined sizes
+    LOG_WARN("No suitable generate request found for expected_total_tokens="
+             << expected_total_tokens << " (prompt_length=" << prompt_length << "), using largest variant");
     return m_generate_requests.back();
 }
 
@@ -486,9 +500,9 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
 
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 
-    // Select the appropriate generate inference request variant based on input prompt length
-    // Select the largest variant if prompt_length is 0 (unknown)
-    m_kvcache_request = prompt_length == 0 ? m_generate_requests.back() : select_generate_request(prompt_length);
+    // Select the appropriate generate inference request variant based on prompt length
+    // The function internally calculates expected total tokens (prompt + min_response_len)
+    m_kvcache_request = select_generate_request(prompt_length);
     m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
     m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
 

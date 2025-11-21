@@ -62,8 +62,10 @@ protected:
     // Create and initialize generate variant requests with memory sharing
     void create_generate_request_variants(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
-    // Select appropriate generate request for inference
-    std::shared_ptr<ov::IAsyncInferRequest> select_generate_request(int64_t num_tokens);
+    // Select appropriate generate request variant based on prompt length
+    // Internally calculates expected total tokens (prompt + min_response_len) to ensure
+    // sufficient capacity for both input prompt and minimum response generation
+    std::shared_ptr<ov::IAsyncInferRequest> select_generate_request(int64_t prompt_length);
 
     void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
                             const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,

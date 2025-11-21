@@ -120,10 +120,10 @@ private:
         const KVAxesPosition& axes,
         const uint32_t whisper_lhs_seq_size);
 
-    // Create compiled generate model variants
-    void create_generate_compiled_model_variants(const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
-                                                 const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                 const ov::AnyMap& generate_config);
+    // Compile multiple generate model variants
+    void compile_generate_model_variants(const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
+                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                         const ov::AnyMap& generate_config);
 };
 
 }  // namespace npuw

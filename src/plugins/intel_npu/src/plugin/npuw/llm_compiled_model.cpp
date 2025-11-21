@@ -1392,7 +1392,7 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
     return generate_model_variants;
 }
 
-void ov::npuw::LLMCompiledModel::create_generate_compiled_model_variants(
+void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
     const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& generate_config) {
@@ -1778,7 +1778,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     // Compile multiple generate model variants with different sizes
-    create_generate_compiled_model_variants(generate_model_variants, plugin, generate_config);
+    compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
     m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
