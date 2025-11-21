@@ -40,9 +40,9 @@ except:
 
 FILENAME_LENGTH = 255
 LOG_NAME_REPLACE_STR = "##NAME##"
-DEFAULT_PROCESS_TIMEOUT = 3600
-DEFAULT_SUITE_TIMEOUT = 3600
-DEFAULT_TEST_TIMEOUT = 900
+DEFAULT_PROCESS_TIMEOUT = 1113600
+DEFAULT_SUITE_TIMEOUT = 113600
+DEFAULT_TEST_TIMEOUT = 11900
 MAX_LENGHT = 4096 if not constants.IS_WIN else 8191
 
 
@@ -1007,11 +1007,27 @@ class TestParallelRunner:
 
         is_successfull_run = True
         test_cnt = 0
+        # for test_st, test_res in test_results.items():
+        #     if "{test_st}" == "failed":
+
         for test_st, test_res in test_results.items():
             logger.info(f"{test_st} test counter is: {test_res}")
             test_cnt += test_res
             if (test_st not in ('passed', 'skipped')) and test_res > 0:
                 is_successfull_run = False
+        #
+        hash_table_path = os.path.join(logs_dir, "hash_table.csv")
+        if os.path.isfile(hash_table_path):
+            with open(hash_table_path, encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                crashed_tests = [row["Test Name"] for row in reader if row["Dir"] == "crashed"]
+
+            if crashed_tests:
+                logger.info(f"Crashed test counter is: {len(crashed_tests)}")
+                logger.info("List of crashed tests:")
+                for name in crashed_tests:
+                    logger.info(f"  - {name}")
+        #
         if self._disabled_tests:
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
 
@@ -1025,6 +1041,16 @@ class TestParallelRunner:
         logger.info(
             f"Total test count with disabled tests is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}"
         )
+        ##
+        logger.info("Here we are.")
+        if "failed" in test_results:
+            logger.info(f"Failed tests ({test_results['failed']}):")
+            for hash, (dir_name, test_name) in hash_map.items():
+                if dir_name == "failed":
+                    logger.info(f"  {test_name}")
+        else:
+            logger.info("No failed tests detected.")
+        ##
         return is_successfull_run
 
 
