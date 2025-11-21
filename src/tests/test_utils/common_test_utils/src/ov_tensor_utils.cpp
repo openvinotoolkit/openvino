@@ -5,6 +5,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 #include <iomanip>
+#include <type_traits>
 
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/core/type/element_iterator.hpp"
@@ -595,6 +596,25 @@ void compare(const ov::Tensor& expected,
         auto actual_value = actual_data[i];
         if (!tensor_comparation::is_value_suitable_for_comparation<ExpectedT, ActualT>(expected_value, actual_value)) {
             continue;
+        }
+
+        if constexpr (std::is_same_v<ExpectedT, char> || std::is_same_v<ActualT, char>) {
+            const bool is_boolean_tensor = expected.get_element_type() == ov::element::boolean ||
+                                           actual.get_element_type() == ov::element::boolean;
+
+            if (is_boolean_tensor) {
+                const auto expected_bool = expected_value != static_cast<ExpectedT>(0);
+                const auto actual_bool = actual_value != static_cast<ActualT>(0);
+                const double expected_d = expected_bool ? 1.0 : 0.0;
+                const double actual_d = actual_bool ? 1.0 : 0.0;
+                bool status = error.update(actual_d, expected_d, i);
+#ifdef NDEBUG
+                if (!status && tensor_comparation::equal(topk_threshold, 1.f)) {
+                    break;
+                }
+#endif
+                continue;
+            }
         }
 
         bool status = error.update(actual_value, expected_value, i);
