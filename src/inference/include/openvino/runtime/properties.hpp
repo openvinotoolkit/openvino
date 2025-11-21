@@ -242,14 +242,6 @@ static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_in
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
 
 /**
- * @brief Type definition for file descriptor getter callback.
- * Function that takes a file path string and returns a file descriptor as int.
- * This is useful for scenarios where file access needs to be controlled externally.
- * @ingroup ov_runtime_cpp_prop_api
- */
-using FdGetterType = std::function<int(const std::string&)>;
-
-/**
  * @brief Namespace with hint properties
  */
 namespace hint {
@@ -539,14 +531,6 @@ static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::shared_ptr<const ov::Model>> model{"MODEL_PTR"};
-
-/**
- * @brief This key identifies callback function to get file descriptor for a given file path.
- * The callback takes a file path string and returns a file descriptor as int.
- * This is useful for scenarios where file access needs to be controlled externally.
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<FdGetterType> fd_getter{"FD_GETTER"};
 
 /**
  * @brief Special key for auto batching feature configuration. Enabled by default
@@ -1354,11 +1338,44 @@ static constexpr Property<int32_t, PropertyMutability::RW> compilation_num_threa
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 
 /**
+ * @brief Structure to represent weights path with optional file accessor function
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct WeightsPath {
+    WeightsPath() = default;
+
+    WeightsPath(const std::string& path_) : path{path_}, file_accessor{} {}
+
+    template <typename Func>
+    WeightsPath(const std::string& path_, Func&& file_accessor_)
+        : path{path_}, file_accessor{std::forward<Func>(file_accessor_)} {}
+
+    operator std::string() const {
+        return path;
+    }
+
+    std::string path;
+    std::function<Any(const std::string&)> file_accessor;
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const WeightsPath& weights_path_val) {
+    return os << weights_path_val.path;
+}
+
+inline std::istream& operator>>(std::istream& is, WeightsPath& weights_path_val) {
+    is >> weights_path_val.path;
+    return is;
+}
+/** @endcond */
+
+/**
  * @brief Path to the file with model's weights.
  *
  * @note This property is used for weightless caching. Only used when ov::CacheMode Property is set to "OPTIMIZE_SIZE".
+ * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<std::string, PropertyMutability::RW> weights_path{"WEIGHTS_PATH"};
+static constexpr Property<WeightsPath, PropertyMutability::RW> weights_path{"WEIGHTS_PATH"};
 
 /**
  * @brief The precision of key cache compression

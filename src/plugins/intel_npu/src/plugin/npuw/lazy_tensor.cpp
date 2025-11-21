@@ -61,16 +61,17 @@ ov::Tensor Const::eval() const {
     }
 
     // Weightless import case. Mmmap CPU weight on demand to avoid allocating all weights at once.
-    if (!m_weights_path.empty()) {
+    if (!m_weights_path.path.empty()) {
         NPUW_ASSERT(!m_read_from_bin &&
                     "Trying to read weight from weights file, but the weight has been already deserialized!");
         std::shared_ptr<ov::MappedMemory> mapped_memory;
-        // Use fd_getter if available, otherwise use default mmap
-        if (m_fd_getter) {
-            int fd = m_fd_getter(m_weights_path);
+        // Use file_accessor if available to get fd, otherwise use path
+        if (m_weights_path.file_accessor) {
+            auto result = m_weights_path.file_accessor(m_weights_path.path);
+            int fd = result.as<int>();
             mapped_memory = ov::load_mmap_object(fd);
         } else {
-            mapped_memory = ov::load_mmap_object(m_weights_path);
+            mapped_memory = ov::load_mmap_object(m_weights_path.path);
         }
         m_mmaped_weights =
             std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(), mapped_memory->size(), mapped_memory);
@@ -87,7 +88,7 @@ LazyTensor::Meta Const::eval_meta() const {
     }
 
     // Weightless import case
-    if (!m_weights_path.empty()) {
+    if (!m_weights_path.path.empty()) {
         return {m_cached_shape, m_cached_type};
     }
 
@@ -122,11 +123,9 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
             // It doesn't introduce extra allocation, however it allows to gradually 1 by 1
             // read mmaped CPU weights and allocate them on device without loading all the weights first.
             // Thus the memory consumption during import is greatly reduced but at the slight cost of performance.
-            NPUW_ASSERT(!ctx.weights_path.empty());
+            NPUW_ASSERT(!ctx.weights_path.path.empty());
             // Just save weights_path for the eval() to call the actual mmap.
             m_weights_path = ctx.weights_path;
-            // Also save fd_getter if available
-            m_fd_getter = ctx.fd_getter;
         }
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});

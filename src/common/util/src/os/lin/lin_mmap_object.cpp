@@ -107,15 +107,16 @@ public:
     }
 };
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::variant<std::string, int>& path_or_fd) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path);
-    return holder;
-}
-
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const int fd) {
-    auto holder = std::make_shared<MapHolder>();
-    holder->set_from_fd(fd);
+    std::visit([&holder](auto&& arg) {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, int>) {
+            holder->set_from_fd(arg);  // fd
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            holder->set(arg);  // path
+        }
+    }, path_or_fd);
     return holder;
 }
 
