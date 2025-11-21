@@ -228,8 +228,7 @@ std::istream& operator>>(std::istream& in, Type& obj) {
     in >> str;
     if (const auto type_idx = type_idx_for(str); is_valid_type_idx(type_idx)) {
         obj = {static_cast<Type_t>(type_idx)};
-    }
-    else {
+    } else {
         OPENVINO_THROW("Unknown data type: ", str);
     }
     return in;
