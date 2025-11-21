@@ -36,7 +36,11 @@ mypy src/openvino/ --config-file ./setup.cfg
 **Python API CIs are composed of both functional tests and codestyle checks and may fail because of warnings/errors in both stages.**
 
 ### Adding dependencies to the project
-Remember that a new module/feature may be dependent on various third party modules. Please add a sufficient `requirements.txt` file and mention it in a Pull Request description. Consider other project requirements and dependencies of your module to make `requirements.txt` as compact as possible.
+Remember that a new module/feature may be dependent on various third party modules. 
+
+**Modern approach (recommended):** Add dependencies to the appropriate dependency group in `pyproject.toml`. See the [dependency groups migration guide](dependency_groups_migration.md) for details on available groups.
+
+**Legacy approach (deprecated):** If updating `requirements.txt` files during the transition period, also update the corresponding dependency group in `pyproject.toml` to keep them synchronized.
 
 **Please look for current supported Python versions and check if packages are compatibile with them and not depreacated.**
 
@@ -65,6 +69,8 @@ XXXX, YYYY                             <-- only numbers from tickets
 ```
 
 ## See also
+ * [Dependency Groups Migration Guide](dependency_groups_migration.md)
+ * [Requirements Management](requirements_management.md)
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO™ bindings README](../../README.md)
  * [Developer documentation](../../../../docs/dev/index.md)
