@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "itt.h"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
@@ -24,10 +25,22 @@ ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     m_infer_func = [this]() {
         ov::IAsyncInferRequest::infer();
     };
+
+    if (!m_pipeline.empty()) {
+        auto& first_stage = m_pipeline.front();
+        auto& executor = std::get<0>(first_stage);
+        m_pipeline.front() = {executor, [this]() {
+                                  OV_ITT_SCOPED_REGION_BASE(itt::domains::ov_intel_cpu,
+                                                            "AsyncInferRequest::start_async");
+                                  m_internal_request->infer();
+                              }};
+    }
+
     if (is_optimized_single_stream) {
         m_infer_func = [this]() {
             check_tensors();
             m_stream_executor->execute([this]() {
+                OV_ITT_SCOPED_REGION_BASE(itt::domains::ov_intel_cpu, "AsyncInferRequest::optimized_single_stream");
                 m_internal_request->infer();
             });
         };
