@@ -226,8 +226,8 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
-        ASSERT_EQ(primitive_hash, 10199778210696088449UL);
-        ASSERT_EQ(params_hash, 15766642779222820247UL);
+        ASSERT_EQ(primitive_hash, 10199782087454290518UL);
+        ASSERT_EQ(params_hash, 655948409235783525UL);
     }
 
     void test_quantize_basic(bool is_caching_test) {

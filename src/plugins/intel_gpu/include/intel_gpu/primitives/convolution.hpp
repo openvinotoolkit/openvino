@@ -35,7 +35,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param grouped_weights_shape True if weights shape is [G, O, I, ...], and false if it's [O, I, ...] or [G*O, I, ...]
     /// @param audo_pad The pad type for automatically computing padding sizes
-    /// @param is_1d_conv True if the convolution is 1D when allow_new_shape_infer=false, false otherwise
+    /// @param filter_rank Filter rank from op
     convolution(const primitive_id& id,
                 const input_info& input,
                 const primitive_id& weights,
@@ -51,7 +51,7 @@ struct convolution : public primitive_base<convolution> {
                 bool grouped_weights_shape,
                 data_types output_data_type,
                 const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
-                bool is_1d_conv = false)
+                size_t filter_rank = 4)
             : primitive_base(id, {input}, 1, {optional_data_type{output_data_type}}),
               groups(groups),
               stride(stride),
@@ -60,7 +60,7 @@ struct convolution : public primitive_base<convolution> {
               padding_end(padding_end),
               auto_pad(auto_pad),
               grouped_weights_shape(grouped_weights_shape),
-              is_1d_conv(is_1d_conv),
+              filter_rank(filter_rank),
               weights(weights),
               bias(bias),
               weights_zero_points(w_zero_point),
@@ -84,7 +84,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param grouped_weights_shape True if weights shape is [G, O, I, ...], and false if it's [O, I, ...] or [G*O, I, ...]
     /// @param audo_pad The pad type for automatically computing padding sizes
-    /// @param is_1d_conv True if the convolution is 1D when allow_new_shape_infer=false, false otherwise
+    /// @param filter_rank Filter rank from op
     convolution(const primitive_id& id,
                 const input_info& input,
                 const primitive_id& weights,
@@ -96,7 +96,7 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_end,
                 bool grouped_weights_shape,
                 const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
-                bool is_1d_conv = false)
+                size_t filter_rank = 4)
         : primitive_base(id, {input}),
           groups(groups),
           stride(stride),
@@ -105,7 +105,7 @@ struct convolution : public primitive_base<convolution> {
           padding_end(padding_end),
           auto_pad(auto_pad),
           grouped_weights_shape(grouped_weights_shape),
-          is_1d_conv(is_1d_conv),
+          filter_rank(filter_rank),
           weights(weights),
           bias(bias),
           weights_zero_points(""),
@@ -132,7 +132,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param bilinear_interpolation_pad If bilinear_interpolation_pad is true and the sampling location is within
     /// one pixel outside of the feature map boundary, then bilinear interpolation is performed on the zero padded feature map.
-    /// @param is_1d_conv True if the convolution is 1D when allow_new_shape_infer=false, false otherwise
+    /// @param filter_rank Filter rank from op
     convolution(const primitive_id& id,
                 const std::vector<input_info>& inputs,
                 const primitive_id& weights,
@@ -145,7 +145,7 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_begin,
                 ov::CoordinateDiff padding_end,
                 bool bilinear_interpolation_pad = false,
-                bool is_1d_conv = false)
+                size_t filter_rank = 4)
     : primitive_base(id, inputs),
       groups(groups),
       stride(stride),
@@ -157,7 +157,7 @@ struct convolution : public primitive_base<convolution> {
       deformable_groups(deformable_groups),
       bilinear_interpolation_pad(bilinear_interpolation_pad),
       grouped_weights_shape(false),
-      is_1d_conv(is_1d_conv),
+      filter_rank(filter_rank),
       weights(weights),
       bias(bias),
       weights_zero_points(""),
@@ -195,8 +195,8 @@ struct convolution : public primitive_base<convolution> {
 
     /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
     bool grouped_weights_shape {false};
-    /// @param is_1d_conv Defines if the convolution is 1D when allow_new_shape_infer=false. It distinguishes between canonicalized 1D and 2D convolution.
-    bool is_1d_conv {false};
+    /// @param filter_rank Filter rank from op
+    size_t filter_rank = 4;
     /// @brief Primitive id containing weights data.
     input_info weights;
     /// @brief Primitive id containing bias data.
@@ -221,7 +221,7 @@ struct convolution : public primitive_base<convolution> {
         seed = hash_combine(seed, bilinear_interpolation_pad);
         seed = hash_combine(seed, transposed);
         seed = hash_combine(seed, grouped_weights_shape);
-        seed = hash_combine(seed, is_1d_conv);
+        seed = hash_combine(seed, filter_rank);
         seed = hash_combine(seed, !weights.is_valid());
         seed = hash_combine(seed, !bias.is_valid());
         seed = hash_combine(seed, !weights_zero_points.is_valid());
@@ -248,7 +248,7 @@ struct convolution : public primitive_base<convolution> {
                cmp_fields(bilinear_interpolation_pad) &&
                cmp_fields(transposed) &&
                cmp_fields(grouped_weights_shape) &&
-               cmp_fields(is_1d_conv) &&
+               cmp_fields(filter_rank) &&
                cmp_fields(weights.is_valid()) &&
                cmp_fields(bias.is_valid()) &&
                cmp_fields(weights_zero_points.is_valid()) &&
@@ -270,7 +270,7 @@ struct convolution : public primitive_base<convolution> {
         ob << bilinear_interpolation_pad;
         ob << transposed;
         ob << grouped_weights_shape;
-        ob << is_1d_conv;
+        ob << filter_rank;
         ob << weights;
         ob << bias;
         ob << weights_zero_points;
@@ -291,7 +291,7 @@ struct convolution : public primitive_base<convolution> {
         ib >> bilinear_interpolation_pad;
         ib >> transposed;
         ib >> grouped_weights_shape;
-        ib >> is_1d_conv;
+        ib >> filter_rank;
         ib >> weights;
         ib >> bias;
         ib >> weights_zero_points;

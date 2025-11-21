@@ -42,12 +42,9 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
     auto pads_begin = op->get_pads_begin();
     auto pads_end = op->get_pads_end();
     auto auto_pad = op->get_auto_pad();
-    bool is_1d_conv = false;
+    size_t filter_rank = op->get_input_partial_shape(1).rank().get_length();
 
     if (!op->is_dynamic() && !p.use_new_shape_infer()) {
-        if (strides.size() == 1) {
-            is_1d_conv = true;
-        }
         // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
         strides.resize(std::max<size_t>(2, strides.size()), 1);
         dilations.resize(std::max<size_t>(2, strides.size()), 1);
@@ -76,7 +73,7 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
                                                     weights_have_group_dim,
                                                     op->get_output_element_type(0),
                                                     auto_pad,
-                                                    is_1d_conv);
+                                                    filter_rank);
     } else {
         prim = std::make_shared<cldnn::convolution>(layerName,
                                                     inputs[op::Convolution::Args::INPUT],
@@ -89,7 +86,7 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
                                                     pads_end,
                                                     weights_have_group_dim,
                                                     auto_pad,
-                                                    is_1d_conv);
+                                                    filter_rank);
     }
 
     p.add_primitive(*op, prim);

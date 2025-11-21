@@ -62,7 +62,6 @@ public:
         const auto& groups = primitive->groups;
         const auto& deformable_groups = primitive->deformable_groups;
         const auto transposed = primitive->transposed;
-        const auto is_1d_conv = primitive->is_1d_conv;
 
         auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(impl_param,
                                                                                                           primitive->grouped_weights_shape,
@@ -93,7 +92,7 @@ public:
                                                .convert_to_weights_layout(primitive->grouped_weights_shape);
 
         // Extend grouped 1d conv weights shape from 4d to 5d when conv input shape is canonicalized to 4d by allow_new_shape_infer=false
-        const bool needs_weights_extension = is_1d_conv &&
+        const bool needs_weights_extension = (primitive->filter_rank == 4) &&
                                              groups > 1 &&
                                              weights_layout.get_rank() == 4 &&
                                              conv_params.grouped_weights_shape;
