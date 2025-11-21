@@ -7,8 +7,11 @@
 
 #include <stdio.h>
 #include <cstdint>
+#include <vector>
 
 #include "meta.hpp"
+
+#include "openvino/core/layout.hpp"
 
 namespace compat {
 
@@ -54,14 +57,35 @@ namespace compat {
 
 #pragma pack(push, 1)
 
-struct alignas(uint16_t) WeightlessBlob : meta::CapabilityNo<0, meta::REQUIRED> {
-    explicit WeightlessBlob(uint16_t value) : value(value) {}
-    uint16_t value;
+struct alignas(uint64_t) WeightsSeparationRequirement : meta::CapabilityNo<0, meta::REQUIRED> {
+    explicit WeightsSeparationRequirement(uint64_t size, std::vector<uint64_t> initSizes) : size(size), initSizes(initSizes) {}
 
-    bool isCompatible(const WeightlessBlob& blobValue) const {
+    uint64_t size; // in bytes
+    std::vector<uint64_t> initSizes;
+
+    // whatever check is gonna be here
+    bool isCompatible(const WeightsSeparationRequirement& blobValue) const {
         printf("!!!     compat::WeightlessBlob::isCompatible !!!\n");
-        return blobValue.value <= value;
+        return blobValue.size <= size;
     }
+};
+
+struct alignas(int64_t) BatchSize : meta::CapabilityNo<1, meta::REQUIRED> {
+    explicit BatchSize(int64_t size) : size(size) {}
+
+    int64_t size;
+
+    static bool isCompatible(const BatchSize& blobMode) {
+        return blobMode.size <= 4;
+    }
+};
+
+struct alignas(uint8_t) InputOutputLayouts : meta::CapabilityNo<2, meta::REQUIRED> {
+    explicit InputOutputLayouts(std::vector<ov::Layout> inputLayouts, std::vector<ov::Layout> outputLayouts) : inputLayouts(inputLayouts), outputLayouts(outputLayouts) {}
+
+    std::vector<ov::Layout> inputLayouts;
+    std::vector<ov::Layout> outputLayouts;
+
 };
 
 #pragma pack(pop)

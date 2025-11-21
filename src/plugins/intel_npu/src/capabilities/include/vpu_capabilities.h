@@ -35,13 +35,21 @@ namespace compat {
 
 #pragma pack(push, 1)
 
-
 // what if multiple versions may pose problems while having multiple isCompatible implementations
-struct alignas(uint8_t) BatchSize : detail::CapabilityNo<0> {
-    explicit BatchSize(uint8_t mode) : mode(mode) {}
+// struct alignas(uint8_t) BatchSize : detail::CapabilityNo<0> {
+//     explicit BatchSize(uint8_t mode) : mode(mode) {}
+//     uint8_t mode;
+
+//     static bool isCompatible(const BatchSize& blobMode) {
+//         return blobMode.mode <= 4;
+//     }
+// };
+
+struct alignas(uint8_t) DummyCapability : detail::CapabilityNo<0> {
+    explicit DummyCapability(uint8_t mode) : mode(mode) {}
     uint8_t mode;
 
-    static bool isCompatible(const BatchSize& blobMode) {
+    static bool isCompatible(const DummyCapability& blobMode) {
         return blobMode.mode <= 4;
     }
 };

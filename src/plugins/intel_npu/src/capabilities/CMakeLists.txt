@@ -16,6 +16,14 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
+target_link_libraries(${TARGET_NAME}
+    PRIVATE
+        openvino::npu_al
+        openvino::npu_common
+        openvino::reference
+        openvino::runtime
+)
+
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 

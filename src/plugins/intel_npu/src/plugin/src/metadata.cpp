@@ -96,6 +96,8 @@ Metadata<METADATA_VERSION_2_3>::Metadata(uint64_t blobSize,
     _version = METADATA_VERSION_2_3;
 }
 
+Metadata<METADATA_VERSION_3_0>::Metadata(uint64_t blobSize) : MetadataBase{METADATA_VERSION_3_0, blobSize} {}
+
 void MetadataBase::read(std::istream& tensor) {
     _source = Source(tensor);
     read();
@@ -252,10 +254,24 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
         }
     };
 
-    writeLayouts(_inputLayouts);
     writeLayouts(_outputLayouts);
+}
 
+void Metadata<METADATA_VERSION_3_0>::write(std::ostream& stream) {
+    stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
+    compa::Serializer serializer;
+    // declare capabilities
+    serializer.append();
+    serializer.append();
+    serializer.append();
+    
+    // write.capabilities()
     append_padding_blob_size_and_magic(stream);
+}
+
+bool Metadata<METADATA_VERSION_3_0>::is_compatible() {
+    // TODO: what checks here?
+    return true;
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
@@ -468,6 +484,10 @@ size_t Metadata<METADATA_VERSION_2_3>::get_metadata_size() const {
     }
 
     return metadataSize;
+}
+
+size_t Metadata<METADATA_VERSION_3_0>::get_metadata_size() const {
+    return sizeof(_version);
 }
 
 }  // namespace intel_npu
