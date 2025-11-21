@@ -31,7 +31,7 @@ using namespace snippets::lowered;
 
 bool BrgemmToBrgemmTPP::is_supported_brgemm_configuration(const std::vector<std::vector<size_t>>& layouts,
                                                           const ov::element::TypeVector& precisions) {
-    OPENVINO_ASSERT(all_of(3, layouts.size(), precisions.size()),
+    OPENVINO_ASSERT(all_of(3ul, layouts.size(), precisions.size()),
                     "snippets::op::Brgemm must have 2 inputs and 1 output");
     const bool supported_layouts = std::all_of(layouts.begin(), layouts.end(), [](const std::vector<size_t>& layout) {
         return layout.empty() || layout.back() == layout.size() - 1;

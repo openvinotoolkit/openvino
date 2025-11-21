@@ -13,11 +13,7 @@ namespace snippets {
 namespace {
 
 std::vector<std::vector<InputShape>> inputShape_2D() {
-    auto shapes = SNIPPETS_TESTS_STATIC_SHAPES(
-        {{1, 64}},
-        {{2, 64}},
-        {{4, 64}},
-        {{8, 64}});
+    auto shapes = SNIPPETS_TESTS_STATIC_SHAPES({{1, 64}}, {{2, 64}}, {{4, 64}}, {{8, 64}});
     shapes.push_back({{PartialShape{-1, 64}, {{1, 64}, {8, 64}, {6, 64}, {8, 64}}}});
     return shapes;
 }
@@ -33,20 +29,21 @@ std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExp
         {5, {1, 1}},
     };
 #else
+    // Note: SplitLoops + non-fused postops lead to bigger amount of GPRs needed for kernel execution
     return {
-        {1, {1, 1}},
-        {3, {2, 2}},
-        {5, {3, 3}},
+        {1, {2, 2}},
+        {3, {3, 3}},
+        {5, {4, 4}},
     };
 #endif
 }
 
 std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectationsBf16() {
     return {
-        {1, {3, 3}}, // In Convert + MLP + Out Convert
-        {3, {3, 3}}, // In Convert + MLP + Out Convert
-        {5, {3, 3}}, // In Convert + MLP + Out Convert
-        {7, {4, 4}}, // In Convert + MLP_1 + MLP_2 + Out Convert
+        {1, {2, 2}}, // In Convert + MLP
+        {3, {2, 2}}, // In Convert + MLP
+        {5, {2, 2}}, // In Convert + MLP
+        {7, {3, 3}}, // In Convert + MLP_1 + MLP_2
     };
 }
 
