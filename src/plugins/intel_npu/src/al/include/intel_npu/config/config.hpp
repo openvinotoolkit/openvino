@@ -372,15 +372,16 @@ struct OptionConcept final {
     bool (*isPublic)() = nullptr;
     ov::PropertyMutability (*mutability)() = nullptr;
     uint32_t (*compilerSupportVersion)() = nullptr;
-    bool (OptionConcept::*isValueSupported)(std::string_view val) = nullptr;
+    bool (*isValueSupportedImpl)(std::string_view val) =
+        nullptr;  // better make this private, but won't be able to use aggregate initialization anymore in
+                  // "makeOptionModel"
     std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
     std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt;
-    template <class Opt>
-    bool isValueSupportedImpl(std::string_view val) {
+    bool isValueSupported(std::string_view val) {
         if (customValueCheckerOpt.has_value()) {
             return customValueCheckerOpt.value()(val);
         }
-        return Opt::isValueSupported(val);
+        return isValueSupportedImpl(val);
     }
 };
 
@@ -406,7 +407,7 @@ OptionConcept makeOptionModel(
             &Opt::isPublic,
             &Opt::mutability,
             &Opt::compilerSupportVersion,
-            &OptionConcept::isValueSupportedImpl<Opt>,
+            &Opt::isValueSupported,
             &validateAndParse<Opt>,
             std::move(customValueCheckerOpt)};
 }

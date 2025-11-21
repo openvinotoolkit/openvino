@@ -112,15 +112,9 @@ TEST_F(ConfigUnitTests, DefaultOptionValueCheckerWorks) {
     options.add<DUMMY_TEST_OPTION_CUSTOM_CLASS_CHECKER>();
 
     ASSERT_EQ(true,
-              std::invoke(options.get(dummy_test_option.name()).isValueSupported,
-                          options.get(dummy_test_option.name()),
-                          DUMMY_TEST_OPTION::toString(
-                              DummyTestOption::TESTVALUE_1)));  // parsable values will be returned as supported
-    ASSERT_EQ(
-        true,
-        (options.get(dummy_test_option.name()).*options.get(dummy_test_option.name()).isValueSupported)(
-            DUMMY_TEST_OPTION::toString(DummyTestOption::TESTVALUE_2)));  // same check as above, but using other syntax
-                                                                          // for calling class member function pointer
+              options.get(dummy_test_option.name())
+                  .isValueSupported(DUMMY_TEST_OPTION::toString(
+                      DummyTestOption::TESTVALUE_1)));  // parsable values will be returned as supported
 }
 
 TEST_F(ConfigUnitTests, OptionImplementationValueCheckerWorks) {
@@ -134,24 +128,11 @@ TEST_F(ConfigUnitTests, OptionImplementationValueCheckerWorks) {
                                   expectedParseErrorMessage.data());
 
     ASSERT_EQ(false,
-              std::invoke(options.get(dummy_test_option.name()).isValueSupported,
-                          options.get(dummy_test_option.name()),
-                          hardcodedTestValue3));  // unparsable values will not be returned as supported
-    ASSERT_EQ(false,
-              (options.get(dummy_test_option.name()).*options.get(dummy_test_option.name()).isValueSupported)(
-                  hardcodedTestValue3));  // same check as above, but using other syntax for calling class member
-                                          // function pointer
+              options.get(dummy_test_option.name())
+                  .isValueSupported(hardcodedTestValue3));  // unparsable values will not be returned as supported
 
     // logic changes for a class that implements its own `isValueSupported` method
-    ASSERT_EQ(true,
-              std::invoke(options.get(dummy_test_option_custom_class_checker.name()).isValueSupported,
-                          options.get(dummy_test_option_custom_class_checker.name()),
-                          hardcodedTestValue3));
-    ASSERT_EQ(true,
-              (options.get(dummy_test_option_custom_class_checker.name()).*
-               options.get(dummy_test_option_custom_class_checker.name()).isValueSupported)(
-                  hardcodedTestValue3));  // same check as above, but using other syntax for calling class member
-                                          // function pointer
+    ASSERT_EQ(true, options.get(dummy_test_option_custom_class_checker.name()).isValueSupported(hardcodedTestValue3));
 }
 
 TEST_F(ConfigUnitTests, CustomValueCheckerWorks) {
@@ -170,25 +151,15 @@ TEST_F(ConfigUnitTests, CustomValueCheckerWorks) {
                                   expectedParseErrorMessage.data());
 
     ASSERT_EQ(true,
-              std::invoke(options.get(dummy_test_option.name()).isValueSupported,
-                          options.get(dummy_test_option.name()),
-                          hardcodedTestValue3));  // even if TESTVALUE_3 cannot be parsed,
-                                                  // custom checker should be prioritized
-    ASSERT_EQ(true,
-              (options.get(dummy_test_option.name()).*options.get(dummy_test_option.name()).isValueSupported)(
-                  hardcodedTestValue3));  // same check as above, but using other syntax
-                                          // for calling class member function pointer
+              options.get(dummy_test_option.name())
+                  .isValueSupported(hardcodedTestValue3));  // even if TESTVALUE_3 cannot be parsed,
+                                                            // custom checker should be prioritized
 
     // same prioritization expectation for custom value checker even if class implements self `isValueSupported` method
     // which returns `true`
     ASSERT_EQ(false,
-              std::invoke(options.get(dummy_test_option_custom_class_checker.name()).isValueSupported,
-                          options.get(dummy_test_option_custom_class_checker.name()),
-                          hardcodedTestValue3));
-    ASSERT_EQ(false,
-              (options.get(dummy_test_option_custom_class_checker.name()).*
-               options.get(dummy_test_option_custom_class_checker.name()).isValueSupported)(
-                  DUMMY_TEST_OPTION_CUSTOM_CLASS_CHECKER::toString(DummyTestOption::TESTVALUE_2)));
+              options.get(dummy_test_option_custom_class_checker.name())
+                  .isValueSupported(DUMMY_TEST_OPTION_CUSTOM_CLASS_CHECKER::toString(DummyTestOption::TESTVALUE_2)));
 }
 
 }  // namespace
