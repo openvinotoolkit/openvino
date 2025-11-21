@@ -36,6 +36,10 @@
 #include "kv_cache_inst.h"
 #include "program_helpers.h"
 #include "program_dump_graph.h"
+#include "range_inst.h"
+#include "shape_of_inst.h"
+#include "gather_inst.h"
+#include "gather_inst.h"
 
 #include <algorithm>
 #include <string>
@@ -174,6 +178,19 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     validate_primitives();
     preallocate_shape_info_buffers();
     add_default_output_chains();
+
+    const char* disable_poc_env = std::getenv("DISABLE_POC");
+    // Check for actual range primitives
+    for (auto& inst : _exec_order) {
+        if (inst->get_node().is_type<range>()) {
+            _has_range = true;
+            break;
+        }
+    }
+
+    if (disable_poc_env && std::string(disable_poc_env) == "1") {
+        _has_range = true;
+    }
 }
 
 network::network(program::ptr program, bool is_internal, bool is_primary_stream)
@@ -752,34 +769,125 @@ bool network::has_event(const primitive_id& id) const {
 void network::execute_impl(const std::vector<event::ptr>& events) {
     set_arguments();
 
-    // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
-    // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
-    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
-    const bool needs_flushing = _is_dynamic;
-    const size_t flush_frequency = needs_flushing ? 16 : 0;
-    size_t executed_prims = 0;
+    if (_is_dynamic && !_has_range) {
+        // Fallback to original execution if no subgraphs
+        // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
+        const bool needs_flushing = _is_dynamic;
+        const size_t flush_frequency = needs_flushing ? 16 : 0;
+        size_t executed_prims = 0;
 
-    for (auto& inst : _exec_order) {
-        NODE_DEBUG(*inst);
+        // Phase 1: Process all primitives - execute shape-critical ones immediately
+        for (auto& inst : _exec_order) {
+            NODE_DEBUG(*inst);
+            inst->reset_events();
 
-        inst->reset_events();
+            if (inst->is_input()) {
+                inst->add_dep_events(events);
+            }
 
-        if (inst->is_input()) {
-            inst->add_dep_events(events);
+            // Prepare memory and check if immediate execution is needed
+            inst->prepare_memory_and_impl();
+
+            if (inst->_execution_context.needs_immediate_execution) {
+                // Execute immediately - these primitives don't need actual data content
+                // GPU_DEBUG_COUT << inst->id() << std::endl;
+                inst->prepare_execution();
+                inst->execute();
+                inst->_execution_context.execution_completed = true;
+            }
+        }
+        get_stream().flush();
+
+        // Create a vector of primitives with deferred memory and sort by largest memory size first
+        std::vector<std::shared_ptr<primitive_inst>> primitives_with_deferred;
+        for (auto& inst : _exec_order) {
+            if (inst->_execution_context.is_deferred()) {
+                primitives_with_deferred.push_back(inst);
+            }
         }
 
-        inst->prepare_primitive();
-        inst->execute();
+        std::vector<std::pair<std::shared_ptr<primitive_inst>, size_t>> primitives_with_size;
+        primitives_with_size.reserve(primitives_with_deferred.size());
 
-        executed_prims++;
-        if (needs_flushing && executed_prims % flush_frequency == 0)
-            get_stream().flush();
+        for (auto& inst : primitives_with_deferred) {
+            auto size = inst->_execution_context.deferred_mem_infos[0].mem_layout.bytes_count();
+            auto unique_id = inst->get_node().get_unique_id();
+
+            // emplace를 사용하여 삽입 시도
+            auto [cache_iter, inserted] = _primitives_with_size_cache.emplace(unique_id, size);
+
+            if (inserted) {
+                // 새로 삽입됨
+                primitives_with_size.emplace_back(inst, size);
+            } else if (cache_iter->second != size) {
+                // 기존 값보다 큼 - 업데이트
+                cache_iter->second = size;
+                primitives_with_size.emplace_back(inst, size);
+            }
+        }
+
+        std::sort(primitives_with_size.begin(), primitives_with_size.end(),
+            [](const auto& a, const auto& b) {
+                if (a.second != b.second) {
+                    return a.second > b.second;  // 큰 메모리부터
+                }
+                return a.first->get_node().get_unique_id() < b.first->get_node().get_unique_id();
+            });
+
+        // Allocate deferred outputs for sorted primitives (largest memory first)
+        for (auto& [inst, size] : primitives_with_size) {
+            inst->allocate_deferred_outputs();
+        }
+
+        // Phase 2: Execute remaining primitives (those not executed in phase 1)
+        for (auto& inst : _exec_order) {
+            auto& exec_ctx = inst->_execution_context;
+            // Skip if already executed in phase 1
+            if (exec_ctx.execution_completed) {
+                continue;
+            }
+
+            // Prepare execution and execute
+            inst->prepare_execution();
+            inst->_execution_context.original_outputs.clear();
+            inst->execute();
+
+            executed_prims++;
+            // Only flush GPU stream for GPU implementations, not CPU implementations
+            if (needs_flushing && executed_prims % flush_frequency == 0)
+                get_stream().flush();
+        }
+        get_stream().flush();
+    } else {
+        // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
+        // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
+        // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
+        const bool needs_flushing = _is_dynamic;
+        const size_t flush_frequency = needs_flushing ? 16 : 0;
+        size_t executed_prims = 0;
+
+        for (auto& inst : _exec_order) {
+            NODE_DEBUG(*inst);
+
+            inst->reset_events();
+
+            if (inst->is_input()) {
+                inst->add_dep_events(events);
+            }
+
+            inst->prepare_primitive();
+            inst->execute();
+
+            executed_prims++;
+            if (needs_flushing && executed_prims % flush_frequency == 0)
+                get_stream().flush();
+        }
+
+        // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
+        // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
+        // In scenarios with a big number of very small networks it can provide performance drop.
+        get_stream().flush();
     }
-
-    // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
-    // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
-    // In scenarios with a big number of very small networks it can provide performance drop.
-    get_stream().flush();
 
     // Reset all flags for the next execution
     for (auto& inst : _exec_order) {
@@ -973,6 +1081,8 @@ void network::allocate_primitive_instance(program_node const& node) {
     if (node.is_constant()) {
         transfer_memory_to_device(inst, node);
     }
+
+        GPU_DEBUG_TRACE_DETAIL << node.id() << ": allocate primitive instance END" << std::endl;
 }
 
 void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node) {
