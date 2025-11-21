@@ -349,7 +349,9 @@ TEST_P(ov_infer_request_test, infer_async_wait_for) {
     }
 }
 
-TEST_P(ov_infer_request_test, infer_async_wait_for_return_busy) {
+TEST_P(ov_infer_request_test, DISABLED_infer_async_wait_for_return_busy) {
+    /* Disabled as delaying callback does not keep infer request in Busy state - callback function is called only after
+     * the state changes from Busy to Idle. So this test sporadically fails. */
     OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
 
     ov_callback_t callback;
