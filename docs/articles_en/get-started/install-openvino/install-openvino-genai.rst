@@ -113,5 +113,15 @@ Here are the full guides:
 :doc:`Windows <install-openvino-archive-windows>`, and
 :doc:`macOS <install-openvino-archive-macos>`.
 
+npm Installation
+###############################
+
+To install the GenAI package via npm, follow the standard :doc:`installation steps <install-openvino-npm>`,
+but use the *openvino-genai-node* package instead of *openvino-node*:
+
+.. code-block:: sh
+
+   npm install openvino-genai-node
+
 
 
