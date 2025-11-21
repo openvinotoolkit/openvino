@@ -498,6 +498,16 @@ static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
 
 /**
  * @brief
+ * Type: boolean
+ * Enable multiple generate model variants with different static shapes (1K, 2K, 4K, 8K stepping).
+ * When enabled, multiple generate models will be compiled and the appropriate one will be
+ * selected at runtime based on the required KV cache size.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> generate_pyramid{"NPUW_LLM_GENERATE_PYRAMID"};
+
+/**
+ * @brief
  * Type: uint64_t.
  * Prompt chunk size for chunk prefill.
  * The chunk size should be a power of two.
