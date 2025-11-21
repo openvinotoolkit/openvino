@@ -37,7 +37,6 @@ static size_t get_subgroup_size(gpu_arch arch) {
 JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& moe_gemm, const moe_3gemm_config& cfg) const {
     const auto& device_info = params.get_device_info();
 
-    std::cout << "MoE3GemmMicroGenerator::get_jit_constants() - " << __LINE__ << std::endl;
     auto jit = make_base_jit_constants(params);
     jit.make("SUBGROUP_SIZE", get_subgroup_size(device_info.arch));
     jit.make("OUTPUT_TYPE", to_ocl_type(data_types::f16));      // output
@@ -327,10 +326,8 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
         OPENVINO_THROW("MoE3GemmMicroGenerator::get_kernel_data() - can't init microkernels: ", ex.what());
     }
 
-    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
     auto jit = get_jit_constants(params, moe_gemm, get_moe_3gemm_cfg(params));
 
-    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
     KernelData kd;
     kd.code = std::make_shared<KernelString>();
     kd.code->language = kernel_language::OCLC_V2;
@@ -341,7 +338,6 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
     kd.code->batch_compilation = false;
     kd.code->has_microkernels = true;
 
-    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
     try {
         std::cout << "\t get_kernel_name(): " << get_kernel_name() << std::endl;
         std::cout << "\t kd.code->entry_point: " << kd.code->entry_point << std::endl;
@@ -350,12 +346,10 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
         std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - can't build code: " << ex.what() << std::endl;
         OPENVINO_THROW("MoE3GemmMicroGenerator::get_kernel_data() - can't build code: ", ex.what());
     }
-    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
 
     kd.params.arguments = get_arguments_desc(params);
 
     kd.update_dispatch_data_func = get_dispatch_data_func();
-    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
 
     kd.need_args_update = true;
     kd.need_dispatch_data_update = true;
@@ -365,14 +359,11 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
     shim_options.subgroupSize = static_cast<int32_t>(get_subgroup_size(device_info.arch));
     shim_options.useTileOps = true;
     shim_options.decorator = "moe";
-    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
 
     kd.code->jit += generateShim(moe_gemm, micro::HostLanguage::OpenCL_C, shim_options);
     if (moe_gemm.grfMin > 128) {
         kd.code->options += " -cl-intel-256-GRF-per-thread";
     }
-
-    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
     kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(moe_gemm));
 
     // Micro kernel is using slm implicitly inside the kernel.

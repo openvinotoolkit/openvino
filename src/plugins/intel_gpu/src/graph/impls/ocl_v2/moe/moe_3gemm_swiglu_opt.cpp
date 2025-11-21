@@ -791,26 +791,19 @@ public:
         add_stage(mlp_reduce, params);
 
         auto use_micro_gemm_prefill_str = std::getenv("MOE_USE_MICRO_GEMM_PREFILL");
-        std::cout << "MOE_USE_MICRO_GEMM_PREFILL = " << use_micro_gemm_prefill_str << std::endl;
-
-        if (use_micro_gemm_prefill_str)
+        if (use_micro_gemm_prefill_str) {
+            std::cout << "MOE_USE_MICRO_GEMM_PREFILL = " << use_micro_gemm_prefill_str << std::endl;
             use_micro_gemm_prefill = std::stoi(use_micro_gemm_prefill_str);
-        else
+        } else {
             use_micro_gemm_prefill = true;
-
+        }
         if (use_micro_gemm_prefill) {
             add_stage(prefill_gather, params);
-            std::cout << "prefill_gather" << std::endl;
             add_stage(micro_gemm_gate, params);
-            std::cout << "micro_gemm_gate" << std::endl;
             add_stage(micro_gemm_up, params);
-            std::cout << "micro_gemm_up" << std::endl;
             add_stage(micro_gemm_down, params);
-            std::cout << "micro_gemm_down" << std::endl;
             add_stage(prefill_swiglu, params);
-            std::cout << "prefill_swiglu" << std::endl;
             add_stage(prefill_scatter_reduce, params);
-            std::cout << "prefill_scatter_reduce" << std::endl;
         }
     }
 
@@ -1053,7 +1046,7 @@ public:
         cldnn::kernel_arguments_data args;
         cldnn::kernel_arguments_desc desc;
 
-        std::cout << "execute_stage: " << std::endl;
+        std::cout << "moe::execute_stage: " << stage.kernel->get_id() << std::endl;
         for (uint32_t i = 0; i < inputs.size(); i++) {
             desc.arguments.push_back({ArgumentDescriptor::Types::INPUT, i});
             args.inputs.push_back(inputs[i]);
@@ -1068,10 +1061,11 @@ public:
                 scalar_desc[i].v.s32 = scalar_inputs[i];
             }
             args.scalars = &scalar_desc;
-            std::cout << "\tscalar_inputs: " << std::endl;
+            std::cout << "\tscalar_inputs: ";
             for (const auto& scalar : scalar_inputs) {
-                std::cout << "\t\t" << scalar << std::endl;
+                std::cout << scalar << " ";
             }
+            std::cout << std::endl;
         }
 
         for (uint32_t i = 0; i < outputs.size(); i++) {
@@ -1084,12 +1078,12 @@ public:
         desc.workGroups.global = global;
         desc.workGroups.local = local;
 
-        if(global.size() == 2) {
-            std::cout << "\tgws[] = " << global[0] << ", " << global[1] << std::endl;
-            std::cout << "\tlws[] = " << local[0] << ", " << local[1] << std::endl;
-        } else if(global.size() == 3) {
-            std::cout << "\tgws[] = " << global[0] << ", " << global[1] << ", " << global[2] << std::endl;
-            std::cout << "\tlws[] = " << local[0] << ", " << local[1] << ", " << local[2] << std::endl;
+        if (global.size() == 2) {
+            std::cout << "\tgws = {" << global[0] << ", " << global[1] << "}" << std::endl;
+            std::cout << "\tlws = {" << local[0] << ", " << local[1] << "}" << std::endl;
+        } else if (global.size() == 3) {
+            std::cout << "\tgws = {" << global[0] << ", " << global[1] << ", " << global[2] << "}" << std::endl;
+            std::cout << "\tlws = {" << local[0] << ", " << local[1] << ", " << local[2] << "}" << std::endl;
         }
 
         return stream.enqueue_kernel(*stage.kernel, desc, {}, events, needs_completion_event);
@@ -1254,6 +1248,39 @@ public:
             }
         }
 
+        auto print_mem_f16 = [&](cldnn::stream& stream, memory::ptr mem, const std::string& mem_name) {
+            auto layout = mem->get_layout().get_shape();
+            size_t row = layout.size() >= 2 ? layout[layout.size() - 2] : 1;
+            size_t col = layout.size() >= 2 ? layout[layout.size() - 1] : layout[0];
+            cldnn::mem_lock<int32_t, mem_lock_type::read> lock_data{mem, stream};
+            std::cout << mem_name << ": layout = " << mem->get_layout().to_short_string() << std::endl;
+            for (size_t j = 0; j < row; j++) {
+                std::cout << "\t[" << j << "]: ";
+                for (size_t i = 0; i < col && i < 16; i++) {
+                    ov::float16 v = ov::float16::from_bits(lock_data[j * col + i]);
+                    std::cout << static_cast<float>(v) << ", ";
+                }
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+        };
+
+        auto print_mem = [&](cldnn::stream& stream, memory::ptr mem, const std::string& mem_name) {
+            auto layout = mem->get_layout().get_shape();
+            size_t row = layout.size() >= 2 ? layout[layout.size() - 2] : 1;
+            size_t col = layout.size() >= 2 ? layout[layout.size() - 1] : layout[0];
+            cldnn::mem_lock<int32_t, mem_lock_type::read> lock_data{mem, stream};
+            std::cout << mem_name << ": layout = " << mem->get_layout().to_short_string() << std::endl;
+            for (size_t j = 0; j < row; j++) {
+                std::cout << "\t[" << j << "]: ";
+                for (size_t i = 0; i < col; i++) {
+                    std::cout << lock_data[j * col + i] << ", ";
+                }
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+        };
+
         // step 2: generate gather input tokens
         //  input
         //      0: input tensor, shape = [token_len, hidden_size]
@@ -1278,6 +1305,10 @@ public:
                                       {static_cast<size_t>(local_threads_count), 1, 1});
 
             stream.finish(); //debug
+            print_mem_f16(stream, instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)), "input token");
+            print_mem(stream, intermediates_memories[12], "token idx per expert");
+            print_mem_f16(stream, scratch.x, "gathered token");
+            std::cout << std::endl;
         }
 
         // step 3: moe_gemm for up and gate
@@ -1396,9 +1427,7 @@ public:
             m_rt_params = std::make_unique<MoEGemmRuntimeParams>();
         }
         update_stages_flags(instance);
-        auto rtp = static_cast<MoEGemmRuntimeParams*>(m_rt_params.get());
-        // rtp->num_actually_used_experts = instance.get_input_layout(moe_gemm::MoEGemmInputIdx::EXPERTS_IDS).get_shape()[0];
-        std::cout << "moe_3gemm :: num_actually_used_experts = " << rtp->num_actually_used_experts << "\n";
+        // auto rtp = static_cast<MoEGemmRuntimeParams*>(m_rt_params.get());
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
