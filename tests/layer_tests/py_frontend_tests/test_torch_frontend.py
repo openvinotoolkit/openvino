@@ -988,6 +988,10 @@ def test_patched_8bit_model_converts_e4m3fn():
     np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
 
 
+@pytest.mark.skipif(
+    platform.system() == "Darwin" and platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'],
+    reason="PyTorch float8_e5m2 cleanup deadlock on macOS ARM64. Ticket: 172658"
+)
 def test_patched_8bit_model_converts_e5m2():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
