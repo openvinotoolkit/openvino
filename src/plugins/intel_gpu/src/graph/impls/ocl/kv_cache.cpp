@@ -88,21 +88,23 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         parent::load(ib);
         if (is_dynamic()) {
             auto& kernel_selector = kernel_selector_t::Instance();
-            auto kernel_impl = kernel_selector.GetImplementation(_kernels_data[concat_stage].kernelName);
-            kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[concat_stage]);
-            if (_kernels_data.size() >= 2) {
+            auto reorder_kernel_impl = kernel_selector.GetImplementation(_kernels_data[reorder_trim_stage].kernelName);
+            reorder_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[reorder_trim_stage]);
+            auto concat_kernel_impl = kernel_selector.GetImplementation(_kernels_data[concat_stage].kernelName);
+            concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[concat_stage]);
+            if (_kernels_data.size() >= 3) {
                 auto& bt_kernel_selector = bt_kernel_selector_t::Instance();
                 auto bt_kernel_impl = bt_kernel_selector.GetImplementation(_kernels_data[beam_table_stage].kernelName);
                 bt_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[beam_table_stage]);
             }
 
-            if (_kernels_data.size() >= 3) {
+            if (_kernels_data.size() >= 4) {
                 auto& dq_kernel_selector = dq_kernel_selector_t::Instance();
                 auto dq_kernel_impl = dq_kernel_selector.GetImplementation(_kernels_data[dq_stage].kernelName);
                 dq_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[dq_stage]);
             }
 
-            if (_kernels_data.size() >= 4) {
+            if (_kernels_data.size() >= 5) {
                 auto& scale_zp_concat_kernel_selector = kernel_selector_t::Instance();
                 auto scale_zp_concat_kernel_impl = scale_zp_concat_kernel_selector.GetImplementation(_kernels_data[scale_concat_stage].kernelName);
                 scale_zp_concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[scale_concat_stage]);
@@ -117,8 +119,8 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         kernel_arguments_data args;
         args.shape_info = instance.shape_info_memory_ptr();
         if (stage == reorder_trim_stage) {
-            args.inputs = {instance.input_memory_ptr(0), instance.input_memory_ptr(2 + indirect_offset), instance.input_memory_ptr(3 + indirect_offset)};
-            args.outputs = {instance.input_memory_ptr(0)};
+            args.inputs = {instance.output_memory_ptr(0), instance.input_memory_ptr(2 + indirect_offset), instance.input_memory_ptr(3 + indirect_offset)};
+            args.outputs = { instance.output_memory_ptr(0) };
         } else if (stage == concat_stage) {
             args.inputs = { instance.input_memory_ptr(0), instance.input_memory_ptr(1) };
             args.outputs = { instance.output_memory_ptr(0) };
@@ -195,7 +197,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         std::vector<event::ptr> res_events;
         const auto& impl_param = *instance.get_impl_params();
 
-        if (impl_param.input_layouts.size() == 4) {
+        if (impl_param.input_layouts.size() >= 3) {
             indirect_offset = desc->indirect ? 1 : 0;
             execute_stage(events, instance, res_events, reorder_trim_stage);
         }
@@ -308,10 +310,9 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         return layout{beam_table_shape, impl_param.output_layouts[1].data_type, format::get_default_format(beam_table_shape.size())};
     }
 
-    static kernel_selector::reorder_kv_cache_params get_reorder_trim_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_selector::reorder_kv_cache_params get_reorder_trim_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<kv_cache>();
-        auto params = get_default_params<kernel_selector::reorder_kv_cache_params>(impl_param, true);
-        auto indirect_axis = primitive->gather_axis;
+        auto params = get_default_params<kernel_selector::reorder_kv_cache_params>(impl_param, is_shape_agnostic);
 
         auto inputs_count = 3;
 
@@ -319,14 +320,12 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         params.inputs[0] = convert_data_tensor(impl_param.input_layouts[0]);
         params.inputs[1] = convert_data_tensor(impl_param.input_layouts[2 + impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0]);
         params.inputs[2] = convert_data_tensor(impl_param.input_layouts[3 + impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0]);
-        params.outputs[0] = convert_data_tensor(impl_param.input_layouts[0]);
+        params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0]);
         params.inputs.resize(inputs_count);
-        params.indirect_axis = indirect_axis;
-        params.seq_len = indirect_axis;
+        params.seq_len = params.inputs[0].Y().v;
+        params.idx_len = params.inputs[2].Y().v;
 
         const auto& desc = impl_param.typed_desc<kv_cache>();
-        const auto compression_inputs = desc->get_compression_scales_inputs_num() + desc->get_compression_zp_inputs_num();
-        const auto beam_table_past_idx = 3 + compression_inputs;
 
         const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;  // [kv_past, kv_new_token, [beam_idx, [scale_past], [zp_past], beam_table_past]]
         const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;  // [kv_present, beam_table_present, compression_scale_present]
@@ -509,8 +508,8 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
     static std::unique_ptr<primitive_impl> create(const typed_program_node<kv_cache>& arg, const kernel_impl_params& impl_param) {
         std::vector<kernel_selector::kernel_data> kernels_data;
-        if (impl_param.typed_desc<kv_cache>()->input.size() >= 4) {
-            auto reorder_kernel_params = get_reorder_trim_kernel_params(impl_param);
+        if (impl_param.typed_desc<kv_cache>()->input.size() >= 3) {
+            auto reorder_kernel_params = get_reorder_trim_kernel_params(impl_param, impl_param.is_dynamic());
             auto& reorder_kernel_selector = kernel_selector::reorder_kv_cache_kernel_selector::Instance();
             kernels_data.push_back(reorder_kernel_selector.get_best_kernel(reorder_kernel_params));
         }
@@ -546,7 +545,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto reorder_kernel_params = get_reorder_trim_kernel_params(impl_param);
+        auto reorder_kernel_params = get_reorder_trim_kernel_params(impl_param, true);
         (_kernels_data[reorder_trim_stage].update_dispatch_data_func)(reorder_kernel_params, _kernels_data[reorder_trim_stage]);
         _kernels_data[reorder_trim_stage].kernels[0].skip_execution = 0;
 

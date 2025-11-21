@@ -11,7 +11,7 @@ namespace kernel_selector {
 struct reorder_kv_cache_params : base_params {
     reorder_kv_cache_params() : base_params(KernelType::REORDER_KV_CACHE) {}
     uint32_t seq_len = 0;
-    int64_t indirect_axis = 0;
+    uint32_t idx_len = 0;
 };
 
 class ReorderKVCacheKernelRef : public KernelBaseOpenCL {

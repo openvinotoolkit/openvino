@@ -17,12 +17,17 @@ void ReorderKVCacheKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = false;
-        ScalarDescriptor seq_len;
+        kd.kernels[0].params.scalars.resize(2);
 
+        ScalarDescriptor seq_len;
         seq_len.t = ScalarDescriptor::Types::UINT32;
         seq_len.v.u32 = prim_params.seq_len;
-        kd.kernels[0].params.scalars.resize(1);
         kd.kernels[0].params.scalars[0] = seq_len;
+
+        ScalarDescriptor idx_len;
+        idx_len.t = ScalarDescriptor::Types::UINT32;
+        idx_len.v.u32 = prim_params.idx_len;
+        kd.kernels[0].params.scalars[1] = idx_len;
     };
 }
 
@@ -61,13 +66,21 @@ KernelsData ReorderKVCacheKernelRef::GetKernelsData(const Params& params) const 
     kernel.params.scalars.push_back(seq_len);
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
+    ScalarDescriptor idx_len;
+    idx_len.t = ScalarDescriptor::Types::UINT32;
+    idx_len.v.u32 = 0;
+    kernel.params.scalars.push_back(idx_len);
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+
     return {kernel_data};
 }
 
 ParamsKey ReorderKVCacheKernelRef::GetSupportedKey() const {
     ParamsKey key;
     key.EnableInputDataType(Datatype::INT32);
+    key.EnableInputDataType(Datatype::F16);
     key.EnableOutputDataType(Datatype::INT32);
+    key.EnableOutputDataType(Datatype::F16);
     key.EnableInputLayout(DataLayout::bfyx);
     key.EnableOutputLayout(DataLayout::bfyx);
     key.EnableTensorOffset();
