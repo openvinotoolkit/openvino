@@ -85,7 +85,25 @@ jobs:
         timeout-minutes: 15
         with:
           path: 'openvino'
-          submodules: 'true'
+          submodules: 'recursive'
+          fetch-depth: 0
+
+      - name: Ensure submodules available with retries
+        shell: pwsh
+        run: |
+          $maxAttempts = 4
+          $attempt = 0
+          while ($attempt -lt $maxAttempts) {
+            try {
+              git -C openvino submodule update --init --recursive
+              break
+            } catch {
+              Write-Host "Submodule update failed, attempt $($attempt+1)/$maxAttempts"
+              Start-Sleep -Seconds (5 * ($attempt+1))
+              $attempt++
+              if ($attempt -eq $maxAttempts) { throw $_ }
+            }
+          }
 
       - name: Clone test models
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -338,7 +356,25 @@ jobs:
         timeout-minutes: 15
         with:
           path: 'openvino'
-          submodules: 'true'
+          submodules: 'recursive'
+          fetch-depth: 0
+
+      - name: Ensure submodules available with retries
+        shell: pwsh
+        run: |
+          $maxAttempts = 4
+          $attempt = 0
+          while ($attempt -lt $maxAttempts) {
+            try {
+              git -C openvino submodule update --init --recursive
+              break
+            } catch {
+              Write-Host "Submodule update failed, attempt $($attempt+1)/$maxAttempts"
+              Start-Sleep -Seconds (5 * ($attempt+1))
+              $attempt++
+              if ($attempt -eq $maxAttempts) { throw $_ }
+            }
+          }
 
       - name: Clone test models
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
