@@ -51,12 +51,12 @@ ov::pass::MarkFloatingPointRange::MarkFloatingPointRange() {
             return false;
 
         bool is_changed = false;
-            
+
         auto range = ov::as_type_ptr<ov::op::v4::Range>(node);
         if (range && range->get_output_type().is_real()) {
             mark_range_path(node);
             ov::disable_fp16_compression(node);
-            
+
             // mark inputs as well
             for (const auto& range_input : range->input_values()) {
                 ov::disable_fp16_compression(range_input.get_node_shared_ptr());
@@ -65,7 +65,7 @@ ov::pass::MarkFloatingPointRange::MarkFloatingPointRange() {
         } else {
             for (const auto& in_node_output : node->input_values()) {
                 auto input_node = in_node_output.get_node_shared_ptr();
-                
+
                 if (is_range_path(input_node)) {
                     mark_range_path(node);
                     ov::disable_fp16_compression(node);
@@ -74,7 +74,7 @@ ov::pass::MarkFloatingPointRange::MarkFloatingPointRange() {
                 }
             }
         }
-        
+
         return is_changed;
     };
     auto m = std::make_shared<ov::pass::pattern::Matcher>(range_propagating_nodes, matcher_name);
