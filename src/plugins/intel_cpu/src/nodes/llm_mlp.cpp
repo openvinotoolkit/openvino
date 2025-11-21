@@ -382,10 +382,10 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
         if (m_config.gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
             N = w_gate.size(0) / 2;
             if (m_config.gate_up_type == LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE) {
-                // When VariadicSplit output[1] connects to gate instead of up, swap the pointers
+                // COMBINED_UP_GATE: VariadicSplit output[0] connects to up, output[1] connects to gate
                 gate_up.setup(w_gate.ptr_v(N, 0), w_gate.ptr_v(), w_gate.stride_bytes(0), N * 2, K, config);
             } else {
-                // Normal case: VariadicSplit output[1] connects to up
+                // COMBINED_GATE_UP: VariadicSplit output[0] connects to gate, output[1] connects to up
                 gate_up.setup(w_gate.ptr_v(), w_gate.ptr_v(N, 0), w_gate.stride_bytes(0), N * 2, K, config);
             }
         } else {
@@ -407,8 +407,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
             auto* scale_first = w_scale_gate;
             auto* scale_second = w_scale_up;
             if (m_config.gate_up_type == LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE) {
-                scale_first = w_scale_up;
-                scale_second = w_scale_gate;
+                std::swap(scale_first, scale_second);
             }
             for (size_t i = 0; i < N; i += 16) {
                 memcpy(dst, scale_first + i, 16 * sizeof(float));

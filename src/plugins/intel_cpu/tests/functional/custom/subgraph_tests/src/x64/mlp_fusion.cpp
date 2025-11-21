@@ -109,6 +109,7 @@ protected:
                                                                       in_data);
             auto gate_up_weight_f16 = std::make_shared<ov::op::v0::Constant>(tensor_f16);
             auto gate_up_weight_f32 = std::make_shared<ov::op::v0::Convert>(gate_up_weight_f16, ov::element::f32);
+            // Mark as decompression to prevent constant folding optimization and avoid pattern mismatch
             mark_as_decompression(gate_up_weight_f32);
 
             auto gate_up_proj = std::make_shared<ov::op::v0::MatMul>(src, gate_up_weight_f32, false, true);
