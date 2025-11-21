@@ -27,6 +27,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/cpu_utils.hpp"
@@ -66,23 +67,23 @@ bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
 
 MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
                                                const MemoryArgs& memory,
-                                               const ExecutorContext::CPtr& context)
-    : m_attrs(attrs),
-      m_memoryArgs(memory) {
+                                               const ExecutorContext::CPtr& context) {
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
     auto weiDims = weiMem->getDesc().getShape().getDims();
     auto N = weiDims[0];
     auto K = weiDims[1];
 
-    bool hasBias = memory.at(ARG_BIAS)->getDataAs<float>() != nullptr;
-    if (!hasBias) {
+    const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
+
+    if (hasBias) {
+        biasMem = memory.at(ARG_BIAS);
+    } else {
         auto biasDesc = std::make_shared<CpuBlockedMemoryDesc>(f32, Shape({N}));
         biasMem = std::make_shared<Memory>(context->getEngine(), biasDesc);
         biasMem->nullify();
-    } else {
-        biasMem = memory.at(ARG_BIAS);
     }
+
     if (memory.at(ARG_SRC)->getPrecision() != memory.at(ARG_WEI)->getPrecision()) {
         aclfcAttrs.isConvertedWeights = true;
     }
@@ -384,15 +385,8 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     }
 }
 
-void MatMulKleidiAIExecutor::moveMemToNumaNode(int numaNodeID) {
-    if (curNumaNode == numaNodeID) {
-        return;
-    }
-    curNumaNode = numaNodeID;
-    mbind_move(packedWeights, numaNodeID);
-    if (m_attrs.withBias) {
-        mbind_move(m_memoryArgs.at(ARG_BIAS), numaNodeID);
-    }
+void MatMulKleidiAIExecutor::moveMemToNumaNode([[maybe_unused]] int numaNodeID) {
+    OPENVINO_THROW_NOT_IMPLEMENTED("'moveMemToNumaNode' is not implemented by the executor");
 }
 
 }  // namespace ov::intel_cpu
