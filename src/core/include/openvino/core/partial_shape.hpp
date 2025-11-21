@@ -169,13 +169,40 @@ public:
     bool all_non_negative() const;
 
     /// \brief Index operator for PartialShape, with bound checking.
-    /// \param i The index of the dimension being selected in range [-rank, rank).
-    /// \return A reference to the `i`th Dimension of this shape.
-    Dimension& operator[](std::ptrdiff_t i);
+    /// \param  pos The index of the dimension being selected.
+    /// \return A reference to the Dimension at give position
+    /// @{
+    Dimension& operator[](typename Dimensions::size_type pos) {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+        return m_dimensions[pos];
+    }
+
+    const Dimension& operator[](typename Dimensions::size_type pos) const {
+        return m_dimensions[pos];
+    }
+    /// @}
+
     /// \brief Index operator for PartialShape, with bound checking.
-    /// \param i The index of the dimension being selected in range [-rank, rank).
-    /// \return A reference to the `i`th Dimension of this shape.
-    const Dimension& operator[](std::ptrdiff_t i) const;
+    /// \param pos The index of the dimension being selected in range [-rank, rank).
+    /// \return A reference to the Dimension at give position
+    /// @{
+    Dimension& operator()(std::ptrdiff_t pos) {
+        return operator[](normalize(pos));
+    }
+
+    const Dimension& operator()(std::ptrdiff_t pos) const {
+        return operator[](normalize(pos));
+    }
+    /// @}
+
+    /// \brief Gets dimension at index, with bounds checking.
+    /// \param pos  Position [-rank, rank) of the dimension to return.
+    /// If position is negative, it is counted from the end of the shape.
+    /// \return A reference to i-th dimension of this shape.
+    /// @{
+    Dimension& at(std::ptrdiff_t pos);
+    const Dimension& at(std::ptrdiff_t pos) const;
+    /// @}
 
     /// \brief Returns a vector of the dimensions. This has no meaning if dynamic.
     explicit operator std::vector<Dimension>() const {
@@ -358,6 +385,10 @@ public:
 private:
     // Private constructor for PartialShape::dynamic().
     PartialShape(bool rank_is_static, std::vector<Dimension> dimensions);
+
+    typename Dimensions::size_type normalize(std::ptrdiff_t pos) const {
+        return pos < 0 ? pos + m_dimensions.size() : pos;
+    }
 
     // True if the shape's rank is static.
     bool m_rank_is_static;

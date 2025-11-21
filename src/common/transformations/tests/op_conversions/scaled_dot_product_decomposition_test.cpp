@@ -270,7 +270,7 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
     auto extract_dim = [&zero_i](const std::shared_ptr<ov::op::v3::ShapeOf>& shape_of,
                                  const int64_t idx) -> std::shared_ptr<ov::Node> {
         const auto& shape = shape_of->get_input_partial_shape(0);
-        const auto& dim = shape[idx];
+        const auto& dim = shape.at(idx);
         if (dim.is_static()) {
             return ov::op::v0::Constant::create(element::i32, Shape{}, {dim.get_length()});
         }

@@ -442,7 +442,7 @@ op::Predicate shape_matches(const std::string& shape_notation) {
                     continue;
                 }
 
-                const auto& actual_dim = shape[position];
+                const auto& actual_dim = shape.at(position);
                 const auto& actual_value = actual_dim.is_static() ? PatternSymbolValue(actual_dim.get_length())
                                                                   : PatternSymbolValue(actual_dim.get_symbol());
                 const auto& converted_int = str2int(expected_as_string);
@@ -481,7 +481,7 @@ op::Predicate shape_matches(const std::string& shape_notation) {
                     if (recorded_group.size() != group.size())
                         return false;
                     for (size_t i = 0; i < recorded_group.size(); ++i) {
-                        const auto& actual_dim = shape[static_cast<std::ptrdiff_t>(group.begin + i)];
+                        const auto& actual_dim = shape.at(static_cast<std::ptrdiff_t>(group.begin + i));
                         if (actual_dim.is_dynamic() && !actual_dim.get_symbol())
                             return false;
                         const auto& actual_value = actual_dim.is_static() ? PatternSymbolValue(actual_dim.get_length())
@@ -492,7 +492,7 @@ op::Predicate shape_matches(const std::string& shape_notation) {
                 } else {
                     std::vector<PatternSymbolValue> group_value;
                     for (size_t i = 0; i < group.size(); ++i) {
-                        const auto& actual_dim = shape[static_cast<std::ptrdiff_t>(group.begin + i)];
+                        const auto& actual_dim = shape.at(static_cast<std::ptrdiff_t>(group.begin + i));
                         if (actual_dim.is_dynamic() && !actual_dim.get_symbol())
                             return false;
                         const auto& actual_value = actual_dim.is_static() ? PatternSymbolValue(actual_dim.get_length())
