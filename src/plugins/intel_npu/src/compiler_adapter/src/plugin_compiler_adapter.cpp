@@ -188,7 +188,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;
     std::shared_ptr<NetworkDescription> mainNetworkDescription;
-    
+
     switch (localConfig.get<SEPARATE_WEIGHTS_VERSION>()) {
     case ov::intel_npu::WSVersion::ONE_SHOT: {
         std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
