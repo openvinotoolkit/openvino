@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/fetch_utils.cl"
 
 #define VLOAD CAT(vload, VEC_BLK_SIZE)
 #define VSTORE CAT(vstore, VEC_BLK_SIZE)

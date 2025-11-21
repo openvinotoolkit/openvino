@@ -24,10 +24,10 @@ namespace ov::intel_gpu::ocl {
 class MoE3GemmMicroGenerator : public MoEGemmOptGeneratorBase {
 public:
     explicit MoE3GemmMicroGenerator(MoE3GemmMicroKernelType type)
-        : MoEGemmOptGeneratorBase("moe_3gemm_prefill_mlp",
-                                  type == MoE3GemmMicroKernelType::MLP_GATE ? "_gate"
-                                  : type == MoE3GemmMicroKernelType::MLP_UP ? "_up"
-                                                                            : "_down"),
+        : MoEGemmOptGeneratorBase("moe_gemm",
+                                  type == MoE3GemmMicroKernelType::MLP_GATE ? "_prefill_mlp_gate"
+                                  : type == MoE3GemmMicroKernelType::MLP_UP ? "_prefill_mlp_up"
+                                                                            : "_prefill_mlp_down"),
           m_type(type) {
         switch (m_type) {
         case MoE3GemmMicroKernelType::MLP_GATE:

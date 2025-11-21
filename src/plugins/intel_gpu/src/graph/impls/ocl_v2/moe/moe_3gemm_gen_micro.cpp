@@ -36,6 +36,8 @@ static size_t get_subgroup_size(gpu_arch arch) {
 
 JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& moe_gemm, const moe_3gemm_config& cfg) const {
     const auto& device_info = params.get_device_info();
+
+    std::cout << "MoE3GemmMicroGenerator::get_jit_constants() - " << __LINE__ << std::endl;
     auto jit = make_base_jit_constants(params);
     jit.make("SUBGROUP_SIZE", get_subgroup_size(device_info.arch));
     jit.make("OUTPUT_TYPE", to_ocl_type(data_types::f16));      // output
@@ -48,29 +50,41 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::u4));      // zp
     jit.make("WEIGHT_COMPRESSED_INT4", 1);
     jit.make("IS_GENERATE", 0);  // prefill
+
+    std::cout << "\t m_scale_idx: " << m_scale_idx << std::endl;
+    std::cout << "\t params.input_layouts[m_scale_idx].get_shape(): " << params.input_layouts[m_scale_idx].to_short_string() << std::endl;
     if (cfg.weight_group_size > 0)
-        jit.make("NUM_GROUPS", params.input_layouts[m_scale_idx].get_shape()[2]);
+        jit.make("NUM_GROUPS", params.input_layouts[m_scale_idx].get_shape()[1]);
     else
         jit.make("NUM_GROUPS", 1);
 
+    std::cout << "\t m_wei_idx: " << m_wei_idx << std::endl;
+    std::cout << "\t params.input_layouts[m_wei_idx].get_shape(): " << params.input_layouts[m_wei_idx].to_short_string() << std::endl;
     const auto& weight_shape = params.input_layouts[m_wei_idx].get_shape();
     // u4:bfyx:4x3072x8x128:nopad
     size_t expert_stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) : (weight_shape[1] * weight_shape[2]);
     jit.make("EXPERT_STRIDE", expert_stride / 2);
 
-    const auto& input_shape = params.input_layouts[0].get_shape();
-    jit.make("INPUT_SEQ_LEN", input_shape[0]);
+    std::cout << "\t params.input_layouts[0].get_shape(): " << params.input_layouts[0].to_short_string() << std::endl;
+    const auto& input_shape = params.input_layouts[0].get_partial_shape();
+    //jit.make("INPUT_SEQ_LEN", input_shape[0]);
+    jit.make("INPUT_SEQ_LEN", 0); // prefill not use it
+
     // f16:bfyx:[?,2048]:nopad
     jit.make("INPUT_STRIDE", input_shape.size() == 3 ? input_shape[1] * input_shape[2] : input_shape[1]);
 
-    const auto& output_shape = params.output_layouts[0].get_shape();
+    std::cout << "\t params.output_layouts[0].get_shape(): " << params.output_layouts[0].to_short_string() << std::endl;
+    const auto& output_shape = params.output_layouts[0].get_partial_shape();
     jit.make("OUTPUT_STRIDE", output_shape.size() == 3 ? output_shape[1] * output_shape[2] : output_shape[1]);
 
     jit.make("WEIGHT_COMPRESSED_ZP_INT4", 1);
+    jit.make("OPTIONAL_SHAPE_INFO_ARG","");
 
     auto slm_size = moe_gemm.getSetting("slm_size");
     if (slm_size > 0)
         jit.make("USE_SLM", 1);
+
+    std::cout << "MoE3GemmMicroGenerator::get_jit_constants() done " << std::endl;
     return jit;
 }
 
@@ -134,10 +148,10 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     size_t m = weight_shape[1];
     size_t n = is_prefill ? 32 : 8;
     size_t k = weight_shape.size() == 4 ? weight_shape[2] * weight_shape[3] : weight_shape[2];
-    GPU_DEBUG_TRACE_DETAIL << "init_microkernels for " << (is_prefill ? "prefill" : "generate") << " : Seq_len:" << n << " Ofm:" << m << " K:" << k << "\n";
+    std::cout << "init_microkernels for " << (is_prefill ? "prefill" : "generate") << " : Seq_len:" << n << " Ofm:" << m << " K:" << k << "\n";
 
     size_t group_size = weight_shape.size() == 4 ? weight_shape[3] : weight_shape[2];
-    GPU_DEBUG_TRACE_DETAIL << "weight group size: " << group_size << "\n";
+    std::cout << "weight group size: " << group_size << "\n";
 
     micro::GEMMProblem problem_moe;
     micro::GEMMProtocol::Options opts_moe;
@@ -190,19 +204,22 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     sizes.k = static_cast<int32_t>(k);
     sizes.batch = static_cast<int32_t>(1);
 
-    GPU_DEBUG_TRACE_DETAIL << "problem_moe:" << problem_moe.toString() << "\n";
-    GPU_DEBUG_TRACE_DETAIL << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
+    std::cout << "problem_moe:" << problem_moe.toString() << "\n";
+    std::cout << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
     try {
         /* Ask microkernel provider for microkernel */
         gemm_moe = micro::select_gemm_microkernel(opts_moe, hw_info, sizes, problem_moe);
     } catch (const std::runtime_error& ex) {
         OPENVINO_THROW("Can't create moe micro kernel: ", ex.what());
     }
+    std::cout << "init_microkernels is done" << std::endl;
 }
 DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
-    return DispatchDataFunc{[this](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    const auto wei_idx = this->m_wei_idx;
+    return DispatchDataFunc{[this, wei_idx](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         assert(!params.is_dynamic());
 
+        std::cout << "MoE3GemmMicroGenerator::DispatchDataFunc()" << std::endl;
         auto* rtp = static_cast<MoEGemmRuntimeParams*>(rt_params);
         const auto& device_info = params.get_device_info();
         const auto& gemm_p = kd.micro_kernels[0]->p;
@@ -217,7 +234,11 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         scalars.reserve(3);
 
         auto input_layout = params.get_input_layout(0);
-        auto experts_weight_layout = params.get_input_layout(m_wei_idx);
+        auto experts_weight_layout = params.get_input_layout(wei_idx);
+
+        std::cout << "\t input_layout: " << input_layout.to_short_string() << std::endl;
+        std::cout << "\t wei_idx = " << wei_idx << std::endl;
+        std::cout << "\t experts_weight_layout: " << experts_weight_layout.to_short_string() << std::endl;
 
         // has_batch_dim indicates whether the input tensor has batch dimension
         size_t n = input_layout.get_shape().size() == 3 ? input_layout.get_shape()[1] : input_layout.get_shape()[0];
@@ -248,14 +269,15 @@ std::string MoE3GemmMicroGenerator::get_build_options(const kernel_impl_params& 
 
 Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
-    if (params.is_dynamic())
-        args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    // if (params.is_dynamic())
+    //     args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
     // auto cfg = get_moe_cfg(params);
 
     switch (m_type) {
     case MoE3GemmMicroKernelType::MLP_GATE:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // gather input tensor
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_0)});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});                                    // gate output
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 9});                                    // experts_ids
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 10});                                   // input_offset_per_expert
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array
@@ -267,6 +289,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
     case MoE3GemmMicroKernelType::MLP_UP:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // gather input tensor
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_1)});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});                                    // up output
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 9});                                    // experts_ids
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 10});                                   // input_offset_per_expert
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array
@@ -278,6 +301,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
     case MoE3GemmMicroKernelType::MLP_DOWN:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});  // intermediate_mem[6]
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_2)});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});                                    // down output
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 9});                                    // experts_ids
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 10});                                   // input_offset_per_expert
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array
@@ -303,8 +327,10 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
         OPENVINO_THROW("MoE3GemmMicroGenerator::get_kernel_data() - can't init microkernels: ", ex.what());
     }
 
+    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
     auto jit = get_jit_constants(params, moe_gemm, get_moe_3gemm_cfg(params));
 
+    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
     KernelData kd;
     kd.code = std::make_shared<KernelString>();
     kd.code->language = kernel_language::OCLC_V2;
@@ -314,11 +340,22 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
     kd.code->options = get_build_options(params);
     kd.code->batch_compilation = false;
     kd.code->has_microkernels = true;
-    kd.code->str = build_code(get_kernel_name(), jit, kd.code->entry_point);
+
+    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
+    try {
+        std::cout << "\t get_kernel_name(): " << get_kernel_name() << std::endl;
+        std::cout << "\t kd.code->entry_point: " << kd.code->entry_point << std::endl;
+        kd.code->str = build_code(get_kernel_name(), jit, kd.code->entry_point);
+    } catch (const std::runtime_error& ex) {
+        std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - can't build code: " << ex.what() << std::endl;
+        OPENVINO_THROW("MoE3GemmMicroGenerator::get_kernel_data() - can't build code: ", ex.what());
+    }
+    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
 
     kd.params.arguments = get_arguments_desc(params);
 
     kd.update_dispatch_data_func = get_dispatch_data_func();
+    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
 
     kd.need_args_update = true;
     kd.need_dispatch_data_update = true;
@@ -328,12 +365,14 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
     shim_options.subgroupSize = static_cast<int32_t>(get_subgroup_size(device_info.arch));
     shim_options.useTileOps = true;
     shim_options.decorator = "moe";
+    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
 
     kd.code->jit += generateShim(moe_gemm, micro::HostLanguage::OpenCL_C, shim_options);
     if (moe_gemm.grfMin > 128) {
         kd.code->options += " -cl-intel-256-GRF-per-thread";
     }
 
+    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() - " << __LINE__ << std::endl;
     kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(moe_gemm));
 
     // Micro kernel is using slm implicitly inside the kernel.
@@ -344,6 +383,8 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
         kd.params.local_memory_args.push_back(slm_size);
         kd.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, slm_size});
     }
+
+    std::cout << "MoE3GemmMicroGenerator::get_kernel_data() completed\n";
     return kd;
 }
 }  // namespace ov::intel_gpu::ocl
