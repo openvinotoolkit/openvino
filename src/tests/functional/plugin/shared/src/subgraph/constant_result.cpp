@@ -40,16 +40,23 @@ void ConstantResultSubgraphTest::createGraph(const ConstantSubgraphType& type,
                                              const ov::element::Type& input_type) {
     ParameterVector params;
     ResultVector results;
+    std::cout << "[DEBUG_CVS-172561] createGraph: type=" << type << ", shape=" << ov::test::utils::vec2str(input_shape) 
+              << ", element_type=" << input_type << std::endl;
     switch (type) {
     case ConstantSubgraphType::SINGLE_COMPONENT: {
+        std::cout << "[DEBUG_CVS-172561] Creating SINGLE_COMPONENT graph" << std::endl;
         auto input = ov::test::utils::make_constant(input_type, input_shape);
+        std::cout << "[DEBUG_CVS-172561] Constant created, adding Result node" << std::endl;
         results.push_back(std::make_shared<ov::op::v0::Result>(input));
         break;
     }
     case ConstantSubgraphType::SEVERAL_COMPONENT: {
+        std::cout << "[DEBUG_CVS-172561] Creating SEVERAL_COMPONENT graph" << std::endl;
         auto input1 = ov::test::utils::make_constant(input_type, input_shape);
+        std::cout << "[DEBUG_CVS-172561] Constant 1 created, adding Result node" << std::endl;
         results.push_back(std::make_shared<ov::op::v0::Result>(input1));
         auto input2 = ov::test::utils::make_constant(input_type, input_shape);
+        std::cout << "[DEBUG_CVS-172561] Constant 2 created, adding Result node" << std::endl;
         results.push_back(std::make_shared<ov::op::v0::Result>(input2));
         break;
     }
@@ -57,14 +64,21 @@ void ConstantResultSubgraphTest::createGraph(const ConstantSubgraphType& type,
         throw std::runtime_error("Unsupported constant graph type");
     }
     }
+    std::cout << "[DEBUG_CVS-172561] Creating Model with " << results.size() << " results and " << params.size() << " params" << std::endl;
     function = std::make_shared<ov::Model>(results, params, "ConstResult");
+    std::cout << "[DEBUG_CVS-172561] Model created successfully" << std::endl;
 }
 
 void ConstantResultSubgraphTest::SetUp() {
     const auto& [type, input_shape, input_type, _targetDevice] = this->GetParam();
+    std::cout << "[DEBUG_CVS-172561] ConstantResultSubgraphTest::SetUp() started" << std::endl;
+    std::cout << "[DEBUG_CVS-172561] SubgraphType: " << type << ", InputShape: " << ov::test::utils::vec2str(input_shape) 
+              << ", InputType: " << input_type << ", TargetDevice: " << _targetDevice << std::endl;
     targetDevice = _targetDevice;
 
+    std::cout << "[DEBUG_CVS-172561] Before createGraph()" << std::endl;
     createGraph(type, input_shape, input_type);
+    std::cout << "[DEBUG_CVS-172561] After createGraph() - SUCCESS" << std::endl;
 }
 }  // namespace test
 }  // namespace ov
