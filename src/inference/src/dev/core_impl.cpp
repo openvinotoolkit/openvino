@@ -275,7 +275,7 @@ std::filesystem::path get_cache_model_path(const ov::AnyMap& config) {
 
 std::vector<ov::Extension::Ptr> try_get_extensions(const std::filesystem::path& path) {
     try {
-        return ov::detail::load_extensions(path.native());
+        return ov::detail::load_extensions(path);
     } catch (const std::runtime_error&) {
         return {};
     }

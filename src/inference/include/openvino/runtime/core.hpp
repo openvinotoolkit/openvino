@@ -449,24 +449,24 @@ public:
      * @param library_path Path to the library with ov::Extension.
      * @{
      */
+    void add_extension(const std::filesystem::path& library_path);
+
     void add_extension(const std::string& library_path);
 
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    void add_extension(const Path& model_path) {
-        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
-            return add_extension(model_path.wstring());
-        else
-            return add_extension(model_path.string());
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
+    void add_extension(const TPath& library_path) {
+        add_extension(std::string(library_path));
     }
-    /// @}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    /**
-     * @brief Registers an extension to a Core object.
-     * @param library_path Unicode path to the library with ov::Extension.
-     */
     void add_extension(const std::wstring& library_path);
+
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::wstring, TPath>>* = nullptr>
+    void add_extension(const TPath& library_path) {
+        add_extension(std::wstring(library_path));
+    }
 #endif
+    /// @}
 
     /**
      * @brief Registers an extension to a Core object.
