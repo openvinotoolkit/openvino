@@ -1,0 +1,164 @@
+ir_version: 10
+producer_name: "openvino_test"
+graph {
+  node {
+    input: "condition"
+    input: "x"
+    output: "output"
+    op_type: "If"
+    attribute {
+      name: "else_branch"
+      g {
+        node {
+          input: "else_x"
+          output: "else_output"
+          op_type: "ReduceMean"
+          attribute {
+            name: "axes"
+            ints: 1
+            type: INTS
+          }
+          attribute {
+            name: "keepdims"
+            i: 1
+            type: INT
+          }
+        }
+        name: "else_branch"
+        input {
+          name: "else_x"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 2
+                }
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "else_output"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 2
+                }
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+    attribute {
+      name: "then_branch"
+      g {
+        node {
+          input: "then_x"
+          output: "then_output"
+          op_type: "ReduceMean"
+          attribute {
+            name: "axes"
+            ints: 1
+            type: INTS
+          }
+          attribute {
+            name: "keepdims"
+            i: 1
+            type: INT
+          }
+        }
+        name: "then_branch"
+        input {
+          name: "then_x"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 2
+                }
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "then_output"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 2
+                }
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  name: "if_with_reducemean"
+  input {
+    name: "condition"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}
