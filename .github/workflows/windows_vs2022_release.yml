@@ -85,12 +85,13 @@ jobs:
     runs-on: aks-win-4-cores-8gb
     env:
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+      PYTHONIOENCODING: utf-8
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      INSTALL_DIR: "${{ github.workspace }}\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
-      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
-      SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\install\\samples"
-      BUILD_DIR: "${{ github.workspace }}\\build"
+      INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests"
+      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\wheels"
+      SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\samples"
+      BUILD_DIR: "${{ github.workspace }}\\유니코드폴더\\build"
 
     steps:
       - name: Download OpenVINO package
@@ -270,11 +271,12 @@ jobs:
         shell: pwsh
     runs-on: aks-win-8-cores-16gb-test
     env:
+      PYTHONIOENCODING: utf-8
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      INSTALL_DIR: "${{ github.workspace }}\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
-      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
-      LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
+      INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests"
+      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\wheels"
+      LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests\\layer_tests"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
 
     steps:
@@ -322,6 +324,9 @@ jobs:
 
       - name: Install Python API tests dependencies
         run: |
+          # Set code page to UTF-8
+          chcp 65001
+
           # To enable pytest parallel features
           python3 -m pip install pytest-xdist[psutil]
 
@@ -341,12 +346,19 @@ jobs:
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: Install Python Layer tests dependencies
-        run: python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+        run: |
+          # Set code page to UTF-8
+          chcp 65001
+
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
       - name: Python API Tests
         #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test # Ticket: 127101
         shell: cmd
         run: |
+          # Set code page to UTF-8
+          chcp 65001
+
           set PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
 
@@ -354,6 +366,9 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         shell: cmd
         run: |
+          # Set code page to UTF-8
+          chcp 65001
+
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ -v -n logical --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -373,6 +388,9 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).OVC.test
         shell: cmd
         run: |
+          # Set code page to UTF-8
+          chcp 65001
+
           :: Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\python\openvino\test_utils;${{ env.INSTALL_TEST_DIR }}\python;%PYTHONPATH%
 
@@ -386,6 +404,9 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test ||
             fromJSON(needs.smart_ci.outputs.affected_components).PDPD_FE.test
         run: |
+          # Set code page to UTF-8
+          chcp 65001
+
           python3 -m pytest -v ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
 
       - name: OVC unit tests
@@ -415,10 +436,11 @@ jobs:
         shell: pwsh
     runs-on: aks-win-8-cores-16gb-test
     env:
+      PYTHONIOENCODING: utf-8
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      INSTALL_DIR: "${{ github.workspace }}\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
-      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
+      INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests"
+      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\wheels"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
     steps:
       - name: Download OpenVINO artifacts (tarballs)
@@ -464,7 +486,11 @@ jobs:
           wheels-to-install: 'openvino'
 
       - name: Install Python API tests dependencies
-        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+        run: |
+          # Set code page to UTF-8
+          chcp 65001
+
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
 
       - name: Python API Tests
         shell: cmd
@@ -475,6 +501,9 @@ jobs:
       - name: Python API Tests -- numpy>=2.0.0
         shell: cmd
         run: |
+          # Set code page to UTF-8
+          chcp 65001
+
           python3 -m pip uninstall -y numpy
           python3 -m pip install "numpy>=2.0.0,<2.1.0"
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
@@ -550,10 +579,10 @@ jobs:
     runs-on: aks-win-8-cores-16gb-test
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      INSTALL_DIR: "${{ github.workspace }}\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
-      PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\install\\tests\\functional_test_utils\\layer_tests_summary\\run_parallel.py"
-      PARALLEL_TEST_CACHE: "${{ github.workspace }}\\install\\tests\\test_cache.lst"
+      INSTALL_DIR: "${{ github.workspace }}\\유니코드폴더\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\유니코드폴더\\install\\tests"
+      PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\유니코드폴더\\install\\tests\\functional_test_utils\\layer_tests_summary\\run_parallel.py"
+      PARALLEL_TEST_CACHE: "${{ github.workspace }}\\유니코드폴더\\install\\tests\\test_cache.lst"
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
       - name: Download OpenVINO package
@@ -594,7 +623,11 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Install python dependencies
-        run: python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
+        run: |
+          # Set code page to UTF-8
+          chcp 65001
+
+          python3 -m pip install -r ${{ github.workspace }}\유니코드폴더\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -623,13 +656,13 @@ jobs:
         with:
           name: test-results-functional-cpu
           path: |
-            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
+            ${{ env.INSTALL_TEST_DIR }}\\temp\\*.log
+            ${{ env.INSTALL_TEST_DIR }}\\logs\\*.log
+            ${{ env.INSTALL_TEST_DIR }}\\logs\\failed\\*.log
+            ${{ env.INSTALL_TEST_DIR }}\\logs\\crashed\\*.log
+            ${{ env.INSTALL_TEST_DIR }}\\logs\\hanged\\*.log
+            ${{ env.INSTALL_TEST_DIR }}\\logs\\interapted\\*.log
+            ${{ env.INSTALL_TEST_DIR }}\\logs\\hash_table.csv
             ${{ env.PARALLEL_TEST_CACHE }}
           if-no-files-found: 'error'
 
