@@ -47,17 +47,6 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
             std::shared_ptr<ov::Node> consumer = shape_infer_leaf ? shape_infer_leaf : results[i];
             auto parent_output = consumer->get_input_source_output(0);
 
-            // Snippets supports Transpose only after Parameter or before Result nodes
-            // So we have to insert Convert before Transpose (if there is) on Subgraph outputs
-            const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(parent_output.get_node_shared_ptr());
-            if (transpose) {
-                OPENVINO_ASSERT(
-                    parent_output.get_target_inputs().size() == 1,
-                    "If Result has Transpose on input, this Result must be single consumer of the Transpose");
-                parent_output = transpose->get_input_source_output(0);
-                consumer = transpose;
-            }
-
             // If there is already Convert[needed_in_type->original_type] and this node has only one consumer, we can
             // remove the Convert, since the sequence existing Convert[needed_in_type->original_type] -> new
             // Convert[original_type->needed_in_type] is redundant
@@ -81,9 +70,6 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
 
             consumer->set_argument(0, convert);
             consumer->validate_and_infer_types();
-            if (transpose) {
-                results[i]->validate_and_infer_types();
-            }
             is_modified = true;
         }
     }
