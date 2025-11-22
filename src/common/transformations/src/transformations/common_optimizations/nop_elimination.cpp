@@ -365,13 +365,22 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
         }                                                                               \
     };
 
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, eliminate_reshape_v1, ov::op::v1::Reshape);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, eliminate_nop, op::v1::Broadcast, op::v3::Broadcast);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather,
                                simplify_gather,
                                ov::op::v1::Gather,
                                ov::op::v7::Gather,
                                ov::op::v8::Gather);
+
+pass::EliminateReshape::EliminateReshape() {
+    MATCHER_SCOPE(EliminateReshape);
+    auto reshape_node_pattern = pattern::wrap_type<ov::op::v1::Reshape>();
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        return eliminate_reshape_v1(m.get_match_root());
+    };
+    auto m = make_shared<pattern::Matcher>(reshape_node_pattern, matcher_name);
+    this->register_matcher(m, callback);
+}
 
 pass::EliminateReduceReshape::EliminateReduceReshape() {
     MATCHER_SCOPE(EliminateReduceReshape);
