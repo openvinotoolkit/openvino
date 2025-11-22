@@ -99,7 +99,7 @@ dnnl::memory::format_kind DnnlMemoryDesc::getFormatKind() const {
 
 bool DnnlMemoryDesc::hasEmptyExtraData() const {
     dnnl::impl::memory_desc_wrapper wrapped(desc.get());
-    return wrapped.extra().flags == dnnl_memory_extra_flag_none;
+    return wrapped.extra().flags == dnnl::impl::dnnl_memory_extra_flag_none;
 }
 
 bool DnnlMemoryDesc::canComputeMemSizeZeroDims() const {
