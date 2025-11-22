@@ -1,7 +1,6 @@
 name: Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)
 on:
   workflow_dispatch:
-  pull_request:
   merge_group:
   push:
     branches:

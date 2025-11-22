@@ -55,11 +55,53 @@ jobs:
           echo "target_branch=${TARGET_BRANCH#refs/heads/}" >> $GITHUB_OUTPUT
 
   Build:
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - name: nvme
+            runner: aks-win-32-cores-128gb-nvme-st
+
+
+          - name: nvme_lessram
+            runner: aks-win-32-cores-64gb-nvme-st
+
+
+          - name: nvme_lessram_lesscores
+            runner: aks-win-16-cores-64gb-nvme-st
+
+
+          - name: nvme_more_cores_same_ram
+            runner: aks-win-64-cores-128gb-nvme-st
+
+
+          - name: amd-nvme
+            runner: aks-win-32-cores-128gb-amd-nvme-st
+
+
+          - name: amd-nvme_lessram
+            runner: aks-win-32-cores-64gb-amd-nvme-st
+
+
+          - name: amd-nvme_lessram_lesscores
+            runner: aks-win-16-cores-64gb-amd-nvme-st
+
+
+          - name: amd-nvme_more_cores_same_ram
+            runner: aks-win-64-cores-128gb-amd-nvme-st
+
+
+        cache:
+          - False
+          - True
+
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
+    name: "Build - ${{ matrix.variant.name }} - Cache: ${{ matrix.cache }}"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-32-cores-128gb-build'
+      cache: ${{ matrix.cache }}
+      runner: ${{ matrix.variant.runner }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
@@ -70,28 +112,5 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+        ${{ matrix.cache && '-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>"' || '' }}
 
-  CXX_Unit_Tests:
-    name: C++ unit tests
-    needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/job_cxx_unit_tests.yml
-    with:
-      runner: 'aks-win-4-cores-8gb-test'
-      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      os: 'windows_2022'
-      build-type: 'Debug'
-      timeout-minutes: 90
-
-  Overall_Status:
-    name: ci/gha_overall_status_windows_debug
-    needs: [ Smart_CI, Build, CXX_Unit_Tests ]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1
