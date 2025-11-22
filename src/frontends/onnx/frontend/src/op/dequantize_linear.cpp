@@ -217,14 +217,40 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 2);
 
     const ov::OutputVector inputs{node.get_ov_inputs()};
-    const auto& src_x = inputs[0];
+    ov::Output<ov::Node> src_x = inputs[0];
     ov::Output<ov::Node> scale = inputs[1];
+    ov::Output<ov::Node> zp = inputs.size() > 2 ? inputs[2] : ov::Output<ov::Node>{};
+
+    auto output_shape = std::make_shared<v0::ShapeOf>(src_x);
     const auto& scale_shape = scale.get_partial_shape();
-    ov::Output<ov::Node> zp;
 
     // When no blocking dequantization is required - use regular DequantizeLinear
     if (scale_shape.rank().is_static() && scale_shape.rank().get_length() <= 1) {
         return ai_onnx::opset_13::dequantize_linear(node);
+    }
+
+    // squeeze constant input to 2d, [N, C, 1, 1] -> [N, C]
+    auto const_input_to_2d = [&](ov::Output<ov::Node>& tensor) {
+        auto const_node = ov::as_type_ptr<v0::Constant>(tensor.get_node_shared_ptr());
+        auto shape = tensor.get_partial_shape();
+        if (const_node && shape.rank().is_static() && shape.rank().get_length() > 2) {
+            for (int64_t i = 2; i < shape.rank().get_length(); ++i) {
+                FRONT_END_GENERAL_CHECK(shape[i].is_static() && shape[i].get_length() == 1,
+                                        "DequantizeLinear const_input_to_2d failed, shape is not supported");
+            }
+            tensor = std::make_shared<v0::Constant>(
+                const_node->get_element_type(),
+                Shape{static_cast<size_t>(shape[0].get_length()), static_cast<size_t>(shape[1].get_length())},
+                const_node->get_data_ptr());
+        }
+    };
+
+    if (scale_shape.rank().is_static() && scale_shape.rank().get_length() > 2) {
+        const_input_to_2d(src_x);
+        const_input_to_2d(scale);
+        if (zp.get_node_shared_ptr()) {
+            const_input_to_2d(zp);
+        }
     }
 
     FRONT_END_GENERAL_CHECK(scale_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
@@ -244,8 +270,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         (axis == 0 && src_x.get_shape()[0] == block_size) || (axis == 1 && src_x.get_shape()[1] == block_size);
     if (is_cw_quantize) {
         ov::Output<ov::Node> converted_x = std::make_shared<v0::Convert>(src_x, scale.get_element_type());
-        if (inputs.size() > 2) {
-            zp = inputs[2];
+        if (zp.get_node_shared_ptr()) {
             zp = std::make_shared<v0::Convert>(zp, scale.get_element_type());
             converted_x = std::make_shared<v1::Subtract>(converted_x, zp);
         }
@@ -274,8 +299,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const auto& unsqueezed_axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{1});
 
     const auto scale_type = scale.get_element_type();
-    if (inputs.size() > 2) {
-        zp = inputs[2];
+    if (zp.get_node_shared_ptr()) {
         zp = std::make_shared<v0::Unsqueeze>(zp, unsqueezed_axes);
         if (zp.get_element_type() != scale.get_element_type()) {
             zp = std::make_shared<v0::Convert>(zp, scale_type);
@@ -297,8 +321,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const auto& scaled_x = std::make_shared<v1::Multiply>(broadcastable_x, scale);
 
     // Returning back a shape
-    const auto& reshaped_scaled_x =
-        std::make_shared<v1::Reshape>(scaled_x, std::make_shared<v0::ShapeOf>(src_x), false);
+    const auto& reshaped_scaled_x = std::make_shared<v1::Reshape>(scaled_x, output_shape, false);
 
     reshaped_scaled_x->set_friendly_name(node.get_name());
 
