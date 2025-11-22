@@ -115,7 +115,9 @@ private:
     std::map<primitive_id, std::pair<format::type, impl_types>> _forcing_map;
     static const std::vector<std::pair<format::type, bool>> optimized_formats;  // pair of format type and allowed weak restriction
     size_t _total_conv;
+    size_t _total_deconv;
     std::map<std::pair<format::type, bool>, size_t> _optimized_conv_count;
+    std::map<std::pair<format::type, bool>, size_t> _optimized_deconv_count;
 
     format get_expected_format(convolution_node const& node);
     format get_expected_format(deconvolution_node const& node);
@@ -220,10 +222,12 @@ public:
     const std::map<primitive_id, std::pair<format::type, impl_types>>& get_implementation_forcing() const;
 
     void update_formats_map(const convolution_node& node);
+    void update_formats_map(const deconvolution_node& node);
     bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false);
     bool is_format_optimized(const deconvolution_node& node, const format& format);
     size_t get_optimized_conv_count(const std::pair<format::type, bool>& format);
-    size_t get_total_conv_count();
+    size_t get_optimized_deconv_count(const std::pair<format::type, bool>& format);
+    size_t get_total_conv_deconv_count();
 
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
 };

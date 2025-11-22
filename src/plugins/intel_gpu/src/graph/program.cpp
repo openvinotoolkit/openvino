@@ -1464,6 +1464,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
     size_t opt_deconv_layers_b_fs_yx_fsv16 = 0;
     size_t total_crop_layers = 0;
+    size_t total_deconv = 0;
 
     for (auto& node : get_processing_order()) {
         auto &prim = *node;
@@ -1493,10 +1494,13 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 total_asym_quantized_conv_layers++;
         }
         if (prim.type() == cldnn::deconvolution::type_id()) {
-            if (lo.is_format_optimized(prim.as<deconvolution>(), format::b_fs_zyx_fsv16))
+            auto &deconv = prim.as<deconvolution>();
+            if (lo.is_format_optimized(deconv, format::b_fs_zyx_fsv16))
                 opt_deconv_layers_b_fs_zyx_fsv16 += 1;
-            else if (lo.is_format_supported(prim.as<deconvolution>(), format::b_fs_yx_fsv16))
+            else if (lo.is_format_supported(deconv, format::b_fs_yx_fsv16))
                 opt_deconv_layers_b_fs_yx_fsv16 += 1;
+
+            lo.update_formats_map(deconv);
         }
 
         // list of layers that do not support yxfb or perform worse than bfyx
@@ -1630,7 +1634,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         }
     }
 
-    size_t total_conv_layers = lo.get_total_conv_count();
+    size_t total_conv_layers = lo.get_total_conv_deconv_count();
     // Due to fact that single winograd convolution is faster than b_fs_yx_fsv16 and
     // using them together leads do redundant reorders, whole topology switch
     // will be performed if at least half of layers can use b_fs_yx_fsv16.
@@ -1640,12 +1644,13 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // if there are many crops (2x more then b_fs_yx_fsv16 convolutions)
     const float cond_denom = total_conv_layers > 0 ? 1.0f / static_cast<float>(total_conv_layers) : 1.0f;
     size_t num_of_conv_b_fs_yx_fsv16 = lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false});
+    size_t num_of_deconv_b_fs_yx_fsv16 = lo.get_optimized_deconv_count({format::b_fs_yx_fsv16, false});
 
     bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
                                          (can_use_fsv16 &&
-                                          total_conv_layers > 11 &&
+                                          total_conv_layers + total_deconv > 9 &&
                                           (num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f || opt_deconv_layers_b_fs_yx_fsv16 >= 1) &&
-                                          num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
+                                          (num_of_conv_b_fs_yx_fsv16 + num_of_deconv_b_fs_yx_fsv16) * 2 > total_crop_layers);
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
                                          total_grouped_conv_layers == 0 &&
