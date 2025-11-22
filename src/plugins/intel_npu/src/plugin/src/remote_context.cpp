@@ -86,8 +86,9 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
         return {std::make_shared<ZeroRemoteTensor>(get_this_shared_ptr(), _init_structs, type, shape)};
     }
 
-    // Mem_handle shall be set if mem_type is a shared memory type.
-    if (mem_type_object.value() == MemType::SHARED_BUF && !mem_handle_object.has_value()) {
+    // Mem_handle shall be set if mem_type is a shared memory type or a CPU virtual address.
+    if ((mem_type_object.value() == MemType::SHARED_BUF || mem_type_object.value() == MemType::CPU_VA) &&
+        !mem_handle_object.has_value()) {
         OPENVINO_THROW("No parameter ", mem_handle.name(), " found in parameters map");
     }
 
