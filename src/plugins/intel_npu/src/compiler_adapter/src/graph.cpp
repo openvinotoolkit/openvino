@@ -157,6 +157,10 @@ void Graph::set_argument_value(uint32_t argi, const void* argv) const {
 }
 
 void Graph::initialize(const Config& config) {
+    if (!_zeroInitStruct) {
+        _logger.warning("_zeroInitStruct is nullptr!");
+        return;
+    }
     _logger.debug("Graph initialize start");
 
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr) {
