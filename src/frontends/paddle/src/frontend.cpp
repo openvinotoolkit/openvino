@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+#include "decoder_json.hpp"  // For JSON format support
 #include "decoder_proto.hpp"
 #include "default_opset.hpp"
 #include "framework.pb.h"
@@ -32,10 +33,12 @@
 #include "internal/pass/transform_if.hpp"
 #include "internal/pass/transform_tensorarray.hpp"
 #include "internal/pass/transform_while.hpp"
+#include "json_input_model_imp.hpp"  // For JSON InputModel
 #include "op_table.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/frontend/paddle/utils.hpp"  // For format detection
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "paddle_fw_node.hpp"
@@ -433,22 +436,43 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         // The case when folder with __model__ and weight files is provided or .pdmodel file
         if (variants[0].is<std::string>()) {
             std::string m_path = variants[0].as<std::string>();
-            return std::make_shared<InputModel>(m_path, m_telemetry);
+
+            // Check if this is the new PP-OCRv5 JSON format
+            if (is_new_paddle_format(m_path)) {
+                // Load JSON format model (PP-OCRv5)
+                auto [json_path, yml_path, params_path] = get_model_files(m_path);
+                return std::make_shared<JSONInputModel>(json_path, yml_path, params_path, m_telemetry);
+            } else {
+                // Load legacy protobuf format model
+                return std::make_shared<InputModel>(m_path, m_telemetry);
+            }
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         else if (variants[0].is<std::wstring>()) {
             std::wstring m_path = variants[0].as<std::wstring>();
-            return std::make_shared<InputModel>(m_path, m_telemetry);
+            // Convert wstring to string for format detection
+            std::string m_path_str(m_path.begin(), m_path.end());
+
+            if (is_new_paddle_format(m_path_str)) {
+                // Load JSON format model (PP-OCRv5)
+                auto [json_path, yml_path, params_path] = get_model_files(m_path_str);
+                return std::make_shared<JSONInputModel>(json_path, yml_path, params_path, m_telemetry);
+            } else {
+                // Load legacy protobuf format model
+                return std::make_shared<InputModel>(m_path, m_telemetry);
+            }
         }
 #endif
         // The case with only model stream provided and no weights. This means model has
         // no learnable weights
         else if (variants[0].is<std::istream*>()) {
             auto p_model_stream = variants[0].as<std::istream*>();
+            // Stream-based loading only supports legacy protobuf format
             return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream}, m_telemetry);
         }
     } else if (variants.size() == 2 + extra_variants_num) {
         // The case when .pdmodel and .pdparams files are provided
+        // This is legacy format only (JSON format uses directory-based loading)
         std::fstream model_fstream, weights_fstream;
         std::stringstream model_sstream, weights_sstream;
         std::istream* p_model_stream = paddle::variant_to_stream_ptr(variants[0], model_fstream, model_sstream);
