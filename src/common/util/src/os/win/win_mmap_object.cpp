@@ -128,10 +128,17 @@ private:
     HandleHolder m_mapping;
 };
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path) {
-    auto holder = std::make_shared<MapHolder>();
-    holder->set(path);
-    return holder;
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::variant<std::string, int>& path_or_fd) {
+    return std::visit([](auto&& arg) -> std::shared_ptr<ov::MappedMemory> {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, int>) {
+            OPENVINO_THROW("File descriptor-based memory mapping is not supported on Windows. Use path-based load_mmap_object instead.");
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            auto holder = std::make_shared<MapHolder>();
+            holder->set(arg);
+            return holder;
+        }
+    }, path_or_fd);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

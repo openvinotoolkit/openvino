@@ -12,6 +12,7 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <variant>
 
 namespace ov {
 
@@ -28,14 +29,13 @@ public:
 };
 
 /**
- * @brief Returns mapped memory for a file from provided path.
- * Instead of reading files, we can map the memory via mmap for Linux
- * in order to avoid time-consuming reading and reduce memory consumption.
+ * @brief Returns mapped memory for a file using path or file descriptor.
+ * Accepts either a string (file path) or int (file descriptor).
  *
- * @param path Path to a file which memory will be mmaped.
+ * @param path_or_fd std::variant containing either std::string (path) or int (fd).
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::variant<std::string, int>& path_or_fd);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 

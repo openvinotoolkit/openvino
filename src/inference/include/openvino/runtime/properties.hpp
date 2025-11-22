@@ -1338,11 +1338,44 @@ static constexpr Property<int32_t, PropertyMutability::RW> compilation_num_threa
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 
 /**
+ * @brief Structure to represent weights path with optional file accessor function
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct WeightsPath {
+    WeightsPath() = default;
+
+    WeightsPath(const std::string& path_) : path{path_}, file_accessor{} {}
+
+    template <typename Func>
+    WeightsPath(const std::string& path_, Func&& file_accessor_)
+        : path{path_}, file_accessor{std::forward<Func>(file_accessor_)} {}
+
+    operator std::string() const {
+        return path;
+    }
+
+    std::string path;
+    std::function<Any(const std::string&)> file_accessor;
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const WeightsPath& weights_path_val) {
+    return os << weights_path_val.path;
+}
+
+inline std::istream& operator>>(std::istream& is, WeightsPath& weights_path_val) {
+    is >> weights_path_val.path;
+    return is;
+}
+/** @endcond */
+
+/**
  * @brief Path to the file with model's weights.
  *
  * @note This property is used for weightless caching. Only used when ov::CacheMode Property is set to "OPTIMIZE_SIZE".
+ * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<std::string, PropertyMutability::RW> weights_path{"WEIGHTS_PATH"};
+static constexpr Property<WeightsPath, PropertyMutability::RW> weights_path{"WEIGHTS_PATH"};
 
 /**
  * @brief The precision of key cache compression

@@ -64,22 +64,28 @@ public:
     MapHolder() = default;
 
     void set(const std::string& path) {
-        int prot = PROT_READ;
         int mode = O_RDONLY;
-        struct stat sb = {};
-        m_handle = HandleHolder(open(path.c_str(), mode));
-        if (m_handle.get() == -1) {
+        int fd = open(path.c_str(), mode);
+        if (fd == -1) {
             throw std::runtime_error("Can not open file " + path +
                                      " for mapping. Ensure that file exists and has appropriate permissions");
         }
-        if (fstat(m_handle.get(), &sb) == -1) {
-            throw std::runtime_error("Can not get file size for " + path);
+        set_from_fd(fd);
+    }
+
+    void set_from_fd(const int fd) {
+        int prot = PROT_READ;
+        struct stat sb = {};
+        m_handle = HandleHolder(fd);
+        if (fstat(fd, &sb) == -1) {
+            throw std::runtime_error("Can not get file size for fd=" + std::to_string(fd));
         }
         m_size = sb.st_size;
         if (m_size > 0) {
-            m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), 0);
+            m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, fd, 0);
             if (m_data == MAP_FAILED) {
-                throw std::runtime_error("Can not create file mapping for " + path + ", err=" + std::strerror(errno));
+                throw std::runtime_error("Can not create file mapping for fd=" + std::to_string(fd) +
+                                         ", err=" + std::strerror(errno));
             }
         } else {
             m_data = MAP_FAILED;
@@ -101,9 +107,16 @@ public:
     }
 };
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::variant<std::string, int>& path_or_fd) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path);
+    std::visit([&holder](auto&& arg) {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, int>) {
+            holder->set_from_fd(arg);  // fd
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            holder->set(arg);  // path
+        }
+    }, path_or_fd);
     return holder;
 }
 

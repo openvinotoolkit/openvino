@@ -17,6 +17,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "openvino/runtime/properties.hpp"
+
 namespace ov {
 namespace npuw {
 namespace s11n {
@@ -129,7 +131,7 @@ struct WeightsContext {
 
     // NOTE: This construtor can and should only be used when importing weightless blobs
     WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
-                   const std::string& _weights_path,
+                   const ov::WeightsPath& _weights_path,
                    const ConstsCache& _consts_cache,
                    const BF16Cache& _bf16_consts);
 
@@ -143,7 +145,7 @@ struct WeightsContext {
     bool is_weightless = true;
     std::unordered_map<const void*, std::size_t> const_to_offset;
     ov::npuw::s11n::WeightsPtr weights = nullptr;
-    std::string weights_path;
+    ov::WeightsPath weights_path;
     ConstsCache consts_cache;
     BF16Cache bf16_consts;
 };
