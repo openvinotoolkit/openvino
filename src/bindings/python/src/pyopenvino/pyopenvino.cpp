@@ -199,6 +199,16 @@ PYBIND11_MODULE(_pyopenvino, m) {
                 save_model(model, './model.xml')
         )");
 
+    m.def(
+        "read_tensor_data",
+        [](const py::object& path) {
+            return ov::read_tensor_data(Common::utils::to_fs_path(path));
+        },
+        py::arg("path"),
+        R"(
+            read_model_data
+        )");
+
     m.def("shutdown",
           &ov::shutdown,
           R"(
