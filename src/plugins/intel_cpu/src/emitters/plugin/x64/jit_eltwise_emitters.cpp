@@ -2958,8 +2958,11 @@ void jit_clamp_emitter::prepare_min_max(double alpha, double beta) {
     case element::i32:
         minimum =
             static_cast<int32_t>(std::max<int64_t>(static_cast<int64_t>(alpha), std::numeric_limits<int32_t>::min()));
-        maximum =
-            static_cast<int32_t>(std::min<int64_t>(static_cast<int64_t>(beta), std::numeric_limits<int32_t>::max()));
+        if (beta >= static_cast<double>(std::numeric_limits<int32_t>::max())) {
+            maximum = std::numeric_limits<int32_t>::max();
+        } else {
+            maximum = static_cast<int32_t>(beta);
+        }
         break;
     case element::f32:
         minimum = x64::float2int(static_cast<float>(alpha));
