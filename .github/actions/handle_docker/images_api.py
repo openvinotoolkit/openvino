@@ -47,14 +47,14 @@ class Image:
 
     def build(self, dry: bool = False, push: bool = True, docker_builder: str = None, import_cache: bool = True,
               export_cache: bool = True):
-        cache_cmd = ""
-        if import_cache:
-            cache_cmd += f"--cache-from type=registry,ref={self.ref()}-cache "
-            if self.base_tag:
-                cache_cmd += f"--cache-from type=registry,ref={self.base_ref()}-cache "
+        # cache_cmd = ""
+        # if import_cache:
+        #     cache_cmd += f"--cache-from type=registry,ref={self.ref()}-cache "
+        #     if self.base_tag:
+        #         cache_cmd += f"--cache-from type=registry,ref={self.base_ref()}-cache "
 
-        if export_cache:
-            cache_cmd += f"--cache-to type=registry,ref={self.ref()}-cache,mode=max "
+        # if export_cache:
+        #     cache_cmd += f"--cache-to type=registry,ref={self.ref()}-cache,mode=max "
 
         build_cmd = f"docker buildx build --builder={docker_builder}" if docker_builder else "docker build"
         push_cmd = f"--push" if push else ""
@@ -63,7 +63,6 @@ class Image:
               f"--file {self.dockerfile} " \
               f"--tag {self.ref()} " \
               f"--build-arg REGISTRY={self.registry}/dockerio " \
-              f"{cache_cmd} " \
               f"{push_cmd} " \
               "."
 
