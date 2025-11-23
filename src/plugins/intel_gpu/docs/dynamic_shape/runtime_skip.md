@@ -16,15 +16,13 @@ First, we need to set two flags for the program_node of such an operation, which
     - Indicates that this node can be optimized during runtime based on the shape.
 - Dynamic flag (Set at runtime)
   - `primitive_inst::_can_be_optimized`
-    - Indicates that this `primitive_inst` is actually optimized out at a certain execution
+  In such a case, regardless it will not be actually optimized out during runtime depending on the shape.  - Indicates that this `primitive_inst` is actually optimized out at a certain execution
   
 If `program_node::optimized` is true and `program_node::runtime_skippable` is false, it means that this node is *always* optimized out (i.e., compile-time optimization).
 If both of the flags are set true, the node may be optimized out or not in the runtime, depending on the runtime shapes.
 If program_node::optimized is false and program_node::runtime_skippable is true, it is an invalid combination.
 
-`program_node::optimized` is set for more conservative optimization checking, many graph optimization passes use this flag for safe optimization decisions.
-
-However, some optimization passes such as [memory_dependency_pass](https://github.com/openvinotoolkit/openvino/blob/aa6d3811e6dea93cb818ff483bf6c3ca849d4034/src/plugins/intel_gpu/src/graph/include/pass_manager.h#L313) applies different decisions for compile time optimized nodes and runtime optimized nodes.
+As an exmaple of using both flags,  please refer to [memory_dependency_pass](https://github.com/openvinotoolkit/openvino/blob/aa6d3811e6dea93cb818ff483bf6c3ca849d4034/src/plugins/intel_gpu/src/graph/include/pass_manager.h#L313), which makes different decisions for dependency settings depending on whether a node is optimized at compile time or at runtime.
 
 2. **Runtime optimization decision**
   - Once the shape is updated in `primitive_inst::prepare_primitive()`, `do_runtime_skip_*node_type*` for each type of operation decides whether to skip the node at that execution or not.
