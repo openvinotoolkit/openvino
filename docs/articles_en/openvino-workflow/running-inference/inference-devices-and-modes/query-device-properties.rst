@@ -144,7 +144,8 @@ The code below demonstrates how to query ``HETERO`` device priority of devices w
 
 To extract device properties such as device name, use the ``core.get_property`` method:
 
-**Note:** You must first import the device properties module:
+.. note::
+   You must first import the device properties module:
 
 .. code-block:: python
 
@@ -290,15 +291,16 @@ Or the number of threads that would be used for inference on ``CPU`` device:
          :fragment: [inference_num_threads]
 
 Available Device Properties
-----------------------------
+#################################
+
 
 Python Properties Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------------
 
 From ``openvino.properties.device``:
 
 +---------------------------+-------------------------------------------+
-| Property                  | Description                                |
+| Property                  | Description                               |
 +===========================+===========================================+
 | ``device.full_name``      | Full name of the device                   |
 +---------------------------+-------------------------------------------+
@@ -313,6 +315,7 @@ From ``openvino.properties.device``:
 
 From ``openvino.properties``:
 
+<<<<<<< HEAD
 +------------------------------------------+------------------------------------------+
 | Property                                 | Description                              |
 +==========================================+==========================================+
@@ -322,3 +325,17 @@ From ``openvino.properties``:
 +------------------------------------------+------------------------------------------+
 | ``props.inference_num_threads``          | Number of inference threads              |
 +------------------------------------------+------------------------------------------+
+=======
++-------------------------------------+-------------------------------------------+
+| Property                            | Description                               |
++=====================================+===========================================+
+| ``props.supported_properties``      | List of supported properties              |
++-------------------------------------+-------------------------------------------+
+| ``props.optimal_number_of_         | Optimal number of inference requests       |
+| infer_requests``                    |                                           |
++-------------------------------------+-------------------------------------------+
+| ``props.inference_num_threads``     | Number of inference threads               |
++-------------------------------------+-------------------------------------------+
+
+
+>>>>>>> ebe7456e7395ec8c2d273c33b3096c724f2a37ce
