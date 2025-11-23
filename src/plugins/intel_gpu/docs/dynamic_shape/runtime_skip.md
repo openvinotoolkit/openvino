@@ -6,12 +6,12 @@ Consider a 4D permute operation with the transformation order [0, 2, 1, 3]. Duri
 This example demonstrates how runtime optimization can transform potentially expensive operations to be skipped, highlighting the value of deferred optimization strategies in dynamic computation graphs.
 
 ## Basic flow of runtime operation skip
-1. **Relefant flags**
+1. **Relevant flags**
 First, we need to set two flags for the program_node of such an operation, which we do not apply shape-based optimization during compilation but try runtime optimization with the shape.
 - Static flags (Set during `mark_runtime_skippable_nodes` pass at compilation time)
   - `program_node::optimized`
     - This flag presents that this node is eligible for being optimized out, either at compilation time or runtime.
-    - This flag is set true for all optimization schemes, not limited to runtime skippability.
+    - This flag is set true for all optimizatio schemes, not limited to runtime skippability.
   - `program_node::runtime_skippable`
     - Indicates that this node can be optimized during runtime based on the shape.
 - Dynamic flag (Set at runtime)
@@ -27,7 +27,7 @@ If program_node::optimized is false and program_node::runtime_skippable is true,
 However, some optimization passes such as [memory_dependency_pass](https://github.com/openvinotoolkit/openvino/blob/aa6d3811e6dea93cb818ff483bf6c3ca849d4034/src/plugins/intel_gpu/src/graph/include/pass_manager.h#L313) applies different decisions for compile time optimized nodes and runtime optimized nodes.
 
 2. **Runtime optimization decision**
-  - Once the shape is updated in `primitive_inst::prepare_primitive()`, `do_runtime_skip_*node_type*` for each type of operation decides whehther to skip the node at that exeuction or not.
+  - Once the shape is updated in `primitive_inst::prepare_primitive()`, `do_runtime_skip_*node_type*` for each type of operation decides whether to skip the node at that execution or not.
   
 3. **Caveats**
   - Once the `primitive_inst::_can_be_optimized` is set true, the runtime will only update its metadata such as shape or padding information and skip the actual execution.
