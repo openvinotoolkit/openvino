@@ -44,7 +44,7 @@ When working with device properties in Python, you must import the necessary mod
    import openvino as ov
    import openvino.properties as props           # For general properties
    import openvino.properties.device as device   # For device-specific properties
-   
+
    # Initialize Core
    core = ov.Core()
 
@@ -150,7 +150,7 @@ To extract device properties such as device name, use the ``core.get_property`` 
 
    import openvino as ov
    import openvino.properties.device as device
-   
+
    core = ov.Core()
    import openvino as ov
    import openvino.properties.device as device
@@ -313,15 +313,12 @@ From ``openvino.properties.device``:
 
 From ``openvino.properties``:
 
-+-------------------------------------+-------------------------------------------+
-| Property                            | Description                                |
-+=====================================+===========================================+
-| ``props.supported_properties``      | List of supported properties              |
-+-------------------------------------+-------------------------------------------+
-| ``props.optimal_number_of_         | Optimal number of inference requests      |
-| infer_requests``                    |                                           |
-+-------------------------------------+-------------------------------------------+
-| ``props.inference_num_threads``     | Number of inference threads               |
-+-------------------------------------+-------------------------------------------+
-
-
++------------------------------------------+------------------------------------------+
+| Property                                 | Description                              |
++==========================================+==========================================+
+| ``props.supported_properties``           | List of supported properties             |
++------------------------------------------+------------------------------------------+
+| ``props.optimal_number_of_infer_requests``| Optimal number of inference requests    |
++------------------------------------------+------------------------------------------+
+| ``props.inference_num_threads``          | Number of inference threads              |
++------------------------------------------+------------------------------------------+
