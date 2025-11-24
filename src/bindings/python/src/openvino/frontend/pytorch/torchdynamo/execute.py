@@ -52,11 +52,16 @@ def execute(
     options: Optional[Any] = None,
 ):
     if executor == "openvino":
-        return openvino_execute_partitioned(gm, *args, executor_parameters=executor_parameters, options=options)
+        return openvino_execute_partitioned(
+            gm, *args, executor_parameters=executor_parameters, options=options
+        )
     elif executor == "strictly_openvino":
         return openvino_execute(gm, *args, executor_parameters=executor_parameters)
 
-    msg = "Received unexpected value for 'executor': {0}. Allowed values are: openvino, strictly_openvino.".format(executor)
+    msg = (
+        "Received unexpected value for 'executor': {0}. "
+        "Allowed values are: openvino, strictly_openvino."
+    ).format(executor)
     raise ValueError(msg)
 
 
@@ -132,10 +137,18 @@ class OpenVINOGraphModule(torch.nn.Module):
             return self.gm(*args)
 
         try:
-            result = openvino_execute(self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id, options=self.options)
+            result = openvino_execute(
+                self.gm,
+                *args,
+                executor_parameters=self.executor_parameters,
+                partition_id=self.partition_id,
+                options=self.options,
+            )
             logger.debug("OpenVINO graph execution successful")
         except Exception as e:
-            logger.debug(f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution.")
+            logger.debug(
+                f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution."
+            )
             self.perm_fallback = True
             return self.gm(*args)
 
@@ -177,13 +190,31 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
     if (not _get_aot_autograd(options)):
         for idx, input_data in enumerate(args):
             if isinstance(input_data, torch.Tensor):
-                signature = signature + "_" + str(idx) + ":" + str(input_data.type())[6:] + ":" + str(input_data.size())[11:-1].replace(" ", "")
+                signature = (
+                    signature
+                    + "_"
+                    + str(idx)
+                    + ":"
+                    + str(input_data.type())[6:]
+                    + ":"
+                    + str(input_data.size())[11:-1].replace(" ", "")
+                )
             else:
-                signature = signature + "_" + str(idx) + ":" + type(input_data).__name__ + ":val(" + str(input_data) + ")"
+                signature = (
+                    signature
+                    + "_"
+                    + str(idx)
+                    + ":"
+                    + type(input_data).__name__
+                    + ":val("
+                    + str(input_data)
+                    + ")"
+                )
 
     if signature not in partitioned_modules:
-        partitioned_modules[signature] = partition_graph(gm, use_python_fusion_cache=use_python_fusion_cache,
-                                                         model_hash_str=model_hash_str, options=options)
+        partitioned_modules[signature] = partition_graph(
+            gm, use_python_fusion_cache=use_python_fusion_cache, model_hash_str=model_hash_str, options=options
+        )
     return partitioned_modules[signature](*args)
 
 

@@ -153,7 +153,9 @@ def roi_pooling(
     if spatial_scale is None:
         raise AttributeError("The following arguments must be defined: `spatial_scale`!")
 
-    def _deprecated_output_size_arg(output_roi: Optional[TensorShape], output_size: Optional[TensorShape]) -> Optional[TensorShape]:
+    def _deprecated_output_size_arg(
+        output_roi: Optional[TensorShape], output_size: Optional[TensorShape]
+    ) -> Optional[TensorShape]:
         if output_size is not None:
             warnings.warn(
                 "`output_size` is deprecated and will be removed in future. "

@@ -152,12 +152,19 @@ def read_value(init_value: Union[Node, Output, int, float, np.ndarray],
     return _read_value(new_value=as_node(init_value, name=name), variable=var_from_info)
 
 
-@overloading(str, Optional[Union[type, np.dtype, Type, str]], Optional[Union[TensorShape, Shape, PartialShape]], Optional[str])  # type: ignore
+@overloading(
+    str,
+    Optional[Union[type, np.dtype, Type, str]],
+    Optional[Union[TensorShape, Shape, PartialShape]],
+    Optional[str],
+)  # type: ignore
 @nameable_op
-def read_value(variable_id: str,  # noqa: F811
-               variable_type: Optional[Union[type, np.dtype, Type, str]] = None,
-               variable_shape: Optional[Union[TensorShape, Shape, PartialShape]] = None,
-               name: Optional[str] = None) -> Node:
+def read_value(  # noqa: F811
+    variable_id: str,
+    variable_type: Optional[Union[type, np.dtype, Type, str]] = None,
+    variable_shape: Optional[Union[TensorShape, Shape, PartialShape]] = None,
+    name: Optional[str] = None,
+) -> Node:
     """Return a node which produces the Assign operation.
 
     :param variable_id:  Id of a variable to be read.

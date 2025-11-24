@@ -72,7 +72,11 @@ def interpolate(
     attrs["pads_begin"] = [] if pads_begin is None else pads_begin
     attrs["pads_end"] = [] if pads_end is None else pads_end
 
-    inputs = as_nodes(image, scales_or_sizes, name=name) if axes is None else as_nodes(image, scales_or_sizes, axes, name=name)
+    inputs = (
+        as_nodes(image, scales_or_sizes, name=name)
+        if axes is None
+        else as_nodes(image, scales_or_sizes, axes, name=name)
+    )
 
     return _get_node_factory_opset11().create("Interpolate", inputs, attrs)
 

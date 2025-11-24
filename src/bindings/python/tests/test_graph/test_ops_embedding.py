@@ -44,7 +44,9 @@ def test_embedding_bag_offsets_15_per_sample_weights():
     offsets = opset15.parameter([3], name="offsets", dtype=np.int64)
     per_sample_weights = opset15.parameter([4], name="per_sample_weights", dtype=np.float32)
 
-    node = opset15.embedding_bag_offsets(emb_table, indices, offsets, per_sample_weights=per_sample_weights, reduction="SUM")
+    node = opset15.embedding_bag_offsets(
+        emb_table, indices, offsets, per_sample_weights=per_sample_weights, reduction="SUM"
+    )
 
     assert node.get_type_name() == "EmbeddingBagOffsets"
     assert node.get_output_size() == 1
@@ -60,7 +62,9 @@ def test_embedding_bag_offsets_15_default_index_per_sample_weights():
     default_index = opset15.parameter([], name="default_index", dtype=np.int64)
     per_sample_weights = opset15.parameter([4], name="per_sample_weights", dtype=np.float32)
 
-    node = opset15.embedding_bag_offsets(emb_table, indices, offsets, default_index, per_sample_weights, "sum")
+    node = opset15.embedding_bag_offsets(
+        emb_table, indices, offsets, default_index, per_sample_weights, "sum"
+    )
 
     assert node.get_type_name() == "EmbeddingBagOffsets"
     assert node.get_output_size() == 1
