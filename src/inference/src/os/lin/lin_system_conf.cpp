@@ -329,64 +329,98 @@ CPU::CPU() {
 }
 
 void parse_node_info_linux(const std::vector<std::string> node_info_table,
-                           const int& _numa_nodes,
+                           int& _numa_nodes,
                            int& _sockets,
                            std::vector<std::vector<int>>& _proc_type_table,
                            std::vector<std::vector<int>>& _cpu_mapping_table) {
     const std::vector<int> line_value_0({0, 0, 0, 0, 0, -1, -1});
-    std::vector<std::vector<int>> nodes_table;
+
+    std::vector<std::unordered_set<int>> nodes_table;
+    std::unordered_set<int> handled_nodes;
     int node_index = 0;
 
     for (auto& one_info : node_info_table) {
         int core_1 = 0;
         int core_2 = 0;
         std::string::size_type pos = 0;
-        std::string::size_type endpos_1 = 0;
-        std::string::size_type endpos_2 = 0;
+        std::string::size_type endpos = 0;
         std::string sub_str = "";
+        nodes_table.push_back({});
 
-        while (pos != std::string::npos) {
-            endpos_1 = one_info.find(',', pos);
-            endpos_2 = one_info.find('-', pos);
-            if ((endpos_1 < endpos_2) || (endpos_1 == std::string::npos && endpos_2 == std::string::npos)) {
+        if (((endpos = one_info.find('-', pos)) == std::string::npos) &&
+            ((endpos = one_info.find(',', pos)) != std::string::npos)) {
+            while (endpos != std::string::npos) {
                 sub_str = one_info.substr(pos);
                 core_1 = std::stoi(sub_str);
-                nodes_table.push_back({core_1, core_1, node_index});
-            } else if (endpos_2 != std::string::npos) {
-                sub_str = one_info.substr(pos, endpos_2 - pos);
-                core_1 = std::stoi(sub_str);
-                sub_str = one_info.substr(endpos_2 + 1);
-                core_2 = std::stoi(sub_str);
-                nodes_table.push_back({core_1, core_2, node_index});
+                nodes_table[node_index].insert(core_1);
+                endpos = one_info.find(',', pos);
+                pos = endpos + 1;
             }
-            if (endpos_1 == std::string::npos) {
-                break;
-            } else {
-                pos = endpos_1 + 1;
+        } else {
+            while (endpos != std::string::npos) {
+                if ((endpos = one_info.find('-', pos)) != std::string::npos) {
+                    sub_str = one_info.substr(pos, endpos - pos);
+                    core_1 = std::stoi(sub_str);
+                    sub_str = one_info.substr(endpos + 1);
+                    core_2 = std::stoi(sub_str);
+                    for (int i = core_1; i <= core_2; i++) {
+                        nodes_table[node_index].insert(i);
+                    }
+                    pos = one_info.find(',', endpos);
+                    if (pos == std::string::npos) {
+                        break;
+                    } else {
+                        pos = pos + 1;
+                    }
+                }
             }
         }
         node_index++;
     }
 
-    _proc_type_table.assign((node_info_table.size() == 1) ? 1 : node_info_table.size() + 1, line_value_0);
+    _proc_type_table.assign(1, line_value_0);
+    _proc_type_table[0][PROC_NUMA_NODE_ID] = 0;
+    _proc_type_table[0][PROC_SOCKET_ID] = 0;
 
-    for (auto& row : nodes_table) {
-        for (int i = row[0]; i <= row[1]; i++) {
-            _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] = row[2];
-            if (_sockets > _numa_nodes) {
-                _cpu_mapping_table[i][CPU_MAP_SOCKET_ID] = row[2];
-            }
-            _proc_type_table[0][ALL_PROC]++;
-            _proc_type_table[0][_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-            if (node_info_table.size() != 1) {
-                _proc_type_table[row[2] + 1][ALL_PROC]++;
-                _proc_type_table[row[2] + 1][_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
+    for (auto& row_cpu_mapping : _cpu_mapping_table) {
+        for (size_t n = 0; n < nodes_table.size(); n++) {
+            if (nodes_table[n].find(row_cpu_mapping[CPU_MAP_PROCESSOR_ID]) != nodes_table[n].end()) {
+                row_cpu_mapping[CPU_MAP_NUMA_NODE_ID] = n;
+                node_index = -1;
+                for (size_t i = 0; i < _proc_type_table.size(); i++) {
+                    if (n == static_cast<std::size_t>(_proc_type_table[i][PROC_NUMA_NODE_ID])) {
+                        node_index = i;
+                        break;
+                    }
+                }
+                if (node_index == -1) {
+                    _proc_type_table.push_back(line_value_0);
+                    node_index = _proc_type_table.size() - 1;
+                    _proc_type_table[node_index][PROC_NUMA_NODE_ID] = row_cpu_mapping[CPU_MAP_NUMA_NODE_ID];
+                    _proc_type_table[node_index][PROC_SOCKET_ID] = row_cpu_mapping[CPU_MAP_SOCKET_ID];
+                }
+                _proc_type_table[node_index][ALL_PROC]++;
+                _proc_type_table[node_index][row_cpu_mapping[CPU_MAP_CORE_TYPE]]++;
+                break;
             }
         }
-        node_index = (node_info_table.size() != 1) ? row[2] + 1 : 0;
-        _proc_type_table[node_index][PROC_NUMA_NODE_ID] = _cpu_mapping_table[row[0]][CPU_MAP_NUMA_NODE_ID];
-        _proc_type_table[node_index][PROC_SOCKET_ID] = _cpu_mapping_table[row[0]][CPU_MAP_SOCKET_ID];
+        row_cpu_mapping[CPU_MAP_SOCKET_ID] = row_cpu_mapping[CPU_MAP_SOCKET_ID] > row_cpu_mapping[CPU_MAP_NUMA_NODE_ID]
+                                                 ? row_cpu_mapping[CPU_MAP_NUMA_NODE_ID]
+                                                 : row_cpu_mapping[CPU_MAP_SOCKET_ID];
     }
+
+    _numa_nodes = _proc_type_table.size();
+
+    if (_proc_type_table.size() > 1) {
+        _proc_type_table.insert(_proc_type_table.begin(), line_value_0);
+
+        for (size_t m = 1; m < _proc_type_table.size(); m++) {
+            for (int n = 0; n < PROC_NUMA_NODE_ID; n++) {
+                _proc_type_table[0][n] += _proc_type_table[m][n];
+            }
+        }
+    }
+
     _sockets = (_sockets > _numa_nodes) ? _numa_nodes : _sockets;
 }
 
@@ -589,7 +623,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
     }
 
     if ((node_info_table.size() == 0) || (node_info_table.size() == (unsigned)_sockets)) {
-        if (_sockets > 1) {
+        if (_proc_type_table.size() > 1) {
             _proc_type_table.push_back(_proc_type_table[0]);
             _proc_type_table[0] = line_value_0;
 
@@ -805,7 +839,6 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
         }
         _numa_nodes = _sockets;
     } else {
-        _numa_nodes = node_info_table.size();
         parse_node_info_linux(node_info_table, _numa_nodes, _sockets, _proc_type_table, _cpu_mapping_table);
     }
 

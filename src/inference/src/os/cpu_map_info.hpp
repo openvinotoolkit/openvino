@@ -62,14 +62,14 @@ CPU& cpu_info();
 /**
  * @brief      Parse nodes information to update _sockets, proc_type_table and cpu_mapping_table on Linux
  * @param[in]  node_info_table nodes information for this platform.
- * @param[in]  _numa_nodes total number for nodes in system
+ * @param[out]  _numa_nodes total number for nodes in system
  * @param[out] _sockets total number for sockets in system
  * @param[out] _proc_type_table summary table of number of processors per type
  * @param[out] _cpu_mapping_table CPU mapping table for each processor
  * @return
  */
 void parse_node_info_linux(const std::vector<std::string> node_info_table,
-                           const int& _numa_nodes,
+                           int& _numa_nodes,
                            int& _sockets,
                            std::vector<std::vector<int>>& _proc_type_table,
                            std::vector<std::vector<int>>& _cpu_mapping_table);
