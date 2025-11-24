@@ -280,8 +280,6 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         unpack_nf4f16(from, scale, to, unpack_options);
     } else if (type_from == ov::element::f8e4m3 || type_from == ov::element::f8e5m2 ||
                type_from == ov::element::f8e8m0) {
-        // FIXME: Implement XARCH::unpack
-        //unpack_f8f16(from, scale, to, unpack_options);
         ov::npuw::util::XARCH::unpack_f8f16_scale(from, scale, to, unpack_options);
     } else if (type_from == ov::element::f16) {
         // FIXME: Implement XARCH::unpack
