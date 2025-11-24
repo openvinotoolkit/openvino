@@ -28,75 +28,72 @@ TEST(element_type, from) {
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-static const std::vector<std::pair<const char*, element::Type>> elementTypeCases = {
-    {"boolean",        element::boolean},
-    {"BOOL",           element::boolean},
-    {"bf16",           element::bf16},
-    {"BF16",           element::bf16},
-    {"f16",            element::f16},
-    {"FP16",           element::f16},
-    {"f32",            element::f32},
-    {"FP32",           element::f32},
-    {"f64",            element::f64},
-    {"FP64",           element::f64},
-    {"i4",             element::i4},
-    {"I4",             element::i4},
-    {"i8",             element::i8},
-    {"I8",             element::i8},
-    {"i16",            element::i16},
-    {"I16",            element::i16},
-    {"i32",            element::i32},
-    {"I32",            element::i32},
-    {"i64",            element::i64},
-    {"I64",            element::i64},
-    {"bin",            element::u1},
-    {"BIN",            element::u1},
-    {"u1",             element::u1},
-    {"U1",             element::u1},
-    {"u4",             element::u4},
-    {"U4",             element::u4},
-    {"u8",             element::u8},
-    {"U8",             element::u8},
-    {"u16",            element::u16},
-    {"U16",            element::u16},
-    {"u32",            element::u32},
-    {"U32",            element::u32},
-    {"u64",            element::u64},
-    {"U64",            element::u64},
-    {"nf4",            element::nf4},
-    {"NF4",            element::nf4},
-    {"f8e4m3",         element::f8e4m3},
-    {"F8E4M3",         element::f8e4m3},
-    {"f8e5m2",         element::f8e5m2},
-    {"F8E5M2",         element::f8e5m2},
-    {"string",         element::string},
-    {"STRING",         element::string},
-    {"f4e2m1",         element::f4e2m1},
-    {"F4E2M1",         element::f4e2m1},
-    {"f8e8m0",         element::f8e8m0},
-    {"F8E8M0",         element::f8e8m0},
-    {"undefined",      element::undefined},
-    {"UNSPECIFIED",    element::undefined},
-    {"dynamic",        element::dynamic}
+static const std::vector<std::pair<const char*, element::Type>> elementTypeCases = {{"boolean", element::boolean},
+                                                                                    {"BOOL", element::boolean},
+                                                                                    {"bf16", element::bf16},
+                                                                                    {"BF16", element::bf16},
+                                                                                    {"f16", element::f16},
+                                                                                    {"FP16", element::f16},
+                                                                                    {"f32", element::f32},
+                                                                                    {"FP32", element::f32},
+                                                                                    {"f64", element::f64},
+                                                                                    {"FP64", element::f64},
+                                                                                    {"i4", element::i4},
+                                                                                    {"I4", element::i4},
+                                                                                    {"i8", element::i8},
+                                                                                    {"I8", element::i8},
+                                                                                    {"i16", element::i16},
+                                                                                    {"I16", element::i16},
+                                                                                    {"i32", element::i32},
+                                                                                    {"I32", element::i32},
+                                                                                    {"i64", element::i64},
+                                                                                    {"I64", element::i64},
+                                                                                    {"bin", element::u1},
+                                                                                    {"BIN", element::u1},
+                                                                                    {"u1", element::u1},
+                                                                                    {"U1", element::u1},
+                                                                                    {"u4", element::u4},
+                                                                                    {"U4", element::u4},
+                                                                                    {"u8", element::u8},
+                                                                                    {"U8", element::u8},
+                                                                                    {"u16", element::u16},
+                                                                                    {"U16", element::u16},
+                                                                                    {"u32", element::u32},
+                                                                                    {"U32", element::u32},
+                                                                                    {"u64", element::u64},
+                                                                                    {"U64", element::u64},
+                                                                                    {"nf4", element::nf4},
+                                                                                    {"NF4", element::nf4},
+                                                                                    {"f8e4m3", element::f8e4m3},
+                                                                                    {"F8E4M3", element::f8e4m3},
+                                                                                    {"f8e5m2", element::f8e5m2},
+                                                                                    {"F8E5M2", element::f8e5m2},
+                                                                                    {"string", element::string},
+                                                                                    {"STRING", element::string},
+                                                                                    {"f4e2m1", element::f4e2m1},
+                                                                                    {"F4E2M1", element::f4e2m1},
+                                                                                    {"f8e8m0", element::f8e8m0},
+                                                                                    {"F8E8M0", element::f8e8m0},
+                                                                                    {"undefined", element::undefined},
+                                                                                    {"UNSPECIFIED", element::undefined},
+                                                                                    {"dynamic", element::dynamic}
 };
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-static const std::vector<const char*> elementTypeCasesInvalid = {
-    "some_string",
-    "",
-    "???",
-    "12345",
-    "not_a_type",
-    "throw_exception"
-};
+static const std::vector<const char*> elementTypeCasesInvalid = {"some_string", "", "???", "12345", "not_a_type", "throw_exception"};
 
 TEST(element_type, from_string) {
     for (const auto& [str, expected] : elementTypeCases) {
-    	EXPECT_EQ(element::Type(str), expected);
+        EXPECT_EQ(element::Type(str), expected);
     }
 
-    for (const auto& str: elementTypeCasesInvalid) {
-        EXPECT_THROW({auto t = element::Type(str);(void)t;}, ov::Exception);
+    for (const auto& str : elementTypeCasesInvalid) {
+        EXPECT_THROW(
+            {
+                auto t = element::Type(str);
+                (void)t;
+            },
+            ov::Exception);
     }
 }
 
@@ -109,7 +106,7 @@ TEST(element_type, from_istringstream) {
         EXPECT_EQ(t, expected);
     }
 
-    for (const auto& str: elementTypeCasesInvalid) {
+    for (const auto& str : elementTypeCasesInvalid) {
         std::istringstream ss(str);
         element::Type t;
         EXPECT_THROW(ss >> t, ov::Exception);
