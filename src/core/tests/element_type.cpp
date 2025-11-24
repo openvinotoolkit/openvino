@@ -76,11 +76,11 @@ static const std::vector<std::pair<const char*, element::Type>> elementTypeCases
                                                                                     {"F8E8M0", element::f8e8m0},
                                                                                     {"undefined", element::undefined},
                                                                                     {"UNSPECIFIED", element::undefined},
-                                                                                    {"dynamic", element::dynamic}
-};
+                                                                                    {"dynamic", element::dynamic}};
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-static const std::vector<const char*> elementTypeCasesInvalid = {"some_string", "", "???", "12345", "not_a_type", "throw_exception"};
+static const std::vector<const char*> elementTypeCasesInvalid =
+    {"some_string", "", "???", "12345", "not_a_type", "throw_exception"};
 
 TEST(element_type, from_string) {
     for (const auto& [str, expected] : elementTypeCases) {
