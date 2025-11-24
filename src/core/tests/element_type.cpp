@@ -6,9 +6,9 @@
 
 #include <map>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
-#include "common_test_utils/test_assertions.hpp"
 #include "openvino/util/common_util.hpp"
 
 using namespace ov;
