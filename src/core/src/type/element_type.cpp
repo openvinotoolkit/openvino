@@ -226,7 +226,7 @@ std::ostream& operator<<(std::ostream& out, const Type& obj) {
 std::istream& operator>>(std::istream& in, Type& obj) {
     std::string str;
     in >> str;
-obj = Type(str);
+    obj = Type(str);
     return in;
 }
 
