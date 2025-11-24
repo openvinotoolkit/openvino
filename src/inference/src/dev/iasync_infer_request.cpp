@@ -8,6 +8,7 @@
 
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/plugin_itt.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/variable_state.hpp"
@@ -187,6 +188,7 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
 
 void ov::IAsyncInferRequest::start_async() {
     infer_impl([this] {
+        OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Plugin, "IAsyncInferRequest::start_async");
         start_async_thread_unsafe();
     });
 }
