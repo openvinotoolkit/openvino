@@ -834,6 +834,7 @@ struct MHAHelper {
                               float* score_output,
                               size_t q_start_idx_score,
                               const ScoreAggregationInfo* score_info_ptr,
+                              const PlainTensor& sinks,
                               size_t batch_in_seq = 0,
                               const std::vector<PlainTensor>& sparse_attention_mask = {}) {
         auto q_start = q_blk * _block_size;
@@ -921,6 +922,12 @@ struct MHAHelper {
                     _params.is_sage_attn
                         ? _d_scale * reinterpret_cast<float*>(_quantized_q.ptr<int8_t>(ithr, m - q_start, 0))[0]
                         : _d_scale;
+
+                // sink processing is independent of sliding_window size
+                float* sink = nullptr;
+                if (sinks) {
+                    sink = &sinks.at<float>({batch_in_seq, h, m, 0}, true);
+                }
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
@@ -951,7 +958,7 @@ struct MHAHelper {
                                                rnd_up(cur_kv_len, _block_size) - start_idx,
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
-                                               nullptr,
+                                               sink,
                                                0.f,
                                                xattn_mask,
                                                _sparse_mask_block_size);
@@ -981,7 +988,7 @@ struct MHAHelper {
                                                rnd_up(cur_kv_len, _block_size),
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
-                                               nullptr,
+                                               sink,
                                                alibi_slope,
                                                xattn_mask,
                                                _sparse_mask_block_size);
@@ -1219,7 +1226,9 @@ struct MHAHelper {
                             size_t q_len,
                             size_t cur_kv_len,
                             const PlainTensor& alibi_slopes,
-                            float* score_output) {
+                            float* score_output,
+                            size_t batch_in_seq,
+                            const PlainTensor& sinks) {
 #    if defined(OPENVINO_ARCH_X86_64)
         if (any_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
             _gemv->tile_config();
@@ -1276,6 +1285,10 @@ struct MHAHelper {
                     alibi_slope = alibi_slopes.ptr<float>()[h];
                     alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
                 }
+                float* sink = nullptr;
+                if (sinks) {
+                    sink = &sinks.at<float>({batch_in_seq, h, pq, 0}, true);
+                }
                 attn_softmax_kernel<float>(_weight.ptr<float>(ithr, h - hq_beg, pq),
                                            _weight.ptr<float>(ithr, h - hq_beg, pq),
                                            _d_scale,
@@ -1287,7 +1300,7 @@ struct MHAHelper {
                                            cur_kv_len,
                                            ov::element::f32,
                                            ov::element::f32,
-                                           nullptr,
+                                           sink,
                                            alibi_slope);
                 if (score_output) {
                     // aligned to cache line to avoid false sharing
@@ -1354,7 +1367,8 @@ struct MHAHelper {
                        const PlainTensor& block_indices,
                        const PlainTensor& block_indices_begins,
                        const PlainTensor& alibi_slopes,
-                       const PlainTensor& score_aggregation_window) {
+                       const PlainTensor& score_aggregation_window,
+                       const PlainTensor& sinks) {
         auto B = past_lens.size(0);
         auto q_len = query.size(2);
         auto kv_len_in_blocks = div_up(max_context_len, _block_size);
@@ -1454,6 +1468,10 @@ struct MHAHelper {
                 alibi_slope = alibi_slopes.ptr<float>()[h];
                 alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
             }
+            float* sink = nullptr;
+            if (sinks) {
+                sink = &sinks.at<float>({b, h, pq, 0}, true);
+            }
             attn_softmax_kernel<float>(_weight_bhl.ptr<float>(b, h, pq),
                                        _weight_bhl.ptr<float>(b, h, pq),
                                        _d_scale,
@@ -1465,7 +1483,7 @@ struct MHAHelper {
                                        cur_kv_len,
                                        ov::element::f32,
                                        ov::element::f32,
-                                       nullptr,
+                                       sink,
                                        alibi_slope);
         };
 
@@ -1573,6 +1591,7 @@ struct MHA {
                          const PlainTensor& block_indices_begins,
                          const PlainTensor& alibi_slopes,
                          const PlainTensor& score_aggregation_window,
+                         const PlainTensor& sinks,
                          const std::vector<PlainTensor>& sparse_attention_mask) {
         auto Hk = v_cache.m_dims[1];
 
@@ -1734,7 +1753,9 @@ struct MHA {
                     1UL,
                     cur_kv_len,
                     alibi_slopes,
-                    score_output);
+                    score_output,
+                    batch_in_seq,
+                    sinks);
             } else {
                 const auto batch_in_reorder = item.batch_in_reorder;
                 const auto q_blk = item.q_block_id;
@@ -1806,7 +1827,9 @@ struct MHA {
                         alibi_slopes,
                         score_output,
                         q_start_idx_score,
-                        score_info_ptr);
+                        score_info_ptr,
+                        0,
+                        nullptr);
                 }
 #    else
                 _helper.exec_kernel_multiple(
@@ -1828,6 +1851,7 @@ struct MHA {
                     score_output,
                     q_start_idx_score,
                     score_info_ptr,
+                    sinks,
                     batch_in_seq,
                     sparse_attention_mask);
 #    endif
@@ -1867,6 +1891,7 @@ struct MHA {
                     const PlainTensor& block_indices_begins,
                     const PlainTensor& alibi_slopes,
                     const PlainTensor& score_aggregation_window,
+                    const PlainTensor& sinks,
                     const std::vector<PlainTensor>& sparse_attention_mask) {
         _workitems
             .reset(query, past_lens, subsequence_begins, block_indices, block_indices_begins, _helper._block_size);
@@ -1889,6 +1914,7 @@ struct MHA {
                             block_indices_begins,
                             alibi_slopes,
                             score_aggregation_window,
+                            sinks,
                             sparse_attention_mask);
         } else {
             // TODO: support second token sparse attention execution
@@ -1903,7 +1929,8 @@ struct MHA {
                                   block_indices,
                                   block_indices_begins,
                                   alibi_slopes,
-                                  score_aggregation_window);
+                                  score_aggregation_window,
+                                  sinks);
         }
     }
 };
@@ -2323,6 +2350,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 block_indices_begins,
                 alibi_slopes,
                 score_aggregation_window,
+                sinks,
                 sparse_attention_mask);
     }
 };

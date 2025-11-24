@@ -44,7 +44,7 @@ class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams
                           public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj) {
-        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, additional_config] = obj.param;
+        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, additional_config] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -63,6 +63,7 @@ public:
         result << "Prc=" << inType << "_";
         result << "ExtendBlockIndices=" << extendBlockIndices << "_";
         result << "EnableXattn=" << enableXattn << "_";
+        result << "SinkInput=" << sinkInput << "_";
         result << "config=(";
         for (const auto& configEntry : additional_config) {
             result << configEntry.first << ", " << configEntry.second.as<std::string>() << "_";
@@ -83,7 +84,8 @@ public:
     std::shared_ptr<ov::Model> get_model(ov::element::Type data_type,
                                          bool enable_xattn,
                                          ov::Dimension::value_type head_size = 64,
-                                         ov::Dimension::value_type head_num = 8) {
+                                         ov::Dimension::value_type head_num = 8,
+                                         bool use_sink_input = true) {
         // q [batch_in_tokens, head_num * head_size]
         // k [batch_in_tokens, head_num * head_size]
         // v [batch_in_tokens, head_num * head_size]
@@ -127,31 +129,46 @@ public:
         auto xattention_block_size =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{64});
         auto xattention_stride =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{8});
-        auto sinks = std::make_shared<ov::op::v0::Constant>(data_type, Shape{0, 0, 0, 0}, std::vector<float>{});
-        ParameterVector params =
-            {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
-        auto paged_attn = std::make_shared<op::PagedAttentionExtension>(OutputVector{q,
-                                                                                     k,
-                                                                                     v,
-                                                                                     key_cache,
-                                                                                     value_cache,
-                                                                                     past_lens,
-                                                                                     subsequence_begins,
-                                                                                     block_indices,
-                                                                                     block_indices_begins,
-                                                                                     scale,
-                                                                                     silding_windows,
-                                                                                     alibi_slopes,
-                                                                                     max_context_len,
-                                                                                     score_aggregation_window,
-                                                                                     rotated_block_indices,
-                                                                                     rotation_deltas,
-                                                                                     rotation_trig_lut,
-                                                                                     xattention_threshold,
-                                                                                     xattention_block_size,
-                                                                                     xattention_stride,
-                                                                                     sinks});
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        // Create sink_input parameter for testing - shape [1, num_heads, 1, 1] as per PagedAttentionExecutor::ID_SINKS
+        // PagedAttentionExtension always expects 21 inputs, so we must always include sinks parameter
+        auto sinks = make_param(PartialShape{1, head_num, 1, 1}, data_type, "sinks");
+
+        ParameterVector params = {q,
+                                  k,
+                                  v,
+                                  key_cache,
+                                  value_cache,
+                                  past_lens,
+                                  subsequence_begins,
+                                  block_indices,
+                                  block_indices_begins,
+                                  sinks};
+        OutputVector paged_attn_inputs = {q,
+                                          k,
+                                          v,
+                                          key_cache,
+                                          value_cache,
+                                          past_lens,
+                                          subsequence_begins,
+                                          block_indices,
+                                          block_indices_begins,
+                                          scale,
+                                          silding_windows,
+                                          alibi_slopes,
+                                          max_context_len,
+                                          score_aggregation_window,
+                                          rotated_block_indices,
+                                          rotation_deltas,
+                                          rotation_trig_lut,
+                                          xattention_threshold,
+                                          xattention_block_size,
+                                          xattention_stride};
+
+        // Always add sinks to satisfy PagedAttentionExtension's requirement of 21 inputs
+        paged_attn_inputs.push_back(sinks);
+
+        auto paged_attn = std::make_shared<op::PagedAttentionExtension>(paged_attn_inputs);
         paged_attn->get_rt_info()["num_k_heads"] = head_num;
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;
@@ -161,29 +178,48 @@ public:
 
     virtual std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
                                                      ov::Dimension::value_type head_size = 64,
-                                                     ov::Dimension::value_type head_num = 8) {
+                                                     ov::Dimension::value_type head_num = 8,
+                                                     bool use_sink_input = true) {
         // q, k, v use L,B,H,S layout
-        ov::PartialShape q_shape, kv_shape, past_shape;
+        ov::PartialShape q_shape, kv_shape, past_shape, atten_mask_shape, scale_shape, sink_shape;
         ov::ParameterVector inputParams;
         past_shape = {-1, 1, head_num, head_size};
         q_shape = {-1, 1, static_cast<int64_t>(head_num), head_size};
         kv_shape = {-1, 1, head_num, head_size};
+        atten_mask_shape = {1, head_num, -1, -1};
+        scale_shape = {1};
+        sink_shape = {1, head_num, 1, 1};
 
         auto q = make_param(q_shape, data_type, "q");
         auto k = make_param(kv_shape, data_type, "k");
         auto v = make_param(kv_shape, data_type, "v");
+        auto atten_mask = make_param(atten_mask_shape, data_type, "atten_mask");
+        auto scale = make_param(scale_shape, data_type, "scale");
+        std::shared_ptr<ov::op::v0::Parameter> sink = nullptr;
+        if (use_sink_input) {
+            sink = make_param(sink_shape, data_type, "sink");
+        }
         auto past_kv = make_param(past_shape, data_type, "past_kv");
         inputParams.push_back(q);
         inputParams.push_back(k);
         inputParams.push_back(v);
+        inputParams.push_back(atten_mask);
+        inputParams.push_back(scale);
+        if (use_sink_input) {
+            inputParams.push_back(sink);
+        }
         inputParams.push_back(past_kv);
+
+        // Get the correct index for past_kv (it's always the last parameter before beam_idx)
+        size_t past_kv_idx = inputParams.size() - 1;
+
         auto var_k =
             std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{past_shape, data_type, "pastk"});
-        auto pastk = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_k);
+        auto pastk = std::make_shared<ov::op::v6::ReadValue>(inputParams[past_kv_idx], var_k);
         pastk->set_friendly_name("pastk_r");
         auto var_v =
             std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{past_shape, data_type, "pastv"});
-        auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_v);
+        auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[past_kv_idx], var_v);
         pastv->set_friendly_name("pastv_r");
         std::vector<size_t> transposeOrder{1, 2, 0, 3};
         auto preOrder = op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
@@ -207,7 +243,34 @@ public:
         std::shared_ptr<ov::Node> v_in = concatV;
         k_in = std::make_shared<ov::op::v1::Transpose>(k_in, preOrder);
         v_in = std::make_shared<ov::op::v1::Transpose>(v_in, preOrder);
-        auto sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_in, k_in, v_in, true);
+
+        // Use SDPA constructor based on sink input parameter
+        // Parameters order: q, k, v, atten_mask, scale, [sink], past_kv, beam_idx
+        size_t atten_mask_idx = 3;
+        size_t scale_idx = 4;
+        size_t sink_idx = use_sink_input ? 5 : -1;  // sink only exists when use_sink_input=true
+
+        std::shared_ptr<ov::op::v13::ScaledDotProductAttention> sdp;
+        if (use_sink_input) {
+            // 7-parameter SDPA constructor with sink support
+            // Parameters: query, key, value, attn_mask, scale, sink, causal
+            sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_in,
+                                                                           k_in,
+                                                                           v_in,
+                                                                           inputParams[atten_mask_idx],
+                                                                           inputParams[scale_idx],
+                                                                           inputParams[sink_idx],
+                                                                           true);
+        } else {
+            // 6-parameter SDPA constructor without sink
+            // Parameters: query, key, value, attn_mask, scale, causal
+            sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_in,
+                                                                           k_in,
+                                                                           v_in,
+                                                                           inputParams[atten_mask_idx],
+                                                                           inputParams[scale_idx],
+                                                                           true);
+        }
         sdp->set_friendly_name("mha");
         auto pastk_assign = std::make_shared<ov::op::v6::Assign>(concatK, var_k);
         auto pastv_assign = std::make_shared<ov::op::v6::Assign>(concatV, var_v);
@@ -237,7 +300,8 @@ public:
     }
 
     void SetUp() override {
-        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, additional_config] = this->GetParam();
+        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, additional_config] =
+            this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -250,17 +314,32 @@ public:
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
 
-        function = get_model(inType, enableXattn, 64, 8);
+        function = get_model(inType, enableXattn, 64, 8, sinkInput);
         targetDevice = ov::test::utils::DEVICE_CPU;
 
-        functionRefs = get_ref_model(inType, 64, 8);
+        functionRefs = get_ref_model(inType, 64, 8, sinkInput);
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        std::vector<ov::Shape> shapes(4);
-        shapes[0] = targetInputStaticShapes[0];
-        shapes[1] = targetInputStaticShapes[0];
-        shapes[2] = targetInputStaticShapes[0];
-        shapes[3] = targetInputStaticShapes[1];
+        // Check if the reference model uses sink input by examining the number of parameters
+        bool ref_model_uses_sink = (functionRefs->get_parameters().size() == 8);
+
+        std::vector<ov::Shape> shapes;
+        shapes.push_back(targetInputStaticShapes[0]);  // q
+        shapes.push_back(targetInputStaticShapes[0]);  // k
+        shapes.push_back(targetInputStaticShapes[0]);  // v
+        // atten_mask shape: [1, heads, seq_len, seq_len] - dynamic based on sequence length
+        auto seq_len = targetInputStaticShapes[0][0];
+        shapes.push_back({1, 8, seq_len, seq_len});  // atten_mask
+        shapes.push_back({1});                       // scale
+
+        if (ref_model_uses_sink) {
+            shapes.push_back({1, 8, 1, 1});  // sink
+        }
+
+        shapes.push_back(targetInputStaticShapes[1]);  // past_kv
+        // beam_idx shape: [batch]
+        shapes.push_back({targetInputStaticShapes[0][1]});  // beam_idx
+
         SubgraphBaseTest::generate_inputs(shapes);
     }
     template <typename IT, typename T>
@@ -273,7 +352,8 @@ public:
     virtual void generate(int idx,
                           const bool isPagedAttn,
                           const std::vector<ov::Shape>& targetInputStaticShapes,
-                          bool extendBlockIndices) {
+                          bool extendBlockIndices,
+                          bool use_sink_input = true) {
         inputs.clear();
         auto create_input = [this](std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == ov::element::i32) {
@@ -356,15 +436,43 @@ public:
             inputs.insert({function->get_parameters()[6], subsequence_begins});
             inputs.insert({function->get_parameters()[7], block_indices});
             inputs.insert({function->get_parameters()[8], block_indices_begins});
+
+            // Create sink_input data - shape [1, num_heads, 1, 1] as per PagedAttentionExtensor specification
+            // Always create the sink input data since PagedAttentionExtension expects 21 inputs
+            // The value will be ignored when use_sink_input=false
+            create_input(function->get_parameters()[9], {1, qkv_shape[2], 1, 1}, use_sink_input ? 0.1f : 0.0f);
+
             past_len_count += static_cast<int32_t>(qkv_shape[0]);
 
         } else {
-            // q, k, v, pastkv
-            create_input(function->get_parameters()[0], targetInputStaticShapes[0], idx + 1.0f);
-            create_input(function->get_parameters()[1], targetInputStaticShapes[0], idx + 2.0f);
-            create_input(function->get_parameters()[2], targetInputStaticShapes[0], idx + 3.0f);
-            create_input(function->get_parameters()[3], targetInputStaticShapes[1], idx + 4.0f);
-            create_input(function->get_parameters()[4], ov::Shape{targetInputStaticShapes[0][1]}, idx + 0.0f);
+            // Reference model for SDPA
+            auto params = function->get_parameters();
+            int param_idx = 0;
+
+            create_input(params[param_idx++], targetInputStaticShapes[0], idx + 1.0f);  // q
+            create_input(params[param_idx++], targetInputStaticShapes[0], idx + 2.0f);  // k
+            create_input(params[param_idx++], targetInputStaticShapes[0], idx + 3.0f);  // v
+
+            // atten_mask - create appropriate shape based on sequence length
+            auto seq_len = targetInputStaticShapes[0][0];
+            create_input(params[param_idx++],
+                         {1, targetInputStaticShapes[0][2], seq_len, seq_len},
+                         0.0f);  // atten_mask
+
+            // scale - single value for scaling
+            create_input(params[param_idx++], {1}, 1.0f / std::sqrt(64));  // scale
+
+            // sink - only if model uses sink input
+            if (use_sink_input) {
+                create_input(params[param_idx++], {1, targetInputStaticShapes[0][2], 1, 1}, 0.1f);  // sink
+            }
+
+            // past_kv
+            create_input(params[param_idx++], targetInputStaticShapes[1], idx + 4.0f);  // past_kv
+
+            // beam_idx - shape matching batch dimension
+            create_input(params[param_idx++], ov::Shape{targetInputStaticShapes[0][1]},
+                         idx + 0.0f);  // beam_idx
         }
     }
     void prepare() {
@@ -388,7 +496,7 @@ public:
 
 class PagedAttnVSSDPATest : public PagedAttnTestBase {
 public:
-    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model, bool extendBlockIndices) {
+    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model, bool extendBlockIndices, bool sinkInput = true) {
         function = model;
         prepare();
         for (const auto& input : compiledModel.inputs()) {
@@ -412,7 +520,7 @@ public:
         std::vector<ov::Tensor> outputs;
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, true, shapes, extendBlockIndices);
+            generate(idx++, true, shapes, extendBlockIndices, sinkInput);
             for (const auto& input : inputs) {
                 inferRequest.set_tensor(input.first, input.second);
             }
@@ -425,13 +533,13 @@ public:
         return outputs;
     }
 
-    std::vector<ov::Tensor> run_ref_test(std::shared_ptr<ov::Model> model) {
+    std::vector<ov::Tensor> run_ref_test(std::shared_ptr<ov::Model> model, bool sinkInput = true) {
         function = model;
         prepare();
         std::vector<ov::Tensor> outputs;
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, false, shapes, false);
+            generate(idx++, false, shapes, false, sinkInput);  // Use the same sink input setting as the test model
             for (const auto& input : inputs) {
                 inferRequest.set_tensor(input.first, input.second);
             }
@@ -447,7 +555,7 @@ public:
 
 TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, additional_config] = this->GetParam();
+    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, additional_config] = this->GetParam();
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
@@ -455,12 +563,12 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
         GTEST_SKIP();
     // compare the logits from paged attn and sdpa
-    auto actualOutputs = run_test(function, extendBlockIndices);
+    auto actualOutputs = run_test(function, extendBlockIndices, sinkInput);
     // reference model doesn't support sage attention
     if (isSageAttn) {
         configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
     }
-    auto expectedOutputs = run_ref_test(functionRefs);
+    auto expectedOutputs = run_ref_test(functionRefs, sinkInput);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
     }
@@ -491,31 +599,41 @@ class PagedAttnVSMatmulTest : public PagedAttnTestBase {
 public:
     std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
                                              ov::Dimension::value_type head_size = 64,
-                                             ov::Dimension::value_type head_num = 8) override {
+                                             ov::Dimension::value_type head_num = 8,
+                                             bool use_sink_input = false) override {
+        // PagedAttnVSMatmulTest reference model doesn't use sink input
+        (void)use_sink_input;  // Suppress unused parameter warning
         // q, k, v use L,B,H,S layout
-        ov::PartialShape q_shape, kv_shape, past_shape;
+        ov::PartialShape q_shape, kv_shape, past_shape, atten_mask_shape, scale_shape;
         ov::ParameterVector inputParams;
         past_shape = {-1, 1, head_num, head_size};
         q_shape = {-1, 1, static_cast<int64_t>(head_num), head_size};
         kv_shape = {-1, 1, head_num, head_size};
-        // std::shared_ptr<ov::Node> q_in = nullptr;
+        atten_mask_shape = {1, head_num, -1, -1};
+        scale_shape = {1};
+
         auto q = make_param(q_shape, data_type, "q");
         auto k = make_param(kv_shape, data_type, "k");
         auto v = make_param(kv_shape, data_type, "v");
+        auto atten_mask = make_param(atten_mask_shape, data_type, "atten_mask");
+        auto scale = make_param(scale_shape, data_type, "scale");
         auto past_kv = make_param(past_shape, data_type, "past_kv");
         auto beam_idx = make_param(ov::PartialShape{-1}, ov::element::i32, "beam_idx");
+
         inputParams.push_back(q);
         inputParams.push_back(k);
         inputParams.push_back(v);
+        inputParams.push_back(atten_mask);
+        inputParams.push_back(scale);
         inputParams.push_back(past_kv);
         inputParams.push_back(beam_idx);
         auto var_k =
             std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{past_shape, data_type, "pastk"});
-        auto pastk = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_k);
+        auto pastk = std::make_shared<ov::op::v6::ReadValue>(inputParams[5], var_k);
         pastk->set_friendly_name("pastk_r");
         auto var_v =
             std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{past_shape, data_type, "pastv"});
-        auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_v);
+        auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[5], var_v);
         pastv->set_friendly_name("pastv_r");
         std::vector<size_t> transposeOrder{1, 2, 0, 3};
         auto preOrder = op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
@@ -613,7 +731,10 @@ public:
         return model;
     }
 
-    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model, bool extendBlockIndices) {
+    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model,
+                                     bool extendBlockIndices,
+                                     bool sinkInput = false) {
+        (void)sinkInput;  // Suppress unused parameter warning
         configuration[ov::hint::kv_cache_precision.name()] = ov::element::f16;
         function = model;
         prepare();
@@ -638,7 +759,7 @@ public:
         std::vector<ov::Tensor> outputs;
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, true, shapes, extendBlockIndices);
+            generate(idx++, true, shapes, extendBlockIndices, false);
             for (const auto& input : inputs) {
                 inferRequest.set_tensor(input.first, input.second);
             }
@@ -657,7 +778,7 @@ public:
         std::vector<ov::Tensor> outputs;
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, false, shapes, false);
+            generate(idx++, false, shapes, false, false);
             for (const auto& input : inputs) {
                 inferRequest.set_tensor(input.first, input.second);
             }
@@ -674,7 +795,7 @@ public:
 
 TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, additional_config] = this->GetParam();
+    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, additional_config] = this->GetParam();
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
@@ -682,7 +803,7 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
         GTEST_SKIP();
     // compare the logits from paged attn and sdpa
-    auto actualOutputs = run_test(function, extendBlockIndices);
+    auto actualOutputs = run_test(function, extendBlockIndices, false);
     // reference model doesn't support sage attention, disable it
     if (isSageAttn) {
         configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
