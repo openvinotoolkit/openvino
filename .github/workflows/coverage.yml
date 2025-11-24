@@ -135,7 +135,9 @@ jobs:
           lcov --capture --directory ${{ github.workspace }}/build \
             --output-file coverage.info \
             --ignore-errors mismatch,source
-          genhtml coverage.info --output-directory coverage-report
+          genhtml coverage.info \
+            --output-directory coverage-report \
+            --ignore-errors source
       - name: Collect coverage
         uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:
