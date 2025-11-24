@@ -122,6 +122,24 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
+
+        // Determine gate_up_type based on pattern matching
+        LLMMLPNode::GATE_UP_TYPE gate_up_type = LLMMLPNode::GATE_UP_TYPE::SEPARATE;
+        if (pattern_map.count(gate_up_proj_split)) {
+            auto mlp_gated_up_node = pattern_map.at(mlp_gated_up).get_node_shared_ptr();
+            auto input0 = mlp_gated_up_node->input_value(0);
+            auto input1 = mlp_gated_up_node->input_value(1);
+
+            // Check if VariadicSplit output[0] connects to Multiply (swapped case)
+            // Since pattern matching succeeded, we know one of the outputs connects to Multiply
+            if ((input0.get_node() == pattern_map.at(gate_up_proj_split).get_node() && input0.get_index() == 0) ||
+                (input1.get_node() == pattern_map.at(gate_up_proj_split).get_node() && input1.get_index() == 0)) {
+                gate_up_type = LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE;  // swapped case
+            } else {
+                gate_up_type = LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP;  // normal combined case
+            }
+        }
+
         auto src = pattern_map.at(input);
         if (!src.get_element_type().is_real()) {
             // FakeQuantize, should skip fusion
@@ -134,17 +152,20 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
         // down projection is harder to quantize w/o causing accuracy problem, so it may be un-quantized instead
         bool is_gate_up_quantized_int8 = false;
         bool is_down_proj_int8 = false;
-        bool is_gate_up_combined = false;
         if (pattern_map.count(gate_up_proj_weight_const_i8) > 0 && pattern_map.count(down_proj_weight_compressed) > 0) {
             // gate-up combined & quantized
             is_gate_up_quantized_int8 = true;
-            is_gate_up_combined = true;
+            gate_up_type = (gate_up_type == LLMMLPNode::GATE_UP_TYPE::SEPARATE)
+                               ? LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP
+                               : gate_up_type;
             gate_proj_w = pattern_map.at(gate_up_proj_weight_const_i8);
             up_proj_w = pattern_map.at(gate_up_proj_weight_const_i8);
             down_proj_w = pattern_map.at(down_proj_weight_compressed);
         } else if (pattern_map.count(gate_up_proj_weight) > 0 && pattern_map.count(down_proj_weight_compressed) > 0) {
             // gate-up combined
-            is_gate_up_combined = true;
+            gate_up_type = (gate_up_type == LLMMLPNode::GATE_UP_TYPE::SEPARATE)
+                               ? LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP
+                               : gate_up_type;
             gate_proj_w = pattern_map.at(gate_up_proj_weight);
             up_proj_w = pattern_map.at(gate_up_proj_weight);
             down_proj_w = pattern_map.at(down_proj_weight_compressed);
@@ -207,7 +228,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
             return false;
         }
 
-        auto up_size = is_gate_up_combined ? (up_shape[0] / 2) : (up_shape[0]);
+        auto up_size = (gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) ? (up_shape[0] / 2) : (up_shape[0]);
         auto down_size = up_shape[1];
         if (down_shape[0] != down_size) {
             return false;
@@ -223,7 +244,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
             cfg.down_quantized = is_down_proj_int8;
             cfg.hidden_size = down_size;
             cfg.up_size = up_size;
-            cfg.gate_up_combined = is_gate_up_combined;
+            cfg.gate_up_type = gate_up_type;
 
             if (pattern_map.count(mlp_silu_gate) > 0) {
                 cfg.act = LLMMLPNode::ACT_FN::SILU;
@@ -248,7 +269,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
         new_args.push_back(up_proj_w);
         new_args.push_back(down_proj_w);
         if (is_gate_up_quantized_int8) {
-            if (is_gate_up_combined) {
+            if (gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
                 new_args.push_back(pattern_map.at(gate_up_proj_weight_scales_per_OC));
                 new_args.push_back(pattern_map.at(gate_up_proj_weight_scales_per_OC));
             } else {
@@ -266,7 +287,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
         ov::copy_runtime_info(
             {pattern_map.at(gate_act).get_node_shared_ptr(), pattern_map.at(down_proj).get_node_shared_ptr()},
             new_node);
-        if (is_gate_up_combined) {
+        if (gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
             ov::copy_runtime_info({pattern_map.at(gate_up_proj).get_node_shared_ptr()}, new_node);
         } else {
             ov::copy_runtime_info({pattern_map.at(mlp_gate_proj).get_node_shared_ptr(),
