@@ -41,7 +41,7 @@ ov::util::PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, std:
       m_total_bytes(total_bytes) {
     // Check for perfect split of bytes
     if (m_total_bytes % 2) {
-        throw std::runtime_error("PagedCacheManager: total allocated bytes must be divisible by 2");
+        OPENVINO_THROW("PagedCacheManager: total allocated bytes must be divisible by 2");
     }
 
     m_key_base = aligned_allocate(m_total_bytes / 2);
@@ -50,7 +50,7 @@ ov::util::PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, std:
     if (!m_key_base || !m_value_base) {
         aligned_free(m_key_base);
         aligned_free(m_value_base);
-        throw std::runtime_error("PagedCacheManager: aligned allocation failed");
+        OPENVINO_THROW("PagedCacheManager: aligned allocation failed");
     }
 }
 
@@ -111,7 +111,7 @@ void ov::util::PagedCacheManager::compute_operator_cache_geometry(operator_state
             m_block_size = block_size;
             m_block_bytes = m_block_size * m_elem_type.size();
         } else {
-            throw std::runtime_error("PagedCacheManager: All PagedAttention nodes must have the same block size.");
+            OPENVINO_THROW("PagedCacheManager: All PagedAttention nodes must have the same block size.");
         }
     }
 
@@ -119,7 +119,7 @@ void ov::util::PagedCacheManager::compute_operator_cache_geometry(operator_state
         if (!m_num_heads) {
             m_num_heads = num_heads;
         } else {
-            throw std::runtime_error("PagedCacheManager: All PagedAttention nodes must have the same number of heads.");
+            OPENVINO_THROW("PagedCacheManager: All PagedAttention nodes must have the same number of heads.");
         }
     }
 
@@ -127,7 +127,7 @@ void ov::util::PagedCacheManager::compute_operator_cache_geometry(operator_state
         if (!m_key_head_size) {
             m_key_head_size = key_head_size;
         } else {
-            throw std::runtime_error(
+            OPENVINO_THROW(
                 "PagedCacheManager: All PagedAttention nodes must have the same number of key cache heads.");
         }
     }
@@ -136,7 +136,7 @@ void ov::util::PagedCacheManager::compute_operator_cache_geometry(operator_state
         if (!m_value_head_size) {
             m_value_head_size = value_head_size;
         } else {
-            throw std::runtime_error(
+            OPENVINO_THROW(
                 "PagedCacheManager: All PagedAttention nodes must have the same number of value cache heads.");
         }
     }
@@ -206,7 +206,7 @@ std::vector<std::size_t> ov::util::PagedCacheManager::acquire_blocks_unlocked(si
         return {};
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
-        throw std::runtime_error("PagedCacheManager::acquire_blocks_unlocked: unknown node_id (not registered)");
+        OPENVINO_THROW("PagedCacheManager::acquire_blocks_unlocked: unknown node_id (not registered)");
     auto& state = it->second;
 
     ensure_free_blocks_unlocked(block_count);
@@ -256,7 +256,7 @@ void ov::util::PagedCacheManager::set_scores_for_blocks_unlocked(size_t node_id,
                                                                  const float* scores) {
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
-        throw std::runtime_error("PagedCacheManager::set_scores_for_blocks_unlocked: unknown handle");
+        OPENVINO_THROW("PagedCacheManager::set_scores_for_blocks_unlocked: unknown handle");
     auto& state = it->second;
 
     for (std::size_t i = 0; i < block_idxs.size(); ++i) {

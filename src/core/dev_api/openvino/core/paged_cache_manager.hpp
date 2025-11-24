@@ -122,7 +122,6 @@ private:
     void* offset_key(std::size_t block_idx) const noexcept;
     void* offset_value(std::size_t block_idx) const noexcept;
 
-    void compute_subsequence_begins_unlocked(operator_state& st) const;
     void compute_operator_cache_geometry(operator_state& state,
                                          const size_t block_size,
                                          const size_t num_heads,
@@ -205,7 +204,7 @@ std::vector<std::size_t> PagedCacheManager::insert(size_t node_id,
                                                    std::size_t block_count,
                                                    const T* scores) {
     if (!is_element_compatible_with_T(m_elem_type, sizeof(T))) {
-        throw std::runtime_error("PagedCacheManager::insert<T>: T does not match element type");
+        OPENVINO_THROW("PagedCacheManager::insert<T>: T does not match element type");
     }
     if (block_count == 0)
         return {};
@@ -234,7 +233,7 @@ void PagedCacheManager::set_block_scores(size_t node_id,
                                          const std::vector<std::size_t>& block_indices,
                                          const T* scores) {
     if (!is_element_compatible_with_T(m_elem_type, sizeof(T))) {
-        throw std::runtime_error("PagedCacheManager::set_block_scores<T>: T does not match element type");
+        OPENVINO_THROW("PagedCacheManager::set_block_scores<T>: T does not match element type");
     }
     if (block_indices.empty())
         return;
