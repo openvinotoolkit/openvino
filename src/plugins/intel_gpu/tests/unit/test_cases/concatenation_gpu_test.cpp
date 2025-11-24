@@ -1666,6 +1666,41 @@ TEST(concat_gpu_onednn, basic_input_types) {
     }
 }
 
+TEST(concat_gpu_onednn, impl_selection_unaligned_feature_axis) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    layout in_layout = { data_types::f16, format::b_fs_yx_fsv16, { 1, 18, 2, 2 } };
+    auto input0 = engine.allocate_memory(in_layout);
+    auto input1 = engine.allocate_memory(in_layout);
+
+    topology topology(
+            input_layout("input0", in_layout),
+            input_layout("input1", in_layout),
+            concatenation("concat",
+                          { input_info("input0"), input_info("input1") },
+                          1,
+                          data_types::f16)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+
+    auto concat_inst = network.get_primitive("concat");
+    auto impl = concat_inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->m_manager != nullptr);
+    EXPECT_EQ(impl->m_manager->get_impl_type(), impl_types::ocl);
+    EXPECT_FALSE(impl->is_onednn());
+
+    ASSERT_NO_THROW(network.execute());
+}
+
 TEST(concat_gpu_onednn, b_fs_yx_fsv16_input_types) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
