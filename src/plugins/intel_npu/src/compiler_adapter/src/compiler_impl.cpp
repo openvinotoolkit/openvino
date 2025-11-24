@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vcl_api.hpp"
+#include "compiler_impl.hpp"
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -14,6 +14,74 @@
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
+
+// clang-format off
+#define vcl_symbols_list()                                  \
+    vcl_symbol_statement(vclGetVersion)                     \
+    vcl_symbol_statement(vclCompilerCreate)                 \
+    vcl_symbol_statement(vclCompilerDestroy)                \
+    vcl_symbol_statement(vclCompilerGetProperties)          \
+    vcl_symbol_statement(vclQueryNetworkCreate)             \
+    vcl_symbol_statement(vclQueryNetwork)                   \
+    vcl_symbol_statement(vclQueryNetworkDestroy)            \
+    vcl_symbol_statement(vclExecutableCreate)               \
+    vcl_symbol_statement(vclAllocatedExecutableCreate)      \
+    vcl_symbol_statement(vclExecutableDestroy)              \
+    vcl_symbol_statement(vclExecutableGetSerializableBlob)  \
+    vcl_symbol_statement(vclProfilingCreate)                \
+    vcl_symbol_statement(vclGetDecodedProfilingBuffer)      \
+    vcl_symbol_statement(vclProfilingDestroy)               \
+    vcl_symbol_statement(vclProfilingGetProperties)         \
+    vcl_symbol_statement(vclLogHandleGetString)             \
+    vcl_symbol_statement(vclAllocatedExecutableCreate2)     \
+    vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
+    vcl_symbol_statement(vclGetCompilerIsOptionSupported)   \
+
+
+//unsupported symbols with older ze_loader versions
+#define vcl_weak_symbols_list()                             \
+    vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot)
+// clang-format on
+
+class VCLApi {
+public:
+    VCLApi();
+    VCLApi(const VCLApi& other) = delete;
+    VCLApi(VCLApi&& other) = delete;
+    void operator=(const VCLApi&) = delete;
+    void operator=(VCLApi&&) = delete;
+
+    static const std::shared_ptr<VCLApi>& getInstance();
+    std::shared_ptr<void> getLibrary() const {
+        return lib;
+    }
+
+#define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol;
+    vcl_symbols_list();
+    vcl_weak_symbols_list();
+#undef vcl_symbol_statement
+
+private:
+    std::shared_ptr<void> lib;
+    Logger _logger;
+};
+
+#define vcl_symbol_statement(vcl_symbol)                                                                            \
+    template <typename... Args>                                                                                     \
+    inline typename std::invoke_result<decltype(&::vcl_symbol), Args...>::type wrapped_##vcl_symbol(Args... args) { \
+        const auto& ptr = VCLApi::getInstance();                                                                    \
+        if (ptr->vcl_symbol == nullptr) {                                                                           \
+            OPENVINO_THROW("Unsupported vcl_symbol " #vcl_symbol);                                                  \
+        }                                                                                                           \
+        return ptr->vcl_symbol(std::forward<Args>(args)...);                                                        \
+    }
+vcl_symbols_list();
+vcl_weak_symbols_list();
+#undef vcl_symbol_statement
+#define vcl_symbol_statement(vcl_symbol) inline decltype(&::vcl_symbol) vcl_symbol = wrapped_##vcl_symbol;
+vcl_symbols_list();
+vcl_weak_symbols_list();
+#undef vcl_symbol_statement
 
 static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     Logger _logger("VCLAPI", Logger::global().level());
@@ -114,6 +182,10 @@ const std::shared_ptr<VCLApi>& VCLApi::getInstance() {
 
 VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
+
+    // Load VCL library
+    (void)VCLApi::getInstance();
+
     // Initialize the VCL API
     THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
 
@@ -165,6 +237,10 @@ VCLCompilerImpl::~VCLCompilerImpl() {
         _logHandle = nullptr;  // Log handle is released automatically with the compiler
     }
     _logger.info("VCL Compiler destroyed successfully");
+}
+
+std::shared_ptr<VCLApi> VCLCompilerImpl::getLinkedLibrary() const {
+    return VCLApi::getInstance();
 }
 
 struct vcl_allocator_vector : vcl_allocator2_t {
@@ -375,42 +451,9 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         _logger.debug("compile end, blob size:%d", compiledNetwork.size());
         return NetworkDescription(std::move(compiledNetwork), std::move(metadata));
     } else {
-        if (VCL_COMPILER_VERSION_MAJOR < _vclVersion.major) {
-            _logger.warning("inside supported VCL version is lower than used VCL api:\n plugin was built with VCL "
-                            "%d.%d, \n      but loaded VCL is %d.%d.\n"
-                            "Will downgrade to form %s to use vclAllocatedExecutableCreate2",
-                            VCL_COMPILER_VERSION_MAJOR,
-                            VCL_COMPILER_VERSION_MINOR,
-                            _vclVersion.major,
-                            _vclVersion.minor,
-                            supportVclCompiler(usedMajor, usedMinor).c_str());
-        }
-        // For versions before 6.1, we use vclExecutableCreate
-        _logger.debug("Using vclExecutableCreate for VCL < 6.1");
-        vcl_executable_handle_t exeHandle = nullptr;
-        THROW_ON_FAIL_FOR_VCL("vclExecutableCreate",
-                              vclExecutableCreate(_compilerHandle, exeDesc, &exeHandle),
-                              _logHandle);
-
-        size_t size = 0;
-        THROW_ON_FAIL_FOR_VCL("vclExecutableGetSerializableBlob",
-                              vclExecutableGetSerializableBlob(exeHandle, nullptr, &size),
-                              _logHandle);
-        if (size == 0) {
-            OPENVINO_THROW("Failed to get VCL executable blob size, size is zero");
-        }
-        std::vector<uint8_t> compiledNetwork(size);
-        THROW_ON_FAIL_FOR_VCL("vclExecutableGetSerializableBlob",
-                              vclExecutableGetSerializableBlob(exeHandle, compiledNetwork.data(), &size),
-                              _logHandle);
-
-        THROW_ON_FAIL_FOR_VCL("vclExecutableDestroy", vclExecutableDestroy(exeHandle), _logHandle);
-
-        // Use empty metadata as VCL does not support metadata extraction
-        NetworkMetadata metadata;
-
-        _logger.debug("compile end, blob size:%d", compiledNetwork.size());
-        return NetworkDescription(std::move(compiledNetwork), std::move(metadata));
+        OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 6.1 or later",
+                       _vclVersion.major,
+                       _vclVersion.minor);
     }
 }
 

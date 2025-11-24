@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "compiler_impl.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -22,6 +23,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "weightless_graph.hpp"
+#include "weightless_utils.hpp"
 
 namespace {
 
@@ -80,7 +82,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
     _logger.info("Loading PLUGIN compiler");
     try {
         auto vclCompilerPtr = VCLCompilerImpl::getInstance();
-        auto vclLib = VCLApi::getInstance()->getLibrary();
+        auto vclLib = vclCompilerPtr->getLinkedLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
         if (vclCompilerPtr && vclLib) {
             _compiler = ov::SoPtr<intel_npu::ICompiler>(vclCompilerPtr, vclLib);
@@ -161,7 +163,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
                                                          const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
 
-    // OPENVINO_ASSERT(_zeGraphExt);
     storeWeightlessCacheAttribute(model);
 
     _logger.debug("compile start");
@@ -309,12 +310,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
         mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
         mainNetworkMetadata = _zeGraphExt->getNetworkMeta(mainGraphDesc);
         _logger.debug("main schedule parse end");
-        std::cout << "RUN here == for vcl adapter call===" << std::endl;
         if (model) {
-            std::cout << "RUN here == for vcl adapter call 1===" << std::endl;
             mainNetworkMetadata.name = model.value()->get_friendly_name();
         } else {
-            std::cout << "RUN here == for vcl adapter call 2===" << std::endl;
             _logger.warning("networkMeta name is empty in parse!");
         }
     } else {
