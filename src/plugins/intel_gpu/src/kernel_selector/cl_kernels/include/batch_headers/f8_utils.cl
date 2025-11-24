@@ -146,6 +146,8 @@ uchar _intel_convert_f32_fo_e8m0_sat(float val) {
 float _intel_convert_e8m0_to_f32(uchar val) {
     if (val == 0xFF) {
         return as_float(0xFFC00000); // NaN
+    } else if (val == 0) {
+        return as_float(0x00400000); // 2^(-127)
     }
 
     uint temp = (uint)val;
