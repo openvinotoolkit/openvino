@@ -160,6 +160,10 @@ void Graph::initialize(const Config& config) {
     _logger.debug("Graph initialize start");
 
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr) {
+        if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
+            OPENVINO_THROW("_zeGraphExt wasn't initialized or graph handle is null. The driver is not installed or the "
+                           "installed driver is not suitable.");
+        }
         return;
     }
 

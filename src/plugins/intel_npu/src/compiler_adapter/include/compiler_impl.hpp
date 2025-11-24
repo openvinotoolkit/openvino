@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 
 namespace intel_npu {
 
-bool isUseBaseModelSerializer(const FilteredConfig& config);
-std::string supportVclCompiler(int major, int minor);
 class VCLApi;
 
 class VCLCompilerImpl final : public intel_npu::ICompiler {

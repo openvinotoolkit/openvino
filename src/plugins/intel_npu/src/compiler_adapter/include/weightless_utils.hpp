@@ -1,12 +1,16 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "intel_npu/network_metadata.hpp"
 #include "openvino/core/model.hpp"
 
 namespace intel_npu {
+
+bool isInitMetadata(const NetworkMetadata& networkMetadata);
+
 /**
  * @brief Stores the information within the "WeightlessCacheAttribute" as runtime fields that persist upon
  * serialization.

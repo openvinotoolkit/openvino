@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,18 @@
 #include "openvino/op/constant.hpp"
 
 namespace intel_npu {
+
+bool isInitMetadata(const NetworkMetadata& networkMetadata) {
+    if (networkMetadata.inputs.size() == 0) {
+        return false;
+    }
+    return networkMetadata.inputs.at(0).isInitInputWeights;
+}
+
 /**
  * @brief Stores the information within the "WeightlessCacheAttribute" as runtime fields that persist upon
  * serialization.
- * @details Constant nodes (weights) may contain as medatadata the "WeightlessCacheAttribute", that is information
+ * @details Constant nodes (weights) may contain as mesdatadata the "WeightlessCacheAttribute", that is information
  * regarding the offset of the weights within the binary file, as well as the original size and precision. This
  * information is required within the "weights separation" flow, therefore this function is here to store it.
  * @note Not calling this function in the weights separation flow would lead to this information being lost upon
