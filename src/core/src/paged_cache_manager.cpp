@@ -343,10 +343,6 @@ void* ov::util::PagedCacheManager::offset_value(std::size_t block_idx) const noe
     return static_cast<void*>(static_cast<unsigned char*>(m_value_base) + block_idx * m_block_bytes);
 }
 
-void ov::util::PagedCacheManager::compute_subsequence_begins_unlocked(operator_state& state) const {
-    (void)state;  // hook for real PA wiring if needed
-}
-
 float ov::util::PagedCacheManager::cast_score_to_float(ov::element::Type et, const void* src_scalar) noexcept {
     switch (et) {
     case ov::element::f32:
@@ -386,18 +382,7 @@ float ov::util::PagedCacheManager::cast_score_to_float(ov::element::Type et, con
 }
 
 bool ov::util::PagedCacheManager::is_element_compatible_with_T(ov::element::Type et, size_t sizeofT) noexcept {
-    switch (et) {
-    case ov::element::f32:
-        return sizeofT == 4;
-    case ov::element::bf16:
-        return sizeofT == 2;
-    case ov::element::f16:
-        return sizeofT == 2;
-    case ov::element::f64:
-        return sizeofT == 8;
-    default:
-        return sizeofT == 4;
-    }
+    return sizeofT == et.size();
 }
 
 void ov::util::PagedCacheManager::rebuild_evict_heap_unlocked() {
