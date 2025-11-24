@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 
 #include "compiler.h"
 #include "intel_npu/common/filtered_config.hpp"
@@ -23,7 +24,15 @@ public:
     ~VCLCompilerImpl() override;
 
     static std::shared_ptr<VCLCompilerImpl> getInstance() {
-        static std::weak_ptr<VCLCompilerImpl> compiler = std::make_shared<VCLCompilerImpl>();
+        static std::mutex mutex;
+        static std::weak_ptr<VCLCompilerImpl> weak_compiler;
+
+        std::lock_guard<std::mutex> lock(mutex);
+        auto compiler = weak_compiler.lock();
+        if (!compiler) {
+            compiler = std::make_shared<VCLCompilerImpl>();
+            weak_compiler = compiler;
+        }
         return compiler;
     }
 
