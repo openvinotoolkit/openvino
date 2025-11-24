@@ -166,6 +166,12 @@ if(ENABLE_ONEDNN_FOR_GPU)
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/jit/config"
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/gemm/jit/include"
                              "${ONEDNN_GPU_DIR}/third_party/ngen")
+        if(GPU_RUNTIME STREQUAL "L0")
+            # OneDNN LevelZero headers can be found at ${ONEDNN_GPU_DIR}\third_party\level_zero\
+            # However adding ${ONEDNN_GPU_DIR}\third_party to include dirs will clash with other dependencies like gtest
+            # Workaround: Use OpenVINO LevelZero target instead
+            list(APPEND LIB_INCLUDE_DIRS $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>)
+        endif()
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
                             DNNL_DLL
                             DNNL_DLL_EXPORTS
