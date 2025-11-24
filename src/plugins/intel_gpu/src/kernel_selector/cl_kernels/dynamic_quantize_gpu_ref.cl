@@ -172,7 +172,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
             val += zp;
 #endif
 #if IS_F8
-            BLOCK_WRITEN(OUTPUT_TYPE, 8, output + out_offset + x * 8, 0, TO_OUTPUT_VEC_TYPE_CUSTOM(val));
+            vstore8(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (char*)(&output[out_offset + x * 8]));
 #else
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) ival = TO_OUTPUT_VEC_TYPE_RTE(val);
             vstore8(ival, 0, output + out_offset + x * 8);
