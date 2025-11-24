@@ -78,11 +78,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
 #if IS_F8
         quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale);
-        // BLOCK_WRITEN(OUTPUT_TYPE, 4, output, output_offset + i * 4, quantized_value[i]);
-        output[output_offset + i * 4] = AS_OUTPUT_TYPE(quantized_value[i].data[0]);
-        output[output_offset + i * 4 + 1] = AS_OUTPUT_TYPE(quantized_value[i].data[1]);
-        output[output_offset + i * 4 + 2] = AS_OUTPUT_TYPE(quantized_value[i].data[2]);
-        output[output_offset + i * 4 + 3] = AS_OUTPUT_TYPE(quantized_value[i].data[3]);
+        vstore4(quantized_value[i].data, 0, (char*)(&output[output_offset + i * 4]));
 #else
         quantized_value[i] = convert_char4(input_0[i] * (half4)quan_scale);
         vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
@@ -194,9 +190,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #else // ASYMMETRIC_QUANTIZATION
 #if IS_F8
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
-    // BLOCK_WRITEN(OUTPUT_TYPE, VEC_SIZE, output + output_offset + (local_id * block_size), 0, out);
-    for (uint i = 0; i < VEC_SIZE; ++i)
-        output[output_offset + (local_id * block_size) + i] = AS_OUTPUT_TYPE(out.data[j]);
+    VSTORE_N(out.data, 0, (char*)(&output[output_offset + (local_id * block_size)]));
 #else // IS_F8
     VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
 #endif // IS_F8
@@ -317,10 +311,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #else // ASYMMETRIC_QUANTIZATION
 #if IS_F8
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val[i]);
-        // VSTORE_N(AS_TYPE_N(char, VEC_SIZE, out), 0, (char*)output + offset + ((local_id * iteration + i) * block_size));
-        // BLOCK_WRITEN(OUTPUT_TYPE, VEC_SIZE, output + offset + ((local_id * iteration + i) * block_size), 0, out);
-        for (uint j = 0; j < VEC_SIZE; ++j)
-            output[offset + ((local_id * iteration + i) * block_size) + j] = AS_OUTPUT_TYPE(out.data[j]);
+        VSTORE_N(out.data, 0, (char*)(&output[offset + ((local_id * iteration + i) * block_size)]));
 #else // IS_F8
         VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
 #endif // IS_F8
