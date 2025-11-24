@@ -140,12 +140,16 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
             graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
             networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
             networkMeta.name = model->get_friendly_name();
+        } catch (const std::exception& ex) {
+            _logger.info("Failed to use the level zero graph handle: %s. Inference requests for this model are not "
+                         "allowed. Only exports are available",
+                         ex.what());
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
         }
     } else {
-        _logger.warning("no zeGraphExt, metadata is empty from vcl compiler");
+        _logger.warning("No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
     }
 
     return std::make_shared<Graph>(

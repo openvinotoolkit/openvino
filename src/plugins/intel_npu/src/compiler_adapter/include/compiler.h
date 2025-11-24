@@ -1,6 +1,5 @@
-//
-// Copyright (C) 2023 Intel Corporation.
-// SPDX-License-Identifier: Apache 2.0
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #ifndef VPUX_COMPILER_L0_H

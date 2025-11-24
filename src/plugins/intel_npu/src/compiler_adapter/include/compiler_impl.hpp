@@ -23,7 +23,7 @@ public:
     ~VCLCompilerImpl() override;
 
     static std::shared_ptr<VCLCompilerImpl> getInstance() {
-        static std::shared_ptr<VCLCompilerImpl> compiler = std::make_shared<VCLCompilerImpl>();
+        static std::weak_ptr<VCLCompilerImpl> compiler = std::make_shared<VCLCompilerImpl>();
         return compiler;
     }
 
