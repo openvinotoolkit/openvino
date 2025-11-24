@@ -46,6 +46,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
+using namespace ov::pass::pattern;
 using namespace ov::op;
 
 ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {}
