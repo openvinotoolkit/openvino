@@ -127,8 +127,7 @@ void ov::util::PagedCacheManager::compute_operator_cache_geometry(operator_state
         if (!m_key_head_size) {
             m_key_head_size = key_head_size;
         } else {
-            OPENVINO_THROW(
-                "PagedCacheManager: All PagedAttention nodes must have the same number of key cache heads.");
+            OPENVINO_THROW("PagedCacheManager: All PagedAttention nodes must have the same number of key cache heads.");
         }
     }
 
