@@ -160,11 +160,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHABF16_4D,
                          MHA,
                          ::testing::Combine(::testing::ValuesIn(transposedShape_4D()),
                                             ::testing::ValuesIn(precision_bf16_if_supported(4)),
-                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::element::bf16),
                                             ::testing::Values(false),
                                             ::testing::Values(MHA::default_thread_count),
-                                            ::testing::Values(8),  // decomposed Transpose + MHA + 5 Converts + 1 Transpose on output
-                                            ::testing::Values(6),  // MHA + 5 Converts on inputs and output
+                                            ::testing::Values(3),  // decomposed Transpose + MHA + 1 Transpose on output
+                                            ::testing::Values(2),  // decomposed Transpose + MHA
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHA::getTestCaseName);
@@ -178,6 +178,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAEnforceBF16,
                                             ::testing::Values(MHA::default_thread_count),
                                             ::testing::Values(8),  // decomposed Transpose + MHA + 5 Converts + 1 Transpose on output
                                             ::testing::Values(6),  // MHA + 5 Reorders on inputs and output
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(CPUTestUtils::cpu_bf16_plugin_config)),
+                         MHA::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAEnforceBF16_f32_in_prc,
+                         MHA,
+                         ::testing::Combine(::testing::ValuesIn(transposedShape_4D()),
+                                            ::testing::ValuesIn(precision_f32(4)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::ValuesIn({false}),
+                                            ::testing::Values(MHA::default_thread_count),
+                                            ::testing::Values(3),  // decomposed Transpose + MHA + 1 Transpose on output
+                                            ::testing::Values(2),  // decomposed Transpose + MHA
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::cpu_bf16_plugin_config)),
                          MHA::getTestCaseName);
