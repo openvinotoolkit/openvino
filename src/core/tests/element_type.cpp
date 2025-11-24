@@ -27,63 +27,93 @@ TEST(element_type, from) {
     EXPECT_EQ(element::from<std::string>(), element::string);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+static const std::vector<std::pair<const char*, element::Type>> elementTypeCases = {
+    {"boolean",        element::boolean},
+    {"BOOL",           element::boolean},
+    {"bf16",           element::bf16},
+    {"BF16",           element::bf16},
+    {"f16",            element::f16},
+    {"FP16",           element::f16},
+    {"f32",            element::f32},
+    {"FP32",           element::f32},
+    {"f64",            element::f64},
+    {"FP64",           element::f64},
+    {"i4",             element::i4},
+    {"I4",             element::i4},
+    {"i8",             element::i8},
+    {"I8",             element::i8},
+    {"i16",            element::i16},
+    {"I16",            element::i16},
+    {"i32",            element::i32},
+    {"I32",            element::i32},
+    {"i64",            element::i64},
+    {"I64",            element::i64},
+    {"bin",            element::u1},
+    {"BIN",            element::u1},
+    {"u1",             element::u1},
+    {"U1",             element::u1},
+    {"u4",             element::u4},
+    {"U4",             element::u4},
+    {"u8",             element::u8},
+    {"U8",             element::u8},
+    {"u16",            element::u16},
+    {"U16",            element::u16},
+    {"u32",            element::u32},
+    {"U32",            element::u32},
+    {"u64",            element::u64},
+    {"U64",            element::u64},
+    {"nf4",            element::nf4},
+    {"NF4",            element::nf4},
+    {"f8e4m3",         element::f8e4m3},
+    {"F8E4M3",         element::f8e4m3},
+    {"f8e5m2",         element::f8e5m2},
+    {"F8E5M2",         element::f8e5m2},
+    {"string",         element::string},
+    {"STRING",         element::string},
+    {"f4e2m1",         element::f4e2m1},
+    {"F4E2M1",         element::f4e2m1},
+    {"f8e8m0",         element::f8e8m0},
+    {"F8E8M0",         element::f8e8m0},
+    {"undefined",      element::undefined},
+    {"UNSPECIFIED",    element::undefined},
+    {"dynamic",        element::dynamic}
+};
+OPENVINO_SUPPRESS_DEPRECATED_END
+
+static const std::vector<const char*> elementTypeCasesInvalid = {
+    "some_string",
+    "",
+    "???",
+    "12345",
+    "not_a_type",
+    "throw_exception"
+};
+
 TEST(element_type, from_string) {
-    EXPECT_EQ(element::Type("boolean"), element::boolean);
-    EXPECT_EQ(element::Type("BOOL"), element::boolean);
+    for (const auto& [str, expected] : elementTypeCases) {
+    	EXPECT_EQ(element::Type(str), expected);
+    }
 
-    EXPECT_EQ(element::Type("bf16"), element::bf16);
-    EXPECT_EQ(element::Type("BF16"), element::bf16);
-    EXPECT_EQ(element::Type("f16"), element::f16);
-    EXPECT_EQ(element::Type("FP16"), element::f16);
-    EXPECT_EQ(element::Type("f32"), element::f32);
-    EXPECT_EQ(element::Type("FP32"), element::f32);
-    EXPECT_EQ(element::Type("f64"), element::f64);
-    EXPECT_EQ(element::Type("FP64"), element::f64);
+    for (const auto& str: elementTypeCasesInvalid) {
+        EXPECT_THROW({auto t = element::Type(str);(void)t;}, ov::Exception);
+    }
+}
 
-    EXPECT_EQ(element::Type("i4"), element::i4);
-    EXPECT_EQ(element::Type("I4"), element::i4);
-    EXPECT_EQ(element::Type("i8"), element::i8);
-    EXPECT_EQ(element::Type("I8"), element::i8);
-    EXPECT_EQ(element::Type("i16"), element::i16);
-    EXPECT_EQ(element::Type("I16"), element::i16);
-    EXPECT_EQ(element::Type("i32"), element::i32);
-    EXPECT_EQ(element::Type("I32"), element::i32);
-    EXPECT_EQ(element::Type("i64"), element::i64);
-    EXPECT_EQ(element::Type("I64"), element::i64);
+TEST(element_type, from_istringstream) {
+    for (const auto& [str, expected] : elementTypeCases) {
+        std::istringstream ss(str);
+        element::Type t;
+        ss >> t;
+        EXPECT_FALSE(ss.fail());
+        EXPECT_EQ(t, expected);
+    }
 
-    EXPECT_EQ(element::Type("bin"), element::u1);
-    EXPECT_EQ(element::Type("BIN"), element::u1);
-    EXPECT_EQ(element::Type("u1"), element::u1);
-    EXPECT_EQ(element::Type("U1"), element::u1);
-    EXPECT_EQ(element::Type("u4"), element::u4);
-    EXPECT_EQ(element::Type("U4"), element::u4);
-    EXPECT_EQ(element::Type("u8"), element::u8);
-    EXPECT_EQ(element::Type("U8"), element::u8);
-    EXPECT_EQ(element::Type("u16"), element::u16);
-    EXPECT_EQ(element::Type("U16"), element::u16);
-    EXPECT_EQ(element::Type("u32"), element::u32);
-    EXPECT_EQ(element::Type("U32"), element::u32);
-    EXPECT_EQ(element::Type("u64"), element::u64);
-    EXPECT_EQ(element::Type("U64"), element::u64);
-    EXPECT_EQ(element::Type("nf4"), element::nf4);
-    EXPECT_EQ(element::Type("NF4"), element::nf4);
-    EXPECT_EQ(element::Type("f8e4m3"), element::f8e4m3);
-    EXPECT_EQ(element::Type("F8E4M3"), element::f8e4m3);
-    EXPECT_EQ(element::Type("f8e5m2"), element::f8e5m2);
-    EXPECT_EQ(element::Type("F8E5M2"), element::f8e5m2);
-    EXPECT_EQ(element::Type("string"), element::string);
-    EXPECT_EQ(element::Type("STRING"), element::string);
-    EXPECT_EQ(element::Type("f4e2m1"), element::f4e2m1);
-    EXPECT_EQ(element::Type("F4E2M1"), element::f4e2m1);
-    EXPECT_EQ(element::Type("f8e8m0"), element::f8e8m0);
-    EXPECT_EQ(element::Type("F8E8M0"), element::f8e8m0);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    EXPECT_EQ(element::Type("undefined"), element::undefined);
-    EXPECT_EQ(element::Type("UNSPECIFIED"), element::undefined);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    EXPECT_EQ(element::Type("dynamic"), element::dynamic);
-
-    EXPECT_THROW(element::Type("some_string"), ov::Exception);
+    for (const auto& str: elementTypeCasesInvalid) {
+        std::istringstream ss(str);
+        element::Type t;
+        EXPECT_THROW(ss >> t, ov::Exception);
+    }
 }
 
 TEST(element_type, mapable) {
