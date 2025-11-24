@@ -119,7 +119,8 @@ ov::pass::ConvertConvolutionToMatMul::ConvertConvolutionToMatMul() {
         auto final_node = std::make_shared<ov::op::v1::Transpose>(matmul, output_transpose_const);
 
         final_node->set_friendly_name(conv_node->get_friendly_name());
-        ov::copy_runtime_info(conv_node, {transpose_input, matmul, final_node});
+        ov::copy_runtime_info(conv_node,
+                              {reshape_weights_pattern, reshape_weights, transpose_input, matmul, final_node});
         ov::replace_node(conv_node, final_node);
 
         return true;
