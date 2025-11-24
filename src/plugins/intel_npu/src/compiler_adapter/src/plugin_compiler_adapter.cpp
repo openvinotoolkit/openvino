@@ -197,6 +197,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
         mainNetworkDescription = initMainNetworkDescriptions.back();
         initMainNetworkDescriptions.pop_back();
+        OPENVINO_ASSERT(initMainNetworkDescriptions.size() > 0,
+                        "The initMainNetworkDescriptions after getting mainNetworkDescription must not be empty!");
         initNetworkDescriptions = std::move(initMainNetworkDescriptions);
 
         tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
