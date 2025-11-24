@@ -776,7 +776,7 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
                               device.c_str(),
                               is_blob_file_exist ? "found" : "not found",
-                              cached_model_path.string().c_str());
+                              ov::util::path_to_string(cached_model_path).c_str());
             }
 
             if (enable_startup_cpu && num_blob_files) {
