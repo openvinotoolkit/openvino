@@ -110,7 +110,14 @@ protected:
                                        // reset to 0 before every new execution
     };
     // FROM(Every subrequests' output port) TO(Its output tensor)
-    std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
+    // mutable due to lazy I/O allocation in get_tensor()
+    mutable std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
+
+    // FIXME: need to lock internal storages (e.g. accessed within get_tensor())
+    mutable std::mutex m_io_storages_mutex;
+
+    // Check that m_port_to_tensor does have a tensor stored at the port
+    bool is_stored(const ov::Output<const ov::Node>& port) const;
 
     struct QuantGatherTensors {
         ov::Tensor w, z, s;
@@ -161,15 +168,15 @@ protected:
     std::vector<GlobalIO> m_subrequests_gio;
 
     // Tracks tensors we allocated on our own - to recognize and avoid copies
-    std::unordered_set<void*> m_input_allocated;
+    mutable std::unordered_set<void*> m_input_allocated;  // mutable due to lazy I/O allocation in get_tensor()
 
     // Common functionality - shared for subclasses
     const std::size_t m_num_submodels;
 
-    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
-    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device);
-    virtual void alloc_io();
-    virtual TensorPtr alloc_global_out(std::size_t out_idx);
+    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device) const;
+    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device) const;
+    virtual void alloc_quant_gather();
+    virtual TensorPtr alloc_global_out(std::size_t out_idx) const;
 
     std::string global_input_mem_device(std::size_t idx) const;
     std::string global_output_mem_device(std::size_t idx) const;
@@ -193,7 +200,7 @@ protected:
 
     MS m_ms_unpack;
     ov::npuw::perf::Profile<MS> m_profile;
-    ov::npuw::perf::Profile<B> m_footprint;
+    mutable ov::npuw::perf::Profile<B> m_footprint;  // mutable due to lazy I/O allocation in get_tensor()
 
     std::string profile_tag(std::size_t idx) const;
 
