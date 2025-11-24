@@ -283,7 +283,7 @@ TEST_P(sdpa_gpu_test, basic_caching) {
 }
 #endif
 
-TEST(sdpa_gpu_custom, mask_single_valid_rest_inf) {
+TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {
     tests::random_generator rg; rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
