@@ -667,7 +667,6 @@ int main(int argc, char* argv[]) {
             auto compile_model_mem_start = get_peak_memory_usage();
             auto startTime = Time::now();
             compiledModel = core.compile_model(FLAGS_m, device_name, device_config);
-            reload_compiled_model_from_cache(compiledModel);
             auto duration_ms = get_duration_ms_till_now(startTime);
             auto compile_model_mem_end = get_peak_memory_usage();
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
@@ -679,6 +678,8 @@ int main(int argc, char* argv[]) {
 
             slog::info << "Original model I/O parameters:" << slog::endl;
             printInputAndOutputsInfoShort(compiledModel);
+
+            reload_compiled_model_from_cache(compiledModel);
 
             if (statistics)
                 statistics->add_parameters(
@@ -858,7 +859,6 @@ int main(int argc, char* argv[]) {
             auto compile_model_mem_start = get_peak_memory_usage();
             startTime = Time::now();
             compiledModel = core.compile_model(model, device_name, device_config);
-            reload_compiled_model_from_cache(compiledModel);
             duration_ms = get_duration_ms_till_now(startTime);
             auto compile_model_mem_end = get_peak_memory_usage();
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
@@ -867,6 +867,8 @@ int main(int argc, char* argv[]) {
             slog::info << "End of compilation memory usage: Peak " << compile_model_mem_end << " KB" << slog::endl;
             slog::info << "Compile model ram used " << compile_model_mem_end - compile_model_mem_start << " KB"
                        << slog::endl;
+
+            reload_compiled_model_from_cache(compiledModel);
 
             if (statistics)
                 statistics->add_parameters(
