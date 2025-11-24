@@ -16,7 +16,7 @@ OpenVINO Release Notes
 
 
 
-2025.3 - 3 September 2025
+2025.4 -  2025
 #############################################################################################
 
 :doc:`System Requirements <./release-notes-openvino/system-requirements>` | :doc:`Release policy <./release-notes-openvino/release-policy>` | :doc:`Installation Guides <./../get-started/install-openvino>`
@@ -27,24 +27,35 @@ What's new
 
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
-  * New models supported: Phi-4-mini-reasoning, AFM-4.5B, Gemma-3-1B-it, Gemma-3-4B-it, and Gemma-3-12B.
-  * NPU support added for: Qwen3-1.7B, Qwen3-4B, and Qwen3-8B.
-  * LLMs optimized for NPU now available on `OpenVINO Hugging Face collection <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__.
-  * Preview: Intel® Core™ Ultra Processor and Windows-based AI PCs can now leverage the OpenVINO™ Execution Provider for Windows* ML for high-performance, off-the-shelf starting experience on Windows*.
-
+  * New models supported:
+  
+    * On CPUs & GPUs: Qwen3-Embedding-0.6B, Qwen3-Reranker-0.6B, Mistral-Small-24B-Instruct-2501.
+    * On NPUs: Gemma-3-4b-it.
+  
+  * Preview: Mixture of Experts (MoE) models optimized for CPUs and GPUs, validated for Qwen3-30B-A3B.
+  * GenAI pipeline integrations: Qwen3-Embedding-0.6B and Qwen3-Reranker-0.6B for enhanced retrieval/ranking, and Qwen2.5VL-7B for video pipeline. 
+ 
 * Broader LLM model support and more model compression optimization technique
 
-  * The NPU plug-in adds support for longer contexts of up to 8K tokens, dynamic prompts, and dynamic LoRA for improved LLM performance.
-  * The NPU plug-in now supports dynamic batch sizes by reshaping the model to a batch size of 1 and concurrently managing multiple inference requests, enhancing performance and optimizing memory utilization.
-  * Accuracy improvements for GenAI models on both built-in and discrete graphics achieved through the implementation of the key cache compression per channel technique, in addition to the existing KV cache per-token compression method.
-  * OpenVINO™ GenAI introduces TextRerankPipeline for improved retrieval relevance and RAG pipeline accuracy, plus Structured Output for enhanced response reliability and function calling while ensuring adherence to predefined formats.
+  * Gold support for Windows ML* enables developers to deploy AI models and applications effortlessly across CPUs, GPUs, and NPUs on Intel® Core™ Ultra processor-powered AI PCs.
+  * The Neural Network Compression Framework (NNCF) ONNX backend now supports INT8 static post-training quantization (PTQ) and INT8/INT4 weight-only compression to ensure accuracy parity with OpenVINO IR format models. 
+    SmoothQuant algorithm support added for INT8 quantization. 
+  * Accelerated multi-token generation for GenAI, leveraging optimized GPU kernels to deliver faster inference, smarter KV-cache reuse, and scalable LLM performance.  
+  * GPU plugin updates include improved performance with prefix caching for chat history scenarios and enhanced LLM accuracy with dynamic quantization support for INT8. 
 
 * More portability and performance to run AI at the edge, in the cloud or locally
 
-  * Announcing support for Intel® Arc™ Pro B-Series (B50 and B60).
-  * Preview: Hugging Face models that are GGUF-enabled for OpenVINO GenAI are now supported by the OpenVINO™ Model Server for popular LLM model architectures such as DeepSeek Distill, Qwen2, Qwen2.5, and Llama 3. This functionality reduces memory footprint and simplifies integration for GenAI workloads. 
-  * With improved reliability and tool call accuracy, the OpenVINO™ Model Server boosts support for agentic AI use cases on AI PCs, while enhancing performance on Intel CPUs, built-in GPUs, and NPUs.
-  * int4 data-aware weights compression, now supported in the Neural Network Compression Framework (NNCF) for ONNX models, reduces memory footprint while maintaining accuracy and enables efficient deployment in resource-constrained environments. 
+  * Announcing support for Intel® Core™ Ultra Processor Series 3 (formerly codenamed Panther Lake).
+  * Encrypted blob format support added for secure model deployment with OpenVINO™ GenAI and 
+    OpenVINO™ Model Server (OVMS). Model weights and artifacts are stored and transmitted in an encrypted format, reducing risks of IP theft during deployment.
+    Developers can deploy with minimal code changes using OpenVINO GenAI pipelines or enable encryption through OVMS configuration. 
+  * OpenVINO™ Model Server now extends support for Agentic AI scenarios to client architectures 
+    with new features such as output parsing and improved chat templates for reliable multi-turn interactions, 
+	 plus preview functionality for audio endpoints and Qwen3-30B-A3B model. 
+  * NPU deployment is simplified with batch support, enabling seamless model execution across 
+    Intel® Core™ Ultra processors while eliminating driver dependencies. Models are reshaped 
+	 to batch_size=1 before compilation. The improved NVIDIA Triton Server* integration with 
+	 OpenVINO backend now enables developers to utilize Intel GPUs or NPUs for deployment. 
 
 OpenVINO™ Runtime
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -52,194 +63,135 @@ OpenVINO™ Runtime
 Common
 ---------------------------------------------------------------------------------------------
 
-* Public API has been added to set and reset the log message handling callback.
-  It allows injecting an external log handler to read OpenVINO messages in the user's infrastructure,
-  rather than from log files left by OpenVINO.
-* Build-time optimizations have been introduced to improve developer experience in project compilation.
-* Ability to import a precompiled model from an `ov::Tensor` has been added. Using `ov::Tensor`, 
-  which also supports memory-mapped files, to store precompiled models benefits both the OpenVINO 
-  caching mechanism and applications using `core.import_model()`. 
-* Several fixes for conversion between different precisions, such as u2 and f32->f4e2,1, 
-  have been implemented to improve compatibility with quantized models. 
-* Support for negative indices in GatherElements and GatherND operators has been added to 
-  ensure compliance with ONNX standards. 
-* vLLM-OpenVINO integration now supports vLLM API v1. 
-
 CPU Device Plugin
 ---------------------------------------------------------------------------------------------
 
-* Sage Attention is now supported. This feature is turned on with the ``ENABLE_SAGE_ATTN`` property, 
-  providing a performance boost for 1st token generation in LLMs with long prompts, 
-  while maintaining accuracy. 
-* FP16 model performance on 6th generation Intel® Xeon® processors has been enhanced by improving 
-  utilization of the underlying AMX FP16 capabilities and graph-level optimizations.
+* BitNet model is supported and optimized on both Intel® Xeon® processors and Client processors 
+  for 2-bit weight compression support.
+* Qwen2/2.5-VL performance and memory footprint has been optimized with 3D Rotary Position Embedding fusion support.
+* FP16 model performance on Intel® Xeon® 6 processors with P-cores (codename Granite Rapids) 
+has been enhanced by improving utilization of the underlying AMX FP16 capabilities and graph-level optimizations.
+* Inference support for AI workloads is now available on Intel® Xeon® 6 processors with E-cores 
+  (codename Sierra Forest) for Windows 11 and Windows Server.
+
 
 GPU Device Plugin
 ---------------------------------------------------------------------------------------------
 
-* LLM accuracy has been improved with by-channel key cache compression. Default KV-cache compression 
-  has also been switched from by-token to by-channel compression.
-* Gemma3-4b and Qwen-VL VLM performance has been improved on XMX-supporting platforms. 
-* Basic functionalities for dynamic shape custom operations in GPU extension have been enabled. 
-* LoRA performance has been improved for systolic platforms. 
+* Per-group dynamic quantization is now supported and configurable, providing an alternative 
+  when accuracy is insufficient with the default per-token dynamic quantization.
+* Multiple primitives have been optimized for non-Gen AI models, improving performance of vision 
+  embedding models, RNN-based models, and models in the GeekBench AI benchmark tool.
+* Runtime memory footprint has been reduced for dynamic shape models.
+* 4.2 GB memory allocation limit has been removed, with large allocations now allowed using the ``GPU_ENABLE_LARGE_ALLOCATIONS`` property.
+* Querying of discrete and integrated GPUs upon plugin creation has been optimized, extending
+  battery life and reducing power consumption.
+* Qwen2/2.5-VL performance and memory footprint has been optimized with accelerating image processing 
+  on GPU and supporting 3D Rotary Position Embedding fusion.
+* XAttention (Block Sparse Attention with Antidiagonal Scoring) is now initially supported on Xe2 architecture to improve time-to-first-token.
 
 NPU Device Plugin
 ---------------------------------------------------------------------------------------------
 
-* Models compressed as NF4-FP16 are now enabled on NPU. This is the recommended precision 
-  for the following models: deepseek-r1-distill-qwen-7b, deepseek-r1-distill-qwen-14b, 
-  and qwen2-7b-instruct, providing a reasonable balance between accuracy and performance. 
-  This quantization is not supported on Intel® Core™ Ultra Series 1, where only symmetrically 
-  quantized channel-wise or group-wise INT4-FP16 models are supported.
-* Peak memory consumption of LLMs on NPU has been significantly reduced when using ahead-of-time compilation.
-* Optimizations for LLM vocabularies (LM Heads) compressed in INT8 asymmetric have been introduced, 
-  available with NPU driver 32.0.100.4181 or later. 
-* Accuracy of LLMs with RoPE on longer contexts has been improved. 
-* The NPU plug-in now supports dynamic batch sizes by reshaping the model to a batch size of 1 and concurrently managing multiple inference requests, enhancing performance and optimizing memory utilization. This requires driver 32.0.202.298 or later. 
-* The remote tensor interface has been extended to support tensor creation from files; recent NPU drivers now support memory-mapped inputs/outputs.
+* Sliding window mask support for Phi-3 on NPU has been fixed.
+* OpenVINO™ cached models are now memory-mapped and imported within the current Level Zero context, 
+  reducing peak memory consumption during imports by eliminating an additional in-memory copy of the compiled model.
+* Implicit I/O tensor import is now supported. A shadow-copy tensor is created only when the 
+  user-provided tensor address or size is not aligned to the 4K page size.
+* Batched models, including those with dynamic batch sizes, are now reshaped to ``batch_size = 1`` inside 
+  the NPU plugin before being passed to the driver for compilation. This enables deployment on 
+  Intel® Core™ Ultra 200V series processors drivers. Model execution remains unaffected, 
+  while NPU deployment is now simplified by removing the driver version dependency.
+* I/O layout information is now preserved after an export/import cycle. Information is stored inside the blob metadata.
+* Removed support for Windows driver v1477 for Intel® Core™ Ultra Processors (Series 1). This driver version should not be installed on these systems.
 
-OpenVINO Python API
+OpenVINO Python API.
 ---------------------------------------------------------------------------------------------
 
-* TensorVector binding has been enabled to avoid extra copies and speed up PostponedConstant usage. 
-* Support for building experimental free-threaded 3.13t Python API has been added; prebuilt 
-  wheels are not distributed yet.
-* Free-threaded Python performance has been improved. 
-* `set_rt_info()` method has been added to Node, Output, and Input to align with `Model.set_rt_info()`.
+* Python* 3.14 is now supported, including experimental free-threaded mode (3.14t) on Linux and 
+  macOS for improved parallel processing performance.
+* Extended Operator Support: added native support for OneHot-16 and AvgPool-16 operators in the Python 
+  API, reducing the need for custom implementations.
+* Fixed an issue where the ``PERFORMANCE_HINT`` property was not properly applied in ``benchmark_app`` 
+  when using custom configurations. Benchmark results now accurately reflect intended performance settings.
+* Precompiled model import from tensor: precompiled models can now be imported directly from ``ov.Tensor`` 
+  objects in Python, matching C++ API capabilities and enabling more flexible model deployment workflows.
+* Fixed an issue that prevented ``import_model()`` from working with large models on Windows. 
+  Models of any size can now be imported on all supported platforms.
+
+OpenVINO C API
+---------------------------------------------------------------------------------------------
+
+* Added log callback setup to C API: ``ov_util_set_log_callback`` and ``ov_util_reset_log_callback``.
 
 OpenVINO Node.js API
 ---------------------------------------------------------------------------------------------
 
-* AsyncInferQueue class has been added to support easier implementation of asynchronous inference. 
-  The change comes with a benchmark tool to evaluate performance.
-* `Model.reshape` method has been exposed, including type conversion ability and type validation helpers, useful for reshaping LLMs.
-* Support for ov-node types in TypeScript part of bindings has been extended, enabling  direct integration with the JavaScript API. 
-* Wrapping of `compileModel()` method has been fixed to allow checking type of returned objects.  
-* The version of LLMPipeline.generate() that returns strings is now deprecated. 
-  Starting with 2026.0.0 LLMPipeline.generate() will return DecodedResults by default.
-  To use the new behavior with current release, set ``["return_decoded_results": true]`` in GenerationConfig.
+* ``Tensor.setShape`` has been added to Node.js API, enabling in-place tensor shape updates from JavaScript/TypeScript 
+  without recreating the tensor object. This is useful for dynamic input sizes and batched inference workflows.
+* Full 64‑bit integer (BigInt64/Uint64) support is added for tensors and inference I/O, enabling models 
+  and pipelines that require 64‑bit index/ID types or high‑range counters.
 
 
 PyTorch Framework Support 
 ---------------------------------------------------------------------------------------------
 
-* Tensor concatenation inside loops is now supported, enabling the Paraformer model family.
+* Improved support for the padding operations family by adding new operations 
+  (``aten::reflection_padnd`` and ``aten::replication_padnd``) and resolving issues in existing implementations.
+* Added complex data type support for ``aten::unsqueeze`` and ``aten::cat`` operations.
+* Resolved an issue in ``aten::index`` operation with applying boolean masks on specified axes. 
+
+
+ONNX Framework Support 
+---------------------------------------------------------------------------------------------
+
+* Added initial support for sequence data types, starting with the implementation of ``SequenceAt`` and ``SplitToSequence`` operations.
+* Resolved incorrect output shape calculation in the ``ConvTranspose`` operation when using automatic padding (``auto_pad``). 
+* Fixed ``LayerNormalization`` operation to properly handle scale and bias inputs with flattened 
+  shapes by automatically reshaping them to match the input tensor dimensions. 
+* Fixed a regression that caused FP16 model conversion failures due to node not found errors. 
+
 
 OpenVINO™ Model Server
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Major new features:
+* Agentic use case improvements:
   
-  * Tool-guided generation has been implemented with the `enable_tool_guided_generation` parameter and
-    `–tool_parser` option to enable model-specific XGrammar configuration for following expected response syntax. It uses dynamic rules based on the generated sequence, increasing model accuracy and minimizing invalid response formats for tools.
-  * Tool parser has been added for Mistral-7B-Instruct-v0.3, extending the list of supported 
-    models with tool handling.
-  * Stream response has been implemented for Qwen3, Hermes3 and Llama3 models, enabling more interactive use with tools.
-  * BREAKING CHANGE: Separation of tool parser and reasoning parser has been implemented. Instead of the `response_parser` parameter, use separate parameters: `tool_parser` and `reasoning_parser`, allowing more flexible implementation and configuration on the server. Parsers can now be shared independently between models. Currently, Qwen3 is the only reasoning parser implemented. 
-  * Reading of the chat template has been changed from `template.jinja` to `chat_template.jinja` if the chat template is not included in `tokenizer_config.json`.
-  * Structured output is now supported with the addition of JSON schema-guided generation using the OpenAI `response_format` field. This parameter enables generation of JSON responses for automation purposes and improvements in response accuracy. See `Structured response in LLM models <https://docs.openvino.ai/2025/model-server/ovms_structured_output.html>`__ article for more details. A script testing the accuracy gain is also included.
-  * Enforcement of tool call generation has been implemented using the `tool_call=required` in chat/completions field. This feature forces the model to generate at least one tool response, increasing response reliability while not guaranteeing response validity.
-  * `MCP server demo <https://docs.openvino.ai/2025/model-server/ovms_demos_continuous_batching_agent.html>`__ has been updated to include available features.
+  * Enabled tool parsers for the new models Qwen3-Coder-30B and Qwen3-30B-A3B-Instruct.
+    These models are supported in OpenVINO Runtime as a preview feature and can be evaluated with tool-calling capabilities. Limitations are TBD.
+  * Added streaming with tool-calling for phi-4-mini-instruct and mistral-7B-v0.4 models.
+  * Improved tool parsers for Mistral and Hermes, resolving multiple issues related to complex generated JSON objects and increasing overall response reliability.
+  * Guided generation now supports all rules from XGrammar integration. The `response_format` parameter
+    can now accept `XGrammar structural tags format <https://github.com/mlc-ai/xgrammar/blob/main/docs/tutorials/structural_tag.md#format-types>`__
+	 (not part of the OpenAI API). Example: `{ "type": "const_string", "value": "Hello World!" }`.
 
-* New models and use cases supported:
-   
-  * Qwen3-embedding and cross-encoders embedding models,
-  * Qwen3-reranker,
-  * Gemma3 VLM models.
+* Updates and added demos:
   
+  * Integration with OpenWebU
+  * Integration with Visual Studio Code using the Continue extensio
+  * Agentic client demo
+  * Audio endpoints https://docs.openvino.ai/nightly/model-server/ovms_demos_audio.html
+  * Windows service usage
+  * GGUF model pulling
+
 * Deployment improvements:
   
-  * Progress bar display has been implemented for model downloads from Hugging Face. For models from the OpenVINO organization, download status is now shown in the logs.
-  * `Documentation <https://github.com/openvinotoolkit/model_server/blob/main/docs/pull_optimum_cli.md>`__  on how to build a docker image with optimum-cli is now available, enabling the image to pull any model from Hugging Face and convert it to IR online in one step.
-  * Models endpoint for OpenAI has been implemented, returning a list of available models in the expected OpenAI JSON schema for easier integration with existing applications.
-  * The package size has been reduced by removing git and gitlfs dependencies, reducing the image by ~15MB. Model files are now pulled from Hugging Face using libgit2 and curl libraries.
-  * UTF-8 chat template is now supported out of the box, no additional installation steps on Windows required.
-  * Preview functionality for GGUF models has been added for LLM architectures including Qwen2, Qwen2.5, and Llama3. Models can now be deployed directly from HuggingFace Hub by passing `model_id` and file name. Note that accuracy and performance may be lower than with IR format models.
-* Bug fixes:
-  
-  * Truncation of prompts exceeding model length in embeddings has been implemented. 
+  * Integration with OpenWebU
 
 Neural Network Compression Framework
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* 4-bit data-aware Scale Estimation and AWQ compression methods have been introduced for ONNX 
-  models, providing more accurate compression results.
-* NF4 data type is now supported as an FP8 look-up table for faster inference. 
-* New parameter has been added to support a fallback group size in 4-bit weight compression 
-  methods. This helps when the specified group size can not be applied, for example,
-  in models with an unusual number of channels in matrix multiplication (matmuls). When enabled with 
-  `nncf.AdvancedCompressionParameters(group_size_fallback_mode=ADJUST)`, NNCF automatically 
-  adjusts the group size. By default, `nncf.AdvancedCompressionParameters(group_size_fallback_mode=IGNORE)` 
-  is used, meaning that NNCF will not compress nodes when the specified group size can not be applied. 
-* Initialization for 4-bit QAT with absorbable LoRA has been enhanced using advanced compression methods 
-  (AWQ + Scale Estimation). This replaces the previous basic data-free compression 
-  approach, enabling QAT to start with a more accurate model baseline and achieve better final accuracy.
-* External quantizers in the `quantize_pt2e` API have been enabled, including `XNNPACKQuantizer  <https://docs.pytorch.org/executorch/stable/backends-xnnpack.html>`__
-  and `CoreMLQuantizer <https://docs.pytorch.org/executorch/stable/backends-coreml.html>`__.
-* PyTorch 2.8 is now supported. 
+* 
 
 OpenVINO Tokenizers
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* OpenVINO GenAI integration: 
-
-  * Padding side can now be set dynamically during runtime.
-  * Tokenizer loading now supports a second input for relevant GenAI pipelines, for example TextRerankPipeline.
-
-* Two inputs are now supported to accommodate a wider range of tokenizer types. 
+* 
 
 OpenVINO GenAI
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* New OpenVINO GenAI docs homepage: https://openvinotoolkit.github.io/openvino.genai/
-* Transitioned from Jinja2Cpp to Minja, improving chat_template coverage support.
-* Cache eviction algorithms added:
-
-  * KVCrush algorithm
-  * Sparse attention prefill
-
-* Support for Structured Output for flexible and efficient structured generation with XGrammar:
-
-  * C++ and Python samples
-  * Constraint sampling with Regex, JSONSchema, EBNF Grammar and Structural tags
-  * Compound grammar to combine multiple grammar types (Regex, JSONSchema, EBNF) using Union (|) and Concat (+) operations for more flexible and complex output constraints.
-
-* GGUF 
-
-  * Qwen3 architecture is now supported 
-  * `enable_save_ov_model` property to serialize generated ov::Model as IR for faster 
-    LLMPipeline construction next time 
-
-* LoRA  
-
-  * Dynamic LoRA for NPU has been enabled.
-  * Model weights can now be overridden from .safetensors 
-
-* Tokenizer
-
-  * `padding_side property` has been added to specify padding direction (left or right) 
-  * `add_second_input` property to transform Tokenizer from one input to two inputs, 
-    used for TextRerankPipeline
-
-* JavaScript bindings:
-
-  * New pipeline: TextEmbeddingPipeline 
-  * PerfMetrics for the LLMPipeline 
-  * Implemented getTokenizer into LLMPipeline
-
-* Other changes:
-
-  * C API for WhisperPipeline has been added 
-  * gemma3-4b-it model is now supported in VLM Pipeline
-  * Performance metrics for speculative decoding have been extended
-  * Qwen2-VL and Qwen2.5-VL have been optimized for GPU 
-  * Exporting stateful Whisper models is now supported on NPU out of the box, using `--disable-stateful` is no longer required.
-  
-* Dynamic prompts are now enabled by default on NPU: 
-  	  
-  * Longer contexts are available as preview feature on 32GB Intel® Core™ Ultra Series 2 (with prompt size up to 8..12K tokens). 
-  * The default chunk size is 1024 and can be controlled via property `NPUW_LLM_PREFILL_CHUNK_SIZE`. For example, set it to 256 to see the effect on shorter prompts. 
-  * `PREFILL_HINT` can be set to STATIC to bring back the old behavior.
+* 
 
 
 Other Changes and Known Issues
@@ -249,68 +201,235 @@ Other Changes and Known Issues
 Jupyter Notebooks
 -----------------------------
 
-* `FLUX.1-Kontext-dev  <https://openvinotoolkit.github.io/openvino_notebooks/?search=Image-to-image+generation+with+Flux.1+Kontext+and+OpenVINO>`__
-* `GLM-4.1V-9B-Thinking  <https://openvinotoolkit.github.io/openvino_notebooks/?search=GLM-4.1V-9B-Thinking>`__
-* `FLUX.1-Krea-dev  <https://openvinotoolkit.github.io/openvino_notebooks/?search=Image+generation+with+Flux.1+and+OpenVINO>`__
-* `MiniCPM-V-4  <https://openvinotoolkit.github.io/openvino_notebooks/?search=MiniCPM-V>`__
-* `qwen3-embedding  <https://openvinotoolkit.github.io/openvino_notebooks/?search=Text+Embedding+with+Qwen3+and+OpenVINO>`__
-* `qwen3-reranker  <https://openvinotoolkit.github.io/openvino_notebooks/?search=Text+Rerank+with+Qwen3+and+OpenVINO>`__
-* `ACE-Step  <https://openvinotoolkit.github.io/openvino_notebooks/?search=ACE+Step>`__
+* 
 
 
 Known Issues
 -----------------------------
 
-| **Component: NPU compiler**
-| ID: 169077
+| **Component: Placeholder**
+| ID: ####
 | Description:
-|   miniCPM3-4B model is inaccurate with OV 2025.3 and NPU driver 32.0.100.4239 (latest one available 
-    as of OV 2025.3 release). The accuracy will be improved with the next driver release.
-
-| **Component: NPU plugin**
-| ID: 171934
-| Description:
-|   Whisper model is not functional with transformer v.4.53. Recommended workaround is to use 
-|   transformers=4.52 and optimum-intel=1.25.2 for Whisper model conversion.
-
-| **Component: NPU plugin**
-| ID: 169074
-| Description:
-|   phi-4-multimodal-instruct is not functional on NPU. Planned to be fixed in future releases.
-
-| **Component: NPU plugin**
-| ID: 173053
-| Description:
-|   Transformers v4.53 introduce a performance regression for prompts smaller than 1K tokens. For optimal performance, it is recommended to use v4.51.
-
-| **Component: CPU, GPU plugins**
-| ID: 171208
-| Description:
-|   ChatGLM-3-6B is inaccurate on CPU and GPU.
-
-| **Component: GPU plugin**
-| ID: 172726
-| Description:
-|   Flux.1-schnell or Flux.1-dev model can functionally fail on Intel® Core™ Ultra Series 1. As a workaround, the model can be converted using OpenVINO 2025.2.
-
-| **Component: GPU plugin**
-| ID: 171017
-| Description:
-|   If `OV_GPU_DYNAMIC_QUANTIZATION_THRESHOLD` config is explicitly set to less than 64 on XMX-supporting platforms, functional failure can be observed with several GenAI models. 64 is the default value, and setting it to less than 64 is not normally recommended due to performance degradation.
-
-| **Component: CPU plugin**
-| ID: 172548
-| Description:
-|   Performance regression has been observed on Atom x7835RE with Ubuntu 22.04 OS. This is planned to be fixed in the next release.
-
-| **Component: CPU plugin**
-| ID: 172518
-| Description:
-|   Qwen2-VL-7b-instruct is inaccurate on with 4th and 6th Gen Intel® Xeon® Scalable processors. As a workaround, the model can be converted using OpenVINO 2025.2.
+|   Placeholder
 
 
 Previous 2025 releases
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+.. dropdown:: 2025.3 - 3 September 2025
+
+	**OpenVINO™ Runtime**
+
+	*Common*
+
+	* Public API has been added to set and reset the log message handling callback. It allows injecting an external log handler to read OpenVINO messages in the user's infrastructure, rather than from log files left by OpenVINO.
+	* Build-time optimizations have been introduced to improve developer experience in project compilation.
+	* Ability to import a precompiled model from an `ov::Tensor` has been added. Using `ov::Tensor`, which also supports memory-mapped files, to store precompiled models benefits both the OpenVINO caching mechanism and applications using `core.import_model()`. 
+	* Several fixes for conversion between different precisions, such as u2 and f32->f4e2,1, have been implemented to improve compatibility with quantized models. 
+	* Support for negative indices in GatherElements and GatherND operators has been added to ensure compliance with ONNX standards. 
+	* vLLM-OpenVINO integration now supports vLLM API v1. 
+
+	*CPU Device Plugin*
+	
+	* Sage Attention is now supported. This feature is turned on with the ``ENABLE_SAGE_ATTN`` property, providing a performance boost for 1st token generation in LLMs with long prompts, while maintaining accuracy. 
+    * FP16 model performance on 6th generation Intel® Xeon® processors has been enhanced by improving utilization of the underlying AMX FP16 capabilities and graph-level optimizations.
+	
+	*GPU Device Plugin*
+	
+	* LLM accuracy has been improved with by-channel key cache compression. Default KV-cache compression has also been switched from by-token to by-channel compression.
+    * Gemma3-4b and Qwen-VL VLM performance has been improved on XMX-supporting platforms. 
+    * Basic functionalities for dynamic shape custom operations in GPU extension have been enabled. 
+    * LoRA performance has been improved for systolic platforms. 
+
+	 
+	*NPU Device Plugin*
+
+	* Models compressed as NF4-FP16 are now enabled on NPU. This is the recommended precision for the following models: deepseek-r1-distill-qwen-7b, deepseek-r1-distill-qwen-14b, and qwen2-7b-instruct, providing a reasonable balance between accuracy and performance. This quantization is not supported on Intel® Core™ Ultra Series 1, where only symmetrically quantized channel-wise or group-wise INT4-FP16 models are supported.
+	* Peak memory consumption of LLMs on NPU has been significantly reduced when using ahead-of-time compilation.
+	* Optimizations for LLM vocabularies (LM Heads) compressed in INT8 asymmetric have been introduced, available with NPU driver 32.0.100.4181 or later. 
+	* Accuracy of LLMs with RoPE on longer contexts has been improved. 
+	* The NPU plug-in now supports dynamic batch sizes by reshaping the model to a batch size of 1 and concurrently managing multiple inference requests, enhancing performance and optimizing memory utilization. This requires driver 32.0.202.298 or later. 
+	* The remote tensor interface has been extended to support tensor creation from files; recent NPU drivers now support memory-mapped inputs/outputs.
+
+	*OpenVINO Python API*
+
+	* TensorVector binding has been enabled to avoid extra copies and speed up PostponedConstant usage. 
+	* Support for building experimental free-threaded 3.13t Python API has been added; prebuilt wheels are not distributed yet.
+	* Free-threaded Python performance has been improved. 
+	* `set_rt_info()` method has been added to Node, Output, and Input to align with `Model.set_rt_info()`.
+
+	*OpenVINO Node.js API*
+
+	* AsyncInferQueue class has been added to support easier implementation of asynchronous inference. The change comes with a benchmark tool to evaluate performance.
+	* `Model.reshape` method has been exposed, including type conversion ability and type validation helpers, useful for reshaping LLMs.
+	* Support for ov-node types in TypeScript part of bindings has been extended, enabling  direct integration with the JavaScript API. 
+	* Wrapping of `compileModel()` method has been fixed to allow checking type of returned objects.  
+	* The version of LLMPipeline.generate() that returns strings is now deprecated. Starting with 2026.0.0 LLMPipeline.generate() will return DecodedResults by default. To use the new behavior with current release, set ``["return_decoded_results": true]`` in GenerationConfig.
+	
+	*PyTorch Framework Support*
+
+	* Tensor concatenation inside loops is now supported, enabling the Paraformer model family.
+
+	**OpenVINO Model Server**
+
+	* Major new features:
+  
+		* Tool-guided generation has been implemented with the `enable_tool_guided_generation` parameter and `–tool_parser` option to enable model-specific XGrammar configuration for following expected response syntax. It uses dynamic rules based on the generated sequence, increasing model accuracy and minimizing invalid response formats for tools.
+		* Tool parser has been added for Mistral-7B-Instruct-v0.3, extending the list of supported models with tool handling.
+		* Stream response has been implemented for Qwen3, Hermes3 and Llama3 models, enabling more interactive use with tools.
+		* BREAKING CHANGE: Separation of tool parser and reasoning parser has been implemented. Instead of the `response_parser` parameter, use separate parameters: `tool_parser` and `reasoning_parser`, allowing more flexible implementation and configuration on the server. Parsers can now be shared independently between models. Currently, Qwen3 is the only reasoning parser implemented. 
+		* Reading of the chat template has been changed from `template.jinja` to `chat_template.jinja` if the chat template is not included in `tokenizer_config.json`.
+		* Structured output is now supported with the addition of JSON schema-guided generation using the OpenAI `response_format` field. This parameter enables generation of JSON responses for automation purposes and improvements in response accuracy. See `Structured response in LLM models <https://docs.openvino.ai/2025/model-server/ovms_structured_output.html>`__ article for more details. A script testing the accuracy gain is also included.
+		* Enforcement of tool call generation has been implemented using the `tool_call=required` in chat/completions field. This feature forces the model to generate at least one tool response, increasing response reliability while not guaranteeing response validity.
+		* `MCP server demo <https://docs.openvino.ai/2025/model-server/ovms_demos_continuous_batching_agent.html>`__ has been updated to include available features.
+
+	* New models and use cases supported:
+   
+		* Qwen3-embedding and cross-encoders embedding models,
+		* Qwen3-reranker,
+		* Gemma3 VLM models.
+  
+	* Deployment improvements:
+  
+		* Progress bar display has been implemented for model downloads from Hugging Face. For models from the OpenVINO organization, download status is now shown in the logs.
+		* `Documentation <https://github.com/openvinotoolkit/model_server/blob/main/docs/pull_optimum_cli.md>`__  on how to build a docker image with optimum-cli is now available, enabling the image to pull any model from Hugging Face and convert it to IR online in one step.
+		* Models endpoint for OpenAI has been implemented, returning a list of available models in the expected OpenAI JSON schema for easier integration with existing applications.
+		* The package size has been reduced by removing git and gitlfs dependencies, reducing the image by ~15MB. Model files are now pulled from Hugging Face using libgit2 and curl libraries.
+		* UTF-8 chat template is now supported out of the box, no additional installation steps on Windows required.
+		* Preview functionality for GGUF models has been added for LLM architectures including Qwen2, Qwen2.5, and Llama3. Models can now be deployed directly from HuggingFace Hub by passing `model_id` and file name. Note that accuracy and performance may be lower than with IR format models.
+	* Bug fixes:
+  
+		* Truncation of prompts exceeding model length in embeddings has been implemented.
+
+	**Neural Network Compression Framework**
+
+	* 4-bit data-aware Scale Estimation and AWQ compression methods have been introduced for ONNX models, providing more accurate compression results.
+	* NF4 data type is now supported as an FP8 look-up table for faster inference. 
+	* New parameter has been added to support a fallback group size in 4-bit weight compression methods. This helps when the specified group size can not be applied, for example, in models with an unusual number of channels in matrix multiplication (matmuls). When enabled with `nncf.AdvancedCompressionParameters(group_size_fallback_mode=ADJUST)`, NNCF automatically adjusts the group size. By default, `nncf.AdvancedCompressionParameters(group_size_fallback_mode=IGNORE)` is used, meaning that NNCF will not compress nodes when the specified group size can not be applied. 
+	* Initialization for 4-bit QAT with absorbable LoRA has been enhanced using advanced compression methods (AWQ + Scale Estimation). This replaces the previous basic data-free compression approach, enabling QAT to start with a more accurate model baseline and achieve better final accuracy.
+	* External quantizers in the `quantize_pt2e` API have been enabled, including `XNNPACKQuantizer  <https://docs.pytorch.org/executorch/stable/backends-xnnpack.html>`__ and `CoreMLQuantizer <https://docs.pytorch.org/executorch/stable/backends-coreml.html>`__.
+	* PyTorch 2.8 is now supported. 
+
+	**OpenVINO Tokenizers**
+
+	* OpenVINO GenAI integration: 
+
+		* Padding side can now be set dynamically during runtime.
+		* Tokenizer loading now supports a second input for relevant GenAI pipelines, for example TextRerankPipeline.
+
+	* Two inputs are now supported to accommodate a wider range of tokenizer types. 
+
+	**OpenVINO.GenAI**
+
+	* New OpenVINO GenAI docs homepage: https://openvinotoolkit.github.io/openvino.genai/
+	* Transitioned from Jinja2Cpp to Minja, improving chat_template coverage support.
+	* Cache eviction algorithms added:
+
+		* KVCrush algorithm
+		* Sparse attention prefill
+
+	* Support for Structured Output for flexible and efficient structured generation with XGrammar:
+
+		* C++ and Python samples
+		* Constraint sampling with Regex, JSONSchema, EBNF Grammar and Structural tags
+		* Compound grammar to combine multiple grammar types (Regex, JSONSchema, EBNF) using Union (|) and Concat (+) operations for more flexible and complex output constraints.
+
+	* GGUF 
+
+		* Qwen3 architecture is now supported 
+		* `enable_save_ov_model` property to serialize generated ov::Model as IR for faster LLMPipeline construction next time 
+
+	* LoRA  
+
+		* Dynamic LoRA for NPU has been enabled.
+		* Model weights can now be overridden from .safetensors 
+
+	* Tokenizer
+
+		* `padding_side property` has been added to specify padding direction (left or right) 
+		* `add_second_input` property to transform Tokenizer from one input to two inputs, used for TextRerankPipeline
+
+	* JavaScript bindings:
+
+		* New pipeline: TextEmbeddingPipeline 
+		* PerfMetrics for the LLMPipeline 
+		* Implemented getTokenizer into LLMPipeline
+
+	* Other changes:
+
+		* C API for WhisperPipeline has been added 
+		* gemma3-4b-it model is now supported in VLM Pipeline
+		* Performance metrics for speculative decoding have been extended
+		* Qwen2-VL and Qwen2.5-VL have been optimized for GPU 
+		* Exporting stateful Whisper models is now supported on NPU out of the box, using `--disable-stateful` is no longer required.
+  
+	* Dynamic prompts are now enabled by default on NPU: 
+  	  
+		* Longer contexts are available as preview feature on 32GB Intel® Core™ Ultra Series 2 (with prompt size up to 8..12K tokens). 
+		* The default chunk size is 1024 and can be controlled via property `NPUW_LLM_PREFILL_CHUNK_SIZE`. For example, set it to 256 to see the effect on shorter prompts. 
+		* `PREFILL_HINT` can be set to STATIC to bring back the old behavior. 
+
+	**Other Changes and Known Issues**
+
+	*Jupyter Notebooks*
+
+	* `FLUX.1-Kontext-dev  <https://openvinotoolkit.github.io/openvino_notebooks/?search=Image-to-image+generation+with+Flux.1+Kontext+and+OpenVINO>`__
+	* `GLM-4.1V-9B-Thinking  <https://openvinotoolkit.github.io/openvino_notebooks/?search=GLM-4.1V-9B-Thinking>`__
+	* `FLUX.1-Krea-dev  <https://openvinotoolkit.github.io/openvino_notebooks/?search=Image+generation+with+Flux.1+and+OpenVINO>`__
+	* `MiniCPM-V-4  <https://openvinotoolkit.github.io/openvino_notebooks/?search=MiniCPM-V>`__
+	* `qwen3-embedding  <https://openvinotoolkit.github.io/openvino_notebooks/?search=Text+Embedding+with+Qwen3+and+OpenVINO>`__
+	* `qwen3-reranker  <https://openvinotoolkit.github.io/openvino_notebooks/?search=Text+Rerank+with+Qwen3+and+OpenVINO>`__
+	* `ACE-Step  <https://openvinotoolkit.github.io/openvino_notebooks/?search=ACE+Step>`__
+
+
+	*Known Issues*
+	
+	| **Component: NPU compiler**
+	| ID: 169077
+	| Description:
+	|   miniCPM3-4B model is inaccurate with OV 2025.3 and NPU driver 32.0.100.4239 (latest one available 
+		as of OV 2025.3 release). The accuracy will be improved with the next driver release.
+
+	| **Component: NPU plugin**
+	| ID: 171934
+	| Description:
+	|   Whisper model is not functional with transformer v.4.53. Recommended workaround is to use 
+	|   transformers=4.52 and optimum-intel=1.25.2 for Whisper model conversion.
+
+	| **Component: NPU plugin**
+	| ID: 169074
+	| Description:
+	|   phi-4-multimodal-instruct is not functional on NPU. Planned to be fixed in future releases.
+
+	| **Component: NPU plugin**
+	| ID: 173053
+	| Description:
+	|   Transformers v4.53 introduce a performance regression for prompts smaller than 1K tokens. For optimal performance, it is recommended to use v4.51.
+
+	| **Component: CPU, GPU plugins**
+	| ID: 171208
+	| Description:
+	|   ChatGLM-3-6B is inaccurate on CPU and GPU.
+
+	| **Component: GPU plugin**
+	| ID: 172726
+	| Description:
+	|   Flux.1-schnell or Flux.1-dev model can functionally fail on Intel® Core™ Ultra Series 1. As a workaround, the model can be converted using OpenVINO 2025.2.
+
+	| **Component: GPU plugin**
+	| ID: 171017
+	| Description:
+	|   If `OV_GPU_DYNAMIC_QUANTIZATION_THRESHOLD` config is explicitly set to less than 64 on XMX-supporting platforms, functional failure can be observed with several GenAI models. 64 is the default value, and setting it to less than 64 is not normally recommended due to performance degradation.
+
+	| **Component: CPU plugin**
+	| ID: 172548
+	| Description:
+	|   Performance regression has been observed on Atom x7835RE with Ubuntu 22.04 OS. This is planned to be fixed in the next release.
+
+	| **Component: CPU plugin**
+	| ID: 172518
+	| Description:
+	|   Qwen2-VL-7b-instruct is inaccurate on with 4th and 6th Gen Intel® Xeon® Scalable processors. As a workaround, the model can be converted using OpenVINO 2025.2. 
 
 .. dropdown:: 2025.2 - 18 June 2025
 
