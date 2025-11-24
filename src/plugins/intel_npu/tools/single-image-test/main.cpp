@@ -1730,12 +1730,6 @@ struct Detection {
     Detection(float xmin, float ymin, float xmax, float ymax, float conf, int cls)
         : x_min(xmin), y_min(ymin), x_max(xmax), y_max(ymax),
           confidence(conf), class_id(cls) {}
-
-    void print()
-    {
-        std::cout << "Class: " << class_id << " Confidence: " << confidence
-                  << " Box: [" << x_min << ", " << y_min << ", " << x_max << ", " << y_max << "]" << std::endl;
-    }
 };
 
 // Matches Python's overlap_evaluator (Overlap class with IOU method)
@@ -1819,9 +1813,6 @@ std::vector<Detection> parseDetectionsFromOutputs(const TensorMap& outputs, floa
         return detections;
     }
 
-    std::cout << "Parsing detections: " << num_queries << " queries, "
-              << num_classes << " classes" << std::endl;
-
     for (size_t queryIdx = 0; queryIdx < num_queries; ++queryIdx) {
         size_t box_offset = queryIdx * 4;
         float x_center = boxes_buffer[box_offset + 0];
@@ -1862,23 +1853,11 @@ std::vector<Detection> parseDetectionsFromOutputs(const TensorMap& outputs, floa
         // Confidence is the softmax probability of the best class
         float confidence = 1.0f / exp_sum;
 
-        // Debug: Print first few detections to understand the data
-        if (queryIdx < 5) {
-            std::cout << "  Query " << queryIdx << ": class=" << best_class
-                      << ", max_logit=" << std::fixed << std::setprecision(4) << max_logit
-                      << ", confidence=" << confidence
-                      << ", box=[" << x_min << ", " << y_min << ", " << x_max << ", " << y_max << "]"
-                      << std::endl;
-        }
-
         // Filter by confidence threshold
         if (confidence > confidence_threshold && best_class >= 0) {
             detections.emplace_back(x_min, y_min, x_max, y_max, confidence, best_class);
         }
     }
-
-    std::cout << "Found " << detections.size() << " detections above threshold "
-              << confidence_threshold << std::endl;
 
     return detections;
 }
@@ -2028,15 +2007,6 @@ bool computeMAP(const TensorMap& outputs, const TensorMap& references) {
         return false;
     }    // Find all unique class IDs
 
-    std::cout << "Predictions and ground truths: " << std::endl;
-    for (size_t i = 0; i < predictions.size(); ++i) {
-        std::cout << "  Prediction " << i << ": ";
-        predictions[i].print();
-
-        std::cout << "  Ground Truth " << i << ": ";
-        ground_truth[i].print();
-    }
-
     std::set<int> class_ids;
     for (const auto& det : predictions) {
         class_ids.insert(det.class_id);
@@ -2046,7 +2016,6 @@ bool computeMAP(const TensorMap& outputs, const TensorMap& references) {
     }
 
     std::cout << "Computing mAP for " << class_ids.size() << " classes" << std::endl;
-    std::cout << "Predictions: " << predictions.size() << ", Ground Truth: " << ground_truth.size() << std::endl;
 
     // Calculate AP for each class
     std::vector<double> average_precisions;
@@ -2122,7 +2091,6 @@ bool computeMAP(const TensorMap& outputs, const TensorMap& references) {
               << (mean_ap * 100.0) << "%" << std::endl;
     std::cout << "  Number of classes: " << class_ids.size() << std::endl;
     std::cout << "  mAP threshold: " << (FLAGS_map_threshold * 100.0) << "%" << std::endl;
-    std::cout << "  Result: " << (mean_ap >= FLAGS_map_threshold ? "PASS" : "FAIL") << std::endl;
 
     return mean_ap >= FLAGS_map_threshold;
 }
