@@ -615,8 +615,10 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
 
     if (useBaseModelSerializer) {
         _logger.debug("serialize IR is base method, useBaseModelSerializer is %d", useBaseModelSerializer);
+        std::cout << "1) serialize IR is base method (copy weights), useBaseModelSerializer is " << useBaseModelSerializer << std::endl;
     } else {
         _logger.debug("serialize IR is vcl method, useBaseModelSerializer is %d", useBaseModelSerializer);
+        std::cout << "2) serialize IR is vcl method(No copy weights), useBaseModelSerializer is " << useBaseModelSerializer << std::endl;
 
         // To resolve the issue with the default configuration where no user passes the serializer config, the VCL
         // serializer will be used as the default in the plugin adapter. You need to pass the serializer config;
