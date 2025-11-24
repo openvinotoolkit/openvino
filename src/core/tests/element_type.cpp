@@ -8,6 +8,8 @@
 
 #include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "openvino/util/common_util.hpp"
 
 using namespace ov;
 
@@ -27,86 +29,81 @@ TEST(element_type, from) {
     EXPECT_EQ(element::from<std::string>(), element::string);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-static const std::vector<std::pair<const char*, element::Type>> elementTypeCases = {{"boolean", element::boolean},
-                                                                                    {"BOOL", element::boolean},
-                                                                                    {"bf16", element::bf16},
-                                                                                    {"BF16", element::bf16},
-                                                                                    {"f16", element::f16},
-                                                                                    {"FP16", element::f16},
-                                                                                    {"f32", element::f32},
-                                                                                    {"FP32", element::f32},
-                                                                                    {"f64", element::f64},
-                                                                                    {"FP64", element::f64},
-                                                                                    {"i4", element::i4},
-                                                                                    {"I4", element::i4},
-                                                                                    {"i8", element::i8},
-                                                                                    {"I8", element::i8},
-                                                                                    {"i16", element::i16},
-                                                                                    {"I16", element::i16},
-                                                                                    {"i32", element::i32},
-                                                                                    {"I32", element::i32},
-                                                                                    {"i64", element::i64},
-                                                                                    {"I64", element::i64},
-                                                                                    {"bin", element::u1},
-                                                                                    {"BIN", element::u1},
-                                                                                    {"u1", element::u1},
-                                                                                    {"U1", element::u1},
-                                                                                    {"u4", element::u4},
-                                                                                    {"U4", element::u4},
-                                                                                    {"u8", element::u8},
-                                                                                    {"U8", element::u8},
-                                                                                    {"u16", element::u16},
-                                                                                    {"U16", element::u16},
-                                                                                    {"u32", element::u32},
-                                                                                    {"U32", element::u32},
-                                                                                    {"u64", element::u64},
-                                                                                    {"U64", element::u64},
-                                                                                    {"nf4", element::nf4},
-                                                                                    {"NF4", element::nf4},
-                                                                                    {"f8e4m3", element::f8e4m3},
-                                                                                    {"F8E4M3", element::f8e4m3},
-                                                                                    {"f8e5m2", element::f8e5m2},
-                                                                                    {"F8E5M2", element::f8e5m2},
-                                                                                    {"string", element::string},
-                                                                                    {"STRING", element::string},
-                                                                                    {"f4e2m1", element::f4e2m1},
-                                                                                    {"F4E2M1", element::f4e2m1},
-                                                                                    {"f8e8m0", element::f8e8m0},
-                                                                                    {"F8E8M0", element::f8e8m0},
-                                                                                    {"undefined", element::undefined},
-                                                                                    {"UNSPECIFIED", element::undefined},
-                                                                                    {"dynamic", element::dynamic}};
-OPENVINO_SUPPRESS_DEPRECATED_END
+constexpr auto element_type_cases = util::make_array(std::pair{"boolean", element::boolean},
+                                                     std::pair{"BOOL", element::boolean},
+                                                     std::pair{"bf16", element::bf16},
+                                                     std::pair{"BF16", element::bf16},
+                                                     std::pair{"f16", element::f16},
+                                                     std::pair{"FP16", element::f16},
+                                                     std::pair{"f32", element::f32},
+                                                     std::pair{"FP32", element::f32},
+                                                     std::pair{"f64", element::f64},
+                                                     std::pair{"FP64", element::f64},
+                                                     std::pair{"i4", element::i4},
+                                                     std::pair{"I4", element::i4},
+                                                     std::pair{"i8", element::i8},
+                                                     std::pair{"I8", element::i8},
+                                                     std::pair{"i16", element::i16},
+                                                     std::pair{"I16", element::i16},
+                                                     std::pair{"i32", element::i32},
+                                                     std::pair{"I32", element::i32},
+                                                     std::pair{"i64", element::i64},
+                                                     std::pair{"I64", element::i64},
+                                                     std::pair{"bin", element::u1},
+                                                     std::pair{"BIN", element::u1},
+                                                     std::pair{"u1", element::u1},
+                                                     std::pair{"U1", element::u1},
+                                                     std::pair{"u4", element::u4},
+                                                     std::pair{"U4", element::u4},
+                                                     std::pair{"u8", element::u8},
+                                                     std::pair{"U8", element::u8},
+                                                     std::pair{"u16", element::u16},
+                                                     std::pair{"U16", element::u16},
+                                                     std::pair{"u32", element::u32},
+                                                     std::pair{"U32", element::u32},
+                                                     std::pair{"u64", element::u64},
+                                                     std::pair{"U64", element::u64},
+                                                     std::pair{"nf4", element::nf4},
+                                                     std::pair{"NF4", element::nf4},
+                                                     std::pair{"f8e4m3", element::f8e4m3},
+                                                     std::pair{"F8E4M3", element::f8e4m3},
+                                                     std::pair{"f8e5m2", element::f8e5m2},
+                                                     std::pair{"F8E5M2", element::f8e5m2},
+                                                     std::pair{"string", element::string},
+                                                     std::pair{"STRING", element::string},
+                                                     std::pair{"f4e2m1", element::f4e2m1},
+                                                     std::pair{"F4E2M1", element::f4e2m1},
+                                                     std::pair{"f8e8m0", element::f8e8m0},
+                                                     std::pair{"F8E8M0", element::f8e8m0},
+                                                     std::pair{"dynamic", element::dynamic});
 
-static const std::vector<const char*> elementTypeCasesInvalid =
-    {"some_string", "", "???", "12345", "not_a_type", "throw_exception"};
+constexpr auto element_type_cases_invalid =
+    util::make_array("some_string", "", "???", "12345", "not_a_type", "throw_exception");
 
 TEST(element_type, from_string) {
-    for (const auto& [str, expected] : elementTypeCases) {
+    for (const auto& [str, expected] : element_type_cases) {
         EXPECT_EQ(element::Type(str), expected);
     }
+}
 
-    for (const auto& str : elementTypeCasesInvalid) {
-        EXPECT_THROW(
-            {
-                auto t = element::Type(str);
-                (void)t;
-            },
-            ov::Exception);
+TEST(element_type, from_string_invalid) {
+    for (const auto& str : element_type_cases_invalid) {
+        OV_EXPECT_THROW(std::ignore = element::Type(str), ov::Exception, testing::_);
     }
 }
 
 TEST(element_type, from_istringstream) {
-    for (const auto& [str, expected] : elementTypeCases) {
+    for (const auto& [str, expected] : element_type_cases) {
         std::istringstream ss(str);
         element::Type t;
         ss >> t;
         EXPECT_FALSE(ss.fail());
         EXPECT_EQ(t, expected);
     }
+}
 
-    for (const auto& str : elementTypeCasesInvalid) {
+TEST(element_type, from_istringstream_invalid) {
+    for (const auto& str : element_type_cases_invalid) {
         std::istringstream ss(str);
         element::Type t;
         EXPECT_THROW(ss >> t, ov::Exception);
