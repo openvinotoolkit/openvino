@@ -22,7 +22,6 @@ ov_add_target(
                 common_test_utils
                 openvino::snippets
                 ov_lpt_models
-        ADD_CPPLINT
 )
 
 ov_build_target_faster(${TARGET_NAME}

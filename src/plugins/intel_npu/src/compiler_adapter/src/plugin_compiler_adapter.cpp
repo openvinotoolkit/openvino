@@ -100,12 +100,14 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
     ov::Tensor tensor = make_tensor_from_vector(networkDesc.compiledNetwork);
     GraphDescriptor graphDesc;
+    NetworkMetadata networkMeta;
 
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled
         // network
         try {
             graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
+            networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -116,7 +118,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         _zeGraphExt,
         _zeroInitStruct,
         graphDesc,
-        std::move(networkDesc.metadata),
+        std::move(networkMeta),
         std::move(tensor),
         config,
         /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
@@ -208,11 +210,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
     ov::Tensor tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
     GraphDescriptor mainGraphDesc;
+    NetworkMetadata mainNetworkMetadata;
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to
         // get the graph handle from the compiled network
         try {
             mainGraphDesc = _zeGraphExt->getGraphDescriptor(tensorMain.data(), tensorMain.get_byte_size());
+            mainNetworkMetadata = _zeGraphExt->getNetworkMeta(mainGraphDesc);
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -228,23 +232,25 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
     for (auto& networkDesc : initNetworkDescriptions) {
         ov::Tensor tensor = make_tensor_from_vector(networkDesc->compiledNetwork);
         GraphDescriptor initGraphDesc;
+        NetworkMetadata initNetworkMeta;
         if (_zeGraphExt) {
             try {
                 initGraphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
+                initNetworkMeta = _zeGraphExt->getNetworkMeta(initGraphDesc);
             } catch (...) {
             }
         }
 
         initGraphDescriptors.push_back(initGraphDesc);
         tensorsInits.push_back(std::move(tensor));
-        initNetworkMetadata.push_back(std::move(networkDesc->metadata));
+        initNetworkMetadata.push_back(std::move(initNetworkMeta));
     }
 
     return std::make_shared<WeightlessGraph>(
         _zeGraphExt,
         _zeroInitStruct,
         mainGraphDesc,
-        std::move(mainNetworkDescription->metadata),
+        std::move(mainNetworkMetadata),
         std::move(tensorMain),
         initGraphDescriptors,
         std::move(initNetworkMetadata),
@@ -262,21 +268,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
-    _logger.debug("parse start");
-    std::vector<uint8_t> network(mainBlob.get_byte_size());
-    network.assign(reinterpret_cast<const uint8_t*>(mainBlob.data()),
-                   reinterpret_cast<const uint8_t*>(mainBlob.data()) + mainBlob.get_byte_size());
-    auto networkMeta = _compiler->parse(network, config);
-    network.clear();
-    network.shrink_to_fit();
-
     GraphDescriptor mainGraphDesc;
+    NetworkMetadata mainNetworkMetadata;
 
     if (_zeGraphExt) {
+        _logger.debug("parse start");
         mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
+        mainNetworkMetadata = _zeGraphExt->getNetworkMeta(mainGraphDesc);
+        _logger.debug("main schedule parse end");
     }
-
-    _logger.debug("main schedule parse end");
 
     // exporting the blob when we get it from cache or ov::hint::compiled_blob property
     // shall be available
@@ -288,7 +288,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,
                                        mainGraphDesc,
-                                       std::move(networkMeta),
+                                       std::move(mainNetworkMetadata),
                                        std::move(mainBlob),
                                        config,
                                        blobIsPersistent,
@@ -298,20 +298,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
     // "Graph" object as wrapper over all L0 handles.
     std::vector<GraphDescriptor> initGraphDescriptors;
-    std::vector<NetworkMetadata> initMetadata;
+    std::vector<NetworkMetadata> initNetworkMetadata;
 
     for (const auto& initBlob : initBlobs.value()) {
-        network.reserve(initBlob.get_byte_size());
-        network.assign(reinterpret_cast<const uint8_t*>(initBlob.data()),
-                       reinterpret_cast<const uint8_t*>(initBlob.data()) + initBlob.get_byte_size());
-        initMetadata.push_back(_compiler->parse(network, config));
-        network.clear();
-        network.shrink_to_fit();
-
         if (_zeGraphExt) {
             auto initGraphDesc = _zeGraphExt->getGraphDescriptor(initBlob.data(), initBlob.get_byte_size());
+            auto initNetworkMeta = _zeGraphExt->getNetworkMeta(initGraphDesc);
 
             initGraphDescriptors.push_back(initGraphDesc);
+            initNetworkMetadata.push_back(std::move(initNetworkMeta));
         }
     }
 
@@ -319,10 +314,10 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
                                              mainGraphDesc,
-                                             std::move(networkMeta),
+                                             std::move(mainNetworkMetadata),
                                              std::move(mainBlob),
                                              initGraphDescriptors,
-                                             std::move(initMetadata),
+                                             std::move(initNetworkMetadata),
                                              std::move(initBlobs),
                                              model.value(),
                                              config,

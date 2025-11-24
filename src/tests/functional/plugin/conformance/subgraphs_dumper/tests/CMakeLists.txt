@@ -13,7 +13,6 @@ ov_add_test_target(
             PRIVATE
             ov_subgraphs_dumper_util
             func_test_utils
-        ADD_CPPLINT
         LABELS
             OV UNIT
 )

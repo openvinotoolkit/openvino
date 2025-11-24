@@ -42,8 +42,6 @@ public:
 
     void update_network_name(std::string_view name) override;
 
-    const std::vector<ArgumentDescriptor>& get_input_descriptors() const override;
-    const std::vector<ArgumentDescriptor>& get_output_descriptors() const override;
     const std::shared_ptr<CommandQueue>& get_command_queue() const override;
     uint32_t get_command_queue_group_ordinal() const override;
 
@@ -72,9 +70,6 @@ protected:
 
     GraphDescriptor _graphDesc;
     NetworkMetadata _metadata;
-
-    std::vector<ArgumentDescriptor> _inputDescriptors;
-    std::vector<ArgumentDescriptor> _outputDescriptors;
 
     std::shared_ptr<CommandQueue> _commandQueue;
     uint32_t _commandQueueGroupOrdinal = 0;

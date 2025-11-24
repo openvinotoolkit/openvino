@@ -46,7 +46,7 @@ public:
 
     bool _is_ready() {
         // Check if any request has finished already
-        ConditionalGILScopedRelease release;
+        py::gil_scoped_release release;
         // acquire the mutex to access m_errors and m_idle_handles
         std::lock_guard<std::mutex> lock(m_mutex);
         if (m_errors.size() > 0)
@@ -57,7 +57,7 @@ public:
     size_t get_idle_request_id() {
         // Wait for any request to complete and return its id
         // release GIL to avoid deadlock on python callback
-        ConditionalGILScopedRelease release;
+        py::gil_scoped_release release;
         // acquire the mutex to access m_errors and m_idle_handles
         std::unique_lock<std::mutex> lock(m_mutex);
         m_cv.wait(lock, [this] {
@@ -65,7 +65,7 @@ public:
         });
         size_t idle_handle = m_idle_handles.front();
         // wait for request to make sure it returned from callback
-        m_requests[idle_handle].m_request->wait();
+        m_requests[idle_handle].m_request.wait();
         if (m_errors.size() > 0)
             throw m_errors.front();
         return idle_handle;
@@ -74,9 +74,9 @@ public:
     void wait_all() {
         // Wait for all request to complete
         // release GIL to avoid deadlock on python callback
-        ConditionalGILScopedRelease release;
+        py::gil_scoped_release release;
         for (auto&& request : m_requests) {
-            request.m_request->wait();
+            request.m_request.wait();
         }
         // acquire the mutex to access m_errors
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -88,7 +88,7 @@ public:
         for (size_t handle = 0; handle < m_requests.size(); handle++) {
             // auto end_time = m_requests[handle].m_end_time; // TODO: pass it bellow? like in InferRequestWrapper
 
-            m_requests[handle].m_request->set_callback([this, handle /* ... */](std::exception_ptr exception_ptr) {
+            m_requests[handle].m_request.set_callback([this, handle /* ... */](std::exception_ptr exception_ptr) {
                 *m_requests[handle].m_end_time = Time::now();
                 {
                     // acquire the mutex to access m_idle_handles
@@ -115,11 +115,11 @@ public:
         auto callback_sp = Common::utils::wrap_pyfunction(std::move(f_callback));
 
         for (size_t handle = 0; handle < m_requests.size(); handle++) {
-            m_requests[handle].m_request->set_callback([this, callback_sp, handle](std::exception_ptr exception_ptr) {
+            m_requests[handle].m_request.set_callback([this, callback_sp, handle](std::exception_ptr exception_ptr) {
                 *m_requests[handle].m_end_time = Time::now();
                 if (exception_ptr == nullptr) {
-                    // Acquire GIL, execute Python function
-                    ConditionalGILScopedAcquire acquire;
+                    // For free-threaded Python, gil_scoped_acquire still ensures thread is attached
+                    py::gil_scoped_acquire acquire;
                     try {
                         (*callback_sp)(m_requests[handle], m_user_ids[handle]);
                     } catch (const py::error_already_set& py_error) {
@@ -197,13 +197,13 @@ void regclass_AsyncInferQueue(py::module m) {
             // Set new inputs label/id from user
             self.m_user_ids[handle] = userdata;
             // Update inputs if there are any
-            self.m_requests[handle].m_request->set_input_tensor(inputs);
+            self.m_requests[handle].m_request.set_input_tensor(inputs);
             // Now GIL can be released - we are NOT working with Python objects in this block
             {
-                ConditionalGILScopedRelease release;
+                py::gil_scoped_release release;
                 *self.m_requests[handle].m_start_time = Time::now();
                 // Start InferRequest in asynchronus mode
-                self.m_requests[handle].m_request->start_async();
+                self.m_requests[handle].m_request.start_async();
             }
         },
         py::arg("inputs"),
@@ -243,13 +243,13 @@ void regclass_AsyncInferQueue(py::module m) {
             // Set new inputs label/id from user
             self.m_user_ids[handle] = userdata;
             // Update inputs if there are any
-            Common::set_request_tensors(*self.m_requests[handle].m_request, inputs);
+            Common::set_request_tensors(self.m_requests[handle].m_request, inputs);
             // Now GIL can be released - we are NOT working with Python objects in this block
             {
-                ConditionalGILScopedRelease release;
+                py::gil_scoped_release release;
                 *self.m_requests[handle].m_start_time = Time::now();
                 // Start InferRequest in asynchronus mode
-                self.m_requests[handle].m_request->start_async();
+                self.m_requests[handle].m_request.start_async();
             }
         },
         py::arg("inputs"),
