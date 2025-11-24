@@ -206,8 +206,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     bool has_spatial = false;
     bool has_dynamic = false;
     bool has_pyramid = false;
+    bool has_flash = false;
     std::size_t dynamic_sub_idx = -1;
     std::size_t pyramid_sub_idx = -1;
+    std::size_t flash_sub_idx = -1;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -275,6 +277,16 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
             }  // if(pyramid)
 
+            if (proto_comp_model_desc.flash_attention) {
+                // Sanity check first
+                if (has_flash && flash_sub_idx != real_idx) {
+                    OPENVINO_THROW("Only single flash attention type is permitted for model");
+                }
+                has_flash = true;
+                flash_sub_idx = real_idx;
+                m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
+            }  // if(pyramid)
+
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
                 m_funcall_result[from] = m_func_mem_mgr.get_tensor(from);
@@ -306,6 +318,9 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
             if (proto_comp_model_desc.pyramid_attention) {
                 setup_pyramid_infer_requests(real_idx, is_piped, false);
+            }
+            if (proto_comp_model_desc.flash_attention) {
+                setup_flash_infer_requests(real_idx, is_piped, false);
             }
         }
 
@@ -425,6 +440,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 m_pyramid_selector.reset(new runtime::pyramid_attention::All(pyramid_count));
             }
         }
+    }
+
+    if (has_flash) {
+        // TODO: es runtime features??? not sure we need it here at all while we need to recreate inferrequests
+        m_flash_selector.reset(new runtime::flash_attention::All(3));
     }
 }
 
@@ -639,6 +659,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     const bool is_spatial = func_desc.spatial.has_value();
     const bool is_dynamic = func_desc.attention.has_value();
     const bool is_pyramid = func_desc.pyramid_attention.has_value();
+    const bool is_flash = func_desc.flash_attention.has_value();
 
     // Generalized: check if input is neither param nor mask
     auto is_non_param_mask = [](const auto& info, std::size_t in_idx) {
@@ -695,6 +716,16 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 } else {
                     m_attention_io[idx].inputs.at(i) = i_tensor;
                 }
+            } else if (is_flash) {
+                // Pyramid attention
+                auto pyramid_id = m_pyramid_selector->pyramid_id();
+                const auto& info = func_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+                if (is_non_param_mask(info, i)) {
+                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                } else {
+                    m_attention_io[idx].inputs.at(i) = i_tensor;
+                }
+
             } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -942,6 +973,92 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // but it is a more complex thing and can be implemented separately
     connect_subrequests();
     m_subrequest_devices[idx] = *comp_model_desc.device_it;
+}
+
+void ov::npuw::JustInferRequest::setup_flash_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
+    auto& submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    if (!submodel_desc.flash_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO((is_recreate ? "Recreating" : "Creating") << " flash infer requests...");
+    LOG_BLOCK();
+
+    const auto& flash_models = submodel_desc.flash_attention.value()._compiled_models;
+    const size_t num_flash_models = flash_models.size();
+
+    // Clear existing requests if recreating
+    if (is_recreate) {
+        submodel_desc.flash_infer_requests.clear();
+    }
+    submodel_desc.flash_infer_requests.resize(num_flash_models);
+
+     // Create infer requests for all flash models
+     for (size_t model_idx = 0; model_idx + 1 < num_flash_models; ++model_idx) {
+        try {
+            // Create main infer request
+            submodel_desc.flash_infer_requests[model_idx] = flash_models[model_idx]->create_infer_request();
+            // Create pipeline infer request if pipelined
+            // if (is_piped) {
+            //     submodel_desc.pyramid_pipeline_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
+            // }
+        } catch (const std::exception& ex) {
+            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for flash-attention model["
+                                   << model_idx << "]: " << ex.what());
+            NPUW_ASSERT(false && "FlashAttention model infer request creation/recreation failed");
+        } catch (...) {
+            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for flash-attention model["
+                                   << model_idx << "]: Unknown error");
+            NPUW_ASSERT(false && "Flash-attention model infer request creation/recreation failed with unknown error");
+        }
+    }
+
+    // Share input tensors between flash-concat model and main infer requests
+    const auto & concat_model = flash_models[ov::npuw::function::FlashAttention::eConcat];
+    auto & concat_infer_request = submodel_desc.flash_infer_requests[ov::npuw::function::FlashAttention::eConcat];
+    const size_t num_inputs = concat_model->inputs().size();
+    LOG_INFO("num_inputs=" << num_inputs << ", submodel_desc.compiled_model->inputs().size()=" << submodel_desc.compiled_model->inputs().size());
+    NPUW_ASSERT(num_inputs == submodel_desc.compiled_model->inputs().size());
+    for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
+        auto flash_input = concat_model->inputs()[input_idx];
+        auto main_input = submodel_desc.compiled_model->inputs()[input_idx];
+
+        // Get tensor from main infer request and share its memory with the flash infer request
+        auto main_tensor_ptr = m_subrequests[real_idx]->get_tensor(main_input)->data();
+        auto flash_tensor = concat_infer_request->get_tensor(flash_input);
+        auto shared_tensor = ov::get_tensor_impl(
+            ov::Tensor(flash_tensor->get_element_type(), flash_tensor->get_shape(), main_tensor_ptr));
+        concat_infer_request->set_tensor(flash_input, shared_tensor);
+
+        // TODO: what is pieplined?
+        // Repeat for pipeline infer request if pipelined
+        // if (is_piped) {
+        //     auto pipeline_tensor = submodel_desc.pyramid_pipeline_requests[model_idx]->get_tensor(pyramid_input);
+        //     auto pipeline_tensor_ptr = m_funcall_pipeline[real_idx].subrequest->get_tensor(main_input)->data();
+        //     auto shared_pipeline_tensor = ov::get_tensor_impl(
+        //         ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), pipeline_tensor_ptr));
+        //     submodel_desc.pyramid_pipeline_requests[model_idx]->set_tensor(pyramid_input, shared_pipeline_tensor);
+        // }
+    }
+
+    // For the last pyramid model, reuse the original model's infer requests
+    // if (num_pyramid_models > 0) {
+    //     const size_t last_model_idx = num_pyramid_models - 1;
+    //     LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "original infer requests for last pyramid model["
+    //                         << last_model_idx << "]");
+    //     submodel_desc.pyramid_infer_requests[last_model_idx] = m_subrequests[real_idx];
+    //     if (is_piped) {
+    //         submodel_desc.pyramid_pipeline_requests[last_model_idx] = m_funcall_pipeline[real_idx].subrequest;
+    //     }
+    // }
+
+    if (!is_recreate && num_flash_models > 0) {
+        LOG_INFO("Successfully created " << (num_flash_models - 1)
+                                         << " new pyramid infer requests and reused 1 original request");
+    }
+
+
+    LOG_INFO("Done.");
 }
 
 void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {

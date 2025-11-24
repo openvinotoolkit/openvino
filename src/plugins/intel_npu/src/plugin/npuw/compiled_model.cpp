@@ -382,7 +382,13 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     LOG_INFO("Creating compiled::PyramidAttention for Subgraph[" << id << "] (function "
                                                                                  << subgraph._funcall << ")");
                     m_compiled_submodels[id].pyramid_attention =
-                        compiled::PyramidAttention(fcn_template._pyramid_attention.value());
+                        compiled::PyramidAttention{fcn_template._pyramid_attention.value()};
+                }
+                if (fcn_template._flash_attention) {
+                    LOG_INFO("Creating compiled::FlashAttention for Subgraph[" << id << "] (function "
+                        << subgraph._funcall << ")");
+                    m_compiled_submodels[id].flash_attention =
+                        compiled::FlashAttention{fcn_template._flash_attention.value()};
                 }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
@@ -454,6 +460,28 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     ov::save_model(pyramid_attention_models[idx], pyramid_attention_model_dump_path);
                     LOG_INFO("Wrote " << pyramid_attention_model_dump_path);
                 }
+            }
+
+            // Dump flash-attention subgraphs
+            if (m_compiled_submodels[id].flash_attention) {
+                //TODO: make a loop
+                auto tiled_model = m_compiled_submodels[id].flash_attention.value()._models_to_compile[ov::npuw::function::FlashAttention::eTile];
+                std::string flash_attention_model_dump_path =
+                    m_name + (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + "_flash_" + "tile.xml";
+                ov::save_model(tiled_model, flash_attention_model_dump_path);
+                LOG_INFO("Wrote " << flash_attention_model_dump_path);
+
+                auto kv_cache_concat_model = m_compiled_submodels[id].flash_attention.value()._models_to_compile[ov::npuw::function::FlashAttention::eConcat];
+                flash_attention_model_dump_path =
+                    m_name + (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + "_flash_" + "kv_cache_concat.xml";
+                ov::save_model(kv_cache_concat_model, flash_attention_model_dump_path);
+                LOG_INFO("Wrote " << flash_attention_model_dump_path);
+
+                auto divide_model = m_compiled_submodels[id].flash_attention.value()._models_to_compile[ov::npuw::function::FlashAttention::eDivide];
+                flash_attention_model_dump_path =
+                    m_name + (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + "_flash_" + "divide.xml";
+                ov::save_model(divide_model, flash_attention_model_dump_path);
+                LOG_INFO("Wrote " << flash_attention_model_dump_path);
             }
         }  // if(dump)
     }  // for(orderedSubGraphs)
@@ -1451,6 +1479,7 @@ void ov::npuw::CompiledModel::detach_memory() {
         // No need to clear pyramid attention data - it's self-contained!
         // The _models_to_compile is already cleared in set_compiled_models()
         // and compiled::PyramidAttention only stores _compiled_models (not original models)
+        // same applied for FlashAttention
     }
     LOG_INFO("Done");
 }
@@ -1622,6 +1651,9 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
 
         // Compile pyramid attention models if present
         compile_pyramid_attention_models(id, device_to_try);
+
+        // Compile flash attention models if present
+        compile_flash_attention_model(id, device_to_try);
     } catch (const std::exception& ex) {
         LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
         dump_on_fail(id, device_to_try, ex.what());
@@ -1634,6 +1666,47 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     // Reached this point - all ok, stop the search
     LOG_INFO("Done (" << device_to_try << ")");
     return true;
+}
+
+void ov::npuw::CompiledModel::compile_flash_attention_model(std::size_t id, const std::string & device) {
+    // Check if we have flash attention to compile
+    if (!m_compiled_submodels[id].flash_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO("Compiling flash attention submodel for Subgraph[" << id << "]...");
+    LOG_BLOCK();
+
+    auto& flash_attn = m_compiled_submodels[id].flash_attention.value();
+
+    auto compile_tile = [&]() {
+        try {
+            std::vector<ov::SoPtr<ov::ICompiledModel>> compiled;
+            for (size_t sub_idx = 0; sub_idx != flash_attn._models_to_compile.size(); ++sub_idx) {
+                const auto& model = flash_attn._models_to_compile[sub_idx];
+
+                LOG_DEBUG("Compiling flash attention submodel [ "<< sub_idx << "]: "<< model->get_friendly_name());
+
+                auto compiled_submodel = compile_submodel(model, device);
+                OPENVINO_ASSERT(compiled_submodel, "Failed to compile flash attention submodel");
+
+                compiled.push_back(std::move(compiled_submodel));
+            }
+
+            // Set compiled model - this also clears _tiles_model internally
+            LOG_INFO("Setting compiled model into compiled::FlashAttention...");
+            flash_attn.set_compiled_models(std::move(compiled));
+
+            // TODO: specify tile size maybe in logs
+            LOG_INFO("Flash attention compilation complete for Subgraph[" << id << "]");
+        } catch (const std::exception& ex) {
+            OPENVINO_THROW("Flash attention compilation failed: ", ex.what());
+        } catch (...) {
+            OPENVINO_THROW("Flash attention compilation failed with unknown error");
+        }
+    };
+
+    compile_tile();
 }
 
 void ov::npuw::CompiledModel::compile_pyramid_attention_models(std::size_t id, const std::string& device) {

@@ -17,6 +17,7 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
 #include "pyramid_attention.hpp"
+#include "flash_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
 
@@ -150,6 +151,9 @@ protected:
     // Separate selector for pyramid attention
     runtime::pyramid_attention::Selector::Ptr m_pyramid_selector;
 
+    // Separate selector for pyramid attention
+    runtime::flash_attention::Selector::Ptr m_flash_selector;
+
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters
     // and results. Again, is managed by subclasses
@@ -183,6 +187,7 @@ protected:
 
     void bind_attention_inputs(std::size_t idx, RqPtr request);
     void bind_pyramid_attention_inputs(std::size_t idx, RqPtr request);
+    void bind_flash_attention_inputs(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);

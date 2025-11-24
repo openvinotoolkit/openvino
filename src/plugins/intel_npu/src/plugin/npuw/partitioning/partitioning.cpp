@@ -1889,6 +1889,7 @@ void Partitioner::attention(const std::string& func_name) {
     if (f._tag != "attn") {
         LOG_VERB("No dynamic handling be done to  " << func_name << " in model " << model->get_friendly_name()
                                                     << "...");
+        LOG_VERB("");
         return;
     }
 
@@ -1901,16 +1902,22 @@ void Partitioner::attention(const std::string& func_name) {
     LOG_VERB("Turn " << func_name << " into dynamic Attention block in model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
 
+    f._flash_attention = ov::npuw::function::FlashAttention::from(f._model);
+    if (f._flash_attention) {
+        LOG_VERB("HFA Done");
+        return;
+    }
+
     f._attention = ov::npuw::function::Attention::from(f._model);
     if (f._attention) {
-        LOG_VERB("Done");
+        LOG_VERB("Attention Done");
         return;
     }
 
     LOG_WARN("No dynamic ranges found in the ATTN block");
     f._pyramid_attention = ov::npuw::function::PyramidAttention::from(f._model);
     if (f._pyramid_attention) {
-        LOG_VERB("Done");
+        LOG_VERB("Pyramid Done");
         return;
     }
 

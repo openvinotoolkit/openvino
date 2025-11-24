@@ -1521,6 +1521,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const bool prefill_attn_pyramid = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
     const bool generate_attn_pyramid = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
 
+    const bool prefill_attn_flash = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::FLASH;
+
+
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
         LOG_DEBUG("Check and apply opt layout");
@@ -1588,7 +1591,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
         {"NPUW_UNFOLD_IREQS", "NO"},
     };
-    if (prefill_attn_dyn || prefill_attn_pyramid) {
+    if (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_flash) {
         merge_config_with(prefill_config, dyn_attn_opts);
     }
     if (generate_attn_dyn || generate_attn_pyramid) {
@@ -1637,7 +1640,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (generate_attn_dyn || generate_attn_pyramid) {
             rewr.run_on_model(kvcache_model);
         }
-        if (prefill_attn_dyn || prefill_attn_pyramid) {
+        if (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_flash) {
             rewr.run_on_model(prefill_model);
         }
 

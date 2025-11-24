@@ -19,6 +19,7 @@
 #include "partitioning/partitioning.hpp"
 #include "perf.hpp"
 #include "pyramid_attention.hpp"
+#include "flash_attention.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
@@ -80,6 +81,7 @@ private:
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
     void compile_pyramid_attention_models(std::size_t id, const std::string& device);
+    void compile_flash_attention_model(std::size_t id, const std::string& device);
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
 
@@ -180,6 +182,10 @@ private:
         std::optional<ov::npuw::compiled::Spatial> spatial;
         std::optional<ov::npuw::compiled::Attention> attention;
         std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
+        std::optional<ov::npuw::compiled::FlashAttention> flash_attention;
+
+        // TODO: reuse maybe infer-requests between  flash_attention and pyramid
+        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> flash_infer_requests;
 
         // Infer requests for pyramid attention models (if pyramid_attention is present)
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;
