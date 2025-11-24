@@ -118,8 +118,6 @@ protected:
 
     // Check that m_port_to_tensor does have a tensor stored at the port
     bool is_stored(const ov::Output<const ov::Node>& port) const;
-    // Check the port is I/O
-    bool is_io(const ov::Output<const ov::Node>& port) const;
 
     struct QuantGatherTensors {
         ov::Tensor w, z, s;

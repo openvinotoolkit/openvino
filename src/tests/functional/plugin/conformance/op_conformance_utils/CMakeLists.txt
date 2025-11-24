@@ -23,7 +23,6 @@ ov_add_target(
                 ${LIBRARIES}
         DEPENDENCIES
             ${LIBRARIES}
-        ADD_CPPLINT
 )
 
 ov_build_target_faster(${TARGET_NAME} UNITY)

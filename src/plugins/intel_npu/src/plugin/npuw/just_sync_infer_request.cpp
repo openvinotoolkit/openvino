@@ -244,16 +244,14 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                     // Note: these buffers are allocated to the entire NWAY (> tail_size)
                     for (auto&& p : proto_comp_model_desc.spatial->params) {
                         const auto& iport = proto_comp_model_desc.compiled_model->inputs()[p.idx];
-                        m_spatial_io[real_idx].input_tails[p.idx] = allocOut(
-                            iport,
-                            m_npuw_model->funcall_mem_device(real_idx));  // should it be handled lazy way as well?
+                        m_spatial_io[real_idx].input_tails[p.idx] =
+                            allocOut(iport, m_npuw_model->funcall_mem_device(real_idx));
                     }
                     const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
                     for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
                         const auto& oport = proto_comp_model_desc.compiled_model->outputs()[out_idx];
-                        m_spatial_io[real_idx].output_tails[out_idx] = allocOut(
-                            oport,
-                            m_npuw_model->funcall_mem_device(real_idx));  // should it be handled lazy way as well?
+                        m_spatial_io[real_idx].output_tails[out_idx] =
+                            allocOut(oport, m_npuw_model->funcall_mem_device(real_idx));
                     }
                 }
             }  // if(spatial)
@@ -434,7 +432,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                             const ov::SoPtr<ov::ITensor>& tensor) {
-    NPUW_ASSERT(is_io(port));
     m_port_to_tensor[port] = TensorStorage{tensor, true};
 
     // Check if setting output tensor
