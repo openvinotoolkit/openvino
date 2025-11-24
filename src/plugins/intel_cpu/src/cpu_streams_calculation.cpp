@@ -35,6 +35,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
+#include "transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -609,9 +610,9 @@ int get_model_prefer_threads(const int num_streams,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
     bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
+    bool llm_related = has_matmul_with_compressed_weights(model);
 
     auto default_prefer_threads_latency = [&]() {
-        bool llm_related = ov::op::util::is_large_language_model(*model);
         const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
         const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
         // By default the latency case uses (faster) Big cores only, depending on the compute ratio
@@ -720,7 +721,7 @@ int get_model_prefer_threads(const int num_streams,
             if ((proc_type_table[0][MAIN_CORE_PROC] < config.threads || config.threads == 0) &&
                 (ov::get_number_of_blocked_cores() || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) &&
                 proc_type_table[0][EFFICIENT_CORE_PROC] <= 2 * proc_type_table[0][MAIN_CORE_PROC]) {
-                if (ov::op::util::is_large_language_model(*model)) {
+                if (int8_intensive || llm_related) {
                     config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC];
                 } else {
                     config.modelPreferThreadsLatency =
