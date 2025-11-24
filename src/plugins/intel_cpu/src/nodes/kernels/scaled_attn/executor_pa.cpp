@@ -1279,6 +1279,7 @@ struct MHAHelper {
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hq_beg; h < hq_end; h++) {
                 // apply attention mask & sofmax
+                float* score = _weight.ptr<float>(ithr, h - hq_beg, pq);
                 float* alibi_lookup = nullptr;
                 float alibi_slope = 0.F;
                 if (alibi_slopes) {
@@ -1289,24 +1290,50 @@ struct MHAHelper {
                 if (sinks) {
                     sink = &sinks.at<float>({batch_in_seq, h, pq, 0}, true);
                 }
-                attn_softmax_kernel<float>(_weight.ptr<float>(ithr, h - hq_beg, pq),
-                                           _weight.ptr<float>(ithr, h - hq_beg, pq),
-                                           _d_scale,
-                                           alibi_lookup,
-                                           nullptr,
-                                           nullptr,
-                                           false,
-                                           cur_kv_len,
-                                           cur_kv_len,
-                                           ov::element::f32,
-                                           ov::element::f32,
-                                           sink,
-                                           alibi_slope);
+                if (_sliding_window) {
+                    size_t start_idx = 0;
+                    size_t new_causal = cur_kv_len;
+                    float* sw_alibi_lookup = nullptr;
+                    if (cur_kv_len > _sliding_window) {
+                        start_idx = cur_kv_len - _sliding_window;
+                        new_causal = _sliding_window;
+                    }
+                    attn_softmax_kernel<float>(score + start_idx,
+                                               score + start_idx,
+                                               _d_scale,
+                                               sw_alibi_lookup,
+                                               nullptr,
+                                               nullptr,
+                                               false,
+                                               new_causal,
+                                               cur_kv_len - start_idx,
+                                               ov::element::f32,
+                                               ov::element::f32,
+                                               sink,
+                                               alibi_slope);
+                    if (start_idx > 0) {
+                        memset(score, 0, sizeof(float) * start_idx);
+                    }
+                } else {
+                    attn_softmax_kernel<float>(score,
+                                               score,
+                                               _d_scale,
+                                               alibi_lookup,
+                                               nullptr,
+                                               nullptr,
+                                               false,
+                                               cur_kv_len,
+                                               cur_kv_len,
+                                               ov::element::f32,
+                                               ov::element::f32,
+                                               sink,
+                                               alibi_slope);
+                }
                 if (score_output) {
                     // aligned to cache line to avoid false sharing
                     static constexpr int cache_line_size = dnnl::impl::cpu::platform::get_cache_line_size();
                     std::memcpy(score_output + h * rnd_up(cur_kv_len, cache_line_size / sizeof(float)),
-                                _weight.ptr<float>(ithr, h - hq_beg, pq),
+                                score,
                                 cur_kv_len * sizeof(float));
                 }
             }
@@ -1462,6 +1489,7 @@ struct MHAHelper {
             auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto ncausal = cur_kv_len;
             // apply attention mask & sofmax
+            float* score = _weight_bhl.ptr<float>(b, h, pq);
             float* alibi_lookup = nullptr;
             float alibi_slope = 0.F;
             if (alibi_slopes) {
@@ -1472,19 +1500,45 @@ struct MHAHelper {
             if (sinks) {
                 sink = &sinks.at<float>({b, h, pq, 0}, true);
             }
-            attn_softmax_kernel<float>(_weight_bhl.ptr<float>(b, h, pq),
-                                       _weight_bhl.ptr<float>(b, h, pq),
-                                       _d_scale,
-                                       alibi_lookup,
-                                       nullptr,
-                                       nullptr,
-                                       false,
-                                       ncausal,
-                                       cur_kv_len,
-                                       ov::element::f32,
-                                       ov::element::f32,
-                                       sink,
-                                       alibi_slope);
+            if (_sliding_window) {
+                size_t start_idx = 0;
+                size_t new_causal = ncausal;
+                float* sw_alibi_lookup = nullptr;
+                if (ncausal > _sliding_window) {
+                    start_idx = ncausal - _sliding_window;
+                    new_causal = _sliding_window;
+                }
+                attn_softmax_kernel<float>(score + start_idx,
+                                           score + start_idx,
+                                           _d_scale,
+                                           sw_alibi_lookup,
+                                           nullptr,
+                                           nullptr,
+                                           false,
+                                           new_causal,
+                                           cur_kv_len - start_idx,
+                                           ov::element::f32,
+                                           ov::element::f32,
+                                           sink,
+                                           alibi_slope);
+                if (start_idx > 0) {
+                    memset(score, 0, sizeof(float) * start_idx);
+                }
+            } else {
+                attn_softmax_kernel<float>(score,
+                                           score,
+                                           _d_scale,
+                                           alibi_lookup,
+                                           nullptr,
+                                           nullptr,
+                                           false,
+                                           ncausal,
+                                           cur_kv_len,
+                                           ov::element::f32,
+                                           ov::element::f32,
+                                           sink,
+                                           alibi_slope);
+            }
         };
 
         size_t h_dims = loop_hk ? Hk : H;
