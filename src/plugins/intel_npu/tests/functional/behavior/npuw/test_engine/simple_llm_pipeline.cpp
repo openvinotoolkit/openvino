@@ -37,9 +37,6 @@ void SimpleLLMPipeline::initialize(const std::string& model_path, ov::Core& core
     update_config(properties, {"NPU_USE_NPUW", "YES"});
     update_config(properties, {"NPUW_LLM", "YES"});
 
-    const uint32_t m_batch_dim = get_or_default(properties, "NPUW_LLM_BATCH_DIM", 0);
-    const uint32_t m_seq_len_dim = get_or_default(properties, "NPUW_LLM_SEQ_LEN_DIM", 2);
-
     std::shared_ptr<ov::Model> model = core.read_model(model_path);
     m_compiled_model =
         std::make_shared<ov::CompiledModel>(core.compile_model(model, "NPU",

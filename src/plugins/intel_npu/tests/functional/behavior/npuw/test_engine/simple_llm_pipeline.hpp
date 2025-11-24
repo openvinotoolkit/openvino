@@ -12,8 +12,6 @@ public:
     void initialize(const std::string& model_path, ov::Core& core, const ov::AnyMap& config);
     std::vector<int64_t> generate(const std::vector<int64_t>& input_ids_vec);
 private:
-    uint32_t m_batch_dim{std::numeric_limits<uint32_t>::max()};
-    uint32_t m_seq_len_dim{std::numeric_limits<uint32_t>::max()};
     uint32_t m_max_prompt_len{std::numeric_limits<uint32_t>::max()};
     uint32_t m_min_response_len{std::numeric_limits<uint32_t>::max()};
     uint32_t m_kvcache_total{std::numeric_limits<uint32_t>::max()};
