@@ -15,7 +15,7 @@
 namespace ov {
 namespace itt {
 namespace domains {
-OV_ITT_DOMAIN(ov_eval);
+OV_ITT_DOMAIN(ov_eval, "ov::eval");
 }  // namespace domains
 }  // namespace itt
 

@@ -33,7 +33,7 @@ The **YAML** config starts with specifying the several global parameters:
 - `model_dir` - **Optional**. Path to the models location. (**Default**: ".")
 - `blob_dir` - **Optional**. Path to the models location. (**Default**: ".")
 - `device_name` - **Optional**. OpenVINO device name: _CPU_, _GPU_, etc. (**Default**: _NPU_)
-- `compiler_type` - **Optional**. NPU compiler type: _DRIVER_, _MLIR_. (**Default**: _DRIVER_)
+- `compiler_type` - **Optional**. NPU compiler type: _DRIVER_, _PLUGIN_. (**Default**: _DRIVER_)
 - `log_level` - **Optional**. Log level: _NONE_, _INFO_, _DEBUG_. (**Default**: _NONE_)
 - `disable_high_resolution_waitable_timer` - **Optional**. Disables high resolution timer used to perform delays on Windows. (**Default**: false)
 
@@ -42,7 +42,7 @@ Example:
 model_dir:
   local: C:\workspace\models
 device_name: NPU
-compiler_type: MLIR
+compiler_type: PLUGIN
 log_level: INFO
 ```
 ### Model parameters
@@ -272,7 +272,7 @@ Consider the following scenario that consists of two parallel streams specified 
 model_dir:
   local: C:\workspace\models
 device_name: NPU
-compiler_type: MLIR
+compiler_type: PLUGIN
 log_level: INFO
 
 multi_inference:
@@ -482,7 +482,7 @@ Consider the following `config.yaml`:
 model_dir:
   local: C:\workspace\models
 device_name: NPU
-compiler_type: MLIR
+compiler_type: PLUGIN
 log_level: INFO
 
 save_validation_outputs: actual-outputs/

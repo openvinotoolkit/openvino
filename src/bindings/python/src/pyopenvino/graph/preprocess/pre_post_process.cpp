@@ -605,7 +605,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
     proc.def("build", [](ov::preprocess::PrePostProcessor& self) {
         std::shared_ptr<ov::Model> model;
         {
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             model = self.build();
         }
         py::type model_class = py::module_::import("openvino").attr("Model");
