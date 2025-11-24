@@ -1164,8 +1164,6 @@ TEST(TransformationTests, MarkFloatingPointRange) {
         disable_fp16_compression(begin);
         disable_fp16_compression(end);
         disable_fp16_compression(step);
-        disable_fp16_compression(range_2);
-        disable_fp16_compression(range_2);
         disable_fp16_compression(range_1);
         disable_fp16_compression(range_2);
         disable_fp16_compression(convert_1);
