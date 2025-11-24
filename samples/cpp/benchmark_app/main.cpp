@@ -617,6 +617,18 @@ int main(int argc, char* argv[]) {
         ov::AnyMap device_config = {};
         if (result != config.end())
             device_config = result->second;
+
+        auto reload_compiled_model_from_cache = [&](ov::CompiledModel& model) {
+            if (!FLAGS_export_import_cache) {
+                return;
+            }
+
+            std::stringstream compiled_model_stream;
+            model.export_model(compiled_model_stream);
+            compiled_model_stream.seekg(0);
+            model = core.import_model(compiled_model_stream, device_name, device_config);
+        };
+
         size_t batchSize = FLAGS_b;
         ov::element::Type type = ov::element::dynamic;
         std::string topology_name = "";
@@ -655,6 +667,7 @@ int main(int argc, char* argv[]) {
             auto compile_model_mem_start = get_peak_memory_usage();
             auto startTime = Time::now();
             compiledModel = core.compile_model(FLAGS_m, device_name, device_config);
+            reload_compiled_model_from_cache(compiledModel);
             auto duration_ms = get_duration_ms_till_now(startTime);
             auto compile_model_mem_end = get_peak_memory_usage();
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
@@ -845,6 +858,7 @@ int main(int argc, char* argv[]) {
             auto compile_model_mem_start = get_peak_memory_usage();
             startTime = Time::now();
             compiledModel = core.compile_model(model, device_name, device_config);
+            reload_compiled_model_from_cache(compiledModel);
             duration_ms = get_duration_ms_till_now(startTime);
             auto compile_model_mem_end = get_peak_memory_usage();
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
