@@ -194,13 +194,9 @@ void ov::npuw::IBaseInferRequest::set_tensor(const ov::Output<const ov::Node>& p
 
     if (!is_stored(port)) {
         // TODO: might be useful to check if the tensor is allocated on the device
-        m_port_to_tensor[port] = TensorStorage{tensor, false};
+        m_port_to_tensor[port] = TensorStorage{tensor, true};
     } else {
         m_port_to_tensor.at(port).tensor = tensor;
-    }
-
-    if (is_io(port)) {
-        m_port_to_tensor.at(port).persistent = true;
     }
 
     // Check if setting input tensor
@@ -227,20 +223,6 @@ void ov::npuw::IBaseInferRequest::check_tensors() const {
 
 bool ov::npuw::IBaseInferRequest::is_stored(const ov::Output<const ov::Node>& port) const {
     return m_port_to_tensor.find(port) != m_port_to_tensor.end();
-}
-
-bool ov::npuw::IBaseInferRequest::is_io(const ov::Output<const ov::Node>& port) const {
-    for (std::size_t i = 0; i < m_npuw_model->inputs().size(); ++i) {
-        if (m_npuw_model->inputs()[i] == port) {
-            return true;
-        }
-    }
-    for (std::size_t i = 0; i < m_npuw_model->outputs().size(); ++i) {
-        if (m_npuw_model->outputs()[i] == port) {
-            return true;
-        }
-    }
-    return false;
 }
 
 void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const ov::Node>& port,
