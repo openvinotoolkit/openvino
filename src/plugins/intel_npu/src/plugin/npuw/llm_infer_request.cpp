@@ -293,7 +293,6 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
         // FIXME: disable kv cache sharing when one of the models is transposed for now
         return;
     }
-    const bool v_transposed = kvcache_desc.v_tensors_transposed_pre;
 
     // Only reuse KV cache related tensors (past_key_values)
     for (const auto& [input_name, prefill_in_port] : m_prefill_in_ports) {
@@ -309,13 +308,12 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
 
         const auto& kvcache_in_port = m_kvcache_in_ports.at(input_name);
         const auto& kvcache_past_kv_in_tensor = m_kvcache_request->get_tensor(kvcache_in_port);
-        const auto& prefill_past_kv_in_shape = prefill_in_port.get_shape();
-        // FIXME: need to search ".value" instead of "value" since it's already layer_names::past_key_values
-        const auto& kv_dim = (input_name.find(".value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
+        auto data = kvcache_past_kv_in_tensor->data();
 
-        m_prefill_request->set_tensor(
-            prefill_in_port,
-            ov::npuw::util::view(kvcache_past_kv_in_tensor, kv_dim, 0, prefill_past_kv_in_shape[kv_dim]));
+        auto origTensor = m_prefill_request->get_tensor(prefill_in_port);
+        auto new_tensor =
+            ov::get_tensor_impl(ov::Tensor(origTensor->get_element_type(), origTensor->get_shape(), data));
+        m_prefill_request->set_tensor(prefill_in_port, new_tensor);
 
         // Record that we have already bind past_kv, will need data copy when update past kv in infer requests to
         // ensure correct data layout
@@ -597,20 +595,32 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             // tokens_in_past_chunks may be 0 in case short prompts are prefilled in single chunk
             auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - m_tokens_in_present_chunk;
             if (tokens_in_past_chunks > 0) {
+                // Create backup of past KV tensor when buffer sharing is enabled to prevent data corruption
+                // This is necessary because subsequent copy operations would overwrite the shared buffer
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
-                auto prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv,
-                                                                    pre_kv_dim,
-                                                                    0u,
-                                                                    static_cast<uint32_t>(tokens_in_past_chunks));
+                ov::SoPtr<ov::ITensor> tmp_dense_kv_tensor;
+                ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
+                if (m_past_kv_bound) {
+                    tmp_dense_kv_tensor = ov::npuw::util::allocMem(prefill_past_kv->get_element_type(),
+                                                                   prefill_past_kv->get_shape(),
+                                                                   m_pre_alloc_device,
+                                                                   m_npuw_llm_compiled_model->get_plugin());
+                    prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
+                    prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor,
+                                                               pre_kv_dim,
+                                                               0u,
+                                                               static_cast<uint32_t>(tokens_in_past_chunks));
+                } else {
+                    prefill_past_kv_chunks =
+                        make_tensor_slice(prefill_past_kv, pre_kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                }
 
                 auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
                                                                     gen_kv_dim,
                                                                     0u,
                                                                     static_cast<uint32_t>(tokens_in_past_chunks));
 
-                if (!m_past_kv_bound) {
-                    uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
-                }
+                uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
             }
 
             // Copy part 2 KV results

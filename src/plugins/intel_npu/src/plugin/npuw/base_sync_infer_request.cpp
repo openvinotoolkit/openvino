@@ -574,7 +574,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             // Lock mutex just in case. m_input_allocated might be altered in parallel in get_tensor()
             std::unique_lock lock(m_io_storages_mutex);
             // Input parameter is non-spatial, do normal handling
-            if ((m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) || !g_tnsr->is_continuous()) {
+            if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
                 LOG_DEBUG("Will be copied");
                 copy_list.emplace_back(g_tnsr, s_port);
             } else {
@@ -815,7 +815,7 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
             LOG_BLOCK();
 
             // Optimization for the last chunk: Direct tensor reuse when shapes match
-            if (static_cast<int64_t>(input_shape[param.dim]) == past_len && input->is_continuous()) {
+            if (static_cast<int64_t>(input_shape[param.dim]) == past_len) {
                 request->set_tensor(iport, input);
                 continue;
             }
