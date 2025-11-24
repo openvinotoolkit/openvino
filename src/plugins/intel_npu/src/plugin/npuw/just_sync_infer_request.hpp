@@ -83,7 +83,7 @@ protected:
     bool supports_async_pipeline() const override;
     void update_subrequest_links(std::size_t idx) override;
 
-    TensorPtr alloc_global_out(std::size_t out_idx) override;
+    TensorPtr alloc_global_out(std::size_t out_idx) const override;
 
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
