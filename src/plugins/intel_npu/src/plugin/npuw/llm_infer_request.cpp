@@ -389,6 +389,10 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
 
     // Set default to the largest variant for backward compatibility
     m_kvcache_request = m_generate_requests.back();
+
+    // Need to set ports to ensure tensors aren't empty during bind_past_kv()
+    m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
+    m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::LLMInferRequest::select_generate_request(int64_t prompt_length) {
@@ -611,8 +615,10 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                                                                0u,
                                                                static_cast<uint32_t>(tokens_in_past_chunks));
                 } else {
-                    prefill_past_kv_chunks =
-                        make_tensor_slice(prefill_past_kv, pre_kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                    prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv,
+                                                               pre_kv_dim,
+                                                               0u,
+                                                               static_cast<uint32_t>(tokens_in_past_chunks));
                 }
 
                 auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
