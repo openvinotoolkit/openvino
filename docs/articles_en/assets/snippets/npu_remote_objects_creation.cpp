@@ -50,17 +50,18 @@ int main() {
     }
 
     {
-        //! [wrap_raw_pointer]
-        void* shared_buffer = nullptr;
+        //! [import_cpu_va]
+        void* standard_allocation = nullptr;
         ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::CPU_VA;
-        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, shared_buffer, memory_type);
-        //! [wrap_raw_pointer]
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, standard_allocation, memory_type);
+        //! [import_cpu_va]
     }
 
     {
         //! [wrap_dmabuf_fd]
         int32_t fd_heap = 0;  // create the DMA-BUF System Heap file descriptor
-        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, fd_heap);
+        ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::SHARED_BUF;
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, fd_heap, memory_type);
         //! [wrap_dmabuf_fd]
     }
 
