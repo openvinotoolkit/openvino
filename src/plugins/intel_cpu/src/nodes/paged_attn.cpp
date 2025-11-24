@@ -176,7 +176,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     // sinks, float, [1, H, 1, 1]
     config.inConfs[PagedAttentionExecutor::ID_SINKS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
-            ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_SINKS)));
+            ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_SINKS)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
@@ -300,10 +300,6 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                                kCachePrecision.to_string() + " value cache prec " + vCachePrecision.to_string();
                 return false;
             }
-        }
-        if (ov::shape_size(op->get_input_shape(PagedAttentionExecutor::ID_SINKS)) != 0) {
-            errorMessage = "PageAttn sinks input is not supported yet";
-            return false;
         }
         auto orgInput = static_cast<int>(op->get_input_size());
         if (op->get_type_name() == std::string("PagedAttentionExtension") &&
