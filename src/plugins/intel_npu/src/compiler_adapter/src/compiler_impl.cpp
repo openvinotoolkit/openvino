@@ -32,7 +32,12 @@ UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const 
     return {usedMajor, usedMinor};
 }
 
-bool isUseBaseModelSerializer(const intel_npu::FilteredConfig& config) {
+bool isUseBaseModelSerializer(UsedVersion useVersion, const intel_npu::FilteredConfig& config) {
+    // vcl serializer(No copy) is only support for vcl version >= 7.5
+    if (useVersion.Major < 7 || (useVersion.Major == 7 && useVersion.Minor < 5)) {
+        return true;
+    }
+
     // user pass use_base_model_serializer config
     if (config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) &&
         config.has(ov::intel_npu::use_base_model_serializer.name())) {
@@ -48,40 +53,6 @@ bool isUseBaseModelSerializer(const intel_npu::FilteredConfig& config) {
 
     // No VCL serializer was chosen explicitly, will default to the "no weights copy" implementation
     return false;
-}
-
-void updateSerializerConfig(intel_npu::FilteredConfig& updatedConfig, const intel_npu::Logger& log) {
-    // To resolve the issue with the default configuration where no user passes the serializer config, the VCL
-    // serializer will be used as the default in the plugin adapter. You need to pass the serializer config;
-    // otherwise, you will encounter a deserialization issue within the compiler.
-    log.warning("Add serializer config");
-    if (updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-        updatedConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
-    } else if (updatedConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
-    }
-    return;
-}
-
-bool isUseBaseSerializerAndUpdateConfig(UsedVersion useVersion,
-                                        intel_npu::FilteredConfig& updatedConfig,
-                                        const intel_npu::Logger& log) {
-    bool useBaseModelSerializer = true;
-
-    // vcl serializer is only support for vcl version >= 7.5
-    if (useVersion.Major >= 7 && useVersion.Minor >= 5) {
-        useBaseModelSerializer = isUseBaseModelSerializer(updatedConfig);
-    }
-
-    if (useBaseModelSerializer) {
-        log.debug("serialize IR is base method (copies the weights), useBaseModelSerializer is %d",
-                  useBaseModelSerializer);
-    } else {
-        log.debug("serialize IR is NOT copies method, useBaseModelSerializer is %d", useBaseModelSerializer);
-        updateSerializerConfig(updatedConfig, log);
-    }
-
-    return useBaseModelSerializer;
 }
 
 std::string supportVclCompiler(int major, int minor) {
@@ -395,7 +366,10 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         OPENVINO_THROW("config is not FilteredConfig");
     }
     FilteredConfig updatedConfig = *filteredConfig;
-    bool useBaseModelSerializer = isUseBaseSerializerAndUpdateConfig(usedVersion, updatedConfig, _logger);
+    bool useBaseModelSerializer = true;
+    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, updatedConfig);
+    _logger.debug("serialize IR method is %s",
+                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
     auto serializedIR =
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
 
@@ -502,7 +476,10 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
         OPENVINO_THROW("config is not FilteredConfig");
     }
     FilteredConfig updatedConfig = *filteredConfig;
-    bool useBaseModelSerializer = isUseBaseSerializerAndUpdateConfig({7, 5}, updatedConfig, _logger);
+    bool useBaseModelSerializer = true;
+    useBaseModelSerializer = isUseBaseModelSerializer({7, 5}, updatedConfig);
+    _logger.debug("serialize IR method is %s",
+                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
     auto serializedIR =
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
 
@@ -543,6 +520,7 @@ NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov:
                                                        const Config& config,
                                                        size_t callNumber) const {
     _logger.debug("compileWsIterative start");
+    storeWeightlessCacheAttribute(model);
     const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
     if (filteredConfig == nullptr) {
         OPENVINO_THROW("config is not FilteredConfig");
@@ -626,7 +604,10 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
         OPENVINO_THROW("config is not FilteredConfig");
     }
     FilteredConfig updatedConfig = *filteredConfig;
-    bool useBaseModelSerializer = isUseBaseSerializerAndUpdateConfig(usedVersion, updatedConfig, _logger);
+    bool useBaseModelSerializer = true;
+    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, updatedConfig);
+    _logger.debug("serialize IR method is %s",
+                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
     auto serializedIR =
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
 

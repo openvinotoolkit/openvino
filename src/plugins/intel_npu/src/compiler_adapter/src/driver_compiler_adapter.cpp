@@ -34,46 +34,6 @@ bool useBaseModelSerializer(const intel_npu::FilteredConfig& config) {
     return true;
 }
 
-void updateSerializerConfigToEnableCopy(intel_npu::FilteredConfig& updatedConfig, const intel_npu::Logger& log) {
-    // To resolve the issue with the default configuration where no user passes the serializer config, the VCL
-    // serializer will be used as the default in the plugin adapter. You need to pass the serializer config;
-    // otherwise, you will encounter a deserialization issue within the compiler.
-    log.warning("update serializer config");
-    if (updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-        updatedConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "YES"}});
-    } else if (updatedConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(), "ALL_WEIGHTS_COPY"}});
-    }
-    return;
-}
-
-void updateSerializerConfigToEnableNoCopy(intel_npu::FilteredConfig& updatedConfig, const intel_npu::Logger& log) {
-    // To resolve the issue with the default configuration where no user passes the serializer config, the VCL
-    // serializer will be used as the default in the plugin adapter. You need to pass the serializer config;
-    // otherwise, you will encounter a deserialization issue within the compiler.
-    log.warning("Add serializer config");
-    if (updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-        updatedConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
-    } else if (updatedConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
-    }
-    return;
-}
-
-bool isUseBaseModelSerializer(intel_npu::FilteredConfig& updatedConfig, const intel_npu::Logger& log) {
-    bool useBaseModelSerializerflag = useBaseModelSerializer(updatedConfig);
-
-    if (useBaseModelSerializerflag) {
-        log.debug("serialize IR is base method (copies the weights), useBaseModelSerializer is %d",
-                  useBaseModelSerializerflag);
-        updateSerializerConfigToEnableCopy(updatedConfig, log);
-    } else {
-        log.debug("serialize IR is NOT copies method, useBaseModelSerializer is %d", useBaseModelSerializerflag);
-        updateSerializerConfigToEnableNoCopy(updatedConfig, log);
-    }
-    return useBaseModelSerializerflag;
-}
-
 }  // namespace
 
 namespace intel_npu {
@@ -106,10 +66,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("serialize IR");
     FilteredConfig updatedConfig = config;
-    auto serializedIR = driver_compiler_utils::serializeIR(model,
-                                                           compilerVersion,
-                                                           maxOpsetVersion,
-                                                           isUseBaseModelSerializer(updatedConfig, _logger));
+    auto serializedIR =
+        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -171,10 +129,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
     FilteredConfig updatedConfig = *plgConfig;
 
-    auto serializedIR = driver_compiler_utils::serializeIR(model,
-                                                           compilerVersion,
-                                                           maxOpsetVersion,
-                                                           isUseBaseModelSerializer(updatedConfig, _logger));
+    auto serializedIR =
+        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -313,10 +269,8 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
 
     _logger.debug("serialize IR");
     FilteredConfig updatedConfig = config;
-    auto serializedIR = driver_compiler_utils::serializeIR(model,
-                                                           compilerVersion,
-                                                           maxOpsetVersion,
-                                                           isUseBaseModelSerializer(updatedConfig, _logger));
+    auto serializedIR =
+        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
     std::string buildFlags;
     buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
