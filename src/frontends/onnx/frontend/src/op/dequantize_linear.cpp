@@ -235,8 +235,9 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         auto shape = tensor.get_partial_shape();
         if (const_node && shape.rank().is_static() && shape.rank().get_length() > 2) {
             for (int64_t i = 2; i < shape.rank().get_length(); ++i) {
-                FRONT_END_GENERAL_CHECK(shape[i].is_static() && shape[i].get_length() == 1,
-                                        "DequantizeLinear const_input_to_2d failed, shape is not supported");
+                if (shape[i].is_dynamic() || shape[i].get_length() != 1) {
+                    return;
+                }
             }
             tensor = std::make_shared<v0::Constant>(
                 const_node->get_element_type(),
