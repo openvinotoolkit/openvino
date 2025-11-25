@@ -125,7 +125,7 @@ For more details, see the code snippets below:
 Limitations
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* The NPU plugin does not support methods for direct allocation of native handles.
+The NPU plugin does not support methods for direct allocation of native handles.
 
 .. warning::
 
