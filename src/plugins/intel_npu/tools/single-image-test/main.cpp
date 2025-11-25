@@ -1846,7 +1846,7 @@ std::vector<Detection> parseDetectionsFromOutputs(const TensorMap& outputs, floa
         }
 
         // Confidence is the softmax probability of the best class
-        float confidence = 1.0 / exp_sum;
+        float confidence = 1.0f / exp_sum;
 
         // Filter by confidence threshold
         if (confidence > confidence_threshold && best_class >= 0) {
