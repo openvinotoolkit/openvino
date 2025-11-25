@@ -36,6 +36,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_ATTN>();
     desc.add<NPUW_ATTN_DYN>();
     desc.add<NPUW_ATTN_NO_COPY>();
+    desc.add<NPUW_ATTENTION_HINT>();
     desc.add<NPUW_HOST_GATHER>();
     desc.add<NPUW_F16IC>();
     desc.add<NPUW_DCOFF_TYPE>();

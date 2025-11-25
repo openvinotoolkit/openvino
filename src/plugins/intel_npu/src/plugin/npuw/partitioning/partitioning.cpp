@@ -1908,13 +1908,27 @@ void Partitioner::attention(const std::string& func_name) {
     }
 
     LOG_WARN("No dynamic ranges found in the ATTN block");
-    f._pyramid_attention = ov::npuw::function::PyramidAttention::from(f._model);
-    if (f._pyramid_attention) {
-        LOG_VERB("Done");
-        return;
-    }
 
-    LOG_WARN("No pyramid attention found in the ATTN block");
+    // Check attention hint from context to decide between PYRAMID and HFA
+    const auto attn_hint = part_ctx.attn_hint;
+
+    if (attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID) {
+        LOG_DEBUG("Attempting PyramidAttention based on config hint");
+        f._pyramid_attention = ov::npuw::function::PyramidAttention::from(f._model);
+        if (f._pyramid_attention) {
+            LOG_VERB("Done");
+            return;
+        }
+        LOG_WARN("No pyramid attention found in the ATTN block");
+    } else if (attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA) {
+        LOG_DEBUG("Attempting HostFlashAttention based on config hint");
+        f._host_flash_attention = ov::npuw::function::HostFlashAttention::from(f._model);
+        if (f._host_flash_attention) {
+            LOG_VERB("Done");
+            return;
+        }
+        LOG_WARN("No host flash attention found in the ATTN block");
+    }
 }
 
 void Partitioner::optimize(const std::string& func_name) {

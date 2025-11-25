@@ -227,6 +227,11 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     ov::npuw::PartitioningContext ctx;
     // Identify based on compiler version, user config and pattern
     ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
+    // Pass attention hint to partitioning context
+    ctx.attn_hint = m_cfg.get<::intel_npu::NPUW_ATTENTION_HINT>();
+
+    std::cout << "[compiled_model.cpp] attention_hint = " << ::intel_npu::NPUW_ATTENTION_HINT::toString(ctx.attn_hint)
+              << std::endl;
 
     ov::npuw::Partitioning partitioning;
     m_profile["partitioning"].record([&]() {

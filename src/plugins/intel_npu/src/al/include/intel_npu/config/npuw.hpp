@@ -166,7 +166,7 @@ namespace npuw {
 namespace llm {
 enum class PrefillHint { DYNAMIC, STATIC };
 enum class GenerateHint { FAST_COMPILE, BEST_PERF };
-enum class AttentionHint { DYNAMIC, STATIC, PYRAMID };
+enum class AttentionHint { DYNAMIC, STATIC, PYRAMID, HFA };
 }  // namespace llm
 }  // namespace npuw
 
@@ -230,6 +230,8 @@ struct ATTN_HINT_BASE : OptionBase<ATTN_HINT_BASE, ::intel_npu::npuw::llm::Atten
             return ::intel_npu::npuw::llm::AttentionHint::STATIC;
         } else if (val == "PYRAMID") {
             return ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
+        } else if (val == "HFA") {
+            return ::intel_npu::npuw::llm::AttentionHint::HFA;
         }
         OPENVINO_THROW("Unsupported attention hint provided: ", val);
         return {};
@@ -243,6 +245,8 @@ struct ATTN_HINT_BASE : OptionBase<ATTN_HINT_BASE, ::intel_npu::npuw::llm::Atten
             return "STATIC";
         case ::intel_npu::npuw::llm::AttentionHint::PYRAMID:
             return "PYRAMID";
+        case ::intel_npu::npuw::llm::AttentionHint::HFA:
+            return "HFA";
         default:
             OPENVINO_THROW("Can't convert provided attention hint : ", int(val), " to string.");
         }
@@ -319,6 +323,13 @@ struct NPUW_LLM_GENERATE_HINT final : OptionBase<NPUW_LLM_GENERATE_HINT, ::intel
 
     static bool isPublic() {
         return false;
+    }
+};
+
+// General NPUW attention hint option (not LLM-specific)
+struct NPUW_ATTENTION_HINT final : ATTN_HINT_BASE {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::partitioning::attn_hint.name();
     }
 };
 }  // namespace intel_npu
