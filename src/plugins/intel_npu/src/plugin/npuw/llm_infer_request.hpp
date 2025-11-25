@@ -28,12 +28,15 @@ public:
         static constexpr const char* logits = "logits";
         static constexpr const char* token_type_ids = "token_type_ids";
         static constexpr const char* gemma_sliding_mask = "npuw_gemma_sliding_mask";
+        static constexpr const char* longrope_input = "npuw_longrope_input";
     };
 
     struct layer_ids {
         static constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
         static constexpr std::size_t kStartOutputKVCacheLayers = 1;
     };
+
+    using PortsMap = std::unordered_map<std::string, ov::Output<const ov::Node>>;
 
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
@@ -110,21 +113,17 @@ protected:
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
 
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
+    PortsMap m_prefill_in_ports;
+    PortsMap m_prefill_out_ports;
 
     // Ports for the currently selected generate model variant (set once per conversation in
     // prepare_for_new_conversation)
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+    PortsMap m_kvcache_in_ports;
+    PortsMap m_kvcache_out_ports;
 
     // Ports for all generate model variants - maps from request pointer to its input/output ports
-    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
-                       std::unordered_map<std::string, ov::Output<const ov::Node>>>
-        m_generate_variant_in_ports;
-    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
-                       std::unordered_map<std::string, ov::Output<const ov::Node>>>
-        m_generate_variant_out_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_in_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_out_ports;
 
     ov::Output<const ov::Node> m_lm_head_logits_port;
 
