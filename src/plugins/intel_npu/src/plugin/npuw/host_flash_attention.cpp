@@ -33,35 +33,42 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     // past_acc: [batch, num_heads, seq_len, head_dim]
     auto in_past_acc = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
     in_past_acc->set_friendly_name("past_acc");
+    in_past_acc->output(0).get_tensor().set_names({"past_acc"});
 
     // past_max: [batch, num_heads, seq_len, 1]
     auto in_past_max = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{batch, num_heads, seq_len, 1});
     in_past_max->set_friendly_name("past_max");
+    in_past_max->output(0).get_tensor().set_names({"past_max"});
 
     // past_d: [batch, num_heads, seq_len, 1]
     auto in_past_d = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{batch, num_heads, seq_len, 1});
     in_past_d->set_friendly_name("past_d");
+    in_past_d->output(0).get_tensor().set_names({"past_d"});
 
     // k_tile: [batch, num_heads, tile_size, head_dim]
     auto in_k_tile =
         std::make_shared<ov::op::v0::Parameter>(dtype,
                                                 ov::Shape{batch, num_heads, static_cast<size_t>(tile_size), head_dim});
     in_k_tile->set_friendly_name("k_tile");
+    in_k_tile->output(0).get_tensor().set_names({"k_tile"});
 
     // v_tile: [batch, num_heads, head_dim, tile_size]
     auto in_v_tile =
         std::make_shared<ov::op::v0::Parameter>(dtype,
                                                 ov::Shape{batch, num_heads, head_dim, static_cast<size_t>(tile_size)});
     in_v_tile->set_friendly_name("v_tile");
+    in_v_tile->output(0).get_tensor().set_names({"v_tile"});
 
     // q: [batch, num_heads, seq_len, head_dim]
     auto in_q = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
     in_q->set_friendly_name("q");
+    in_q->output(0).get_tensor().set_names({"q"});
 
     // mask_tile: [batch, 1, seq_len, tile_size]
     auto in_mask_tile =
         std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{batch, 1, seq_len, static_cast<size_t>(tile_size)});
     in_mask_tile->set_friendly_name("mask_tile");
+    in_mask_tile->output(0).get_tensor().set_names({"mask_tile"});
 
     // Flash Attention Tile Algorithm (from hfa.py::ov_hfa_tile):
     // qk = matmul(q, k^T)
@@ -79,6 +86,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
 
     auto maxx = std::make_shared<ov::op::v1::Maximum>(in_past_max, qkm_max);
     maxx->set_friendly_name("maxx");
+    maxx->output(0).get_tensor().set_names({"maxx"});
 
     // p = exp(qkm - maxx)
     auto qkm_sub_maxx = std::make_shared<ov::op::v1::Subtract>(qkm, maxx);
@@ -98,6 +106,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     auto past_d_alpha = std::make_shared<ov::op::v1::Multiply>(in_past_d, alpha);
     auto d = std::make_shared<ov::op::v1::Add>(past_d_alpha, l);
     d->set_friendly_name("d");
+    d->output(0).get_tensor().set_names({"d"});
 
     // acc = past_acc * alpha + matmul(p, v)
     auto past_acc_alpha = std::make_shared<ov::op::v1::Multiply>(in_past_acc, alpha);
@@ -105,6 +114,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     pv->set_friendly_name("pv");
     auto acc = std::make_shared<ov::op::v1::Add>(past_acc_alpha, pv);
     acc->set_friendly_name("acc");
+    acc->output(0).get_tensor().set_names({"acc"});
 
     // Create results
     auto out_acc = std::make_shared<ov::op::v0::Result>(acc);
