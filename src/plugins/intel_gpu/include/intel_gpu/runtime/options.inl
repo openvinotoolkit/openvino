@@ -60,6 +60,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_threshold,
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_precomputed_reduction, true, "Precompute reduction of activation for faster dynamic quantization in case of asymmetric weight")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_bypass_xattn, true, "Allow bypass xattn execution if threshold >= 1.0.")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, weightless_attr, nullptr, "Used to configure ov::WeightlessCacheAttribute for constants that are not loaded from a .bin file. This typically applies to non-IR inputs (e.g., ORT)")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, disable_moe_opt, false, "Disable mixture of expert optimization")
 
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
@@ -91,7 +92,7 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_post_ops_fusions, 0, "Disable fusi
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_horizontal_fc_fusion, false, "Disable pass which merges QKV projections into single MatMul")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fc_swiglu_fusion, false, "Disable pass which merges FC and SwiGLU ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fake_alignment, false, "Disable fake alignment feature which tries to keep gpu friendly memory alignment for arbitrary tensor shapes")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_moe_opt, false, "Disable mixture of expert optimization")
+// OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_moe_opt, false, "Disable mixture of expert optimization")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_memory_reuse, false, "Disable memory reuse for activation tensors")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_skip_reorder, false, "Disable skip reorder optimization applied in runtime")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, load_dump_raw_binary, std::vector<std::string>{}, "List of layers to load raw binary")
