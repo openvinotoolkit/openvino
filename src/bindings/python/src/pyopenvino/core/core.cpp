@@ -23,10 +23,9 @@ namespace py = pybind11;
 
 void regclass_Core(py::module m) {
     py::class_<ov::Core, std::shared_ptr<ov::Core>> cls(m, "Core");
-    cls.doc() =
-        "openvino.Core class represents OpenVINO runtime Core entity. User applications can create several "
-        "Core class instances. In that case the device plugins will still share underlying "
-        "resources (such as OCL context) in per-device singleton.";
+    cls.doc() = "openvino.Core class represents OpenVINO runtime Core entity. User applications can create several "
+                "Core class instances. In that case the device plugins will still share underlying "
+                "resources (such as OCL context) in per-device singleton.";
 
     cls.def(py::init<const std::string&>(), py::arg("xml_config_file") = "");
 
