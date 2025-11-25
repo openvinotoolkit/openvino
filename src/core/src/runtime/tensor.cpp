@@ -210,22 +210,27 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
                         bool mmap) {
     OPENVINO_ASSERT(element_type != ov::element::string);
     auto static_shape = calc_static_shape_for_file(file_name, element_type, partial_shape, offset_in_bytes);
+    const void* data_ptr;
+    std::shared_ptr<void> shared_obj;
     if (mmap) {
         auto mapped_memory = ov::load_mmap_object(file_name);
         auto shared_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
             mapped_memory->data() + offset_in_bytes,
             mapped_memory->size() - offset_in_bytes,
             mapped_memory);
-
-        auto view_tensor = Tensor(element_type, static_shape, shared_buffer->get_ptr());
-        auto impl = get_tensor_impl(view_tensor);
-        impl._so = shared_buffer;
-        view_tensor = make_tensor(impl);
-        return view_tensor;
+        data_ptr = shared_buffer->get_ptr();
+        shared_obj = shared_buffer;
     } else {
-        ov::Tensor tensor(element_type, static_shape);
-        read_tensor_data(file_name, tensor, offset_in_bytes);
-        return tensor;
+        auto tensor = std::make_shared<ov::Tensor>(element_type, static_shape);
+        read_tensor_data(file_name, *tensor.get(), offset_in_bytes);
+        data_ptr = tensor->data();
+        shared_obj = tensor;
     }
+    auto view_tensor = Tensor(element_type, static_shape, data_ptr);
+    auto impl = get_tensor_impl(view_tensor);
+    impl._so = shared_obj;
+    view_tensor = make_tensor(impl);
+    return view_tensor;
+
 }
 }  // namespace ov
