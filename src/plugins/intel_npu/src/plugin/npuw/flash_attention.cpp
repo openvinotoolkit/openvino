@@ -148,7 +148,6 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
     auto full_k = pattern_nodes.matmul1_node->input(1);
     auto full_v = pattern_nodes.matmul2_node->input(1);
 
-    LOG_ERROR("debugging 104");
     // ii = self.input_tensors
     // full_k = self.make_full_k()
     auto full_k_shape = full_k.get_shape();
@@ -170,7 +169,6 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
 
     // acc, maxx, d = self.ov_hfa_tile(in_q, in_full_k, in_full_v, in_m,
     //                                 in_past_m, in_past_d, in_past_a)
-    LOG_ERROR("debugging 103");
     auto in_full_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, full_k.get_shape());
     auto in_full_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, full_v.get_shape());
     auto in_past_m = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, past_m_shape);
@@ -179,7 +177,6 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
 
     auto in_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, in_q_shape);
     auto in_m = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, in_m_shape);
-    LOG_ERROR("debugging 102");
 
     auto tile_result = make_hfa_tile(in_q, in_full_k, in_full_v, in_m, in_past_m, in_past_d, in_past_a);
     hfa.models.resize(FlashAttention::eLast);
@@ -198,7 +195,6 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
     //     find_params_for_node(kv_cache_concat_results),
     //    "hfa_kv_concat");
 
-    LOG_ERROR("debugging 101");
     auto past_k = find_params_for_node({full_k.get_source_output().get_node_shared_ptr()});
     auto in_pask_kk = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, past_k[0]->get_shape());
     in_pask_kk->set_friendly_name(past_k[0]->get_friendly_name());
@@ -219,14 +215,11 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
     // final = past_a / past_d
     // final = np.transpose(final, axes=(0,2,1,3))
     // final = np.reshape(final, [1,1024,4096])
-    LOG_ERROR("debugging 1");
 
     auto div1 = std::make_shared<ov::op::v1::Divide>(tile_result[0], tile_result[2], true);
     std::vector<size_t> order = {0, 2, 1, 3};
     auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, {order.size()}, order);
     auto transpose1 = std::make_shared<ov::op::v1::Transpose>(div1, transpose_order);
-
-    LOG_ERROR("debugging 2");
 
     auto final_shape_pattern = ov::op::v0::Constant::create(
         ov::element::i64,
@@ -235,14 +228,12 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
 
     auto reshaped1 = std::make_shared<ov::op::v1::Reshape>(transpose1, final_shape_pattern, true);
     auto result1 = std::make_shared<ov::op::v0::Result>(reshaped1);
-    LOG_ERROR("debugging 3");
 
     // can be also last model - hfa_tile + transpose + divide
     hfa.models[FlashAttention::eDivide] = std::make_shared<ov::Model>(
         ov::ResultVector{result1},
         ov::ParameterVector{in_past_a, in_past_m, in_past_d, in_full_k, in_full_v, in_q, in_m},
         "hfa_final_tile");
-    LOG_ERROR("debugging passed");
 
     return std::move(hfa);
 }

@@ -21,6 +21,10 @@
 #include "pyramid_attention.hpp"
 #include "util.hpp"
 #include "weights_bank.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+
 
 ov::npuw::MemAccessSim::MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model) {
     LOG_VERB("Running memory access simulation...");
@@ -1018,43 +1022,93 @@ void ov::npuw::JustInferRequest::setup_flash_infer_requests(std::size_t real_idx
     auto & concat_infer_request = submodel_desc.flash_infer_requests[ov::npuw::function::FlashAttention::eConcat];
     const size_t num_inputs = concat_model->inputs().size();
     LOG_INFO("num_inputs=" << num_inputs << ", submodel_desc.compiled_model->inputs().size()=" << submodel_desc.compiled_model->inputs().size());
-    NPUW_ASSERT(num_inputs == submodel_desc.compiled_model->inputs().size());
+    //NPUW_ASSERT(num_inputs == submodel_desc.compiled_model->inputs().size());
+
+
+    // TODO: might be not perfect since shape binding might fail one day
+    std::map<ov::Shape, ov::Output<const ov::Node>> concat_inputs_by_shape;
     for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-        auto flash_input = concat_model->inputs()[input_idx];
-        auto main_input = submodel_desc.compiled_model->inputs()[input_idx];
-
-        // Get tensor from main infer request and share its memory with the flash infer request
-        auto main_tensor_ptr = m_subrequests[real_idx]->get_tensor(main_input)->data();
-        auto flash_tensor = concat_infer_request->get_tensor(flash_input);
-        auto shared_tensor = ov::get_tensor_impl(
-            ov::Tensor(flash_tensor->get_element_type(), flash_tensor->get_shape(), main_tensor_ptr));
-        concat_infer_request->set_tensor(flash_input, shared_tensor);
-
-        // TODO: what is pieplined?
-        // Repeat for pipeline infer request if pipelined
-        // if (is_piped) {
-        //     auto pipeline_tensor = submodel_desc.pyramid_pipeline_requests[model_idx]->get_tensor(pyramid_input);
-        //     auto pipeline_tensor_ptr = m_funcall_pipeline[real_idx].subrequest->get_tensor(main_input)->data();
-        //     auto shared_pipeline_tensor = ov::get_tensor_impl(
-        //         ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), pipeline_tensor_ptr));
-        //     submodel_desc.pyramid_pipeline_requests[model_idx]->set_tensor(pyramid_input, shared_pipeline_tensor);
-        // }
+        auto concat_input = concat_model->inputs()[input_idx];
+        LOG_DEBUG("concat_input["<< input_idx << "]=" << concat_input.get_shape());
+        concat_inputs_by_shape[concat_input.get_shape()] = concat_input;
     }
 
-    // For the last pyramid model, reuse the original model's infer requests
-    // if (num_pyramid_models > 0) {
-    //     const size_t last_model_idx = num_pyramid_models - 1;
-    //     LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "original infer requests for last pyramid model["
-    //                         << last_model_idx << "]");
-    //     submodel_desc.pyramid_infer_requests[last_model_idx] = m_subrequests[real_idx];
-    //     if (is_piped) {
-    //         submodel_desc.pyramid_pipeline_requests[last_model_idx] = m_funcall_pipeline[real_idx].subrequest;
-    //     }
-    // }
+
+    // concat connection only with 4 inputs for k and v concat to previous values
+    std::vector<std::pair<size_t, ov::Output<const ov::Node>>> main_inputs_non_kv_cache;
+    for (size_t input_idx = 0; input_idx < submodel_desc.compiled_model->inputs().size(); ++input_idx) {
+        auto submodel_input = submodel_desc.compiled_model->inputs()[input_idx];
+        LOG_INFO("submodel_input["<< input_idx << "]=" << submodel_input.get_shape());
+        if (!concat_inputs_by_shape.count(submodel_input.get_shape())) {
+            LOG_DEBUG("submodel_input["<< input_idx << "]=" << submodel_input.get_shape() << "- not a concat input, saving");
+            main_inputs_non_kv_cache.push_back(make_pair(input_idx, submodel_input));
+        } else {
+            LOG_DEBUG("submodel_input["<< input_idx << "]=" << submodel_input.get_shape()
+                << " - sharing tensor with subrequest[" << real_idx << "] input");
+            // binding infer requests
+            // Get tensor from main infer request and share its memory with the flash infer request
+            auto concat_input = concat_inputs_by_shape.at(submodel_input.get_shape());
+            auto main_tensor_ptr = m_subrequests[real_idx]->get_tensor(submodel_input)->data();
+            auto flash_tensor = concat_infer_request->get_tensor(concat_input);
+            auto shared_tensor = ov::get_tensor_impl(
+                ov::Tensor(flash_tensor->get_element_type(), flash_tensor->get_shape(), main_tensor_ptr));
+            concat_infer_request->set_tensor(concat_input, shared_tensor);
+        }
+    }
+
+    // Share input tensors between flash-tile model and main infer requests
+    const auto & tile_model = flash_models[ov::npuw::function::FlashAttention::eTile];
+    auto & tile_infer_request = submodel_desc.flash_infer_requests[ov::npuw::function::FlashAttention::eTile];
+
+    auto connected_output_node = [](auto input_node) {
+        auto connected_to = input_node->output(0).get_target_inputs();
+        NPUW_ASSERT(connected_to.size() == 1);
+        return connected_to.begin()->get_node()->shared_from_this();
+    };
+
+    // binding remained inputs to a repeating block model as well as acc / max / d
+    for (auto submodel_input : main_inputs_non_kv_cache) {
+        auto convert_or_ = connected_output_node(submodel_input.second.get_node_shared_ptr());
+
+        bool is_convert = is_type<ov::op::v0::Convert>(convert_or_);
+        if (is_convert) {
+            convert_or_ = connected_output_node(convert_or_);
+        }
+        bool is_add = is_type<ov::op::v1::Add>(convert_or_);
+        bool is_matmul = is_type<ov::op::v0::MatMul>(convert_or_);
+
+        NPUW_ASSERT(is_add || is_matmul);
+
+        // Tile submodel has following parameters
+        // ov::ParameterVector{in_past_a, in_past_m, in_past_d, in_full_k, in_full_v, in_q=matmull, in_m=add},
+        size_t tile_model_input_idx = 0;
+        if (is_add) {
+            LOG_DEBUG("submodel_input["<< submodel_input.first << "]=" << submodel_input.second.get_shape()
+                << " - sharing tensor with subrequest[" << real_idx << "] input");
+            tile_model_input_idx = 6;
+        } else if (is_matmul) {
+            tile_model_input_idx = 5;
+        } else {
+            LOG_ERROR("invalid parameter for submodel["<< submodel_input.first << "]=" << submodel_input.second.get_shape());
+            NPUW_ASSERT(false);
+        }
+
+        // binding infer requests inputs
+        // Get tensor from main infer request and share its memory with the flash infer request
+
+        auto main_tensor_ptr = m_subrequests[real_idx]->get_tensor(submodel_input.second)->data();
+        auto tile_input = tile_model->inputs()[tile_model_input_idx];
+        auto tile_tensor = tile_infer_request->get_tensor(tile_input);
+
+        auto shared_tensor = ov::get_tensor_impl(
+            ov::Tensor(tile_tensor->get_element_type(), tile_tensor->get_shape(), main_tensor_ptr));
+        concat_infer_request->set_tensor(tile_input, shared_tensor);
+    }
+
 
     if (!is_recreate && num_flash_models > 0) {
-        LOG_INFO("Successfully created " << (num_flash_models - 1)
-                                         << " new pyramid infer requests and reused 1 original request");
+        LOG_INFO("Successfully created " << (num_flash_models)
+                                         << " new flash-attention infer requests and reused 1 original request");
     }
 
 
