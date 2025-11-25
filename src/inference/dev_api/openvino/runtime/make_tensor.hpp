@@ -12,6 +12,7 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "openvino/runtime/allocator.hpp"
 
 namespace ov {
 

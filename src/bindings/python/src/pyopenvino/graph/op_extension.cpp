@@ -20,7 +20,7 @@ const ov::DiscreteTypeInfo& PyOpExtension::get_type_info() const {
 }
 
 ov::OutputVector PyOpExtension::create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) const {
-    ConditionalGILScopedAcquire acquire;
+    py::gil_scoped_acquire acquire;
 
     const auto node = py_handle_dtype();
 

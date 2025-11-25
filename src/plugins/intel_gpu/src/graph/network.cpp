@@ -684,26 +684,20 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     reset_execution(false);
 
     std::vector<memory::ptr> in_out_mem;
-    auto is_surface_lock_check_needed = [&](const shared_mem_type& shared_mem_type) {
-        return shared_mem_type == shared_mem_type::shared_mem_vasurface ||
-               shared_mem_type == shared_mem_type::shared_mem_dxbuffer ||
-               shared_mem_type == shared_mem_type::shared_mem_image;
-    };
-
     bool shared_mem_found = std::any_of(_in_out_shared_mem_types.begin(),
                                         _in_out_shared_mem_types.end(),
-                                        is_surface_lock_check_needed);
+                                        surfaces_lock::is_lock_needed);
 
     if (shared_mem_found) {
         for (auto& inst : _inputs) {
             if (inst->output_memory_ptr() &&
-                is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
+                surfaces_lock::is_lock_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
 
         for (auto& inst : _outputs) {
             if (inst->output_memory_ptr() &&
-                is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
+                surfaces_lock::is_lock_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
     }
@@ -1010,8 +1004,8 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-        // usm_device memory does not provide performance benefits on the LNL platform
-        if (get_engine().get_device_info().arch == gpu_arch::xe2 &&
+        // usm_device memory does not provide performance benefits on the integrated Xe2+ platforms
+        if (get_engine().get_device_info().arch >= gpu_arch::xe2 &&
             get_engine().get_device_info().dev_type == device_type::integrated_gpu) {
             return;
         }
