@@ -368,9 +368,9 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
             updatedConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
         }
     }
-
+    _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile");
     auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
+        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, true);
 
     std::string buildFlags;
 
@@ -476,8 +476,9 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     }
     FilteredConfig updatedConfig = *filteredConfig;
     bool useBaseModelSerializer = isUseBaseModelSerializer(updatedConfig);
+    _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compileWsOneShot");
     auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
+        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, true);
 
     std::string buildFlags;
 
@@ -630,8 +631,9 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
             updatedConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
         }
     }
+    _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in query");
     auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
+        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, true);
 
     std::string buildFlags;
     buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
