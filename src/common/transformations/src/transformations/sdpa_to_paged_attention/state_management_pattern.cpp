@@ -710,21 +710,27 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                 optional_model_wide_params.find("adaptive_rkv_start_size") != optional_model_wide_params.end(),
                 "No adaptive_rkv_start_size input found. For using Adaptive R-KV, the model have to contain "
                 "an additional input (Parameter) called adaptive_rkv_start_size.");
-            OPENVINO_ASSERT(optional_model_wide_params.find("adaptive_rkv_evictable_sizes") != optional_model_wide_params.end(),
-                            "No adaptive_rkv_evictable_sizes input found. For using Adaptive R-KV, the model have to contain "
-                            "an additional input (Parameter) called adaptive_rkv_evictable_sizes.");
+            OPENVINO_ASSERT(
+                optional_model_wide_params.find("adaptive_rkv_evictable_sizes") != optional_model_wide_params.end(),
+                "No adaptive_rkv_evictable_sizes input found. For using Adaptive R-KV, the model have to contain "
+                "an additional input (Parameter) called adaptive_rkv_evictable_sizes.");
             pa_arguments.insert(pa_arguments.begin() + 21, optional_model_wide_params.at("adaptive_rkv_start_size"));
-            pa_arguments.insert(pa_arguments.begin() + 22, optional_model_wide_params.at("adaptive_rkv_evictable_sizes"));
+            pa_arguments.insert(pa_arguments.begin() + 22,
+                                optional_model_wide_params.at("adaptive_rkv_evictable_sizes"));
 
-            auto adaptive_rkv_diversity_block_set_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                                                                    "adaptive_rkv_diversity_block_set_indices." + std::to_string(layer_index - 1));
+            auto adaptive_rkv_diversity_block_set_indices =
+                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                        "adaptive_rkv_diversity_block_set_indices." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 23, adaptive_rkv_diversity_block_set_indices);
-            adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer.push_back(adaptive_rkv_diversity_block_set_indices);
+            adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer.push_back(
+                adaptive_rkv_diversity_block_set_indices);
 
-            auto adaptive_rkv_diversity_block_set_begins = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                                                                    "adaptive_rkv_diversity_block_set_begins." + std::to_string(layer_index - 1));
+            auto adaptive_rkv_diversity_block_set_begins =
+                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                        "adaptive_rkv_diversity_block_set_begins." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 24, adaptive_rkv_diversity_block_set_begins);
-            adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer.push_back(adaptive_rkv_diversity_block_set_begins);
+            adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer.push_back(
+                adaptive_rkv_diversity_block_set_begins);
 
         } else {
             pa_arguments.insert(pa_arguments.begin() + 21, v0::Constant::create(element::i32, Shape{}, {0}));
@@ -764,7 +770,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         if (allow_adaptive_rkv) {
             auto similarity_result = std::make_shared<v0::Result>(paged_attention->output(2));
-            similarity_result->get_output_tensor(0).set_names({"adaptive_rkv_diversity." + std::to_string(layer_index - 1)});
+            similarity_result->get_output_tensor(0).set_names(
+                {"adaptive_rkv_diversity." + std::to_string(layer_index - 1)});
             adaptive_rkv_diversity_results.push_back(similarity_result);
         }
 

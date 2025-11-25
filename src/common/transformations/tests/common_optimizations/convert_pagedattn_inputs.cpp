@@ -116,8 +116,10 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0});
         auto adaptive_rkv_start_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
         auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto adaptive_rkv_diversity_block_set_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto adaptive_rkv_diversity_block_set_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto adaptive_rkv_diversity_block_set_indices =
+            std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto adaptive_rkv_diversity_block_set_begins =
+            std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                              K,
@@ -246,8 +248,10 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0});
         auto adaptive_rkv_start_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
         auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto adaptive_rkv_diversity_block_set_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto adaptive_rkv_diversity_block_set_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto adaptive_rkv_diversity_block_set_indices =
+            std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto adaptive_rkv_diversity_block_set_begins =
+            std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                              K,

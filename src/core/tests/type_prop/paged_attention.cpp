@@ -40,8 +40,10 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
 
     const auto adaptive_rkv_start_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
     const auto adaptive_rkv_evictable_sizes = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
-    const auto adaptive_rkv_diversity_block_set_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{10});
-    const auto adaptive_rkv_diversity_block_set_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
+    const auto adaptive_rkv_diversity_block_set_indices =
+        std::make_shared<op::v0::Parameter>(element::i32, PartialShape{10});
+    const auto adaptive_rkv_diversity_block_set_begins =
+        std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
 
     ov::OutputVector args = {query,
                              key,
@@ -102,8 +104,10 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
 
     const auto adaptive_rkv_start_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
     const auto adaptive_rkv_evictable_sizes = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
-    const auto adaptive_rkv_diversity_block_set_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{10});
-    const auto adaptive_rkv_diversity_block_set_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
+    const auto adaptive_rkv_diversity_block_set_indices =
+        std::make_shared<op::v0::Parameter>(element::i32, PartialShape{10});
+    const auto adaptive_rkv_diversity_block_set_begins =
+        std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
 
     ov::OutputVector args = {query,
                              key,
