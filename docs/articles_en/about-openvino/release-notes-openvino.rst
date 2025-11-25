@@ -46,16 +46,16 @@ What's new
 * More portability and performance to run AI at the edge, in the cloud or locally
 
   * Announcing support for Intel® Core™ Ultra Processor Series 3.
-  * Encrypted blob format support added for secure model deployment with OpenVINO™ GenAI and 
-    OpenVINO™ Model Server (OVMS). Model weights and artifacts are stored and transmitted in an encrypted format, reducing risks of IP theft during deployment.
-    Developers can deploy with minimal code changes using OpenVINO GenAI pipelines or enable encryption through OVMS configuration. 
-  * OpenVINO™ Model Server now extends support for Agentic AI scenarios to client architectures 
+  * Encrypted blob format support added for secure model deployment with OpenVINO™ GenAI. 
+    Model weights and artifacts are stored and transmitted in an encrypted format, reducing risks of IP theft during deployment.
+    Developers can deploy with minimal code changes using OpenVINO GenAI pipelines. 
+  * OpenVINO™ Model Server and OpenVINO™ GenAI now extend support for Agentic AI scenarios to client architectures 
     with new features such as output parsing and improved chat templates for reliable multi-turn interactions, 
-	 plus preview functionality for audio endpoints and Qwen3-30B-A3B model. 
+	 and preview functionality for the Qwen3-30B-A3B model. OVMS also introduces a preview for audio endpoints.
   * NPU deployment is simplified with batch support, enabling seamless model execution across 
     Intel® Core™ Ultra processors while eliminating driver dependencies. Models are reshaped 
-	 to batch_size=1 before compilation. The improved NVIDIA Triton Server* integration with 
-	 OpenVINO backend now enables developers to utilize Intel GPUs or NPUs for deployment. 
+	 to batch_size=1 before compilation. 
+  * The improved NVIDIA Triton Server* integration with OpenVINO backend now enables developers to utilize Intel GPUs or NPUs for deployment. 
 
 OpenVINO™ Runtime
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -98,6 +98,7 @@ GPU Device Plugin
 NPU Device Plugin
 ---------------------------------------------------------------------------------------------
 
+* Gemma-3-4B-it and Qwen2.5-VL-3B-Instruct models are now enabled. For Qwen2.5-VL-3B-Instruct, a minimum of 32 GB memory is required. 
 * Sliding window mask support for Phi-3 on NPU has been fixed.
 * OpenVINO™ cached models are now memory-mapped and imported within the current Level Zero context, 
   reducing peak memory consumption during imports by eliminating an additional in-memory copy of the compiled model.
@@ -363,10 +364,10 @@ New models and use cases:
 Known Issues
 -----------------------------
 
-| **Component: Placeholder**
-| ID: ####
+| **Component: OpenVINO Tokenizers**
+| ID: 174531 
 | Description:
-|   Placeholder
+| Accuracy regression of mistral-7b-instruct-v0.2 and mistral-7b-instruct-v0.3 on all devices when executed with OpenVINO GenAI. As a workaround, use the IR converted with OpenVINO 2025.3. The accuracy will be improved with the next release. 
 
 
 Previous 2025 releases
