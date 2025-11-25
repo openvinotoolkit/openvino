@@ -253,7 +253,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         jcp.rotary_ndims = config.rotary_ndims;
         jcp.interleave = true;
         // if use precomputed rope cache then it's mixed
-        // otherwise rope will have separate cos/sin inputs
+        // otherwise rope has separate cos/sin inputs
         jcp.mix_cos_sin = config.use_rope_cache;
         m_rotaryKernel = createJitKernel(jcp, true);
     }
@@ -262,16 +262,6 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
-        ov::intel_cpu::PlainTensor t_cos;
-        ov::intel_cpu::PlainTensor t_sin;
-        ov::intel_cpu::PlainTensor t_cos_sin;
-        if (!m_config.use_rope_cache) {
-            t_cos.reset(inputs[1]);
-            t_sin.reset(inputs[2]);
-        } else {
-            t_cos_sin.reset(inputs[1]);
-        }
-
         ov::intel_cpu::PlainTensor t_dst(outputs[0]);
 
         // [seq_len, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
@@ -289,6 +279,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
             auto rotary_dims = m_config.rotary_ndims;
 
             if (m_config.use_rope_cache) {
+                ov::intel_cpu::PlainTensor t_cos_sin(inputs[1]);
                 parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
                     // src [batch, length, H x S]
                     auto* src = t_src.ptr<T>(b, p, h * head_size);
@@ -311,6 +302,8 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
                     memcpy(dst + rotary_dims, src + rotary_dims, (head_size - rotary_dims) * sizeof(T));
                 });
             } else {
+                ov::intel_cpu::PlainTensor t_cos(inputs[1]);
+                ov::intel_cpu::PlainTensor t_sin(inputs[2]);
                 parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
                     auto* src = t_src.ptr<T>(b, p, h * head_size);
                     auto* dst = t_dst.ptr<T>(b, h, p);
@@ -337,7 +330,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
             auto head_size = m_config.head_size;
 
             auto rotary_dims = m_config.rotary_ndims;
-
+            ov::intel_cpu::PlainTensor t_cos_sin(inputs[1]);
             parallel_for3d(seq_len, batch_size, head_cnt, [&](size_t p, size_t b, size_t h) {
                 auto* src = t_src.ptr<T>(p, b, h * head_size);
                 // [length, batch_size, ndims//2, 2]
@@ -455,6 +448,15 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             rtPrecision = ov::element::f32;
         }
     } else if (m_config.is_chatglm) {
+        // in this case layout of cos/sin table must be [-1, 1, 1, -1]
+        if (m_config.support_2d_rope && !m_config.use_rope_cache) {
+            const auto& cos_table_shape = getInputShapeAtPort(1).getDims();
+            const auto& sin_table_shape = getInputShapeAtPort(2).getDims();
+            CPU_NODE_ASSERT(cos_table_shape[1] == 1 && cos_table_shape[2] == 1,
+                            "layout of rope's cos table should be [-1, 1, 1, -1]");
+            CPU_NODE_ASSERT(sin_table_shape[1] == 1 && sin_table_shape[2] == 1,
+                            "layout of rope's sin table should be [-1, 1, 1, -1]");
+        }
         if (rtPrecision == ov::element::f16) {
             m_executor = std::make_shared<RoPEExecutorChatGLM<ov::float16>>(m_config);
         } else if (rtPrecision == ov::element::bf16) {
