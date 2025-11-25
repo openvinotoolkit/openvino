@@ -100,10 +100,7 @@ void SoftMax::getSupportedDescriptors() {
         return;
     }
 
-    ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
-    if (none_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
-        precision = ov::element::f32;
-    }
+    ov::element::Type precision = ov::element::f32;
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
     CPU_NODE_ASSERT(getParentEdges().size() == 1, "Incorrect number of input edges");
@@ -132,10 +129,13 @@ bool SoftMax::created() const {
 
 Node::AttrPtr SoftMax::initPrimitiveAttr() {
     auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
-    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
+    attr->set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
+    attr->set_fpmath_mode(dnnl::fpmath_mode::strict);
 
     return attr;
 }
+
 
 void SoftMax::initOptimalPrimitiveDescriptor() {
     auto* selected_pd = getSelectedPrimitiveDescriptor();
@@ -164,13 +164,26 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     auto in_candidate = definedInpMemDesc->getDnnlDesc();
 
+    auto dims = in_candidate.get_dims();
+    auto format_kind = in_candidate.get_format_kind();
+
+    dnnl::memory::desc fp32_candidate;
+    if (format_kind == dnnl::memory::format_kind::blocked) {
+        auto strides = in_candidate.get_strides();
+        fp32_candidate = dnnl::memory::desc(dims, dnnl::memory::data_type::f32, strides);
+    } else {
+        fp32_candidate = dnnl::memory::desc(dims, dnnl::memory::data_type::f32,
+                                            dnnl::memory::format_tag::any);
+    }
+
+
     auto attr = initPrimitiveAttr();
 
     auto desc = softmax_forward::primitive_desc(getEngine(),
                                                 prop_kind::forward_inference,
                                                 algorithm::softmax_accurate,
-                                                in_candidate,
-                                                in_candidate,
+                                                fp32_candidate,
+                                                fp32_candidate,
                                                 axis,
                                                 *attr,
                                                 true);
@@ -179,6 +192,8 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
         descs.emplace_back(desc);
     }
 }
+
+
 
 void SoftMax::prepareParams() {
     auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
@@ -192,11 +207,20 @@ void SoftMax::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const SoftmaxKey& key) -> executorPtr {
+        // FORCE FP32: Get original descriptor and convert to FP32
+        auto original_desc = key.inp0->getDnnlDesc();
+        auto dims = original_desc.get_dims();
+        auto strides = original_desc.get_strides();
+
+        // Create FP32 version
+        dnnl::memory::desc fp32_desc(dims, dnnl::memory::data_type::f32, strides);
+
+        // Use FP32 descriptor for primitive creation
         auto prim_desc = softmax_forward::primitive_desc(engine,
                                                          prop_kind::forward_inference,
                                                          algorithm::softmax_accurate,
-                                                         key.inp0->getDnnlDesc(),
-                                                         key.inp0->getDnnlDesc(),
+                                                         fp32_desc,  // FP32 input
+                                                         fp32_desc,  // FP32 output
                                                          key.axis,
                                                          key.attr,
                                                          true);
@@ -207,10 +231,6 @@ void SoftMax::prepareParams() {
         while (itpd) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (impl_type == key.implType ||
-                // At least for oneDNN v2.4 the softmax primitive is optimized for the cases where the dimension of the
-                // softmax axis is physically dense. There could be situations where it is not possible to detect the
-                // optimized case in advance in case of dynamic shapes, but in runtime the shape could be suitable for
-                // the optimized implementation, so we have to select the optimized one.
                 (ref_any == key.implType && (impl_type & jit))) {
                 prim_desc = itpd.get();
                 break;
@@ -239,6 +259,7 @@ void SoftMax::prepareParams() {
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }
+
 
 void SoftMax::execute(const dnnl::stream& strm) {
     if (execPtr) {
