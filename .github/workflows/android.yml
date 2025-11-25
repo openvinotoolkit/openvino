@@ -213,6 +213,7 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DENABLE_LTO=ON \
             -DENABLE_TEMPLATE=ON \
+            -DENABLE_TEMPLATE_REGISTRATION=ON \
             -DENABLE_PYTHON=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
