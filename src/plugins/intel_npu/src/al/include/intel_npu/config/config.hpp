@@ -209,7 +209,7 @@ struct OptionPrinter<std::vector<T>> final {
         for (auto& v : val) {
             ss << v;
             if (counter < size - 1) {
-                ss << ' ';
+                ss << ',';
             }
             ++counter;
         }
