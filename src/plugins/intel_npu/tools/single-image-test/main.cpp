@@ -1752,7 +1752,7 @@ float calculateIoU(const Detection& detection1, const Detection& detection2, boo
 // Expected outputs: pred_boxes, logits, encoder_hidden_state, last_hidden_state
 // pred_boxes: [batch, num_queries, 4] with format [x_center, y_center, width, height] (normalized)
 // logits: [batch, num_queries, num_classes] with class probabilities/logits
-std::vector<Detection> parseDetectionsFromOutputs(const TensorMap& outputs, float confidence_threshold = 0.0f) {
+std::vector<Detection> parseDetectionsFromOutputs(const TensorMap& outputs, double confidence_threshold = 0.0f) {
     std::vector<Detection> detections;
 
     // Find the pred_boxes and logits tensors
@@ -1846,7 +1846,7 @@ std::vector<Detection> parseDetectionsFromOutputs(const TensorMap& outputs, floa
         }
 
         // Confidence is the softmax probability of the best class
-        float confidence = 1.0f / exp_sum;
+        double confidence = 1.0 / exp_sum;
 
         // Filter by confidence threshold
         if (confidence > confidence_threshold && best_class >= 0) {
@@ -1989,8 +1989,11 @@ double calculateAveragePrecision(const std::vector<float>& precision, const std:
 }
 
 bool computeMAP(const TensorMap& outputs, const TensorMap& references) {
-    std::vector<Detection> predictions = parseDetectionsFromOutputs(outputs, FLAGS_confidence_threshold);
-    std::vector<Detection> ground_truth = parseDetectionsFromOutputs(references, FLAGS_confidence_threshold);
+    auto confThresh = static_cast<float>(FLAGS_confidence_threshold);
+    auto overlapThresh = static_cast<float>(FLAGS_overlap_threshold);
+
+    std::vector<Detection> predictions = parseDetectionsFromOutputs(outputs, confThresh);
+    std::vector<Detection> ground_truth = parseDetectionsFromOutputs(references, confThresh);
 
     if (predictions.empty()) {
         std::cout << "No predictions found in output tensors" << std::endl;
@@ -2020,7 +2023,7 @@ bool computeMAP(const TensorMap& outputs, const TensorMap& references) {
         // Match detections for this class
         MatchResult match_result = matchDetectionsForClass(
             predictions, ground_truth, class_id,
-            FLAGS_overlap_threshold, true
+            overlapThresh, true
         );
 
         if (match_result.confidences.empty()) {
