@@ -107,37 +107,49 @@ jobs:
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_onnx_frontend_tests --gtest_filter=-*IE_GPU*
         continue-on-error: true
 
-      #- name: Run Paddle frontend unit tests
-      #  run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/paddle_tests --gtest_filter=-*IE_GPU*
-      #  continue-on-error: true
+      - name: Run Paddle frontend unit tests
+        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/paddle_tests --gtest_filter=-*IE_GPU*
+        continue-on-error: true
 
       - name: Run TensorFlow frontend unit tests
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_tensorflow_frontend_tests --gtest_filter=-*IE_GPU*
         continue-on-error: true
 
-      - name: Build coverage with CMake
-        uses: ashutoshvarma/action-cmake-build@ade188313bc7eaa6f14349569a64d8bc716342ff # master
-        with:
-          build-dir: ${{ github.workspace }}/coverage
-          cc: ${{ matrix.config.cc }}
-          cxx: ${{ matrix.config.cxx }}
-          target: ov_coverage
-          configure-options: >
-            -DCMAKE_VERBOSE_MAKEFILE=ON
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-            -DCMAKE_C_LINKER_LAUNCHER=ccache
-            -DCMAKE_CXX_LINKER_LAUNCHER=ccache
-
-
       - name: Print info
         run: |
           ls -laR
           pwd
+
       - name: Generate raport
         run: |
-          lcov --capture --directory ${{ github.workspace }}/. --output-file coverage.info
-          genhtml coverage.info --output-directory coverage-report
+          set -euo pipefail
+
+          SRC_DIR="${{ github.workspace }}"
+          BUILD_DIR="${{ github.workspace }}/build"
+          REPORT_DIR="${{ github.workspace }}/coverage-report"
+
+          echo "Capturing coverage from $BUILD_DIR (base=$SRC_DIR)..."
+          lcov --capture \
+               --directory "$BUILD_DIR" \
+               --base-directory "$SRC_DIR" \
+               --output-file coverage.info \
+               --no-external \
+               --rc geninfo_unexecuted_blocks=1 \
+               --ignore-errors mismatch,negative,unused
+
+          echo "Applying exclude patterns (tests, thirdparty, protobuf generated)..."
+          lcov --remove coverage.info \
+               "${SRC_DIR}/*.pb.cc" \
+               "${SRC_DIR}/*.pb.h" \
+               "${SRC_DIR}/*/tests/*" \
+               "${SRC_DIR}/thirdparty/*" \
+               -o coverage.info
+
+          mkdir -p "$REPORT_DIR"
+          genhtml coverage.info \
+                  --output-directory "$REPORT_DIR" \
+                  --prefix "$SRC_DIR"
+
       - name: Collect coverage
         uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:
