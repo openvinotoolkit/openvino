@@ -18,12 +18,22 @@ namespace function {
 
 // HostFlashAttention structure definition
 struct HostFlashAttention {
-    // TODO: Add member variables for HFA configuration
+    // Tiled model for flash attention execution
+    std::shared_ptr<ov::Model> _tile_model;
+
+    // Tile configuration
+    int64_t _tile_size = 1024;  // Default K/V tile size
+
+    // Input/Output mapping for tiled execution
+    // Inputs: [past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile]
+    // Outputs: [new_acc, new_max, new_d]
+
+    // Total KV cache size for tiling
+    int64_t _kv_cache_size = 0;
 
     // Validation helpers
     bool is_valid() const {
-        // TODO: Implement validation logic
-        return true;
+        return _tile_model != nullptr && _tile_size > 0 && _kv_cache_size > 0;
     }
 
     // Factory method
