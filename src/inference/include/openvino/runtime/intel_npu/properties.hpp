@@ -25,6 +25,27 @@ namespace ov {
  */
 namespace intel_npu {
 
+inline std::ostream& operator<<(std::ostream& os, const std::vector<std::string>& args_with_dynamic_strides) {
+    std::size_t counter = 0;
+    std::size_t size = args_with_dynamic_strides.size();
+    for (auto& v : args_with_dynamic_strides) {
+        os << v;
+        if (counter < size - 1) {
+            os << ',';
+        }
+        ++counter;
+    }
+    return os;
+}
+
+inline std::istream& operator>>(std::istream& is, std::vector<std::string>& args_with_dynamic_strides) {
+    std::string arg;
+    while (std::getline(is, arg, ',')) {
+        args_with_dynamic_strides.push_back(arg);
+    }
+    return is;
+}
+
 /**
  * @brief [Only for NPU plugin]
  * Type: uint64_t
@@ -150,27 +171,6 @@ static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFEREN
 
 // TODO: add comments, find proper name.
 // Initial commit just to match compiler expected properties
-inline std::ostream& operator<<(std::ostream& os, const std::vector<std::string>& args_with_dynamic_strides) {
-    std::size_t counter = 0;
-    std::size_t size = args_with_dynamic_strides.size();
-    for (auto& v : args_with_dynamic_strides) {
-        os << v;
-        if (counter < size - 1) {
-            os << ',';
-        }
-        ++counter;
-    }
-    return os;
-}
-
-inline std::istream& operator>>(std::istream& is, std::vector<std::string>& args_with_dynamic_strides) {
-    std::string arg;
-    while (std::getline(is, arg, ',')) {
-        args_with_dynamic_strides.push_back(arg);
-    }
-    return is;
-}
-
 static constexpr Property<std::vector<std::string>> dynamic_strides("DYNAMIC_STRIDES");
 
 }  // namespace intel_npu

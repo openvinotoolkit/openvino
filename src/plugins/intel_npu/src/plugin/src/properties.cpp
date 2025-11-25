@@ -388,6 +388,9 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::use_base_model_serializer, USE_BASE_MODEL_SERIALIZER);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::model_serializer_version, MODEL_SERIALIZER_VERSION);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::inputs_with_dynamic_strides, INPUTS_WITH_DYNAMIC_STRIDES);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::outputs_with_dynamic_strides, OUTPUTS_WITH_DYNAMIC_STRIDES);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::dynamic_strides, DYNAMIC_STRIDES);
 
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::stepping, STEPPING, [&](const Config& config) {
         if (!config.has<STEPPING>()) {
@@ -628,9 +631,6 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::weightless_blob, WEIGHTLESS_BLOB);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::inputs_with_dynamic_strides, INPUTS_WITH_DYNAMIC_STRIDES);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::outputs_with_dynamic_strides,
-                                              OUTPUTS_WITH_DYNAMIC_STRIDES);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::dynamic_strides, DYNAMIC_STRIDES);
 
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE, false);

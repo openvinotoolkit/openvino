@@ -489,6 +489,11 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     if (_backend && _backend->isCommandQueueExtSupported()) {
         cfg.enable(ov::intel_npu::turbo.name(), true);
     }
+
+    if (!cfg.isAvailable(ov::intel_npu::inputs_with_dynamic_strides.name()) ||
+        !cfg.isAvailable(ov::intel_npu::outputs_with_dynamic_strides.name())) {
+        cfg.enable(ov::intel_npu::dynamic_strides.name(), false);
+    }
 }
 
 void Plugin::filter_global_config_safe(const std::optional<ov::intel_npu::CompilerType>& compilerChange) const {
@@ -730,16 +735,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localConfig.update({{propertyName, oss.str()}});
     };
 
-    if (localConfig.isAvailable(ov::intel_npu::dynamic_strides.name())) {
-        if (localConfig.has(ov::intel_npu::dynamic_strides.name())) {
-            convertNamesToIndices(localConfig.get<DYNAMIC_STRIDES>(),
-                                  model->inputs(),
-                                  ov::intel_npu::inputs_with_dynamic_strides.name());
+    if (localConfig.has(ov::intel_npu::dynamic_strides.name())) {
+        convertNamesToIndices(localConfig.get<DYNAMIC_STRIDES>(),
+                              model->inputs(),
+                              ov::intel_npu::inputs_with_dynamic_strides.name());
 
-            convertNamesToIndices(localConfig.get<DYNAMIC_STRIDES>(),
-                                  model->outputs(),
-                                  ov::intel_npu::outputs_with_dynamic_strides.name());
-        }
+        convertNamesToIndices(localConfig.get<DYNAMIC_STRIDES>(),
+                              model->outputs(),
+                              ov::intel_npu::outputs_with_dynamic_strides.name());
     }
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
