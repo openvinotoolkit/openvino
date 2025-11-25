@@ -98,8 +98,8 @@ TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabled) {
     ov::CompiledModel compiled_model;
     auto model = createModel(element::f32, shape, "N...");
 
-    configuration[ov::intel_npu::inputs_with_dynamic_strides.name()] = {0};
-    configuration[ov::intel_npu::outputs_with_dynamic_strides.name()] = {0};
+    configuration[ov::intel_npu::inputs_with_dynamic_strides_string.name()] = {"input"};
+    configuration[ov::intel_npu::outputs_with_dynamic_strides_string.name()] = {"Result"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -113,15 +113,14 @@ TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModel(element::f32, shape, "N...");
-
     auto zero_context = core->get_default_context(target_device);
     auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 10, 10, 10});
     auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
     auto input_strides = input_host_tensor.get_strides();
     auto output_strides = output_host_tensor.get_strides();
 
-    configuration[ov::intel_npu::inputs_with_dynamic_strides.name()] = {0};
-    configuration[ov::intel_npu::outputs_with_dynamic_strides.name()] = {0};
+    configuration[ov::intel_npu::inputs_with_dynamic_strides_string.name()] = {"input"};
+    configuration[ov::intel_npu::outputs_with_dynamic_strides_string.name()] = {"Result"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -147,8 +146,8 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
     auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 10, 10, 10});
     auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
 
-    configuration[ov::intel_npu::inputs_with_dynamic_strides.name()] = {0};
-    configuration[ov::intel_npu::outputs_with_dynamic_strides.name()] = {0};
+    configuration[ov::intel_npu::inputs_with_dynamic_strides_string.name()] = {"input"};
+    configuration[ov::intel_npu::outputs_with_dynamic_strides_string.name()] = {"Result"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;

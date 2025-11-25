@@ -488,6 +488,9 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::whisper::enabled, NPUW_WHISPER);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::inputs_with_dynamic_strides, INPUTS_WITH_DYNAMIC_STRIDES);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::outputs_with_dynamic_strides, OUTPUTS_WITH_DYNAMIC_STRIDES);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::inputs_with_dynamic_strides_string, INPUTS_WITH_DYNAMIC_STRIDES_STRING);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::outputs_with_dynamic_strides_string,
+                                 OUTPUTS_WITH_DYNAMIC_STRIDES_STRING);
 
     // 2. Metrics (static device and enviroment properties)
     // ========
@@ -628,6 +631,10 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::inputs_with_dynamic_strides, INPUTS_WITH_DYNAMIC_STRIDES);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::outputs_with_dynamic_strides,
                                               OUTPUTS_WITH_DYNAMIC_STRIDES);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::inputs_with_dynamic_strides_string,
+                                              INPUTS_WITH_DYNAMIC_STRIDES_STRING);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::outputs_with_dynamic_strides_string,
+                                              OUTPUTS_WITH_DYNAMIC_STRIDES_STRING);
 
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE, false);
 
