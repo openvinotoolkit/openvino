@@ -327,7 +327,9 @@ def test_start_async(device, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
-    request, tensor1, array1 = generate_concat_compiled_model_with_data(device=device, ov_type=ov_type, numpy_dtype=numpy_dtype)
+    request, tensor1, array1 = generate_concat_compiled_model_with_data(
+        device=device, ov_type=ov_type, numpy_dtype=numpy_dtype
+    )
 
     request.start_async([tensor1, array1], share_inputs=share_inputs)
     request.wait()
