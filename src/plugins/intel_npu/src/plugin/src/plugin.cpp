@@ -326,6 +326,8 @@ void Plugin::init_options() {
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
     REGISTER_OPTION(INPUTS_WITH_DYNAMIC_STRIDES);
     REGISTER_OPTION(OUTPUTS_WITH_DYNAMIC_STRIDES);
+    REGISTER_OPTION(INPUTS_WITH_DYNAMIC_STRIDES_STRING);
+    REGISTER_OPTION(OUTPUTS_WITH_DYNAMIC_STRIDES_STRING);
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
@@ -676,8 +678,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
 
-    const auto set_cache_dir = localConfig.get<CACHE_DIR>();
-    if (!set_cache_dir.empty()) {
+    const auto setCacheDir = localConfig.get<CACHE_DIR>();
+    if (!setCacheDir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
         if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
             OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
@@ -690,6 +692,59 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
+
+    auto findIOByName = [](const auto& ioVector, const std::string& name) -> std::optional<int> {
+        int index = 0;
+
+        for (const auto& io : ioVector) {
+            // Check friendly name
+            if (io.get_node()->get_friendly_name() == name) {
+                return index;
+            }
+
+            // Check tensor names
+            const auto& tensorNames = io.get_tensor().get_names();
+            if (tensorNames.find(name) != tensorNames.end()) {
+                return index;
+            }
+
+            ++index;
+        }
+        return std::nullopt;
+    };
+
+    auto convertNamesToIndices = [&localConfig, &findIOByName](const std::vector<std::string>& names,
+                                                               const auto& ioVector,
+                                                               const std::string& propertyName) {
+        std::vector<int> indices(names.size());
+
+        for (size_t i = 0; i < names.size(); ++i) {
+            auto index = findIOByName(ioVector, names[i]);
+            if (!index) {
+                OPENVINO_THROW("'", names[i], "' not found in model");
+            }
+            indices[i] = index.value();
+        }
+
+        std::ostringstream oss;
+        ov::intel_npu::operator<<(oss, indices);
+        localConfig.update({{propertyName, oss.str()}});
+    };
+
+    if (localConfig.isAvailable(ov::intel_npu::inputs_with_dynamic_strides_string.name()) &&
+        localConfig.isAvailable(ov::intel_npu::outputs_with_dynamic_strides_string.name())) {
+        if (localConfig.has(ov::intel_npu::inputs_with_dynamic_strides_string.name())) {
+            convertNamesToIndices(localConfig.get<INPUTS_WITH_DYNAMIC_STRIDES_STRING>(),
+                                  model->inputs(),
+                                  ov::intel_npu::inputs_with_dynamic_strides.name());
+        }
+
+        if (localConfig.has(ov::intel_npu::outputs_with_dynamic_strides_string.name())) {
+            convertNamesToIndices(localConfig.get<OUTPUTS_WITH_DYNAMIC_STRIDES_STRING>(),
+                                  model->outputs(),
+                                  ov::intel_npu::outputs_with_dynamic_strides.name());
+        }
+    }
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
         std::stringstream strStream;

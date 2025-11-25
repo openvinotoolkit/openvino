@@ -172,8 +172,33 @@ inline std::istream& operator>>(std::istream& is, std::vector<int>& args_with_dy
 }
 
 static constexpr Property<std::vector<int>> inputs_with_dynamic_strides("INPUTS_WITH_DYNAMIC_STRIDES");
-
 static constexpr Property<std::vector<int>> outputs_with_dynamic_strides("OUTPUTS_WITH_DYNAMIC_STRIDES");
+
+inline std::ostream& operator<<(std::ostream& os, const std::vector<std::string>& args_with_dynamic_strides) {
+    std::size_t counter = 0;
+    std::size_t size = args_with_dynamic_strides.size();
+    for (auto& v : args_with_dynamic_strides) {
+        os << v;
+        if (counter < size - 1) {
+            os << ' ';
+        }
+        ++counter;
+    }
+    return os;
+}
+
+inline std::istream& operator>>(std::istream& is, std::vector<std::string>& args_with_dynamic_strides) {
+    std::string arg;
+    while (std::getline(is, arg, ' ')) {
+        args_with_dynamic_strides.push_back(arg);
+    }
+    return is;
+}
+
+static constexpr Property<std::vector<std::string>> inputs_with_dynamic_strides_string(
+    "INPUTS_WITH_DYNAMIC_STRIDES_STRING");
+static constexpr Property<std::vector<std::string>> outputs_with_dynamic_strides_string(
+    "OUTPUTS_WITH_DYNAMIC_STRIDES_STRING");
 
 }  // namespace intel_npu
 }  // namespace ov

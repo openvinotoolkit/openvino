@@ -1519,4 +1519,50 @@ struct OUTPUTS_WITH_DYNAMIC_STRIDES final : OptionBase<OUTPUTS_WITH_DYNAMIC_STRI
     }
 };
 
+struct INPUTS_WITH_DYNAMIC_STRIDES_STRING final
+    : OptionBase<INPUTS_WITH_DYNAMIC_STRIDES_STRING, std::vector<std::string>> {
+    static std::string_view key() {
+        return ov::intel_npu::inputs_with_dynamic_strides_string.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "std::vector<std::string>";
+    }
+
+    static std::vector<std::string> defaultValue() {
+        return std::vector<std::string>{};
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
+struct OUTPUTS_WITH_DYNAMIC_STRIDES_STRING final
+    : OptionBase<OUTPUTS_WITH_DYNAMIC_STRIDES_STRING, std::vector<std::string>> {
+    static std::string_view key() {
+        return ov::intel_npu::outputs_with_dynamic_strides_string.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "std::vector<std::string>";
+    }
+
+    static std::vector<std::string> defaultValue() {
+        return std::vector<std::string>{};
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 }  // namespace intel_npu
