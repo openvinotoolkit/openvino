@@ -28,11 +28,8 @@ void MHABase::generate_inputs(const std::vector<ov::Shape>& targetInputStaticSha
         const auto& model_input = model_inputs[i];
         ov::Tensor tensor;
         ov::test::utils::InputGenerateData in_data;
-        const bool bf16_precision =
-            configuration.at(ov::hint::inference_precision.name()).as<ov::element::Type>() == ov::element::bf16 ||
-            model_input.get_element_type() == ov::element::bf16;
         // To avoid big relative errors in the vicinity of zero, only positive values are generated for bf16 precision
-        in_data.start_from = bf16_precision ? 0 : -1;
+        in_data.start_from = model_input.get_element_type() == ov::element::bf16 ? 0 : -1;
         in_data.range = 2;
         in_data.resolution = 256;
         tensor =
@@ -58,17 +55,16 @@ void MHABase::SetUp() {
     setInferenceType(prc);
 }
 
-void MHABase::init_thresholds() {
+ void MHABase::init_thresholds() {
     // Note: Libxsmm calculates Exp in a slightly different way, so the abs values might differ a bit. Ticket: 130699
 #ifdef SNIPPETS_LIBXSMM_TPP
     abs_threshold = 1e-6;
 #endif
-    auto infer_precision = configuration.at(ov::hint::inference_precision.name()).as<ov::element::Type>();
-    if (infer_precision == ov::element::bf16)
+    if (inType == ov::element::bf16)
         rel_threshold = 0.05f;
-    if (infer_precision == ov::element::f16)
+    if (inType == ov::element::f16)
         abs_threshold = 2e-2;
-}
+ }
 
 std::string MHA::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAParams>& obj) {
     const auto& [input_shapes,
