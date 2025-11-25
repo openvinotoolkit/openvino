@@ -1474,6 +1474,14 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial present_layout : " << present_layout.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial past_layout : " << past_layout.to_string() << std::endl;
+    if (desc->trim && _impl_params->kv_cache_trim_length > 0) {
+        GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " kv cache trim_length : " << _impl_params->kv_cache_trim_length << std::endl;
+        auto trimmed_past_shape = past_layout.get_shape();
+        trimmed_past_shape[sequence_axis] -= _impl_params->kv_cache_trim_length;
+        past_layout.set_partial_shape(trimmed_past_shape);
+        auto past_layout_pad = past_layout.data_padding._upper_size[sequence_axis] + _impl_params->kv_cache_trim_length;
+        kv_cache_inst::update_pad(past_layout, past_layout_pad, sequence_axis);
+    }
     auto max_pad = kv_cache_inst::get_max_pad(past_layout, _deps[0].first->_max_output_layout_count[0], sequence_axis, "past_layout");
     const auto new_seq_len = static_cast<int64_t>(new_layout.get_shape()[sequence_axis]);
     // In chatbot scenario, when chat history must be stored in kvcache, new_seq_len may not be 1 even if max_pad is greater than 0
