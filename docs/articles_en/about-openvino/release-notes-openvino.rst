@@ -35,7 +35,7 @@ What's new
   * Preview: Mixture of Experts (MoE) models optimized for CPUs and GPUs, validated for Qwen3-30B-A3B.
   * GenAI pipeline integrations: Qwen3-Embedding-0.6B and Qwen3-Reranker-0.6B for enhanced retrieval/ranking, and Qwen2.5VL-7B for video pipeline. 
  
-* Broader LLM model support and more model compression optimization technique
+* Broader LLM model support and more model compression techniques
 
   * Gold support for Windows ML* enables developers to deploy AI models and applications effortlessly across CPUs, GPUs, and NPUs on Intel® Core™ Ultra processor-powered AI PCs.
   * The Neural Network Compression Framework (NNCF) ONNX backend now supports INT8 static post-training quantization (PTQ) and INT8/INT4 weight-only compression to ensure accuracy parity with OpenVINO IR format models. 
@@ -50,11 +50,10 @@ What's new
     Model weights and artifacts are stored and transmitted in an encrypted format, reducing risks of IP theft during deployment.
     Developers can deploy with minimal code changes using OpenVINO GenAI pipelines. 
   * OpenVINO™ Model Server and OpenVINO™ GenAI now extend support for Agentic AI scenarios to client architectures 
-    with new features such as output parsing and improved chat templates for reliable multi-turn interactions, 
+    with new features such as output parsing and improved chat templates for reliable multi-turn interactions,
 	 and preview functionality for the Qwen3-30B-A3B model. OVMS also introduces a preview for audio endpoints.
   * NPU deployment is simplified with batch support, enabling seamless model execution across 
-    Intel® Core™ Ultra processors while eliminating driver dependencies. Models are reshaped 
-	 to batch_size=1 before compilation. 
+    Intel® Core™ Ultra processors while eliminating driver dependencies. Models are reshaped to batch_size=1 before compilation. 
   * The improved NVIDIA Triton Server* integration with OpenVINO backend now enables developers to utilize Intel GPUs or NPUs for deployment. 
 
 OpenVINO™ Runtime
@@ -114,11 +113,10 @@ OpenVINO Python API
 
 * Python* 3.14 is now supported, including experimental free-threaded mode (3.14t) on Linux and 
   macOS for improved parallel processing performance.
-* The issue with the ``PERFORMANCE_HINT`` property not being properly applied in benchmark_app when using custom configurations was fixed.
- Benchmark results now accurately reflect intended performance settings.
+* The issue with the ``PERFORMANCE_HINT`` property not being properly applied in benchmark_app when using custom configurations was fixed. Benchmark results now accurately reflect intended performance settings.
 * Precompiled model import from tensor: precompiled models can now be imported directly from ``ov.Tensor`` 
   objects in Python, matching C++ API capabilities and enabling more flexible model deployment workflows.
-* The issue that prevented ``import_model()`` from working with large models on Windows was fixed was fixed. 
+* The issue that prevented ``import_model()`` from working with large models on Windows was fixed. 
   Models of any size can now be imported on all supported platforms.
 
 OpenVINO C API
@@ -138,7 +136,7 @@ OpenVINO Node.js API
 PyTorch Framework Support 
 ---------------------------------------------------------------------------------------------
 
-* Support for the padding operations family has been improvedby adding new operations 
+* Support for the padding operations family has been improved by adding new operations 
   (``aten::reflection_padnd`` and ``aten::replication_padnd``) and resolving issues in existing implementations.
 * Complex data type support has been added for ``aten::unsqueeze`` and ``aten::cat`` operations.
 *  An issue in ``aten::index`` operation with applying boolean masks on specified axes has been resolved.
@@ -159,32 +157,29 @@ OpenVINO™ Model Server
 
 * Agentic use case improvements:
   
-  *  Tool parsers for the new models Qwen3-Coder-30B and Qwen3-30B-A3B-Instruct have been enabled.
+  * Tool parsers for the new models Qwen3-Coder-30B and Qwen3-30B-A3B-Instruct have been enabled.
     These models are supported in OpenVINO Runtime as a preview feature and can be evaluated with tool-calling capabilities.
   * Streaming with tool-calling for phi-4-mini-instruct and mistral-7B-v0.4 models is now supported.
   * Tool parsers for mistral and hermes have been improved, resolving multiple issues related 
     to complex generated JSON objects and increasing overall response reliability.
   * Guided generation now supports all rules from XGrammar integration. The `response_format` parameter
-    can now accept `XGrammar structural tags format <https://github.com/mlc-ai/xgrammar/blob/main/docs/tutorials/structural_tag.md#format-types>`__
-	 (not part of the OpenAI API). Example: `{ "type": "const_string", "value": "Hello World!" }`.
+    can now accept `XGrammar structural tags format <https://github.com/mlc-ai/xgrammar/blob/main/docs/tutorials/structural_tag.md#format-types>`__ (not part of the OpenAI API). Example: `{ "type": "const_string", "value": "Hello World!" }`.
 
 * New capabilities and demos:
   
   * Integration with OpenWebU
-  * Integration with Visual Studio Code using the Continue extensio
+  * Integration with Visual Studio Code using the Continue extension
   * Agentic client demo
-  * Audio endpoints https://docs.openvino.ai/nightly/model-server/ovms_demos_audio.html
+  * `Audio endpoints <https://docs.openvino.ai/nightly/model-server/ovms_demos_audio.html>`__
   * Windows service usage
   * GGUF model pulling
 
 * Deployment improvements:
   
   * GGUF model format can now be deployed directly from Hugging Face Hub for several LLM architectures. 
-    Architectures such as Qwen2, Qwen2.5, Qwen3 and Llama3 can be deployed with a single command.
-	 See `Loading GGUF models in OVMS demo <https://docs.openvino.ai/2025/model-server/ovms_demos_gguf.html>`__ for details.
+    Architectures such as Qwen2, Qwen2.5, Qwen3 and Llama3 can be deployed with a single command. See `Loading GGUF models in OVMS demo <https://docs.openvino.ai/2025/model-server/ovms_demos_gguf.html>`__ for details.
   * OpenVINO Model Server can be deployed as a service in the Windows operating system. It can be 
-    managed by service configuration management, shared by all running applications, and controlled 
-	 using a simplified CLI to pull, configure, enable, and disable models. Check the `OVMS documentation <https://docs.openvino.ai/2025/model-server/ovms_docs_deploying_server_service.html>`__  for more details. 
+    managed by service configuration management, shared by all running applications, and controlled using a simplified CLI to pull, configure, enable, and disable models. Check the `OVMS documentation <https://docs.openvino.ai/2025/model-server/ovms_docs_deploying_server_service.html>`__  for more details. 
 *  CLI simplifications for easier deployment:
   
    *  ``--plugin_config`` parameter can now be applied not only to classic models but also to generative pipelines.
@@ -192,11 +187,8 @@ OpenVINO™ Model Server
    * ``enable_prefix_caching`` can be used the same way for all target devices.
 
 *  ``--add_to_config`` and ``--remove_from_config``, like ``--list_models``, are now OVMS CLI directives and no longer 
-   expect a value. Configuration values should be passed through the following parameters: 
-	``--config_path``, ``--model_repository_path``, ``--model_name``, or ``--model_path``.
-* When a service is deployed, the CLI can be simplified by setting the environment variable 
-  ``OVMS_MODEL_REPOSITORY_PATH`` to point to the models folder. This automatically applies the default 
-   parameters for model management, ensuring that ``config_path`` and ``model_repository_path`` are set correctly.
+   expect a value. Configuration values should be passed through the following parameters: ``--config_path``, ``--model_repository_path``, ``--model_name``, or ``--model_path``.
+* When a service is deployed, the CLI can be simplified by setting the environment variable ``OVMS_MODEL_REPOSITORY_PATH`` to point to the models folder. This automatically applies the default parameters for model management, ensuring that ``config_path`` and ``model_repository_path`` are set correctly.
 	
 	.. dropdown:: Check the CLI example below
 
@@ -236,17 +228,12 @@ Audio endpoints added:
   
 *  Embeddings endpoints improvements: 
 
-  *  A tokenize endpoint has been added to get tokens before sending the input text to embeddings calculation. 
-     This helps assess input length to avoid exceeding the model context.
-  *  Embeddings Model now supports three pooling options: ``CLS``, ``LAST``, and ``MEAN``, improving model compatibility.
-	 See `Text Embeddings Models list <https://openvinotoolkit.github.io/openvino.genai/docs/supported-models/#text-embeddings-models>`__ for details.
+  * A tokenize endpoint has been added to get tokens before sending the input text to embeddings calculation. This helps assess input length to avoid exceeding the model context.
+  * Embeddings Model now supports three pooling options: ``CLS``, ``LAST``, and ``MEAN``, improving model compatibility. See `Text Embeddings Models list <https://openvinotoolkit.github.io/openvino.genai/docs/supported-models/#text-embeddings-models>`__ for details.
 
 Breaking changes: 
 
-  * The old ``embeddings`` and ``reranking`` calculators were removed and replaced by ``embeddings_ov`` and 
-  ``reranking_ov``. These new calculators follow the optimum-cli / Hugging Face model structure 
-  and support more features. If you use the old calculators, re-export your models and pull the 
-  updated versions from Hugging Face.  
+  * The old ``embeddings`` and ``reranking`` calculators were removed and replaced by ``embeddings_ov`` and ``reranking_ov``. These new calculators follow the optimum-cli / Hugging Face model structure and support more features. If you use the old calculators, re-export your models and pull the updated versions from Hugging Face.  
 
 Bug fixes: 
 
@@ -285,12 +272,12 @@ OpenVINO GenAI
   * Parsers have been added for C++, Python, and JavaScript. They structure the generated output 
     splitting into arbitrary sections. For example, thinking and tool calling. 
   * Structured Output grammar compilation time has been improved, and reworked structural tags,
-   providing new grammar building blocks for imposing complex output constraints. 
+    providing new grammar building blocks for imposing complex output constraints. 
   * ChatHistory (C++, Python, and JavaScript) API is added which stores conversation messages 
-   and optional metadata for chat templates. This is a recommended way to manage history instead 
-	of ``start/finish_chat()`` for LLMs. See updated `C++ and Python chat_sample <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2025/4/samples/cpp/text_generation/chat_sample.cpp>`__
+    and optional metadata for chat templates. This is a recommended way to manage history instead 
+	 of ``start/finish_chat()`` for LLMs. See updated `C++ and Python chat_sample <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2025/4/samples/cpp/text_generation/chat_sample.cpp>`__
   * Automatic memory allocation for ContinuousBatching has been improved: it now allocates a 
-  fixed number of extra tokens instead of exponential growth, aligning with the GPU plugin.
+    fixed number of extra tokens instead of exponential growth, aligning with the GPU plugin.
   * SDPA based Speculative Decoding has been implemented (used for NPU). 
   * GGUF Q4_1 gibberish has been fixed. 
 
@@ -1380,8 +1367,7 @@ Discontinued in 2025
 
 * NPU Device Plugin: 
 
-   * Removed logic to detect and handle Intel® Core™ Ultra Processors (Series 1) drivers older than v1688. 
-	Since v1688 is the earliest officially supported driver, older versions (e.g., v1477) are no longer recommended or supported. 
+  * Removed logic to detect and handle Intel® Core™ Ultra Processors (Series 1) drivers older than v1688. Since v1688 is the earliest officially supported driver, older versions (e.g., v1477) are no longer recommended or supported. 
 
 * Python 3.9 support will be discontinued starting with the OpenVINO 2025.4 and Neural Network Compression Framework (NNCF) 2.19.0. 
 
@@ -1424,7 +1410,7 @@ Deprecated and to be removed in the future
 	 will be accessible and migration between other serving solutions and OpenVINO Model Server will be much easier.
   * TensorFlow Serving (TFS) API support is planned for deprecation. With increasing adoption of the KServe API for classic models 
     and the OpenAI API for generative workloads, usage of the TFS API has significantly declined. Dropping data is to 
-	 be determined based based on the feedback, with a tentative target of mid-2026. 
+	 be determined based on the feedback, with a tentative target of mid-2026. 
   * Support for `Stateful models  <https://docs.openvino.ai/2025/model-server/ovms_docs_stateful_models.html>`__  will be deprecated.
     This capabilities was originally introduced for Kaldi audio models which is no longer relevant. Current audio models support relies on the OpenAI API, and pipelines implemented via OpenVINO GenAI library. 
   * `Directed Acyclic Graph Scheduler <https://docs.openvino.ai/2025/model-server/ovms_docs_dag.html>`__ will be deprecated in favor of pipelines managed by MediaPipe scheduler and will be removed in 2026.3 . That approach gives more flexibility, includes wider range of calculators and has support for using processing accelerators. 
