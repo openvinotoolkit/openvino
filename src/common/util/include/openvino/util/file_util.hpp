@@ -210,9 +210,10 @@ inline int64_t file_size(const char* path) {
 #endif
 
 /**
- * @brief      Returns true if file exists at given path.
- * @param[in]  path  The file name
- * @return     true if file exists
+ * @brief      Tests whether file exists at given path.
+ * @param[in]  path  The file path.
+ * @return     True if file exists, false otherwise.
+ * @{
  */
 inline bool file_exists(const std::filesystem::path& path) noexcept {
 #if defined(__ANDROID__) || defined(ANDROID)
@@ -225,15 +226,11 @@ inline bool file_exists(const std::filesystem::path& path) noexcept {
     return std::filesystem::exists(f_status) && !std::filesystem::is_directory(f_status);
 }
 
-/**
- * @brief      Returns true if file exists at given path.
- * @param[in]  path  The file name
- * @return     true if file exists
- */
 template <class T>
 inline bool file_exists(const std::basic_string<T>& path) noexcept {
     return file_exists(make_path(path));
 }
+/** @} */
 
 std::string get_file_ext(const std::string& path);
 std::filesystem::path get_directory(const std::filesystem::path& path);
