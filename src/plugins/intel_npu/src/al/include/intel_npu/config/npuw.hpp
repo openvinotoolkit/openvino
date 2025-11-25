@@ -146,6 +146,7 @@ DEFINE_OPT(NPUW_LLM_MAX_GENERATION_TOKEN_LEN, uint32_t, 1, npuw::llm::max_genera
 DEFINE_OPT(NPUW_LLM_MIN_RESPONSE_LEN, uint32_t, 128, npuw::llm::min_response_len, RunTime);
 DEFINE_OPT(NPUW_LLM_OPTIMIZE_V_TENSORS, bool, true, npuw::llm::optimize_v_tensors, RunTime);
 DEFINE_OPT(NPUW_LLM_CACHE_ROPE, bool, true, npuw::llm::cache_rope, RunTime);
+DEFINE_OPT(NPUW_LLM_GENERATE_PYRAMID, bool, false, npuw::llm::generate_pyramid, RunTime);
 DEFINE_OPT(NPUW_LLM_PREFILL_CHUNK_SIZE, uint64_t, 1024, npuw::llm::prefill_chunk_size, RunTime);
 DEFINE_OPT(NPUW_LLM_SHARED_HEAD, bool, true, npuw::llm::shared_lm_head, RunTime);
 DEFINE_OPT(NPUW_LLM_MAX_LORA_RANK, uint32_t, 32, npuw::llm::max_lora_rank, RunTime);
