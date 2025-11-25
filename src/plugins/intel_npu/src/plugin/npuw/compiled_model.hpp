@@ -9,6 +9,7 @@
 #include "attention.hpp"
 #include "base_sync_infer_request.hpp"
 #include "common.hpp"
+#include "host_flash_attention.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
