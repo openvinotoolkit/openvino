@@ -137,9 +137,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
             _logger.info("Failed to use the level zero graph handle: %s. Inference requests for this model are not "
                          "allowed. Only exports are available",
                          ex.what());
-        } catch (...) {
-            _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
-                         "allowed. Only exports are available");
         }
     } else {
         _logger.warning("No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
@@ -201,10 +198,14 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
             try {
                 mainGraphDesc = _zeGraphExt->getGraphDescriptor(tensorMain.data(), tensorMain.get_byte_size());
                 mainNetworkMetadata = _zeGraphExt->getNetworkMeta(mainGraphDesc);
-            } catch (...) {
-                _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
-                             "allowed. Only exports are available");
+            } catch (const std::exception& ex) {
+                _logger.info("Failed to use the level zero graph handle: %s. Inference requests for this model are not "
+                             "allowed. Only exports are available",
+                             ex.what());
             }
+        } else {
+            _logger.warning(
+                "No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
         }
 
         initGraphDescriptors.reserve(initNetworkDescriptions.size());
@@ -218,8 +219,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
                 try {
                     initGraphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
                     initNetworkMeta = _zeGraphExt->getNetworkMeta(initGraphDesc);
-                } catch (...) {
+                } catch (const std::exception& ex) {
+                    _logger.info(
+                        "Failed to use the level zero graph handle: %s. Inference requests for this model are not "
+                        "allowed. Only exports are available",
+                        ex.what());
                 }
+            } else {
+                _logger.warning(
+                    "No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
             }
 
             initGraphDescriptors.push_back(initGraphDesc);
@@ -244,6 +252,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
             NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphDesc);
 
             if (isInitMetadata(networkDescription->metadata)) {
+                networkMetadata.name = model->get_friendly_name() + "_init";
                 targetModel = originalModel->clone();
                 initGraphDescriptors.push_back(graphDesc);
                 tensorsInits.push_back(std::move(tensor));
@@ -252,6 +261,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
                 continue;
             }
 
+            networkMetadata.name = model->get_friendly_name() + "_main";
             tensorMain = std::move(tensor);
             mainGraphDesc = graphDesc;
             mainNetworkMetadata = std::move(networkMetadata);
