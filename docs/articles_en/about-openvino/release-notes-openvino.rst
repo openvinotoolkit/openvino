@@ -50,8 +50,7 @@ What's new
     Model weights and artifacts are stored and transmitted in an encrypted format, reducing risks of IP theft during deployment.
     Developers can deploy with minimal code changes using OpenVINO GenAI pipelines. 
   * OpenVINO™ Model Server and OpenVINO™ GenAI now extend support for Agentic AI scenarios to client architectures 
-    with new features such as output parsing and improved chat templates for reliable multi-turn interactions,
-	 and preview functionality for the Qwen3-30B-A3B model. OVMS also introduces a preview for audio endpoints.
+    with new features such as output parsing and improved chat templates for reliable multi-turn interactions, and preview functionality for the Qwen3-30B-A3B model. OVMS also introduces a preview for audio endpoints.
   * NPU deployment is simplified with batch support, enabling seamless model execution across 
     Intel® Core™ Ultra processors while eliminating driver dependencies. Models are reshaped to batch_size=1 before compilation. 
   * The improved NVIDIA Triton Server* integration with OpenVINO backend now enables developers to utilize Intel GPUs or NPUs for deployment. 
@@ -190,14 +189,14 @@ OpenVINO™ Model Server
    expect a value. Configuration values should be passed through the following parameters: ``--config_path``, ``--model_repository_path``, ``--model_name``, or ``--model_path``.
 * When a service is deployed, the CLI can be simplified by setting the environment variable ``OVMS_MODEL_REPOSITORY_PATH`` to point to the models folder. This automatically applies the default parameters for model management, ensuring that ``config_path`` and ``model_repository_path`` are set correctly.
 	
-	.. dropdown:: Check the CLI example below
+.. dropdown:: Check the CLI example below
 
-		.. code-block:: bash
+	.. code-block:: bash
 
-			ovms –pull –task text_generation OpenVINO/Qwen3-8B-int4 
-			ovms –list_models 
-			ovms –add_to_models –model_name OpenVINO/Qwen3-8B-int4 
-			ovms –remove_from_models –model_name OpenVINO/Qwen3-8B-int4 
+		ovms –pull –task text_generation OpenVINO/Qwen3-8B-int4 
+		ovms –list_models 
+		ovms –add_to_models –model_name OpenVINO/Qwen3-8B-int4 
+		ovms –remove_from_models –model_name OpenVINO/Qwen3-8B-int4 
 
 * The ``--api_key`` parameter is now available, enabling client authorization using an API key.
 * Binding parameters are added for both IPv6 and IPv4 addresses for gRPC and REST interfaces. 
@@ -225,15 +224,15 @@ Audio endpoints added:
 * speech to text endpoints compatible with the OpenAI API - /audio/speech_to_text
 * /audio/translation - converts provided audio content to English text
 * /audio/transcription - converts provided audio content to text in the original language.
-  
-*  Embeddings endpoints improvements: 
 
-  * A tokenize endpoint has been added to get tokens before sending the input text to embeddings calculation. This helps assess input length to avoid exceeding the model context.
-  * Embeddings Model now supports three pooling options: ``CLS``, ``LAST``, and ``MEAN``, improving model compatibility. See `Text Embeddings Models list <https://openvinotoolkit.github.io/openvino.genai/docs/supported-models/#text-embeddings-models>`__ for details.
+Embeddings endpoints improvements: 
+
+* A tokenize endpoint has been added to get tokens before sending the input text to embeddings calculation. This helps assess input length to avoid exceeding the model context.
+* Embeddings Model now supports three pooling options: ``CLS``, ``LAST``, and ``MEAN``, improving model compatibility. See `Text Embeddings Models list <https://openvinotoolkit.github.io/openvino.genai/docs/supported-models/#text-embeddings-models>`__ for details.
 
 Breaking changes: 
 
-  * The old ``embeddings`` and ``reranking`` calculators were removed and replaced by ``embeddings_ov`` and ``reranking_ov``. These new calculators follow the optimum-cli / Hugging Face model structure and support more features. If you use the old calculators, re-export your models and pull the updated versions from Hugging Face.  
+* The old ``embeddings`` and ``reranking`` calculators were removed and replaced by ``embeddings_ov`` and ``reranking_ov``. These new calculators follow the optimum-cli / Hugging Face model structure and support more features. If you use the old calculators, re-export your models and pull the updated versions from Hugging Face.  
 
 Bug fixes: 
 
@@ -274,8 +273,7 @@ OpenVINO GenAI
   * Structured Output grammar compilation time has been improved, and reworked structural tags,
     providing new grammar building blocks for imposing complex output constraints. 
   * ChatHistory (C++, Python, and JavaScript) API is added which stores conversation messages 
-    and optional metadata for chat templates. This is a recommended way to manage history instead 
-	 of ``start/finish_chat()`` for LLMs. See updated `C++ and Python chat_sample <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2025/4/samples/cpp/text_generation/chat_sample.cpp>`__
+    and optional metadata for chat templates. This is a recommended way to manage history instead of ``start/finish_chat()`` for LLMs. See updated `C++ and Python chat_sample <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2025/4/samples/cpp/text_generation/chat_sample.cpp>`__
   * Automatic memory allocation for ContinuousBatching has been improved: it now allocates a 
     fixed number of extra tokens instead of exponential growth, aligning with the GPU plugin.
   * SDPA based Speculative Decoding has been implemented (used for NPU). 
@@ -1406,11 +1404,9 @@ Deprecated and to be removed in the future
 
   * The dedicated OpenVINO operator for Kubernetes and OpenShift is now deprecated in favor of the recommended KServe operator.
     The OpenVINO operator will remain functional in upcoming OpenVINO Model Server releases but will no longer be actively developed.
-    Since KServe provides broader capabilities, no loss of functionality is expected. In contrary, more functionalities 
-	 will be accessible and migration between other serving solutions and OpenVINO Model Server will be much easier.
+    Since KServe provides broader capabilities, no loss of functionality is expected. In contrary, more functionalities will be accessible and migration between other serving solutions and OpenVINO Model Server will be much easier.
   * TensorFlow Serving (TFS) API support is planned for deprecation. With increasing adoption of the KServe API for classic models 
-    and the OpenAI API for generative workloads, usage of the TFS API has significantly declined. Dropping data is to 
-	 be determined based on the feedback, with a tentative target of mid-2026. 
+    and the OpenAI API for generative workloads, usage of the TFS API has significantly declined. Dropping data is to be determined based on the feedback, with a tentative target of mid-2026. 
   * Support for `Stateful models  <https://docs.openvino.ai/2025/model-server/ovms_docs_stateful_models.html>`__  will be deprecated.
     This capabilities was originally introduced for Kaldi audio models which is no longer relevant. Current audio models support relies on the OpenAI API, and pipelines implemented via OpenVINO GenAI library. 
   * `Directed Acyclic Graph Scheduler <https://docs.openvino.ai/2025/model-server/ovms_docs_dag.html>`__ will be deprecated in favor of pipelines managed by MediaPipe scheduler and will be removed in 2026.3 . That approach gives more flexibility, includes wider range of calculators and has support for using processing accelerators. 
