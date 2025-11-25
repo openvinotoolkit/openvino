@@ -31,8 +31,8 @@ namespace ov {
 /**
  * @brief This class represents an OpenVINO runtime Core entity.
  * @ingroup ov_runtime_cpp_api
- * User applications can create several Core class instances. In that case the underlying plugins
- * will share underlying resources (such as OCL context) in singleton.
+ * User applications can create several Core class instances. In that case the device plugins
+ * will still share underlying resources (such as OCL context) in per-device singleton.
  */
 class OPENVINO_RUNTIME_API Core {
     class Impl;
