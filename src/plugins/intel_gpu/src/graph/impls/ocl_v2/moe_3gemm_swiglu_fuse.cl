@@ -142,7 +142,7 @@ KERNEL(swiglu_ref) (
     const uint token_idx = get_global_id(0);
     const uint n_offset = get_global_id(1);
 
-    const uint offset = token_idx * HIDDEN_SIZE + n_offset;
+    const uint offset = token_idx * INTERMEDIA_SIZE + n_offset;
 #if MOE_DTYPE_SIZE == 2
     half up_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(up + offset)));
     half gate_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(gate + offset)));

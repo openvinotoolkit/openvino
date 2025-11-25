@@ -504,7 +504,7 @@ protected:
 
         jit.make("PREFILL_SWIGLU_ENABLE", 1);
         jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
-        jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
+        jit.make("INTERMEDIA_SIZE", desc->_config.inter_size);
         jit.make("MOE_DTYPE", "half");
         return jit;
     }
@@ -805,8 +805,8 @@ public:
             add_stage(prefill_gather, params);
             add_stage(micro_gemm_gate, params);
             add_stage(micro_gemm_up, params);
-            add_stage(micro_gemm_down, params);
             add_stage(prefill_swiglu, params);
+            add_stage(micro_gemm_down, params);
             add_stage(prefill_scatter_reduce, params);
         }
     }
@@ -1371,14 +1371,14 @@ public:
             auto input_shape = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout().get_shape();
             auto token_size = input_shape[0] * max_topk;
 
-            std::cout << "\nstep 4: prefill_swiglu token_size=" << token_size << ", hidden_size=" << _hidden_size << std::endl;
+            std::cout << "\nstep 4: prefill_swiglu token_size=" << token_size << ", hidden_size=" << _intermediate_size << std::endl;
 
             ret_event = execute_stage({ret_event},
                                       instance,
                                       *prefill_swiglu,
                                       {intermediates_memories[2], intermediates_memories[6]},
                                       {intermediates_memories[6]},
-                                      {static_cast<size_t>(token_size), static_cast<size_t>(_hidden_size), 1},
+                                      {static_cast<size_t>(token_size), static_cast<size_t>(_intermediate_size), 1},
                                       {1, subgroup_size, 1});
             
             ret_event->wait(); //debug

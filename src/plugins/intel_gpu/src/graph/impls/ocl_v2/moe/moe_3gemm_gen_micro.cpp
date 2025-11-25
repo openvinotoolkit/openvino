@@ -200,7 +200,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
             const auto& zp_layout = params.get_input_layout(zp_idx);
             const auto zp_dt = convert_type(zp_layout.data_type);
             problem_moe.Tao = zp_dt;
-            problem_moe.AO.setAlignment(zp_dt == gemmstone::Type::u4 ? 1 : static_cast<int32_t>(zp_dt.size()));
+            problem_moe.AO.setAlignment(zp_dt == micro::Type::u4 ? 1 : static_cast<int32_t>(zp_dt.size()));
             problem_moe.AO.layout = micro::MatrixLayout::N;
             problem_moe.aoPtrDims = static_cast<int>(MICRO_DIMENSIONALITY::MATRIX);
             // Calculate A/B row/column sums in kernel.
@@ -238,7 +238,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
 }
 DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
     const auto wei_idx = this->m_wei_idx;
-    return DispatchDataFunc{[this, wei_idx](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[wei_idx](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         assert(!params.is_dynamic());
 
         std::cout << "MoE3GemmMicroGenerator::DispatchDataFunc()" << std::endl;
