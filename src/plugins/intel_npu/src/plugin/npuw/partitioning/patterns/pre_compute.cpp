@@ -156,7 +156,11 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
 
     auto inv_freq_short = MakeConstant();
     auto inv_freq_long = MakeConstant();
-    const auto& [select, cond, max_pos_id] = make_select_pattern(position_ids, inv_freq_short, inv_freq_long);
+
+    auto select_cond_max_pos_id = make_select_pattern(position_ids, inv_freq_short, inv_freq_long);
+    auto select = std::get<0>(select_cond_max_pos_id);
+    auto cond = std::get<1>(select_cond_max_pos_id);
+    auto max_pos_id = std::get<2>(select_cond_max_pos_id);
 
     auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
     auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
