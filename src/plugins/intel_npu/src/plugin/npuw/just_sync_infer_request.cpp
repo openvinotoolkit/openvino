@@ -1116,6 +1116,8 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
         r->start_async();
         f();  // expect noexcept
         r->wait();
+
+        print_hfa_compiled_model_io(real_idx, idx);
     } else {
         // Spatial... Do the opposite - run f
         // asynchronously, and meanwhile run the spatial inference
@@ -1123,6 +1125,83 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
         unsafe_infer(real_idx, idx);
         future.wait();
     }
+}
+
+void ov::npuw::JustInferRequest::print_hfa_compiled_model_io(std::size_t real_idx, std::size_t idx) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    if (!comp_model_desc.host_flash_attention) {
+        return;
+    }
+
+    std::cout << "Submodel " << idx << " is HFA" << std::endl;
+
+    // Print all input/output information of the compiled tile model
+    std::cout << "\n=== HostFlashAttention Compiled Tile Model I/O Information ===" << std::endl;
+
+    // Print inputs
+    auto hfa = comp_model_desc.host_flash_attention.value();
+    std::cout << "Inputs (" << hfa._compiled_tile_model->inputs().size() << "):" << std::endl;
+    for (size_t i = 0; i < hfa._compiled_tile_model->inputs().size(); ++i) {
+        const auto& input = hfa._compiled_tile_model->inputs()[i];
+        std::string name =
+            input.get_names().empty() ? ("<unnamed_input_" + std::to_string(i) + ">") : input.get_any_name();
+        std::cout << "  [" << i << "] Name: " << name << " | Shape: " << input.get_partial_shape()
+                  << " | Type: " << input.get_element_type() << std::endl;
+    }
+
+    // Print outputs
+    std::cout << "Outputs (" << hfa._compiled_tile_model->outputs().size() << "):" << std::endl;
+    for (size_t i = 0; i < hfa._compiled_tile_model->outputs().size(); ++i) {
+        const auto& output = hfa._compiled_tile_model->outputs()[i];
+        std::string name =
+            output.get_names().empty() ? ("<unnamed_output_" + std::to_string(i) + ">") : output.get_any_name();
+        std::cout << "  [" << i << "] Name: " << name << " | Shape: " << output.get_partial_shape()
+                  << " | Type: " << output.get_element_type() << std::endl;
+    }
+    std::cout << "============================================================\n" << std::endl;
+
+    // Print infer request I/O information
+    auto& r = m_subrequests[real_idx];
+    auto& compiled_model = comp_model_desc.compiled_model;
+
+    std::cout << "\n=== Infer Request I/O Information ===" << std::endl;
+
+    // Print request inputs
+    std::cout << "Request Inputs (" << compiled_model->inputs().size() << "):" << std::endl;
+    for (size_t i = 0; i < compiled_model->inputs().size(); ++i) {
+        const auto& input = compiled_model->inputs()[i];
+        std::string name =
+            input.get_names().empty() ? ("<unnamed_input_" + std::to_string(i) + ">") : input.get_any_name();
+
+        // Try to get the tensor to see actual shape
+        try {
+            auto tensor = r->get_tensor(input);
+            std::cout << "  [" << i << "] Name: " << name << " | Shape: " << tensor->get_shape()
+                      << " | Type: " << tensor->get_element_type() << std::endl;
+        } catch (...) {
+            std::cout << "  [" << i << "] Name: " << name << " | Shape: " << input.get_partial_shape()
+                      << " | Type: " << input.get_element_type() << " | (tensor not set)" << std::endl;
+        }
+    }
+
+    // Print request outputs
+    std::cout << "Request Outputs (" << compiled_model->outputs().size() << "):" << std::endl;
+    for (size_t i = 0; i < compiled_model->outputs().size(); ++i) {
+        const auto& output = compiled_model->outputs()[i];
+        std::string name =
+            output.get_names().empty() ? ("<unnamed_output_" + std::to_string(i) + ">") : output.get_any_name();
+
+        // Try to get the tensor to see actual shape
+        try {
+            auto tensor = r->get_tensor(output);
+            std::cout << "  [" << i << "] Name: " << name << " | Shape: " << tensor->get_shape()
+                      << " | Type: " << tensor->get_element_type() << std::endl;
+        } catch (...) {
+            std::cout << "  [" << i << "] Name: " << name << " | Shape: " << output.get_partial_shape()
+                      << " | Type: " << output.get_element_type() << " | (tensor not set)" << std::endl;
+        }
+    }
+    std::cout << "============================================================\n" << std::endl;
 }
 
 void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std::size_t) {
