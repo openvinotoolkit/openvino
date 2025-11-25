@@ -260,6 +260,15 @@ static constexpr ov::Property<bool> attn_no_copy{"NPUW_ATTN_NO_COPY"};
 
 /**
  * @brief
+ * Type: std::string.
+ * Specify attention hint for model compilation.
+ * Possible values: "DYNAMIC", "STATIC", "PYRAMID", "HFA"
+ * Default value: "STATIC"
+ */
+static constexpr ov::Property<std::string> attn_hint{"NPUW_ATTENTION_HINT"};
+
+/**
+ * @brief
  * Type: boolean
  * Force subgraph interconnect tensors to f16 precision if those are in f32
  * Default value: false
