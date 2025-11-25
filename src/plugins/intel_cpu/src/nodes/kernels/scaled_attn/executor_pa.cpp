@@ -2083,8 +2083,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             OPENVINO_ASSERT(!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]->getShape().hasZeroDims());
             OPENVINO_ASSERT(!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS]->getShape().hasZeroDims());
             adaptive_rkv_evictable_sizes.reset(inputs[ID_ADAPTIVE_RKV_EVICTABLE_SIZES]);  // [B_seq]
-            adaptive_rkv_diversity_block_set_indices.reset(inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]);  // [num_adaptive_rkv_diversity_blocks]
-            adaptive_rkv_diversity_block_set_begins.reset(inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS]);  // [num_adaptive_rkv_diversity_blocks]
+            adaptive_rkv_diversity_block_set_indices.reset(
+                inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]);  // [num_adaptive_rkv_diversity_blocks]
+            adaptive_rkv_diversity_block_set_begins.reset(
+                inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS]);  // [num_adaptive_rkv_diversity_blocks]
 
             OPENVINO_ASSERT(outputs.size() >= 3);
             output_arkv_similarity.reset(outputs[2]);
@@ -2094,7 +2096,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         if (outputs.size() >= 2) {
             output_score.reset(outputs[1]);
         }
-
 
         auto B_token = q.size(0);
         auto Hk = k_cache.size(1);

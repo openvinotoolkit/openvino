@@ -192,15 +192,20 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     // adaptive_rkv_evictable_sizes, int32, [B_seq]
     config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_START_SIZE].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
-            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES)));
+            ->createSharedDesc(ov::element::i32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES)));
     // adaptive_rkv_diversity_block_set_indices, int32, [num_adaptive_rkv_diversity_blocks]
     config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
-            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES)));
+            ->createSharedDesc(
+                ov::element::i32,
+                getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES)));
     // adaptive_rkv_evictable_sizes, int32, [B_seq + 1]
     config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
-            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS)));
+            ->createSharedDesc(
+                ov::element::i32,
+                getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
@@ -288,7 +293,6 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     std::vector<VectorDims> output_dims = {outDims};
 
-
     if (m_hasScore) {
         size_t len = 0;
         const auto& pastLensDims = inputs[5]->getStaticDims();
@@ -311,8 +315,8 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto evictable_sizes_dims = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getStaticDims();
             const auto* evictable_sizes_data = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getDataAs<const int32_t>();
             for (size_t i = 0; i < evictable_sizes_dims[0]; i++) {
-                // for each sequence the Adaptive R-KV similarity output has shape [ evictable_size / block_size, evictable_size ]
-                // where evictable_size is in general different for different subsequences
+                // for each sequence the Adaptive R-KV similarity output has shape [ evictable_size / block_size,
+                // evictable_size ] where evictable_size is in general different for different subsequences
                 num_elements_in_output += evictable_sizes_data[i] * evictable_sizes_data[i] / block_size;
             }
             output_dims.push_back({num_elements_in_output});
