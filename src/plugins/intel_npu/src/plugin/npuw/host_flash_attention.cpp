@@ -292,8 +292,16 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     LOG_INFO("Constructing compiled::HostFlashAttention");
     LOG_BLOCK();
 
-    // TODO: Extract metadata from function::HostFlashAttention
-    LOG_WARN("compiled::HostFlashAttention constructor is not yet implemented");
+    // Extract tile configuration from function HFA
+    _tile_size = func_hfa._tile_size;
+    _kv_cache_size = func_hfa._kv_cache_size;
+
+    // Store the tile model for later compilation
+    _tile_model_to_compile = func_hfa._tile_model;
+
+    LOG_INFO("Extracted HFA config: tile_size=" << _tile_size << ", kv_cache_size=" << _kv_cache_size);
+
+    // Note: _compiled_tile_model will be set later by compile_host_flash_attention_model()
 }
 
 }  // namespace compiled

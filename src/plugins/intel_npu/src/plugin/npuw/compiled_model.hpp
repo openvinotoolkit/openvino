@@ -81,6 +81,7 @@ private:
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
     void compile_pyramid_attention_models(std::size_t id, const std::string& device);
+    void compile_host_flash_attention_model(std::size_t id, const std::string& device);
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
 
@@ -181,6 +182,7 @@ private:
         std::optional<ov::npuw::compiled::Spatial> spatial;
         std::optional<ov::npuw::compiled::Attention> attention;
         std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
+        std::optional<ov::npuw::compiled::HostFlashAttention> host_flash_attention;
 
         // Infer requests for pyramid attention models (if pyramid_attention is present)
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;

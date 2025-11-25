@@ -10,6 +10,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
 namespace npuw {
@@ -46,12 +47,30 @@ namespace compiled {
 
 // Compile-time host flash attention information
 struct HostFlashAttention {
-    // TODO: Add compile-time information
+    // Model to compile (will be cleared after compilation)
+    std::shared_ptr<ov::Model> _tile_model_to_compile;
+
+    // Compiled tile model for NPU execution
+    ov::SoPtr<ov::ICompiledModel> _compiled_tile_model;
+
+    // Tile configuration
+    int64_t _tile_size = 1024;
+    int64_t _kv_cache_size = 0;
 
     HostFlashAttention() = default;
 
     // Constructor that extracts metadata
     explicit HostFlashAttention(const function::HostFlashAttention& func_hfa);
+
+    // Set the compiled tile model and clear the model to compile
+    void set_compiled_tile_model(ov::SoPtr<ov::ICompiledModel> compiled_model) {
+        _compiled_tile_model = std::move(compiled_model);
+        _tile_model_to_compile.reset();  // Free memory after compilation
+    }
+
+    bool is_valid() const {
+        return _compiled_tile_model != nullptr && _tile_size > 0 && _kv_cache_size > 0;
+    }
 };
 
 }  // namespace compiled
