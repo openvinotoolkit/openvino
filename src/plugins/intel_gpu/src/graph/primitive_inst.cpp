@@ -2568,22 +2568,22 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     if (total_device_input_mem_size > device_info.max_global_mem_size)
         usm_device_allocatable = false;
 
+    // For outputs, cpu prim we want to have lockable alloc type
+    // Also if the successor of a node is an cpu, then memory needs to be lockable.
+    bool is_cpu = node.get_selected_impl() ? node.get_selected_impl()->is_cpu() :
+                                              node.get_preferred_impl_type() == impl_types::cpu;
+
     bool reusable_across_network = (runtime_alloc && node.is_dynamic_output_layout())
                                     || !user_requesting_mem_reuse_false(node);
 
     // Do not use memory pool for nodes from shape_of subgraphs, because such nodes mostly use CPU impls and may be executed in parallel with predecessors
     // GPU kernels and cause accuracy problems. This significantly improves performance (because provides an ability not to synchronize shape_of subgraphs
     // execution with other nodes) at the cost of tiny increase in memory consumption.
-    if (node.is_in_shape_of_subgraph())
+    if (node.is_in_shape_of_subgraph() || is_cpu)
         reusable_across_network = false;
 
     if (reusable_across_network && node.get_program().is_body_program() && is_output_buffer && runtime_alloc)
         reusable_across_network = false;
-
-    // For outputs, cpu prim we want to have lockable alloc type
-    // Also if the successor of a node is an cpu, then memory needs to be lockable.
-    bool is_cpu = node.get_selected_impl() ? node.get_selected_impl()->is_cpu() :
-                                              node.get_preferred_impl_type() == impl_types::cpu;
 
     auto total_output_bytes = layout.bytes_count();
     auto use_lockable_memory =
