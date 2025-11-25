@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
-#include <iostream>
 #include <sstream>
 
 #include "openvino/util/common_util.hpp"
