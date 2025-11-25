@@ -9,6 +9,7 @@
 #include "moe_3gemm_gen_micro.hpp"
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 // #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "ocl_v2/utils/jitter.hpp"
 // #include "moe_gemm_inst.h"
@@ -37,7 +38,14 @@ static size_t get_subgroup_size(gpu_arch arch) {
 JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& moe_gemm, const moe_3gemm_config& cfg) const {
     const auto& device_info = params.get_device_info();
 
-    auto jit = make_base_jit_constants(params);
+    // auto jit = make_base_jit_constants(params);
+    JitConstants jit;
+    auto entry_point = get_entry_point(params);
+    jit.add(make_jit_constant("KERNEL(name)", "__kernel void " + entry_point));
+    jit.add(make_jit_constant("KERNEL_ID", entry_point));
+    jit.make("OPTIONAL_SHAPE_INFO_ARG", "");
+    jit.make("OPTIONAL_SHAPE_INFO_TENSOR", "");
+
     jit.make("SUBGROUP_SIZE", get_subgroup_size(device_info.arch));
     jit.make("OUTPUT_TYPE", to_ocl_type(data_types::f16));      // output
     jit.make("INPUT0_TYPE", to_ocl_type(data_types::f16));      // input: f16
@@ -45,17 +53,12 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     jit.make("INPUT2_TYPE", to_ocl_type(data_types::i32));      // experts_ids: i32
     jit.make("INPUT3_TYPE", to_ocl_type(data_types::i32));      // input_offset_per_expert: i32
     jit.make("INPUT4_TYPE", to_ocl_type(data_types::i32));      // n_array: i32
-    jit.make("WEIGHT_SCALE_DT", to_ocl_type(data_types::f16));  // scale
-    jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::u4));      // zp
+    jit.make("WEIGHT_SCALE_DT", to_ocl_type(data_types::f16));  // scale: f16
+    jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::u8));      // zp: u4
     jit.make("WEIGHT_COMPRESSED_INT4", 1);
-    jit.make("IS_GENERATE", 0);  // prefill
-
-    std::cout << "\t m_scale_idx: " << m_scale_idx << std::endl;
-    std::cout << "\t params.input_layouts[m_scale_idx].get_shape(): " << params.input_layouts[m_scale_idx].to_short_string() << std::endl;
-    if (cfg.weight_group_size > 0)
-        jit.make("NUM_GROUPS", params.input_layouts[m_scale_idx].get_shape()[1]);
-    else
-        jit.make("NUM_GROUPS", 1);
+    jit.make("IS_GENERATE", 0);    // prefill
+    jit.make("INPUT_SEQ_LEN", 4);  // prefill not use it
+    jit.make("WEIGHT_COMPRESSED_ZP_INT4", 1);
 
     std::cout << "\t m_wei_idx: " << m_wei_idx << std::endl;
     std::cout << "\t params.input_layouts[m_wei_idx].get_shape(): " << params.input_layouts[m_wei_idx].to_short_string() << std::endl;
@@ -63,23 +66,41 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     // u4:bfyx:4x3072x8x128:nopad
     size_t expert_stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) : (weight_shape[1] * weight_shape[2]);
     jit.make("EXPERT_STRIDE", expert_stride / 2);
+    std::cout << "\t expert_stride: " << expert_stride / 2 << std::endl;
 
-    std::cout << "\t params.input_layouts[0].get_shape(): " << params.input_layouts[0].to_short_string() << std::endl;
-    const auto& input_shape = params.input_layouts[0].get_partial_shape();
-    //jit.make("INPUT_SEQ_LEN", input_shape[0]);
-    jit.make("INPUT_SEQ_LEN", 0); // prefill not use it
+    std::cout << "\t m_scale_idx: " << m_scale_idx << std::endl;
+    std::cout << "\t params.input_layouts[m_scale_idx].get_shape(): " << params.input_layouts[m_scale_idx].to_short_string() << std::endl;
+    if (cfg.weight_group_size > 0) {
+        jit.make("NUM_GROUPS", params.input_layouts[m_scale_idx].get_shape()[1]);
+        std::cout << "\t NUM_GROUPS: " << params.input_layouts[m_scale_idx].get_shape()[1] << std::endl;
+    } else {
+        jit.make("NUM_GROUPS", 1);
+        std::cout << "\t NUM_GROUPS: 1" << std::endl;
+    }
 
-    // f16:bfyx:[?,2048]:nopad
-    jit.make("INPUT_STRIDE", input_shape.size() == 3 ? input_shape[1] * input_shape[2] : input_shape[1]);
-
-    std::cout << "\t params.output_layouts[0].get_shape(): " << params.output_layouts[0].to_short_string() << std::endl;
-    const auto& output_shape = params.output_layouts[0].get_partial_shape();
-    jit.make("OUTPUT_STRIDE", output_shape.size() == 3 ? output_shape[1] * output_shape[2] : output_shape[1]);
-
-    jit.make("WEIGHT_COMPRESSED_ZP_INT4", 1);
-    jit.make("OPTIONAL_SHAPE_INFO_ARG","");
+    auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+    switch(m_type) {
+        case MoE3GemmMicroKernelType::MLP_GATE:
+        case MoE3GemmMicroKernelType::MLP_UP:
+            // f16:bfyx:[?,2048]:nopad
+            jit.make("INPUT_STRIDE", desc->_config.hidden_size);
+            jit.make("OUTPUT_STRIDE", desc->_config.inter_size);
+            std::cout << "\t INPUT_STRIDE: " << desc->_config.hidden_size << std::endl;
+            std::cout << "\t OUTPUT_STRIDE: " << desc->_config.inter_size << std::endl;
+            break;
+        case MoE3GemmMicroKernelType::MLP_DOWN:
+            jit.make("INPUT_STRIDE", desc->_config.inter_size);
+            jit.make("OUTPUT_STRIDE", desc->_config.hidden_size);
+            std::cout << "\t INPUT_STRIDE: " << desc->_config.inter_size << std::endl;
+            std::cout << "\t OUTPUT_STRIDE: " << desc->_config.hidden_size << std::endl;
+            break;
+        default:
+            OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");
+            break;
+    }
 
     auto slm_size = moe_gemm.getSetting("slm_size");
+    std::cout << "MoE3GemmMicroGenerator::get_jit_constants() slm_size: " << slm_size << std::endl;
     if (slm_size > 0)
         jit.make("USE_SLM", 1);
 
@@ -147,10 +168,12 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     size_t m = weight_shape[1];
     size_t n = is_prefill ? 32 : 8;
     size_t k = weight_shape.size() == 4 ? weight_shape[2] * weight_shape[3] : weight_shape[2];
-    std::cout << "init_microkernels for " << (is_prefill ? "prefill" : "generate") << " : Seq_len:" << n << " Ofm:" << m << " K:" << k << "\n";
+
+    std::cout << "MoE3GemmMicroGenerator::init_microkernels: " << std::endl;
+    std::cout << "\t m = " << m << ", n = " << n << ", k = " << k << std::endl;
 
     size_t group_size = weight_shape.size() == 4 ? weight_shape[3] : weight_shape[2];
-    std::cout << "weight group size: " << group_size << "\n";
+    std::cout << "\t weight group size: " << group_size << "\n";
 
     micro::GEMMProblem problem_moe;
     micro::GEMMProtocol::Options opts_moe;
@@ -165,7 +188,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
         problem_moe.Ta_scale = convert_type(params.get_input_layout(scale_idx).data_type);  // zp dt
         problem_moe.A_scale.setAlignment(2);
-        problem_moe.A_scale.layout = micro::MatrixLayout::T;
+        problem_moe.A_scale.layout = micro::MatrixLayout::N;
         problem_moe.asPtrDims = static_cast<int>(MICRO_DIMENSIONALITY::MATRIX);
 
         problem_moe.aqGroupM = 1;
@@ -178,7 +201,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
             const auto zp_dt = convert_type(zp_layout.data_type);
             problem_moe.Tao = zp_dt;
             problem_moe.AO.setAlignment(zp_dt == gemmstone::Type::u4 ? 1 : static_cast<int32_t>(zp_dt.size()));
-            problem_moe.AO.layout = micro::MatrixLayout::T;
+            problem_moe.AO.layout = micro::MatrixLayout::N;
             problem_moe.aoPtrDims = static_cast<int>(MICRO_DIMENSIONALITY::MATRIX);
             // Calculate A/B row/column sums in kernel.
             problem_moe.aOffset = micro::ABOffset::Calc;
@@ -230,7 +253,7 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
-        scalars.reserve(3);
+        scalars.reserve(2);
 
         auto input_layout = params.get_input_layout(0);
         auto experts_weight_layout = params.get_input_layout(wei_idx);
@@ -241,6 +264,11 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
 
         // has_batch_dim indicates whether the input tensor has batch dimension
         size_t n = input_layout.get_shape().size() == 3 ? input_layout.get_shape()[1] : input_layout.get_shape()[0];
+        auto cur_moe = params.typed_desc<moe_3gemm_fused_compressed>();
+        const auto& config = cur_moe->_config;
+        n = n * config.top_k;
+        std::cout << "\t n = " << n << std::endl;
+
         const auto& experts_weight_shape = experts_weight_layout.get_shape();
         size_t m = experts_weight_shape[1];
         size_t k = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
@@ -254,6 +282,8 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
         s_k.v.s32 = static_cast<int32_t>(k);
         scalars.push_back(s_k);
+
+        std::cout << "\t m = " << m << ", k = " << k << std::endl;
     }};
 }
 
@@ -279,7 +309,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});                                    // gate output
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 9});                                    // experts_ids
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 10});                                   // input_offset_per_expert
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array - token len
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                             // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                             // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_0)});  // scale
@@ -291,7 +321,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});                                    // up output
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 9});                                    // experts_ids
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 10});                                   // input_offset_per_expert
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array - token len
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                             // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                             // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_1)});  // scale
@@ -303,7 +333,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});                                    // down output
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 9});                                    // experts_ids
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 10});                                   // input_offset_per_expert
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array - token len
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                             // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                             // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_2)});  // scale
@@ -348,7 +378,6 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
     }
 
     kd.params.arguments = get_arguments_desc(params);
-
     kd.update_dispatch_data_func = get_dispatch_data_func();
 
     kd.need_args_update = true;
