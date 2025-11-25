@@ -41,10 +41,11 @@ void OpenvinoVersion::read(std::istream& stream) {
     stream.read(reinterpret_cast<char*>(&_patch), sizeof(_patch));
 }
 
-void OpenvinoVersion::read(const ov::Tensor& tensor) {
-    _major = *reinterpret_cast<const decltype(_major)*>(tensor.data<const char>());
-    _minor = *reinterpret_cast<const decltype(_minor)*>(tensor.data<const char>() + sizeof(_major));
-    _patch = *reinterpret_cast<const decltype(_patch)*>(tensor.data<const char>() + sizeof(_major) + sizeof(_minor));
+void OpenvinoVersion::read(const ov::Tensor& tensor, size_t offset) {
+    _major = *reinterpret_cast<const decltype(_major)*>(tensor.data<const char>() + offset);
+    _minor = *reinterpret_cast<const decltype(_minor)*>(tensor.data<const char>() + offset + sizeof(_major));
+    _patch = *reinterpret_cast<const decltype(_patch)*>(tensor.data<const char>() + offset + sizeof(_major) +
+                                                        sizeof(_minor));
 }
 
 void OpenvinoVersion::write(std::ostream& stream) {
@@ -57,43 +58,39 @@ size_t OpenvinoVersion::get_openvino_version_size() const {
     return sizeof(_major) + sizeof(_minor) + sizeof(_patch);
 }
 
-MetadataBase::MetadataBase(uint32_t version, uint64_t blobDataSize)
+MetadataBase::MetadataBase(uint32_t version)
     : _version(version),
-      _blobDataSize(blobDataSize),
       _logger("NPUBlobMetadata", Logger::global().level()),
       _source() {}
 
-Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion)
-    : MetadataBase{METADATA_VERSION_2_0, blobSize},
+Metadata<METADATA_VERSION_2_0>::Metadata(const std::optional<OpenvinoVersion>& ovVersion)
+    : MetadataBase{METADATA_VERSION_2_0},
       _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)} {}
 
-Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
-                                         const std::optional<OpenvinoVersion>& ovVersion,
+Metadata<METADATA_VERSION_2_1>::Metadata(const std::optional<OpenvinoVersion>& ovVersion,
                                          const std::optional<std::vector<uint64_t>>& initSizes)
-    : Metadata<METADATA_VERSION_2_0>{blobSize, ovVersion},
+    : Metadata<METADATA_VERSION_2_0>{ovVersion},
       _initSizes{initSizes} {
     _version = METADATA_VERSION_2_1;
 }
 
-Metadata<METADATA_VERSION_2_2>::Metadata(uint64_t blobSize,
-                                         std::optional<OpenvinoVersion> ovVersion,
+Metadata<METADATA_VERSION_2_2>::Metadata(std::optional<OpenvinoVersion> ovVersion,
                                          const std::optional<std::vector<uint64_t>> initSizes,
                                          const std::optional<int64_t> batchSize)
-    : Metadata<METADATA_VERSION_2_1>{blobSize, ovVersion, initSizes},
+    : Metadata<METADATA_VERSION_2_1>{ovVersion, initSizes},
       _batchSize{batchSize} {
     _version = METADATA_VERSION_2_2;
 }
 
-Metadata<METADATA_VERSION_2_3>::Metadata(uint64_t blobSize,
-                                         const std::optional<OpenvinoVersion>& ovVersion,
+Metadata<METADATA_VERSION_3_0>::Metadata(const std::optional<OpenvinoVersion>& ovVersion,
                                          const std::optional<std::vector<uint64_t>>& initSizes,
                                          const std::optional<int64_t> batchSize,
                                          const std::optional<std::vector<ov::Layout>>& inputLayouts,
                                          const std::optional<std::vector<ov::Layout>>& outputLayouts)
-    : Metadata<METADATA_VERSION_2_2>{blobSize, ovVersion, initSizes, batchSize},
+    : Metadata<METADATA_VERSION_2_2>{ovVersion, initSizes, batchSize},
       _inputLayouts{inputLayouts},
       _outputLayouts{outputLayouts} {
-    _version = METADATA_VERSION_2_3;
+    _version = METADATA_VERSION_3_0;
 }
 
 void MetadataBase::read(std::istream& tensor) {
@@ -101,34 +98,40 @@ void MetadataBase::read(std::istream& tensor) {
     read();
 }
 
-void MetadataBase::read(const ov::Tensor& tensor) {
+void MetadataBase::read(const ov::Tensor& tensor, size_t offset) {
     _source = Source(tensor);
+    _cursorOffset = offset;
     read();
 }
 
 void MetadataBase::read_data_from_source(char* destination, const size_t size) {
     if (const std::reference_wrapper<std::istream>* stream =
             std::get_if<std::reference_wrapper<std::istream>>(&_source)) {
-        stream->get().read(destination, size);
+        if (destination == nullptr) {
+            stream->get().seekg(size, std::ios::cur);
+        } else {
+            stream->get().read(destination, size);
+        }
     } else if (const std::reference_wrapper<const ov::Tensor>* tensor =
                    std::get_if<std::reference_wrapper<const ov::Tensor>>(&_source)) {
-        std::memcpy(destination, tensor->get().data<const char>() + _cursorOffset, size);
+        if (destination != nullptr) {
+            std::memcpy(destination, tensor->get().data<const char>() + _cursorOffset, size);
+        }
         _cursorOffset += size;
     } else {
         OPENVINO_THROW("No blob has been provided to NPU plugin's metadata reader.");
     }
 }
 
-void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
-    size_t metadataSize = get_metadata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
+void MetadataBase::append_padding(std::ostream& stream) {
+    uint16_t paddingSize = 0;
+    size_t metadataSize = get_metadata_size() + sizeof(paddingSize) + MAGIC_BYTES.size();
     size_t size = utils::align_size_to_standard_page_size(metadataSize);
-    size_t paddingSize = size - metadataSize;
+    paddingSize = static_cast<decltype(paddingSize)>(size - metadataSize);
+    stream.write(reinterpret_cast<const char*>(&paddingSize), sizeof(paddingSize));
     if (paddingSize > 0) {
         std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
     }
-
-    stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
-    stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
 
 void Metadata<METADATA_VERSION_2_0>::read() {
@@ -137,8 +140,8 @@ void Metadata<METADATA_VERSION_2_0>::read() {
         _ovVersion.read(*source);
     } else if (const std::reference_wrapper<const ov::Tensor>* source =
                    std::get_if<std::reference_wrapper<const ov::Tensor>>(&_source)) {
-        _ovVersion.read(*source);
-        _cursorOffset = _ovVersion.get_openvino_version_size();
+        _ovVersion.read(*source, _cursorOffset);
+        _cursorOffset += _ovVersion.get_openvino_version_size();
     } else {
         OPENVINO_THROW("No blob has been provided to NPU plugin's metadata reader.");
     }
@@ -168,7 +171,7 @@ void Metadata<METADATA_VERSION_2_2>::read() {
     _batchSize = batchSize != 0 ? std::optional(batchSize) : std::nullopt;
 }
 
-void Metadata<METADATA_VERSION_2_3>::read() {
+void Metadata<METADATA_VERSION_3_0>::read() {
     Metadata<METADATA_VERSION_2_2>::read();
 
     uint64_t numberOfInputLayouts, numberOfOutputLayouts;
@@ -206,6 +209,10 @@ void Metadata<METADATA_VERSION_2_3>::read() {
 
     _inputLayouts = readNLayouts(numberOfInputLayouts, "Input");
     _outputLayouts = readNLayouts(numberOfOutputLayouts, "Output");
+
+    uint16_t paddingSize = 0;
+    read_data_from_source(reinterpret_cast<char*>(&paddingSize), sizeof(paddingSize));
+    read_data_from_source(nullptr, paddingSize);
 }
 
 void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
@@ -233,7 +240,8 @@ void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&batchValue), sizeof(batchValue));
 }
 
-void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
+void Metadata<METADATA_VERSION_3_0>::write(std::ostream& stream) {
+    stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
     Metadata<METADATA_VERSION_2_2>::write(stream);
 
     const uint64_t numberOfInputLayouts = _inputLayouts.has_value() ? _inputLayouts->size() : 0;
@@ -255,22 +263,17 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
     writeLayouts(_inputLayouts);
     writeLayouts(_outputLayouts);
 
-    append_padding_blob_size_and_magic(stream);
+    append_padding(stream);
 }
 
-std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
+std::unique_ptr<MetadataBase> create_metadata(uint32_t version) {
     if (MetadataBase::get_major(version) == CURRENT_METADATA_MAJOR_VERSION &&
         MetadataBase::get_minor(version) >= CURRENT_METADATA_MINOR_VERSION) {
-        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(blobSize);
+        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>();
     }
 
     switch (version) {
-    case METADATA_VERSION_2_0:
-        return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize);
-    case METADATA_VERSION_2_1:
-        return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize);
-    case METADATA_VERSION_2_2:
-        return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
+    case CURRENT_METADATA_VERSION:  // place compatible versions here instead
     default:
         OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
                        MetadataBase::get_major(version),
@@ -330,53 +333,36 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     std::string blobMagicBytes;
     blobMagicBytes.resize(magicBytesSize);
 
-    std::streampos currentStreamPos = stream.tellg(), streamSize = MetadataBase::getFileSize(stream);
-    stream.seekg(streamSize - std::streampos(magicBytesSize), std::ios::cur);
     stream.read(blobMagicBytes.data(), magicBytesSize);
     if (MAGIC_BYTES != blobMagicBytes) {
         OPENVINO_THROW("Blob is missing NPU metadata!");
     }
 
-    uint64_t blobDataSize;
-    stream.seekg(-std::streampos(magicBytesSize) - sizeof(blobDataSize), std::ios::cur);
-    stream.read(reinterpret_cast<char*>(&blobDataSize), sizeof(blobDataSize));
-    stream.seekg(-stream.tellg() + currentStreamPos + blobDataSize, std::ios::cur);
-
     uint32_t metaVersion;
     stream.read(reinterpret_cast<char*>(&metaVersion), sizeof(metaVersion));
 
     std::unique_ptr<MetadataBase> storedMeta;
-    storedMeta = create_metadata(metaVersion, blobDataSize);
+    storedMeta = create_metadata(metaVersion);
     storedMeta->read(stream);
-
-    stream.seekg(-stream.tellg() + currentStreamPos, std::ios::cur);
 
     return storedMeta;
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
     size_t magicBytesSize = MAGIC_BYTES.size();
-    std::string_view blobMagicBytes(tensor.data<const char>() + tensor.get_byte_size() - magicBytesSize,
-                                    magicBytesSize);
+    std::string_view blobMagicBytes(tensor.data<const char>(), magicBytesSize);
 
     if (MAGIC_BYTES != blobMagicBytes) {
         OPENVINO_THROW("Blob is missing NPU metadata!");
     }
 
-    uint64_t blobDataSize;
-    blobDataSize = *reinterpret_cast<const decltype(blobDataSize)*>(tensor.data<const char>() + tensor.get_byte_size() -
-                                                                    magicBytesSize - sizeof(blobDataSize));
-
     uint32_t metaVersion;
-    metaVersion = *reinterpret_cast<const decltype(metaVersion)*>(tensor.data<const char>() + blobDataSize);
+    metaVersion = *reinterpret_cast<const decltype(metaVersion)*>(tensor.data<const char>() + magicBytesSize);
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
-        auto roiTensor = ov::Tensor(tensor,
-                                    ov::Coordinate{blobDataSize + sizeof(metaVersion)},
-                                    ov::Coordinate{tensor.get_byte_size()});
-        storedMeta = create_metadata(metaVersion, blobDataSize);
-        storedMeta->read(roiTensor);
+        storedMeta = create_metadata(metaVersion);
+        storedMeta->read(tensor, magicBytesSize + sizeof(metaVersion));
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what(),
                        "Imported blob metadata version: ",
@@ -394,8 +380,8 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
     return storedMeta;
 }
 
-uint64_t MetadataBase::get_blob_size() const {
-    return _blobDataSize;
+uint64_t MetadataBase::get_blob_offset() const {
+    return _cursorOffset;
 }
 
 std::optional<std::vector<uint64_t>> MetadataBase::get_init_sizes() const {
@@ -422,11 +408,11 @@ std::optional<int64_t> Metadata<METADATA_VERSION_2_2>::get_batch_size() const {
     return _batchSize;
 }
 
-std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_2_3>::get_input_layouts() const {
+std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_3_0>::get_input_layouts() const {
     return _inputLayouts;
 }
 
-std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_2_3>::get_output_layouts() const {
+std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_3_0>::get_output_layouts() const {
     return _outputLayouts;
 }
 
@@ -450,7 +436,7 @@ size_t Metadata<METADATA_VERSION_2_2>::get_metadata_size() const {
     return metadataSize;
 }
 
-size_t Metadata<METADATA_VERSION_2_3>::get_metadata_size() const {
+size_t Metadata<METADATA_VERSION_3_0>::get_metadata_size() const {
     size_t metadataSize = Metadata<METADATA_VERSION_2_2>::get_metadata_size();
     // Number of input layouts & number of output layouts
     metadataSize += 2 * sizeof(uint64_t);

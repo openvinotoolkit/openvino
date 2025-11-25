@@ -84,7 +84,8 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
+    std::stringstream blobStream;
+    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(blobStream);
 
     std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
     std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
@@ -98,13 +99,9 @@ void CompiledModel::export_model(std::ostream& stream) const {
             std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
     }
 
-    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
-                                       CURRENT_OPENVINO_VERSION,
-                                       initBlobSizes,
-                                       _batchSize,
-                                       inputLayouts,
-                                       outputLayouts)
+    Metadata<CURRENT_METADATA_VERSION>(CURRENT_OPENVINO_VERSION, initBlobSizes, _batchSize, inputLayouts, outputLayouts)
         .write(stream);
+    stream << blobStream.rdbuf();
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

@@ -20,7 +20,7 @@ namespace intel_npu {
 
 class MetadataBase {
 public:
-    MetadataBase(uint32_t version, uint64_t blobDataSize);
+    MetadataBase(uint32_t version);
 
     using uninitialized_source = void*;
     using Source = std::
@@ -34,7 +34,7 @@ public:
     /**
      * @brief Reads metadata from a ov::Tensor.
      */
-    void read(const ov::Tensor& tensor);
+    void read(const ov::Tensor& tensor, size_t offset = 0);
 
     virtual void read() = 0;
 
@@ -45,7 +45,7 @@ public:
 
     virtual bool is_compatible() = 0;
 
-    virtual uint64_t get_blob_size() const;
+    uint64_t get_blob_offset() const;
 
     /**
      * @returns The sizes of the init schedules. Populated only if "weights separation" has been enabled.
@@ -108,10 +108,9 @@ protected:
      * @note This operation was detached from "write" since "write" writes at the beginning of the stream, while this
      * method writes at the end. This change allows better extension of class hierarchy.
      */
-    void append_padding_blob_size_and_magic(std::ostream& stream);
+    void append_padding(std::ostream& stream);
 
     uint32_t _version;
-    uint64_t _blobDataSize;
     Logger _logger;
 
     /**
@@ -138,12 +137,12 @@ constexpr std::string_view MAGIC_BYTES = "OVNPU";
 constexpr uint32_t METADATA_VERSION_2_0{MetadataBase::make_version(2, 0)};
 constexpr uint32_t METADATA_VERSION_2_1{MetadataBase::make_version(2, 1)};
 constexpr uint32_t METADATA_VERSION_2_2{MetadataBase::make_version(2, 2)};
-constexpr uint32_t METADATA_VERSION_2_3{MetadataBase::make_version(2, 3)};
+constexpr uint32_t METADATA_VERSION_3_0{MetadataBase::make_version(3, 0)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_3};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_3_0};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -177,7 +176,7 @@ public:
     /**
      * @brief Reads version data from a ov::Tensor.
      */
-    void read(const ov::Tensor& tensor);
+    void read(const ov::Tensor& tensor, size_t offset = 0);
 
     /**
      * @brief Writes version data to a stream.
@@ -216,7 +215,7 @@ struct Metadata : public MetadataBase {};
 template <>
 class Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 public:
-    Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion = std::nullopt);
+    Metadata(const std::optional<OpenvinoVersion>& ovVersion = std::nullopt);
 
     void read() override;
 
@@ -256,8 +255,7 @@ protected:
 template <>
 class Metadata<METADATA_VERSION_2_1> : public Metadata<METADATA_VERSION_2_0> {
 public:
-    Metadata(uint64_t blobSize,
-             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
+    Metadata(const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
              const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt);
 
     /**
@@ -287,8 +285,7 @@ private:
 template <>
 class Metadata<METADATA_VERSION_2_2> : public Metadata<METADATA_VERSION_2_1> {
 public:
-    Metadata(uint64_t blobSize,
-             std::optional<OpenvinoVersion> ovVersion = std::nullopt,
+    Metadata(std::optional<OpenvinoVersion> ovVersion = std::nullopt,
              const std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
              const std::optional<int64_t> batchSize = std::nullopt);
 
@@ -309,10 +306,9 @@ private:
  * @details The order used for recording the layouts follows the deterministic order in which OV parses the I/O.
  */
 template <>
-class Metadata<METADATA_VERSION_2_3> : public Metadata<METADATA_VERSION_2_2> {
+class Metadata<METADATA_VERSION_3_0> : public Metadata<METADATA_VERSION_2_2> {
 public:
-    Metadata(uint64_t blobSize,
-             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
+    Metadata(const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
              const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
              const std::optional<int64_t> batchSize = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
@@ -339,7 +335,7 @@ private:
  * @return Unique pointer to the created MetadataBase object if the major version is supported; otherwise, returns
  * 'nullptr'.
  */
-std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize);
+std::unique_ptr<MetadataBase> create_metadata(uint32_t version);
 
 /**
  * @brief Reads metadata from a blob (istream).

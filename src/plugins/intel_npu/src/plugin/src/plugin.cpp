@@ -803,7 +803,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end() &&
             npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>() == true;
         std::unique_ptr<MetadataBase> metadata = nullptr;
-        size_t blobSize = MetadataBase::getFileSize(stream);
         if (!skipCompatibility) {
             // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
             // passes compatibility checks.
@@ -811,8 +810,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
-            blobSize = metadata->get_blob_size();
         }
+
+        size_t blobSize = MetadataBase::getFileSize(stream);
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
@@ -858,17 +858,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
             npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end() &&
             npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>() == true;
         std::unique_ptr<MetadataBase> metadata = nullptr;
-        size_t blobSize = compiled_blob.get_byte_size();
+        size_t blobOffset = 0;
         if (!skipCompatibility) {
             metadata = read_metadata_from(compiled_blob);
             if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
-            blobSize = metadata->get_blob_size();
+            blobOffset = metadata->get_blob_offset();
         }
-        const ov::Tensor roiTensor(compiled_blob,
-                                   ov::Coordinate{0},
-                                   ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
+        const ov::Tensor roiTensor(
+            compiled_blob,
+            ov::Coordinate{blobOffset},
+            ov::Coordinate{compiled_blob.get_byte_size()});  // ROI tensor to skip NPU plugin metadata
         return parse(roiTensor, std::move(metadata), npu_plugin_properties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
@@ -958,8 +959,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         size_t accumulator = 0;
         initSizes = metadata->get_init_sizes();
         mainSize = initSizes.has_value()
-                       ? metadata->get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
-                       : metadata->get_blob_size();
+                       ? tensorBig.get_shape()[0] - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
+                       : tensorBig.get_shape()[0];
         batchSize = metadata->get_batch_size();
     } else {
         _logger.info("Blob compatibility check skipped.");
