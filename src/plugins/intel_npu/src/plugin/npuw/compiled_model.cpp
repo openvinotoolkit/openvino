@@ -389,6 +389,14 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     m_compiled_submodels[id].pyramid_attention =
                         compiled::PyramidAttention(fcn_template._pyramid_attention.value());
                 }
+
+                if (fcn_template._host_flash_attention) {
+                    LOG_INFO("Creating compiled::HostFlashAttention for Subgraph[" << id << "] (function "
+                                                                                   << subgraph._funcall << ")");
+                    m_compiled_submodels[id].host_flash_attention =
+                        compiled::HostFlashAttention(fcn_template._host_flash_attention.value());
+                }
+
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
@@ -704,6 +712,23 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
         }
     }
 
+    // Serialize host flash attention
+    write(stream, host_flash_attention);
+    if (host_flash_attention.has_value()) {
+        write(stream, host_flash_attention.value()._tile_size);
+        write(stream, host_flash_attention.value()._kv_cache_size);
+
+        // Serialize compiled tile model
+        if (host_flash_attention.value()._compiled_tile_model) {
+            write(stream, true);
+            std::stringstream ss;
+            host_flash_attention.value()._compiled_tile_model->export_model(ss);
+            write(stream, ss.str());
+        } else {
+            write(stream, false);
+        }
+    }
+
     auto& closure_desc = closure.get();
 
     write(stream, closure_desc.is_remote);
@@ -803,6 +828,24 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
                 pyramid_attention->_compiled_models[num_models - 1] = pyramid_ctx.compiled_model;
                 LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
             }
+        }
+    }
+
+    // Deserialize host flash attention
+    read(stream, host_flash_attention);
+    if (host_flash_attention.has_value()) {
+        read(stream, host_flash_attention.value()._tile_size);
+        read(stream, host_flash_attention.value()._kv_cache_size);
+
+        bool has_compiled_model = false;
+        read(stream, has_compiled_model);
+        if (has_compiled_model) {
+            std::string model_str;
+            read(stream, model_str);
+            std::stringstream ss(model_str);
+            host_flash_attention->_compiled_tile_model =
+                pyramid_ctx.plugin->get_core()->import_model(ss, pyramid_ctx.device);
+            LOG_DEBUG("Imported compiled tile model for host flash attention");
         }
     }
 
@@ -1627,6 +1670,9 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
 
         // Compile pyramid attention models if present
         compile_pyramid_attention_models(id, device_to_try);
+
+        // Compile host flash attention model if present
+        compile_host_flash_attention_model(id, device_to_try);
     } catch (const std::exception& ex) {
         LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
         dump_on_fail(id, device_to_try, ex.what());
@@ -1707,6 +1753,44 @@ void ov::npuw::CompiledModel::compile_pyramid_attention_models(std::size_t id, c
     pyramid_attn.set_compiled_models(std::move(compiled_models));
 
     LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
+}
+
+void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id, const std::string& device) {
+    // Check if we have host flash attention to compile
+    if (!m_compiled_submodels[id].host_flash_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO("Compiling host flash attention tile model for Subgraph[" << id << "]...");
+    LOG_BLOCK();
+
+    auto& hfa = m_compiled_submodels[id].host_flash_attention.value();
+
+    // Check if we have a tile model to compile
+    if (!hfa._tile_model_to_compile) {
+        LOG_WARN("Host flash attention tile model is null, skipping compilation");
+        return;
+    }
+
+    LOG_INFO("Compiling flash attention tile model on " << device);
+    try {
+        auto compiled_tile_model = compile_submodel(hfa._tile_model_to_compile, device);
+        OPENVINO_ASSERT(compiled_tile_model, "Failed to compile host flash attention tile model");
+
+        hfa.set_compiled_tile_model(std::move(compiled_tile_model));
+
+        LOG_INFO("Successfully compiled host flash attention tile model");
+        std::cout << "HostFlashAttention tile model compiled on " << device << " (tile_size=" << hfa._tile_size
+                  << ", kv_cache_size=" << hfa._kv_cache_size << ")" << std::endl;
+    } catch (const std::exception& ex) {
+        LOG_ERROR("Failed to compile host flash attention tile model: " << ex.what());
+        OPENVINO_THROW("Host flash attention tile model compilation failed: ", ex.what());
+    } catch (...) {
+        LOG_ERROR("Failed to compile host flash attention tile model: Unknown error");
+        OPENVINO_THROW("Host flash attention tile model compilation failed with unknown error");
+    }
+
+    LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& submodel,

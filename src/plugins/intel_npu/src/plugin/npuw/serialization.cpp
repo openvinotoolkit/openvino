@@ -5,6 +5,7 @@
 #include "serialization.hpp"
 
 #include "attention.hpp"
+#include "host_flash_attention.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
@@ -125,6 +126,15 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::Pyram
         write(stream, info.query_size);
         write(stream, info.context_length);
     }
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::HostFlashAttention& var) {
+    using ov::npuw::s11n::write;
+
+    write(stream, var._tile_size);
+    write(stream, var._kv_cache_size);
+    // Note: _tile_model_to_compile and _compiled_tile_model are not serialized here
+    // They are handled separately in CompiledModelDesc::serialize()
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
@@ -273,6 +283,15 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::PyramidAtten
         read(stream, info.query_size);
         read(stream, info.context_length);
     }
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::HostFlashAttention& var) {
+    using ov::npuw::s11n::read;
+
+    read(stream, var._tile_size);
+    read(stream, var._kv_cache_size);
+    // Note: _tile_model_to_compile and _compiled_tile_model are not deserialized here
+    // They are handled separately in CompiledModelDesc::deserialize()
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {
