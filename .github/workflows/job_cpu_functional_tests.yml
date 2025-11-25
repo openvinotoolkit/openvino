@@ -105,12 +105,12 @@ jobs:
           python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 ${{ env.GTEST_FILTER }}
         timeout-minutes: ${{ inputs.scope == 'nightly' && 125 || 40 }}
 
-      - name: Save tests execution time
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        if: github.ref_name == 'master'
-        with:
-          path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
+      # - name: Save tests execution time
+      #   uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      #   if: github.ref_name == 'master'
+      #   with:
+      #     path: ${{ env.PARALLEL_TEST_CACHE }}
+      #     key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
