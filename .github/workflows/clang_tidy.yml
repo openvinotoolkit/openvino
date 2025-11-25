@@ -159,7 +159,6 @@ jobs:
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_CPPLINT=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
@@ -225,7 +224,6 @@ jobs:
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_CPPLINT=OFF \
             -DCMAKE_RULE_MESSAGES=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
@@ -294,10 +292,10 @@ jobs:
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_CPPLINT=OFF \
             -DCMAKE_RULE_MESSAGES=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DTHREADING=SEQ \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 

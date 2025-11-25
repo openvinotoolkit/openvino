@@ -105,5 +105,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
                             ::testing::Values(true, false)),
                          RoPETestChatGLMHF::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestGPTOSS,
+                         RoPETestGPTOSS,
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f16, ov::element::f32),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         RoPETestGPTOSS::getTestCaseName);
+
 }  // namespace test
 }  // namespace ov
