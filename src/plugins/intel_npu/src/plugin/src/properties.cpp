@@ -631,10 +631,7 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::inputs_with_dynamic_strides, INPUTS_WITH_DYNAMIC_STRIDES);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::outputs_with_dynamic_strides,
                                               OUTPUTS_WITH_DYNAMIC_STRIDES);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::inputs_with_dynamic_strides_string,
-                                              INPUTS_WITH_DYNAMIC_STRIDES_STRING);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::outputs_with_dynamic_strides_string,
-                                              OUTPUTS_WITH_DYNAMIC_STRIDES_STRING);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::dynamic_strides, DYNAMIC_STRIDES);
 
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE, false);
 

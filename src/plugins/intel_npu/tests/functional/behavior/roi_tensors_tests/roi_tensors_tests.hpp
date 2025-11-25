@@ -98,8 +98,7 @@ TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabled) {
     ov::CompiledModel compiled_model;
     auto model = createModel(element::f32, shape, "N...");
 
-    configuration[ov::intel_npu::inputs_with_dynamic_strides_string.name()] = {"input"};
-    configuration[ov::intel_npu::outputs_with_dynamic_strides_string.name()] = {"Result"};
+    configuration[ov::intel_npu::dynamic_strides.name()] = std::vector<std::string>{"input", "Result"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -119,8 +118,7 @@ TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
     auto input_strides = input_host_tensor.get_strides();
     auto output_strides = output_host_tensor.get_strides();
 
-    configuration[ov::intel_npu::inputs_with_dynamic_strides_string.name()] = {"input"};
-    configuration[ov::intel_npu::outputs_with_dynamic_strides_string.name()] = {"Result"};
+    configuration[ov::intel_npu::dynamic_strides.name()] = std::vector<std::string>{"input", "Result"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -146,8 +144,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
     auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 10, 10, 10});
     auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
 
-    configuration[ov::intel_npu::inputs_with_dynamic_strides_string.name()] = {"input"};
-    configuration[ov::intel_npu::outputs_with_dynamic_strides_string.name()] = {"Result"};
+    configuration[ov::intel_npu::dynamic_strides.name()] = std::vector<std::string>{"input", "Result"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;

@@ -326,8 +326,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
     REGISTER_OPTION(INPUTS_WITH_DYNAMIC_STRIDES);
     REGISTER_OPTION(OUTPUTS_WITH_DYNAMIC_STRIDES);
-    REGISTER_OPTION(INPUTS_WITH_DYNAMIC_STRIDES_STRING);
-    REGISTER_OPTION(OUTPUTS_WITH_DYNAMIC_STRIDES_STRING);
+    REGISTER_OPTION(DYNAMIC_STRIDES);
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
@@ -697,8 +696,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         int index = 0;
 
         for (const auto& io : ioVector) {
-            // Check friendly name
-            if (io.get_node()->get_friendly_name() == name) {
+            if (io.get_node()->get_name() == name || io.get_node()->get_friendly_name() == name) {
                 return index;
             }
 
@@ -716,14 +714,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto convertNamesToIndices = [&localConfig, &findIOByName](const std::vector<std::string>& names,
                                                                const auto& ioVector,
                                                                const std::string& propertyName) {
-        std::vector<int> indices(names.size());
+        if (names.empty()) {
+            return;
+        }
 
+        std::vector<int> indices(names.size());
         for (size_t i = 0; i < names.size(); ++i) {
-            auto index = findIOByName(ioVector, names[i]);
-            if (!index) {
-                OPENVINO_THROW("'", names[i], "' not found in model");
+            if (auto index = findIOByName(ioVector, names[i])) {
+                indices[i] = index.value();
             }
-            indices[i] = index.value();
         }
 
         std::ostringstream oss;
@@ -731,16 +730,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localConfig.update({{propertyName, oss.str()}});
     };
 
-    if (localConfig.isAvailable(ov::intel_npu::inputs_with_dynamic_strides_string.name()) &&
-        localConfig.isAvailable(ov::intel_npu::outputs_with_dynamic_strides_string.name())) {
-        if (localConfig.has(ov::intel_npu::inputs_with_dynamic_strides_string.name())) {
-            convertNamesToIndices(localConfig.get<INPUTS_WITH_DYNAMIC_STRIDES_STRING>(),
+    if (localConfig.isAvailable(ov::intel_npu::dynamic_strides.name())) {
+        if (localConfig.has(ov::intel_npu::dynamic_strides.name())) {
+            convertNamesToIndices(localConfig.get<DYNAMIC_STRIDES>(),
                                   model->inputs(),
                                   ov::intel_npu::inputs_with_dynamic_strides.name());
-        }
 
-        if (localConfig.has(ov::intel_npu::outputs_with_dynamic_strides_string.name())) {
-            convertNamesToIndices(localConfig.get<OUTPUTS_WITH_DYNAMIC_STRIDES_STRING>(),
+            convertNamesToIndices(localConfig.get<DYNAMIC_STRIDES>(),
                                   model->outputs(),
                                   ov::intel_npu::outputs_with_dynamic_strides.name());
         }
