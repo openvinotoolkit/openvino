@@ -128,7 +128,10 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
     try {
-        check_tensor(port, tensor);
+        check_tensor(port,
+                     tensor,
+                     foundPort.is_input() ? _metadata.inputs.at(foundPort.idx).supportsStridedLayout
+                                          : _metadata.outputs.at(foundPort.idx).supportsStridedLayout);
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
@@ -165,12 +168,17 @@ void SyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 }
 
 void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
-                                    const ov::SoPtr<ov::ITensor>& tensor) const {
+                                    const ov::SoPtr<ov::ITensor>& tensor,
+                                    const bool support_strides) const {
     if (tensor == nullptr)
         OPENVINO_THROW("The tensor is not initialized!");
 
     bool is_input = ov::op::util::is_parameter(port.get_node());
     std::string tensor_type = is_input ? "input" : "output";
+
+    if (!support_strides) {
+        OPENVINO_ASSERT(tensor->is_continuous(), "The tensor is not continuous");
+    }
 
     if ((port.get_element_type() == ov::element::Type_t::boolean ||
          tensor->get_element_type() == ov::element::Type_t::boolean) &&
@@ -309,14 +317,14 @@ void SyncInferRequest::check_tensors() const {
             continue;
         }
         if (get_user_input(i)) {
-            check_tensor(inputs[i], get_user_input(i));
+            check_tensor(inputs[i], get_user_input(i), _metadata.inputs.at(i).supportsStridedLayout);
         }
     }
 
     const auto& outputs = _compiledModel->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
         if (_userOutputTensors.at(i)) {
-            check_tensor(outputs[i], _userOutputTensors.at(i));
+            check_tensor(outputs[i], _userOutputTensors.at(i), _metadata.outputs.at(i).supportsStridedLayout);
         }
     }
 }
