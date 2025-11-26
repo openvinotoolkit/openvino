@@ -214,7 +214,7 @@ public:
                 openvino::itt::handle<Tag<NodeType, 5>>(type_name + "::initOptimalPrimitiveDescriptor");
         }
 
-        openvino::itt::handle_t execute;
+        openvino::itt::handle_t execute{};
         openvino::itt::handle_t getSupportedDescriptors;
         openvino::itt::handle_t initSupportedPrimitiveDescriptors;
         openvino::itt::handle_t filterSupportedPrimitiveDescriptors;
@@ -730,7 +730,7 @@ protected:
          std::vector<Shape> outShapes,
          std::vector<ov::element::Type> originalInputPrecisions,
          std::vector<ov::element::Type> originalOutputPrecisions,
-         const std::string& name,
+         std::string name,
          const GraphContext::CPtr& ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
