@@ -28,6 +28,9 @@
 
 namespace ov {
 
+template <class Path>
+using EnableIfPath = std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>*;
+
 /**
  * @brief This class represents an OpenVINO runtime Core entity.
  * @ingroup ov_runtime_cpp_api
@@ -54,6 +57,19 @@ public:
      * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
     explicit Core(const std::string& xml_config_file = {});
+
+    /** @brief Constructs an OpenVINO Core instance with devices
+     * and their plugins description.
+     *
+     * There are two ways how to configure device plugins:
+     * 1. (default) Use XML configuration file in case of dynamic libraries build;
+     * 2. Use strictly defined configuration in case of static libraries build.
+     *
+     * @param xml_config_file Path to the .xml file with plugins to load from. If path contains only file name
+     * with extension, file will be searched in a folder with OpenVINO runtime shared library.
+     */
+    template <class Path, EnableIfPath<Path> = nullptr>
+    explicit Core(const Path& xml_config_file) : Core(xml_config_file.string()) {}
 
     /**
      * @brief Returns device plugins version information.
@@ -106,7 +122,7 @@ public:
                                           const std::string& bin_path = {},
                                           const ov::AnyMap& properties = {}) const;
 
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    template <class Path, EnableIfPath<Path> = nullptr>
     auto read_model(const Path& model_path, const Path& bin_path = {}, const ov::AnyMap& properties = {}) const {
         if constexpr (std::is_same_v<typename Path::value_type, wchar_t>) {
             return read_model(model_path.wstring(), bin_path.wstring(), properties);
@@ -253,7 +269,7 @@ public:
      */
     CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    template <class Path, EnableIfPath<Path> = nullptr>
     auto compile_model(const Path& model_path, const AnyMap& properties = {}) const {
         if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
             return compile_model(model_path.wstring(), properties);
@@ -287,7 +303,7 @@ public:
         return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
     }
 
-    template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    template <class Path, class... Properties, EnableIfPath<Path> = nullptr>
     auto compile_model(const Path& model_path, Properties&&... properties) {
         if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
             return compile_model(model_path.wstring(), std::forward<Properties>(properties)...);
@@ -322,7 +338,7 @@ public:
                                 const std::string& device_name,
                                 const AnyMap& properties = {});
 
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    template <class Path, EnableIfPath<Path> = nullptr>
     auto compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
         if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
             return compile_model(model_path.wstring(), device_name, properties);
@@ -359,7 +375,7 @@ public:
         return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
 
-    template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    template <class Path, class... Properties, EnableIfPath<Path> = nullptr>
     auto compile_model(const Path& model_path, const std::string& device_name, Properties&&... properties) {
         if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
             return compile_model(model_path.wstring(), device_name, std::forward<Properties>(properties)...);
@@ -451,7 +467,7 @@ public:
      */
     void add_extension(const std::string& library_path);
 
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    template <class Path, EnableIfPath<Path> = nullptr>
     void add_extension(const Path& model_path) {
         if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
             return add_extension(model_path.wstring());
@@ -833,12 +849,33 @@ public:
      * - If `plugin` specifies file name (`libplugin_name.so`) or plugin name (`plugin_name`), it will be searched by
      *   file name (`libplugin_name.so`) in CWD or in paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
      *   environment variables depending on the platform.
-     * @note For security purposes it suggested to specify absolute path to register plugin.
+     * @note For security, use an absolute path to register plugin.
      *
      * @param device_name Device name to register a plugin for.
      * @param config Plugin configuration options
      */
     void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& config = {});
+
+    /**
+     * @brief Register a new device and plugin that enables this device inside OpenVINO Runtime.
+     *
+     * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
+     * shared library suffix and prefix to identify library full name.
+     * For example, on Linux platform, plugin name specified as `plugin_name` will be wrapped as `libplugin_name.so`.
+     * Plugin search algorithm:
+     * - If `plugin` points to an exact library path (absolute or relative), it will be used.
+     * - If `plugin` specifies file name (`libplugin_name.so`) or plugin name (`plugin_name`), it will be searched by
+     *   file name (`libplugin_name.so`) in CWD or in paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
+     *   environment variables depending on the platform.
+     * @note For security, use an absolute path to register plugin.
+     *
+     * @param device_name Device name to register a plugin for.
+     * @param config Plugin configuration options
+     */
+    template <class Path, EnableIfPath<Path> = nullptr>
+    void register_plugin(const Path& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
+        register_plugin(plugin_path.string(), device_name, config);
+    }
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.
@@ -875,11 +912,46 @@ public:
      *    for different systems with different configurations.
      * - `properties` are set to a plugin via the ov::Core::set_property method.
      * - `extensions` are set to a plugin via the ov::Core::add_extension method.
-     * @note For security purposes it suggested to specify absolute path to register plugin.
+     * @note For security, use an absolute path to register plugin.
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */
     void register_plugins(const std::string& xml_config_file);
+
+    /** @brief Registers a device plugin to the OpenVINO Runtime Core instance using an XML configuration file with
+     * plugins description.
+     *
+     *  The XML file has the following structure:
+     *
+     * ```xml
+     * <ie>
+     *     <plugins>
+     *         <plugin name="" location="">
+     *             <extensions>
+     *                 <extension location=""/>
+     *             </extensions>
+     *             <properties>
+     *                 <property key="" value=""/>
+     *             </properties>
+     *         </plugin>
+     *     </plugins>
+     * </ie>
+     * ```
+     *
+     * - `name` identifies name of a device enabled by a plugin.
+     * - `location` specifies absolute path to dynamic library with a plugin.
+     *    The path can also be relative to XML file directory. It allows having common config
+     *    for different systems with different configurations.
+     * - `properties` are set to a plugin via the ov::Core::set_property method.
+     * - `extensions` are set to a plugin via the ov::Core::add_extension method.
+     * @note For security, use an absolute path to register plugin.
+     *
+     * @param xml_config_file A path to .xml file with plugins to register.
+     */
+    template <class Path, EnableIfPath<Path> = nullptr>
+    void register_plugins(const Path& xml_config_file) {
+        register_plugins(xml_config_file.string());
+    }
 
     /**
      * @brief Creates a new remote shared context object on the specified accelerator device
