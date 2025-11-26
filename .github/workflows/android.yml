@@ -445,13 +445,13 @@ jobs:
             echo "Pushing functional test binary and libraries to device..."
             adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests /data/local/tmp/ov_test_func/intel64/Release/ov_cpu_func_tests
             # Push OpenVINO libraries from runtime package
-            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/; done
-            for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/; done
+            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
+            for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
             adb shell "chmod 755 /data/local/tmp/ov_test_func/intel64/Release/ov_cpu_func_tests"
             echo "Running CPU functional tests..."
-            adb shell "cd /data/local/tmp/ov_test_func && export LD_LIBRARY_PATH=/data/local/tmp/ov_test_func:$LD_LIBRARY_PATH && timeout 3600 ./intel64/Release/ov_cpu_func_tests  --gtest_filter=${{ env.GTEST_FILTER }} --gtest_output=xml:/data/local/tmp/ov_test_func/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test_func/"; exit 1; }
+            adb shell "cd /data/local/tmp/ov_test_func && export LD_LIBRARY_PATH=/data/local/tmp/ov_test_func/intel64/Release:$LD_LIBRARY_PATH && timeout 3600 ./intel64/Release/ov_cpu_func_tests  --gtest_filter=${{ env.GTEST_FILTER }} --gtest_output=xml:/data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test_func/intel64/Release/"; exit 1; }
             echo "Pulling functional test results..."
-            adb pull /data/local/tmp/ov_test_func/func_test_results.xml ./func_test_results.xml || { echo "Warning: Could not pull functional test results"; adb shell "ls -la /data/local/tmp/ov_test_func/"; adb shell "cat /data/local/tmp/ov_test_func/func_test_results.xml" || echo "No functional test results file"; }
+            adb pull /data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml ./func_test_results.xml || { echo "Warning: Could not pull functional test results"; adb shell "ls -la /data/local/tmp/ov_test_func/intel64/Release/"; adb shell "cat /data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml" || echo "No functional test results file"; }
 
       - name: Upload functional test results
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
