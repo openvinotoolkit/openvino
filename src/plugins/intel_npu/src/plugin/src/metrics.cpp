@@ -21,7 +21,6 @@ Metrics::Metrics(const ov::SoPtr<IEngineBackend>& backend) : _backend(backend) {
                          ov::device::capability::EXPORT_IMPORT,
                          ov::device::architecture.name(),
                          ov::internal::caching_properties.name(),
-                         ov::internal::supported_properties.name(),
                          ov::cache_dir.name(),
                          ov::intel_npu::device_alloc_mem_size.name(),
                          ov::intel_npu::device_total_mem_size.name(),
