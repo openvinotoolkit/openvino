@@ -43,9 +43,10 @@ bool ov::snippets::pass::ExtractUnsupportedTransposes::run_on_subgraph(const std
             continue;
         }
 
-        // If the transpose isn't supported - we have to extract it from Subgraph
-        transpose->set_argument(0, subgraph->input_value(i));
-        subgraph->set_argument(i, transpose);
+        // If the transpose isn't supported - we have to extract it from Subgraph.
+        const auto new_transpose =
+            transpose->clone_with_new_inputs({subgraph->input_value(i), transpose->input_value(1)});
+        subgraph->set_argument(i, new_transpose);
         OPENVINO_ASSERT(!transpose->get_output_target_inputs(0).empty(),
                         "ExtractUnsupportedTransposes pass supports only Transpose nodes with at least one consumer");
         const auto transpose_child = *(transpose->get_output_target_inputs(0).begin());
