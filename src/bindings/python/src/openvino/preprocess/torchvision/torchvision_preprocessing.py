@@ -270,8 +270,16 @@ class _(TransformConverterBase):
         top_right.append(min(bottom_left[0] + target_size[0], source_size[0] - 1))
         top_right.append(min(bottom_left[1] + target_size[1], source_size[1] - 1))
 
-        bottom_left = [0] * len(input_shape[:-2]) + bottom_left if meta["layout"] == Layout("NCHW") else [0] + bottom_left + [0]  # noqa ECE001
-        top_right = input_shape[:-2] + top_right if meta["layout"] == Layout("NCHW") else input_shape[:1] + top_right + input_shape[-1:]
+        is_nchw = meta["layout"] == Layout("NCHW")
+        if is_nchw:
+            bottom_left = [0] * len(input_shape[:-2]) + bottom_left
+        else:
+            bottom_left = [0] + bottom_left + [0]
+
+        if is_nchw:
+            top_right = input_shape[:-2] + top_right
+        else:
+            top_right = input_shape[:1] + top_right + input_shape[-1:]
 
         ppp.input(input_idx).preprocess().crop(bottom_left, top_right)
         meta["image_dimensions"] = (target_size[-2], target_size[-1])
@@ -313,15 +321,22 @@ class _(TransformConverterBase):
         meta["image_dimensions"] = (target_h, target_w)
 
 
-def _from_torchvision(model: Model, transform: Callable, input_example: Any, input_name: Union[str, None] = None) -> Model:
+def _from_torchvision(
+    model: Model, transform: Callable, input_example: Any, input_name: Union[str, None] = None
+) -> Model:
 
     if input_name is not None:
-        input_idx = next((i for i, p in enumerate(model.get_parameters()) if p.get_friendly_name() == input_name), None)
+        input_idx = next(
+            (i for i, p in enumerate(model.get_parameters()) if p.get_friendly_name() == input_name), None
+        )
     else:
         if len(model.get_parameters()) == 1:
             input_idx = 0
         else:
-            raise ValueError("Model contains multiple inputs. Please specify the name of the input to which prepocessing is added.")
+            raise ValueError(
+                "Model contains multiple inputs. Please specify the name of the input "
+                "to which prepocessing is added."
+            )
 
     if input_idx is None:
         raise ValueError(f"Input with name {input_name} is not found")

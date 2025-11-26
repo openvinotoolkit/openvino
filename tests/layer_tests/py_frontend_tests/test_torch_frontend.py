@@ -946,7 +946,7 @@ def test_patched_16bit_model_with_convert():
     assert mm_num == 2
 
 
-def test_patched_8bit_model_converts():
+def test_patched_8bit_model_converts_e4m3fn():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
     from transformers.pytorch_utils import Conv1D
@@ -986,6 +986,38 @@ def test_patched_8bit_model_converts():
     res_f8_e4m3 = cm_f8_e4m3([x.numpy() for x in example])
     np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
+
+
+@pytest.mark.skipif(
+    platform.system() == "Darwin" and platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'],
+    reason="PyTorch float8_e5m2 cleanup deadlock on macOS ARM64. Ticket: 172658"
+)
+def test_patched_8bit_model_converts_e5m2():
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model, compile_model
+    from transformers.pytorch_utils import Conv1D
+
+    class ModelWithLinear(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+
+            self.branch1 = torch.nn.Sequential(
+                torch.nn.Embedding(10, 64),
+                torch.nn.Linear(64, 32),
+                torch.nn.ReLU()
+            )
+            self.branch2 = torch.nn.Sequential(
+                Conv1D(256, 128),
+                torch.nn.Linear(256, 64), torch.nn.ReLU()
+            )
+            self.buffer = torch.ones(32)
+
+        def forward(self, x1, x2):
+            out1 = self.branch1(x1)
+            out2 = self.branch2(x2)
+            return (out1 + self.buffer, out2)
+
+    example = (torch.randint(0, 10, [32, 64]), torch.randn(32, 128))
 
     model_ref = ModelWithLinear().to(torch.float8_e5m2).float()
     with torch.no_grad():

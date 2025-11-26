@@ -15,9 +15,10 @@ if(THREADING STREQUAL "OMP")
     find_package(OpenMP)
 
     if(NOT OpenMP_CXX_FOUND)
-        message(WARNING "Compiler does not support OpenMP standard. Falling back to SEQ threading")
-        set(THREADING "SEQ")
         set(ENABLE_INTEL_OPENMP OFF)
+        message(DEPRECATION "Support for automatically falling back to SEQ threading when OpenMP is unavailable is deprecated and will be removed in a future release. "
+            "CMake configuration now fails if the compiler does not support OpenMP. "
+            "Please explicitly set -DTHREADING=SEQ to continue without OpenMP.")
     endif()
 
     if(ENABLE_INTEL_OPENMP)
@@ -71,7 +72,7 @@ unset(_ov_download_tbb_done CACHE)
 # or ENABLE_SYSTEM_TBB is OFF
 #
 function(ov_download_tbb)
-    if(_ov_download_tbb_done OR NOT THREADING MATCHES "^(TBB|TBB_AUTO)$")
+    if(_ov_download_tbb_done OR NOT THREADING MATCHES "^(TBB|TBB_AUTO|TBB_ADAPTIVE)$")
         return()
     endif()
     set(_ov_download_tbb_done ON CACHE INTERNAL "Whether prebuilt TBB is already downloaded")
