@@ -92,7 +92,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         optional_model_wide_params["adaptive_rkv_start_size"] =
             setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "adaptive_rkv_start_size");
         optional_model_wide_params["adaptive_rkv_evictable_sizes"] =
-            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "adaptive_rkv_evictable_sizes");
+            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "adaptive_rkv_evictable_sizes");
     }
 
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
