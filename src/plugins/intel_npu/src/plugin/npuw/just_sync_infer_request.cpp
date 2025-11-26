@@ -1202,6 +1202,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
     // Create infer request for the HFA tile model
     auto tile_request = hfa._compiled_tile_model->create_infer_request();
 
+    // Create infer request for the HFA FINAL tile model (with division and transpose)
+    auto final_tile_request = hfa._compiled_final_tile_model->create_infer_request();
+
     // Get input tensors from the decomposed SDPA request
     // Based on the IO mapping:
     // r inputs: [0] past_key, [1] past_value, [2] npuw_in_tensor_2 (q),
@@ -1288,9 +1291,15 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
         double tile_prep_single = 0.0;
         double tile_infer_single = 0.0;
 
+        // Determine if this is the last tile
+        bool is_last_tile = (tile_idx == num_tiles - 1);
+
+        // Use different request for the last tile (includes division and transpose)
+        auto& current_tile_request = is_last_tile ? final_tile_request : tile_request;
+        auto& current_compiled_model = is_last_tile ? hfa._compiled_final_tile_model : hfa._compiled_tile_model;
+
         tile_prep_single = ov::npuw::perf::ms_to_run([&]() {
             // Determine source tensor and offset based on tile index
-            bool is_last_tile = (tile_idx == num_tiles - 1);
             int64_t k_offset = tile_idx * tile_size;
             int64_t current_tile_size = tile_size;
 
@@ -1308,6 +1317,16 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
                             "Last tile must process entire present sequence");
             }
 
+            // Get tile tensors from current request
+            auto k_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[3]);
+            auto v_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[4]);
+            auto mask_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[6]);
+
+            // Check element types
+            auto k_tile_type_current = k_tile_current->get_element_type();
+            auto v_tile_type_current = v_tile_current->get_element_type();
+            auto mask_tile_type_current = mask_tile_current->get_element_type();
+
             // Extract K tile from source tensor
             auto k_view = ov::npuw::util::view(source_k_tensor, k_seq_dim, k_offset, current_tile_size);
 
@@ -1322,11 +1341,11 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
 
             // Expand K from 8 heads to 32 heads with type conversion if needed
             // Source: [1, 8, current_tile_size, 128] (f16)
-            // Target: [1, 32, current_tile_size, 128] (depends on k_tile_type)
+            // Target: [1, 32, current_tile_size, 128] (depends on k_tile_type_current)
             auto k_intermediate_data = k_intermediate.data<ov::float16>();
 
-            if (k_tile_type == ov::element::f16) {
-                auto k_tile_data = k_tile->data<ov::float16>();
+            if (k_tile_type_current == ov::element::f16) {
+                auto k_tile_data = k_tile_current->data<ov::float16>();
                 for (size_t b = 0; b < batch_size; ++b) {
                     for (size_t h = 0; h < num_heads; ++h) {
                         size_t src_head = h / head_expansion;
@@ -1339,8 +1358,8 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
                         }
                     }
                 }
-            } else if (k_tile_type == ov::element::f32) {
-                auto k_tile_data = k_tile->data<float>();
+            } else if (k_tile_type_current == ov::element::f32) {
+                auto k_tile_data = k_tile_current->data<float>();
                 for (size_t b = 0; b < batch_size; ++b) {
                     for (size_t h = 0; h < num_heads; ++h) {
                         size_t src_head = h / head_expansion;
@@ -1369,11 +1388,11 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
 
             // Expand V from 8 heads to 32 heads with type conversion if needed
             // Source: [1, 8, 128, current_tile_size] (f16)
-            // Target: [1, 32, 128, current_tile_size] (depends on v_tile_type)
+            // Target: [1, 32, 128, current_tile_size] (depends on v_tile_type_current)
             auto v_intermediate_data = v_intermediate.data<ov::float16>();
 
-            if (v_tile_type == ov::element::f16) {
-                auto v_tile_data = v_tile->data<ov::float16>();
+            if (v_tile_type_current == ov::element::f16) {
+                auto v_tile_data = v_tile_current->data<ov::float16>();
                 for (size_t b = 0; b < batch_size; ++b) {
                     for (size_t h = 0; h < num_heads; ++h) {
                         size_t src_head = h / head_expansion;
@@ -1386,8 +1405,8 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
                         }
                     }
                 }
-            } else if (v_tile_type == ov::element::f32) {
-                auto v_tile_data = v_tile->data<float>();
+            } else if (v_tile_type_current == ov::element::f32) {
+                auto v_tile_data = v_tile_current->data<float>();
                 for (size_t b = 0; b < batch_size; ++b) {
                     for (size_t h = 0; h < num_heads; ++h) {
                         size_t src_head = h / head_expansion;
@@ -1423,12 +1442,11 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
             // Use copy_to to properly handle strided view
             mask_view->copy_to(ov::get_tensor_impl(mask_intermediate)._ptr);
 
-            // Now copy from intermediate to mask_tile with type conversion if needed
-            auto mask_tile_type = mask_tile->get_element_type();
+            // Now copy from intermediate to mask_tile_current with type conversion if needed
 
-            if (mask_tile_type == ov::element::f16) {
-                // Convert f32 -> f16 for mask_tile
-                auto mask_tile_data = mask_tile->data<ov::float16>();
+            if (mask_tile_type_current == ov::element::f16) {
+                // Convert f32 -> f16 for mask_tile_current
+                auto mask_tile_data = mask_tile_current->data<ov::float16>();
                 auto mask_intermediate_data = mask_intermediate.data<float>();
 
                 // Copy with proper indexing: current_tile_size in source, tile_size in destination
@@ -1441,9 +1459,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
                         }
                     }
                 }
-            } else if (mask_tile_type == ov::element::f32) {
+            } else if (mask_tile_type_current == ov::element::f32) {
                 // Direct copy f32 -> f32
-                auto mask_tile_data = mask_tile->data<float>();
+                auto mask_tile_data = mask_tile_current->data<float>();
                 auto mask_intermediate_data = mask_intermediate.data<float>();
 
                 for (size_t b = 0; b < batch_size; ++b) {
@@ -1456,26 +1474,39 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
                     }
                 }
             } else {
-                OPENVINO_THROW("Unsupported mask_tile element type: ", mask_tile_type);
+                OPENVINO_THROW("Unsupported mask_tile element type: ", mask_tile_type_current);
             }
+
+            // Set Q tensor and past state for current request
+            current_tile_request->set_tensor(current_compiled_model->inputs()[5], q_tensor);
+            current_tile_request->set_tensor(current_compiled_model->inputs()[0], past_acc);
+            current_tile_request->set_tensor(current_compiled_model->inputs()[1], past_max);
+            current_tile_request->set_tensor(current_compiled_model->inputs()[2], past_d);
         });  // End of tile preparation timing
 
         // Run tile inference
         tile_infer_single = ov::npuw::perf::ms_to_run([&]() {
-            tile_request->infer();
+            current_tile_request->infer();
         });
 
-        // Copy outputs to inputs for next iteration
-        // HFA tile model outputs: [0] acc, [1] maxx, [2] d
-        // These need to become inputs for the next tile
-        auto output_acc = tile_request->get_tensor(hfa._compiled_tile_model->outputs()[0]);
-        auto output_max = tile_request->get_tensor(hfa._compiled_tile_model->outputs()[1]);
-        auto output_d = tile_request->get_tensor(hfa._compiled_tile_model->outputs()[2]);
+        // Handle outputs based on whether this is the last tile
+        if (is_last_tile) {
+            // For the last tile, the final model directly outputs the transposed result
+            // No need to copy states - the result is already in the output tensor
+            auto final_output = current_tile_request->get_tensor(current_compiled_model->outputs()[0]);
+            final_output->copy_to(output_tensor._ptr);
+        } else {
+            // For regular tiles, copy outputs to inputs for next iteration
+            // HFA tile model outputs: [0] acc, [1] maxx, [2] d
+            auto output_acc = current_tile_request->get_tensor(current_compiled_model->outputs()[0]);
+            auto output_max = current_tile_request->get_tensor(current_compiled_model->outputs()[1]);
+            auto output_d = current_tile_request->get_tensor(current_compiled_model->outputs()[2]);
 
-        // Copy output -> input for accumulation state
-        output_acc->copy_to(past_acc._ptr);
-        output_max->copy_to(past_max._ptr);
-        output_d->copy_to(past_d._ptr);
+            // Copy output -> input for accumulation state
+            output_acc->copy_to(past_acc._ptr);
+            output_max->copy_to(past_max._ptr);
+            output_d->copy_to(past_d._ptr);
+        }
 
         tile_prep_time += tile_prep_single;
         tile_infer_time += tile_infer_single;
@@ -1484,64 +1515,15 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
                   << "ms, infer=" << tile_infer_single << "ms" << std::endl;
     }
 
-    // Final computation: acc / d with transpose (optimized - fused division and transpose)
-    final_compute_time = ov::npuw::perf::ms_to_run([&]() {
-        auto output_data = output_tensor->data<ov::float16>();
-
-        if (acc_type == ov::element::f16) {
-            auto final_acc = past_acc->data<ov::float16>();
-            auto final_d = past_d->data<ov::float16>();
-
-            // Fused division and transpose: directly compute output[b,s,h,d] = acc[b,h,s,d] / d[b,h,s]
-            // Use parallel_for to parallelize over batch and sequence dimensions
-            ov::parallel_for2d(batch_size, q_seq_len, [&](size_t b, size_t s) {
-                for (size_t h = 0; h < num_heads; ++h) {
-                    // Calculate d_val once per (b,h,s)
-                    size_t d_idx = b * num_heads * q_seq_len + h * q_seq_len + s;
-                    float d_val = static_cast<float>(final_d[d_idx]);
-                    float inv_d = 1.0f / d_val;  // Compute reciprocal once
-
-                    // Compute base indices for this (b,h,s) position
-                    size_t src_base = (b * num_heads + h) * q_seq_len * head_dim + s * head_dim;
-                    size_t dst_base = (b * q_seq_len + s) * num_heads * head_dim + h * head_dim;
-
-                    // Vectorized inner loop over head_dim
-                    for (size_t d = 0; d < head_dim; ++d) {
-                        output_data[dst_base + d] = ov::float16(static_cast<float>(final_acc[src_base + d]) * inv_d);
-                    }
-                }
-            });
-        } else if (acc_type == ov::element::f32) {
-            auto final_acc = past_acc->data<float>();
-            auto final_d = past_d->data<float>();
-
-            // Fused division and transpose for f32
-            ov::parallel_for2d(batch_size, q_seq_len, [&](size_t b, size_t s) {
-                for (size_t h = 0; h < num_heads; ++h) {
-                    size_t d_idx = b * num_heads * q_seq_len + h * q_seq_len + s;
-                    float d_val = final_d[d_idx];
-                    float inv_d = 1.0f / d_val;
-
-                    size_t src_base = (b * num_heads + h) * q_seq_len * head_dim + s * head_dim;
-                    size_t dst_base = (b * q_seq_len + s) * num_heads * head_dim + h * head_dim;
-
-                    for (size_t d = 0; d < head_dim; ++d) {
-                        output_data[dst_base + d] = ov::float16(final_acc[src_base + d] * inv_d);
-                    }
-                }
-            });
-        }
-    });  // End of final computation timing
-
-    // Print performance summary
+    // Print performance summary (final_compute_time is now 0 since it's done in model)
     double total_time = tile_prep_time + tile_infer_time + final_compute_time;
     std::cout << "HFA Performance Summary:" << std::endl;
     std::cout << "  Tile preparation total:  " << tile_prep_time << " ms (" << (tile_prep_time / total_time * 100.0)
               << "%)" << std::endl;
     std::cout << "  Tile inference total:    " << tile_infer_time << " ms (" << (tile_infer_time / total_time * 100.0)
               << "%)" << std::endl;
-    std::cout << "  Final computation:       " << final_compute_time << " ms ("
-              << (final_compute_time / total_time * 100.0) << "%)" << std::endl;
+    std::cout << "  Final computation:       " << final_compute_time << " ms (fused into last tile - model)"
+              << std::endl;
     std::cout << "  Total HFA time:          " << total_time << " ms" << std::endl;
     std::cout << "  Average per tile (prep): " << (tile_prep_time / num_tiles) << " ms" << std::endl;
     std::cout << "  Average per tile (infer):" << (tile_infer_time / num_tiles) << " ms" << std::endl;

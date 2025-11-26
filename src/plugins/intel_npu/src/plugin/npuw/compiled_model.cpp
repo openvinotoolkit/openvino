@@ -1761,17 +1761,18 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
         return;
     }
 
-    LOG_INFO("Compiling host flash attention tile model for Subgraph[" << id << "]...");
+    LOG_INFO("Compiling host flash attention tile models for Subgraph[" << id << "]...");
     LOG_BLOCK();
 
     auto& hfa = m_compiled_submodels[id].host_flash_attention.value();
 
-    // Check if we have a tile model to compile
-    if (!hfa._tile_model_to_compile) {
-        LOG_WARN("Host flash attention tile model is null, skipping compilation");
+    // Check if we have tile models to compile
+    if (!hfa._tile_model_to_compile || !hfa._final_tile_model_to_compile) {
+        LOG_WARN("Host flash attention tile models are null, skipping compilation");
         return;
     }
 
+    // Compile regular tile model
     LOG_INFO("Compiling flash attention tile model on " << device);
     try {
         auto compiled_tile_model = compile_submodel(hfa._tile_model_to_compile, device);
@@ -1788,6 +1789,25 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
     } catch (...) {
         LOG_ERROR("Failed to compile host flash attention tile model: Unknown error");
         OPENVINO_THROW("Host flash attention tile model compilation failed with unknown error");
+    }
+
+    // Compile FINAL tile model (with division and transpose)
+    LOG_INFO("Compiling flash attention FINAL tile model on " << device);
+    try {
+        auto compiled_final_tile_model = compile_submodel(hfa._final_tile_model_to_compile, device);
+        OPENVINO_ASSERT(compiled_final_tile_model, "Failed to compile host flash attention final tile model");
+
+        hfa.set_compiled_final_tile_model(std::move(compiled_final_tile_model));
+
+        LOG_INFO("Successfully compiled host flash attention FINAL tile model");
+        std::cout << "HostFlashAttention FINAL tile model compiled on " << device << " (with division and transpose)"
+                  << std::endl;
+    } catch (const std::exception& ex) {
+        LOG_ERROR("Failed to compile host flash attention final tile model: " << ex.what());
+        OPENVINO_THROW("Host flash attention final tile model compilation failed: ", ex.what());
+    } catch (...) {
+        LOG_ERROR("Failed to compile host flash attention final tile model: Unknown error");
+        OPENVINO_THROW("Host flash attention final tile model compilation failed with unknown error");
     }
 
     LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
