@@ -1753,18 +1753,18 @@ void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& fro
     NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
     NPUW_ASSERT(to->get_element_type() == ov::element::f16);
 
-    const uint8_t* src = static_cast<uint8_t*>(from->data());
-    const float* scl = static_cast<float*>(scale->data());
-    uint16_t* dst = static_cast<uint16_t*>(to->data());
-
     const size_t total = from->get_size();    // total number of f8 elements
     const size_t stotal = scale->get_size();  // number of scale factors
     NPUW_ASSERT(total % stotal == 0);
     const size_t elemsPerScale = total / stotal;  // elements governed by one scale
-    const size_t VEC = 16;                        // vector width (16 x f8 -> 16 x f16)
     NPUW_ASSERT(elemsPerScale > 0);
 
 #if defined(HAVE_AVX2)
+    const uint8_t* src = static_cast<uint8_t*>(from->data());
+    const float* scl = static_cast<float*>(scale->data());
+    uint16_t* dst = static_cast<uint16_t*>(to->data());
+
+    const size_t VEC = 16;  // vector width (16 x f8 -> 16 x f16)
     // Vector convert helper: load 16 f8 -> 16 f16, apply uniform scale
     auto convert_block = [&](const uint8_t* bsrc, uint16_t* bdst, float scale_val) {
         __m128i vf8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(bsrc));
