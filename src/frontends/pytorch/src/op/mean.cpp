@@ -59,7 +59,7 @@ OutputVector translate_mean_fx(const NodeContext& context) {
     Output<Node> axes = get_node_axes_range(context, x);
     if (!context.input_is_none(1)) {
         axes = context.get_input(1);
-    } 
+    }
     if (num_inputs > 2) {
         axes = context.get_input(1);
         if (!context.input_is_none(2)) {
