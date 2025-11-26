@@ -1883,7 +1883,7 @@ struct MHA {
                         q_start_idx_score,
                         score_info_ptr,
                         0,
-                        nullptr);
+                        PlainTensor());
                 }
 #    else
                 _helper.exec_kernel_multiple(
