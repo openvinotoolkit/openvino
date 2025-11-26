@@ -78,7 +78,7 @@ graph TB
 
 ## Optimizations for KVCache operation
 
-The following sections describe the policies and optimizations applied to the KVCache opeeation.
+The following sections describe the policies and optimizations applied to the KVCache operation.
 
 ### In-place concatenation
 
@@ -102,13 +102,13 @@ The relevant code sections to enable in-place kv cache is as follows :
     - When the instance’s `_can_be_optimized` flag is false, it launches one concatenate kernel per input (two in total for past and new KV), with each kernel copying its input data into the target memory region.
     - When the `_can_be_optimized` flag is true, execution of the `concatenate` (i.e., copy) of the first input (i.e., the past KV) is skipped, reducing the operation to a single concatenate kernel for the new KV input (see [link](https://github.com/openvinotoolkit/openvino/blob/792ddf38fe3da130c2b3e11662374ec9ca3a2624/src/plugins/intel_gpu/src/graph/impls/ocl/kv_cache.cpp#L501)). 
 
-Suppose that the KV cache has shape [batch, num_heads, seq_len, head_size]. For examle, let's consider a case when the past KV cache's data shape is [1, 32, **17**, 64] and the new KV projection data shape is [1, 32, **1**, 64]. If the preallocated memory can hold a data with shape [1, 32, **128**, 64], `do_runtime_in_place_kv_cache` sets the upper padding of the `kv_cache` inst to [0, 0, **111**, 0]. At the execution, the past KV data remains unchanged, and the new token’s KV values are written into the remaining space along the concat axis. As a result, the effective data shape becomes [1, 32, **18**, 64], and the updated upper padding becomes [0, 0, **110**, 0].
+Suppose that the KV cache has shape [batch, num_heads, seq_len, head_size]. For example, let's consider a case when the past KV cache's data shape is [1, 32, **17**, 64] and the new KV projection data shape is [1, 32, **1**, 64]. If the preallocated memory can hold a data with shape [1, 32, **128**, 64], `do_runtime_in_place_kv_cache` sets the upper padding of the `kv_cache` inst to [0, 0, **111**, 0]. At the execution, the past KV data remains unchanged, and the new token’s KV values are written into the remaining space along the concat axis. As a result, the effective data shape becomes [1, 32, **18**, 64], and the updated upper padding becomes [0, 0, **110**, 0].
 
 ### Preallocate memory
 
 To achieve `in_place_kv_cache` and reduce host overhead due to the memory allocation, GPU plugin allocates larger memory for KV cache than actually needed. In the general case, we preallocate only enough memory for 10 iterations, but for the KV cache we allocate somewhat more (around 128). 
 
-However, we do not allocate same size for all layers, but we allocate difference size. You can see how the allocation size is determined in this [function](https://github.com/openvinotoolkit/openvino/blob/fcb474cb3c38fbf1aa1faa3a133f3b3ec5c22f1c/src/plugins/intel_gpu/src/graph/kv_cache.cpp#L96).
+However, we do not allocate same size for all layers, but we allocate different size. You can see how the allocation size is determined in this [function](https://github.com/openvinotoolkit/openvino/blob/fcb474cb3c38fbf1aa1faa3a133f3b3ec5c22f1c/src/plugins/intel_gpu/src/graph/kv_cache.cpp#L96).
 
 We vary memory allocation across layers to prevent periodic peaks in overall memory usage. If every `kv_cache` instance used the same allocation size, their reallocation intervals would be same. When a reallocation occurs, the concatenation inside the `kv_cache` cannot be performed in place, so both the input and output buffers must coexist temporarily. This effectively doubles the required memory for that `kv_cache` inst. If all layers hit this reallocation point simultaneously, the combined effect produces a large memory spike. By staggering the allocation schedules across layers, we mitigate these synchronized peaks and significantly reduce overall memory pressure.
 <!-- * ### Indirect SDPA (TBD)) -->
