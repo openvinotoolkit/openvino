@@ -147,7 +147,7 @@ void ZeroTensor::update_strides() const {
 }
 
 size_t ZeroTensor::get_bytes_capacity() const {
-    size_t original_shape_size = shape_size(_shape);
+    size_t original_shape_size = ov::shape_size(_shape);
 
     if (_user_tensor == nullptr) {
         return ov::util::get_memory_size(_element_type, original_shape_size);
