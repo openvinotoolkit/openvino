@@ -823,7 +823,6 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
-    OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_intel_cpu, profiling.execute);
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {

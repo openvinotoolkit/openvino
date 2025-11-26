@@ -1602,7 +1602,7 @@ public:
     VERBOSE(node, (config).debugCaps.verbose);                              \
     PERF(node, (config).collectPerfCounters);                               \
     DUMP(node, (config).debugCaps, infer_count);                            \
-    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_op_exec, (node)->getTypeStr()); \
+    OV_ITT_SCOPED_TASK_BASE(ittScope, (node)->perfCounters().execute);      \
     DEBUG_LOG(*(node));
 
 inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
