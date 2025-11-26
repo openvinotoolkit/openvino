@@ -38,6 +38,10 @@ public:
         return true;
     }
 
+    bool is_deterministic() const override {
+        return false;
+    }
+
     size_t memory_pointer;
     size_t byte_size;
 };
