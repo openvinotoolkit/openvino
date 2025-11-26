@@ -14,32 +14,28 @@ In this document, KV cache management in stateful model within a non-CB pipeline
 
 The following diagram shows a typical pattern of the KV cache in a stateful LLM model.
 
-```dot
-digraph KVCacheFlow {
-    rankdir=TB;
-    node [shape=ellipse, fontsize=10];
+```mermaid
+graph TB
+    StateInit["State<br/>Initialize<br/>Subgraph"]
+    ReadValue["ReadValue<br/>(Past KV)"]
+    BeamIdx["Parameter<br/>beam_idx"]
+    Gather["Gather"]
+    KVProj["KV projection<br/>for new token"]
+    Concat["Concat"]
+    SDPA["SDPA"]
+    Assign["Assign<br/>(Present KV)"]
+    VariableState["VariableState"]
 
-    StateInit     [label="State\nInitialize\nSubgraph"];
-    ReadValue     [label="ReadValue\n(Past KV)"];
-    BeamIdx       [label="Parameter\nbeam_idx"];
-    Gather        [label="Gather"];
-    KVProj        [label="KV projection\nfor new token"];
-    Concat        [label="Concat"];
-    SDPA          [label="SDPA"];
-    Assign        [label="Assign\n(Present KV)"];
-    VariableState      [shape=box, label="VariableState"];
-
-    // main flows
-    StateInit -> ReadValue;
-    ReadValue -> VariableState [style=dashed];
-    ReadValue -> Gather;
-    BeamIdx -> Gather;
-    Gather -> Concat;
-    KVProj -> Concat;
-    Concat -> SDPA;
-    Concat -> Assign;
-    Assign -> VariableState [style=dashed];
-}
+    %% flows
+    StateInit --> ReadValue
+    ReadValue -.-> VariableState
+    ReadValue --> Gather
+    BeamIdx --> Gather
+    Gather --> Concat
+    KVProj --> Concat
+    Concat --> SDPA
+    Concat --> Assign
+    Assign -.-> VariableState
 ```
 
 Here, the KV cache from previous tokens is stored in the VariableState's memory and loaded by the ReadValue operation. It is then concatenated with the KV produced from the new token. The combined KV is written back to the VariableState's memory via the Assign operation as the updated (present) KV cache. This present KV is consumed by the SDPA operation. Also you can see the Gather operation after the ReadValue operation, which is actually used only when the beam_idx input is given for a beam search sampling.
@@ -56,28 +52,28 @@ First, the Concatenation and Assign operations are fused into a single KVCache o
 
 The resulting graph after the transformations is as follows: 
 
-```dot
-digraph KVCacheFlowFused {
-    rankdir=TB;
-    node [shape=ellipse, fontsize=10];
+```mermaid
+graph TB
 
-    StateInit     [label="State\nInitialize\nSubgraph"];
-    BeamIdx       [label="Parameter\nbeam_idx"];
-    NewKV         [label="KV projection\nfor new token"];
-    KVCache       [label="KVCache"];
-    SDPA          [label="SDPA"];
-    VariableState      [shape=box, label="VariableState"];
+    StateInit["State<br/>Initialize<br/>Subgraph"]
+    BeamIdx["Parameter<br/>beam_idx"]
+    NewKV["KV projection<br/>for new token"]
+    KVCache["KVCache"]
+    SDPA["SDPA"]
+    VariableState["VariableState"]
+    ReadValue["ReadValue"]
 
-    // main flows
-    StateInit -> ReadValue;
-    ReadValue -> KVCache;
-    BeamIdx -> KVCache;
-    NewKV -> KVCache;
-    KVCache -> SDPA [label=beam_table];
-    KVCache -> SDPA [label=KV]
-    KVCache -> VariableState [style=dashed];
-    ReadValue -> VariableState [style=dashed];
-}
+    %% main flows
+    StateInit --> ReadValue
+    ReadValue --> KVCache
+    BeamIdx --> KVCache
+    NewKV --> KVCache
+
+    KVCache -- beam_table --> SDPA
+    KVCache -- KV --> SDPA
+
+    KVCache -.-> VariableState
+    ReadValue -.-> VariableState
 ```
 
 ## Optimizations for KVCache operation
