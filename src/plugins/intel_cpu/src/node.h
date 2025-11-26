@@ -187,9 +187,8 @@ public:
     struct Tag {};
 
     struct PerfCounters {
-        explicit PerfCounters(const std::string& name)
-            : execute(openvino::itt::handle(name)),
-              getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
+        PerfCounters()
+            : getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
                   openvino::itt::handle<Tag<Node, 1>>("Node::initSupportedPrimitiveDescriptors")),
               filterSupportedPrimitiveDescriptors(
@@ -202,6 +201,7 @@ public:
 
         template <typename NodeType>
         void buildClassCounters(const std::string& type_name) {
+            execute = openvino::itt::handle<Tag<NodeType, -1>>(type_name + "::execute");
             getSupportedDescriptors = openvino::itt::handle<Tag<NodeType, 0>>(type_name + "::getSupportedDescriptors");
             initSupportedPrimitiveDescriptors =
                 openvino::itt::handle<Tag<NodeType, 1>>(type_name + "::initSupportedPrimitiveDescriptors");

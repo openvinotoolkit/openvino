@@ -78,7 +78,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
       type(TypeFromName(op->get_type_name())),
-      profiling(op->get_friendly_name()) {
+      profiling() {
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto& shape = op->get_input_partial_shape(i);
         OPENVINO_ASSERT(!shape.rank().is_dynamic(),
@@ -209,7 +209,7 @@ Node::Node(const std::string& type,
       name(name),
       typeStr(type),
       type(TypeFromName(type)),
-      profiling(name) {
+      profiling() {
     parentEdges.reserve(inputShapes.size());
     childEdges.reserve(outputShapes.size());
 }
