@@ -309,7 +309,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
                     auto* src = t_src.ptr<T>(b, p, h * head_size);
                     auto* dst = t_dst.ptr<T>(b, h, p);
                     // The pattern matching ensures that cos/sin table has shape [-1, 1, 1, -1] so that only b is
-                    // vairable.
+                    // variable.
                     const auto* cos = t_cos.ptr<float>(b, 0, 0);
                     const auto* sin = t_sin.ptr<float>(b, 0, 0);
                     if (m_rotaryKernel) {
