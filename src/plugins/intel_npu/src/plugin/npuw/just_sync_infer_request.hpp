@@ -106,6 +106,7 @@ protected:
     void unsafe_infer_spatial(std::size_t real_idx, std::size_t idx);
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
+    void run_hfa_tiled_inference(std::size_t real_idx);
     void print_hfa_compiled_model_io(std::size_t real_idx, std::size_t idx);
 
     void connect_subrequests();
