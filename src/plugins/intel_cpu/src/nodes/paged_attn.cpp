@@ -190,7 +190,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
             ->createSharedDesc(ov::element::i32,
                                getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_START_SIZE)));
     // adaptive_rkv_evictable_sizes, int32, [B_seq]
-    config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_START_SIZE].setMemDesc(
+    config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::i32,
                                getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES)));
@@ -200,12 +200,15 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
             ->createSharedDesc(
                 ov::element::i32,
                 getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES)));
-    // adaptive_rkv_evictable_sizes, int32, [B_seq + 1]
+    // adaptive_rkv_block_set_begins, int32, [B_seq + 1]
     config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(
                 ov::element::i32,
                 getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS)));
+
+    config.outConfs[2].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(2)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
@@ -303,27 +306,32 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         len += outDims[0];
         VectorDims scoreDims{len};
         output_dims.push_back(scoreDims);
-        redefineOutputMemory({outDims, scoreDims});
 
-        if (m_has_adaptive_rkv_diversity_output) {
-            size_t num_elements_in_output = 0;
+    } else {
+        output_dims.push_back({0});
+    }
 
-            const size_t K_CACHE_IDX = PagedAttentionExecutor::ID_KCACHE;
-            const size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
+    if (m_has_adaptive_rkv_diversity_output) {
+        size_t num_elements_in_output = 0;
 
-            const size_t ADAPTIVE_RKV_EVICTABLE_SIZES_IDX = PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES;
-            auto evictable_sizes_dims = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getStaticDims();
-            const auto* evictable_sizes_data = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getDataAs<const int32_t>();
+        const size_t K_CACHE_IDX = PagedAttentionExecutor::ID_KCACHE;
+        const size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
+
+        const size_t ADAPTIVE_RKV_EVICTABLE_SIZES_IDX = PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES;
+        auto evictable_sizes_dims = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getStaticDims();
+        const auto* evictable_sizes_data = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getDataAs<const int32_t>();
+        if (!evictable_sizes_dims.empty()) {
             for (size_t i = 0; i < evictable_sizes_dims[0]; i++) {
                 // for each sequence the Adaptive R-KV similarity output has shape [ evictable_size / block_size,
                 // evictable_size ] where evictable_size is in general different for different subsequences
                 num_elements_in_output += evictable_sizes_data[i] * evictable_sizes_data[i] / block_size;
             }
-            output_dims.push_back({num_elements_in_output});
         }
+        output_dims.push_back({num_elements_in_output});
     } else {
         output_dims.push_back({0});
     }
+
     redefineOutputMemory(output_dims);
 
     outputs[0] = getDstMemoryAtPort(0);
