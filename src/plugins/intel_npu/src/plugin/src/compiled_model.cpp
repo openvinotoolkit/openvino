@@ -65,6 +65,10 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         _graph->initialize(_config);
     }
 
+    if (!_graph->isGraphFinishedInitialize()) {
+        OPENVINO_THROW("Graph handle is not finished initializing! Failed to create infer request!");
+    }
+
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
         _device->createInferRequest(shared_from_this(), _config);
     syncInferRequest->initialize_states();

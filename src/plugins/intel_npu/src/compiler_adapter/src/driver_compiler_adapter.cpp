@@ -65,7 +65,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    FilteredConfig updatedConfig = config;
+
     auto serializedIR =
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
 
@@ -75,7 +75,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("build flags");
     buildFlags += driver_compiler_utils::serializeIOInfo(model, useIndices);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
+    buildFlags += driver_compiler_utils::serializeConfig(config,
                                                          compilerVersion,
                                                          _zeGraphExt->isTurboOptionSupported(compilerVersion));
 
@@ -123,11 +123,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
 
     _logger.debug("serialize IR");
-    const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (plgConfig == nullptr) {
-        OPENVINO_THROW("config is not FilteredConfig");
-    }
-    FilteredConfig updatedConfig = *plgConfig;
 
     auto serializedIR =
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
@@ -136,6 +131,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
     const std::string serializedIOInfo = driver_compiler_utils::serializeIOInfo(model, useIndices);
+    const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
+    if (plgConfig == nullptr) {
+        OPENVINO_THROW("config is not FilteredConfig");
+    }
+    FilteredConfig updatedConfig = *plgConfig;
 
     // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
     // the current call iteration.
@@ -268,9 +268,9 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    FilteredConfig updatedConfig = config;
     auto serializedIR =
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+
     std::string buildFlags;
     buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());

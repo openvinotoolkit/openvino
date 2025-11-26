@@ -416,7 +416,7 @@ std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
     return compilerOpts;
 }
 
-bool PluginCompilerAdapter::is_option_supported(std::string optname) const {
+bool PluginCompilerAdapter::is_option_supported(std::string optname, std::optional<std::string> optValue) const {
     VCLCompilerImpl* vclCompiler = dynamic_cast<VCLCompilerImpl*>(_compiler.operator->());
     if (vclCompiler == nullptr) {
         // If _compiler  cannot be cast to VCLCompilerImpl, it should use the mlir library.

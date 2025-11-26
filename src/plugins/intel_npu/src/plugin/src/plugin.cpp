@@ -897,8 +897,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = MetadataBase::getFileSize(stream);
         if (!skipCompatibility) {
-            // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in
-            // case it passes compatibility checks.
+            // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
+            // passes compatibility checks.
             metadata = read_metadata_from(stream);
             if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
