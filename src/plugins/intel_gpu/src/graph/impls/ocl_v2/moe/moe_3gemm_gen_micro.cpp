@@ -61,15 +61,15 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     jit.make("WEIGHT_COMPRESSED_ZP_INT4", 1);
 
     std::cout << "\t m_wei_idx: " << m_wei_idx << std::endl;
-    std::cout << "\t params.input_layouts[m_wei_idx].get_shape(): " << params.input_layouts[m_wei_idx].to_short_string() << std::endl;
+    std::cout << "\t m_wei_idx.get_shape(): " << params.input_layouts[m_wei_idx].to_short_string() << std::endl;
     const auto& weight_shape = params.input_layouts[m_wei_idx].get_shape();
     // u4:bfyx:4x3072x8x128:nopad
     size_t expert_stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) : (weight_shape[1] * weight_shape[2]);
     jit.make("EXPERT_STRIDE", expert_stride / 2);
-    std::cout << "\t expert_stride: " << expert_stride / 2 << std::endl;
+    // std::cout << "\t expert_stride: " << expert_stride / 2 << std::endl;
 
     std::cout << "\t m_scale_idx: " << m_scale_idx << std::endl;
-    std::cout << "\t params.input_layouts[m_scale_idx].get_shape(): " << params.input_layouts[m_scale_idx].to_short_string() << std::endl;
+    std::cout << "\t m_scale_idx.get_shape(): " << params.input_layouts[m_scale_idx].to_short_string() << std::endl;
     if (cfg.weight_group_size > 0) {
         jit.make("NUM_GROUPS", params.input_layouts[m_scale_idx].get_shape()[1]);
         std::cout << "\t NUM_GROUPS: " << params.input_layouts[m_scale_idx].get_shape()[1] << std::endl;
@@ -85,14 +85,14 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
             // f16:bfyx:[?,2048]:nopad
             jit.make("INPUT_STRIDE", desc->_config.hidden_size);
             jit.make("OUTPUT_STRIDE", desc->_config.inter_size);
-            std::cout << "\t INPUT_STRIDE: " << desc->_config.hidden_size << std::endl;
-            std::cout << "\t OUTPUT_STRIDE: " << desc->_config.inter_size << std::endl;
+            // std::cout << "\t INPUT_STRIDE: " << desc->_config.hidden_size << std::endl;
+            // std::cout << "\t OUTPUT_STRIDE: " << desc->_config.inter_size << std::endl;
             break;
         case MoE3GemmMicroKernelType::MLP_DOWN:
             jit.make("INPUT_STRIDE", desc->_config.inter_size);
             jit.make("OUTPUT_STRIDE", desc->_config.hidden_size);
-            std::cout << "\t INPUT_STRIDE: " << desc->_config.inter_size << std::endl;
-            std::cout << "\t OUTPUT_STRIDE: " << desc->_config.hidden_size << std::endl;
+            // std::cout << "\t INPUT_STRIDE: " << desc->_config.inter_size << std::endl;
+            // std::cout << "\t OUTPUT_STRIDE: " << desc->_config.hidden_size << std::endl;
             break;
         default:
             OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");
@@ -100,11 +100,11 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     }
 
     auto slm_size = moe_gemm.getSetting("slm_size");
-    std::cout << "MoE3GemmMicroGenerator::get_jit_constants() slm_size: " << slm_size << std::endl;
+    // std::cout << "MoE3GemmMicroGenerator::get_jit_constants() slm_size: " << slm_size << std::endl;
     if (slm_size > 0)
         jit.make("USE_SLM", 1);
 
-    std::cout << "MoE3GemmMicroGenerator::get_jit_constants() done " << std::endl;
+    // std::cout << "MoE3GemmMicroGenerator::get_jit_constants() done " << std::endl;
     return jit;
 }
 
@@ -234,7 +234,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     } catch (const std::runtime_error& ex) {
         OPENVINO_THROW("Can't create moe micro kernel: ", ex.what());
     }
-    std::cout << "init_microkernels is done" << std::endl;
+    // std::cout << "init_microkernels is done" << std::endl;
 }
 DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
     const auto wei_idx = this->m_wei_idx;
@@ -301,6 +301,10 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
     // if (params.is_dynamic())
     //     args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
     // auto cfg = get_moe_cfg(params);
+    auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+    auto need_repack = desc->_config.group_size != std::numeric_limits<size_t>::max();
+
+    std::cout << "MoE3GemmMicroGenerator::get_arguments_desc() need_repack: " << need_repack << std::endl;
 
     switch (m_type) {
     case MoE3GemmMicroKernelType::MLP_GATE:
@@ -312,8 +316,13 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array - token len
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                             // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                             // k
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_0)});  // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_0)});     // zp
+        if(need_repack) {
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 13});                               // repacked scale buffer
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 14});                               // repacked zp buffer
+        } else {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_0)});  // scale
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_0)});     // zp
+        }
         break;
     case MoE3GemmMicroKernelType::MLP_UP:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // gather input tensor
@@ -324,8 +333,13 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array - token len
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                             // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                             // k
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_1)});  // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_1)});     // zp
+        if(need_repack) {
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 15});                               // repacked scale buffer
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 16});                               // repacked zp buffer
+        } else {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_1)});  // scale
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_1)});     // zp
+        }
         break;
     case MoE3GemmMicroKernelType::MLP_DOWN:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});  // intermediate_mem[6]
@@ -336,8 +350,13 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array - token len
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                             // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                             // k
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_2)});  // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_2)});     // zp
+        if(need_repack) {
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 17});                               // repacked scale buffer
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 18});                               // repacked zp buffer
+        } else {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_2)});  // scale
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_2)});     // zp
+        }
         break;
     default:
         OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");

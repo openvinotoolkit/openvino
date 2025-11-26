@@ -38,4 +38,7 @@ struct moe_3gemm_config {
     bool has_batch_dim = false;  // 0 - pa, 1 - non-pa
 };
 
+struct MoE3GemmRuntimeParams : public MoEGemmRuntimeParams {
+};
+
 }  // namespace ov::intel_gpu::ocl
