@@ -17,12 +17,16 @@
 #include <opencv2/gapi/gproto.hpp>  // cv::GCompileArgs
 
 Result reportValidationResult(const std::vector<FailedIter>& failed_iters, const size_t total_iters);
+void updateCriterion(ITermCriterion::Ptr* criterion, cv::util::optional<uint64_t> required_num_iterations);
+void dumpIterOutput(const cv::Mat& mat, const Dump& dump, const size_t iter);
 
 static std::vector<std::string> compareOutputs(
     const std::vector<cv::Mat>& ref_mats,
     const std::vector<cv::Mat>& tgt_mats,
     const InferDesc& infer,
     const AccuracySimulation::Options& opts) {
+
+    std::cout << "Infer output layer size " << infer.output_layers.size() << "\n";
 
     std::vector<std::string> failed_list;
 
@@ -36,6 +40,7 @@ static std::vector<std::string> compareOutputs(
     for (size_t i = 0; i < infer.output_layers.size(); ++i) {
         const auto& layer = infer.output_layers[i];
         LayerValidator validator{infer.tag, layer.name, per_layer_metrics.at(layer.name)};
+        std::cout << "\n\nRef mats[" << i << "].size = " << ref_mats.size() << "\tTgt ref mats: " << tgt_mats.size() << "\n";
         auto result = validator(ref_mats[i], tgt_mats[i]);
         if (!result) {
             failed_list.push_back(std::move(result.str()));
@@ -52,20 +57,18 @@ static Result performValidation(
     const AccuracySimulation::Options& opts) {
 
     std::vector<FailedIter> failed_iters;
-    size_t num_iters = std::min(ref_outputs[0].size(), tgt_outputs[0].size());
+    size_t num_iters = std::min(ref_outputs.size(), tgt_outputs.size()); // iteration, layer
 
-    for (size_t iter = 0; iter < num_iters; ++iter) {
-        std::vector<cv::Mat> ref_iter_mats;
-        std::vector<cv::Mat> tgt_iter_mats;
+    std::cout << "\nValidation will run for " << num_iters << " iterations\n";
 
-        for (size_t layer = 0; layer < ref_outputs.size(); ++layer) {
-            ref_iter_mats.push_back(ref_outputs[layer][iter]);
-            tgt_iter_mats.push_back(tgt_outputs[layer][iter]);
-        }
+    std::cout << "\n Ref outputs size " << ref_outputs.size() << "\t Tgt outputs size " << tgt_outputs.size() << "\n";
 
-        auto failed_list = compareOutputs(ref_iter_mats, tgt_iter_mats, infer, opts);
+    for (size_t i = 0; i < num_iters; ++i) {
+        std::cout << "Before\n";
+        auto failed_list = compareOutputs(ref_outputs[i], tgt_outputs[i], infer, opts);
+        std::cout << "After\n";
         if (!failed_list.empty()) {
-            failed_iters.push_back(FailedIter{iter, std::move(failed_list)});
+            failed_iters.push_back(FailedIter{i, std::move(failed_list)});
         }
     }
 
@@ -108,7 +111,6 @@ void InputDataVisitor::operator()(const LayerVariantAttr<std::string>&) {
                 " in form of either directory or single file!");
 };
 
-// TODO: look into this
 void InputDataVisitor::operator()(const std::string& path_str) {
     // NB: Single path provided - either single file or directory.
     const auto input_names = extractLayerNames(infer.input_layers);
@@ -181,36 +183,23 @@ void OutputDataVisitor::operator()(const LayerVariantAttr<std::string>&) {
 
 // TODO: modify so it will dump the reference data from reference and target device
 void OutputDataVisitor::operator()(const std::string& path_str) {
-    // std::filesystem::path path{path_str};
-    // // NB: It doesn't matter if path exist or not - regenerate and dump outputs anyway.
-    // std::vector<std::filesystem::path> dump_path_vec;
-    // if (isDirectory(path)) {
-    //     dump_path_vec = createDirectoryLayout(path, extractLayerNames(infer.output_layers));
-    // } else {
-    //     if (infer.output_layers.size() > 1) {
-    //         THROW_ERROR("Model: " << infer.tag
-    //                               << " must have exactly one output layer in order to dump output data to file: "
-    //                               << path);
-    //     }
-    //     dump_path_vec = {path};
-    // }
-    // for (uint32_t i = 0; i < infer.output_layers.size(); ++i) {
-    //     const auto& layer = infer.output_layers[i];
-    //     metas[i].set(Dump{dump_path_vec[i]});
-    // }
-    // auto default_metric = opts.global_metric ? opts.global_metric : std::make_shared<Norm>(0.0);
-    // auto per_layer_metrics =
-    //         unpackWithDefault(opts.metrics_map.at(infer.tag), extractLayerNames(infer.output_layers), default_metric);
-    // std::filesystem::path path{path_str};
-    // LOG_INFO() << "Reference output data path: " << path << " for model: " << infer.tag
-    //            << " exists - data will be uploaded" << std::endl;
-    // // TODO: change the actual uploadData stuff with the ref/tgt vectors
-    // auto layers_data = uploadData(path, infer.tag, infer.output_layers, LayersType::OUTPUT);
-    // for (uint32_t i = 0; i < infer.output_layers.size(); ++i) {
-    //     const auto& layer = infer.output_layers[i];
-    //     LayerValidator validator{infer.tag, layer.name, per_layer_metrics.at(layer.name)};
-    //     metas[i].set(Validate{std::move(validator), layers_data.at(layer.name)});
-    // }
+    std::filesystem::path path{path_str};
+    // NB: It doesn't matter if path exist or not - regenerate and dump outputs anyway.
+    std::vector<std::filesystem::path> dump_path_vec;
+    if (isDirectory(path)) {
+        dump_path_vec = createDirectoryLayout(path, extractLayerNames(infer.output_layers));
+    } else {
+        if (infer.output_layers.size() > 1) {
+            THROW_ERROR("Model: " << infer.tag
+                                  << " must have exactly one output layer in order to dump output data to file: "
+                                  << path);
+        }
+        dump_path_vec = {path};
+    }
+    for (uint32_t i = 0; i < infer.output_layers.size(); ++i) {
+        const auto& layer = infer.output_layers[i];
+        metas[i].set(Dump{dump_path_vec[i]});
+    }
 }
 
 }  // anonymous namespace
@@ -262,28 +251,6 @@ IBuildStrategy::InferBuildInfo AccuracyStrategy::build(const InferDesc& infer) {
     return {std::move(in_data_visitor.providers), std::move(in_data_visitor.metas), std::move(out_data_visitor.metas)};
 }
 
-static void updateCriterion(ITermCriterion::Ptr* criterion, cv::util::optional<uint64_t> required_num_iterations) {
-    if (required_num_iterations.has_value()) {
-        if (*criterion) {
-            // NB: Limit user's termination criterion to perfom at most m_required_num_iterations
-            *criterion = std::make_shared<CombinedCriterion>(
-                    *criterion, std::make_shared<Iterations>(required_num_iterations.value()));
-        } else {
-            *criterion = std::make_shared<Iterations>(required_num_iterations.value());
-        }
-    }
-}
-
-static void dumpIterOutput(const cv::Mat& mat, const Dump& dump, const size_t iter) {
-    auto dump_path = dump.path;
-    if (isDirectory(dump.path)) {
-        std::stringstream ss;
-        ss << "iter_" << iter << ".bin";
-        dump_path = dump_path / ss.str();
-    }
-    utils::writeToBinFile(dump_path.string(), mat);
-};
-
 namespace {
 
 enum class DeviceType {
@@ -293,9 +260,9 @@ enum class DeviceType {
 
 class SyncSimulation : public SyncCompiled {
 public:
-    SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt_compiled, 
-                   std::vector<DummySource::Ptr>&& sources, 
-                   std::vector<Meta>&& ref_out_meta, std::vector<Meta>&& tgt_out_meta, 
+    SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt_compiled,
+                   std::vector<DummySource::Ptr>&& sources,
+                   std::vector<Meta>&& ref_out_meta, std::vector<Meta>&& tgt_out_meta,
                    cv::util::optional<uint64_t> required_num_iterations,
                    const AccuracySimulation::Options& opts,
                    const InferDesc& infer);
@@ -318,8 +285,9 @@ private:
     std::vector<cv::Mat> m_ref_out_mats;
     std::vector<cv::Mat> m_tgt_out_mats;
 
-    std::vector<std::vector<cv::Mat>> m_ref_outputs;
-    std::vector<std::vector<cv::Mat>> m_tgt_outputs;
+    std::vector<std::vector<cv::Mat>> m_ref_out_iter;
+    std::vector<std::vector<cv::Mat>> m_tgt_out_iter;
+
     size_t m_ref_iter_idx;
     size_t m_tgt_iter_idx;
 };
@@ -351,21 +319,22 @@ SyncSimulation::SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt
           m_tgt_exec(std::move(tgt_compiled)),
           m_ref_sources(sources),
           m_tgt_sources(std::move(sources)),
+          m_infer(std::move(infer)),
           m_ref_out_meta(std::move(ref_out_meta)),
           m_tgt_out_meta(std::move(tgt_out_meta)),
           m_ref_out_mats(m_ref_out_meta.size()),
           m_tgt_out_mats(m_tgt_out_meta.size()),
           m_opts(std::move(opts)),
-          m_infer(std::move(infer)),
           m_ref_iter_idx(0u),
           m_tgt_iter_idx(0u),
           m_required_num_iterations(required_num_iterations) {
 
-    m_ref_outputs.resize(m_ref_out_meta.size());
-    m_tgt_outputs.resize(m_tgt_out_meta.size());
+        std::cout << "SYNC CONSTRUCTOR OUT META " << m_ref_out_meta.size() << " " << m_tgt_out_meta.size() << "\n";
 }
 
 Result SyncSimulation::run(ITermCriterion::Ptr criterion) {
+    std::cout << "Ref out mats size " << m_ref_out_mats.size() << "\n";
+    std::cout << "Tgt out mats size " << m_tgt_out_mats.size() << "\n";
     auto ref_criterion = criterion;
     auto tgt_criterion = criterion;
 
@@ -398,9 +367,13 @@ Result SyncSimulation::run(ITermCriterion::Ptr criterion) {
     ref_future.get();
     tgt_future.get();
 
+    std::cout << "Reference stuff: size: " << m_ref_out_iter.size() << " iter_idx: " << m_ref_iter_idx << "\n";
+    std::cout << "Reference stuff[0]: size: " << m_ref_out_iter[0].size() << "\n";
+    std::cout << "Target stuff: size: " << m_tgt_out_iter.size() << " iter_idx: " << m_tgt_iter_idx << "\n";
+
     auto validation_result = performValidation(
-        m_ref_outputs,
-        m_tgt_outputs,
+        m_ref_out_iter,
+        m_tgt_out_iter,
         m_infer,
         m_opts
     );
@@ -419,8 +392,10 @@ bool SyncSimulation::process(cv::GCompiled& pipeline, DeviceType device_type) {
     auto& sources  = (device_type == DeviceType::Reference) ? m_ref_sources  : m_tgt_sources;
     auto& out_mats = (device_type == DeviceType::Reference) ? m_ref_out_mats : m_tgt_out_mats;
     auto& out_meta = (device_type == DeviceType::Reference) ? m_ref_out_meta : m_tgt_out_meta;
-    auto& outputs  = (device_type == DeviceType::Reference) ? m_ref_outputs  : m_tgt_outputs;
     auto& iter_idx = (device_type == DeviceType::Reference) ? m_ref_iter_idx : m_tgt_iter_idx;
+    auto& out_iter = (device_type == DeviceType::Reference) ? m_ref_out_iter : m_tgt_out_iter;
+
+    // std::cout << "For " << ((device_type == DeviceType::Reference) ? "ref" : "tgt") << " the size is " << out_mats.size() << "\n";
 
     auto pipeline_outputs = cv::gout();
     for (auto& out_mat : out_mats) {
@@ -437,16 +412,16 @@ bool SyncSimulation::process(cv::GCompiled& pipeline, DeviceType device_type) {
 
     pipeline(std::move(pipeline_inputs), std::move(pipeline_outputs));
 
-    for (size_t i = 0; i < out_mats.size(); ++i) {
-        outputs[i].push_back(out_mats[i].clone());
-    }
+    // std::cout << "\nOUT MATS SIZE: " << out_mats.size() << "\n";
 
-    for (size_t i = 0; i < out_mats.size(); ++i) {
-        if (out_meta[i].has<Dump>()) {
-            const auto& dump = out_meta[i].get<Dump>();
-            dumpIterOutput(out_mats[i], dump, iter_idx);
-        }
-    }
+    out_iter.push_back(out_mats);
+
+    // for (size_t i = 0; i < out_mats.size(); ++i) {
+    //     if (out_meta[i].has<Dump>()) {
+    //         const auto& dump = out_meta[i].get<Dump>();
+    //         dumpIterOutput(out_mats[i], dump, iter_idx);
+    //     }
+    // }
 
     ++iter_idx;
     return true;
@@ -524,12 +499,16 @@ std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& sou
     auto ref_compiled = m_comp.compile(descr_of(sources), std::move(ref_compile_args));
     auto ref_out_meta = m_comp.getOutMeta();
 
+    std::cout << "Compile Sync REF " << ref_out_meta.size() << "\n";
+
     for (auto src : sources) {
         src->reset();
     }
 
     auto tgt_compiled = m_comp.compile(descr_of(sources), std::move(tgt_compile_args));
     auto tgt_out_meta = m_comp.getOutMeta();
+
+    std::cout << "Compile Sync TGT " << tgt_out_meta.size() << "\n";
 
     return std::make_shared<SyncSimulation>(std::move(ref_compiled), std::move(tgt_compiled), std::move(sources), 
                                             std::move(ref_out_meta), std::move(tgt_out_meta), m_strategy->required_num_iterations, std::move(m_opts), m_strategy->current_infer);
