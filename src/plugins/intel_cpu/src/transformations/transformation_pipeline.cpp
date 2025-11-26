@@ -465,8 +465,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // This must be done in order to keep compressed MatMul weights with decompression operations as is
     ov::pass::Manager decompression_handling_manager("CPU:DecompressionHandling");
     decompression_handling_manager.set_per_pass_validation(false);
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertConvolutionToMatMul);
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::EliminateReshape);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
     const bool useLpt = !defaultPrecisions.empty();
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::CompressedGatherTransformation);
@@ -476,6 +474,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_ARM(decompression_handling_manager, ov::pass::TransposeMatMul);
     const auto& decompression_precisions =
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(true);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
+                             ov::pass::ConvertConvolutionToMatMul,
+                             decompression_precisions,
+                             defaultPrecisions);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::EliminateReshape);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
                              ov::pass::MarkDequantization,
                              decompression_precisions,
