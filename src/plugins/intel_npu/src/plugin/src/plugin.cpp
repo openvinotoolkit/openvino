@@ -683,7 +683,31 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                       localConfig.get<DEVICE_ID>(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
-    localConfig.update({{ov::intel_npu::platform.name(), platform}});
+    std::cout << "   ==plugin check =0===fin=> the get platform is " << platform << std::endl;
+    std::cout << "   ==plugin check =1====> localConfig.get<PLATFORM>() is " << localConfig.get<PLATFORM>() << std::endl;
+    std::cout << "   ==plugin check =2====> localConfig.get<DEVICE_ID>() is " << localConfig.get<DEVICE_ID>() << std::endl;
+    auto name_vector = _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
+    std::cout << "   ===plugin check=4====> name_vector's size  is " << name_vector.size() << std::endl;
+    if (name_vector.size() == 0) {
+        std::cout << "   =====> _backend->getDeviceNames() size is zero " << std::endl;
+    } else {
+        for (size_t i = 0; i < name_vector.size(); ++i) {
+            std::cout << "   =====> _backend->getDeviceNames() name_vector[" << i << "] is " << name_vector[i]
+                      << std::endl;
+        }
+    }
+
+    std::cout << "   =====> update platfrom by manual " << platform << std::endl;
+    const auto compilerType = localConfig.get<COMPILER_TYPE>();
+    if(compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+        std::cout << "   =====> the compilerType is PLUGIN " << std::endl;
+        auto deviceBeforeCompilerCreate = _backend == nullptr ? nullptr : _backend->getDevice();
+        std::string deviceName = deviceBeforeCompilerCreate != nullptr ? deviceBeforeCompilerCreate->getName() : "";
+        std::cout << "   =====> the deviceName before compiler create is " << deviceName  << "=====" << std::endl;
+        localConfig.update({{ov::intel_npu::platform.name(), deviceName}});
+    } else if(compilerType == ov::intel_npu::CompilerType::DRIVER) {
+        localConfig.update({{ov::intel_npu::platform.name(), platform}});
+    }
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
         std::stringstream strStream;
@@ -790,11 +814,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     try {
         _logger.debug("performing compile");
-
+        std::cout << "    ======> before compiler print the config: " << localConfig.toString() << std::endl;
         // Determine which model to use
-        auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
+        auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();   //lin724
+        std::cout << "   ==========plugin-check successfullyDebatched is " << successfullyDebatched << std::endl;
 
         if (successfullyDebatched && localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
+            std::cout << "   ====line 805======graph = compileWithConfig(modelToCompile, modifiedConfig); " << std::endl;
             _logger.info("Override performance mode to THROUGHPUT for compilation");
 
             auto modifiedConfig = localConfig;  // Copy only when needed
@@ -804,10 +830,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
             graph = compileWithConfig(modelToCompile, modifiedConfig);
         } else {
+            std::cout << "   ====line 809======graph = compileWithConfig(modelToCompile, localConfig); " << std::endl;
             graph = compileWithConfig(modelToCompile, localConfig);  // No copy
         }
     } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
+        OPENVINO_THROW(ex.what());   //// get exception
     } catch (...) {
         _logger.error("Unexpected exception");
         OPENVINO_THROW("NPU plugin: got an unexpected exception from compiler");
