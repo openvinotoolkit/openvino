@@ -197,6 +197,9 @@ ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
     // ONNX Runtime behavior: When output_shape is explicitly provided, recalculate padding
     // to achieve the desired output shape. This is necessary because ONNX models may specify
     // output_shape without corresponding padding values.
+    // Note: When both output_shape and auto_pad are specified, output_shape takes precedence
+    // and auto_pad is effectively ignored (padding is computed to match output_shape).
+    // This matches ONNX Runtime behavior.
     if (!output_shape.empty() && data_pshape.is_static() && filters_pshape.is_static()) {
         const ov::Shape data_static_shape = data_pshape.to_shape();
         const ov::Shape filters_static_shape = filters_pshape.to_shape();

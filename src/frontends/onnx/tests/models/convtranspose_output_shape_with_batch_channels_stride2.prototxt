@@ -10,16 +10,16 @@ graph {
     op_type: "ConvTranspose"
     attribute {
       name: "kernel_shape"
-      ints: 5
-      ints: 5
+      ints: 3
+      ints: 3
       type: INTS
     }
     attribute {
       name: "output_shape"
       ints: 1
-      ints: 16
-      ints: 32
-      ints: 32
+      ints: 2
+      ints: 6
+      ints: 6
       type: INTS
     }
     attribute {
@@ -40,13 +40,13 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 3
+            dim_value: 1
           }
           dim {
-            dim_value: 28
+            dim_value: 4
           }
           dim {
-            dim_value: 28
+            dim_value: 4
           }
         }
       }
@@ -59,16 +59,16 @@ graph {
         elem_type: 1
         shape {
           dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
             dim_value: 3
           }
           dim {
-            dim_value: 16
-          }
-          dim {
-            dim_value: 5
-          }
-          dim {
-            dim_value: 5
+            dim_value: 3
           }
         }
       }
@@ -81,7 +81,7 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 16
+            dim_value: 2
           }
         }
       }
@@ -97,13 +97,13 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 16
+            dim_value: 2
           }
           dim {
-            dim_value: 32
+            dim_value: 6
           }
           dim {
-            dim_value: 32
+            dim_value: 6
           }
         }
       }
