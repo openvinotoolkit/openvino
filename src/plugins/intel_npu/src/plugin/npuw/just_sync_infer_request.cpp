@@ -1327,96 +1327,68 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
             auto v_tile_type_current = v_tile_current->get_element_type();
             auto mask_tile_type_current = mask_tile_current->get_element_type();
 
-            // Extract K tile from source tensor
+            // === NEW: Direct copy without head expansion (GPU will do broadcast) ===
+
+            // Extract K tile view: [batch, kv_num_heads, current_tile_size, head_dim]
             auto k_view = ov::npuw::util::view(source_k_tensor, k_seq_dim, k_offset, current_tile_size);
 
-            // Create intermediate tensor with correct shape to receive the view
-            // Shape: [batch, kv_num_heads, current_tile_size, head_dim]
-            auto k_intermediate_shape =
-                ov::Shape{batch_size, kv_num_heads, static_cast<size_t>(current_tile_size), head_dim};
-            auto k_intermediate = ov::Tensor(ov::element::f16, k_intermediate_shape);
+            // Direct copy - shapes should match automatically
+            if (k_tile_type_current == ov::element::f16 && source_k_tensor->get_element_type() == ov::element::f16) {
+                // No type conversion needed - direct copy
+                k_view->copy_to(k_tile_current._ptr);
+            } else {
+                // Type conversion needed - use intermediate tensor
+                auto k_intermediate_shape =
+                    ov::Shape{batch_size, kv_num_heads, static_cast<size_t>(current_tile_size), head_dim};
+                auto k_intermediate = ov::Tensor(source_k_tensor->get_element_type(), k_intermediate_shape);
+                k_view->copy_to(ov::get_tensor_impl(k_intermediate)._ptr);
 
-            // Use copy_to to properly handle strided view
-            k_view->copy_to(ov::get_tensor_impl(k_intermediate)._ptr);
-
-            // Expand K from 8 heads to 32 heads with type conversion if needed
-            // Source: [1, 8, current_tile_size, 128] (f16)
-            // Target: [1, 32, current_tile_size, 128] (depends on k_tile_type_current)
-            auto k_intermediate_data = k_intermediate.data<ov::float16>();
-
-            if (k_tile_type_current == ov::element::f16) {
-                auto k_tile_data = k_tile_current->data<ov::float16>();
-                for (size_t b = 0; b < batch_size; ++b) {
-                    for (size_t h = 0; h < num_heads; ++h) {
-                        size_t src_head = h / head_expansion;
-                        for (size_t s = 0; s < static_cast<size_t>(current_tile_size); ++s) {
-                            for (size_t d = 0; d < head_dim; ++d) {
-                                size_t src_idx = ((b * kv_num_heads + src_head) * current_tile_size + s) * head_dim + d;
-                                size_t dst_idx = ((b * num_heads + h) * tile_size + s) * head_dim + d;
-                                k_tile_data[dst_idx] = k_intermediate_data[src_idx];
-                            }
-                        }
+                // Convert type if needed
+                if (k_tile_type_current == ov::element::f32) {
+                    auto k_src_data = k_intermediate.data<ov::float16>();
+                    auto k_dst_data = k_tile_current->data<float>();
+                    size_t total_elements = batch_size * kv_num_heads * current_tile_size * head_dim;
+                    for (size_t i = 0; i < total_elements; ++i) {
+                        k_dst_data[i] = static_cast<float>(k_src_data[i]);
                     }
-                }
-            } else if (k_tile_type_current == ov::element::f32) {
-                auto k_tile_data = k_tile_current->data<float>();
-                for (size_t b = 0; b < batch_size; ++b) {
-                    for (size_t h = 0; h < num_heads; ++h) {
-                        size_t src_head = h / head_expansion;
-                        for (size_t s = 0; s < static_cast<size_t>(current_tile_size); ++s) {
-                            for (size_t d = 0; d < head_dim; ++d) {
-                                size_t src_idx = ((b * kv_num_heads + src_head) * current_tile_size + s) * head_dim + d;
-                                size_t dst_idx = ((b * num_heads + h) * tile_size + s) * head_dim + d;
-                                k_tile_data[dst_idx] = static_cast<float>(k_intermediate_data[src_idx]);
-                            }
-                        }
+                } else if (k_tile_type_current == ov::element::f16) {
+                    auto k_src_data = k_intermediate.data<float>();
+                    auto k_dst_data = k_tile_current->data<ov::float16>();
+                    size_t total_elements = batch_size * kv_num_heads * current_tile_size * head_dim;
+                    for (size_t i = 0; i < total_elements; ++i) {
+                        k_dst_data[i] = static_cast<ov::float16>(k_src_data[i]);
                     }
                 }
             }
 
-            // Extract V tile from source tensor
+            // Extract V tile view: [batch, kv_num_heads, head_dim, current_tile_size]
             auto v_view = ov::npuw::util::view(source_v_tensor, v_seq_dim, k_offset, current_tile_size);
 
-            // Create intermediate tensor with correct shape to receive the view
-            // Shape: [batch, kv_num_heads, head_dim, current_tile_size]
-            auto v_intermediate_shape =
-                ov::Shape{batch_size, kv_num_heads, head_dim, static_cast<size_t>(current_tile_size)};
-            auto v_intermediate = ov::Tensor(ov::element::f16, v_intermediate_shape);
+            // Direct copy - shapes should match automatically
+            if (v_tile_type_current == ov::element::f16 && source_v_tensor->get_element_type() == ov::element::f16) {
+                // No type conversion needed - direct copy
+                v_view->copy_to(v_tile_current._ptr);
+            } else {
+                // Type conversion needed - use intermediate tensor
+                auto v_intermediate_shape =
+                    ov::Shape{batch_size, kv_num_heads, head_dim, static_cast<size_t>(current_tile_size)};
+                auto v_intermediate = ov::Tensor(source_v_tensor->get_element_type(), v_intermediate_shape);
+                v_view->copy_to(ov::get_tensor_impl(v_intermediate)._ptr);
 
-            // Use copy_to to properly handle strided view
-            v_view->copy_to(ov::get_tensor_impl(v_intermediate)._ptr);
-
-            // Expand V from 8 heads to 32 heads with type conversion if needed
-            // Source: [1, 8, 128, current_tile_size] (f16)
-            // Target: [1, 32, 128, current_tile_size] (depends on v_tile_type_current)
-            auto v_intermediate_data = v_intermediate.data<ov::float16>();
-
-            if (v_tile_type_current == ov::element::f16) {
-                auto v_tile_data = v_tile_current->data<ov::float16>();
-                for (size_t b = 0; b < batch_size; ++b) {
-                    for (size_t h = 0; h < num_heads; ++h) {
-                        size_t src_head = h / head_expansion;
-                        for (size_t d = 0; d < head_dim; ++d) {
-                            for (size_t s = 0; s < static_cast<size_t>(current_tile_size); ++s) {
-                                size_t src_idx = ((b * kv_num_heads + src_head) * head_dim + d) * current_tile_size + s;
-                                size_t dst_idx = ((b * num_heads + h) * head_dim + d) * tile_size + s;
-                                v_tile_data[dst_idx] = v_intermediate_data[src_idx];
-                            }
-                        }
+                // Convert type if needed
+                if (v_tile_type_current == ov::element::f32) {
+                    auto v_src_data = v_intermediate.data<ov::float16>();
+                    auto v_dst_data = v_tile_current->data<float>();
+                    size_t total_elements = batch_size * kv_num_heads * head_dim * current_tile_size;
+                    for (size_t i = 0; i < total_elements; ++i) {
+                        v_dst_data[i] = static_cast<float>(v_src_data[i]);
                     }
-                }
-            } else if (v_tile_type_current == ov::element::f32) {
-                auto v_tile_data = v_tile_current->data<float>();
-                for (size_t b = 0; b < batch_size; ++b) {
-                    for (size_t h = 0; h < num_heads; ++h) {
-                        size_t src_head = h / head_expansion;
-                        for (size_t d = 0; d < head_dim; ++d) {
-                            for (size_t s = 0; s < static_cast<size_t>(current_tile_size); ++s) {
-                                size_t src_idx = ((b * kv_num_heads + src_head) * head_dim + d) * current_tile_size + s;
-                                size_t dst_idx = ((b * num_heads + h) * head_dim + d) * tile_size + s;
-                                v_tile_data[dst_idx] = static_cast<float>(v_intermediate_data[src_idx]);
-                            }
-                        }
+                } else if (v_tile_type_current == ov::element::f16) {
+                    auto v_src_data = v_intermediate.data<float>();
+                    auto v_dst_data = v_tile_current->data<ov::float16>();
+                    size_t total_elements = batch_size * kv_num_heads * head_dim * current_tile_size;
+                    for (size_t i = 0; i < total_elements; ++i) {
+                        v_dst_data[i] = static_cast<ov::float16>(v_src_data[i]);
                     }
                 }
             }
