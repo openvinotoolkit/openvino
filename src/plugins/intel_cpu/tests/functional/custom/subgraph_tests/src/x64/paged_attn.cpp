@@ -37,14 +37,20 @@ using namespace ov::op;
 namespace ov {
 namespace test {
 using InputShapes = std::vector<InputShape>;
-using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, bool, ov::AnyMap>;
+using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, bool, int32_t, ov::AnyMap>;
 
 class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams>,
                           virtual public ov::test::SubgraphBaseTest,
                           public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj) {
-        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, additional_config] = obj.param;
+        const auto& [inType,
+                     inputShapes,
+                     extendBlockIndices,
+                     enableXattn,
+                     sinkInput,
+                     slidingWindow,
+                     additional_config] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -64,6 +70,7 @@ public:
         result << "ExtendBlockIndices=" << extendBlockIndices << "_";
         result << "EnableXattn=" << enableXattn << "_";
         result << "SinkInput=" << sinkInput << "_";
+        result << "SlidingWindow=" << slidingWindow << "_";
         result << "config=(";
         for (const auto& configEntry : additional_config) {
             result << configEntry.first << ", " << configEntry.second.as<std::string>() << "_";
@@ -85,7 +92,8 @@ public:
                                          bool enable_xattn,
                                          ov::Dimension::value_type head_size = 64,
                                          ov::Dimension::value_type head_num = 8,
-                                         bool use_sink_input = true) {
+                                         bool use_sink_input = true,
+                                         int32_t sliding_window = 0) {
         // q [batch_in_tokens, head_num * head_size]
         // k [batch_in_tokens, head_num * head_size]
         // v [batch_in_tokens, head_num * head_size]
@@ -108,7 +116,7 @@ public:
         auto scale =
             std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
         auto silding_windows =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{sliding_window});
         auto alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
         auto max_context_len =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<float>{1024});
@@ -251,6 +259,10 @@ public:
         size_t sink_idx = use_sink_input ? 5 : -1;  // sink only exists when use_sink_input=true
 
         std::shared_ptr<ov::op::v13::ScaledDotProductAttention> sdp;
+        // For sliding window case, set causal=false because we provide explicit mask with sliding window logic
+        // For normal case, set causal=true to let SDPA apply causal mask internally
+        bool use_causal = (sliding_window == 0);
+
         if (use_sink_input) {
             // 7-parameter SDPA constructor with sink support
             // Parameters: query, key, value, attn_mask, scale, sink, causal
@@ -260,7 +272,7 @@ public:
                                                                            inputParams[atten_mask_idx],
                                                                            inputParams[scale_idx],
                                                                            inputParams[sink_idx],
-                                                                           true);
+                                                                           use_causal);
         } else {
             // 6-parameter SDPA constructor without sink
             // Parameters: query, key, value, attn_mask, scale, causal
@@ -269,7 +281,7 @@ public:
                                                                            v_in,
                                                                            inputParams[atten_mask_idx],
                                                                            inputParams[scale_idx],
-                                                                           true);
+                                                                           use_causal);
         }
         sdp->set_friendly_name("mha");
         auto pastk_assign = std::make_shared<ov::op::v6::Assign>(concatK, var_k);
@@ -300,8 +312,13 @@ public:
     }
 
     void SetUp() override {
-        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, additional_config] =
-            this->GetParam();
+        const auto& [inType,
+                     inputShapes,
+                     extendBlockIndices,
+                     enableXattn,
+                     sinkInput,
+                     slidingWindow,
+                     additional_config] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -314,7 +331,8 @@ public:
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
 
-        function = get_model(inType, enableXattn, 64, 8, sinkInput);
+        this->sliding_window = slidingWindow;
+        function = get_model(inType, enableXattn, 64, 8, sinkInput, slidingWindow);
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         functionRefs = get_ref_model(inType, 64, 8, sinkInput);
@@ -327,10 +345,12 @@ public:
         shapes.push_back(targetInputStaticShapes[0]);  // q
         shapes.push_back(targetInputStaticShapes[0]);  // k
         shapes.push_back(targetInputStaticShapes[0]);  // v
-        // atten_mask shape: [1, heads, seq_len, seq_len] - dynamic based on sequence length
+        // atten_mask shape: always rectangular [1, heads, q_len, total_kv_len]
+        // total_kv_len = past_len_count + seq_len to cover all past and current KV tokens
         auto seq_len = targetInputStaticShapes[0][0];
-        shapes.push_back({1, 8, seq_len, seq_len});  // atten_mask
-        shapes.push_back({1});                       // scale
+        size_t total_kv_len = static_cast<size_t>(past_len_count) + seq_len;
+        shapes.push_back({1, 8, seq_len, total_kv_len});  // atten_mask (rectangular)
+        shapes.push_back({1});                            // scale
 
         if (ref_model_uses_sink) {
             shapes.push_back({1, 8, 1, 1});  // sink
@@ -344,9 +364,13 @@ public:
     }
     template <typename IT, typename T>
     static void strided_iota(IT first, size_t n, T value, T stride) {
+        // Descending order: generate values from high to low
+        // Generate descending values to simulate attention patterns where earlier tokens have higher scores.
+        // This is useful for testing sliding window attention mechanisms where recent context is prioritized.
         for (size_t i = 0; i < n; i++) {
-            *first++ = value;
-            value += stride;
+            const float idx = static_cast<float>(n - 1 - i);
+            const T generated = value + stride * static_cast<T>(idx);
+            *first++ = generated;
         }
     }
     virtual void generate(int idx,
@@ -453,11 +477,39 @@ public:
             create_input(params[param_idx++], targetInputStaticShapes[0], idx + 2.0f);  // k
             create_input(params[param_idx++], targetInputStaticShapes[0], idx + 3.0f);  // v
 
-            // atten_mask - create appropriate shape based on sequence length
-            auto seq_len = targetInputStaticShapes[0][0];
-            create_input(params[param_idx++],
-                         {1, targetInputStaticShapes[0][2], seq_len, seq_len},
-                         0.0f);  // atten_mask
+            // atten_mask - always use rectangular mask [1, head_num, q_len, total_kv_len]
+            auto mask_param = params[param_idx++];
+            const size_t head_num = targetInputStaticShapes[0][2];
+            const size_t q_len = targetInputStaticShapes[0][0];
+            const size_t total_kv_len = static_cast<size_t>(past_len_count) + q_len;
+
+            if (sliding_window > 0) {
+                // Sliding window: rectangular mask with sliding window logic
+                ov::Tensor mask_tensor(ov::element::f32, {1, head_num, q_len, total_kv_len});
+                auto* mask_data = mask_tensor.data<float>();
+                const float neg_inf = -std::numeric_limits<float>::infinity();
+                const int32_t offset = -sliding_window;
+
+                for (size_t h = 0; h < head_num; ++h) {
+                    for (size_t q_pos = 0; q_pos < q_len; ++q_pos) {
+                        const int32_t global_q_idx = past_len_count + static_cast<int32_t>(q_pos);
+                        for (size_t kv_idx = 0; kv_idx < total_kv_len; ++kv_idx) {
+                            const int32_t global_k_idx = static_cast<int32_t>(kv_idx);
+                            const bool within_window = global_k_idx > global_q_idx + offset;
+                            const bool causal = global_k_idx <= global_q_idx;
+                            const bool allow = within_window && causal;
+                            const size_t linear_idx = (h * q_len + q_pos) * total_kv_len + kv_idx;
+                            mask_data[linear_idx] = allow ? 0.f : neg_inf;
+                        }
+                    }
+                }
+                inputs[mask_param] = mask_tensor;
+                past_len_count += static_cast<int32_t>(q_len);
+            } else {
+                // Normal case: rectangular mask with all zeros (no masking needed, causal handled by SDPA)
+                create_input(mask_param, {1, head_num, q_len, total_kv_len}, 0.0f);
+                past_len_count += static_cast<int32_t>(q_len);
+            }
 
             // scale - single value for scaling
             create_input(params[param_idx++], {1}, 1.0f / std::sqrt(64));  // scale
@@ -467,8 +519,13 @@ public:
                 create_input(params[param_idx++], {1, targetInputStaticShapes[0][2], 1, 1}, 0.1f);  // sink
             }
 
-            // past_kv
-            create_input(params[param_idx++], targetInputStaticShapes[1], idx + 4.0f);  // past_kv
+            // past_kv - For SDPA with ReadValue/Assign:
+            // - Iteration 0: empty tensor [0,1,8,64], ReadValue uses this as initial value (empty)
+            // - Iteration 1+: should be empty [0,1,8,64], ReadValue ignores this and uses Variable state
+            // Note: We always pass empty tensor since ReadValue/Assign manages the actual KV cache
+            auto past_kv_shape = targetInputStaticShapes[1];
+            past_kv_shape[0] = 0;                                    // Always use empty past for ReadValue-based SDPA
+            create_input(params[param_idx++], past_kv_shape, 0.0f);  // past_kv (empty)
 
             // beam_idx - shape matching batch dimension
             create_input(params[param_idx++], ov::Shape{targetInputStaticShapes[0][1]},
@@ -492,6 +549,7 @@ public:
     ov::Tensor key_cache;
     ov::Tensor value_cache;
     int32_t past_len_count = 0;
+    int32_t sliding_window = 0;
 };
 
 class PagedAttnVSSDPATest : public PagedAttnTestBase {
@@ -539,7 +597,7 @@ public:
         std::vector<ov::Tensor> outputs;
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, false, shapes, false, sinkInput);  // Use the same sink input setting as the test model
+            generate(idx++, false, shapes, false, sinkInput);
             for (const auto& input : inputs) {
                 inferRequest.set_tensor(input.first, input.second);
             }
@@ -549,25 +607,32 @@ public:
             outputTensor.copy_to(copy);
             outputs.push_back(copy);
         }
+        reset();
         return outputs;
     }
 };
 
 TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, additional_config] = this->GetParam();
+    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
+        this->GetParam();
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
         GTEST_SKIP();
+
+    past_len_count = 0;
+
     // compare the logits from paged attn and sdpa
     auto actualOutputs = run_test(function, extendBlockIndices, sinkInput);
     // reference model doesn't support sage attention
     if (isSageAttn) {
         configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
     }
+    // Reset past_len_count before running reference test to ensure consistent mask generation
+    past_len_count = 0;
     auto expectedOutputs = run_ref_test(functionRefs, sinkInput);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
@@ -591,7 +656,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest,
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false),
                                             ::testing::Values(true, false),
+                                            ::testing::Values(0),  // sliding_window = 0
                                             ::testing::ValuesIn(additional_configs)),
+                         PagedAttnTestBase::getTestCaseName);
+
+// Sliding window test with same shapes as normal test
+INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest_WithSlidingWindow,
+                         PagedAttnVSSDPATest,
+                         ::testing::Combine(::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(inputShapeAndReorders),
+                                            ::testing::Values(false),  // extendBlockIndices
+                                            ::testing::Values(true),   // sinkInput
+                                            ::testing::Values(8),      // sliding_window = 8
+                                            ::testing::Values(ov::AnyMap{
+                                                {ov::intel_cpu::enable_sage_attn.name(), false}})),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 
@@ -795,7 +873,8 @@ public:
 
 TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, additional_config] = this->GetParam();
+    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
+        this->GetParam();
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
@@ -830,6 +909,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::Values(true, false),
                                             ::testing::Values(true, false),
+                                            ::testing::Values(0),  // sliding_window = 0
                                             ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
