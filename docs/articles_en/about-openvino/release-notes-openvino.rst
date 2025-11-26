@@ -49,8 +49,7 @@ What's new
   * Encrypted blob format support added for secure model deployment with OpenVINO™ GenAI. 
     Model weights and artifacts are stored and transmitted in an encrypted format, reducing risks of IP theft during deployment.
     Developers can deploy with minimal code changes using OpenVINO GenAI pipelines. 
-  * OpenVINO™ Model Server and OpenVINO™ GenAI now extend support for Agentic AI scenarios to client architectures 
-    with new features such as output parsing and improved chat templates for reliable multi-turn interactions, and preview functionality for the Qwen3-30B-A3B model. OVMS also introduces a preview for audio endpoints.
+  * OpenVINO™ Model Server and OpenVINO™ GenAI now extend support for Agentic AI scenarios with new features such as output parsing and improved chat templates for reliable multi-turn interactions, and preview functionality for the Qwen3-30B-A3B model. OVMS also introduces a preview for audio endpoints.
   * NPU deployment is simplified with batch support, enabling seamless model execution across 
     Intel® Core™ Ultra processors while eliminating driver dependencies. Models are reshaped to batch_size=1 before compilation. 
   * The improved NVIDIA Triton Server* integration with OpenVINO backend now enables developers to utilize Intel GPUs or NPUs for deployment. 
@@ -83,6 +82,7 @@ GPU Device Plugin
 * Prefix caching performance has been significantly improved on Intel® XMX based platforms.  
 * Per-group dynamic quantization is now supported and configurable, providing an alternative 
   when accuracy is insufficient with the default per-token dynamic quantization.
+* Performance of Qwen3-Embedding and Qwen3-Reranker models has been optimized on Intel® XMX based platforms. 
 * Multiple primitives have been optimized for non-Gen AI models, improving performance of vision 
   embedding models, RNN-based models, and models in the GeekBench AI benchmark tool.
 * Runtime memory footprint has been reduced for dynamic shape models.
@@ -96,8 +96,10 @@ GPU Device Plugin
 NPU Device Plugin
 ---------------------------------------------------------------------------------------------
 
-* Gemma-3-4B-it and Qwen2.5-VL-3B-Instruct models are now enabled. For Qwen2.5-VL-3B-Instruct, a minimum of 32 GB memory is required. 
+* Gemma-3-4B-it and Qwen2.5-VL-3B-Instruct models are now enabled.
 * Sliding window mask support for Phi-3 on NPU has been fixed.
+* Asynchronous weight processing has been introduced to provide a slight speed-up in importing pre-compiled LLMs.
+* LLM prefix caching is introduced to reduce TTFT in long chat scenarios, enabled via property ``NPUW_LLM_ENABLE_PREFIX_CACHING:YES``.
 * OpenVINO™ cached models are now memory-mapped and imported within the current Level Zero context, 
   reducing peak memory consumption during imports by eliminating an additional in-memory copy of the compiled model.
 * Implicit I/O tensor import is now supported. A shadow-copy tensor is created only when the 
@@ -157,8 +159,8 @@ OpenVINO™ Model Server
 * Agentic use case improvements:
   
   * Tool parsers for the new models Qwen3-Coder-30B and Qwen3-30B-A3B-Instruct have been enabled.
-    These models are supported in OpenVINO Runtime as a preview feature and can be evaluated with tool-calling capabilities.
-  * Streaming with tool-calling for phi-4-mini-instruct and mistral-7B-v0.4 models is now supported.
+    These models are supported in OpenVINO Runtime as a preview feature and can be evaluated with “tool calling” capabilities.
+  * Streaming with “tool calling” for phi-4-mini-instruct and mistral-7B-v0.4 models is now supported.
   * Tool parsers for mistral and hermes have been improved, resolving multiple issues related 
     to complex generated JSON objects and increasing overall response reliability.
   * Guided generation now supports all rules from XGrammar integration. The `response_format` parameter
@@ -179,6 +181,8 @@ OpenVINO™ Model Server
     Architectures such as Qwen2, Qwen2.5, Qwen3 and Llama3 can be deployed with a single command. See `Loading GGUF models in OVMS demo <https://docs.openvino.ai/2025/model-server/ovms_demos_gguf.html>`__ for details.
   * OpenVINO Model Server can be deployed as a service in the Windows operating system. It can be 
     managed by service configuration management, shared by all running applications, and controlled using a simplified CLI to pull, configure, enable, and disable models. Check the `OVMS documentation <https://docs.openvino.ai/2025/model-server/ovms_docs_deploying_server_service.html>`__  for more details. 
+  * Pulling the model in IR format has been extended beyond the OpenVINO™ organization in HuggingFace* Hub. While OpenVINO org models are validated by Intel, a rapidly growing ecosystem of IR-format models from other publishers can now also be pulled and deployed via the OVMS CLI.  Note: The repository needs to be populated by ``optimum-cli export openvino`` command and must include tokenizer model in IR format to be successfully loaded by OpenVINO Model Server. 
+
 *  CLI simplifications for easier deployment:
   
    *  ``--plugin_config`` parameter can now be applied not only to classic models but also to generative pipelines.
@@ -217,6 +221,7 @@ Performance improvements:
 * Model loading time has been reduced through compilation cache, with significant improvements on GPU and NPU devices. 
   Enable caching using the ``--cache_dir`` parameter.
 * Improved guided generation performance, including support for tool-call guiding.
+
 
 Audio endpoints added: 
 
@@ -1358,8 +1363,6 @@ Discontinued in 2025
   * StreamerBase::put(int64_t token)
   * The ``Bool`` value for Callback streamer is no longer accepted. It must now return one of three values of StreamingStatus enum.
   * ChunkStreamerBase is deprecated. Use StreamerBase instead.
-
-* NNCF ``create_compressed_model()`` method is now deprecated. ``nncf.quantize()`` method is recommended for Quantization-Aware Training of PyTorch and TensorFlow models.
 
 * Deprecated OpenVINO Model Server (OVMS) benchmark client in C++ using TensorFlow Serving API.
 
