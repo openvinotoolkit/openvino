@@ -29,8 +29,8 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     auto seq_len = q_shape[2];
     auto head_dim = q_shape[3];
 
-    // Use f32 for internal computation precision, but keep I/O in original dtype (f16)
-    auto compute_dtype = ov::element::f32;
+    // Use input_dtype for ALL operations - no type conversion (same as hfa.py)
+    auto compute_dtype = input_dtype;
 
     // Input parameters for HFA tile (using input_dtype, typically f16)
     // past_acc: [batch, num_heads, seq_len, head_dim]
@@ -68,27 +68,21 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     in_q->set_friendly_name("q");
     in_q->output(0).get_tensor().set_names({"q"});
 
-    // mask_tile: [batch, 1, seq_len, tile_size] - f32 in Decomposed SDPA
+    // mask_tile: [batch, 1, seq_len, tile_size] - CHANGED: also use input_dtype (f16) to match hfa.py
     auto in_mask_tile =
-        std::make_shared<ov::op::v0::Parameter>(compute_dtype,
+        std::make_shared<ov::op::v0::Parameter>(input_dtype,
                                                 ov::Shape{batch, 1, seq_len, static_cast<size_t>(tile_size)});
     in_mask_tile->set_friendly_name("mask_tile");
     in_mask_tile->output(0).get_tensor().set_names({"mask_tile"});
 
-    // Convert inputs to f32 for computation (mask_tile already f32)
-    auto past_acc_f32 = std::make_shared<ov::op::v0::Convert>(in_past_acc, compute_dtype);
-    auto past_max_f32 = std::make_shared<ov::op::v0::Convert>(in_past_max, compute_dtype);
-    auto past_d_f32 = std::make_shared<ov::op::v0::Convert>(in_past_d, compute_dtype);
-    auto k_tile_f32 = std::make_shared<ov::op::v0::Convert>(in_k_tile, compute_dtype);
-    auto v_tile_f32 = std::make_shared<ov::op::v0::Convert>(in_v_tile, compute_dtype);
-    auto q_f32 = std::make_shared<ov::op::v0::Convert>(in_q, compute_dtype);
-
     // Flash Attention Tile Algorithm (from hfa.py::ov_hfa_tile):
+    // NO TYPE CONVERSION - all operations use input_dtype directly
+
     // qk = matmul(q, k^T)
-    auto qk = std::make_shared<ov::op::v0::MatMul>(q_f32, k_tile_f32, false, true);
+    auto qk = std::make_shared<ov::op::v0::MatMul>(in_q, in_k_tile, false, true);
     qk->set_friendly_name("qk");
 
-    // qkm = qk + mask (mask_tile is already f32)
+    // qkm = qk + mask
     auto qkm = std::make_shared<ov::op::v1::Add>(qk, in_mask_tile);
     qkm->set_friendly_name("qkm");
 
@@ -97,11 +91,11 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     auto qkm_max = std::make_shared<ov::op::v1::ReduceMax>(qkm, axes_const, true);
     qkm_max->set_friendly_name("qkm_max");
 
-    auto maxx_f32 = std::make_shared<ov::op::v1::Maximum>(past_max_f32, qkm_max);
-    maxx_f32->set_friendly_name("maxx_f32");
+    auto maxx = std::make_shared<ov::op::v1::Maximum>(in_past_max, qkm_max);
+    maxx->set_friendly_name("maxx");
 
     // p = exp(qkm - maxx)
-    auto qkm_sub_maxx = std::make_shared<ov::op::v1::Subtract>(qkm, maxx_f32);
+    auto qkm_sub_maxx = std::make_shared<ov::op::v1::Subtract>(qkm, maxx);
     auto p = std::make_shared<ov::op::v0::Exp>(qkm_sub_maxx);
     p->set_friendly_name("p");
 
@@ -110,36 +104,28 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     l->set_friendly_name("l");
 
     // alpha = exp(past_max - maxx)
-    auto past_max_sub_maxx = std::make_shared<ov::op::v1::Subtract>(past_max_f32, maxx_f32);
+    auto past_max_sub_maxx = std::make_shared<ov::op::v1::Subtract>(in_past_max, maxx);
     auto alpha = std::make_shared<ov::op::v0::Exp>(past_max_sub_maxx);
     alpha->set_friendly_name("alpha");
 
     // d = past_d * alpha + l
-    auto past_d_alpha = std::make_shared<ov::op::v1::Multiply>(past_d_f32, alpha);
-    auto d_f32 = std::make_shared<ov::op::v1::Add>(past_d_alpha, l);
-    d_f32->set_friendly_name("d_f32");
+    auto past_d_alpha = std::make_shared<ov::op::v1::Multiply>(in_past_d, alpha);
+    auto d = std::make_shared<ov::op::v1::Add>(past_d_alpha, l);
+    d->set_friendly_name("d");
 
     // acc = past_acc * alpha + matmul(p, v)
-    auto past_acc_alpha = std::make_shared<ov::op::v1::Multiply>(past_acc_f32, alpha);
-    auto pv = std::make_shared<ov::op::v0::MatMul>(p, v_tile_f32, false, true);
+    auto past_acc_alpha = std::make_shared<ov::op::v1::Multiply>(in_past_acc, alpha);
+    auto pv = std::make_shared<ov::op::v0::MatMul>(p, in_v_tile, false, true);
     pv->set_friendly_name("pv");
-    auto acc_f32 = std::make_shared<ov::op::v1::Add>(past_acc_alpha, pv);
-    acc_f32->set_friendly_name("acc_f32");
-
-    // Convert outputs back to input_dtype (f16) for consistency
-    auto acc = std::make_shared<ov::op::v0::Convert>(acc_f32, input_dtype);
+    auto acc = std::make_shared<ov::op::v1::Add>(past_acc_alpha, pv);
     acc->set_friendly_name("acc");
+
+    // Set output tensor names
     acc->output(0).get_tensor().set_names({"acc"});
-
-    auto maxx = std::make_shared<ov::op::v0::Convert>(maxx_f32, input_dtype);
-    maxx->set_friendly_name("maxx");
     maxx->output(0).get_tensor().set_names({"maxx"});
-
-    auto d = std::make_shared<ov::op::v0::Convert>(d_f32, input_dtype);
-    d->set_friendly_name("d");
     d->output(0).get_tensor().set_names({"d"});
 
-    // Create results
+    // Create results - NO TYPE CONVERSION
     auto out_acc = std::make_shared<ov::op::v0::Result>(acc);
     out_acc->set_friendly_name("out_acc");
 
@@ -155,8 +141,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
         ov::ParameterVector{in_past_acc, in_past_max, in_past_d, in_k_tile, in_v_tile, in_q, in_mask_tile},
         "HFA_Tile");
 
-    LOG_DEBUG("HFA tile model created successfully with I/O dtype=" << input_dtype
-                                                                    << ", compute dtype=" << compute_dtype);
+    LOG_DEBUG("HFA tile model created successfully with uniform dtype=" << input_dtype << " (NO type conversion)");
     return tile_model;
 }
 
