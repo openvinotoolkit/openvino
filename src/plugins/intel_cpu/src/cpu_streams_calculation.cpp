@@ -19,6 +19,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -33,9 +34,10 @@
 #endif
 #include "cpu_map_scheduling.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
-#include "transformations/utils.hpp"
+#include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -610,8 +612,18 @@ int get_model_prefer_threads(const int num_streams,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
     bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
-    bool llm_related_1 = ov::op::util::is_large_language_model(*model);
-    bool llm_related_2 = has_matmul_with_compressed_weights(model);
+    auto is_paged_attention_model = false;
+    const auto is_LLM =
+        ov::op::util::is_large_language_model(*model, [&is_paged_attention_model](std::shared_ptr<ov::Node> node) {
+            if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
+                is_paged_attention_model = true;
+                return true;
+            } else if (ov::is_type<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(node)) {
+                return true;
+            }
+
+            return false;
+        });
 
     auto default_prefer_threads_latency = [&]() {
         const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
@@ -619,9 +631,9 @@ int get_model_prefer_threads(const int num_streams,
 
         bool use_all_cores =
             proc_type_table[0][MAIN_CORE_PROC] <= (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                   (int8_intensive || llm_related_1 ? int8_threshold : fp32_threshold));
+                                                   (int8_intensive ? int8_threshold : fp32_threshold));
 
-        if (use_all_cores && !llm_related_1) {
+        if (use_all_cores && !is_LLM) {
             config.modelPreferThreadsLatency =
                 proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
         } else {
@@ -719,7 +731,7 @@ int get_model_prefer_threads(const int num_streams,
             if ((proc_type_table[0][MAIN_CORE_PROC] < config.threads || config.threads == 0) &&
                 (ov::get_number_of_blocked_cores() || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) &&
                 proc_type_table[0][EFFICIENT_CORE_PROC] <= 2 * proc_type_table[0][MAIN_CORE_PROC]) {
-                if (llm_related_1 || (llm_related_2 && ov::get_number_of_blocked_cores())) {
+                if (is_LLM) {
                     config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC];
                 } else {
                     config.modelPreferThreadsLatency =
