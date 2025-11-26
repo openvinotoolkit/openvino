@@ -757,7 +757,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             }
         }  // if (link_iter)
     }  // for(param_base)
-    LOG_DEBUG("function_prologue flash_attn");
+
     // 1.5: Do attention prologue if needed
     if (is_dynamic) {
         m_profile["attn(act)"] += ov::npuw::perf::ms_to_run([&]() {
@@ -772,6 +772,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     }
 
     if (is_flash) {
+        LOG_DEBUG("function_prologue flash_attn");
         m_profile["attn(act)"] += ov::npuw::perf::ms_to_run([&]() {
             function_prologue_flash_attn(real_idx, idx);
         });
@@ -1355,7 +1356,12 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
 
 void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    if (!comp_model_desc.spatial) {
+    LOG_DEBUG("unsafe_during: spatial=" << comp_model_desc.spatial.has_value()
+        << ", flash=" << comp_model_desc.flash_attention.has_value()
+        << ", pyramid=" << comp_model_desc.pyramid_attention.has_value()
+        << ", attention=" << comp_model_desc.attention.has_value());
+
+    if (!comp_model_desc.spatial && !comp_model_desc.flash_attention) {
         // Normal: trigger request asynchronously, run `f` in this context
         // FIXME: dynamic could hit here too, but it has special logic
         // around execution which makes it harder to run than a plain start_async()
@@ -1476,8 +1482,10 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
 }
 
 void ov::npuw::JustInferRequest::unsafe_infer_flash_attention(std::size_t real_idx, std::size_t) {
+    LOG_DEBUG("unsafe_infer_flash_attention");
+    LOG_BLOCK();
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    NPUW_ASSERT(comp_model_desc.spatial.has_value());
+    NPUW_ASSERT(comp_model_desc.flash_attention.has_value());
 
     auto& r = m_subrequests[real_idx];
 
@@ -1510,6 +1518,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_flash_attention(std::size_t real_i
 
     // tile inferes are need to reuse parts of concat_outputs and it's own outputs
     auto r_tile = comp_model_desc.flash_infer_requests[FA::eTile];
+    LOG_DEBUG("Done.");
 }
 
 void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t idx) {
@@ -1517,7 +1526,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
     auto& r = m_subrequests[real_idx];
     if (comp_model_desc.spatial) {
         unsafe_infer_spatial(real_idx, idx);
-    } else if (comp_model_desc.attention) {
+    } else if (comp_model_desc.flash_attention) {
         unsafe_infer_flash_attention(real_idx, idx);
     } else {
         r->infer();  // Run normally
