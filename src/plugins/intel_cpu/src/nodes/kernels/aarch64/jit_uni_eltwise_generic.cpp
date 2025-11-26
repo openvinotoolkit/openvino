@@ -325,7 +325,8 @@ void load_vector(const T1& data_lane,
                  const Xbyak_aarch64::XReg& ptr_reg,
                  const int64_t offset,
                  const bool broadcast,
-                 jit_generator* h) {
+                 jit_generator* h,
+                 const size_t lane_count = 0) {
     if (broadcast) {
         if (offset == 0) {
             h->ld1r(data_lane, ptr(ptr_reg));
@@ -334,11 +335,50 @@ void load_vector(const T1& data_lane,
             h->ld1r(data_lane, ptr(h->X_DEFAULT_ADDR));
         }
     } else {
+        if (lane_count == 0) {
+            if (offset == 0) {
+                h->ld1(data_lanes, ptr(ptr_reg));
+            } else {
+                h->add_imm(h->X_DEFAULT_ADDR, ptr_reg, offset, h->X_TMP_0);
+                h->ld1(data_lanes, ptr(h->X_DEFAULT_ADDR));
+            }
+        } else {
+            for (size_t lane = 0; lane < lane_count; ++lane) {
+                const auto lane_offset = offset + static_cast<int64_t>(lane);
+                if (lane_offset == 0) {
+                    h->ld1(data_lane[static_cast<int>(lane)], ptr(ptr_reg));
+                } else {
+                    h->add_imm(h->X_DEFAULT_ADDR, ptr_reg, lane_offset, h->X_TMP_0);
+                    h->ld1(data_lane[static_cast<int>(lane)], ptr(h->X_DEFAULT_ADDR));
+                }
+            }
+        }
+    }
+}
+
+template <typename T1, typename T2>
+void store_vector(const T1& data_lane,
+                  const T2& data_lanes,
+                  const Xbyak_aarch64::XReg& ptr_reg,
+                  const int64_t offset,
+                  jit_generator* h,
+                  const size_t lane_count = 0) {
+    if (lane_count == 0) {
         if (offset == 0) {
-            h->ld1(data_lanes, ptr(ptr_reg));
+            h->st1(data_lanes, ptr(ptr_reg));
         } else {
             h->add_imm(h->X_DEFAULT_ADDR, ptr_reg, offset, h->X_TMP_0);
-            h->ld1(data_lanes, ptr(h->X_DEFAULT_ADDR));
+            h->st1(data_lanes, ptr(h->X_DEFAULT_ADDR));
+        }
+    } else {
+        for (size_t lane = 0; lane < lane_count; ++lane) {
+            const auto lane_offset = offset + static_cast<int64_t>(lane);
+            if (lane_offset == 0) {
+                h->st1(data_lane[static_cast<int>(lane)], ptr(ptr_reg));
+            } else {
+                h->add_imm(h->X_DEFAULT_ADDR, ptr_reg, lane_offset, h->X_TMP_0);
+                h->st1(data_lane[static_cast<int>(lane)], ptr(h->X_DEFAULT_ADDR));
+            }
         }
     }
 }
@@ -367,21 +407,8 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
     }
     case ov::element::i8:
     case ov::element::u8: {
-        if (broadcast) {
-            utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
-        } else {
-            const size_t lane_count = cpu_isa_traits<isa>::vlen / dst_prc.size();
-            auto data_bytes = data;
-            for (size_t lane = 0; lane < lane_count; ++lane) {
-                const auto offset = ptr_offset + static_cast<int32_t>(lane);
-                if (offset == 0) {
-                    ld1(data_bytes.b[static_cast<int>(lane)], ptr(ptr_reg));
-                } else {
-                    add_imm(X_DEFAULT_ADDR, ptr_reg, offset, X_TMP_0);
-                    ld1(data_bytes.b[static_cast<int>(lane)], ptr(X_DEFAULT_ADDR));
-                }
-            }
-        }
+        const size_t lane_count = cpu_isa_traits<isa>::vlen / dst_prc.size();
+        utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this, lane_count);
 
         if (src_prc == ov::element::i8) {
             sshll(data.h8, data.b8, 0);
@@ -547,7 +574,8 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
     }
     case ov::element::i8:
     case ov::element::u8: {
-        str(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+        const size_t lane_count = cpu_isa_traits<isa>::vlen / src_prc.size();
+        utils::store_vector(data.b, data.b, ptr, ptr_offset, this, lane_count);
         break;
     }
     default: {
