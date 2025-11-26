@@ -77,7 +77,12 @@ class Model(object, metaclass=ModelMeta):
     def __enter__(self) -> "Model":
         return self
 
-    def __exit__(self, exc_type: type[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:  # noqa: F811
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,  # noqa: F811
+    ) -> None:
         del self.__model
         self.__model = None
 
@@ -85,7 +90,15 @@ class Model(object, metaclass=ModelMeta):
         return self.__model.__repr__()
 
     def __dir__(self) -> list:
-        wrapper_methods = ["__copy__", "__deepcopy__", "__dict__", "__enter__", "__exit__", "__getattr__", "__weakref__"]
+        wrapper_methods = [
+            "__copy__",
+            "__deepcopy__",
+            "__dict__",
+            "__enter__",
+            "__exit__",
+            "__getattr__",
+            "__weakref__",
+        ]
         return dir(self.__model) + wrapper_methods
 
     def evaluate(
@@ -141,13 +154,19 @@ class InferRequest(_InferRequestWrapper):
 
                               If set to `True` the data dispatcher tries to provide "zero-copy"
                               Tensors for every input in form of:
-                              * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+
+                              * `numpy.ndarray` and all the types that are castable to it,
+                                e.g. `torch.Tensor`
+
                               Data that is going to be copied:
-                              * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
+
+                              * `numpy.ndarray` which are not C contiguous and/or not writable
+                                (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
                               * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
                               * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
+
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -225,13 +244,19 @@ class InferRequest(_InferRequestWrapper):
 
                               If set to `True` the data dispatcher tries to provide "zero-copy"
                               Tensors for every input in form of:
-                              * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+
+                              * `numpy.ndarray` and all the types that are castable to it,
+                                e.g. `torch.Tensor`
+
                               Data that is going to be copied:
-                              * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
+
+                              * `numpy.ndarray` which are not C contiguous and/or not writable
+                                (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
                               * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
                               * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
+
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -394,13 +419,19 @@ class CompiledModel(CompiledModelBase):
 
                               If set to `True` the data dispatcher tries to provide "zero-copy"
                               Tensors for every input in form of:
-                              * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+
+                              * `numpy.ndarray` and all the types that are castable to it,
+                                e.g. `torch.Tensor`
+
                               Data that is going to be copied:
-                              * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
+
+                              * `numpy.ndarray` which are not C contiguous and/or not writable
+                                (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
                               * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
                               * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
+
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -513,13 +544,19 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
                               If set to `True` the data dispatcher tries to provide "zero-copy"
                               Tensors for every input in form of:
-                              * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+
+                              * `numpy.ndarray` and all the types that are castable to it,
+                                e.g. `torch.Tensor`
+
                               Data that is going to be copied:
-                              * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
+
+                              * `numpy.ndarray` which are not C contiguous and/or not writable
+                                (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
                               * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
                               * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
+
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -631,14 +668,14 @@ class Core(CoreBase):
 
     def import_model(
         self,
-        model_stream: bytes,
+        model_stream: Union[bytes, io.BytesIO, Tensor],
         device_name: str,
         config: Optional[dict[str, Any]] = None,
     ) -> CompiledModel:
         """Imports a compiled model from a previously exported one.
 
-        :param model_stream: Input stream, containing a model previously exported, using export_model method.
-        :type model_stream: bytes
+        :param model_stream: Input stream or tensor, containing a model previously exported, using export_model method.
+        :type model_stream: Union[bytes, io.BytesIO, openvino.Tensor]
         :param device_name: Name of device to which compiled model is imported.
                             Note: if device_name is not used to compile the original model,
                             an exception is thrown.

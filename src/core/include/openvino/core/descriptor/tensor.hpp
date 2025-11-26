@@ -42,9 +42,6 @@ public:
            const PartialShape& pshape,
            const std::unordered_set<std::string>& names = {});
 
-    OPENVINO_DEPRECATED("This constructor is deprecated. Will be removed in 2026.0")
-    Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
-
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
 
