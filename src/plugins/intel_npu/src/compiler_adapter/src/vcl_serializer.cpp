@@ -175,12 +175,14 @@ class VCLSerializerBase {
 public:
     VCLSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
                       const ze_graph_compiler_version_info_t compilerVersion,
-                      const uint32_t supportedOpset = 11)
+                      const uint32_t supportedOpset = 11,
+                      const bool computeModelHash = false,
+                      const bool storeWeightlessCacheAttribute = false)
         : _logger("VCLSerializerBase", Logger::global().level()),
           _compilerVersion(compilerVersion),
-          _supportedOpset(supportedOpset) {
-        // There is no const variant of run_passes so use const_cast here
-        // as model serialization does not mutate the model
+          _supportedOpset(supportedOpset),
+          _computeModelHash(computeModelHash),
+          _storeWeightlessCacheAttribute(storeWeightlessCacheAttribute) {
         _model = std::const_pointer_cast<ov::Model>(origModel);
     }
 
@@ -232,6 +234,8 @@ protected:
     std::shared_ptr<ov::Model> _model = nullptr;
     ze_graph_compiler_version_info_t _compilerVersion;
     uint32_t _supportedOpset = 11;
+    bool _computeModelHash;
+    bool _storeWeightlessCacheAttribute;
 };
 
 /**
@@ -241,8 +245,14 @@ class VCLSerializerWithWeightsCopy : public VCLSerializerBase {
 public:
     VCLSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
                                  const ze_graph_compiler_version_info_t compilerVersion,
-                                 const uint32_t supportedOpset = 11)
-        : VCLSerializerBase(origModel, compilerVersion, supportedOpset) {
+                                 const uint32_t supportedOpset = 11,
+                                 const bool computeModelHash = false,
+                                 const bool storeWeightlessCacheAttribute = false)
+        : VCLSerializerBase(origModel,
+                            compilerVersion,
+                            supportedOpset,
+                            computeModelHash,
+                            storeWeightlessCacheAttribute) {
         _logger.setName("VCLSerializerWithWeightsCopy");
     };
 
@@ -361,8 +371,14 @@ class VCLSerializerWithoutWeightsCopy : public VCLSerializerBase {
 public:
     VCLSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
                                     const ze_graph_compiler_version_info_t compilerVersion,
-                                    const uint32_t supportedOpset = 11)
-        : VCLSerializerBase(origModel, compilerVersion, supportedOpset) {
+                                    const uint32_t supportedOpset = 11,
+                                    const bool computeModelHash = false,
+                                    const bool storeWeightlessCacheAttribute = false)
+        : VCLSerializerBase(origModel,
+                            compilerVersion,
+                            supportedOpset,
+                            computeModelHash,
+                            storeWeightlessCacheAttribute) {
         _logger.setName("VCLSerializerWithoutWeightsCopy");
     };
 
@@ -424,18 +440,29 @@ private:
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          const ze_graph_compiler_version_info_t compilerVersion,
                          const uint32_t supportedOpsetVersion,
-                         const bool useBaseModelSerializer) {
+                         const bool useBaseModelSerializer,
+                         const bool computeModelHash,
+                         const bool storeWeightlessCacheAttribute) {
     if (!useBaseModelSerializer) {
         // Non-constness required for adding & removing weights pointer attributes. The current instance is already a
         // clone (or should be one), we are not modifying the original model.
         const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
         storeWeightsPointerAttribute(nonConstantModel);
 
-        SerializedIR serializedIR =
-            VCLSerializerWithoutWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
+        SerializedIR serializedIR = VCLSerializerWithoutWeightsCopy(model,
+                                                                    compilerVersion,
+                                                                    supportedOpsetVersion,
+                                                                    computeModelHash,
+                                                                    storeWeightlessCacheAttribute)
+                                        .serialize();
         return serializedIR;
     }
-    return VCLSerializerWithWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
+    return VCLSerializerWithWeightsCopy(model,
+                                        compilerVersion,
+                                        supportedOpsetVersion,
+                                        computeModelHash,
+                                        storeWeightlessCacheAttribute)
+        .serialize();
 }
 
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {
