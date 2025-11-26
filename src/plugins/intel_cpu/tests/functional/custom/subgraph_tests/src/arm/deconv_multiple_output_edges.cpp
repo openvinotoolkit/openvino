@@ -56,7 +56,7 @@ public:
         const auto mul1 = utils::make_eltwise(deconv->output(0), const1, utils::EltwiseTypes::MULTIPLY);
         const auto mul2 = utils::make_eltwise(deconv->output(0), const2, utils::EltwiseTypes::MULTIPLY);
 
-        NodeVector results{mul1, mul2};
+        OutputVector results{mul1, mul2};
         function = std::make_shared<ov::Model>(results, inputParams, "DeconvMultipleOutputEdges");
         targetDevice = ov::test::utils::DEVICE_CPU;
     }
