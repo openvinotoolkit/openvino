@@ -726,6 +726,19 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
             write(stream, ss.str());
         }
     }
+    // TODO: add flash-attention serialize
+    // write(stream, flash_attention);
+    // if (flash_attention.has_value()) {
+    //     size_t num_models = flash_attention.value()._compiled_models.size();
+    //     write(stream, num_models);
+
+    //     for (size_t i = 0; i < num_models; ++i) {
+    //         std::stringstream ss;
+    //         auto compiled_model = flash_attention.value()._compiled_models[i];
+    //         compiled_model->export_model(ss);
+    //         write(stream, ss.str());
+    //     }
+    // }
 
     auto& closure_desc = closure.get();
 
@@ -828,6 +841,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
             }
         }
     }
+    // TODO: repeat deserialize for flash attention
 
     auto& closure_desc = closure.get();
 

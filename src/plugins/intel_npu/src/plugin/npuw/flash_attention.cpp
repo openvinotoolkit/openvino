@@ -138,10 +138,15 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
 
     FlashAttention hfa;
     // TODO: where to get that
-    hfa.nIterations = 8;
+    //hfa.nIterations = 8;
 
-    // now we are creating loop/concat/denominator models
-    // model->clone();
+    // // A bad test but it is what it is
+    // // Find the attention inputs with dynamic range
+    // const auto& f_params = model->get_parameters();
+    // NPUW_ASSERT(f_params.size() > 0);
+    // for (auto&& param : f_params) {
+    //     hfa._inputs.push_back(ov::npuw::function::FlashAttention::Param{param, dim_idx});
+    // }
 
 
     // # FIXME: For a single-tile debug, K & V are pre-concatenated
@@ -239,3 +244,26 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
 }
 
 }  // namespace ov::npuw::function
+
+namespace ov::npuw::compiled {
+FlashAttention:: FlashAttention(const function::FlashAttention& func_flash_attention)
+: _models_to_compile(func_flash_attention.models) {
+    LOG_INFO("Constructing compiled::FlashAttention ");
+
+    // fixed params for attention
+    // params.reserve();
+    // // Extract metadata from each model
+    // for (size_t i = 0; i < num_models; ++i) {
+    //     const auto& func_attn = func_pyramid._attentions[i];
+    //     const auto& model = func_pyramid._models[i];
+
+    //     // Build attention info
+    //     PyramidAttentionInfo attention_info;
+    //     attention_info.params.reserve(func_attn._inputs.size());
+
+    //     for (const auto& input : func_attn._inputs) {
+    //         std::size_t p_idx = model->get_parameter_index(input.param);
+    //         attention_info.params.push_back({p_idx, input.dim});
+    //     }
+}
+}   // namespace ov::npuw::compiled

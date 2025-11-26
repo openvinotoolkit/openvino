@@ -18,9 +18,7 @@ public:
         eTile, eConcat, eDivide, eLast
     };
 
-    size_t nIterations = 1;
     std::vector<std::shared_ptr<ov::Model>> models;
-
 
 public:
     size_t num_models() const {
@@ -41,11 +39,12 @@ public:
     };
     std::vector<ov::SoPtr<ov::ICompiledModel>> _compiled_models;
     std::vector<std::shared_ptr<ov::Model>> _models_to_compile;
-    std::vector<std::vector<Param>> params;
+    std::vector<Param> params;
+    std::size_t mask_idx = 0u;
 
 public:
-    explicit FlashAttention(const function::FlashAttention& func_flash_attention):
-        _models_to_compile(func_flash_attention.models) {}
+    explicit FlashAttention(const function::FlashAttention& func_flash_attention);
+
 
     // TODO: why do we need external compilation call
     void set_compiled_models(std::vector<ov::SoPtr<ov::ICompiledModel>> && models) {

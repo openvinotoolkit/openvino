@@ -540,12 +540,11 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             return false;  // Early return
         }
 
-        //TODO: where to set/get current selector for flash-attention model - we have a pipeline instead of pyramid attention i guess:
-        auto flash_models_id = m_flash_selector->pyramid_id();
-        auto& flash_attn_params = proto_comp_model_desc.flash_attention.value().params[flash_models_id];
-        return std::any_of(flash_attn_params.begin(), flash_attn_params.end(), [&](const auto& p) -> bool {
-            return p.idx == sub_in_idx;
-        });
+        // auto& attn = proto_comp_model_desc.flash_attention.value();
+        // return std::any_of(attn.params.begin(), attn.params.end(), [&](const auto& p) -> bool {
+        //     return p.idx == sub_in_idx;
+        // });
+        return true;
     };
 
     for (auto&& it : iodesc.global_params) {
@@ -570,6 +569,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
         } else if (is_attn_param(sub_in_idx) || is_pyramid_attn_param(sub_in_idx) || is_flash_attn_param(sub_in_idx)) {
             // Register for future use
+            LOG_DEBUG("Register for future use as attention_io["<< idx <<"]");
             m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
             // Input parameter is non-spatial, do normal handling
@@ -791,13 +791,14 @@ void ov::npuw::IBaseInferRequest::bind_flash_attention_inputs(std::size_t idx, R
     // TODO: here we are different from pyramid - all models in pipeline should be binded i guess
     ///    const auto& attention_model = pyramid_attention._compiled_models[pyramid_id];
 
+    using PA = npuw::function::FlashAttention;
     // using concat model: bind it's inputs to a  global
-    const auto & concat_model = flash_models[npuw::function::FlashAttention::eConcat];
-    for (auto&& param : attention_params[npuw::function::FlashAttention::eConcat]) {
-        const auto& iport = concat_model->inputs()[param.idx];
-        const auto& input = m_attention_io[idx].inputs.at(param.idx);
-        request->set_tensor(iport, input);
-    }
+    // const auto & concat_model = flash_models[PA::eConcat];
+    // for (auto&& param : attention_params[PA::eConcat]) {
+    //     const auto& iport = concat_model->inputs()[param.idx];
+    //     const auto& input = m_attention_io[idx].inputs.at(param.idx);
+    //     request->set_tensor(iport, input);
+    // }
 
     //TODO: when to recreate infer-requests per each flash attention - actually we need 3 right now
 
