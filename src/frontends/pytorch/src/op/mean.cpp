@@ -56,12 +56,11 @@ OutputVector translate_mean_fx(const NodeContext& context) {
         auto dtype = context.get_attribute<element::Type>("dtype");
         x = context.mark_node(std::make_shared<v0::Convert>(x, dtype));
     }
-    Output<Node> axes;
-    if (num_inputs == 1) {
-        axes = get_node_axes_range(context, x);
-    } else if (num_inputs == 2) {
+    Output<Node> axes = get_node_axes_range(context, x);
+    if (!context.input_is_none(1)) {
         axes = context.get_input(1);
-    } else {
+    } 
+    if (num_inputs > 2) {
         axes = context.get_input(1);
         if (!context.input_is_none(2)) {
             keep_dims = context.const_input<bool>(2);
