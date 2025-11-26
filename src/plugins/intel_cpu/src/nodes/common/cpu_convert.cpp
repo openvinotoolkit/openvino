@@ -552,7 +552,7 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
         // (nan, inf, overflow) has already been assured by the conversion process.
         if (ov::intel_cpu::any_of_v<src_t, ov::float8_e4m3, ov::float8_e5m2> ||
             ov::intel_cpu::any_of_v<dst_t, ov::float8_e4m3, ov::float8_e5m2> ||
-            (std::is_integral_v<src_t> && std::is_integral_v<dst_t>)) {
+            (std::is_integral_v<src_t> && std::is_integral_v<dst_t> && ctx.dstPrc != ov::element::boolean)) {
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<dst_t>(src[i]);
             });
