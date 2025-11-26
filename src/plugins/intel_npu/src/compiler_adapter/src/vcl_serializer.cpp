@@ -162,25 +162,6 @@ void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
     }
 }
 
-/**
- * @brief Removes the attributes stored by "storeWeightsPointerAttribute" in order to restore the model to its original
- * state.
- * @see storeWeightsPointerAttribute for details.
- */
-void removeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
-    for (auto&& node : model->get_ops()) {
-        if (!ov::is_type<ov::op::v0::Constant>(node)) {
-            continue;
-        }
-
-        ov::RTMap& runtimeInfoMap = node->get_rt_info();
-        const auto& resultIt = runtimeInfoMap.find(intel_npu::WeightsPointerAttribute::get_type_info_static());
-        if (resultIt != runtimeInfoMap.end()) {
-            runtimeInfoMap.erase(resultIt);
-        }
-    }
-}
-
 }  // namespace
 
 namespace intel_npu::driver_compiler_utils {
@@ -201,12 +182,6 @@ public:
         // There is no const variant of run_passes so use const_cast here
         // as model serialization does not mutate the model
         _model = std::const_pointer_cast<ov::Model>(origModel);
-
-        if (supportedOpset < 11) {
-            // Need to clone to modify the model and remain thread safe
-            _model = _model->clone();
-            _logger.info("Clone model for offset smaller than 11");
-        }
     }
 
     virtual SerializedIR serialize() = 0;
@@ -233,29 +208,19 @@ protected:
 
         register_serialization_pass(manager);
 
-        // We modify the original model object here therefore a mutex is required
-        static std::mutex rtInfoMutex;
+        // Depending on the driver version, the compiler attached to it may request this information as an indicator
+        // of the precision/layout preprocessing requirement. We are setting this value to "true" since the API
+        // version is no longer a cause for altering the metadata. This is due to the preprocessing performed in the
+        // OpenVINO framework's implementaion, the "ov::Model" object is preprocessed before reaching the NPU
+        // plugin.
+        _model->set_rt_info(true, "is_new_api");
+        // Flag used for indicating an NPU plugin version which switched the I/O identification convention from
+        // names to indices. The flag is required in order to inform the driver-compiler adapter to expect indices
+        // when attempting to deserialize the I/O metadata.
+        _model->set_rt_info(true, "use_indices_for_io_metadata");
 
-        {
-            std::lock_guard<std::mutex> lock(rtInfoMutex);
+        manager.run_passes(_model);
 
-            // Depending on the driver version, the compiler attached to it may request this information as an indicator
-            // of the precision/layout preprocessing requirement. We are setting this value to "true" since the API
-            // version is no longer a cause for altering the metadata. This is due to the preprocessing performed in the
-            // OpenVINO framework's implementaion, the "ov::Model" object is preprocessed before reaching the NPU
-            // plugin.
-            _model->set_rt_info(true, "is_new_api");
-            // Flag used for indicating an NPU plugin version which switched the I/O identification convention from
-            // names to indices. The flag is required in order to inform the driver-compiler adapter to expect indices
-            // when attempting to deserialize the I/O metadata.
-            _model->set_rt_info(true, "use_indices_for_io_metadata");
-
-            manager.run_passes(_model);
-
-            auto& rtInfo = _model->get_rt_info();
-            rtInfo.erase("is_new_api");
-            rtInfo.erase("use_indices_for_io_metadata");
-        }
         _logger.debug("serialize_model_to_stream end");
     }
 
@@ -464,7 +429,6 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
 
         SerializedIR serializedIR =
             VCLSerializerWithoutWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
-        removeWeightsPointerAttribute(nonConstantModel);
         return serializedIR;
     }
     return VCLSerializerWithWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
