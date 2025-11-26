@@ -10,6 +10,7 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -28,20 +29,26 @@ using namespace ov;
 using namespace testing;
 
 namespace {
-std::shared_ptr<Model> create_conv_function(const Shape& input_shape,
+std::shared_ptr<Model> create_conv_function(const PartialShape& input_shape,
                                             const Shape& weights_shape,
-                                            bool with_dequantization) {
+                                            bool with_decompression,
+                                            bool with_zero_point = true) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
 
     std::shared_ptr<Node> weights;
-    if (with_dequantization) {
-        auto weights_const = op::v0::Constant::create(element::i4, weights_shape, {1});
-        auto weights_convert = std::make_shared<op::v0::Convert>(weights_const, element::f32);
-        auto sub_const = op::v0::Constant::create(element::i4, {1}, {1});
-        auto sub_convert = std::make_shared<op::v0::Convert>(sub_const, element::f32);
-        auto subtract = std::make_shared<op::v1::Subtract>(weights_convert, sub_convert);
-        auto mul_const = op::v0::Constant::create(element::f32, {1}, {2.0});
-        weights = std::make_shared<op::v1::Multiply>(subtract, mul_const);
+    if (with_decompression) {
+        weights = ov::test::utils::initMatMulDecompressionSubgraph(
+            weights_shape,
+            -1,
+            element::f32,
+            element::i4,
+            element::f32,
+            element::f32,
+            false,
+            ov::test::utils::DecompressionType::scalar,
+            with_zero_point ? ov::test::utils::DecompressionType::scalar : ov::test::utils::DecompressionType::empty,
+            false,
+            false);
     } else {
         weights = op::v0::Constant::create(element::f32, weights_shape, {1.0});
     }
@@ -56,19 +63,25 @@ std::shared_ptr<Model> create_conv_function(const Shape& input_shape,
     return std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
 }
 
-std::shared_ptr<Model> create_matmul_function(const Shape& input_shape,
+std::shared_ptr<Model> create_matmul_function(const PartialShape& input_shape,
                                               const Shape& weights_shape,
                                               const std::vector<int64_t>& input_transpose_order,
-                                              const std::vector<int64_t>& output_transpose_order) {
+                                              const std::vector<int64_t>& output_transpose_order,
+                                              bool with_zero_point = true) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
 
-    auto weights_const = op::v0::Constant::create(element::i4, weights_shape, {1});
-    auto weights_convert = std::make_shared<op::v0::Convert>(weights_const, element::f32);
-    auto sub_const = op::v0::Constant::create(element::i4, {1}, {1});
-    auto sub_convert = std::make_shared<op::v0::Convert>(sub_const, element::f32);
-    auto subtract = std::make_shared<op::v1::Subtract>(weights_convert, sub_convert);
-    auto mul_const = op::v0::Constant::create(element::f32, {1}, {2.0});
-    auto weights = std::make_shared<op::v1::Multiply>(subtract, mul_const);
+    auto weights = ov::test::utils::initMatMulDecompressionSubgraph(
+        weights_shape,
+        -1,
+        element::f32,
+        element::i4,
+        element::f32,
+        element::f32,
+        false,
+        ov::test::utils::DecompressionType::scalar,
+        with_zero_point ? ov::test::utils::DecompressionType::scalar : ov::test::utils::DecompressionType::empty,
+        false,
+        false);
 
     auto reshape_weights_pattern =
         op::v0::Constant::create(element::i64, Shape{2}, {weights_shape[0], weights_shape[1]});
@@ -86,42 +99,92 @@ std::shared_ptr<Model> create_matmul_function(const Shape& input_shape,
 }
 }  // namespace
 
-TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_InShape_1_C_1_W) {
-    const Shape input_shape{1, 16, 1, 8};
+TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_static_InShape_1_C_1_W) {
+    const PartialShape input_shape{1, 16, 1, 8};
     const Shape weights_shape{32, 16, 1, 1};
     model = create_conv_function(input_shape, weights_shape, true);
-    manager.register_pass<pass::ConvertConvolutionToMatMul>();
+    manager.register_pass<pass::ConvertConvolutionToMatMul>(ov::element::TypeVector{element::i4},
+                                                            ov::element::TypeVector{});
     model_ref = create_matmul_function(input_shape, weights_shape, {0, 2, 3, 1}, {0, 3, 1, 2});
 }
 
-TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_InShape_N_C_1_1) {
-    const Shape input_shape{8, 16, 1, 1};
+TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_static_InShape_N_C_1_1) {
+    const PartialShape input_shape{8, 16, 1, 1};
     const Shape weights_shape{32, 16, 1, 1};
     model = create_conv_function(input_shape, weights_shape, true);
-    manager.register_pass<pass::ConvertConvolutionToMatMul>();
+    manager.register_pass<pass::ConvertConvolutionToMatMul>(ov::element::TypeVector{element::i4},
+                                                            ov::element::TypeVector{});
     model_ref = create_matmul_function(input_shape, weights_shape, {2, 3, 0, 1}, {2, 3, 0, 1});
 }
 
-TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_InShape_1_C_H_1) {
-    const Shape input_shape{1, 16, 8, 1};
+TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_static_InShape_1_C_H_1) {
+    const PartialShape input_shape{1, 16, 8, 1};
     const Shape weights_shape{32, 16, 1, 1};
     model = create_conv_function(input_shape, weights_shape, true);
-    manager.register_pass<pass::ConvertConvolutionToMatMul>();
+    manager.register_pass<pass::ConvertConvolutionToMatMul>(ov::element::TypeVector{element::i4},
+                                                            ov::element::TypeVector{});
     model_ref = create_matmul_function(input_shape, weights_shape, {0, 3, 2, 1}, {0, 3, 2, 1});
 }
 
+TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_static_InShape_1_C_H_1_without_zp) {
+    const PartialShape input_shape{1, 16, 8, 1};
+    const Shape weights_shape{32, 16, 1, 1};
+    model = create_conv_function(input_shape, weights_shape, true, false);
+    manager.register_pass<pass::ConvertConvolutionToMatMul>(ov::element::TypeVector{element::i4},
+                                                            ov::element::TypeVector{});
+    model_ref = create_matmul_function(input_shape, weights_shape, {0, 3, 2, 1}, {0, 3, 2, 1}, false);
+}
+
+TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_dynamic_InShape_1_C_1_W) {
+    const PartialShape input_shape{1, 16, 1, Dimension::dynamic()};
+    const Shape weights_shape{32, 16, 1, 1};
+    model = create_conv_function(input_shape, weights_shape, true);
+    manager.register_pass<pass::ConvertConvolutionToMatMul>(ov::element::TypeVector{element::i4},
+                                                            ov::element::TypeVector{});
+    model_ref = create_matmul_function(input_shape, weights_shape, {0, 2, 3, 1}, {0, 3, 1, 2});
+}
+
+TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_dynamic_InShape_N_C_1_1) {
+    const PartialShape input_shape{Dimension::dynamic(), 16, 1, 1};
+    const Shape weights_shape{32, 16, 1, 1};
+    model = create_conv_function(input_shape, weights_shape, true);
+    manager.register_pass<pass::ConvertConvolutionToMatMul>(ov::element::TypeVector{element::i4},
+                                                            ov::element::TypeVector{});
+    model_ref = create_matmul_function(input_shape, weights_shape, {2, 3, 0, 1}, {2, 3, 0, 1});
+}
+
+TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_dynamic_InShape_1_C_H_1) {
+    const PartialShape input_shape{1, 16, Dimension::dynamic(), 1};
+    const Shape weights_shape{32, 16, 1, 1};
+    model = create_conv_function(input_shape, weights_shape, true);
+    manager.register_pass<pass::ConvertConvolutionToMatMul>(ov::element::TypeVector{element::i4},
+                                                            ov::element::TypeVector{});
+    model_ref = create_matmul_function(input_shape, weights_shape, {0, 3, 2, 1}, {0, 3, 2, 1});
+}
+
+TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_dynamic_InShape_1_C_H_1_without_zp) {
+    const PartialShape input_shape{1, 16, Dimension::dynamic(), 1};
+    const Shape weights_shape{32, 16, 1, 1};
+    model = create_conv_function(input_shape, weights_shape, true, false);
+    manager.register_pass<pass::ConvertConvolutionToMatMul>(ov::element::TypeVector{element::i4},
+                                                            ov::element::TypeVector{});
+    model_ref = create_matmul_function(input_shape, weights_shape, {0, 3, 2, 1}, {0, 3, 2, 1}, false);
+}
+
 TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_Negative_NoDequantize) {
-    const Shape input_shape{1, 16, 1, 8};
+    const PartialShape input_shape{1, 16, 1, 8};
     const Shape weights_shape{32, 16, 1, 1};
     model = create_conv_function(input_shape, weights_shape, false);
-    manager.register_pass<pass::ConvertConvolutionToMatMul>();
+    manager.register_pass<pass::ConvertConvolutionToMatMul>(ov::element::TypeVector{element::i4},
+                                                            ov::element::TypeVector{});
     model_ref = create_conv_function(input_shape, weights_shape, false);
 }
 
 TEST_F(TransformationTestsF, ConvertConvolutionToMatMul_Negative_Not1x1Conv) {
-    const Shape input_shape{1, 16, 8, 8};
+    const PartialShape input_shape{1, 16, 8, 8};
     const Shape weights_shape{32, 16, 3, 3};
     model = create_conv_function(input_shape, weights_shape, true);
-    manager.register_pass<pass::ConvertConvolutionToMatMul>();
+    manager.register_pass<pass::ConvertConvolutionToMatMul>(ov::element::TypeVector{element::i4},
+                                                            ov::element::TypeVector{});
     model_ref = create_conv_function(input_shape, weights_shape, true);
 }
