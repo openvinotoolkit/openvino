@@ -139,7 +139,6 @@ public:
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         auto adaptive_rkv_diversity_block_set_begins =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
->>>>>>> 22768b7e48 (WIP: Adaptive R-KV inputs)
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(OutputVector{q,
