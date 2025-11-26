@@ -20,8 +20,11 @@ namespace function {
 
 // HostFlashAttention structure definition
 struct HostFlashAttention {
-    // Tiled model for flash attention execution
+    // Tiled model for flash attention execution (regular tiles)
     std::shared_ptr<ov::Model> _tile_model;
+
+    // Final tiled model for flash attention execution (with division and transpose)
+    std::shared_ptr<ov::Model> _final_tile_model;
 
     // Tile configuration
     int64_t _tile_size = 1024;  // Default K/V tile size
@@ -35,7 +38,7 @@ struct HostFlashAttention {
 
     // Validation helpers
     bool is_valid() const {
-        return _tile_model != nullptr && _tile_size > 0 && _kv_cache_size > 0;
+        return _tile_model != nullptr && _final_tile_model != nullptr && _tile_size > 0 && _kv_cache_size > 0;
     }
 
     // Factory method
@@ -48,11 +51,15 @@ namespace compiled {
 
 // Compile-time host flash attention information
 struct HostFlashAttention {
-    // Model to compile (will be cleared after compilation)
+    // Models to compile (will be cleared after compilation)
     std::shared_ptr<ov::Model> _tile_model_to_compile;
+    std::shared_ptr<ov::Model> _final_tile_model_to_compile;
 
-    // Compiled tile model for NPU execution
+    // Compiled tile model for NPU execution (regular tiles)
     ov::SoPtr<ov::ICompiledModel> _compiled_tile_model;
+
+    // Compiled FINAL tile model for NPU execution (with division and transpose)
+    ov::SoPtr<ov::ICompiledModel> _compiled_final_tile_model;
 
     // Tile configuration
     int64_t _tile_size = 1024;
@@ -69,8 +76,15 @@ struct HostFlashAttention {
         _tile_model_to_compile.reset();  // Free memory after compilation
     }
 
+    // Set the compiled FINAL tile model and clear the model to compile
+    void set_compiled_final_tile_model(ov::SoPtr<ov::ICompiledModel> compiled_model) {
+        _compiled_final_tile_model = std::move(compiled_model);
+        _final_tile_model_to_compile.reset();  // Free memory after compilation
+    }
+
     bool is_valid() const {
-        return _compiled_tile_model != nullptr && _tile_size > 0 && _kv_cache_size > 0;
+        return _compiled_tile_model != nullptr && _compiled_final_tile_model != nullptr && _tile_size > 0 &&
+               _kv_cache_size > 0;
     }
 };
 
