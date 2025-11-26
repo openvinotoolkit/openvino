@@ -39,11 +39,13 @@ std::string utils::getCompilationPlatform(const std::string_view platform,
                                           std::vector<std::string> availableDevicesNames) {
     // Platform parameter has a higher priority than deviceID
     if (platform != ov::intel_npu::Platform::AUTO_DETECT) {
+        std::cout << "   return 1 platform from getCompilationPlatform " << std::endl;
         return std::string(platform);
     }
 
     // Get compilation platform from deviceID
     if (!deviceId.empty()) {
+        std::cout << "   return 2 deviceId from getCompilationPlatform " << std::endl;
         return utils::getPlatformByDeviceName(deviceId);
     }
 
@@ -51,7 +53,7 @@ std::string utils::getCompilationPlatform(const std::string_view platform,
     if (availableDevicesNames.empty()) {
         OPENVINO_THROW("No NPU devices were found.");
     }
-
+    std::cout << "   return 3 availableDevicesNames from getCompilationPlatform, availableDevicesNames.at(0) is " << availableDevicesNames.at(0) << std::endl;
     return utils::getPlatformByDeviceName(availableDevicesNames.at(0));
 }
 
