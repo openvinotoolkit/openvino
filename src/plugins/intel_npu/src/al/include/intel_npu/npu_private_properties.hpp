@@ -375,7 +375,8 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 
 /**
  * @brief [Experimental, only for NPU Plugin]
- * Type: enum. Default is "ITERATIVE".
+ * Type: enum. Default is "ITERATIVE". If the compiler-in-plugin is used (intel_npu::compiler_type =
+ * intel_npu::CompilerType::PLUGIN), then the default becomes "ONE_SHOT".
  *
  * The value stored in this entry indicates which implementation of the "weights separation" feature will be used.
  * Note: NPU_COMPILER_TYPE = DRIVER & NPU_SEPARATE_WEIGHTS_VERSION = ONE_SHOT are not compatible.
