@@ -2145,11 +2145,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         OPENVINO_ASSERT(block_size == 32, "CPU: block size must be 32, current: ", block_size);
 
 #    if defined(OPENVINO_ARCH_X86_64)
-        // xattention_threshold.resize<float>({1});
-        // xattention_threshold.ptr<float>()[0] = 0.9f;
-        // xattention_stride = 16;
-        // xattention_block_size = 128;
-
         // If to support second token sparse attention, need generate sparse mask after concat_pastkv
         if (xattention_threshold && q.size(0) > 1) {
             // Only support block_size <= sparse_attention_BlockSize and sparse_attention_BlockSize must be an integer

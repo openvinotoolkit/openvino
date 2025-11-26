@@ -221,7 +221,7 @@ struct Xattn {
         _num_per_block = xattn_block_size / xattn_stride;
         size_t n_num_blocks = _k_num_strided / _n_block_size;
 
-        if (_q_num_blocks <= 1 || _k_num_blocks <= 1 || _num_per_block == 0) {
+        if (_q_num_blocks <= 1 || _k_num_blocks <= 1) {
             return;
         }
 
@@ -268,6 +268,9 @@ struct Xattn {
         const auto S = query.size(3);
         const auto K_H = key.size(1);
         OPENVINO_ASSERT(query.size(0) == key.size(0));
+        if (_q_num_blocks <= 1 || _k_num_blocks <= 1) {
+            return;
+        }
 
         const auto m_num_blocks = div_up(_q_num_strided, _m_block_size);
         auto in_type = query.m_dt;
@@ -296,7 +299,7 @@ struct Xattn {
                                                                      (S * stride * K_H)                 // src stride
                         );
 #    else
-                    OPENVINO_THROW("xattention: bf16 needs avx512+ hardware.");
+                    OPENVINO_THROW("xattention: bf16 needs avx512+ hardware");
 #    endif
                     } else if (in_type == ov::element::f32) {
                         transpose_16NxK<float, ov::element::f32>(reinterpret_cast<float*>(dst),  // dst
