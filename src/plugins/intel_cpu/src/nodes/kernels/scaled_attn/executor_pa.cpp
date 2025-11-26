@@ -879,7 +879,7 @@ struct MHAHelper {
             // map runtime (block_size) indices to mask (xt_block_size) indices
             for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
                 // sparse attention mask filtering
-                if (!sparse_attention_mask.empty()) {
+                if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr) {
                     auto [q_m, k_m] = map_to_mask_idx(q_blk, k_blk);
                     if (!sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_m, k_m)[0]) {
                         // Skip GEMM for this block if mask is false
@@ -934,7 +934,8 @@ struct MHAHelper {
                     }
 
                     // Handle sparse attention mask for sliding window
-                    if (!sparse_attention_mask.empty() && _use_softmax_sparse_mask) {
+                    if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr &&
+                        _use_softmax_sparse_mask) {
                         // Get the original xattn_mask and calculate offset
                         auto* original_mask = reinterpret_cast<uint8_t*>(
                             sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_blk / sparse_scale));
@@ -967,7 +968,8 @@ struct MHAHelper {
                         alibi_slope = alibi_slopes.ptr<float>()[h];
                         alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
                     }
-                    if (!sparse_attention_mask.empty() && _use_softmax_sparse_mask) {
+                    if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr &&
+                        _use_softmax_sparse_mask) {
                         xattn_mask = reinterpret_cast<uint8_t*>(
                             sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_blk / sparse_scale));
                     }
@@ -1009,7 +1011,7 @@ struct MHAHelper {
             // for each weight block, loop through all value block
             for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
                 // sparse attention mask filtering for value blocks
-                if (!sparse_attention_mask.empty()) {
+                if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr) {
                     auto [q_m, v_m] = map_to_mask_idx(q_blk, v_blk);
                     if (!sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_m, v_m)[0]) {
                         continue;
@@ -2146,7 +2148,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
 #    if defined(OPENVINO_ARCH_X86_64)
         // If to support second token sparse attention, need generate sparse mask after concat_pastkv
-        if (xattention_threshold && q.size(0) > 1) {
+        if (xattention_threshold && q.size(0) > 1 && B_seq == 1) {
             // Only support block_size <= sparse_attention_BlockSize and sparse_attention_BlockSize must be an integer
             // multiple
             if (block_size != static_cast<size_t>(xattention_block_size)) {
@@ -2161,18 +2163,15 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 }
             }
 
+            sparse_attention_mask.resize(B_seq);
             _xatt.init(B_token, H, 1, S, Hk, xattention_stride, xattention_block_size, q.m_dt);
-            get_sparse_blocks(q,
-                              k,
-                              past_lens,
-                              subsequence_begins,
-                              block_indices,
-                              block_indices_begins,
-                              xattention_stride,
-                              xattention_block_size,
-                              xattention_threshold,
-                              _xatt,
-                              sparse_attention_mask);
+            size_t seq_idx = 0;
+            _xatt.estimate(q,
+                           k,
+                           xattention_block_size,
+                           xattention_stride,
+                           xattention_threshold.ptr<float>()[seq_idx],
+                           sparse_attention_mask[seq_idx]);
 
             // keep original mask granularity; remember its block size for on-the-fly mapping
             _helper._sparse_mask_block_size = xattention_block_size;
@@ -2255,34 +2254,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         } else {
             paged_attn_memcpy(k, v, k_cache, v_cache, _slot_mapping);
         }
-    }
-
-    void get_sparse_blocks(PlainTensor& q,
-                           PlainTensor& k,
-                           PlainTensor& past_lens,
-                           PlainTensor& subsequence_begins,
-                           PlainTensor& block_indices,
-                           PlainTensor& block_indices_begins,
-                           size_t x_attention_stride,
-                           size_t x_attention_block_size,
-                           PlainTensor& threshold,
-                           Xattn& xattn,
-                           std::vector<PlainTensor>& sparse_attention_mask) {
-        size_t num_seqs = past_lens.size(0);
-        sparse_attention_mask.resize(num_seqs);
-
-#    if defined(OPENVINO_ARCH_X86_64)
-        // TODO: support multiple batches
-        if (q.size(0) > 1) {
-            size_t seq_idx = 0;
-            xattn.estimate(q,
-                           k,
-                           x_attention_block_size,
-                           x_attention_stride,
-                           threshold.ptr<float>()[seq_idx],
-                           sparse_attention_mask[seq_idx]);
-        }
-#    endif
     }
 
     void execute(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr> outputs) override {

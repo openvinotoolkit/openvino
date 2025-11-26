@@ -27,7 +27,7 @@ struct XAttr {
 };
 
 using XAttentionParams =
-    std::tuple<ov::element::Type, std::vector<size_t>, std::vector<size_t>, XAttr, std::vector<bool>>;
+    std::tuple<ov::element::Type, std::vector<size_t>, std::vector<size_t>, XAttr>;
 
 template <class T>
 void inline fill_data_random(T* pointer, std::size_t size, const float min, const float max, const int seed) {
@@ -50,7 +50,7 @@ public:
             }
             return msg;
         };
-        const auto& [data_type, query_shape, key_shape, xattr, expected_values] = obj.param;
+        const auto& [data_type, query_shape, key_shape, xattr] = obj.param;
         std::ostringstream result;
         result << "DT=" << data_type.to_string();
         result << ",Q=" << shape_to_str(query_shape);
@@ -64,7 +64,7 @@ public:
 public:
     template <typename T>
     void compareWithRef() {
-        const auto& [data_type, query_shape, key_shape, xattr, expected_values] = this->GetParam();
+        const auto& [data_type, query_shape, key_shape, xattr] = this->GetParam();
         auto element_size = ov::element::Type(data_type).size();
 
         PlainTensor query;
@@ -110,18 +110,15 @@ const std::vector<XAttentionParams> params = {
     {ov::element::f32,
      {8, 1, 1, 8},  // {B, H, L, S}
      {8, 1, 1, 8},
-     {4, 2, 0.8f},
-     {true, false, true, true}},
+     {4, 2, 0.8f}},
     {ov::element::f32,
      {16, 1, 1, 32},
      {16, 1, 1, 32},
-     {4, 2, 0.3f},
-     {true, false, false, false, true, true, false, false, true, false, true, false, true, false, false, true}},
+     {4, 2, 0.3f}},
     {ov::element::f32,
      {16, 2, 1, 32},
      {16, 2, 1, 32},
-     {4, 2, 0.7f},
-     {true, false, false, false, true, true, false, false, true, true, true, false, true, false, true, true}}};
+     {4, 2, 0.7f}}};
 
 INSTANTIATE_TEST_SUITE_P(XAttentionUnitTest,
                          XAttentionTest,
