@@ -198,6 +198,8 @@ protected:
     void serialize_model_to_stream(const std::function<void(ov::pass::Manager&)>& register_serialization_pass) {
         _logger.debug("serialize_model_to_stream");
         const auto passConfig = std::make_shared<ov::pass::PassConfig>();
+
+        // Step 1: run compatibility passes
         ov::pass::Manager manager(std::move(passConfig), "NPU:serialize_model_to_stream");
 
         if (_supportedOpset < 11) {
@@ -205,7 +207,9 @@ protected:
             manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
             _logger.info("Downgrade op for opset smaller than 11");
         }
-
+        // Step 2: store the WeightlessCacheAttribute if requested
+        // Step 3: serialize
+        // Step 4: compute the hash if requested
         register_serialization_pass(manager);
 
         // Depending on the driver version, the compiler attached to it may request this information as an indicator
@@ -296,7 +300,7 @@ public:
 
         OPENVINO_ASSERT(offset == sizeOfSerializedIR);
 
-        return std::make_pair(sizeOfSerializedIR, buffer);
+        return {buffer, sizeOfSerializedIR};
     }
 
 private:
@@ -376,7 +380,7 @@ public:
         std::shared_ptr<uint8_t> buffer(new uint8_t[_serializedModelSize], std::default_delete<uint8_t[]>());
         serialize_model_to_buffer(buffer.get());
 
-        return SerializedIR(_serializedModelSize, buffer);
+        return {buffer, _serializedModelSize};
     }
 
 private:

@@ -16,7 +16,11 @@
 
 namespace intel_npu {
 
-using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
+struct SerializedIR {
+    std::shared_ptr<uint8_t> buffer;
+    size_t size;
+    std::optional<uint64_t> hash = std::nullopt;
+};
 
 /**
  * @brief Contain all required transformation on OpenVINO model in case for external compiler usage and

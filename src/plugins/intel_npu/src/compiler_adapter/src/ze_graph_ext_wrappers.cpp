@@ -277,8 +277,8 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(SerializedIR seri
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                               nullptr,
                               ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                              serializedIR.first,
-                              serializedIR.second.get(),
+                              serializedIR.size,
+                              serializedIR.buffer.get(),
                               buildFlags.c_str(),
                               ZE_GRAPH_FLAG_NONE};
 
@@ -356,8 +356,8 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                               &modelHash,
                               ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                              serializedIR.first,
-                              serializedIR.second.get(),
+                              serializedIR.size,
+                              serializedIR.buffer.get(),
                               "",
                               flags};
 
