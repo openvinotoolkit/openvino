@@ -11,12 +11,12 @@ First, we need to set two flags for the program_node of such an operation, which
 - Static flags (Set during `mark_runtime_skippable_nodes` pass at compilation time)
   - `program_node::optimized`
     - This flag presents that this node is eligible for being optimized out, either at compilation time or runtime.
-    - This flag is set true for all optimizatio schemes, not limited to runtime skippability.
+    - This flag is set true for all optimization schemes, not limited to runtime skippability.
   - `program_node::runtime_skippable`
     - Indicates that this node can be optimized during runtime based on the shape.
 - Dynamic flag (Set at runtime)
   - `primitive_inst::_can_be_optimized`
-  In such a case, regardless it will not be actually optimized out during runtime depending on the shape.  - Indicates that this `primitive_inst` is actually optimized out at a certain execution
+     - Indicates that this `primitive_inst` is actually optimized out at a certain execution
   
 If `program_node::optimized` is true and `program_node::runtime_skippable` is false, it means that this node is *always* optimized out (i.e., compile-time optimization).
 If both of the flags are set true, the node may be optimized out or not in the runtime, depending on the runtime shapes.

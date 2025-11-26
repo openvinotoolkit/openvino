@@ -45,6 +45,7 @@ This contents explain the internal implementation of dynamic shape support in th
 * Optimization features
   * [Memory preallocation](./docs/dynamic_shape/memory_preallocation.md)
   * [Runtime operation skip](./docs/dynamic_shape/runtime_skip.md)
+  * [KV cache optimization](./docs/dynamic_shape/kv_cache.md)
 <!--  * Fake alignment of shape (TBD)
   * Shape-of subgraph on CPU (TBD)
   * Runtime buffer fusing (TBD)
