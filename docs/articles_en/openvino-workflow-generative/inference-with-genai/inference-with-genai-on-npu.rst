@@ -23,7 +23,7 @@ First, install the required dependencies for the model conversion:
          python3 -m venv npu-env
          source npu-env/bin/activate
          pip install nncf==2.18.0 onnx==1.18.0 optimum-intel==1.25.2 transformers==4.51.3
-         pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
+         pip install openvino==2025.4 openvino-tokenizers==2025.4 openvino-genai==2025.4
 
 
       For the pre-production version, use the following line, instead:
@@ -40,7 +40,7 @@ First, install the required dependencies for the model conversion:
          python -m venv npu-env
          npu-env\Scripts\activate
          pip install nncf==2.18.0 onnx==1.18.0 optimum-intel==1.25.2 transformers==4.51.3
-         pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
+         pip install openvino==2025.4 openvino-tokenizers==2025.4 openvino-genai==2025.4
 
 
       For the pre-production version, use the following line, instead:
