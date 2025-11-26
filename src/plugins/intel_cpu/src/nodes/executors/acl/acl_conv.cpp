@@ -98,6 +98,11 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
         VERIFY(config.descs.at(ARG_BIAS)->getPrecision() == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
     }
     VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
+    // if output precision is quantized and FQ is not fused (i.e. requantize scale can not be applied)
+    // then the executor is not selected because of accuracy degradation (int32 accumulator value is quantized by trivial scale)
+    if (config.descs.at(ARG_DST)->getPrecision().is_quantized()) {
+        VERIFY(std::any_cast<FakeQuantizePostOp>(config.attrs.postOps.data()), UNSUPPORTED_BY_EXECUTOR);
+    }
 
     return true;
 }
