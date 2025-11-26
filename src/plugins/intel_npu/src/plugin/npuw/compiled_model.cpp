@@ -488,6 +488,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
         NPUW_ASSERT(!subgraph._optimized_out);
 
+        // FIXME: Potential race here with parallel compilation. What if a function call
+        // compile(i) was called before the function body compile(k) [k << i]?
+        // orderedSubgraphs[real_id] may be accessed for R/W simultaneously here, too
+
         const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
         if (!orderedSubgraphs[real_id]._avoid_list.empty()) {
             const auto devices_to_avoid = ov::DeviceIDParser::get_hetero_devices(orderedSubgraphs[real_id]._avoid_list);
@@ -495,7 +499,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 m_compiled_submodels[real_id].devices_to_avoid.insert(std::move(d));
             }
         }
-
         m_compiled_submodels[id].device_it =
             id != real_id ? m_compiled_submodels[real_id].device_it : m_dev_list.cbegin();
 
@@ -524,6 +527,23 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                            "]");
         }
 
+        // Collect some dynamic data here
+        auto collect_dyn_ports = [](const std::vector<ov::Output<ov::Node>> &ports) {
+            std::set<std::size_t> result;
+            // FIXME: use indexed
+            for (std::size_t idx = 0u; idx < ports.size(); idx++) {
+                if (ports[idx].get_partial_shape().is_dynamic()) {
+                    result.insert(idx);
+                }
+            }
+            return result;
+        };
+        m_compiled_submodels[id].dyn_inputs = collect_dyn_ports(m_compiled_submodels[real_id].model->inputs());
+        m_compiled_submodels[id].dyn_outputs = collect_dyn_ports(m_compiled_submodels[real_id].model->outputs());
+        if (!m_compiled_submodels[id].dyn_inputs.empty() || !m_compiled_submodels[id].dyn_outputs.empty()) {
+            LOG_INFO("True dynamic I/O detected in subgraph[" << id << "]");
+        }
+
         if (m_acc_check) {
             if (submodel_device(real_id) != m_ref_device) {
                 LOG_INFO("Compile Subgraph[" << real_id << "] for reference device: " << m_ref_device << ".");
@@ -544,10 +564,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (par_opt) {
         ov::parallel_for(idx_subgraph_to_compile.size(), compile);
     } else {
-        // TODO: Introduce npuw::serial(i, f) instead where f is a _funcall
-        for (std::size_t i = 0u; i < idx_subgraph_to_compile.size(); i++) {
-            compile(i);
-        }
+        npuw::util::non_parallel_for(idx_subgraph_to_compile.size(), compile);
     }
 
     // Finalize memory in closures and weight banks

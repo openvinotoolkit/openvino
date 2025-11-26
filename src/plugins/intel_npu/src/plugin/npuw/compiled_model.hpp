@@ -218,6 +218,12 @@ private:
         ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
         bool switched_to_ref = false;
 
+        // Bits of dynamism
+        // Not related to any other parts that mimic the dynamic behavior,
+        // e.g. spatial (FFN/MLP), dynamic (!) or pyramid (ATTN)
+        std::set<std::size_t> dyn_inputs;
+        std::set<std::size_t> dyn_outputs;
+
         // Metrics
         execution_stats stat;
 

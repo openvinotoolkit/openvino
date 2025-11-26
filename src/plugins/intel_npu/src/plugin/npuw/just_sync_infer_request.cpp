@@ -517,6 +517,12 @@ void ov::npuw::JustInferRequest::connect_subrequests() {
             NPUW_ASSERT(subreqs[subm_idx_from]);            // prod request is created
             NPUW_ASSERT(subreqs[subm_idx_to]);              // cons request is created
 
+            if (subm[subm_idx_to].dyn_inputs.count(port_idx_to)) {
+                // FIXME: Alternatively, iport could've been checked?
+                LOG_VERB("Delay setting the input, it is dynamic");
+                continue;
+            }
+
             // Just set one's output tensor to another's input
             const auto& iport = subreqs[subm_idx_to]->get_compiled_model()->inputs()[port_idx_to];
             const auto& oport = subreqs[subm_idx_from]->get_compiled_model()->outputs()[port_idx_from];
@@ -1291,7 +1297,8 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
         }
     } else {
         // This is a regular subgraph. Start it async to prepare the next
-        // parameters
+        // parameters, if possible.
+        set_dynamic_inputs(idx);
         if (next_idx == 0) {
             unsafe_infer(real_idx, idx);
         } else {
@@ -1328,4 +1335,24 @@ void ov::npuw::JustInferRequest::update_subrequest_links(std::size_t) {
 bool ov::npuw::JustInferRequest::is_pipelined(std::size_t idx) const {
     const auto& desc = m_npuw_model->m_compiled_submodels[real(idx)];
     return m_use_function_pipelining && desc.replaced_by && !desc.forced_to_fcall;
+}
+
+void ov::npuw::JustInferRequest::set_dynamic_inputs(std::size_t idx) {
+    auto& subreqs = m_subrequests;
+    const auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    for (std::size_t port_to : comp_model_desc.dyn_inputs) {
+        auto link_iter = m_npuw_model->m_submodels_input_to_prev_output.find({idx, port_to});
+        if (link_iter != m_npuw_model->m_submodels_input_to_prev_output.end()) {
+            auto [prod_idx, port_from] = link_iter->second;
+            // At time, producer can't be a function
+            NPUW_ASSERT(!m_npuw_model->m_compiled_submodels[prod_idx].replaced_by);
+
+            const auto& iport = subreqs[idx]->get_compiled_model()->inputs()[port_to];
+            const auto& oport = subreqs[prod_idx]->get_compiled_model()->outputs()[port_from];
+            const auto& tensor = subreqs[prod_idx]->get_tensor(oport);
+            subreqs[idx]->set_tensor(iport, tensor);
+        } else {
+            LOG_WARN("Internal dynamic link not found - is it a dynamic global input?");
+        }
+    }
 }

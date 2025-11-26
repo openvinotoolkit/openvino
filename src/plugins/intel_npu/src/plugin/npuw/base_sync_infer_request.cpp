@@ -178,9 +178,14 @@ ov::SoPtr<ov::ITensor> ov::npuw::IBaseInferRequest::get_tensor(const ov::Output<
     // Output
     for (size_t i = 0; i < m_npuw_model->outputs().size(); i++) {
         if (m_npuw_model->outputs()[i] == port) {
-            auto tensor = alloc_global_out(i);
-            m_port_to_tensor[port] = TensorStorage{tensor, true};
-            return m_port_to_tensor.at(port).tensor;
+            if (port.get_partial_shape().is_dynamic()) {
+                auto [sub_idx, port_idx] = m_npuw_model->m_outputs_to_submodels_outputs[i];
+                return m_subrequests.at(sub_idx)->get_tensor(m_npuw_model->m_compiled_submodels.at(sub_idx).compiled_model->outputs()[port_idx]);
+            } else {
+                auto tensor = alloc_global_out(i);
+                m_port_to_tensor[port] = TensorStorage{tensor, true};
+                return m_port_to_tensor.at(port).tensor;
+            }
         }
     }
 
@@ -886,10 +891,14 @@ void ov::npuw::IBaseInferRequest::bind_global_results(std::size_t idx, RqPtr req
     LOG_DEBUG("Binding results for Subgraph[" << idx << "]");
     LOG_BLOCK();
 
+    const auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+
     const auto& iodesc = m_subrequests_gio.at(idx);
     for (auto&& it : iodesc.global_results) {
-        std::size_t result_idx{}, sub_out_idx{};
-        std::tie(result_idx, sub_out_idx) = it;
+        auto [result_idx, sub_out_idx] = it;
+        if (comp_model_desc.dyn_outputs.count(sub_out_idx)) {
+            continue;
+        }
         const auto& g_port = m_npuw_model->outputs()[result_idx];
         const auto& s_port = request->get_outputs()[sub_out_idx];
         request->set_tensor(s_port, get_tensor(g_port));
