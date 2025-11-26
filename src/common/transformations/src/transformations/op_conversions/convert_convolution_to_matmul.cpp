@@ -19,10 +19,29 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::ConvertConvolutionToMatMul::ConvertConvolutionToMatMul() {
+ov::pass::ConvertConvolutionToMatMul::ConvertConvolutionToMatMul(const element::TypeVector& supported_precisions,
+                                                                 const element::TypeVector& unsupported_precisions) {
     MATCHER_SCOPE(ConvertConvolutionToMatMul);
 
-    auto weights = pattern::any_input();
+    auto final_precisions = supported_precisions;
+    if (!unsupported_precisions.empty()) {
+        final_precisions.erase(std::remove_if(final_precisions.begin(),
+                                              final_precisions.end(),
+                                              [&](const ov::element::Type& type) {
+                                                  return std::find(unsupported_precisions.begin(),
+                                                                   unsupported_precisions.end(),
+                                                                   type) != unsupported_precisions.end();
+                                              }),
+                               final_precisions.end());
+    }
+
+    auto check_precision = [](const ov::element::TypeVector& precisions) -> ov::pass::pattern::op::Predicate {
+        return ov::pass::pattern::op::Predicate([=](const Output<Node>& output) -> bool {
+            return std::find(precisions.begin(), precisions.end(), output.get_element_type()) != precisions.end();
+        });
+    };
+
+    auto weights = pattern::any_input(check_precision(final_precisions));
     auto weights_convert = pattern::wrap_type<ov::op::v0::Convert>({weights}, pattern::consumers_count(1));
     auto zp = pattern::any_input();
     auto zp_convert = pattern::optional<ov::op::v0::Convert>(zp);
@@ -34,42 +53,20 @@ ov::pass::ConvertConvolutionToMatMul::ConvertConvolutionToMatMul() {
         pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({scale_convert, pattern::any_input()});
     auto weights_sub_multiply = pattern::wrap_type<ov::op::v1::Multiply>({weights_sub, scale_reshape});
     auto weights_sub_multiply_reshape =
-        pattern::optional<ov::op::v1::Reshape>({weights_sub_multiply, pattern::any_input()});
+        pattern::optional<ov::op::v1::Reshape>({weights_sub_multiply, pattern::any_input()},
+                                               pattern::shape_matches("[hidden_out, hidden_in, 1, 1]"));
+    auto conv_input_1 = pattern::any_input(pattern::shape_matches("[?, ?, 1, 1]"));
+    auto conv_input_2 = pattern::any_input(pattern::shape_matches("[1, ?, 1, ?]"));
+    auto conv_input_3 = pattern::any_input(pattern::shape_matches("[1, ?, ?, 1]"));
+    auto conv_input =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{conv_input_1, conv_input_2, conv_input_3});
 
-    auto conv_pattern = pattern::wrap_type<ov::op::v1::Convolution>(
-        {pattern::any_input(), weights_sub_multiply_reshape},
-        [](const Output<Node>& output) -> bool {
-            auto conv_node = ov::as_type_ptr<ov::op::v1::Convolution>(output.get_node_shared_ptr());
-            if (!conv_node) {
-                return false;
-            }
-
-            // weights should be static 1x1 kernel, [hidden_out, hidden_in, 1, 1]
-            const auto& weights_shape = conv_node->get_input_partial_shape(1);
-            if (weights_shape.is_dynamic()) {
-                return false;
-            }
-            if (weights_shape.size() != 4 || weights_shape[2] != 1 || weights_shape[3] != 1) {
-                return false;
-            }
-
-            // input should met: [seq_len, hidden_in, 1, 1], [1, hidden_in, 1, seq_len] or [1, hidden_in, seq_len, 1]
-            const auto& input_shape = conv_node->get_input_partial_shape(0);
-            if (input_shape.rank().get_length() != 4) {
-                return false;
-            }
-            const bool is_supported_shape = (input_shape[2] == 1 && input_shape[3] == 1) ||
-                                            (input_shape[0] == 1 && input_shape[2] == 1) ||
-                                            (input_shape[0] == 1 && input_shape[3] == 1);
-            if (!is_supported_shape) {
-                return false;
-            }
-
-            // stride/dilation should be 1, pad should be 0
-            return conv_node->get_strides() == ov::Strides{1, 1} && conv_node->get_dilations() == ov::Strides{1, 1} &&
-                   conv_node->get_pads_begin() == ov::CoordinateDiff{0, 0} &&
-                   conv_node->get_pads_end() == ov::CoordinateDiff{0, 0};
-        });
+    auto conv_pattern = pattern::wrap_type<ov::op::v1::Convolution>({conv_input, weights_sub_multiply_reshape},
+                                                                    {{"auto_pad", "explicit"},
+                                                                     {"dilations", std::vector<int64_t>{1, 1}},
+                                                                     {"strides", std::vector<int64_t>{1, 1}},
+                                                                     {"pads_begin", std::vector<int64_t>{0, 0}},
+                                                                     {"pads_end", std::vector<int64_t>{0, 0}}});
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto conv_node = ov::as_type_ptr<ov::op::v1::Convolution>(m.get_match_root());
@@ -78,11 +75,15 @@ ov::pass::ConvertConvolutionToMatMul::ConvertConvolutionToMatMul() {
         }
 
         auto weights = conv_node->input_value(1);
-        const auto& weights_shape = weights.get_shape();
-        const auto& input_shape = conv_node->get_input_partial_shape(0);
-        auto hidden_out = weights_shape[0];
-        auto hidden_in = weights_shape[1];
+        const auto& weights_partial_shape = weights.get_partial_shape();
+        if (weights_partial_shape.is_dynamic() || weights_partial_shape.size() != 4 || weights_partial_shape[2] != 1 ||
+            weights_partial_shape[3] != 1) {
+            return false;
+        }
+        auto hidden_out = weights_partial_shape[0].get_length();
+        auto hidden_in = weights_partial_shape[1].get_length();
 
+        const auto& input_shape = conv_node->get_input_partial_shape(0);
         std::vector<int64_t> input_transpose_order, output_transpose_order;
         if (input_shape[0] == 1 && input_shape[2] == 1) {
             input_transpose_order = {0, 2, 3, 1};  // [1, hidden_in, 1, seq_len] -> [1, 1, seq_len, hidden_in]
@@ -101,7 +102,7 @@ ov::pass::ConvertConvolutionToMatMul::ConvertConvolutionToMatMul() {
         auto reshape_weights_pattern =
             std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                    ov::Shape{2},
-                                                   std::vector<int64_t>{(int64_t)hidden_out, (int64_t)hidden_in});
+                                                   std::vector<int64_t>{hidden_out, hidden_in});
         auto reshape_weights = std::make_shared<ov::op::v1::Reshape>(weights, reshape_weights_pattern, false);
 
         // Transpose input to [1, 1, seq_len, hidden_in]

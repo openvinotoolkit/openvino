@@ -22,5 +22,6 @@ class TRANSFORMATIONS_API ConvertConvolutionToMatMul;
 class ov::pass::ConvertConvolutionToMatMul : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertConvolutionToMatMul");
-    ConvertConvolutionToMatMul();
+    explicit ConvertConvolutionToMatMul(const element::TypeVector& supported_precisions,
+                                        const element::TypeVector& unsupported_precisions);
 };
