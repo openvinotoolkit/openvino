@@ -50,7 +50,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-8-cores-16gb-test
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:

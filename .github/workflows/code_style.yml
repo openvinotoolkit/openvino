@@ -41,7 +41,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-8-cores-16gb-test
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -65,7 +65,7 @@ jobs:
 
   clang-format:
     needs: Docker
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-8-cores-16gb-test
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
       volumes:
@@ -97,7 +97,7 @@ jobs:
 
   clang-format-aarch64:
     needs: Docker
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-8-cores-16gb-test
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
       volumes:
@@ -129,7 +129,7 @@ jobs:
 
   clang-format-riscv64:
     needs: Docker
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-8-cores-16gb-test
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
       volumes:
@@ -158,7 +158,7 @@ jobs:
 
   ShellCheck:
     needs: Docker
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-8-cores-16gb-test
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_code_style }}
       volumes:
@@ -191,7 +191,7 @@ jobs:
 
   NamingConventionCheck:
     needs: Docker
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-8-cores-16gb-test
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_code_style }}
       volumes:
