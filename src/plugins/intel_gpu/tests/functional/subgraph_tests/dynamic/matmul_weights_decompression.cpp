@@ -8,6 +8,7 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/rt_info/decompression.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
@@ -459,6 +460,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_precomputed_redu
                                             ::testing::Values(false),
                                             ::testing::Values(false),  // per_tensor_zp
                                             ::testing::Values(128),
+                                            ::testing::Values(ov::hint::DynamicQuantizationDataType::INT8),
                                             ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
                          MatmulWeightsDecompression::get_test_case_name);
 
@@ -507,6 +509,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_3D_weight,
                                             ::testing::Values(false),
                                             ::testing::Values(true),
                                             ::testing::Values(0),
+                                            ::testing::Values(std::nullopt),
                                             ::testing::Values(2.0f)),
                          MatmulWeightsDecompression::get_test_case_name);
 

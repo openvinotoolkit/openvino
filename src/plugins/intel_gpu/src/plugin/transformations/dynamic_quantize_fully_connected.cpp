@@ -48,7 +48,6 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
 
         const bool has_wzp = m_fc->get_input_size() > 4;
         auto optional_w_zp = has_wzp ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto rank = m_fc->get_input_partial_shape(0).size();
         ov::op::internal::DynamicQuantize::Attributes config;
         const bool has_static_wzp = m_fc->get_input_size() > 4 && optional_w_zp->get_output_partial_shape(0).rank().is_static();
         const bool is_wei_i8_u8 = cldnn::one_of(m_fc->get_input_element_type(1), {ov::element::i8, ov::element::u8});
@@ -88,8 +87,6 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         auto rank = m_fc->get_input_partial_shape(0).size();
         std::vector<uint64_t> shape_group_size(rank, 1);
         shape_group_size.back() = adj_group_size;
-
-        ov::op::internal::DynamicQuantize::Attributes config;
 
         switch (dtype_scheme) {
             case ov::hint::DynamicQuantizationDataType::INT8:

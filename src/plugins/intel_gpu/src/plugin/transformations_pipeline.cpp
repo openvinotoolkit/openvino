@@ -1408,13 +1408,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();
-            const bool precomputed_reduction = config.get_dynamic_quantization_precomputed_reduction();
+            const bool precomputed_reduction = false;//config.get_dynamic_quantization_precomputed_reduction();
 
             const bool group_dyn_quan_allowed = m_context->get_engine().get_device_info().supports_non_uniform_work_group;
             // WA: when platform does not support non-uniform-work-group, it may fail to run dynamic quantization for gs128.
             // This is unlikely to happen. But this WA is added just in case.
-            const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
-                && group_dyn_quan_allowed;
+            const bool use_gs128_for_int8_per_token = false; //m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
+                // && group_dyn_quan_allowed;
 
             auto dynamic_quantization_data_type = config.get_dynamic_quantization_data_type();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
