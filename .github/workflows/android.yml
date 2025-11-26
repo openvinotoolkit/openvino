@@ -213,7 +213,6 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DENABLE_LTO=ON \
             -DENABLE_TEMPLATE=ON \
-            -DENABLE_TEMPLATE_REGISTRATION=ON \
             -DENABLE_PYTHON=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
@@ -447,6 +446,9 @@ jobs:
             # Push OpenVINO libraries from runtime package
             for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
             for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
+            # Push Template plugin library from tests installation, if available (functional tests only)
+            lib_template=$(find "${INSTALL_TEST_DIR}" -name "libopenvino_template_plugin*.so*" -print -quit 2>/dev/null || true)
+            if [ -n "${lib_template}" ]; then adb push "${lib_template}" /data/local/tmp/ov_test_func/intel64/Release/ || true; fi
             adb shell "chmod 755 /data/local/tmp/ov_test_func/intel64/Release/ov_cpu_func_tests"
             echo "Running CPU functional tests..."
             adb shell "cd /data/local/tmp/ov_test_func && export LD_LIBRARY_PATH=/data/local/tmp/ov_test_func/intel64/Release:$LD_LIBRARY_PATH && timeout 3600 ./intel64/Release/ov_cpu_func_tests  --gtest_filter=${{ env.GTEST_FILTER }} --gtest_output=xml:/data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test_func/intel64/Release/"; exit 1; }
