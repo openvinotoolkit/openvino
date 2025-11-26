@@ -124,7 +124,9 @@ protected:
      * @param port Input/Output port
      * @param tensor Input/Output tensor
      */
-    void check_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) const;
+    void check_tensor(const ov::Output<const ov::Node>& port,
+                      const ov::SoPtr<ov::ITensor>& tensor,
+                      const bool support_strides) const;
 
     /**
      * @brief Basic checks for input tensors

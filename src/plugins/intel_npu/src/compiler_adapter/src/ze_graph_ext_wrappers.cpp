@@ -17,13 +17,6 @@
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
 
-// A bug inside the driver makes the "pfnGraphGetArgumentMetadata" call not safe for use prior to
-// "ze_graph_dditable_ext_1_6_t".
-// See: E#117498
-#define NotSupportArgumentMetadata(T) (T < ZE_GRAPH_EXT_VERSION_1_6)
-
-#define UseCopyForNativeBinary(T) (T < ZE_GRAPH_EXT_VERSION_1_7)
-
 namespace {
 using namespace intel_npu;
 /**
@@ -102,6 +95,15 @@ static IODescriptor getIODescriptor(const uint32_t indexUsedByDriver,
         isMainInputWeights = true;
     }
 
+    bool supportsStridedLayout = false;
+    if (arg.pNext != nullptr) {
+        if (*reinterpret_cast<const ze_structure_type_graph_ext_t*>(arg.pNext) ==
+            ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTY_STRIDES) {
+            auto& supports_strides = *reinterpret_cast<const ze_graph_argument_property_strides_t*>(arg.pNext);
+            supportsStridedLayout = supports_strides.supportsDynamicStrides;
+        }
+    }
+
     return {std::move(nameFromCompiler),
             precision,
             shapeFromCompiler,
@@ -115,7 +117,8 @@ static IODescriptor getIODescriptor(const uint32_t indexUsedByDriver,
             arg.debug_friendly_name,
             std::move(outputTensorNames),
             metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt,
-            indexUsedByDriver};
+            indexUsedByDriver,
+            supportsStridedLayout};
 }
 }  // namespace
 
@@ -132,9 +135,6 @@ ZeGraphExtWrappers::ZeGraphExtWrappers(const std::shared_ptr<ZeroInitStructsHold
     _logger.info("Graph ext version used by zero wrapper: %d.%d",
                  ZE_MAJOR_VERSION(_graphExtVersion),
                  ZE_MINOR_VERSION(_graphExtVersion));
-    _logger.debug("capabilities:");
-    _logger.debug("-SupportArgumentMetadata :%d", !NotSupportArgumentMetadata(_graphExtVersion));
-    _logger.debug("-UseCopyForNativeBinary :%d", UseCopyForNativeBinary(_graphExtVersion));
 }
 
 ZeGraphExtWrappers::~ZeGraphExtWrappers() {
@@ -166,7 +166,7 @@ void ZeGraphExtWrappers::getGraphBinary(const GraphDescriptor& graphDescriptor,
 
     _logger.debug("getGraphBinary - get blob from graphHandle");
 
-    if (UseCopyForNativeBinary(_graphExtVersion)) {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 7)) {
         // Get blob size first
         _logger.debug("getGraphBinary - perform pfnGetNativeBinary to get size");
         auto result =
@@ -200,7 +200,7 @@ void ZeGraphExtWrappers::setGraphArgumentValue(const GraphDescriptor& graphDescr
                                                uint32_t id,
                                                const void* data,
                                                const std::vector<size_t>& strides) const {
-    if (_graphExtVersion < ZE_GRAPH_EXT_VERSION_1_15) {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 15)) {
         _logger.debug("setGraphArgumentValue - perform pfnSetArgumentValue");
         auto result = _zeroInitStruct->getGraphDdiTable().pfnSetArgumentValue(graphDescriptor._handle, id, data);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue", result, _zeroInitStruct->getGraphDdiTable());
@@ -245,7 +245,7 @@ void ZeGraphExtWrappers::setGraphArgumentValue(const GraphDescriptor& graphDescr
 
 void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor,
                                          uint32_t commandQueueGroupOrdinal) const {
-    if (_graphExtVersion < ZE_GRAPH_EXT_VERSION_1_8) {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 8)) {
         _logger.debug("Use initializeGraphThroughCommandList for ext version smaller than 1.8");
         initializeGraphThroughCommandList(graphDescriptor._handle, commandQueueGroupOrdinal);
     } else {
@@ -459,7 +459,10 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
                                      uint32_t indexUsedByDriver,
                                      std::vector<IODescriptor>& inputs,
                                      std::vector<IODescriptor>& outputs) const {
-    if (NotSupportArgumentMetadata(_graphExtVersion)) {
+    // A bug inside the driver makes the "pfnGraphGetArgumentMetadata" call not safe for use prior to
+    // "ze_graph_dditable_ext_1_6_t".
+    // See: E#117498
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 6)) {
         ze_graph_argument_properties_3_t arg = {};
         arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_3;
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
@@ -481,7 +484,14 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
         }
     } else {
         ze_graph_argument_properties_3_t arg = {};
-        arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_3;
+        arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
+        
+        ze_graph_argument_property_strides_t supports_strides = {};
+        if (_graphExtVersion >= ZE_MAKE_VERSION(1, 15)) {
+            supports_strides.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTY_STRIDES;
+            arg.pNext = &supports_strides;
+        }
+
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
         auto result =
             _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, indexUsedByDriver, &arg);
