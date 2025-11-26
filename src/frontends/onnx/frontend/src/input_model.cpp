@@ -604,6 +604,10 @@ public:
     void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                           const std::vector<ov::frontend::Place::Ptr>& outputs);
 
+    std::map<std::string, std::string> get_metadata() const {
+        return m_metadata;
+    }
+
     std::shared_ptr<TelemetryExtension> get_telemetry_extension() const {
         return m_telemetry;
     }
@@ -633,6 +637,7 @@ private:
     std::shared_ptr<GraphIterator> m_graph_iterator;
     const ov::frontend::InputModel& m_input_model;
     std::vector<std::shared_ptr<ov::frontend::onnx::unify::InputModel>> m_subgraphs;
+    std::map<std::string, std::string> m_metadata;
     std::shared_ptr<TelemetryExtension> m_telemetry;
     bool m_enable_mmap;
 
@@ -753,6 +758,8 @@ void InputModel::InputModelONNXImpl::load_model() {
             m_telemetry->send_event("op_count", "onnx_" + op.first, static_cast<int>(op.second));
         }
     }
+
+    m_metadata = m_graph_iterator->get_metadata();
 }
 
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
@@ -945,6 +952,10 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
 void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                                   const std::vector<ov::frontend::Place::Ptr>& outputs) {
     _impl->extract_subgraph(inputs, outputs);
+}
+
+std::map<std::string, std::string> InputModel::get_metadata() const {
+    return _impl->get_metadata();
 }
 
 std::shared_ptr<TelemetryExtension> InputModel::get_telemetry_extension() {
