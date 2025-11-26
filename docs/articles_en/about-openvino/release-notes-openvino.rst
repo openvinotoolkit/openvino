@@ -236,7 +236,7 @@ Breaking changes:
 
 Bug fixes: 
 
-* Fixed model phi-4-mini-instuct generating incorrect responses when context exceeded 4k tokens.  
+* Fixed model phi-4-mini-instruct generating incorrect responses when context exceeded 4k tokens.  
 
 Neural Network Compression Framework
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -352,7 +352,7 @@ Known Issues
 | **Component: OpenVINO Tokenizers**
 | ID: 174531 
 | Description:
-| Accuracy regression of mistral-7b-instruct-v0.2 and mistral-7b-instruct-v0.3 on all devices when executed with OpenVINO GenAI. As a workaround, use the IR converted with OpenVINO 2025.3. The accuracy will be improved with the next release. 
+| Accuracy regression of Mistral-7b-instruct-v0.2 and Mistral-7b-instruct-v0.3 on all devices when executed with OpenVINO GenAI. As a workaround, use the IR converted with OpenVINO 2025.3. The accuracy will be improved with the next release. 
 
 
 Previous 2025 releases
