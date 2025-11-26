@@ -10,6 +10,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
@@ -107,6 +108,24 @@ public:
     int64_t past_length() const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
+};
+
+// Define execution selection based on position ids
+class PositionIDs final : public Selector {
+    std::size_t m_position_ids_idx = 0u;
+    int64_t m_current_length = 0;
+    int64_t m_past_length = 0;
+    std::size_t m_query_size = 0u;
+
+    const ov::ISyncInferRequest& m_rq;
+
+    PositionIDs(std::size_t param_idx, std::size_t query_size, const ov::ISyncInferRequest& rq);
+    void prepare(int64_t past_len) override;
+    int64_t length() const override;
+    int64_t past_length() const override;
+
+public:
+    static Selector::Ptr find(std::size_t query_size, const ov::ISyncInferRequest& rq);
 };
 
 }  // namespace host_flash_attention

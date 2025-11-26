@@ -158,6 +158,9 @@ protected:
     // Separate selector for pyramid attention
     runtime::pyramid_attention::Selector::Ptr m_pyramid_selector;
 
+    // Host flash attention selector for dynamic execution
+    runtime::host_flash_attention::Selector::Ptr m_hfa_selector;
+
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters
     // and results. Again, is managed by subclasses
