@@ -36,7 +36,7 @@ public:
 
     std::vector<std::string> get_supported_options() const override;
 
-    bool is_option_supported(std::string optname) const override;
+    bool is_option_supported(std::string optName, std::optional<std::string> optValue = std::nullopt) const override;
 
     uint32_t get_version() const override;
 

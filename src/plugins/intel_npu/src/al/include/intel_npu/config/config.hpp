@@ -298,6 +298,16 @@ struct OptionBase {
         return ONEAPI_MAKE_VERSION(7, 23);
     }
 
+    static bool isValueSupported(std::string_view val) {
+        try {
+            (void)ActualOpt::parse(val);
+            return true;
+        } catch (...) {
+            // failed to parse, return false below
+        }
+        return false;
+    }
+
     static std::string toString(const ValueType& val) {
         return OptionPrinter<ValueType>::toString(val);
     }
@@ -362,7 +372,17 @@ struct OptionConcept final {
     bool (*isPublic)() = nullptr;
     ov::PropertyMutability (*mutability)() = nullptr;
     uint32_t (*compilerSupportVersion)() = nullptr;
+    bool (*isValueSupportedImpl)(std::string_view val) =
+        nullptr;  // better make this private, but won't be able to use aggregate initialization anymore in
+                  // "makeOptionModel"
     std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
+    std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt;
+    bool isValueSupported(std::string_view val) {
+        if (customValueCheckerOpt.has_value()) {
+            return customValueCheckerOpt.value()(val);
+        }
+        return isValueSupportedImpl(val);
+    }
 };
 
 template <class Opt>
@@ -379,14 +399,17 @@ std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
 }
 
 template <class Opt>
-OptionConcept makeOptionModel() {
+OptionConcept makeOptionModel(
+    std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt) {
     return {&Opt::key,
             &Opt::envVar,
             &Opt::mode,
             &Opt::isPublic,
             &Opt::mutability,
             &Opt::compilerSupportVersion,
-            &validateAndParse<Opt>};
+            &Opt::isValueSupported,
+            &validateAndParse<Opt>,
+            std::move(customValueCheckerOpt)};
 }
 
 }  // namespace details
@@ -398,7 +421,7 @@ OptionConcept makeOptionModel() {
 class OptionsDesc final {
 public:
     template <class Opt>
-    void add();
+    void add(std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt);
 
     bool has(std::string_view key) const;
 
@@ -417,9 +440,9 @@ private:
 };
 
 template <class Opt>
-void OptionsDesc::add() {
+void OptionsDesc::add(std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt) {
     OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0, "Option '", Opt::key().data(), "' was already registered");
-    _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
+    _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>(std::move(customValueCheckerOpt))});
 
     for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
         OPENVINO_ASSERT(_deprecated.count(deprecatedKey.data()) == 0,

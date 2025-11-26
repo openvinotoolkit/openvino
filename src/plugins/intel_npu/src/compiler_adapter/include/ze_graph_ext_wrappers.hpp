@@ -45,7 +45,7 @@ public:
 
     std::string getCompilerSupportedOptions() const;
 
-    bool isOptionSupported(std::string optname) const;
+    bool isOptionSupported(std::string optName, std::optional<std::string> optValue = std::nullopt) const;
     bool isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const;
 
     void getGraphBinary(const GraphDescriptor& graphDescriptor,
