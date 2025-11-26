@@ -1441,7 +1441,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t total_crop_layers = 0;
     size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
 
-    // OneDNN currently selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
+    // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
     // For dynamic batches, this approach is inefficient.
     // We plan to switch to byxf for better flexibility across varying batch sizes.
     // The whitelist below defines the initial target scope (CVS-176149).
