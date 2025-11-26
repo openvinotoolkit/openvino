@@ -246,7 +246,10 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
     try {
-        check_tensor(port, tensor);
+        check_tensor(port,
+                     tensor,
+                     foundPort.is_input() ? _metadata.inputs.at(foundPort.idx).supportsStridedLayout
+                                          : _metadata.outputs.at(foundPort.idx).supportsStridedLayout);
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
