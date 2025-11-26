@@ -363,21 +363,24 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         // otherwise, you will encounter a deserialization issue within the compiler.
         _logger.warning("Add serializer config");
         if (updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-            updatedConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
+            updatedConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "YES"}});
         } else if (updatedConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-            updatedConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
+            updatedConfig.update({{ov::intel_npu::model_serializer_version.name(), "ALL_WEIGHTS_COPY"}});
         }
     }
-    _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile");
+    _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile0");
     auto serializedIR =
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, true);
+    _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile1");
 
     std::string buildFlags;
 
     _logger.debug("create build flags");
     buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
+    _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile2");
     buildFlags += " ";
     buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
+    _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile3");
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
@@ -385,7 +388,6 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                                      buildFlags.c_str(),
                                      buildFlags.size()};
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
-
     if (usedMajor >= 7 && usedMinor >= 4) {
         if (VCL_COMPILER_VERSION_MAJOR < _vclVersion.major) {
             _logger.warning("inside supported VCL version is lower than used VCL api:\n plugin was built with VCL "
@@ -403,10 +405,12 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         vcl_allocator_vector allocator;
         uint8_t* blob = nullptr;
         size_t size = 0;
+        _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile4");
 
         THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreate2",
                               vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size),
-                              _logHandle);
+                              _logHandle);/// get issue form here
+
         if (size == 0 || blob == nullptr) {
             OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
         }
@@ -626,9 +630,9 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
         // otherwise, you will encounter a deserialization issue within the compiler.
         _logger.warning("Add serializer config");
         if (updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-            updatedConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
+            updatedConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "YES"}});
         } else if (updatedConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-            updatedConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
+            updatedConfig.update({{ov::intel_npu::model_serializer_version.name(), "ALL_WEIGHTS_COPY"}});
         }
     }
     _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in query");
