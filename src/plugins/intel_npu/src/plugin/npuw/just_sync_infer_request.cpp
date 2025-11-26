@@ -1161,23 +1161,11 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
         if (comp_model_desc.host_flash_attention.has_value()) {
             auto& hfa = comp_model_desc.host_flash_attention.value();
             if (hfa.is_valid()) {
-                std::cout << "\n=== Starting HFA Tiled Inference ===" << std::endl;
-
                 // Get the tile configuration
                 int64_t tile_size = hfa._tile_size;
-                // int64_t kv_cache_size = hfa._kv_cache_size;
-                // int64_t num_tiles = (kv_cache_size + tile_size - 1) / tile_size;
-
                 int64_t full_kv_size = m_hfa_selector->length() + m_hfa_selector->past_length();
-                std::cout << "Full KV size: " << full_kv_size << std::endl;
-                std::cout << "m_hfa_selector->length(): " << m_hfa_selector->length() << std::endl;
-                std::cout << "m_hfa_selector->past_length(): " << m_hfa_selector->past_length() << std::endl;
                 NPUW_ASSERT(full_kv_size % tile_size == 0 && "HFA full KV size must be multiple of tile size for now");
                 int64_t num_tiles = full_kv_size / tile_size;
-
-                std::cout << "Tile size: " << tile_size << std::endl;
-                std::cout << "Full KV size: " << full_kv_size << std::endl;
-                std::cout << "Number of tiles: " << num_tiles << std::endl;
 
                 // Create infer request for the HFA tile model
                 auto tile_request = hfa._compiled_tile_model->create_infer_request();
@@ -1226,26 +1214,8 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
                 size_t head_dim = q_shape[3];    // 128
 
                 // Use PRESENT K and V from present_k_input_tensor and present_v_input_tensor
-                // These contain the current query's K/V data for PREFILL
                 auto present_k_shape = present_k_input_tensor->get_shape();
                 auto present_v_shape = present_v_input_tensor->get_shape();
-
-                std::cout << "Q shape: [" << batch_size << "," << num_heads << "," << q_seq_len << "," << head_dim
-                          << "]" << std::endl;
-                std::cout << "Present K shape: " << present_k_shape << std::endl;
-                std::cout << "Present V shape: " << present_v_shape << std::endl;
-
-                // Debug: Check present K and V data
-                auto present_k_data = present_k_input_tensor->data<ov::float16>();
-                auto present_v_data = present_v_input_tensor->data<ov::float16>();
-                float pk_sum = 0.0f, pv_sum = 0.0f;
-                for (size_t i = 0; i < std::min(size_t(100), present_k_input_tensor->get_size()); ++i) {
-                    pk_sum += static_cast<float>(present_k_data[i]);
-                }
-                for (size_t i = 0; i < std::min(size_t(100), present_v_input_tensor->get_size()); ++i) {
-                    pv_sum += static_cast<float>(present_v_data[i]);
-                }
-                std::cout << "Present K[0:100] sum=" << pk_sum << ", Present V[0:100] sum=" << pv_sum << std::endl;
 
                 // Prepare tile tensors from tile_request (already allocated)
                 auto k_tile = tile_request->get_tensor(hfa._compiled_tile_model->inputs()[3]);
@@ -1268,20 +1238,8 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
                 auto k_tile_type = k_tile->get_element_type();
                 auto v_tile_type = v_tile->get_element_type();
 
-                std::cout << "K tile element type: " << k_tile_type << std::endl;
-                std::cout << "V tile element type: " << v_tile_type << std::endl;
-                std::cout << "Mask tile element type: " << mask_tile_type << std::endl;
-
                 // Set Q tensor directly (tile model accepts input_dtype)
                 tile_request->set_tensor(hfa._compiled_tile_model->inputs()[5], q_tensor);
-
-                // Debug: Check Q tensor values
-                auto q_data = q_tensor->data<ov::float16>();
-                float q_sum = 0.0f;
-                for (size_t i = 0; i < std::min(size_t(100), q_tensor->get_size()); ++i) {
-                    q_sum += static_cast<float>(q_data[i]);
-                }
-                std::cout << "Q tensor[0:100] sum=" << q_sum << std::endl;
 
                 // Source shapes for K, V, Mask
                 // present_k: [1, 8, 1024, 128] -> need to expand to [1, 32, tile_size, 128]
@@ -1295,83 +1253,6 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
                 const uint32_t k_seq_dim = 2;     // K: [batch, heads, seq, head_dim]
                 const uint32_t v_seq_dim = 3;     // V: [batch, heads, head_dim, seq]
                 const uint32_t mask_seq_dim = 3;  // Mask: [batch, 1, q_seq, kv_seq]
-
-                // Get past K/V shapes for reference
-                auto past_k_shape = past_key_tensor->get_shape();
-                auto past_v_shape = past_value_tensor->get_shape();
-                std::cout << "Past K shape: " << past_k_shape << std::endl;
-                std::cout << "Past V shape: " << past_v_shape << std::endl;
-
-                // ============ SINGLE TILE VALIDATION (for debugging) ============
-                if (num_tiles == 1) {
-                    std::cout << "\n=== Single Tile Validation ===" << std::endl;
-
-                    // 1. Verify Q tensor matches exactly
-                    std::cout << "1. Checking Q tensor consistency..." << std::endl;
-                    auto q_data = q_tensor->data<ov::float16>();
-                    bool q_match = true;
-                    for (size_t i = 0; i < std::min(size_t(10), q_tensor->get_size()); ++i) {
-                        if (i < 10) {
-                            std::cout << "  Q[" << i << "] = " << static_cast<float>(q_data[i]) << std::endl;
-                        }
-                    }
-                    std::cout << "  Q tensor verification: OK (will be set directly to tile model)" << std::endl;
-
-                    // 2. Verify past_acc is all zeros
-                    std::cout << "2. Checking past_acc initialization (should be all 0)..." << std::endl;
-                    bool acc_all_zero = true;
-                    if (acc_type == ov::element::f16) {
-                        auto acc_data = past_acc->data<ov::float16>();
-                        for (size_t i = 0; i < past_acc->get_size(); ++i) {
-                            if (static_cast<float>(acc_data[i]) != 0.0f) {
-                                acc_all_zero = false;
-                                if (i < 10) {
-                                    std::cout << "  ERROR: past_acc[" << i << "] = " << static_cast<float>(acc_data[i])
-                                              << " (expected 0)" << std::endl;
-                                }
-                            }
-                        }
-                    }
-                    std::cout << "  past_acc all zeros: " << (acc_all_zero ? "PASS" : "FAIL") << std::endl;
-
-                    // 3. Verify past_max is all -inf
-                    std::cout << "3. Checking past_max initialization (should be all -inf)..." << std::endl;
-                    bool max_all_neginf = true;
-                    if (acc_type == ov::element::f16) {
-                        auto max_data = past_max->data<ov::float16>();
-                        for (size_t i = 0; i < past_max->get_size(); ++i) {
-                            float val = static_cast<float>(max_data[i]);
-                            if (!std::isinf(val) || val > 0) {
-                                max_all_neginf = false;
-                                if (i < 10) {
-                                    std::cout << "  ERROR: past_max[" << i << "] = " << val << " (expected -inf)"
-                                              << std::endl;
-                                }
-                            }
-                        }
-                    }
-                    std::cout << "  past_max all -inf: " << (max_all_neginf ? "PASS" : "FAIL") << std::endl;
-
-                    // 4. Verify past_d is all zeros
-                    std::cout << "4. Checking past_d initialization (should be all 0)..." << std::endl;
-                    bool d_all_zero = true;
-                    if (acc_type == ov::element::f16) {
-                        auto d_data = past_d->data<ov::float16>();
-                        for (size_t i = 0; i < past_d->get_size(); ++i) {
-                            if (static_cast<float>(d_data[i]) != 0.0f) {
-                                d_all_zero = false;
-                                if (i < 10) {
-                                    std::cout << "  ERROR: past_d[" << i << "] = " << static_cast<float>(d_data[i])
-                                              << " (expected 0)" << std::endl;
-                                }
-                            }
-                        }
-                    }
-                    std::cout << "  past_d all zeros: " << (d_all_zero ? "PASS" : "FAIL") << std::endl;
-
-                    std::cout << "=== End Single Tile Validation ===\n" << std::endl;
-                }
-                // ============ END VALIDATION ============
 
                 // Loop over tiles
                 for (int64_t tile_idx = 0; tile_idx < num_tiles; ++tile_idx) {
@@ -1390,13 +1271,9 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
                     if (is_last_tile) {
                         k_offset = 0;
                         current_tile_size = std::min(tile_size, static_cast<int64_t>(present_seq_len));
-                        // Assert that the last tile can process the entire present sequence
                         NPUW_ASSERT(current_tile_size == static_cast<int64_t>(present_seq_len) &&
                                     "Last tile must process entire present sequence");
                     }
-
-                    std::cout << "\nProcessing tile " << tile_idx << " (source=" << (is_last_tile ? "present" : "past")
-                              << ", k_offset=" << k_offset << ", size=" << current_tile_size << ")" << std::endl;
 
                     // Extract K tile from source tensor
                     auto k_view = ov::npuw::util::view(source_k_tensor, k_seq_dim, k_offset, current_tile_size);
@@ -1429,15 +1306,6 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
                                     }
                                 }
                             }
-                        }
-
-                        // Debug: Check K tile values
-                        if (tile_idx == 0) {
-                            float k_sum = 0.0f;
-                            for (size_t i = 0; i < std::min(size_t(100), k_tile->get_size()); ++i) {
-                                k_sum += static_cast<float>(k_tile_data[i]);
-                            }
-                            std::cout << "  K tile[0:100] sum=" << k_sum << std::endl;
                         }
                     } else if (k_tile_type == ov::element::f32) {
                         auto k_tile_data = k_tile->data<float>();
@@ -1563,94 +1431,6 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
                         OPENVINO_THROW("Unsupported mask_tile element type: ", mask_tile_type);
                     }
 
-                    // ============ SINGLE TILE K/V VALIDATION ============
-                    if (num_tiles == 1 && tile_idx == 0) {
-                        std::cout << "\n=== Validating K/V tile content (single tile scenario) ===" << std::endl;
-
-                        // 5. Verify K tile matches broadcast present K
-                        std::cout << "5. Checking K tile vs present K (with broadcast)..." << std::endl;
-                        bool k_match = true;
-                        size_t k_mismatch_count = 0;
-                        if (k_tile_type == ov::element::f16) {
-                            auto k_tile_data = k_tile->data<ov::float16>();
-                            auto present_k_data = present_k_input_tensor->data<ov::float16>();
-
-                            for (size_t b = 0; b < batch_size && k_mismatch_count < 10; ++b) {
-                                for (size_t h = 0; h < num_heads && k_mismatch_count < 10; ++h) {
-                                    size_t src_head = h / head_expansion;
-                                    for (size_t s = 0;
-                                         s < static_cast<size_t>(current_tile_size) && k_mismatch_count < 10;
-                                         ++s) {
-                                        for (size_t d = 0; d < head_dim && k_mismatch_count < 10; ++d) {
-                                            size_t src_idx =
-                                                ((b * kv_num_heads + src_head) * current_tile_size + s) * head_dim + d;
-                                            size_t dst_idx = ((b * num_heads + h) * tile_size + s) * head_dim + d;
-
-                                            float src_val = static_cast<float>(present_k_data[src_idx]);
-                                            float dst_val = static_cast<float>(k_tile_data[dst_idx]);
-
-                                            if (std::abs(src_val - dst_val) > 1e-6f) {
-                                                k_match = false;
-                                                k_mismatch_count++;
-                                                if (k_mismatch_count <= 5) {
-                                                    std::cout << "  K mismatch [b=" << b << ",h=" << h << ",s=" << s
-                                                              << ",d=" << d << "]: present_k[src_head=" << src_head
-                                                              << "]=" << src_val << " vs k_tile=" << dst_val
-                                                              << std::endl;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        std::cout << "  K tile matches broadcast present K: " << (k_match ? "PASS" : "FAIL")
-                                  << " (mismatches: " << k_mismatch_count << ")" << std::endl;
-
-                        // 6. Verify V tile matches broadcast present V
-                        std::cout << "6. Checking V tile vs present V (with broadcast)..." << std::endl;
-                        bool v_match = true;
-                        size_t v_mismatch_count = 0;
-                        if (v_tile_type == ov::element::f16) {
-                            auto v_tile_data = v_tile->data<ov::float16>();
-                            auto present_v_data = present_v_input_tensor->data<ov::float16>();
-
-                            for (size_t b = 0; b < batch_size && v_mismatch_count < 10; ++b) {
-                                for (size_t h = 0; h < num_heads && v_mismatch_count < 10; ++h) {
-                                    size_t src_head = h / head_expansion;
-                                    for (size_t d = 0; d < head_dim && v_mismatch_count < 10; ++d) {
-                                        for (size_t s = 0;
-                                             s < static_cast<size_t>(current_tile_size) && v_mismatch_count < 10;
-                                             ++s) {
-                                            size_t src_idx =
-                                                ((b * kv_num_heads + src_head) * head_dim + d) * current_tile_size + s;
-                                            size_t dst_idx = ((b * num_heads + h) * head_dim + d) * tile_size + s;
-
-                                            float src_val = static_cast<float>(present_v_data[src_idx]);
-                                            float dst_val = static_cast<float>(v_tile_data[dst_idx]);
-
-                                            if (std::abs(src_val - dst_val) > 1e-6f) {
-                                                v_match = false;
-                                                v_mismatch_count++;
-                                                if (v_mismatch_count <= 5) {
-                                                    std::cout << "  V mismatch [b=" << b << ",h=" << h << ",d=" << d
-                                                              << ",s=" << s << "]: present_v[src_head=" << src_head
-                                                              << "]=" << src_val << " vs v_tile=" << dst_val
-                                                              << std::endl;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        std::cout << "  V tile matches broadcast present V: " << (v_match ? "PASS" : "FAIL")
-                                  << " (mismatches: " << v_mismatch_count << ")" << std::endl;
-
-                        std::cout << "=== End K/V Tile Validation ===\n" << std::endl;
-                    }
-                    // ============ END K/V VALIDATION ============
-
                     // Run tile inference
                     tile_request->infer();
 
@@ -1661,50 +1441,17 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
                     auto output_max = tile_request->get_tensor(hfa._compiled_tile_model->outputs()[1]);
                     auto output_d = tile_request->get_tensor(hfa._compiled_tile_model->outputs()[2]);
 
-                    // Debug: Check output values before copy
-                    if (acc_type == ov::element::f16) {
-                        auto out_acc_data = output_acc->data<ov::float16>();
-                        auto out_d_data = output_d->data<ov::float16>();
-                        float sum_acc = 0.0f, sum_d = 0.0f;
-                        for (size_t i = 0; i < std::min(size_t(100), output_acc->get_size()); ++i) {
-                            sum_acc += static_cast<float>(out_acc_data[i]);
-                        }
-                        for (size_t i = 0; i < std::min(size_t(100), output_d->get_size()); ++i) {
-                            sum_d += static_cast<float>(out_d_data[i]);
-                        }
-                        std::cout << "  Tile " << tile_idx << " output_acc[0:100] sum=" << sum_acc
-                                  << ", output_d[0:100] sum=" << sum_d << std::endl;
-                    }
-
                     // Copy output -> input for accumulation state
                     output_acc->copy_to(past_acc._ptr);
                     output_max->copy_to(past_max._ptr);
                     output_d->copy_to(past_d._ptr);
-
-                    std::cout << "Tile " << tile_idx << " completed" << std::endl;
                 }
 
-                // Final computation: acc / d
-                std::cout << "\nFinal normalization: acc / d with transpose" << std::endl;
+                // Final computation: acc / d with transpose
 
                 size_t total_elements = batch_size * num_heads * q_seq_len * head_dim;
 
-                // Debug: Check past_acc and past_d before division
-                if (acc_type == ov::element::f16) {
-                    auto final_acc = past_acc->data<ov::float16>();
-                    auto final_d = past_d->data<ov::float16>();
-                    float sum_acc = 0.0f, sum_d = 0.0f;
-                    for (size_t i = 0; i < std::min(size_t(100), past_acc->get_size()); ++i) {
-                        sum_acc += static_cast<float>(final_acc[i]);
-                    }
-                    for (size_t i = 0; i < std::min(size_t(100), past_d->get_size()); ++i) {
-                        sum_d += static_cast<float>(final_d[i]);
-                    }
-                    std::cout << "Before division: past_acc[0:100] sum=" << sum_acc << ", past_d[0:100] sum=" << sum_d
-                              << std::endl;
-                }
-
-                // Step 1: Division - acc / d
+                // Division - acc / d
                 // Shape: [1, 32, 1024, 128]
                 std::vector<ov::float16> temp_buffer(total_elements);
 
@@ -1746,8 +1493,7 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
                     }
                 }
 
-                // Step 2: Transpose (0,2,1,3) - [1,32,1024,128] -> [1,1024,32,128]
-                // Store transposed result in a separate buffer for comparison
+                // Transpose (0,2,1,3) - [1,32,1024,128] -> [1,1024,32,128]
                 std::vector<ov::float16> hfa_result(total_elements);
                 for (size_t b = 0; b < batch_size; ++b) {
                     for (size_t s = 0; s < q_seq_len; ++s) {
@@ -1765,60 +1511,9 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
                     }
                 }
 
-                // Debug: Check hfa_result after transpose
-                float sum_hfa = 0.0f;
-                for (size_t i = 0; i < std::min(size_t(100), hfa_result.size()); ++i) {
-                    sum_hfa += static_cast<float>(hfa_result[i]);
-                }
-                std::cout << "After transpose: hfa_result[0:100] sum=" << sum_hfa << std::endl;
-
-                // Step 3: Compare HFA result with original decomposed SDPA output
-                std::cout << "\n=== Comparing HFA result with original SDPA output ===" << std::endl;
-                auto original_output_data = output_tensor->data<ov::float16>();
-
-                double max_abs_diff = 0.0;
-                double sum_abs_diff = 0.0;
-                double sum_squared_diff = 0.0;
-                size_t num_mismatches = 0;
-                const double threshold = 1e-3;  // Threshold for considering a mismatch
-
-                for (size_t i = 0; i < total_elements; ++i) {
-                    float hfa_val = static_cast<float>(hfa_result[i]);
-                    float orig_val = static_cast<float>(original_output_data[i]);
-                    float abs_diff = std::abs(hfa_val - orig_val);
-
-                    max_abs_diff = std::max(max_abs_diff, static_cast<double>(abs_diff));
-                    sum_abs_diff += abs_diff;
-                    sum_squared_diff += abs_diff * abs_diff;
-
-                    if (abs_diff > threshold) {
-                        num_mismatches++;
-                        if (num_mismatches <= 10) {  // Print first 10 mismatches
-                            std::cout << "  Mismatch at index " << i << ": HFA=" << hfa_val
-                                      << " vs Original=" << orig_val << " (diff=" << abs_diff << ")" << std::endl;
-                        }
-                    }
-                }
-
-                double mean_abs_diff = sum_abs_diff / total_elements;
-                double rmse = std::sqrt(sum_squared_diff / total_elements);
-
-                std::cout << "\nComparison Statistics:" << std::endl;
-                std::cout << "  Total elements: " << total_elements << std::endl;
-                std::cout << "  Max absolute difference: " << max_abs_diff << std::endl;
-                std::cout << "  Mean absolute difference: " << mean_abs_diff << std::endl;
-                std::cout << "  RMSE: " << rmse << std::endl;
-                std::cout << "  Num mismatches (>" << threshold << "): " << num_mismatches << " ("
-                          << (100.0 * num_mismatches / total_elements) << "%)" << std::endl;
-
-                // Step 4: Copy HFA result to output tensor
-                std::cout << "\nCopying HFA result to output tensor..." << std::endl;
+                // Copy HFA result to output tensor
                 auto output_data = output_tensor->data<ov::float16>();
                 std::copy(hfa_result.begin(), hfa_result.end(), output_data);
-                std::cout << "HFA result copied to output tensor successfully!" << std::endl;
-
-                std::cout << "\nHFA Tiled Inference completed successfully!" << std::endl;
-                std::cout << "============================================================\n" << std::endl;
             }
         }
     } else {
