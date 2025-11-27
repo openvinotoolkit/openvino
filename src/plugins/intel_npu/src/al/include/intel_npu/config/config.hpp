@@ -120,9 +120,25 @@ struct OptionParser<std::vector<T>> final {
     static std::vector<T> parse(std::string_view val) {
         std::vector<T> res;
         std::string val_str(val);
-        splitAndApply(val_str, ',', [&](std::string_view item) {
-            res.push_back(OptionParser<T>::parse(item));
-        });
+        // Try comma first
+        if (val_str.find(',') != std::string::npos) {
+            splitAndApply(val_str, ',', [&](std::string_view item) {
+                // Trim whitespace
+                std::string item_str(item);
+                item_str.erase(0, item_str.find_first_not_of(" \t"));
+                item_str.erase(item_str.find_last_not_of(" \t") + 1);
+                if (!item_str.empty()) {
+                    res.push_back(OptionParser<T>::parse(item_str));
+                }
+            });
+        } else {
+            // Fall back to space
+            splitAndApply(val_str, ' ', [&](std::string_view item) {
+                if (!item.empty()) {
+                    res.push_back(OptionParser<T>::parse(item));
+                }
+            });
+        }
         return res;
     }
 };
