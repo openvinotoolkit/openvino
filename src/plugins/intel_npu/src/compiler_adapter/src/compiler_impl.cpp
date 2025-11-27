@@ -108,8 +108,8 @@ public:
     void operator=(VCLApi&&) = delete;
 
     static const std::shared_ptr<VCLApi> getInstance();
-    std::shared_ptr<void> getLibrary() const {
-        return lib;
+    static std::shared_ptr<void> getLibrary() {
+        return VCLApi::getInstance()->lib;
     }
 
 #define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol;
@@ -232,7 +232,15 @@ VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
 }
 
 const std::shared_ptr<VCLApi> VCLApi::getInstance() {
-    static std::shared_ptr<VCLApi> instance = std::make_shared<VCLApi>();
+    static std::mutex mutex;
+    static std::weak_ptr<VCLApi> weak_instance;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto instance = weak_instance.lock();
+    if (!instance) {
+        instance = std::make_shared<VCLApi>();
+        weak_instance = instance;
+    }
     return instance;
 }
 
@@ -297,6 +305,7 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
                  _compilerProperties.version.major,
                  _compilerProperties.version.minor,
                  _compilerProperties.supportedOpsets);
+    _logger.error("VCL Compiler created successfully=====checkpoint1=====");
 }
 
 VCLCompilerImpl::~VCLCompilerImpl() {
@@ -309,8 +318,8 @@ VCLCompilerImpl::~VCLCompilerImpl() {
     _logger.info("VCL Compiler destroyed successfully");
 }
 
-std::shared_ptr<VCLApi> VCLCompilerImpl::getLinkedLibrary() const {
-    return VCLApi::getInstance();
+std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
+    return VCLApi::getInstance()->getLibrary();
 }
 
 struct vcl_allocator_vector : vcl_allocator2_t {

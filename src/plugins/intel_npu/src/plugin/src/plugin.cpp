@@ -987,7 +987,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     // sure only the option supported by the compiler is registered in the config.
     CompilerAdapterFactory compilerAdapterFactory;
     auto npu_plugin_properties = properties;
-
     bool useBaseModelSerializer = true;
     bool modelSerializerChosenExplicitly = false;
     const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
@@ -1004,7 +1003,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         useBaseModelSerializer = !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
         npu_plugin_properties.erase(modelSerializerVersionKey);
     }
-
     exclude_model_ptr_from_map(npu_plugin_properties);
     const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
