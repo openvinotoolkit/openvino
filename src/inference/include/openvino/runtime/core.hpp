@@ -28,9 +28,6 @@
 
 namespace ov {
 
-template <class Path>
-using EnableIfPath = std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>*;
-
 /**
  * @brief This class represents an OpenVINO runtime Core entity.
  * @ingroup ov_runtime_cpp_api
@@ -68,7 +65,7 @@ public:
      * @param xml_config_file Path to the .xml file with plugins to load from. If path contains only file name
      * with extension, file will be searched in a folder with OpenVINO runtime shared library.
      */
-    template <class Path, EnableIfPath<Path> = nullptr>
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     explicit Core(const Path& xml_config_file) : Core(xml_config_file.string()) {}
 
     /**
@@ -122,7 +119,7 @@ public:
                                           const std::string& bin_path = {},
                                           const ov::AnyMap& properties = {}) const;
 
-    template <class Path, EnableIfPath<Path> = nullptr>
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto read_model(const Path& model_path, const Path& bin_path = {}, const ov::AnyMap& properties = {}) const {
         if constexpr (std::is_same_v<typename Path::value_type, wchar_t>) {
             return read_model(model_path.wstring(), bin_path.wstring(), properties);
@@ -269,7 +266,7 @@ public:
      */
     CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
-    template <class Path, EnableIfPath<Path> = nullptr>
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const AnyMap& properties = {}) const {
         if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
             return compile_model(model_path.wstring(), properties);
@@ -303,7 +300,7 @@ public:
         return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
     }
 
-    template <class Path, class... Properties, EnableIfPath<Path> = nullptr>
+    template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, Properties&&... properties) {
         if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
             return compile_model(model_path.wstring(), std::forward<Properties>(properties)...);
@@ -338,7 +335,7 @@ public:
                                 const std::string& device_name,
                                 const AnyMap& properties = {});
 
-    template <class Path, EnableIfPath<Path> = nullptr>
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
         if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
             return compile_model(model_path.wstring(), device_name, properties);
@@ -375,7 +372,7 @@ public:
         return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
 
-    template <class Path, class... Properties, EnableIfPath<Path> = nullptr>
+    template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const std::string& device_name, Properties&&... properties) {
         if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
             return compile_model(model_path.wstring(), device_name, std::forward<Properties>(properties)...);
@@ -467,7 +464,7 @@ public:
      */
     void add_extension(const std::string& library_path);
 
-    template <class Path, EnableIfPath<Path> = nullptr>
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     void add_extension(const Path& model_path) {
         if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
             return add_extension(model_path.wstring());
@@ -872,7 +869,7 @@ public:
      * @param device_name Device name to register a plugin for.
      * @param config Plugin configuration options
      */
-    template <class Path, EnableIfPath<Path> = nullptr>
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     void register_plugin(const Path& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
         register_plugin(plugin_path.string(), device_name, config);
     }
@@ -948,7 +945,7 @@ public:
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */
-    template <class Path, EnableIfPath<Path> = nullptr>
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     void register_plugins(const Path& xml_config_file) {
         register_plugins(xml_config_file.string());
     }
