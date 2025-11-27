@@ -1456,6 +1456,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     bool can_use_fsv16 = true;
     bool can_use_bs_fs_yx_bsv16_fsv16 = true;
     bool is_quantized_int8_model = false;
+    bool is_dynamic_batch_onednn_conv = false;
     size_t total_asym_quantized_conv_layers = 0;
     size_t total_dw_conv_layers = 0;
     size_t total_dw_splitted_conv_layers = 0;
@@ -1464,7 +1465,21 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
     size_t opt_deconv_layers_b_fs_yx_fsv16 = 0;
     size_t total_crop_layers = 0;
+    size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
 
+    // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
+    // For dynamic batches, this approach is inefficient.
+    // We plan to switch to byxf for better flexibility across varying batch sizes.
+    // The whitelist below defines the initial target scope (CVS-176149).
+    const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::input_layout::type_id(),
+                                                                              cldnn::permute::type_id(),
+                                                                              cldnn::convolution::type_id(),
+                                                                              cldnn::fully_connected::type_id(),
+                                                                              cldnn::activation::type_id(),
+                                                                              cldnn::softmax::type_id(),
+                                                                              cldnn::reduce::type_id(),
+                                                                              cldnn::reorder::type_id(),
+                                                                              cldnn::eltwise::type_id()};
     for (auto& node : get_processing_order()) {
         auto &prim = *node;
         if (prim.type() == cldnn::convolution::type_id()) {
@@ -1472,8 +1487,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
 
-            if (!conv.is_dynamic()) {
-                // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16
+            if (conv.is_dynamic()) {
+                bool is_dynamic_batch = !node->get_output_layout().get_partial_shape()[0].is_static();
+                bool is_fp32_conv = (node->get_input_layout().data_type == data_types::f32) &&
+                                    (node->get_output_layout().data_type == data_types::f32);
+                is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
+            } else {
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
@@ -1628,6 +1647,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
+
+        if (prim.is_in_data_flow() && (byxf_onednn_conv_whitelist.count(prim.type()) == 0)) {
+            total_non_byxf_onednn_conv_whitelist_layers++;
+        }
     }
 
     size_t total_conv_layers = lo.get_total_conv_count();
@@ -1681,15 +1704,18 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     if (engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
         get_config().get_queue_type() == QueueTypes::in_order &&
         enable_onednn_for_tests) {
-            if (engine.get_device_info().supports_immad) {
-                lo.add_all_onednn_impls_optimization_attribute();
-            } else {
-                if (get_config().get_use_onednn()) {
-                    lo.enable_onednn_for<lstm_seq>();
-                    lo.enable_onednn_for<gru_seq>();
-                }
+        if (engine.get_device_info().supports_immad) {
+            lo.add_all_onednn_impls_optimization_attribute();
+        } else {
+            if (get_config().get_use_onednn()) {
+                lo.enable_onednn_for<lstm_seq>();
+                lo.enable_onednn_for<gru_seq>();
             }
         }
+    }
+    bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv && (total_non_byxf_onednn_conv_whitelist_layers == 0);
+    if (should_use_byxf_onednn_conv)
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::byxf_onednn_convolution, 1);
 #endif
 }
 
