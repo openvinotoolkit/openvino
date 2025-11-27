@@ -113,11 +113,25 @@ protected:
                 in_data.resolution = 256;
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+    }
+    void checkConvolutionPrecision(ov::element::Type expectedPrecision) {
+        const auto runtime_model = compiledModel.get_runtime_model();
+        for (auto& op : runtime_model->get_ops()) {
+            if (op->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "Convolution") {
+                EXPECT_EQ(op->get_rt_info().at(ov::exec_model_info::RUNTIME_PRECISION).as<ov::element::Type>(), expectedPrecision);
+            }
         }
+    }
 };
 
 TEST_P(ConvAndFQ, CompareWithRefs) {
     run();
+    const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, targetName] = this->GetParam();
+    ov::element::Type expectedPrecision = element::f32;
+    if (fqConstShapes.empty()) {
+        expectedPrecision = quantizeIntervals[0][0] < 0.f ? element::i8 : element::u8;
+    }
+    checkConvolutionPrecision(expectedPrecision);
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 

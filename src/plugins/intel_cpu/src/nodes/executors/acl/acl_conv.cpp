@@ -36,8 +36,7 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                const MemoryArgs& memory,
                                                [[maybe_unused]] const ExecutorContext::CPtr& context)
     : weightScale(attrs.dqScales) {
-    OPENVINO_ASSERT(attrs.inputZeroPointsType != ZeroPointsType::PerChannel,
-                    "ACLConvolutionExecutor: per-channel scales are not supported");
+    OPENVINO_ASSERT(attrs.dqScales.size() == 1, "ACLConvolutionExecutor: per-channel scales are not supported");
 
     MemoryDescPtr srcMemPtr = memory.at(ARG_SRC_0)->getDescPtr();
     MemoryDescPtr weiMemPtr = memory.at(ARG_WEI)->getDescPtr();
@@ -99,7 +98,7 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     bool isQuantized = any_of(config.descs.at(ARG_SRC)->getPrecision(), ov::element::u8, ov::element::i8) &&
                        config.descs.at(ARG_WEI)->getPrecision() == ov::element::i8 &&
                        (!any_of(config.descs.at(ARG_DST)->getPrecision(), ov::element::u8, ov::element::i8) ||
-                       std::any_cast<FakeQuantizePostOp>(config.attrs.postOps.data()));
+                        std::any_cast<FakeQuantizePostOp>(config.attrs.postOps.data()));
 
     VERIFY(isQuantized, UNSUPPORTED_SRC_PRECISIONS);
     if (config.attrs.withBias) {
