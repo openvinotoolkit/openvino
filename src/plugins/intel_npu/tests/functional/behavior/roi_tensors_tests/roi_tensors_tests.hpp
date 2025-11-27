@@ -10,6 +10,8 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -17,7 +19,9 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "remote_context.hpp"
+#include "zero_backend.hpp"
+#include "zero_tensor.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -199,6 +203,65 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
     for (size_t i = 0; i < check_out_roi_tensor.get_size(); ++i) {
         EXPECT_EQ(check_data[i], 51.0f);
     }
+}
+
+TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContext) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
+    std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
+    ::intel_npu::Config npu_config = ::intel_npu::Config(options);
+    std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
+    init_struct = ::intel_npu::ZeroInitStructsHolder::getInstance();
+
+    auto shape = Shape{1, 2, 2, 2};
+    ov::CompiledModel compiled_model;
+    auto model = createModel(element::f32, shape, "N...");
+
+    auto input_remote_tensor = std::make_shared<::intel_npu::ZeroRemoteTensor>(zero_context,
+                                                                               init_struct,
+                                                                               ov::element::f32,
+                                                                               Shape{1, 10, 10, 10});
+
+    auto output_remote_tensor =
+        std::make_shared<::intel_npu::ZeroRemoteTensor>(zero_context, init_struct, ov::element::f32, Shape{3, 8, 8, 8});
+
+    auto input_tensor = make_tensor(input_remote_tensor);
+    auto output_tensor = make_tensor(output_remote_tensor);
+
+    auto input_data = static_cast<float*>(input_remote_tensor->get_original_memory());
+    for (size_t i = 0; i < input_tensor.get_size(); ++i) {
+        input_data[i] = 50.0f;
+    }
+
+    auto output_data = static_cast<float*>(output_remote_tensor->get_original_memory());
+    for (size_t i = 0; i < output_tensor.get_size(); ++i) {
+        output_data[i] = 10.0f;
+    }
+
+    configuration[ov::intel_npu::dynamic_strides.name()] = std::vector<std::string>{"input", "Result"};
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+
+    ov::Tensor input_roi_tensor = ov::Tensor(input_tensor, {0, 4, 4, 4}, {1, 6, 6, 6});
+    OV_ASSERT_NO_THROW(req.set_input_tensor(input_roi_tensor));
+
+    ov::Tensor output_roi_tensor = ov::Tensor(output_tensor, {2, 4, 5, 6}, {3, 6, 7, 8});
+    OV_ASSERT_NO_THROW(req.set_output_tensor(output_roi_tensor));
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    auto check_out_roi_tensor = ov::Tensor(ov::element::f32, shape);
+    output_roi_tensor.copy_to(check_out_roi_tensor);
+    auto* check_data = check_out_roi_tensor.data<float>();
+    for (size_t i = 0; i < check_out_roi_tensor.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 51.0f);
+    }
+
+    init_struct = nullptr;
 }
 
 }  // namespace behavior
