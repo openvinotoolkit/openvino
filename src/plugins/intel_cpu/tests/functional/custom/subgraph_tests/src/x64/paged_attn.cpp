@@ -122,7 +122,7 @@ public:
             std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
         if (enable_xattn) {
             xattention_threshold =
-                std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{1}, std::vector<float>{0.9});
+                std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{1}, std::vector<float>{0.9f});
         }
         auto xattention_block_size =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{64});
