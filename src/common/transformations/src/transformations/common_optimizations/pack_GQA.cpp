@@ -34,31 +34,6 @@ using namespace ov::pass::pattern;
 
 namespace {
 
-struct Weights {
-    std::shared_ptr<Node> weights;
-    std::shared_ptr<Node> scale;
-    std::shared_ptr<Node> zero_point;
-    std::shared_ptr<Node> mul;
-
-    explicit Weights(const std::shared_ptr<Node>& w) : weights(w) {}
-    Weights(const std::shared_ptr<Node>& w,
-            const std::shared_ptr<Node>& s,
-            const std::shared_ptr<Node>& zp,
-            const std::shared_ptr<Node>& mul)
-        : weights(w),
-          scale(s),
-          zero_point(zp),
-          mul(mul) {}
-
-    bool is_quantized() const {
-        return scale && zero_point;
-    }
-
-    Output<Node> get_data() const {
-        return weights->output(0);
-    }
-};
-
 std::shared_ptr<Node> normalize_rank(const Output<Node>& output, int64_t target_rank) {
     auto pshape = output.get_partial_shape();
     int64_t cur_rank = pshape.rank().is_dynamic() ? 0 : pshape.rank().get_length();
@@ -70,8 +45,8 @@ std::shared_ptr<Node> normalize_rank(const Output<Node>& output, int64_t target_
     for (int64_t i = 0; i < target_rank - cur_rank; ++i)
         axes.push_back(i);
 
-    auto axes_const = v0::Constant::create(element::i64, Shape{axes.size()}, axes);
-    auto unsqueezed = ov::op::util::make_try_fold<v0::Unsqueeze>(output.get_node_shared_ptr(), axes_const);
+    auto axes_const = ov::op::v0::Constant::create(element::i64, Shape{axes.size()}, axes);
+    auto unsqueezed = ov::op::util::make_try_fold<ov::op::v0::Unsqueeze>(output.get_node_shared_ptr(), axes_const);
 
     std::cout << "Normalized node: " << unsqueezed->get_friendly_name() << " shape: " << unsqueezed->get_output_partial_shape(0) << std::endl;
     return unsqueezed;
@@ -110,114 +85,6 @@ std::shared_ptr<Node> concat_any(const ov::OutputVector& inputs, int64_t axis = 
     return concat;
 }
 
-std::tuple<ov::NodeVector, Node*> get_sdpa_order(const std::unordered_set<Node*>& post_sdpa_proj) {
-    ov::NodeVector post_sdpa_ordered;
-    ov::op::v1::Add* current_add = nullptr;
-
-    for (const auto& proj_node : post_sdpa_proj) {
-        const auto& targets = proj_node->output(0).get_target_inputs();
-        if (targets.size() != 1)
-            continue;
-
-        auto input = *targets.begin();
-        auto add_node = ov::as_type<ov::op::v1::Add>(input.get_node());
-        if (!add_node)
-            continue;
-
-        auto lhs = add_node->input_value(0).get_node();
-        auto rhs = add_node->input_value(1).get_node();
-        if (post_sdpa_proj.count(lhs) && post_sdpa_proj.count(rhs)) {
-            current_add = add_node;
-            post_sdpa_ordered.push_back(lhs->shared_from_this());
-            post_sdpa_ordered.push_back(rhs->shared_from_this());
-            break;
-        }
-    }
-
-    if (!current_add)
-        return {};
-
-    while (true) {
-        const auto& targets = current_add->output(0).get_target_inputs();
-        if (targets.size() != 1)
-            return {};
-
-        auto next_node_input = targets.begin();
-        current_add = ov::as_type<ov::op::v1::Add>(next_node_input->get_node());
-        if (!current_add)
-            break;
-
-        auto another_idx = 1 - next_node_input->get_index();
-        auto input_node = current_add->input_value(another_idx).get_node();
-        if (post_sdpa_proj.count(input_node)) {
-            post_sdpa_ordered.push_back(input_node->shared_from_this());
-        } else {
-            break;
-        }
-    }
-    return {post_sdpa_ordered, current_add};
-}
-
-Output<Node> fuse_weights_and_replace(const std::vector<Weights>& weights_list, bool is_2d_fuse = false) {
-    if (weights_list.empty())
-        return {};
-
-    // Concatenate weights
-    OutputVector weights_values, scale_values, zero_point_values;
-    for (const auto& w : weights_list) {
-        weights_values.push_back(w.weights);
-        if(w.scale) {
-            scale_values.push_back(w.scale);
-        }
-        if(w.zero_point) {
-            zero_point_values.push_back(w.zero_point);
-        }
-    }
-    
-    auto fused_weights = concat_any(weights_values);
-    if(is_2d_fuse) {
-        // For 2D fusion we need to reshape the fused weights to have shape [original_dim0, -1]
-        auto shape = v0::Constant::create(element::i64, Shape{2}, {1, -1});
-        fused_weights = std::make_shared<v1::Reshape>(fused_weights, shape, true);
-    }
-    std::cout << "Fused weights node: " << fused_weights->get_friendly_name() << " shape: " << fused_weights->get_output_partial_shape(0) << std::endl;
-    
-    const auto& ref = weights_list.front();
-    auto weights_consumers = ref.weights->output(0).get_target_inputs();
-
-    // Replace only the weights node
-    for (auto& input : weights_consumers) {
-        std::cout << "Replacing consumer node: " << input.get_node()->get_friendly_name() << std::endl;
-        input.replace_source_output(fused_weights);
-    }
-    
-    if (scale_values.size()) {
-        auto fused_scale = concat_any(scale_values);
-        std::cout << "Fused scale node: " << fused_scale->get_friendly_name() << " shape: " << fused_scale->get_output_partial_shape(0) << std::endl;
-        auto consumers = ref.scale->output(0).get_target_inputs();   
-        for (auto& input : consumers) {
-            input.replace_source_output(fused_scale);
-        }
-    }
-    
-    if(zero_point_values.size()) {
-        auto fused_zero_point = concat_any(zero_point_values);
-        std::cout << "Fused zero point node: " << fused_zero_point->get_friendly_name() << " shape: " << fused_zero_point->get_output_partial_shape(0) << std::endl;
-        auto consumers = ref.zero_point->output(0).get_target_inputs();
-        for (auto& input : consumers) {
-            input.replace_source_output(fused_zero_point);
-        }
-    }
-
-    if (ref.mul) {
-        auto shape = v0::Constant::create(element::i64, Shape{2}, {0, -1});
-        auto mul_reshaped = std::make_shared<v1::Reshape>(ref.mul, shape, true);
-        ov::replace_node(ref.mul, mul_reshaped);
-    } 
-    
-    return {};
-}
-
 }  // namespace
 
 bool PackGQA::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -225,9 +92,8 @@ bool PackGQA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager(get_pass_config(), "PackGQA");
     
     manager.register_pass<ov::pass::Serialize>("PackGQA_before.xml", "PackGQA_before.bin");
-    // manager.register_pass<ov::pass::PackGQAFusion>();
-    // manager.register_pass<ov::pass::SDPAMerge>();
     manager.register_pass<ov::pass::MergeTwoUnrolledSDPAAdd>(); 
+    manager.register_pass<ov::pass::Serialize>("PackGQA_sdpa_fused.xml", "PackGQA_sdpa_fused.bin");
     manager.register_pass<ov::pass::MergeTwoUnrolledRoPEConcat>();
     manager.register_pass<ov::pass::Serialize>("PackGQA_after.xml", "PackGQA_after.bin");
     manager.register_pass<ov::pass::ConcatFusion>();
@@ -427,15 +293,15 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
     // Helper to create SDPA pattern
     auto create_rope_pattern = [&]() {
         pattern_nodes nodes;
-        nodes.input = any_input();
-        auto reshape = wrap_type<v1::Reshape>({nodes.input, any_input()});
-        auto var_split = wrap_type<v1::VariadicSplit>({reshape, any_input(), any_input()});
+        auto input = any_input();
+        nodes.input = wrap_type<v1::Reshape>({input, any_input()});
+        auto var_split = wrap_type<v1::VariadicSplit>({nodes.input, any_input(), any_input()});
         var_split->set_output_size(2);
         
         nodes.scale = wrap_type<v0::Negative>({var_split->output(1)});
         auto concat = wrap_type<v0::Concat>({nodes.scale, var_split->output(0)});
         nodes.mul_l= wrap_type<v1::Multiply>({concat, any_input()});
-        nodes.mul_r = wrap_type<v1::Multiply>({reshape, any_input()});
+        nodes.mul_r = wrap_type<v1::Multiply>({nodes.input, any_input()});
         nodes.output = wrap_type<v1::Add>({nodes.mul_r, nodes.mul_l});  // todo: use mul_2 as 2nd input
         return nodes;
     };
@@ -459,7 +325,7 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         auto add_rhs = as_type_ptr<v1::Add>(pm[rope_rhs.output].get_node_shared_ptr());
         if (!add_lhs || !add_rhs)
             return false;
-
+            
         // Get down Multiply nodes
         auto mul_down_1_lhs = as_type_ptr<v1::Multiply>(pm[rope_lhs.mul_l].get_node_shared_ptr());
         auto mul_down_2_lhs = as_type_ptr<v1::Multiply>(pm[rope_lhs.mul_r].get_node_shared_ptr());
@@ -473,215 +339,38 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         auto sf_rhs = as_type_ptr<v0::Negative>(pm[rope_rhs.scale].get_node_shared_ptr());
         
         // extract inputs
-        auto input_lhs = pm[rope_lhs.input].get_node_shared_ptr();
-        auto input_rhs = pm[rope_rhs.input].get_node_shared_ptr();
-
-        auto input_consumers = input_lhs->output(0).get_target_inputs();
+        auto reshape_lhs = pm[rope_lhs.input].get_node_shared_ptr();
+        auto reshape_rhs = pm[rope_rhs.input].get_node_shared_ptr();
         
         // Concatenate along head axis (1)
         std::cout << "Concatenating Input tensors" << std::endl;
         size_t head_axis = 1;
         size_t rank = 4;  // Assuming 4D tensors [batch, heads, seq_len, dim]
-        auto input_fused = concat_any(OutputVector{input_lhs, input_rhs}, head_axis, rank);
-        auto mul_down_l_fused = concat_any(OutputVector{mul_down_1_lhs->input_value(1), mul_down_1_rhs->input_value(1)}, head_axis, rank);
-        auto mul_down_r_fused = concat_any(OutputVector{mul_down_2_lhs->input_value(1), mul_down_2_rhs->input_value(1)}, head_axis, rank);
         
-        for (auto& input : input_consumers) {
-            std::cout << "Replacing INPUT consumer node: " << input.get_node()->get_friendly_name() << std::endl;
-            input.replace_source_output(input_fused);
-        }
-
-        mul_down_1_lhs->get_input_source_output(1).replace(mul_down_l_fused);
-        mul_down_2_lhs->get_input_source_output(1).replace(mul_down_r_fused);
+        auto input_fused = concat_any(OutputVector{reshape_lhs->input_value(0), reshape_rhs->input_value(0)}, head_axis, rank);
         
-        // auto add_fused = std::make_shared<v1::Add>(mul_down_r_fused, mul_down_l_fused);
-        // replace_node(mul_down_1_lhs, mul_down_l_fused);
-        // replace_node(mul_down_2_lhs, mul_down_r_fused);
-        // replace_node(input_lhs, input_fused);
-        // auto concat_consumers = concat_node->output(0).get_target_inputs();
-        // for (auto& input : concat_consumers) {
-        //     std::cout << "Replacing CONCAT consumer node: " << input.get_node()->get_friendly_name() << std::endl;
-        //     input.replace_source_output(add_lhs);
-        // }
+        auto mul_down_1_lhs_input = mul_down_1_lhs->input_value(1);
+        auto mul_down_2_lhs_input = mul_down_2_lhs->input_value(1);
+        auto mul_down_1_rhs_input = mul_down_1_rhs->input_value(1);
+        auto mul_down_2_rhs_input = mul_down_2_rhs->input_value(1);
+        
+        auto mul_down_input_l_fused = mul_down_1_lhs_input == mul_down_1_rhs_input ? mul_down_1_lhs_input : concat_any(OutputVector{mul_down_1_lhs_input, mul_down_1_rhs_input}, head_axis, rank);
+        auto mul_down_input_r_fused = mul_down_2_lhs_input == mul_down_2_rhs_input ? mul_down_2_lhs_input : concat_any(OutputVector{mul_down_2_lhs_input, mul_down_2_rhs_input}, head_axis, rank);
+        
+        std::cout << "Replace input node: " << reshape_lhs->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name() << " shape: " << std::endl;
+        auto reshape_shape = op::v0::Constant::create(element::i64, Shape{input_fused->get_output_shape(0).size()}, input_fused->get_output_shape(0));
+        auto reshape_fused = reshape_lhs->copy_with_new_inputs({input_fused, reshape_shape});
+        replace_node(reshape_lhs, reshape_fused);
+        
+        std::cout << "Replace input node: " << mul_down_1_lhs->get_input_source_output(1).get_node_shared_ptr()->get_friendly_name() << " shape: " << std::endl;
+        auto mul_down_l_fused = mul_down_1_lhs->copy_with_new_inputs({mul_down_1_lhs->input_value(0), mul_down_input_l_fused});
+        replace_node(mul_down_1_lhs, mul_down_l_fused);
+        
+        std::cout << "Replace input node: " << mul_down_2_lhs->get_input_source_output(1).get_node_shared_ptr()->get_friendly_name() << " shape: " << std::endl;
+        auto mul_down_r_fused = mul_down_2_lhs->copy_with_new_inputs({mul_down_2_lhs->input_value(0), mul_down_input_r_fused});
+        replace_node(mul_down_2_lhs, mul_down_r_fused);
         
         replace_node(concat_node, add_lhs);
         return true;
     });
-}
-
-PackGQAFusion::PackGQAFusion() {
-    MATCHER_SCOPE(PackGQAFusion);
-    // Pattern 1
-    auto norm_input = any_input();
-    auto norm_block = blocks::l2_norm_block(norm_input);
-
-    auto weights_constant = wrap_type<v0::Constant>();
-    auto opt_convert = optional<v0::Convert>(weights_constant);
-    auto proj_dq = blocks::dq_constant_block();
-    auto qkv_projections = wrap_type<v0::MatMul>({norm_input, proj_dq | opt_convert});
-
-    auto bias_const = wrap_type<v0::Constant>();
-    auto opt_bias_convert = optional<v0::Convert>(bias_const);
-    auto proj_bias = wrap_type<v1::Add>({qkv_projections, opt_bias_convert});
-    
-    auto rope = blocks::sdpa_preprocessing_block(proj_bias);  
-    
-    auto cache = wrap_type<v0::Parameter>();
-    auto proj_reshaped = optional<v1::Reshape>({rope | proj_bias, any_input()});
-    auto proj_cached = wrap_type<v0::Concat>({cache, proj_reshaped});
-
-    auto proj_out = std::make_shared<pass::pattern::op::Or>(OutputVector{proj_cached, proj_reshaped});
-
-    // Pattern 2
-    auto q_input = any_input();
-    // auto q = blocks::sdpa_preprocessing_block(q_input);
-    
-    auto k_input = any_input();
-    // auto k = blocks::sdpa_preprocessing_block(k_input);
-    // auto k_reshaped = wrap_type<v1::Reshape>({k, any_input()});
-    // auto k_cached = optional<v0::Concat>({any_input(), k_reshaped});
-
-    auto v_input = any_input();
-    // auto v_reshaped = optional<v1::Reshape>({v_input, any_input()});
-    // auto v_cached = optional<v0::Concat>({any_input(), v_reshaped});
-
-    auto sdpa = blocks::sdpa_block(q_input, k_input, v_input);
-    auto sdpa_transposed = optional<v1::Transpose>({sdpa, any_input()});
-    auto sdpa_reshaped = wrap_type<v1::Reshape>({sdpa_transposed, any_input()});
-
-    auto lin_weights_constant = wrap_type<v0::Constant>();
-    auto lin_opt_convert = optional<v0::Convert>(lin_weights_constant);
-
-    auto lin_proj_dq = blocks::dq_constant_block();
-    auto proj = wrap_type<v0::MatMul>({sdpa_reshaped, lin_proj_dq | lin_opt_convert});
-
-    auto callback = [=](const std::unordered_map<std::shared_ptr<Node>, std::vector<PatternValueMap>>& matches) {
-        std::cout << "PackGQA transformation is started." << std::endl;
-        if (matches.size() != 2) {
-            return;
-        }
-        
-        std::cout << "PackGQA transformation is applied." << std::endl;
-
-        std::unordered_set<Node*> post_sdpa_proj;
-        std::unordered_map<Node*, const PatternValueMap*> node_to_proj_pm;
-        for (const auto& pm : matches.at(proj)) {
-            auto root = pm.at(proj).get_node();
-            post_sdpa_proj.insert(root);
-            node_to_proj_pm[root] = &pm;
-        }
-
-        std::unordered_map<Node*, const PatternValueMap*> node_to_bias_pm;
-        for (const auto& pm : matches.at(proj_out)) {
-            auto root = pm.at(proj_out).get_node_shared_ptr();
-            std::cout << "Found proj_cached root node: " << root->get_friendly_name() << std::endl;
-            node_to_bias_pm[root.get()] = &pm;
-        }
-
-        auto [post_sdpa_proj_ordered, node_after_mha] = get_sdpa_order(post_sdpa_proj);
-        if (post_sdpa_proj_ordered.empty())
-            return;
-
-        std::vector<Weights> q_weights, k_weights, v_weights;
-        std::vector<Weights> q_biases, k_biases, v_biases;
-        std::vector<Weights> k_caches, v_caches;
-        std::vector<Weights> linear_projection;
-
-        for (const auto& node : post_sdpa_proj_ordered) {
-            const auto* pm = node_to_proj_pm.at(node.get());
-
-            if (pm->count(lin_proj_dq)) {
-                auto block = std::dynamic_pointer_cast<ov::pass::pattern::op::Block>(lin_proj_dq);
-
-                linear_projection.emplace_back(block->get_anchor("constant", *pm).value().get_node_shared_ptr(),
-                                               block->get_anchor("scale", *pm).has_value()
-                                                   ? block->get_anchor("scale", *pm).value().get_node_shared_ptr()
-                                                   : nullptr,
-                                               block->get_anchor("zp", *pm).has_value()
-                                                   ? block->get_anchor("zp", *pm).value().get_node_shared_ptr()
-                                                   : nullptr,
-                                               block->get_anchor("mul", *pm).has_value()
-                                                   ? block->get_anchor("mul", *pm).value().get_node_shared_ptr()
-                                                   : nullptr);
-            } else {
-                linear_projection.emplace_back(pm->at(lin_weights_constant).get_node_shared_ptr());
-            }
-
-            auto process =
-                [&](const Output<Node>& input, std::vector<Weights>& weights_vec, std::vector<Weights>& bias_vec) {
-                    auto input_node = pm->at(input.get_node_shared_ptr()).get_node_shared_ptr();
-                    if (node_to_bias_pm.count(input_node.get())) {
-                        const auto* bias_pm = node_to_bias_pm.at(input_node.get());
-
-                        if (bias_pm->count(proj_dq)) {
-                            auto dq = std::dynamic_pointer_cast<ov::pass::pattern::op::Block>(proj_dq);
-                            
-                            weights_vec.emplace_back(dq->get_anchor("constant", *bias_pm).value().get_node_shared_ptr(),
-                                                    dq->get_anchor("scale", *bias_pm).has_value()
-                                                        ? dq->get_anchor("scale", *bias_pm).value().get_node_shared_ptr()
-                                                        : nullptr,
-                                                    dq->get_anchor("zp", *bias_pm).has_value()
-                                                        ? dq->get_anchor("zp", *bias_pm).value().get_node_shared_ptr()
-                                                        : nullptr,
-                                                    dq->get_anchor("mul", *bias_pm).has_value()
-                                                        ? dq->get_anchor("mul", *bias_pm).value().get_node_shared_ptr()
-                                                        : nullptr);
-                        } else if (bias_pm->count(weights_constant)) {
-                            weights_vec.emplace_back(bias_pm->at(weights_constant).get_node_shared_ptr());
-                        }
-
-                        if (bias_pm->count(opt_bias_convert)) {
-                            bias_vec.emplace_back(bias_pm->at(opt_bias_convert).get_node_shared_ptr());
-                        } else if (bias_pm->count(bias_const)) {
-                            bias_vec.emplace_back(bias_pm->at(bias_const).get_node_shared_ptr());
-                        }
-
-                        // if (bias_pm->count(cache)) {
-                        //     cache_vec.emplace_back(bias_pm->at(cache).get_node_shared_ptr());
-                        // }
-                    }
-                };
-
-            process(q_input, q_weights, q_biases);
-            process(k_input, k_weights, k_biases);
-            process(v_input, v_weights, v_biases);
-        }
-
-        for (const auto& weights : {q_weights, k_weights, v_weights, linear_projection}) {
-            fuse_weights_and_replace(weights);
-        }
-
-        for (const auto& biases : {q_biases, k_biases, v_biases}) {
-            fuse_weights_and_replace(biases, true);
-        }
-
-        const auto* proj_pm = node_to_proj_pm.at(post_sdpa_proj_ordered[0].get());
-        auto proj_transpose = proj_pm->at(sdpa).get_node_shared_ptr();
-        
-        std::cout << "proj_matmul before reduce: " << proj_transpose->get_friendly_name() << " shape: " << proj_transpose->get_output_partial_shape(0) << std::endl;
-
-        auto axis_0 = v0::Constant::create(element::i64, Shape{1}, {2});
-        auto reduce_0 = std::make_shared<v1::ReduceSum>(proj_transpose, axis_0, false);
-
-        auto proj_reshape = proj_pm->at(sdpa_reshaped).get_node_shared_ptr();
-        proj_reshape->input(0).replace_source_output(reduce_0->output(0));
-        auto proj_matmul = proj_pm->at(proj).get_node_shared_ptr();
-        
-        std::cout << "proj_matmul node: " << proj_matmul->get_friendly_name() << " shape: " << proj_matmul->get_output_partial_shape(0) << std::endl;
-
-        int head_size = post_sdpa_proj_ordered.size();
-        auto reshape_shape = v0::Constant::create(element::i64, Shape{4}, {0, 0, -1, head_size});
-        auto reshaped = std::make_shared<v1::Reshape>();
-        reshaped->set_argument(0, proj_matmul->output(0));
-        reshaped->set_argument(1, reshape_shape);
-        reshaped->set_special_zero(true);
-
-        auto axis = v0::Constant::create(element::i64, Shape{1}, {3});
-        auto reduced = std::make_shared<v1::ReduceSum>(reshaped, axis, false);
-        std::cout << "Replacing input of node: " << node_after_mha->get_friendly_name() << " shape: " << node_after_mha->input(0).get_shape() << std::endl;
-        std::cout << "With node: " << reduced->get_friendly_name() << " shape: " << reduced->get_output_partial_shape(0) << std::endl;
-        node_after_mha->input(0).replace_source_output(reshaped);
-    };
-
-    register_patterns({proj_out, proj}, callback, true);
 }

@@ -88,17 +88,6 @@ namespace ov::pass {
 }  // namespace ov::pass
 
 namespace ov::pass {
-    
-class TRANSFORMATIONS_API PackGQAFusion : public ov::pass::MultiMatcher {
-public:
-    PackGQAFusion();
-};
-
-class TRANSFORMATIONS_API SDPAMerge : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("SDPAMerge");
-    SDPAMerge();
-};
 
 class TRANSFORMATIONS_API MergeTwoUnrolledSDPAAdd : public ov::pass::MatcherPass {
 public:
