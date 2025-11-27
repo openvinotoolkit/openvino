@@ -55,11 +55,7 @@ Performance Information F.A.Q.
         - DeepSeek, HF
         - Auto regressive language
         - 128K
-      * - `GLM4-9B-chat <https://huggingface.co/THUDM/glm-4-9b-chat/tree/main>`__
-        - THUDM
-        - Transformer
-        - 128K
-      * - `Gemma-3-1B-it <https://huggingface.co/google/gemma-3-1b-it>`__
+      * - `Gemma-3-4B-it <https://huggingface.co/google/gemma-3-4b-it>`__
         - Hugginface
         - Text-To-Text Decoder-only
         - 128K
@@ -75,14 +71,6 @@ Performance Information F.A.Q.
         - Meta AI
         - Auto regressive language
         - 128K
-      * - `Mistral-7b-Instruct-V0.3 <https://huggingface.co/mistralai/Mistral-7B-v0.3>`__
-        - Mistral AI
-        - Auto regressive language
-        - 32K
-      * - `Phi3-4k-mini-Instruct <https://huggingface.co/microsoft/Phi-3-mini-4k-instruct>`__
-        - Huggingface
-        - Auto regressive language
-        - 4096
       * - `Phi4-mini-Instruct <https://huggingface.co/microsoft/Phi-4-mini-instruct>`__
         - Huggingface
         - Auto regressive language
