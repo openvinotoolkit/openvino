@@ -771,12 +771,7 @@ void ZeroInferRequest::infer_async() {
         if (userBuffer != levelZeroBuffer) {
             _logger.info("Tensor is not allocated in the current Level Zero context");
             OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-
-            if (userTensor.at(SINGLE_TENSOR)->is_continuous()) {
-                std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(SINGLE_TENSOR)->get_byte_size());
-            } else {
-                userTensor.at(SINGLE_TENSOR)->copy_to(get_level_zero_input(inputIndex));
-            }
+            userTensor.at(SINGLE_TENSOR)->copy_to(get_level_zero_input(inputIndex));
         }
 
         ++inputIndex;
@@ -829,12 +824,7 @@ void ZeroInferRequest::get_result() {
         if (userBuffer != levelZeroBuffer) {
             _logger.info("Output tensor by index: %zu is not allocated in the current Level Zero context", outputIndex);
             OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
-
-            if (userTensor->is_continuous()) {
-                std::memcpy(userBuffer, levelZeroBuffer, userTensor->get_byte_size());
-            } else {
-                _levelZeroOutputTensors.at(outputIndex)->copy_to(userTensor._ptr);
-            }
+            _levelZeroOutputTensors.at(outputIndex)->copy_to(userTensor._ptr);
         }
 
         ++outputIndex;
