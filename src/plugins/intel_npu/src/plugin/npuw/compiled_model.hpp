@@ -191,6 +191,21 @@ private:
         // enabled)
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_pipeline_requests;
 
+        // HFA tile model indices for infer request vectors
+        enum HFATileIdx : size_t {
+            REGULAR_TILE = 0,  // Regular tile model (intermediate tiles)
+            FINAL_TILE = 1,    // Final tile model (last tile with division and transpose)
+            COUNT = 2          // Total number of HFA tile models
+        };
+
+        // Infer requests for host flash attention tile models (if host_flash_attention is present)
+        // [REGULAR_TILE]: regular tile model, [FINAL_TILE]: final tile model
+        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_infer_requests;
+
+        // Pipeline infer requests for host flash attention tile models (if host_flash_attention is present and
+        // pipelining is enabled)
+        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_pipeline_requests;
+
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
         std::size_t param_base = 0;
