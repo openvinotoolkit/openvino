@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
+#include <optional>
 
 #include "compiler.h"
 #include "intel_npu/common/filtered_config.hpp"
@@ -14,27 +14,13 @@
 
 namespace intel_npu {
 
-bool isUseBaseModelSerializer(const FilteredConfig& config);
-std::string supportVclCompiler(int major, int minor);
 class VCLApi;
 
 class VCLCompilerImpl final : public intel_npu::ICompiler {
 public:
     VCLCompilerImpl();
     ~VCLCompilerImpl() override;
-
-    static std::shared_ptr<VCLCompilerImpl> getInstance() {
-        static std::mutex mutex;
-        static std::weak_ptr<VCLCompilerImpl> weak_compiler;
-
-        std::lock_guard<std::mutex> lock(mutex);
-        auto compiler = weak_compiler.lock();
-        if (!compiler) {
-            compiler = std::make_shared<VCLCompilerImpl>();
-            weak_compiler = compiler;
-        }
-        return compiler;
-    }
+    static const std::shared_ptr<VCLCompilerImpl> getInstance();
 
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
@@ -57,7 +43,7 @@ public:
 
     bool get_supported_options(std::vector<char>& options) const;
 
-    bool is_option_supported(const std::string& option) const;
+    bool is_option_supported(const std::string& option, std::optional<std::string> optValue = std::nullopt) const;
 
     std::shared_ptr<VCLApi> getLinkedLibrary() const;
 

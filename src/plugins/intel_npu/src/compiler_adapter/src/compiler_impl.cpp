@@ -4,6 +4,8 @@
 
 #include "compiler_impl.hpp"
 
+#include <mutex>
+
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
@@ -11,7 +13,61 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "vcl_serializer.hpp"
+#include "weightless_utils.hpp"
 #include "ze_graph_ext_wrappers.hpp"
+
+namespace {
+struct UsedVersion {
+    int Major;
+    int Minor;
+    UsedVersion(int major, int minor) : Major(major), Minor(minor) {}
+};
+
+UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const vcl_version_info_t& loadedVersion) {
+    uint16_t usedMajor = pluginMajor, usedMinor = pluginMinor;
+    if (pluginMajor == loadedVersion.major) {
+        usedMinor = std::min(pluginMinor, loadedVersion.minor);
+    } else if (pluginMajor > loadedVersion.major) {
+        usedMajor = loadedVersion.major;
+        usedMinor = loadedVersion.minor;
+    }
+    return {usedMajor, usedMinor};
+}
+
+bool isUseBaseModelSerializer(UsedVersion useVersion, const intel_npu::FilteredConfig& config) {
+    // vcl serializer(No copy) is only support for vcl version >= 7.5
+    if (useVersion.Major < 7 || (useVersion.Major == 7 && useVersion.Minor < 5)) {
+        return true;
+    }
+
+    // user pass use_base_model_serializer config
+    if (config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) &&
+        config.has(ov::intel_npu::use_base_model_serializer.name())) {
+        return config.get<intel_npu::USE_BASE_MODEL_SERIALIZER>();
+    }
+
+    // user pass model_serializer_version config
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name()) &&
+        config.has(ov::intel_npu::model_serializer_version.name())) {
+        return (config.get<intel_npu::MODEL_SERIALIZER_VERSION>() ==
+                ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
+    }
+
+    // No VCL serializer was chosen explicitly, will default to the "no weights copy" implementation
+    return false;
+}
+
+std::string supportVclCompiler(int major, int minor) {
+    if (major >= 7 && minor >= 4) {
+        return "vclAllocatedExecutableCreate2";
+    } else if (major >= 6 && minor >= 1) {
+        return "vclAllocatedExecutableCreate";
+    } else {
+        return "vclExecutableCreate";
+    }
+}
+
+}  // namespace
 
 namespace intel_npu {
 
@@ -38,7 +94,7 @@ namespace intel_npu {
     vcl_symbol_statement(vclGetCompilerIsOptionSupported)   \
 
 
-//unsupported symbols with older ze_loader versions
+// symbols that may not be supported in older versions of vcl
 #define vcl_weak_symbols_list()                             \
     vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot)
 // clang-format on
@@ -51,7 +107,7 @@ public:
     void operator=(const VCLApi&) = delete;
     void operator=(VCLApi&&) = delete;
 
-    static const std::shared_ptr<VCLApi>& getInstance();
+    static const std::shared_ptr<VCLApi> getInstance();
     std::shared_ptr<void> getLibrary() const {
         return lib;
     }
@@ -175,9 +231,22 @@ VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
 #undef vcl_symbol_statement
 }
 
-const std::shared_ptr<VCLApi>& VCLApi::getInstance() {
+const std::shared_ptr<VCLApi> VCLApi::getInstance() {
     static std::shared_ptr<VCLApi> instance = std::make_shared<VCLApi>();
     return instance;
+}
+
+const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance() {
+    static std::mutex mutex;
+    static std::weak_ptr<VCLCompilerImpl> weak_compiler;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto compiler = weak_compiler.lock();
+    if (!compiler) {
+        compiler = std::make_shared<VCLCompilerImpl>();
+        weak_compiler = compiler;
+    }
+    return compiler;
 }
 
 VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", Logger::global().level()) {
@@ -188,39 +257,40 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
 
     // Initialize the VCL API
     THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
-
     _logger.info("Plugin VCL API Version: %d.%d", VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR);
     _logger.info("Plugin VCL Profiling API Version: %d.%d", VCL_PROFILING_VERSION_MAJOR, VCL_PROFILING_VERSION_MINOR);
     _logger.info("Lib VCL Compiler Version: %d.%d", _vclVersion.major, _vclVersion.minor);
     _logger.info("Lib VCL Profiling Version: %d.%d", _vclProfilingVersion.major, _vclProfilingVersion.minor);
-    _logger.info("Use Lib VCL version to create compiler");
     if (VCL_COMPILER_VERSION_MAJOR < _vclVersion.major ||
         (VCL_COMPILER_VERSION_MAJOR == _vclVersion.major && VCL_COMPILER_VERSION_MINOR < _vclVersion.minor)) {
         _logger.warning("inside supported VCL version is lower than loaded VCL api:\n plugin was built with VCL %d.%d, "
                         "\n      but loaded VCL is %d.%d.\n"
-                        "Will downgrade to use the latest plugin vcl compiler!!!",
+                        "Will downgrade to use the plugin vcl compiler",
                         VCL_COMPILER_VERSION_MAJOR,
                         VCL_COMPILER_VERSION_MINOR,
                         _vclVersion.major,
                         _vclVersion.minor);
+    } else {
+        _logger.info("Use Lib VCL version to create compiler");
     }
 
-    _logger.info("Use Lib VCL version to create compiler");
     vcl_compiler_desc_t compilerDesc;
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) - 1);
 
-    // Set device description as empty, the related info will be processed in compile phase if passed by user.
-    vcl_device_desc_t device_desc = {};
-
+    // This information cannot be determined during the initialization phase; set device desc default value, the related
+    // info will be processed in compile phase if passed by user.
+    _logger.warning("Device description is not provided, using default values");
+    vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
+                                     0x00,
+                                     static_cast<uint16_t>(-1),
+                                     static_cast<uint16_t>(-1)};
     THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
                           vclCompilerCreate(&compilerDesc, &device_desc, &_compilerHandle, &_logHandle),
                           nullptr);
-
     THROW_ON_FAIL_FOR_VCL("vclCompilerGetProperties",
                           vclCompilerGetProperties(_compilerHandle, &_compilerProperties),
                           _logHandle);
-
     _logger.info("VCL Compiler created successfully");
     _logger.info("VCL Compiler Properties: ID: %s, Version: %d.%d, Supported Opsets: %u",
                  _compilerProperties.id,
@@ -292,46 +362,12 @@ struct vcl_allocator_malloc {
     }
 };
 
-bool isUseBaseModelSerializer(const FilteredConfig& config) {
-    // user pass use_base_model_serializer config
-    if (config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) &&
-        config.has(ov::intel_npu::use_base_model_serializer.name())) {
-        return config.get<intel_npu::USE_BASE_MODEL_SERIALIZER>();
-    }
-
-    // user pass model_serializer_version config
-    if (config.isAvailable(ov::intel_npu::model_serializer_version.name()) &&
-        config.has(ov::intel_npu::use_base_model_serializer.name())) {
-        return (config.get<intel_npu::MODEL_SERIALIZER_VERSION>() ==
-                ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
-    }
-
-    // vcl serializer method is not set by user, will default to use it.
-    return false;
-}
-
-std::string supportVclCompiler(int major, int minor) {
-    if (major >= 7 && minor >= 4) {
-        return "vclAllocatedExecutableCreate2";
-    } else if (major >= 6 && minor >= 1) {
-        return "vclAllocatedExecutableCreate";
-    } else {
-        return "vclExecutableCreate";
-    }
-}
-
 NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
     _logger.debug("compile start");
 
     /// Check the linked vcl version whether supported in plugin
-    uint16_t usedMajor = VCL_COMPILER_VERSION_MAJOR, usedMinor = VCL_COMPILER_VERSION_MINOR;
-    if (static_cast<uint16_t>(VCL_COMPILER_VERSION_MAJOR) == _vclVersion.major) {
-        usedMinor = std::min(static_cast<uint16_t>(VCL_COMPILER_VERSION_MINOR), _vclVersion.minor);
-    } else if (static_cast<uint16_t>(VCL_COMPILER_VERSION_MAJOR) > _vclVersion.major) {
-        usedMajor = _vclVersion.major;
-        usedMinor = _vclVersion.minor;
-    }
-    _logger.debug("the finally used vcl version is %d.%d", usedMajor, usedMinor);
+    UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
+    _logger.debug("the finally used vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -347,49 +383,29 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     }
     FilteredConfig updatedConfig = *filteredConfig;
     bool useBaseModelSerializer = true;
-
-    // vcl serializer is only support for vcl version >= 7.5
-    if (usedMajor >= 7 && usedMinor >= 5) {
-        useBaseModelSerializer = isUseBaseModelSerializer(updatedConfig);
-    }
-
-    if (useBaseModelSerializer) {
-        _logger.debug("serialize IR is base method, useBaseModelSerializer is %d", useBaseModelSerializer);
-    } else {
-        _logger.debug("serialize IR is vcl method, useBaseModelSerializer is %d", useBaseModelSerializer);
-
-        // To resolve the issue with the default configuration where no user passes the serializer config, the VCL
-        // serializer will be used as the default in the plugin adapter. You need to pass the serializer config;
-        // otherwise, you will encounter a deserialization issue within the compiler.
-        _logger.warning("Add serializer config");
-        if (updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-            updatedConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
-        } else if (updatedConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-            updatedConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
-        }
-    }
-
     _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile0");
+    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, updatedConfig);
+    _logger.debug("serialize IR method is %s",
+                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
     auto serializedIR =
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
     _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile1");
 
     std::string buildFlags;
-
     _logger.debug("create build flags");
     buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
     _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile2");
     buildFlags += " ";
     buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
-    _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile3");
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
-
+    _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile3");
     vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
                                      serializedIR.first,
                                      buildFlags.c_str(),
                                      buildFlags.size()};
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
-    if (usedMajor >= 7 && usedMinor >= 4) {
+
+    if (usedVersion.Major >= 7 && usedVersion.Minor >= 4) {
         if (VCL_COMPILER_VERSION_MAJOR < _vclVersion.major) {
             _logger.warning("inside supported VCL version is lower than used VCL api:\n plugin was built with VCL "
                             "%d.%d, \n      but loaded VCL is %d.%d.\n"
@@ -398,7 +414,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                             VCL_COMPILER_VERSION_MINOR,
                             _vclVersion.major,
                             _vclVersion.minor,
-                            supportVclCompiler(usedMajor, usedMinor).c_str());
+                            supportVclCompiler(usedVersion.Major, usedVersion.Minor).c_str());
         }
         // support the lastest vcl api
         // For VCL 7.4 and later, we can use vclAllocatedExecutableCreate2
@@ -407,11 +423,9 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         uint8_t* blob = nullptr;
         size_t size = 0;
         _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile4");
-
         THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreate2",
                               vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size),
-                              _logHandle);/// get issue form here
-
+                              _logHandle);
         if (size == 0 || blob == nullptr) {
             OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
         }
@@ -421,7 +435,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
 
         _logger.debug("compile end, blob size:%d", allocator.m_vec.size());
         return NetworkDescription(std::move(allocator.m_vec), std::move(metadata));
-    } else if (usedMajor >= 6 && usedMinor >= 1) {
+    } else if (usedVersion.Major >= 6 && usedVersion.Minor >= 1) {
         if (VCL_COMPILER_VERSION_MAJOR < _vclVersion.major) {
             _logger.warning("inside supported VCL version is lower than used VCL api:\n plugin was built with VCL "
                             "%d.%d, \n      but loaded VCL is %d.%d.\n"
@@ -430,7 +444,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                             VCL_COMPILER_VERSION_MINOR,
                             _vclVersion.major,
                             _vclVersion.minor,
-                            supportVclCompiler(usedMajor, usedMinor).c_str());
+                            supportVclCompiler(usedVersion.Major, usedVersion.Minor).c_str());
         }
         // For older versions, we use vclAllocatedExecutableCreate
         _logger.debug("Using vclAllocatedExecutableCreate for 6.1 < VCL < 7.4");
@@ -440,6 +454,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         allocator.deallocate = vcl_allocator_malloc::vcl_deallocate;
         uint8_t* blob = nullptr;
         size_t size = 0;
+        _logger.error("manual set serializeIR(model, compilerVersion, maxOpsetVersion, true) in compile5");
         THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreate",
                               vclAllocatedExecutableCreate(_compilerHandle, exeDesc, &allocator, &blob, &size),
                               _logHandle);
@@ -466,6 +481,7 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     const std::shared_ptr<ov::Model>& model,
     const Config& config) const {
     _logger.debug("compileWsOneShot start");
+    storeWeightlessCacheAttribute(model);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -480,16 +496,18 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
         OPENVINO_THROW("config is not FilteredConfig");
     }
     FilteredConfig updatedConfig = *filteredConfig;
-    bool useBaseModelSerializer = isUseBaseModelSerializer(updatedConfig);
+    bool useBaseModelSerializer = true;
+    useBaseModelSerializer = isUseBaseModelSerializer({7, 5}, updatedConfig);
+    _logger.debug("serialize IR method is %s",
+                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
     auto serializedIR =
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
 
     std::string buildFlags;
-
     _logger.debug("create build flags");
     buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
+    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
@@ -510,11 +528,10 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     }
 
     std::vector<std::shared_ptr<NetworkDescription>> networkDescrs;
-    for (uint32_t i = 0; i < allocator.m_vector.size(); i++) {
+    for (auto& blob : allocator.m_vector) {
         // Use empty metadata as VCL does not support metadata extraction
         NetworkMetadata metadata;
-        networkDescrs.emplace_back(
-            std::make_shared<NetworkDescription>(std::move(*allocator.m_vector[i]), std::move(metadata)));
+        networkDescrs.emplace_back(std::make_shared<NetworkDescription>(std::move(*blob), std::move(metadata)));
     }
     return networkDescrs;
 }
@@ -523,6 +540,7 @@ NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov:
                                                        const Config& config,
                                                        size_t callNumber) const {
     _logger.debug("compileWsIterative start");
+    storeWeightlessCacheAttribute(model);
     const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
     if (filteredConfig == nullptr) {
         OPENVINO_THROW("config is not FilteredConfig");
@@ -533,9 +551,8 @@ NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov:
 }
 
 intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
-    _logger.debug("parse start");
-    // VCL does not support parse, return empty metadata
-    return intel_npu::NetworkMetadata();
+    // VCL returns empty metadata. In plugin adapter, use driver metadata instead.
+    OPENVINO_THROW_NOT_IMPLEMENTED("VCL does not support parse.");
 }
 
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
@@ -591,14 +608,8 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     _logger.debug("query start");
 
     /// Check the linked vcl version whether supported in plugin
-    uint16_t usedMajor = VCL_COMPILER_VERSION_MAJOR, usedMinor = VCL_COMPILER_VERSION_MINOR;
-    if (static_cast<uint16_t>(VCL_COMPILER_VERSION_MAJOR) == _vclVersion.major) {
-        usedMinor = std::min(static_cast<uint16_t>(VCL_COMPILER_VERSION_MINOR), _vclVersion.minor);
-    } else if (static_cast<uint16_t>(VCL_COMPILER_VERSION_MAJOR) > _vclVersion.major) {
-        usedMajor = _vclVersion.major;
-        usedMinor = _vclVersion.minor;
-    }
-    _logger.debug("the finally used vcl version is %d.%d", usedMajor, usedMinor);
+    UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
+    _logger.debug("the finally used vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -613,28 +624,9 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     }
     FilteredConfig updatedConfig = *filteredConfig;
     bool useBaseModelSerializer = true;
-    // vcl serializer is only support for vcl version >= 7.5
-    if (usedMajor >= 7 && usedMinor >= 5) {
-        useBaseModelSerializer = isUseBaseModelSerializer(updatedConfig);
-    }
-
-    if (useBaseModelSerializer) {
-        _logger.debug("serialize IR is base method, useBaseModelSerializer is %d", useBaseModelSerializer);
-        std::cout << "1) serialize IR is base method (copy weights), useBaseModelSerializer is " << useBaseModelSerializer << std::endl;
-    } else {
-        _logger.debug("serialize IR is vcl method, useBaseModelSerializer is %d", useBaseModelSerializer);
-        std::cout << "2) serialize IR is vcl method(No copy weights), useBaseModelSerializer is " << useBaseModelSerializer << std::endl;
-
-        // To resolve the issue with the default configuration where no user passes the serializer config, the VCL
-        // serializer will be used as the default in the plugin adapter. You need to pass the serializer config;
-        // otherwise, you will encounter a deserialization issue within the compiler.
-        _logger.warning("Add serializer config");
-        if (updatedConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-            updatedConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
-        } else if (updatedConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-            updatedConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
-        }
-    }
+    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, updatedConfig);
+    _logger.debug("serialize IR method is %s",
+                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
     auto serializedIR =
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
 
@@ -700,12 +692,15 @@ bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
     return false;
 }
 
-bool VCLCompilerImpl::is_option_supported(const std::string& option) const {
+bool VCLCompilerImpl::is_option_supported(const std::string& option, std::optional<std::string> optValue) const {
     try {
         const char* optname_ch = option.c_str();
-        _logger.debug("is_option_supported start for option: %s", optname_ch);
+        const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
+        _logger.debug("is_option_supported start for option: %s, value: %s",
+                      optname_ch,
+                      optValue ? optvalue_ch : "null");
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
-                              vclGetCompilerIsOptionSupported(_compilerHandle, optname_ch, nullptr),
+                              vclGetCompilerIsOptionSupported(_compilerHandle, optname_ch, optvalue_ch),
                               _logHandle);
         return true;
     } catch (const std::exception& e) {
