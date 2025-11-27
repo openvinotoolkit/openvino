@@ -25,27 +25,6 @@ namespace ov {
  */
 namespace intel_npu {
 
-inline std::ostream& operator<<(std::ostream& os, const std::vector<std::string>& strides) {
-    std::size_t counter = 0;
-    std::size_t size = strides.size();
-    for (auto& v : strides) {
-        os << v;
-        if (counter < size - 1) {
-            os << ',';
-        }
-        ++counter;
-    }
-    return os;
-}
-
-inline std::istream& operator>>(std::istream& is, std::vector<std::string>& strides) {
-    std::string arg;
-    while (std::getline(is, arg, ',')) {
-        strides.push_back(arg);
-    }
-    return is;
-}
-
 /**
  * @brief [Only for NPU plugin]
  * Type: uint64_t
