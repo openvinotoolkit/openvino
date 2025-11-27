@@ -106,8 +106,16 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     auto custom_layers_config = m_config.get_config_file();
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
 
+    std::cerr << "[DEBUG_CVS-172561] ProgramBuilder constructor - getting ordered ops..." << std::endl;
+    std::cerr.flush();
     auto ops = model->get_ordered_ops();
+    std::cerr << "[DEBUG_CVS-172561] ProgramBuilder constructor - found " << ops.size() << " ops" << std::endl;
+    std::cerr.flush();
+    std::cerr << "[DEBUG_CVS-172561] ProgramBuilder::build - STARTING..." << std::endl;
+    std::cerr.flush();
     m_program = build(ops, is_inner_program);
+    std::cerr << "[DEBUG_CVS-172561] ProgramBuilder::build - COMPLETED successfully" << std::endl;
+    std::cerr.flush();
 }
 
 ProgramBuilder::ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config)
@@ -140,16 +148,27 @@ void ProgramBuilder::cleanup_build() {
 std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool is_inner_program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::build");
 
+    std::cerr << "[DEBUG_CVS-172561] ProgramBuilder::build - Phase 1: prepare_build()" << std::endl;
+    std::cerr.flush();
     prepare_build();
+    std::cerr << "[DEBUG_CVS-172561] ProgramBuilder::build - Phase 2: Creating primitives for " << ops.size() << " ops" << std::endl;
+    std::cerr.flush();
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
-        for (const auto& op : ops) {
+        for (size_t i = 0; i < ops.size(); i++) {
+            const auto& op = ops[i];
+            std::cerr << "[DEBUG_CVS-172561]   Creating primitive [" << i << "/" << ops.size() << "]: " << op->get_friendly_name() << " (type: " << op->get_type_name() << ")" << std::endl;
+            std::cerr.flush();
             CreateSingleLayerPrimitive(op);
         }
     }
+    std::cerr << "[DEBUG_CVS-172561] ProgramBuilder::build - Phase 3: All primitives created successfully" << std::endl;
+    std::cerr.flush();
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::CreateProgram");
     cldnn::program::ptr program;
+    std::cerr << "[DEBUG_CVS-172561] ProgramBuilder::build - Phase 4: Calling cldnn::program::build_program()..." << std::endl;
+    std::cerr.flush();
     try {
         program = cldnn::program::build_program(m_engine,
                                                 *m_topology,
@@ -159,11 +178,19 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
                                                 false,
                                                 false,
                                                 is_inner_program);
+        std::cerr << "[DEBUG_CVS-172561] ProgramBuilder::build - Phase 5: cldnn::program::build_program() completed successfully" << std::endl;
+        std::cerr.flush();
     } catch (std::exception& e) {
+        std::cerr << "[DEBUG_CVS-172561] ProgramBuilder::build - EXCEPTION caught in cldnn::program::build_program(): " << e.what() << std::endl;
+        std::cerr.flush();
         OPENVINO_ASSERT(false, "[GPU] ProgramBuilder build failed!\n", e.what());
     }
+    std::cerr << "[DEBUG_CVS-172561] ProgramBuilder::build - Phase 6: cleanup_build()" << std::endl;
+    std::cerr.flush();
     cleanup_build();
 
+    std::cerr << "[DEBUG_CVS-172561] ProgramBuilder::build - Phase 7: Returning program" << std::endl;
+    std::cerr.flush();
     return program;
 }
 

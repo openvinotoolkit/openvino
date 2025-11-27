@@ -62,7 +62,15 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_inputs(ov::ICompiledModel::inputs()),
       m_outputs(ov::ICompiledModel::outputs()),
       m_loaded_from_cache(false) {
+    std::cerr << "[DEBUG_CVS-172561] CompiledModel constructor - START" << std::endl;
+    std::cerr << "[DEBUG_CVS-172561]   model_name: " << model->get_friendly_name() << std::endl;
+    std::cerr << "[DEBUG_CVS-172561]   num_streams: " << m_config.get_num_streams() << std::endl;
+    std::cerr.flush();
+    std::cerr << "[DEBUG_CVS-172561] Creating Graph object (stream_id=0)..." << std::endl;
+    std::cerr.flush();
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
+    std::cerr << "[DEBUG_CVS-172561] Graph object created successfully" << std::endl;
+    std::cerr.flush();
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
