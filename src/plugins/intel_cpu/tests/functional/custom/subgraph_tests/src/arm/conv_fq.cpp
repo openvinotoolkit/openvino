@@ -126,10 +126,10 @@ protected:
 
 TEST_P(ConvAndFQ, CompareWithRefs) {
     run();
-    const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, targetName] = this->GetParam();
-    ov::element::Type expectedPrecision = element::f32;
 
+    ov::element::Type expectedPrecision = element::f32;
 #if defined(OPENVINO_ARCH_ARM64)
+    const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, targetName] = this->GetParam();
     if (fqConstShapes.empty()) {
         expectedPrecision = quantizeIntervals[0][0] < 0.f ? element::i8 : element::u8;
     }
