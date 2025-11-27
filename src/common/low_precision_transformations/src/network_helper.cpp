@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
@@ -1203,7 +1204,7 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
         }
         dataNode = convert->get_input_source_output(0);
     }
-
+    copy_weightless_cache_attr(dataNode.get_node_shared_ptr(), convert);
     return FakeQuantizeDequantization(dataNode, convert, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
 }
 
