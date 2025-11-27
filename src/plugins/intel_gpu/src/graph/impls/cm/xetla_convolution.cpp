@@ -181,7 +181,14 @@ public:
 
 std::unique_ptr<primitive_impl> ConvolutionImplementationManager::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<convolution>());
-    return std::make_unique<ConvolutionImpl>(node, params);
+
+    auto impl = std::make_unique<ConvolutionImpl>(node, params);
+    auto out_layout = node.get_input_layout(1);
+    out_layout.format = format::yxio;
+    auto weights_reorder_params_ = std::make_shared<WeightsReorderParams>(node.get_input_layout(1), out_layout);
+    impl->set_weights_reorder_params(weights_reorder_params_);
+
+    return impl;
 }
 
 const std::unordered_map<std::string, ConvolutionImplementationManager::KernelKnobs> ConvolutionImplementationManager::ConvMap = {
