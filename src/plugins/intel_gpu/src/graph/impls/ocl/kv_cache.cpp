@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -319,12 +319,11 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         auto inputs_count = 3;
 
         params.inputs.resize(inputs_count);
-        params.inputs[0] = convert_data_tensor(impl_param.input_layouts[0]);
-        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[2 + impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0]);
-        params.inputs[2] = convert_data_tensor(impl_param.input_layouts[3 + impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0]);
-        params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0]);
-        params.inputs.resize(inputs_count);
-        params.seq_len = params.inputs[0].Y().v;
+        params.inputs[0] = convert_data_tensor(impl_param.input_layouts[0], tensor());
+        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[2 + (impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0)], tensor());
+        params.inputs[2] = convert_data_tensor(impl_param.input_layouts[3 + (impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0)], tensor());
+        params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0], tensor());
+        params.seq_len = params.inputs[0].Y().pitch ? params.inputs[0].Feature().pitch / params.inputs[0].Y().pitch : 0;
         params.idx_len = params.inputs[2].Y().v;
 
         const auto& desc = impl_param.typed_desc<kv_cache>();
@@ -355,11 +354,11 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         for (size_t i = 0; i < inputs_count; ++i) {
             auto target_layout = impl_param.input_layouts[i];
             // Trim the cache
-            if (i == 0 && primitive->trim) {
+            /*if (i == 0 && primitive->trim) {
                 auto shape = target_layout.get_partial_shape();
                 shape[axis] = shape[axis] - primitive->trim;
                 target_layout.set_partial_shape(shape);
-            }
+            }*/
             params.inputs[i] = convert_data_tensor(target_layout);
         }
 
@@ -549,7 +548,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto reorder_kernel_params = get_reorder_trim_kernel_params(impl_param, true);
         (_kernels_data[reorder_trim_stage].update_dispatch_data_func)(reorder_kernel_params, _kernels_data[reorder_trim_stage]);
-        _kernels_data[reorder_trim_stage].kernels[0].skip_execution = 0;
+        _kernels_data[reorder_trim_stage].kernels[0].skip_execution = (reorder_kernel_params.seq_len == 0) || (reorder_kernel_params.idx_len == 0);
 
         // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
         if (_kernels_data[concat_stage].params == nullptr) {

@@ -60,17 +60,19 @@ KernelsData ReorderKVCacheKernelRef::GetKernelsData(const Params& params) const 
                      static_cast<int>(kernel_params.outputs.size()),
                      kernel_params.is_shape_agnostic);
 
+    kernel.params.scalars.clear();
+
     ScalarDescriptor seq_len;
     seq_len.t = ScalarDescriptor::Types::UINT32;
-    seq_len.v.u32 = 0;
+    seq_len.v.u32 = kernel_params.inputs[0].Feature().pitch / kernel_params.inputs[0].Y().pitch;
     kernel.params.scalars.push_back(seq_len);
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
     ScalarDescriptor idx_len;
     idx_len.t = ScalarDescriptor::Types::UINT32;
-    idx_len.v.u32 = 0;
+    idx_len.v.u32 = kernel_params.idx_len;
     kernel.params.scalars.push_back(idx_len);
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 1});
 
     return {kernel_data};
 }
@@ -83,6 +85,7 @@ ParamsKey ReorderKVCacheKernelRef::GetSupportedKey() const {
     key.EnableOutputDataType(Datatype::F16);
     key.EnableInputLayout(DataLayout::bfyx);
     key.EnableOutputLayout(DataLayout::bfyx);
+    key.EnableDifferentTypes();
     key.EnableTensorOffset();
     key.EnableTensorPitches();
     key.EnableBatching();
@@ -109,8 +112,8 @@ bool ReorderKVCacheKernelRef::Validate(const Params& params) const {
 JitConstants ReorderKVCacheKernelRef::GetJitConstants(const reorder_kv_cache_params& kernel_params) const {
     JitConstants jit = MakeBaseParamsJitConstants(kernel_params);
     auto output = kernel_params.outputs[0];
-    jit.AddConstant({MakeJitConstant("INPUT0_SEQ_PITCH", output.Batch().v * output.Feature().v)});
-    jit.AddConstant({MakeJitConstant("OUTPUT_SEQ_PITCH", output.Batch().v * output.Feature().v)});
+    jit.AddConstant({MakeJitConstant("INPUT0_SEQ_PITCH", output.X().v)});
+    jit.AddConstant({MakeJitConstant("OUTPUT_SEQ_PITCH", output.X().v)});
     return jit;
 }
 

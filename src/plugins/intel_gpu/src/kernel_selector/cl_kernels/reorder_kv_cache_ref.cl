@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,10 +16,10 @@ KERNEL(reorder_kv_cache)(
     const unsigned int bh = (uint)get_global_id(0);
     const unsigned int d = (uint)get_global_id(1);
 
-    for (int s = 0; s < idx_len; ++s) {
-        const unsigned int out_offset = bh * OUTPUT_SEQ_PITCH * seq_len + dst_idx[s * OUTPUT_SEQ_PITCH] * OUTPUT_SEQ_PITCH + d;
-        const unsigned int in_offset = bh * INPUT0_SEQ_PITCH * seq_len + src_idx[s] * INPUT0_SEQ_PITCH + d;
+    unsigned long long out_offset = bh * OUTPUT_SEQ_PITCH * seq_len + d;
+    unsigned long long in_offset = bh * INPUT0_SEQ_PITCH * seq_len + d;
 
-        state_new[out_offset] = state[in_offset];
+    for (int s = 0; s < idx_len; ++s) {
+        state_new[out_offset + dst_idx[s * OUTPUT_SEQ_PITCH] * OUTPUT_SEQ_PITCH] = state[in_offset + src_idx[s] * INPUT0_SEQ_PITCH];
     }
 }
