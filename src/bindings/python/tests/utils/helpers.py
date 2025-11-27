@@ -19,7 +19,8 @@ from openvino import Model, Core, Shape, Tensor, Type
 import openvino.opset13 as ops
 
 
-def _compare_models(model_one: Model, model_two: Model, compare_names: bool = True) -> tuple[bool, str]:  # noqa: C901 the function is too complex
+# noqa: C901 the function is too complex
+def _compare_models(model_one: Model, model_two: Model, compare_names: bool = True) -> tuple[bool, str]:
     """Function to compare OpenVINO model (ops names, types and shapes).
 
     Note that the functions uses get_ordered_ops, so the topological order of ops should be also preserved.
@@ -280,7 +281,9 @@ def generate_concat_compiled_model(device, input_shape: list[int] = None, ov_typ
     return core.compile_model(model, device)
 
 
-def generate_concat_compiled_model_with_data(device, input_shape: list[int] = None, ov_type=Type.f32, numpy_dtype=np.float32):
+def generate_concat_compiled_model_with_data(
+    device, input_shape: list[int] = None, ov_type=Type.f32, numpy_dtype=np.float32
+):
     if input_shape is None:
         input_shape = [5]
 
