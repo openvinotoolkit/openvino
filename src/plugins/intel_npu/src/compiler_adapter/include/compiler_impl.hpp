@@ -14,8 +14,6 @@
 
 namespace intel_npu {
 
-class VCLApi;
-
 class VCLCompilerImpl final : public intel_npu::ICompiler {
 public:
     VCLCompilerImpl();
@@ -45,7 +43,7 @@ public:
 
     bool is_option_supported(const std::string& option, std::optional<std::string> optValue = std::nullopt) const;
 
-    std::shared_ptr<VCLApi> getLinkedLibrary() const;
+    std::shared_ptr<void> getLinkedLibrary() const;
 
 private:
     vcl_log_handle_t _logHandle = nullptr;
