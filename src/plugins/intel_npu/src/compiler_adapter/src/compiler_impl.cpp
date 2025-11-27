@@ -489,7 +489,7 @@ NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov:
     }
     FilteredConfig updatedConfig = *filteredConfig;
     updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
-    return compile(model, config);
+    return compile(model, updatedConfig);
 }
 
 intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
