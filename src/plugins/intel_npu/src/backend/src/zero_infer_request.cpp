@@ -752,9 +752,16 @@ void ZeroInferRequest::infer_async() {
             continue;
         }
 
-        auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(SINGLE_TENSOR)._ptr);
-        void* userBuffer =
-            !userRemoteTensor ? userTensor.at(SINGLE_TENSOR)->data() : userRemoteTensor->get_original_memory();
+        void* userBuffer;
+        if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(userTensor.at(SINGLE_TENSOR)._ptr)) {
+            if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
+                userBuffer = userZeroRemoteTensor->get_original_memory();
+            } else {
+                userBuffer = userRemoteTensor->get_properties().at(ov::intel_npu::mem_handle.name()).as<void*>();
+            }
+        } else {
+            userBuffer = userTensor.at(SINGLE_TENSOR)->data();
+        }
         void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
 
         if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
@@ -803,8 +810,16 @@ void ZeroInferRequest::get_result() {
             tensorToBeReshaped->set_shape(actualDims);
         }
 
-        auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor._ptr);
-        void* userBuffer = !userRemoteTensor ? userTensor->data() : userRemoteTensor->get_original_memory();
+        void* userBuffer;
+        if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(userTensor._ptr)) {
+            if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
+                userBuffer = userZeroRemoteTensor->get_original_memory();
+            } else {
+                userBuffer = userRemoteTensor->get_properties().at(ov::intel_npu::mem_handle.name()).as<void*>();
+            }
+        } else {
+            userBuffer = userTensor->data();
+        }
         void* levelZeroBuffer = _levelZeroOutputTensors.at(outputIndex)->data();
 
         if (userBuffer == nullptr || levelZeroBuffer == nullptr) {

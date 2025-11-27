@@ -70,13 +70,22 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     _bytes_capacity = get_bytes_capacity();
 
     // Data pointer of the given user_tensor must be a valid address in the level zero context
-    // Check first if the given tensor is a ZeroRemoteTensor (which has a different method to expose the internal
+    // Check first if the given tensor is a ov::IRemoteTensor (which has a different methods to expose the internal
     // storage)
-    auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(_user_tensor._ptr);
-    if (remote_tensor == nullptr) {
-        _ptr = _user_tensor->data();
+    if (auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(_user_tensor._ptr)) {
+        if (auto zero_remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(remote_tensor)) {
+            _ptr = zero_remote_tensor->get_original_memory();
+        } else {
+            auto remote_properties = remote_tensor->get_properties();
+            auto it_param = remote_properties.find(ov::intel_npu::mem_handle.name());
+            OPENVINO_ASSERT(it_param != remote_properties.end(),
+                            "Parameter with key ",
+                            ov::intel_npu::mem_handle.name(),
+                            " not found");
+            _ptr = remote_properties.at(ov::intel_npu::mem_handle.name()).as<void*>();
+        }
     } else {
-        _ptr = remote_tensor->get_original_memory();
+        _ptr = _user_tensor->data();
     }
 
     // Check if [data, data + size] was previously imported or allocated in the current level zero context. In such case
