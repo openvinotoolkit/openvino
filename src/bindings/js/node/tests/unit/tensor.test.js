@@ -321,7 +321,28 @@ describe("ov.Tensor tests", () => {
     });
   });
 
-  // Note: native __getExternalTensor interoperability tests were removed
-  // because they are outside the scope of this PR and depend on build
-  // configurations exposing private native APIs.
+  it("native __getExternalTensor interoperability", function () {
+    const testData = Int32Array.from([100, 200, 300, 400]);
+    const baseTensor = new ov.Tensor(ov.element.i32, [2, 2], testData);
+
+    // Some runtime binaries may not include the native cross-addon helper
+    // method `__getExternalTensor`. If it's missing, skip this test instead
+    // of failing the whole suite in this environment.
+    if (typeof baseTensor.__getExternalTensor !== "function") {
+      this.skip();
+      return;
+    }
+
+    const nativePtr = baseTensor.__getExternalTensor();
+
+    // Create multiple tensors from same external pointer
+    const tensor1 = new ov.Tensor(nativePtr);
+    const tensor2 = new ov.Tensor(nativePtr);
+
+    testData[0] = 999; // Modify original data to see if reflected
+
+    // All should have consistent data and properties
+    assert.deepStrictEqual(tensor1.data, testData);
+    assert.deepStrictEqual(tensor2.data, testData);
+  });
 });

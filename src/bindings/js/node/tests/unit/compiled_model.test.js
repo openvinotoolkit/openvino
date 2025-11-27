@@ -11,44 +11,13 @@ describe("ov.CompiledModel tests", () => {
   const { testModelFP32 } = testModels;
   let core = null;
   let compiledModel = null;
-  let skipCompiledModelTests = false;
-
-  // Quick synchronous check: some test runners/environments don't have the
-  // BATCH device plugin available. Try probing when the test suite initializes and
-  // mark the suite to be skipped early to avoid running hooks that attempt
-  // to compile and then fail.
-  try {
-    const _probeCore = new ov.Core();
-    const _devices = _probeCore.getAvailableDevices();
-    if (!_devices.includes("BATCH")) {
-      skipCompiledModelTests = true;
-    }
-  } catch {
-    skipCompiledModelTests = true;
-  }
 
   before(async () => {
     await isModelAvailable(testModelFP32);
     core = new ov.Core();
-    // Some environments under test may not have the BATCH device plugin
-    // available. If it's missing, skip these compiled model tests rather
-    // than failing the whole suite.
-    try {
-      const devices = core.getAvailableDevices();
-      if (!devices.includes("BATCH")) {
-        skipCompiledModelTests = true;
-      }
-    } catch {
-      // If getting devices fails for some reason, skip as well.
-      skipCompiledModelTests = true;
-    }
   });
 
   beforeEach(function () {
-    if (skipCompiledModelTests) {
-      this.skip();
-      return;
-    }
     const properties = {
       AUTO_BATCH_TIMEOUT: "1",
     };
@@ -64,14 +33,14 @@ describe("ov.CompiledModel tests", () => {
 
   describe("getProperty()", () => {
     it("returns the value of property from compiled model", function () {
-      if (skipCompiledModelTests || !compiledModel) {
+      if (!compiledModel) {
         this.skip();
         return;
       }
       assert.strictEqual(compiledModel.getProperty("AUTO_BATCH_TIMEOUT"), "1");
     });
     it("throws an error when called without arguments", function () {
-      if (skipCompiledModelTests || !compiledModel) {
+      if (!compiledModel) {
         this.skip();
         return;
       }
@@ -81,7 +50,7 @@ describe("ov.CompiledModel tests", () => {
       );
     });
     it("throws when called with property name that does not exists", function () {
-      if (skipCompiledModelTests || !compiledModel) {
+      if (!compiledModel) {
         this.skip();
         return;
       }
@@ -91,7 +60,7 @@ describe("ov.CompiledModel tests", () => {
 
   describe("setProperty()", () => {
     it("sets a properties for compiled model", function () {
-      if (skipCompiledModelTests || !compiledModel) {
+      if (!compiledModel) {
         this.skip();
         return;
       }
@@ -100,7 +69,7 @@ describe("ov.CompiledModel tests", () => {
     });
 
     it("throws an error when called without an object argument", function () {
-      if (skipCompiledModelTests || !compiledModel) {
+      if (!compiledModel) {
         this.skip();
         return;
       }
@@ -110,7 +79,7 @@ describe("ov.CompiledModel tests", () => {
       );
     });
     it("throws an error when called with wrong argument", function () {
-      if (skipCompiledModelTests || !compiledModel) {
+      if (!compiledModel) {
         this.skip();
         return;
       }
@@ -121,7 +90,7 @@ describe("ov.CompiledModel tests", () => {
     });
 
     it("throws an error when called with multiple arguments", function () {
-      if (skipCompiledModelTests || !compiledModel) {
+      if (!compiledModel) {
         this.skip();
         return;
       }
@@ -133,7 +102,7 @@ describe("ov.CompiledModel tests", () => {
     });
 
     it("returns the set property of the compiled model", function () {
-      if (skipCompiledModelTests || !compiledModel) {
+      if (!compiledModel) {
         this.skip();
         return;
       }
@@ -143,7 +112,7 @@ describe("ov.CompiledModel tests", () => {
     });
 
     it("retains the last set property when set multiple times", function () {
-      if (skipCompiledModelTests || !compiledModel) {
+      if (!compiledModel) {
         this.skip();
         return;
       }
@@ -153,7 +122,7 @@ describe("ov.CompiledModel tests", () => {
     });
 
     it("allows to pass empty object", function () {
-      if (skipCompiledModelTests || !compiledModel) {
+      if (!compiledModel) {
         this.skip();
         return;
       }
