@@ -326,6 +326,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             if (proto_comp_model_desc.pyramid_attention) {
                 setup_pyramid_infer_requests(real_idx, is_piped, false);
             }
+            // Create HFA tile infer requests if this function has host flash attention
+            if (proto_comp_model_desc.host_flash_attention) {
+                setup_hfa_infer_requests(real_idx, is_piped, false);
+            }
         }
 
         LOG_INFO("DONE");
@@ -718,11 +722,6 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 }
             }();
 
-            if (is_hfa) {
-                // Host Flash Attention case - defer, use dedicated HFA I/O structure
-                m_hfa_io[real_idx].inputs.at(i) = i_tensor;
-            }
-
             if (is_spatial) {
                 // Spatial case - defer
                 m_spatial_io[real_idx].inputs.at(i) = i_tensor;
@@ -742,6 +741,9 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 } else {
                     m_attention_io[idx].inputs.at(i) = i_tensor;
                 }
+            } else if (is_hfa) {
+                // Host Flash Attention case - defer, use dedicated HFA I/O structure
+                m_hfa_io[real_idx].inputs.at(i) = i_tensor;
             } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -983,6 +985,10 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
         if (proto_comp_model_desc.pyramid_attention) {
             setup_pyramid_infer_requests(real_idx, is_piped, true);
         }
+        // Recreate HFA tile infer requests if this function has host flash attention
+        if (proto_comp_model_desc.host_flash_attention) {
+            setup_hfa_infer_requests(real_idx, is_piped, true);
+        }
     }
 
     // After an infer request is recreated, the internal cross-request
@@ -1077,6 +1083,84 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
         LOG_INFO("Successfully created " << (num_pyramid_models - 1)
                                          << " new pyramid infer requests and reused 1 original request");
     }
+}
+
+void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
+    auto& submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    if (!submodel_desc.host_flash_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO((is_recreate ? "Recreating" : "Creating") << " HFA tile infer requests...");
+    LOG_BLOCK();
+
+    const auto& hfa = submodel_desc.host_flash_attention.value();
+
+    // Clear existing requests if recreating
+    if (is_recreate) {
+        submodel_desc.hfa_infer_requests.clear();
+        submodel_desc.hfa_pipeline_requests.clear();
+    }
+
+    // Allocate storage for infer requests: [REGULAR_TILE] and [FINAL_TILE]
+    submodel_desc.hfa_infer_requests.resize(CompiledModel::CompiledModelDesc::HFATileIdx::COUNT);
+    if (is_piped) {
+        submodel_desc.hfa_pipeline_requests.resize(CompiledModel::CompiledModelDesc::HFATileIdx::COUNT);
+    }
+
+    // Create infer request for regular tile model
+    try {
+        LOG_INFO("Creating infer request for HFA regular tile model...");
+        submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
+            hfa._compiled_tile_model->create_infer_request();
+        if (is_piped) {
+            submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
+                hfa._compiled_tile_model->create_infer_request();
+        }
+    } catch (const std::exception& ex) {
+        LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create")
+                               << " infer request for HFA regular tile model: " << ex.what());
+        OPENVINO_THROW("HFA regular tile model infer request creation failed: ", ex.what());
+    } catch (...) {
+        LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create")
+                               << " infer request for HFA regular tile model: Unknown error");
+        OPENVINO_THROW("HFA regular tile model infer request creation failed with unknown error");
+    }
+
+    // For final tile model, reuse the main compiled_model's infer request
+    // because compiled_model points to _compiled_final_tile_model for HFA
+    LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "main infer request for HFA final tile model");
+    submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::FINAL_TILE] =
+        m_subrequests[real_idx];
+    if (is_piped) {
+        submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::FINAL_TILE] =
+            m_funcall_pipeline[real_idx].subrequest;
+    }
+
+    // Share input tensors between HFA tile models and main infer request
+    // Note: Both tile models have the same input structure
+    const size_t num_inputs = hfa._compiled_tile_model->inputs().size();
+    for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
+        auto tile_input = hfa._compiled_tile_model->inputs()[input_idx];
+        auto final_tile_input = hfa._compiled_final_tile_model->inputs()[input_idx];
+
+        // Directly share tensor from main infer request to regular tile request
+        auto main_tensor = m_subrequests[real_idx]->get_tensor(final_tile_input);
+        submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->set_tensor(
+            tile_input,
+            main_tensor);
+
+        // Repeat for pipeline infer request if pipelined
+        if (is_piped) {
+            auto pipeline_tensor = m_funcall_pipeline[real_idx].subrequest->get_tensor(final_tile_input);
+            submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->set_tensor(
+                tile_input,
+                pipeline_tensor);
+        }
+    }
+
+    LOG_INFO("Successfully " << (is_recreate ? "recreated" : "created")
+                             << " HFA tile infer requests with shared input tensors");
 }
 
 void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, bool& failover) {
@@ -1190,6 +1274,8 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
     auto& hfa = comp_model_desc.host_flash_attention.value();
 
     NPUW_ASSERT(hfa.is_valid() && "HFA configuration must be valid");
+    NPUW_ASSERT(comp_model_desc.hfa_infer_requests.size() == CompiledModel::CompiledModelDesc::HFATileIdx::COUNT &&
+                "HFA infer requests must be created");
 
     std::cout << "=== HFA Tiled Inference Performance ===" << std::endl;
 
@@ -1211,11 +1297,11 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
     std::cout << "Tile configuration: tile_size=" << tile_size << ", num_tiles=" << num_tiles
               << ", full_kv_size=" << full_kv_size << std::endl;
 
-    // Create infer request for the HFA tile model
-    auto tile_request = hfa._compiled_tile_model->create_infer_request();
-
-    // Create infer request for the HFA FINAL tile model (with division and transpose)
-    auto final_tile_request = hfa._compiled_final_tile_model->create_infer_request();
+    // Use pre-created infer requests (input tensors already shared)
+    // [REGULAR_TILE]: regular tile model, [FINAL_TILE]: final tile model
+    auto& tile_request = comp_model_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE];
+    auto& final_tile_request =
+        comp_model_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::FINAL_TILE];
 
     // Get input tensors from m_hfa_io (already set in function_prologue)
     // Use _sdpa_attention_info to get the parameter indices from original SDPA model
