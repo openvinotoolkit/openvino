@@ -20,6 +20,7 @@ typedef std::tuple<
         InputShape,                        // input shape
         element::Type,                     // input precision
         std::vector<std::vector<float>>,   // quantize intervals
+        std::vector<size_t>,               // fq const shapes
         std::string                        // device name
 > ConvAndFQTestParams;
 
@@ -27,7 +28,7 @@ class ConvAndFQ : public testing::WithParamInterface<ConvAndFQTestParams>,
                   virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvAndFQTestParams>& obj) {
-        const auto& [inputShape, inputPrecision, quantizeIntervals, targetName] = obj.param;
+        const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, targetName] = obj.param;
         std::ostringstream results;
 
         results << "IS=" << inputShape << "_InPRC=" << inputPrecision
@@ -35,14 +36,15 @@ public:
         for (const auto& vecInt : quantizeIntervals) {
             results << ov::util::vector_to_string(vecInt) << ",";
         }
-        results << "targetDevice=" << targetName;
+        results << "_fqShapes=" << ov::util::vector_to_string(fqConstShapes)
+                << "_targetDevice=" << targetName;
 
         return results.str();
     }
 
 protected:
     void SetUp() override {
-        const auto& [inputShape, inputPrecision, quantizeIntervals, targetName] = this->GetParam();
+        const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, targetName] = this->GetParam();
         abs_threshold = 4e-3f;
         targetDevice = targetName;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
@@ -53,7 +55,7 @@ protected:
         auto fq_before = ov::test::utils::make_fake_quantize(input_params[0],
                                                              inputPrecision,
                                                              256,
-                                                             {},
+                                                             fqConstShapes,
                                                              quantizeIntervals[0],
                                                              quantizeIntervals[1],
                                                              quantizeIntervals[2],
@@ -88,10 +90,10 @@ protected:
                                                             inputPrecision,
                                                             256,
                                                             {},
-                                                            quantizeIntervals[0],
-                                                            quantizeIntervals[1],
-                                                            quantizeIntervals[2],
-                                                            quantizeIntervals[3]);
+                                                            {quantizeIntervals[0][0]},
+                                                            {quantizeIntervals[1][0]},
+                                                            {quantizeIntervals[2][0]},
+                                                            {quantizeIntervals[3][0]});
 
         auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {1, 1});
         auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, inputPrecision);
@@ -121,19 +123,33 @@ TEST_P(ConvAndFQ, CompareWithRefs) {
 
 namespace {
 
-std::vector<InputShape> inputShapes{{{}, {{4, 3, 2, 2}}},
+std::vector<InputShape> inputShapes{{{}, {{1, 3, 2, 2}}},
                                     {{-1, 3, -1, 2}, {{1, 3, 4, 2}}}};
 
-std::vector<std::vector<std::vector<float>>> quantizeIntervals{
+std::vector<std::vector<std::vector<float>>> perTensorQuantizeIntervals{
     {{-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
     {{0.f}, {2.55f}, {0.f}, {2.55f}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU,
+std::vector<std::vector<std::vector<float>>> perChannelQuantizeIntervals{
+    {{-1.28f, -1.0f, -0.8f}, {1.27f, 1.0f, 0.8f}, {-1.28f, -1.0f, -0.8f}, {1.27f, 1.0f, 0.8f}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU_PerTensor,
                          ConvAndFQ,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::Values(element::f32),
-                                            ::testing::ValuesIn(quantizeIntervals),
+                                            ::testing::ValuesIn(perTensorQuantizeIntervals),
+                                            ::testing::Values(std::vector<size_t>{}),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ConvAndFQ::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU_PerChannel,
+                         ConvAndFQ,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(perChannelQuantizeIntervals),
+                                            ::testing::Values(std::vector<size_t>{1, 3, 1, 1}),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 
