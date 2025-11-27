@@ -723,16 +723,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             return;
         }
 
-        std::vector<int> indices(names.size());
+        std::vector<int> indices;
         for (size_t i = 0; i < names.size(); ++i) {
             if (auto index = findIOByName(ioVector, names[i])) {
-                indices[i] = index.value();
+                indices.push_back(index.value());
             }
         }
 
-        std::ostringstream oss;
-        ov::intel_npu::operator<<(oss, indices);
-        localConfig.update({{propertyName, oss.str()}});
+        if (!indices.empty()) {
+            std::ostringstream oss;
+            ov::intel_npu::operator<<(oss, indices);
+            localConfig.update({{propertyName, oss.str()}});
+        }
     };
 
     if (localConfig.has(ov::intel_npu::enable_strides_for.name())) {
