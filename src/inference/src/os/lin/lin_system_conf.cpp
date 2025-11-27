@@ -338,6 +338,7 @@ void parse_node_info_linux(const std::vector<std::string> node_info_table,
     std::vector<std::unordered_set<int>> nodes_table;
     std::unordered_set<int> handled_nodes;
     int node_index = 0;
+    int max_node_id = 0;
 
     for (auto& one_info : node_info_table) {
         int core_1 = 0;
@@ -378,9 +379,8 @@ void parse_node_info_linux(const std::vector<std::string> node_info_table,
         node_index++;
     }
 
-    _proc_type_table.assign(1, line_value_0);
-    _proc_type_table[0][PROC_NUMA_NODE_ID] = 0;
-    _proc_type_table[0][PROC_SOCKET_ID] = 0;
+    _proc_type_table.clear();
+    max_node_id = nodes_table.size() - 1;
 
     for (auto& row_cpu_mapping : _cpu_mapping_table) {
         for (size_t n = 0; n < nodes_table.size(); n++) {
@@ -397,7 +397,9 @@ void parse_node_info_linux(const std::vector<std::string> node_info_table,
                     _proc_type_table.push_back(line_value_0);
                     node_index = _proc_type_table.size() - 1;
                     _proc_type_table[node_index][PROC_NUMA_NODE_ID] = row_cpu_mapping[CPU_MAP_NUMA_NODE_ID];
-                    _proc_type_table[node_index][PROC_SOCKET_ID] = row_cpu_mapping[CPU_MAP_SOCKET_ID];
+                    _proc_type_table[node_index][PROC_SOCKET_ID] = row_cpu_mapping[CPU_MAP_SOCKET_ID] > max_node_id
+                                                                       ? max_node_id
+                                                                       : row_cpu_mapping[CPU_MAP_SOCKET_ID];
                 }
                 _proc_type_table[node_index][ALL_PROC]++;
                 _proc_type_table[node_index][row_cpu_mapping[CPU_MAP_CORE_TYPE]]++;
@@ -622,6 +624,11 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
         }
     }
 
+    for (size_t n = 0; n < offline_list.size(); n++) {
+        _cpu_mapping_table.erase(_cpu_mapping_table.begin() + offline_list[n] - n);
+        _processors--;
+    }
+
     if ((node_info_table.size() == 0) || (node_info_table.size() == (unsigned)_sockets)) {
         if (_proc_type_table.size() > 1) {
             _proc_type_table.push_back(_proc_type_table[0]);
@@ -637,11 +644,6 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
     } else {
         _numa_nodes = node_info_table.size();
         parse_node_info_linux(node_info_table, _numa_nodes, _sockets, _proc_type_table, _cpu_mapping_table);
-    }
-
-    for (size_t n = 0; n < offline_list.size(); n++) {
-        _cpu_mapping_table.erase(_cpu_mapping_table.begin() + offline_list[n] - n);
-        _processors--;
     }
 
     _processors = _processors - _blocked_cores;
