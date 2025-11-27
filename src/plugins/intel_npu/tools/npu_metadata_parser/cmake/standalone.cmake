@@ -30,15 +30,11 @@ endif()
 set(DEPENDENCIES
         gflags
         openvino::runtime
-        openvino::core::dev
-        openvino_npu_logger_utils
+        npu_tools_utils
 )
-
-file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${NPU_PLUGIN_SOURCE_DIR}/src/plugin/src/metadata.cpp")
 
 add_executable(${TARGET_NAME} ${SOURCES})
 target_link_libraries(${TARGET_NAME} ${DEPENDENCIES})
-target_include_directories(${TARGET_NAME} "${NPU_PLUGIN_SOURCE_DIR}/src/plugin/include")
 
 if (CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(${TARGET_NAME} PRIVATE -Wall)

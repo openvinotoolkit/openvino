@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "metadata_helper.hpp"
 #include "tools_helpers.hpp"
 
 static constexpr char help_message[] = "Optional. Print the usage message.";
@@ -32,6 +33,9 @@ static constexpr char targetDeviceMessage[] =
     "device.";
 
 static constexpr char output_message[] = "Optional. Path to the output file. Default value: \"<model_xml_file>.blob\".";
+
+static constexpr char raw_output_message[] =
+    "Optional. Path to the raw (no NPU metadata) blob output file. Suggested value: \"raw_<model_xml_file>.blob\".";
 
 static constexpr char log_level_message[] = "Optional. Log level for OpenVINO library.";
 
@@ -85,6 +89,7 @@ DEFINE_bool(h, false, help_message);
 DEFINE_string(m, "", model_message);
 DEFINE_string(d, "", targetDeviceMessage);
 DEFINE_string(o, "", output_message);
+DEFINE_string(ro, "", raw_output_message);
 DEFINE_string(log_level, "", log_level_message);
 DEFINE_string(c, "", config_message);
 DEFINE_bool(pc, false, perf_count_message);
@@ -320,6 +325,7 @@ static void showUsage() {
     std::cout << "    -m                           <value>     " << model_message << std::endl;
     std::cout << "    -d                           <value>     " << targetDeviceMessage << std::endl;
     std::cout << "    -o                           <value>     " << output_message << std::endl;
+    std::cout << "    -ro                          <value>     " << raw_output_message << std::endl;
     std::cout << "    -c                           <value>     " << config_message << std::endl;
     std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
     std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
@@ -490,17 +496,34 @@ int main(int argc, char* argv[]) {
         loadNetworkTimeElapsed =
             std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
         std::string outputName = FLAGS_o;
-        if (outputName.empty()) {
+        std::string rawOutputName = FLAGS_ro;
+        if (outputName.empty() && rawOutputName.empty()) {
             outputName = getFileNameFromPath(fileNameNoExt(FLAGS_m)) + ".blob";
         }
 
-        std::ofstream outputFile{outputName, std::ios::out | std::ios::binary};
-        if (!outputFile.is_open()) {
-            std::cout << "Outputting file " << outputName << " can't be opened for writing" << std::endl;
-            return EXIT_FAILURE;
-        } else {
-            std::cout << "Writing into file - " << outputName << std::endl;
-            compiledModel.export_model(outputFile);
+        if (!outputName.empty()) {
+            std::ofstream outputFile{outputName, std::ios::out | std::ios::binary};
+            if (!outputFile.is_open()) {
+                std::cout << "Outputting file " << outputName << " can't be opened for writing" << std::endl;
+                return EXIT_FAILURE;
+            } else {
+                std::cout << "Writing into file - " << outputName << std::endl;
+                compiledModel.export_model(outputFile);
+            }
+        }
+
+        if (!rawOutputName.empty()) {
+            std::ofstream rawOutputFile{rawOutputName, std::ios::out | std::ios::binary};
+            std::stringstream tmpBlobBuf;
+            if (!rawOutputFile.is_open()) {
+                std::cout << "Outputting file " << outputName << " can't be opened for writing" << std::endl;
+                return EXIT_FAILURE;
+            } else {
+                std::cout << "Writing into file - " << outputName << std::endl;
+                compiledModel.export_model(tmpBlobBuf);
+                [[maybe_unused]] auto [version, metadataPtr] = npu::utils::parseNPUMetadata(tmpBlobBuf);
+                rawOutputFile << tmpBlobBuf.rdbuf();
+            }
         }
         std::cout << "Done. LoadNetwork time elapsed: " << loadNetworkTimeElapsed.count() << " ms" << std::endl;
     } catch (const std::exception& error) {

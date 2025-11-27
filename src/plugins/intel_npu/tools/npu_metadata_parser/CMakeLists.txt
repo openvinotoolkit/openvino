@@ -25,12 +25,9 @@ ov_add_target(TYPE EXECUTABLE
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
               LINK_LIBRARIES
                   PRIVATE
-                      openvino::core::dev
                       openvino::runtime
                       gflags
-                      openvino_npu_logger_utils
-              INCLUDES "${NPU_PLUGIN_SOURCE_DIR}/src/plugin/include"
-              OBJECT_FILES "${NPU_PLUGIN_SOURCE_DIR}/src/plugin/src/metadata.cpp")
+                      npu_tools_utils)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
