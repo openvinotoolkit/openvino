@@ -256,16 +256,16 @@ public:
         // Parameters order: q, k, v, atten_mask, scale, [sink], past_kv, beam_idx
         size_t atten_mask_idx = 3;
         size_t scale_idx = 4;
-        size_t sink_idx = use_sink_input ? 5 : -1;  // sink only exists when use_sink_input=true
 
         std::shared_ptr<ov::op::v13::ScaledDotProductAttention> sdp;
         // For sliding window case, set causal=false because we provide explicit mask with sliding window logic
         // For normal case, set causal=true to let SDPA apply causal mask internally
-        bool use_causal = (sliding_window == 0);
+        bool use_causal = (this->sliding_window == 0);
 
         if (use_sink_input) {
             // 7-parameter SDPA constructor with sink support
             // Parameters: query, key, value, attn_mask, scale, sink, causal
+            size_t sink_idx = 5;
             sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_in,
                                                                            k_in,
                                                                            v_in,
