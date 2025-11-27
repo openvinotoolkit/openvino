@@ -206,8 +206,10 @@ void clean_batch_properties(const std::string& device_name, ov::AnyMap& config, 
     }
 }
 
-static const auto core_properties_names =
-    ov::util::make_array(ov::cache_dir.name(), ov::enable_mmap.name(), ov::force_tbb_terminate.name());
+static const auto core_properties_names = ov::util::make_array(ov::cache_dir.name(),
+                                                               ov::enable_mmap.name(),
+                                                               ov::force_tbb_terminate.name(),
+                                                               ov::cache_model_path.name());
 
 static const auto auto_batch_properties_names =
     ov::util::make_array(ov::auto_batch_timeout.name(), ov::hint::allow_auto_batching.name());
