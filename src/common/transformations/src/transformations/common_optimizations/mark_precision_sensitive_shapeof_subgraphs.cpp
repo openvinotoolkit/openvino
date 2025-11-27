@@ -60,7 +60,7 @@ bool ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::run_on_model(const shared
         auto curr_node = nodes.front();
         nodes.pop_front();
         for (const auto& input : curr_node->inputs()) {
-            if (ov::is_precision_sensitive(input) && input.get_element_type().is_real()) {
+            if (ov::is_precision_sensitive(input)) {
                 visited.insert(input.get_source_output().get_node());
                 // visit_shape_path shouldn't depend on "visited" nodes because we can approach Divide
                 // earlier from some non precision sensitive path. So we use dedicated "precision_sensitive_visited"
