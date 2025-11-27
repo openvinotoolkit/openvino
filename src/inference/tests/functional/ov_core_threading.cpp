@@ -99,7 +99,7 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
             core.get_versions(deviceName);
             core.unload_plugin(deviceName);
         },
-        4000);
+        500);
 }
 
 // tested function: RegisterPlugins
@@ -138,7 +138,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
             core.unload_plugin(deviceName);
             std::filesystem::remove(fileName);
         },
-        1000);
+        500);
 }
 
 #endif  // !OPENVINO_STATIC_LIBRARY
