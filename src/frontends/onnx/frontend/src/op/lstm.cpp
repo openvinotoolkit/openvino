@@ -42,9 +42,7 @@ enum class LSTMInput {
 };
 
 // Helper function to reduce tensor rank to target_rank by squeezing or reshaping
-std::shared_ptr<ov::Node> reduce_tensor_rank(const ov::Output<ov::Node>& input,
-                                             int64_t target_rank,
-                                             const std::string& debug_name) {
+std::shared_ptr<ov::Node> reduce_tensor_rank(const ov::Output<ov::Node>& input, int64_t target_rank) {
     const auto& input_shape = input.get_partial_shape();
 
     if (!input_shape.rank().is_static()) {
@@ -99,7 +97,7 @@ struct LSTMNgInputMap {
         // First reduce rank if needed, THEN reorder axes
         // This is important because Squeeze changes dimension indices
         auto input_x = ng_inputs.at(0);
-        input_x = reduce_tensor_rank(input_x, 3, "X_before_reorder");
+        input_x = reduce_tensor_rank(input_x, 3);
         input_x = ov::op::util::reorder_axes(input_x, {1, 0, 2});
 
         m_input_map[LSTMInput::LSTM_INPUT_X] = input_x;
@@ -180,7 +178,7 @@ struct LSTMNgInputMap {
         if (ng_inputs.size() > 5 && !ov::op::util::is_null(ng_inputs.at(5))) {
             auto init_h = ng_inputs.at(5);
             // First reduce rank, THEN reorder axes
-            init_h = reduce_tensor_rank(init_h, 3, "initial_h_before_reorder");
+            init_h = reduce_tensor_rank(init_h, 3);
             init_h = ov::op::util::reorder_axes(init_h, {1, 0, 2});
 
             m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = init_h;
@@ -198,7 +196,7 @@ struct LSTMNgInputMap {
         if (ng_inputs.size() > 6 && !ov::op::util::is_null(ng_inputs.at(6))) {
             auto init_c = ng_inputs.at(6);
             // First reduce rank, THEN reorder axes
-            init_c = reduce_tensor_rank(init_c, 3, "initial_c_before_reorder");
+            init_c = reduce_tensor_rank(init_c, 3);
             init_c = ov::op::util::reorder_axes(init_c, {1, 0, 2});
 
             m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = init_c;
