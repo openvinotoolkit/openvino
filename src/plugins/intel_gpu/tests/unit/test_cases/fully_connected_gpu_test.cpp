@@ -1599,6 +1599,18 @@ public:
         GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
     }
 
+    template <typename T>
+    void compare_outputs(memory::ptr output_mem,
+                         memory::ptr ref_output_mem,
+                         float tolerance = 9.0f) {
+        cldnn::mem_lock<T> output_ptr (output_mem, get_test_stream());
+        cldnn::mem_lock<T> output_ptr_ref (ref_output_mem, get_test_stream());
+
+        for (size_t i = 0; i < output_ptr_ref.size(); i++) {
+            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], tolerance) << "i = " << i;
+        }
+    }
+
     void test_compressed_int4_scale(bool is_caching_test, bool is_dynamic, long int batch_num, long int scales_group_size = 128, bool is_wei_dyn = false) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
@@ -1695,13 +1707,8 @@ public:
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
-
         auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
-
-        for (size_t i = 0; i < output_ptr_ref.size(); i++)
-            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+        compare_outputs<ov::float16>(output_mem, ref_output_mem, 9.0f);
     }
 
     void test_compressed_int4_scale_large_n(bool is_caching_test, bool is_dynamic, long int batch_num, bool is_dyn_quan = false) {
@@ -1809,13 +1816,8 @@ public:
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
-
         auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
-
-        for (size_t i = 0; i < output_ptr_ref.size(); i++)
-            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 12.0) << "i = " << i;
+        compare_outputs<ov::float16>(output_mem, ref_output_mem, 12.0f);
     }
 
     void test_compressed_int4_accumulation(bool is_caching_test, bool is_dynamic, long int batch_num) {
@@ -1983,11 +1985,7 @@ public:
         auto ref_output_mem = get_ref_results();
 
         for (size_t i = 0; i < 2; i++) {
-            cldnn::mem_lock<ov::float16> output_ptr (output_mem[i], get_test_stream());
-            cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem[i], get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size(); i++)
-                ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+            compare_outputs<ov::float16>(output_mem[i], ref_output_mem[i], 9.0f);
         }
     }
 
@@ -1996,7 +1994,8 @@ public:
                                          long int batch_num,
                                          long int scales_group_size = 128,
                                          bool is_uint4 = false,
-                                         bool is_wei_dyn = false) {
+                                         bool is_wei_dyn = false,
+                                         bool is_output_fp16 = true) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
         auto supports_immad = engine.get_device_info().supports_immad;
@@ -2045,7 +2044,7 @@ public:
                                        "bias",
                                        "scale",
                                        dcomp_zp_name,
-                                       data_types::f16,
+                                       is_output_fp16 ? data_types::f16 : data_types::f32,
                                        2,
                                        2);
 
@@ -2128,13 +2127,11 @@ public:
         }
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
-
         auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
-
-        for (size_t i = 0; i < output_ptr_ref.size() / batch_num; i++) {
-            EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 30.0) << "i = " << i;
+        if (is_output_fp16) {
+            compare_outputs<ov::float16>(output_mem, ref_output_mem, 30.0f);
+        } else {
+            compare_outputs<float>(output_mem, ref_output_mem, 30.0f);
         }
     }
 
@@ -2143,7 +2140,8 @@ public:
                                             long int batch_num,
                                             long int scales_group_size = 128,
                                             bool is_uint4 = false,
-                                            bool is_wei_dyn = false) {
+                                            bool is_wei_dyn = false,
+                                            bool is_output_fp16 = true) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
         auto supports_immad = engine.get_device_info().supports_immad;
@@ -2192,7 +2190,7 @@ public:
                                        "",
                                        "scale",
                                        "dcomp_zp",
-                                       data_types::f16,
+                                       is_output_fp16 ? data_types::f16 : data_types::f32,
                                        2,
                                        2);
 
@@ -2273,13 +2271,11 @@ public:
         }
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
-
         auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
-
-        for (size_t i = 0; i < output_ptr_ref.size() / batch_num; i++) {
-            EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 10.0) << "i = " << i;
+        if (is_output_fp16) {
+            compare_outputs<ov::float16>(output_mem, ref_output_mem, 10.0f);
+        } else {
+            compare_outputs<float>(output_mem, ref_output_mem, 10.0f);
         }
     }
 
@@ -2287,7 +2283,8 @@ public:
                                                     bool is_dynamic,
                                                     long int batch_num,
                                                     long int scales_group_size = 128,
-                                                    bool is_wei_dyn = false) {
+                                                    bool is_wei_dyn = false,
+                                                    bool is_output_fp16 = true) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
         auto supports_immad = engine.get_device_info().supports_immad;
@@ -2335,7 +2332,7 @@ public:
                                        "bias",
                                        "scale",
                                        dcomp_zp_name,
-                                       data_types::f16,
+                                       is_output_fp16? data_types::f16 : data_types::f32,
                                        2,
                                        2);
 
@@ -2412,19 +2409,19 @@ public:
         }
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
-
         auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
-
-        for (size_t i = 0; i < output_ptr_ref.size(); i++)
-            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+        if (is_output_fp16) {
+            compare_outputs<ov::float16>(output_mem, ref_output_mem, 9.0f);
+        } else {
+            compare_outputs<float>(output_mem, ref_output_mem, 9.0f);
+        }
     }
 
     void test_compressed_int4_scale_large_n_gemv(bool is_caching_test,
                                                  bool is_dynamic,
                                                  long int batch_num,
-                                                 bool is_dyn_quan = false) {
+                                                 bool is_dyn_quan = false,
+                                                 bool is_output_fp16 = true) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
@@ -2447,7 +2444,7 @@ public:
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 5);
         set_values(weights_mem, weigths_data);
 
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -1.0f, 1.0f);
@@ -2470,7 +2467,7 @@ public:
                                        "",
                                        "scale",
                                        dcomp_zp_name,
-                                       data_types::f16,
+                                       is_output_fp16? data_types::f16 : data_types::f32,
                                        3,
                                        2);
 
@@ -2496,9 +2493,6 @@ public:
             network.set_input_data("input", input_mem);
 
             auto outputs = network.execute();
-            // for (size_t i = 0; i < 100; i++) {
-            //     outputs = network.execute();
-            // }
             OPENVINO_ASSERT(outputs.size() == 1);
             OPENVINO_ASSERT(outputs.begin()->first == "fc_prim");
 
@@ -2560,13 +2554,11 @@ public:
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
-
         auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
-
-        for (size_t i = 0; i < output_ptr_ref.size(); i++) {
-            EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+        if (is_output_fp16) {
+            compare_outputs<ov::float16>(output_mem, ref_output_mem, 9.0f);
+        } else {
+            compare_outputs<float>(output_mem, ref_output_mem, 9.0f);
         }
     }
 
@@ -2713,11 +2705,7 @@ public:
         auto ref_output_mem = get_ref_results();
 
         for (size_t i = 0; i < 2; i++) {
-            cldnn::mem_lock<ov::float16> output_ptr(output_mem[i], get_test_stream());
-            cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem[i], get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size(); i++)
-                ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+            compare_outputs<ov::float16>(output_mem[i], ref_output_mem[i], 9.0f);
         }
     }
 
@@ -2850,13 +2838,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             }
 
             auto output_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
-
             auto ref_output_mem = get_ref_results();
-            cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
-
-            for (size_t i = 0; i < output_ptr_ref.size(); i++)
-                ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+            compare_outputs<ov::float16>(output_mem, ref_output_mem, 9.0f);
         }
     }
 
@@ -3027,15 +3010,9 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
-
         auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
-
         const float threshold_fp16 = 1e-1;
-        for (size_t i = 0; i < output_ptr_ref.size(); i++) {
-            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], threshold_fp16) << "i = " << i;
-        }
+        compare_outputs<ov::float16>(output_mem, ref_output_mem, threshold_fp16);
     }
 
     void test_compressed_scale_bias(bool is_caching_test) {
@@ -5051,6 +5028,27 @@ TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_reuse_scale_b12) {
 
 TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_dynamic_batch) {
     this->test_compressed_int4_scale_dynamic_batch_gemv(false, 128, false);
+}
+
+// Test for fp32 output
+TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_dynamic_b1g32_f32) {
+    this->test_compressed_int4_scale_gemv(false, true, 1, 32, false, false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_b1g32_f32) {
+    this->test_compressed_int4_scale_gemv(false, false, 1, 32, false, false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_relu_b1g128_f32) {
+    this->test_compressed_int4_scale_activation_gemv(false, false, 1, 128, false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_large_n_b1_f32) {
+    this->test_compressed_int4_scale_large_n_gemv(false, false, 1, false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_large_n_dynamic_b1_f32) {
+    this->test_compressed_int4_scale_large_n_gemv(false, true, 1, false, false);
 }
 
 // Test weight zp for INT8 ASYM

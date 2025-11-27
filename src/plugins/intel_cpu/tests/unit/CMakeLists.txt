@@ -80,7 +80,6 @@ ov_add_test_target(
             ${MLAS_LIBRARY}
             ${SHL_LIBRARY}
             ${KLEIDIAI_LIBRARY}
-        ADD_CPPLINT
         LABELS
             OV UNIT CPU
 )

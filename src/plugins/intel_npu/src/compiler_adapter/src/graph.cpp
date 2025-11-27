@@ -50,14 +50,6 @@ void Graph::update_network_name(std::string_view name) {
     _metadata.name = name;
 }
 
-const std::vector<ArgumentDescriptor>& Graph::get_input_descriptors() const {
-    return _inputDescriptors;
-}
-
-const std::vector<ArgumentDescriptor>& Graph::get_output_descriptors() const {
-    return _outputDescriptors;
-}
-
 const std::shared_ptr<CommandQueue>& Graph::get_command_queue() const {
     return _commandQueue;
 }
@@ -170,32 +162,6 @@ void Graph::initialize(const Config& config) {
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr) {
         return;
     }
-
-    _logger.debug("performing pfnGetProperties");
-    ze_graph_properties_t props{};
-    props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(_graphDesc._handle, &props);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _zeroInitStruct->getGraphDdiTable());
-
-    _logger.debug("performing pfnGetArgumentProperties3");
-    for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
-        ze_graph_argument_properties_3_t arg3{};
-        arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(_graphDesc._handle, index, &arg3);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
-
-        if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-            _inputDescriptors.push_back(ArgumentDescriptor{arg3, index});
-            _logger.debug("got pfnGetArgumentProperties3 for input: %s", _inputDescriptors.back().to_string().c_str());
-        } else {
-            _outputDescriptors.push_back(ArgumentDescriptor{arg3, index});
-            _logger.debug("got pfnGetArgumentProperties3 for output: %s",
-                          _outputDescriptors.back().to_string().c_str());
-        }
-    }
-
-    _inputDescriptors.shrink_to_fit();
-    _outputDescriptors.shrink_to_fit();
 
     _commandQueueGroupOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
                                                                         ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
