@@ -1511,9 +1511,9 @@ struct OUTPUTS_WITH_DYNAMIC_STRIDES final : OptionBase<OUTPUTS_WITH_DYNAMIC_STRI
     }
 };
 
-struct DYNAMIC_STRIDES final : OptionBase<DYNAMIC_STRIDES, std::vector<std::string>> {
+struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::vector<std::string>> {
     static std::string_view key() {
-        return ov::intel_npu::dynamic_strides.name();
+        return ov::intel_npu::enable_strides_for.name();
     }
 
     static constexpr std::string_view getTypeName() {
