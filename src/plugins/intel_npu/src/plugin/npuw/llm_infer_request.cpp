@@ -195,13 +195,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_prefill_out_ports.emplace(output_port.get_any_name(), output_port);
     }
 
-    for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
-        m_kvcache_in_ports.emplace(input_port.get_any_name(), input_port);
-    }
-    for (const auto& output_port : m_kvcache_request->get_compiled_model()->outputs()) {
-        m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
-    }
-
     init_pre_alloc_device();
     init_lora_states();
 
