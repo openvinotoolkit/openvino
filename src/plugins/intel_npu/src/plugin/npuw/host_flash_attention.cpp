@@ -16,99 +16,150 @@ namespace function {
 
 namespace opp = ov::pass::pattern;
 
-// Helper function to create a single HFA tile computation
-// Implements the flash attention tile algorithm from hfa.py::ov_hfa_tile
-static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape,
-                                                        const ov::element::Type& input_dtype,
-                                                        int64_t tile_size,
-                                                        size_t kv_num_heads) {
-    LOG_DEBUG("Creating HFA tile model with tile_size=" << tile_size << ", kv_heads=" << kv_num_heads);
+// Helper: Create input parameters for HFA tile model
+struct HFATileInputs {
+    std::shared_ptr<ov::op::v0::Parameter> past_acc;
+    std::shared_ptr<ov::op::v0::Parameter> past_max;
+    std::shared_ptr<ov::op::v0::Parameter> past_d;
+    std::shared_ptr<ov::op::v0::Parameter> k_tile;
+    std::shared_ptr<ov::op::v0::Parameter> v_tile;
+    std::shared_ptr<ov::op::v0::Parameter> q;
+    std::shared_ptr<ov::op::v0::Parameter> mask_tile;
+};
 
-    // Extract dimensions from Q shape [batch, num_heads, seq_len, head_dim]
-    NPUW_ASSERT(q_shape.size() == 4);
+// Helper: Create converted f32 nodes from input parameters
+struct HFATileF32Nodes {
+    std::shared_ptr<ov::Node> past_acc_f32;
+    std::shared_ptr<ov::Node> past_max_f32;
+    std::shared_ptr<ov::Node> past_d_f32;
+    std::shared_ptr<ov::Node> k_tile_f32;
+    std::shared_ptr<ov::Node> v_tile_f32;
+    std::shared_ptr<ov::Node> q_f32;
+    std::shared_ptr<ov::Node> mask_tile_f32;
+};
+
+// Helper: Flash attention computation results (all in f32)
+struct FlashAttentionResults {
+    std::shared_ptr<ov::Node> acc;
+    std::shared_ptr<ov::Node> maxx;
+    std::shared_ptr<ov::Node> d;
+};
+
+// Helper function: Create input parameters for HFA tile model
+static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
+                                            const ov::element::Type& input_dtype,
+                                            const ov::element::Type& mask_dtype,
+                                            int64_t tile_size,
+                                            size_t kv_num_heads) {
     auto batch = q_shape[0];
     auto num_heads = q_shape[1];
     auto seq_len = q_shape[2];
     auto head_dim = q_shape[3];
 
-    // Calculate head expansion factor
-    NPUW_ASSERT(num_heads % kv_num_heads == 0 && "Q heads must be divisible by KV heads");
-    size_t head_expansion = num_heads / kv_num_heads;
+    HFATileInputs inputs;
 
-    // Use input_dtype for ALL operations - no type conversion (same as hfa.py)
-    auto compute_dtype = input_dtype;
-
-    // Input parameters for HFA tile (using input_dtype, typically f16)
     // past_acc: [batch, num_heads, seq_len, head_dim]
-    auto in_past_acc =
+    inputs.past_acc =
         std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
-    in_past_acc->set_friendly_name("past_acc");
-    in_past_acc->output(0).get_tensor().set_names({"past_acc"});
+    inputs.past_acc->set_friendly_name("past_acc");
+    inputs.past_acc->output(0).get_tensor().set_names({"past_acc"});
 
     // past_max: [batch, num_heads, seq_len, 1]
-    auto in_past_max = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, 1});
-    in_past_max->set_friendly_name("past_max");
-    in_past_max->output(0).get_tensor().set_names({"past_max"});
+    inputs.past_max = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, 1});
+    inputs.past_max->set_friendly_name("past_max");
+    inputs.past_max->output(0).get_tensor().set_names({"past_max"});
 
     // past_d: [batch, num_heads, seq_len, 1]
-    auto in_past_d = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, 1});
-    in_past_d->set_friendly_name("past_d");
-    in_past_d->output(0).get_tensor().set_names({"past_d"});
+    inputs.past_d = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, 1});
+    inputs.past_d->set_friendly_name("past_d");
+    inputs.past_d->output(0).get_tensor().set_names({"past_d"});
 
-    // k_tile: [batch, kv_num_heads, tile_size, head_dim] - CHANGED: use kv_num_heads instead of num_heads
-    auto in_k_tile = std::make_shared<ov::op::v0::Parameter>(
+    // k_tile: [batch, kv_num_heads, tile_size, head_dim]
+    inputs.k_tile = std::make_shared<ov::op::v0::Parameter>(
         input_dtype,
         ov::Shape{batch, kv_num_heads, static_cast<size_t>(tile_size), head_dim});
-    in_k_tile->set_friendly_name("k_tile");
-    in_k_tile->output(0).get_tensor().set_names({"k_tile"});
+    inputs.k_tile->set_friendly_name("k_tile");
+    inputs.k_tile->output(0).get_tensor().set_names({"k_tile"});
 
-    // v_tile: [batch, kv_num_heads, head_dim, tile_size] - CHANGED: use kv_num_heads instead of num_heads
-    auto in_v_tile = std::make_shared<ov::op::v0::Parameter>(
+    // v_tile: [batch, kv_num_heads, head_dim, tile_size]
+    inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(
         input_dtype,
         ov::Shape{batch, kv_num_heads, head_dim, static_cast<size_t>(tile_size)});
-    in_v_tile->set_friendly_name("v_tile");
-    in_v_tile->output(0).get_tensor().set_names({"v_tile"});
+    inputs.v_tile->set_friendly_name("v_tile");
+    inputs.v_tile->output(0).get_tensor().set_names({"v_tile"});
 
     // q: [batch, num_heads, seq_len, head_dim]
-    auto in_q = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
-    in_q->set_friendly_name("q");
-    in_q->output(0).get_tensor().set_names({"q"});
+    inputs.q = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
+    inputs.q->set_friendly_name("q");
+    inputs.q->output(0).get_tensor().set_names({"q"});
 
-    // mask_tile: [batch, 1, seq_len, tile_size]
-    auto in_mask_tile =
-        std::make_shared<ov::op::v0::Parameter>(input_dtype,
+    // mask_tile: [batch, 1, seq_len, tile_size] - use mask's original dtype
+    inputs.mask_tile =
+        std::make_shared<ov::op::v0::Parameter>(mask_dtype,
                                                 ov::Shape{batch, 1, seq_len, static_cast<size_t>(tile_size)});
-    in_mask_tile->set_friendly_name("mask_tile");
-    in_mask_tile->output(0).get_tensor().set_names({"mask_tile"});
+    inputs.mask_tile->set_friendly_name("mask_tile");
+    inputs.mask_tile->output(0).get_tensor().set_names({"mask_tile"});
 
-    // === NEW: Broadcast K and V tiles from kv_num_heads to num_heads ===
-    // For GQA: kv_num_heads=8, num_heads=32, head_expansion=4
-    // Each KV head needs to be repeated head_expansion times consecutively
-    // Input:  [batch, 8, tile_size, head_dim]
-    // Desired: [batch, 32, tile_size, head_dim] where each of 8 heads is repeated 4 times
-    // Pattern: [h0,h0,h0,h0, h1,h1,h1,h1, ..., h7,h7,h7,h7]
+    return inputs;
+}
 
-    // Strategy: Unsqueeze -> Tile -> Reshape
-    // Step 1: [batch, 8, tile_size, head_dim] -> [batch, 8, 1, tile_size, head_dim]
-    // Step 2: [batch, 8, 1, tile_size, head_dim] -> [batch, 8, 4, tile_size, head_dim]
-    // Step 3: [batch, 8, 4, tile_size, head_dim] -> [batch, 32, tile_size, head_dim]
+// Helper function: Convert input parameters to f32
+static HFATileF32Nodes convert_inputs_to_f32(const HFATileInputs& inputs,
+                                             const ov::element::Type& mask_dtype,
+                                             const ov::element::Type& compute_dtype) {
+    HFATileF32Nodes f32_nodes;
+
+    f32_nodes.past_acc_f32 = std::make_shared<ov::op::v0::Convert>(inputs.past_acc, compute_dtype);
+    f32_nodes.past_acc_f32->set_friendly_name("past_acc_f32");
+
+    f32_nodes.past_max_f32 = std::make_shared<ov::op::v0::Convert>(inputs.past_max, compute_dtype);
+    f32_nodes.past_max_f32->set_friendly_name("past_max_f32");
+
+    f32_nodes.past_d_f32 = std::make_shared<ov::op::v0::Convert>(inputs.past_d, compute_dtype);
+    f32_nodes.past_d_f32->set_friendly_name("past_d_f32");
+
+    f32_nodes.k_tile_f32 = std::make_shared<ov::op::v0::Convert>(inputs.k_tile, compute_dtype);
+    f32_nodes.k_tile_f32->set_friendly_name("k_tile_f32");
+
+    f32_nodes.v_tile_f32 = std::make_shared<ov::op::v0::Convert>(inputs.v_tile, compute_dtype);
+    f32_nodes.v_tile_f32->set_friendly_name("v_tile_f32");
+
+    f32_nodes.q_f32 = std::make_shared<ov::op::v0::Convert>(inputs.q, compute_dtype);
+    f32_nodes.q_f32->set_friendly_name("q_f32");
+
+    // Convert mask to f32 if needed
+    if (mask_dtype == compute_dtype) {
+        f32_nodes.mask_tile_f32 = inputs.mask_tile;
+    } else {
+        f32_nodes.mask_tile_f32 = std::make_shared<ov::op::v0::Convert>(inputs.mask_tile, compute_dtype);
+        f32_nodes.mask_tile_f32->set_friendly_name("mask_tile_f32");
+    }
+
+    return f32_nodes;
+}
+
+// Helper function: Broadcast KV from kv_num_heads to num_heads
+static std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> broadcast_kv_tiles(
+    const std::shared_ptr<ov::Node>& k_tile_f32,
+    const std::shared_ptr<ov::Node>& v_tile_f32,
+    size_t batch,
+    size_t num_heads,
+    size_t kv_num_heads,
+    size_t tile_size,
+    size_t head_dim) {
+    size_t head_expansion = num_heads / kv_num_heads;
 
     // Broadcast K: [batch, kv_num_heads, tile_size, head_dim] -> [batch, num_heads, tile_size, head_dim]
-    // Step 1: Unsqueeze at axis 2
     auto unsqueeze_axes_k =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2});
-    auto k_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(in_k_tile, unsqueeze_axes_k);
-    // Now shape: [batch, kv_num_heads, 1, tile_size, head_dim]
+    auto k_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(k_tile_f32, unsqueeze_axes_k);
 
-    // Step 2: Tile along the new dimension (axis 2) - repeat head_expansion times
     auto repeats_k =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                ov::Shape{5},
                                                std::vector<int64_t>{1, 1, static_cast<int64_t>(head_expansion), 1, 1});
     auto k_tiled = std::make_shared<ov::op::v0::Tile>(k_unsqueezed, repeats_k);
-    // Now shape: [batch, kv_num_heads, head_expansion, tile_size, head_dim]
 
-    // Step 3: Reshape to merge kv_num_heads and head_expansion dimensions
     auto k_reshape_pattern =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                ov::Shape{4},
@@ -120,21 +171,16 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     k_tile_broadcast->set_friendly_name("k_tile_broadcast");
 
     // Broadcast V: [batch, kv_num_heads, head_dim, tile_size] -> [batch, num_heads, head_dim, tile_size]
-    // Step 1: Unsqueeze at axis 2
     auto unsqueeze_axes_v =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2});
-    auto v_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(in_v_tile, unsqueeze_axes_v);
-    // Now shape: [batch, kv_num_heads, 1, head_dim, tile_size]
+    auto v_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(v_tile_f32, unsqueeze_axes_v);
 
-    // Step 2: Tile along the new dimension (axis 2)
     auto repeats_v =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                ov::Shape{5},
                                                std::vector<int64_t>{1, 1, static_cast<int64_t>(head_expansion), 1, 1});
     auto v_tiled = std::make_shared<ov::op::v0::Tile>(v_unsqueezed, repeats_v);
-    // Now shape: [batch, kv_num_heads, head_expansion, head_dim, tile_size]
 
-    // Step 3: Reshape to merge kv_num_heads and head_expansion dimensions
     auto v_reshape_pattern =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                ov::Shape{4},
@@ -145,15 +191,21 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     auto v_tile_broadcast = std::make_shared<ov::op::v1::Reshape>(v_tiled, v_reshape_pattern, false);
     v_tile_broadcast->set_friendly_name("v_tile_broadcast");
 
-    // Flash Attention Tile Algorithm (from hfa.py::ov_hfa_tile):
-    // NO TYPE CONVERSION - all operations use input_dtype directly
+    return {k_tile_broadcast, v_tile_broadcast};
+}
 
-    // qk = matmul(q, k^T) - now using broadcasted k_tile
-    auto qk = std::make_shared<ov::op::v0::MatMul>(in_q, k_tile_broadcast, false, true);
+// Helper function: Execute flash attention algorithm (all in f32)
+static FlashAttentionResults execute_flash_attention(const HFATileF32Nodes& f32_nodes,
+                                                     const std::shared_ptr<ov::Node>& k_broadcast,
+                                                     const std::shared_ptr<ov::Node>& v_broadcast) {
+    FlashAttentionResults results;
+
+    // qk = matmul(q, k^T)
+    auto qk = std::make_shared<ov::op::v0::MatMul>(f32_nodes.q_f32, k_broadcast, false, true);
     qk->set_friendly_name("qk");
 
     // qkm = qk + mask
-    auto qkm = std::make_shared<ov::op::v1::Add>(qk, in_mask_tile);
+    auto qkm = std::make_shared<ov::op::v1::Add>(qk, f32_nodes.mask_tile_f32);
     qkm->set_friendly_name("qkm");
 
     // maxx = max(past_max, reduce_max(qkm, axis=-1, keepdims=True))
@@ -161,11 +213,11 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     auto qkm_max = std::make_shared<ov::op::v1::ReduceMax>(qkm, axes_const, true);
     qkm_max->set_friendly_name("qkm_max");
 
-    auto maxx = std::make_shared<ov::op::v1::Maximum>(in_past_max, qkm_max);
-    maxx->set_friendly_name("maxx");
+    results.maxx = std::make_shared<ov::op::v1::Maximum>(f32_nodes.past_max_f32, qkm_max);
+    results.maxx->set_friendly_name("maxx");
 
     // p = exp(qkm - maxx)
-    auto qkm_sub_maxx = std::make_shared<ov::op::v1::Subtract>(qkm, maxx);
+    auto qkm_sub_maxx = std::make_shared<ov::op::v1::Subtract>(qkm, results.maxx);
     auto p = std::make_shared<ov::op::v0::Exp>(qkm_sub_maxx);
     p->set_friendly_name("p");
 
@@ -174,44 +226,102 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     l->set_friendly_name("l");
 
     // alpha = exp(past_max - maxx)
-    auto past_max_sub_maxx = std::make_shared<ov::op::v1::Subtract>(in_past_max, maxx);
+    auto past_max_sub_maxx = std::make_shared<ov::op::v1::Subtract>(f32_nodes.past_max_f32, results.maxx);
     auto alpha = std::make_shared<ov::op::v0::Exp>(past_max_sub_maxx);
     alpha->set_friendly_name("alpha");
 
     // d = past_d * alpha + l
-    auto past_d_alpha = std::make_shared<ov::op::v1::Multiply>(in_past_d, alpha);
-    auto d = std::make_shared<ov::op::v1::Add>(past_d_alpha, l);
-    d->set_friendly_name("d");
+    auto past_d_alpha = std::make_shared<ov::op::v1::Multiply>(f32_nodes.past_d_f32, alpha);
+    results.d = std::make_shared<ov::op::v1::Add>(past_d_alpha, l);
+    results.d->set_friendly_name("d");
 
-    // acc = past_acc * alpha + matmul(p, v) - now using broadcasted v_tile
-    auto past_acc_alpha = std::make_shared<ov::op::v1::Multiply>(in_past_acc, alpha);
-    auto pv = std::make_shared<ov::op::v0::MatMul>(p, v_tile_broadcast, false, true);
+    // acc = past_acc * alpha + matmul(p, v)
+    auto past_acc_alpha = std::make_shared<ov::op::v1::Multiply>(f32_nodes.past_acc_f32, alpha);
+    auto pv = std::make_shared<ov::op::v0::MatMul>(p, v_broadcast, false, true);
     pv->set_friendly_name("pv");
-    auto acc = std::make_shared<ov::op::v1::Add>(past_acc_alpha, pv);
-    acc->set_friendly_name("acc");
+    results.acc = std::make_shared<ov::op::v1::Add>(past_acc_alpha, pv);
+    results.acc->set_friendly_name("acc");
 
-    // Set output tensor names
-    acc->output(0).get_tensor().set_names({"acc"});
-    maxx->output(0).get_tensor().set_names({"maxx"});
-    d->output(0).get_tensor().set_names({"d"});
+    return results;
+}
 
-    // Create results - NO TYPE CONVERSION
-    auto out_acc = std::make_shared<ov::op::v0::Result>(acc);
+// Helper function to create a single HFA tile computation
+// Implements the flash attention tile algorithm
+static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape,
+                                                        const ov::element::Type& input_dtype,
+                                                        const ov::element::Type& mask_dtype,
+                                                        int64_t tile_size,
+                                                        size_t kv_num_heads) {
+    LOG_DEBUG("Creating HFA tile model with tile_size=" << tile_size << ", kv_heads=" << kv_num_heads
+                                                        << ", mask_dtype=" << mask_dtype);
+
+    // Extract dimensions
+    NPUW_ASSERT(q_shape.size() == 4);
+    auto batch = q_shape[0];
+    auto num_heads = q_shape[1];
+    auto seq_len = q_shape[2];
+    auto head_dim = q_shape[3];
+
+    NPUW_ASSERT(num_heads % kv_num_heads == 0 && "Q heads must be divisible by KV heads");
+    size_t head_expansion = num_heads / kv_num_heads;
+
+    auto compute_dtype = ov::element::f32;
+    LOG_DEBUG("Using compute_dtype=f32 for all operations to match mask type");
+
+    // Create input parameters
+    auto inputs = create_hfa_tile_inputs(q_shape, input_dtype, mask_dtype, tile_size, kv_num_heads);
+
+    // Convert all inputs to f32
+    auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype);
+
+    // Broadcast K and V tiles
+    auto [k_broadcast, v_broadcast] = broadcast_kv_tiles(f32_nodes.k_tile_f32,
+                                                         f32_nodes.v_tile_f32,
+                                                         batch,
+                                                         num_heads,
+                                                         kv_num_heads,
+                                                         tile_size,
+                                                         head_dim);
+
+    // Execute flash attention algorithm
+    auto results = execute_flash_attention(f32_nodes, k_broadcast, v_broadcast);
+
+    // Convert outputs back to input_dtype (f16)
+    auto acc_output = std::make_shared<ov::op::v0::Convert>(results.acc, input_dtype);
+    acc_output->set_friendly_name("acc_output");
+    acc_output->output(0).get_tensor().set_names({"acc"});
+
+    auto maxx_output = std::make_shared<ov::op::v0::Convert>(results.maxx, input_dtype);
+    maxx_output->set_friendly_name("maxx_output");
+    maxx_output->output(0).get_tensor().set_names({"maxx"});
+
+    auto d_output = std::make_shared<ov::op::v0::Convert>(results.d, input_dtype);
+    d_output->set_friendly_name("d_output");
+    d_output->output(0).get_tensor().set_names({"d"});
+
+    // Create results
+    auto out_acc = std::make_shared<ov::op::v0::Result>(acc_output);
     out_acc->set_friendly_name("out_acc");
 
-    auto out_maxx = std::make_shared<ov::op::v0::Result>(maxx);
+    auto out_maxx = std::make_shared<ov::op::v0::Result>(maxx_output);
     out_maxx->set_friendly_name("out_maxx");
 
-    auto out_d = std::make_shared<ov::op::v0::Result>(d);
+    auto out_d = std::make_shared<ov::op::v0::Result>(d_output);
     out_d->set_friendly_name("out_d");
 
     // Create model
-    auto tile_model = std::make_shared<ov::Model>(
-        ov::ResultVector{out_acc, out_maxx, out_d},
-        ov::ParameterVector{in_past_acc, in_past_max, in_past_d, in_k_tile, in_v_tile, in_q, in_mask_tile},
-        "HFA_Tile");
+    auto tile_model = std::make_shared<ov::Model>(ov::ResultVector{out_acc, out_maxx, out_d},
+                                                  ov::ParameterVector{inputs.past_acc,
+                                                                      inputs.past_max,
+                                                                      inputs.past_d,
+                                                                      inputs.k_tile,
+                                                                      inputs.v_tile,
+                                                                      inputs.q,
+                                                                      inputs.mask_tile},
+                                                  "HFA_Tile");
 
-    LOG_DEBUG("HFA tile model created successfully with uniform dtype=" << input_dtype << " (NO type conversion)");
+    LOG_DEBUG("HFA tile model created successfully: inputs=" << input_dtype << ", compute=" << compute_dtype
+                                                             << ", outputs=" << input_dtype);
     return tile_model;
 }
 
@@ -219,143 +329,49 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
 // This fuses the final tile computation with acc/d division and transpose (0,2,1,3)
 static std::shared_ptr<ov::Model> create_hfa_final_tile_model(const ov::Shape& q_shape,
                                                               const ov::element::Type& input_dtype,
+                                                              const ov::element::Type& mask_dtype,
+                                                              const ov::element::Type& output_dtype,
                                                               int64_t tile_size,
                                                               size_t kv_num_heads) {
-    LOG_DEBUG("Creating HFA FINAL tile model with tile_size=" << tile_size << ", kv_num_heads=" << kv_num_heads
-                                                              << " (with division, transpose and reshape)");
+    LOG_DEBUG("Creating HFA FINAL tile model with tile_size="
+              << tile_size << ", kv_num_heads=" << kv_num_heads << ", mask_dtype=" << mask_dtype
+              << ", output_dtype=" << output_dtype << " (with division, transpose and reshape)");
 
-    // Extract dimensions from Q shape [batch, num_heads, seq_len, head_dim]
+    // Extract dimensions
     NPUW_ASSERT(q_shape.size() == 4);
     auto batch = q_shape[0];
     auto num_heads = q_shape[1];
     auto seq_len = q_shape[2];
     auto head_dim = q_shape[3];
 
-    // Calculate head expansion factor for GQA (e.g., 32 / 8 = 4)
+    NPUW_ASSERT(num_heads % kv_num_heads == 0 && "Q heads must be divisible by KV heads");
     size_t head_expansion = num_heads / kv_num_heads;
-    LOG_DEBUG("Head expansion factor: " << head_expansion);
 
-    // Input parameters (same as regular tile model)
-    auto in_past_acc =
-        std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
-    in_past_acc->set_friendly_name("past_acc");
-    in_past_acc->output(0).get_tensor().set_names({"past_acc"});
+    auto compute_dtype = ov::element::f32;
+    LOG_DEBUG("Using compute_dtype=f32 for all operations to match mask type");
 
-    auto in_past_max = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, 1});
-    in_past_max->set_friendly_name("past_max");
-    in_past_max->output(0).get_tensor().set_names({"past_max"});
+    // Create input parameters (reuse helper)
+    auto inputs = create_hfa_tile_inputs(q_shape, input_dtype, mask_dtype, tile_size, kv_num_heads);
 
-    auto in_past_d = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, 1});
-    in_past_d->set_friendly_name("past_d");
-    in_past_d->output(0).get_tensor().set_names({"past_d"});
+    // Convert all inputs to f32 (reuse helper)
+    auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype);
 
-    // K and V tiles now use kv_num_heads (e.g., 8 instead of 32)
-    auto in_k_tile = std::make_shared<ov::op::v0::Parameter>(
-        input_dtype,
-        ov::Shape{batch, kv_num_heads, static_cast<size_t>(tile_size), head_dim});
-    in_k_tile->set_friendly_name("k_tile");
-    in_k_tile->output(0).get_tensor().set_names({"k_tile"});
+    // Broadcast K and V tiles (reuse helper)
+    auto [k_broadcast, v_broadcast] = broadcast_kv_tiles(f32_nodes.k_tile_f32,
+                                                         f32_nodes.v_tile_f32,
+                                                         batch,
+                                                         num_heads,
+                                                         kv_num_heads,
+                                                         tile_size,
+                                                         head_dim);
 
-    auto in_v_tile = std::make_shared<ov::op::v0::Parameter>(
-        input_dtype,
-        ov::Shape{batch, kv_num_heads, head_dim, static_cast<size_t>(tile_size)});
-    in_v_tile->set_friendly_name("v_tile");
-    in_v_tile->output(0).get_tensor().set_names({"v_tile"});
+    // Execute flash attention algorithm (reuse helper)
+    auto results = execute_flash_attention(f32_nodes, k_broadcast, v_broadcast);
 
-    auto in_q = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
-    in_q->set_friendly_name("q");
-    in_q->output(0).get_tensor().set_names({"q"});
-
-    auto in_mask_tile =
-        std::make_shared<ov::op::v0::Parameter>(input_dtype,
-                                                ov::Shape{batch, 1, seq_len, static_cast<size_t>(tile_size)});
-    in_mask_tile->set_friendly_name("mask_tile");
-    in_mask_tile->output(0).get_tensor().set_names({"mask_tile"});
-
-    // Broadcast K and V from kv_num_heads to num_heads using Unsqueeze->Tile->Reshape
-    // This ensures each KV head is repeated consecutively (not interleaved)
-
-    // Broadcast K: [batch, kv_num_heads, tile_size, head_dim] -> [batch, num_heads, tile_size, head_dim]
-    auto unsqueeze_axes_k =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2});
-    auto k_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(in_k_tile, unsqueeze_axes_k);
-    auto repeats_k =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                               ov::Shape{5},
-                                               std::vector<int64_t>{1, 1, static_cast<int64_t>(head_expansion), 1, 1});
-    auto k_tiled = std::make_shared<ov::op::v0::Tile>(k_unsqueezed, repeats_k);
-    auto k_reshape_pattern =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                               ov::Shape{4},
-                                               std::vector<int64_t>{static_cast<int64_t>(batch),
-                                                                    static_cast<int64_t>(num_heads),
-                                                                    static_cast<int64_t>(tile_size),
-                                                                    static_cast<int64_t>(head_dim)});
-    auto k_tile_broadcast = std::make_shared<ov::op::v1::Reshape>(k_tiled, k_reshape_pattern, false);
-    k_tile_broadcast->set_friendly_name("k_tile_broadcast");
-
-    // Broadcast V: [batch, kv_num_heads, head_dim, tile_size] -> [batch, num_heads, head_dim, tile_size]
-    auto unsqueeze_axes_v =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2});
-    auto v_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(in_v_tile, unsqueeze_axes_v);
-    auto repeats_v =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                               ov::Shape{5},
-                                               std::vector<int64_t>{1, 1, static_cast<int64_t>(head_expansion), 1, 1});
-    auto v_tiled = std::make_shared<ov::op::v0::Tile>(v_unsqueezed, repeats_v);
-    auto v_reshape_pattern =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                               ov::Shape{4},
-                                               std::vector<int64_t>{static_cast<int64_t>(batch),
-                                                                    static_cast<int64_t>(num_heads),
-                                                                    static_cast<int64_t>(head_dim),
-                                                                    static_cast<int64_t>(tile_size)});
-    auto v_tile_broadcast = std::make_shared<ov::op::v1::Reshape>(v_tiled, v_reshape_pattern, false);
-    v_tile_broadcast->set_friendly_name("v_tile_broadcast");
-
-    // Flash Attention Tile Algorithm (now using broadcasted K and V)
-    auto qk = std::make_shared<ov::op::v0::MatMul>(in_q, k_tile_broadcast, false, true);
-    qk->set_friendly_name("qk");
-
-    auto qkm = std::make_shared<ov::op::v1::Add>(qk, in_mask_tile);
-    qkm->set_friendly_name("qkm");
-
-    auto axes_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-    auto qkm_max = std::make_shared<ov::op::v1::ReduceMax>(qkm, axes_const, true);
-    qkm_max->set_friendly_name("qkm_max");
-
-    auto maxx = std::make_shared<ov::op::v1::Maximum>(in_past_max, qkm_max);
-    maxx->set_friendly_name("maxx");
-
-    auto qkm_sub_maxx = std::make_shared<ov::op::v1::Subtract>(qkm, maxx);
-    auto p = std::make_shared<ov::op::v0::Exp>(qkm_sub_maxx);
-    p->set_friendly_name("p");
-
-    auto l = std::make_shared<ov::op::v1::ReduceSum>(p, axes_const, true);
-    l->set_friendly_name("l");
-
-    auto past_max_sub_maxx = std::make_shared<ov::op::v1::Subtract>(in_past_max, maxx);
-    auto alpha = std::make_shared<ov::op::v0::Exp>(past_max_sub_maxx);
-    alpha->set_friendly_name("alpha");
-
-    auto past_d_alpha = std::make_shared<ov::op::v1::Multiply>(in_past_d, alpha);
-    auto d = std::make_shared<ov::op::v1::Add>(past_d_alpha, l);
-    d->set_friendly_name("d");
-
-    // acc = past_acc * alpha + matmul(p, v) - now using broadcasted v_tile
-    auto past_acc_alpha = std::make_shared<ov::op::v1::Multiply>(in_past_acc, alpha);
-    auto pv = std::make_shared<ov::op::v0::MatMul>(p, v_tile_broadcast, false, true);
-    pv->set_friendly_name("pv");
-    auto acc = std::make_shared<ov::op::v1::Add>(past_acc_alpha, pv);
-    acc->set_friendly_name("acc");
-
-    // === NEW: Add division and transpose for final output ===
+    // === NEW: Add division, transpose and reshape for final output ===
 
     // Division: result = acc / d
-    // acc shape: [batch, num_heads, seq_len, head_dim]
-    // d shape:   [batch, num_heads, seq_len, 1]
-    // Result after division: [batch, num_heads, seq_len, head_dim]
-    auto final_result = std::make_shared<ov::op::v1::Divide>(acc, d);
+    auto final_result = std::make_shared<ov::op::v1::Divide>(results.acc, results.d);
     final_result->set_friendly_name("final_result");
 
     // Transpose (0,2,1,3): [batch, num_heads, seq_len, head_dim] -> [batch, seq_len, num_heads, head_dim]
@@ -365,7 +381,6 @@ static std::shared_ptr<ov::Model> create_hfa_final_tile_model(const ov::Shape& q
     transposed_result->set_friendly_name("transposed_result");
 
     // Reshape: [batch, seq_len, num_heads, head_dim] -> [batch, seq_len, num_heads*head_dim]
-    // This matches the expected output shape of the original SDPA
     auto reshape_pattern =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                ov::Shape{3},
@@ -375,20 +390,28 @@ static std::shared_ptr<ov::Model> create_hfa_final_tile_model(const ov::Shape& q
     auto reshaped_result = std::make_shared<ov::op::v1::Reshape>(transposed_result, reshape_pattern, false);
     reshaped_result->set_friendly_name("reshaped_result");
 
-    // Set output tensor name
-    reshaped_result->output(0).get_tensor().set_names({"output"});
+    // Convert final output to original SDPA output dtype
+    auto final_output = std::make_shared<ov::op::v0::Convert>(reshaped_result, output_dtype);
+    final_output->set_friendly_name("final_output");
+    final_output->output(0).get_tensor().set_names({"output"});
 
-    // Create result - only ONE output (the final reshaped result)
-    auto out_result = std::make_shared<ov::op::v0::Result>(reshaped_result);
+    // Create result - only ONE output
+    auto out_result = std::make_shared<ov::op::v0::Result>(final_output);
     out_result->set_friendly_name("out_result");
 
     // Create model
-    auto final_tile_model = std::make_shared<ov::Model>(
-        ov::ResultVector{out_result},
-        ov::ParameterVector{in_past_acc, in_past_max, in_past_d, in_k_tile, in_v_tile, in_q, in_mask_tile},
-        "HFA_Final_Tile");
+    auto final_tile_model = std::make_shared<ov::Model>(ov::ResultVector{out_result},
+                                                        ov::ParameterVector{inputs.past_acc,
+                                                                            inputs.past_max,
+                                                                            inputs.past_d,
+                                                                            inputs.k_tile,
+                                                                            inputs.v_tile,
+                                                                            inputs.q,
+                                                                            inputs.mask_tile},
+                                                        "HFA_Final_Tile");
 
-    LOG_DEBUG("HFA FINAL tile model created successfully (with division, transpose and reshape fused)");
+    LOG_DEBUG("HFA FINAL tile model created successfully: inputs=" << input_dtype << ", compute=" << compute_dtype
+                                                                   << ", output=" << output_dtype);
     return final_tile_model;
 }
 
@@ -459,6 +482,20 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     LOG_DEBUG("Q shape: " << q_shape_static);
     LOG_DEBUG("Data type: " << dtype);
 
+    // Extract mask type from attention metadata
+    auto mask_param = attention_opt->_mask;
+    auto mask_dtype = mask_param->get_output_element_type(0);
+    LOG_DEBUG("Mask data type: " << mask_dtype);
+
+    // Extract original SDPA output type from model
+    auto output_dtype = ov::element::f16;  // Default fallback
+    if (model->outputs().size() > 0) {
+        output_dtype = model->output(0).get_element_type();
+        LOG_DEBUG("Original SDPA output data type: " << output_dtype);
+    } else {
+        LOG_WARN("No outputs found in model, using default output dtype: " << output_dtype);
+    }
+
     // Determine KV cache size from Concat node
     int64_t kv_cache_size = 0;
     size_t kv_num_heads = 0;
@@ -480,15 +517,16 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
 
     // Create HFA tile model with kv_num_heads parameter
     constexpr int64_t DEFAULT_TILE_SIZE = 1024;
-    auto tile_model = create_hfa_tile_model(q_shape_static, dtype, DEFAULT_TILE_SIZE, kv_num_heads);
+    auto tile_model = create_hfa_tile_model(q_shape_static, dtype, mask_dtype, DEFAULT_TILE_SIZE, kv_num_heads);
 
     if (!tile_model) {
         LOG_WARN("Failed to create HFA tile model");
         return std::nullopt;
     }
 
-    // Create HFA FINAL tile model (with division and transpose) - also with kv_num_heads
-    auto final_tile_model = create_hfa_final_tile_model(q_shape_static, dtype, DEFAULT_TILE_SIZE, kv_num_heads);
+    // Create HFA FINAL tile model (with division and transpose) - with output_dtype
+    auto final_tile_model =
+        create_hfa_final_tile_model(q_shape_static, dtype, mask_dtype, output_dtype, DEFAULT_TILE_SIZE, kv_num_heads);
 
     if (!final_tile_model) {
         LOG_WARN("Failed to create HFA final tile model");
