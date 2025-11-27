@@ -18,6 +18,7 @@
 #include "openvino/core/meta_data.hpp"
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
 using Version = ov::pass::Serialize::Version;
@@ -245,6 +246,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
         return py::cast(any.as<ov::log::Level>());
+    } else if (any.is<ov::intel_cpu::TbbPartitioner>()) {
+        return py::cast(any.as<ov::intel_cpu::TbbPartitioner>());
     } else if (any.is<ov::device::Type>()) {
         return py::cast(any.as<ov::device::Type>());
     } else if (any.is<ov::streams::Num>()) {
@@ -296,26 +299,26 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             // Wrapped to sp due-to we need to hold GIL upon destruction of python function
             auto py_encrypt = std::shared_ptr<py::function>(new py::function(std::move(property_list[0])),
                                                             [](py::function* py_encrypt) {
-                                                                ConditionalGILScopedAcquire acquire;
+                                                                py::gil_scoped_acquire acquire;
                                                                 delete py_encrypt;
                                                             });
             auto py_decrypt = std::shared_ptr<py::function>(new py::function(std::move(property_list[1])),
                                                             [](py::function* py_decrypt) {
-                                                                ConditionalGILScopedAcquire acquire;
+                                                                py::gil_scoped_acquire acquire;
                                                                 delete py_decrypt;
                                                             });
 
             std::function<std::string(const std::string&)> encrypt_func =
                 [py_encrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
-                ConditionalGILScopedAcquire acquire;
+                py::gil_scoped_acquire acquire;
                 return (*py_encrypt)(py::bytes(in_str)).cast<std::string>();
             };
 
             std::function<std::string(const std::string&)> decrypt_func =
                 [py_decrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
-                ConditionalGILScopedAcquire acquire;
+                py::gil_scoped_acquire acquire;
                 return (*py_decrypt)(py::bytes(in_str)).cast<std::string>();
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
@@ -544,6 +547,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::hint::ExecutionMode>(py_obj);
     } else if (py::isinstance<ov::log::Level>(py_obj)) {
         return py::cast<ov::log::Level>(py_obj);
+    } else if (py::isinstance<ov::intel_cpu::TbbPartitioner>(py_obj)) {
+        return py::cast<ov::intel_cpu::TbbPartitioner>(py_obj);
     } else if (py::isinstance<ov::device::Type>(py_obj)) {
         return py::cast<ov::device::Type>(py_obj);
     } else if (py::isinstance<ov::streams::Num>(py_obj)) {
@@ -576,7 +581,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
         return std::shared_ptr<py::object>(new py::object(py_obj), [](py::object* py_obj_reference) {
-            ConditionalGILScopedAcquire acquire;
+            py::gil_scoped_acquire acquire;
             delete py_obj_reference;
         });
     }
@@ -584,10 +589,18 @@ ov::Any py_object_to_any(const py::object& py_obj) {
 }
 std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
     auto callback_sp = std::shared_ptr<py::function>(new py::function(std::move(f_callback)), [](py::function* c) {
-        ConditionalGILScopedAcquire acquire;
+        // For free-threaded Python, gil_scoped_acquire still ensures thread is attached
+        py::gil_scoped_acquire acquire;
         delete c;
     });
     return callback_sp;
+}
+
+std::shared_ptr<py::object> wrap_pyobject_to_sp(py::object obj) {
+    return std::shared_ptr<py::object>(new py::object(std::move(obj)), [](py::object* o) {
+        py::gil_scoped_acquire acquire;
+        delete o;
+    });
 }
 
 std::filesystem::path to_fs_path(const py::object& path) {

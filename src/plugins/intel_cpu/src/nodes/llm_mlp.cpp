@@ -379,9 +379,15 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
         auto K = w_gate.size(1);
         auto N = w_gate.size(0);
         OPENVINO_ASSERT(w_gate.stride_bytes(0) == w_up.stride_bytes(0));
-        if (m_config.gate_up_combined) {
+        if (m_config.gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
             N = w_gate.size(0) / 2;
-            gate_up.setup(w_gate.ptr_v(), w_up.ptr_v(N, 0), w_up.stride_bytes(0), N * 2, K, config);
+            if (m_config.gate_up_type == LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE) {
+                // COMBINED_UP_GATE: VariadicSplit output[0] connects to up, output[1] connects to gate
+                gate_up.setup(w_gate.ptr_v(N, 0), w_gate.ptr_v(), w_gate.stride_bytes(0), N * 2, K, config);
+            } else {
+                // COMBINED_GATE_UP: VariadicSplit output[0] connects to gate, output[1] connects to up
+                gate_up.setup(w_gate.ptr_v(), w_gate.ptr_v(N, 0), w_gate.stride_bytes(0), N * 2, K, config);
+            }
         } else {
             gate_up.setup(w_gate.ptr_v(), w_up.ptr_v(), w_up.stride_bytes(0), N * 2, K, config);
         }
@@ -392,13 +398,21 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
             auto* w_scale_gate = pnode->getSrcMemoryAtPort(4)->getDataAs<float>();
             auto* w_scale_up = pnode->getSrcMemoryAtPort(5)->getDataAs<float>();
             auto* dst = m_w_scale_gateup.ptr<float>();
-            if (m_config.gate_up_combined) {
+            if (m_config.gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
                 w_scale_up = w_scale_gate + N;
             }
+
+            // When gate_up_type is COMBINED_UP_GATE, we need to swap the scales
+            // to match the swapped weight layout
+            auto* scale_first = w_scale_gate;
+            auto* scale_second = w_scale_up;
+            if (m_config.gate_up_type == LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE) {
+                std::swap(scale_first, scale_second);
+            }
             for (size_t i = 0; i < N; i += 16) {
-                memcpy(dst, w_scale_gate + i, 16 * sizeof(float));
+                memcpy(dst, scale_first + i, 16 * sizeof(float));
                 dst += 16;
-                memcpy(dst, w_scale_up + i, 16 * sizeof(float));
+                memcpy(dst, scale_second + i, 16 * sizeof(float));
                 dst += 16;
             }
         }

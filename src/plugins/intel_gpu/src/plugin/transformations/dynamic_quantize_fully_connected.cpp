@@ -59,7 +59,8 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         if (precomputed_reduction && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_static_wzp) {
             auto weight_zp_shape = m_fc->get_input_partial_shape(4);
             auto weight_scale_shape = m_fc->get_input_partial_shape(3);
-            const size_t wei_zp_group_size = innermost_size / weight_zp_shape[weight_zp_shape.size() - 1].get_length();
+            const bool is_zp_scalar = has_static_wzp && ov::shape_size(m_fc->get_input_shape(4)) == 1;
+            const size_t wei_zp_group_size = is_zp_scalar ? innermost_size : innermost_size / weight_zp_shape[weight_zp_shape.size() - 1].get_length();
             const size_t wei_scale_group_size = innermost_size / weight_scale_shape[weight_scale_shape.size() - 1].get_length();
             const size_t required_group_size = std::min(wei_zp_group_size, wei_scale_group_size);
             if (adj_group_size > required_group_size) {
@@ -80,6 +81,12 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         if (adj_group_size != UINT64_MAX &&
             (adj_group_size == 0 || (innermost_size % adj_group_size != 0 && innermost_size > adj_group_size))) {
             GPU_DEBUG_TRACE << "Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << adj_group_size << std::endl;
+            return false;
+        }
+
+        if (adj_group_size < 32) {
+            GPU_DEBUG_LOG << "Dynamic quantization: quantized activation by group size " << adj_group_size
+                            << " is not supported by onednn matmul if it is less than 32" << std::endl;
             return false;
         }
 

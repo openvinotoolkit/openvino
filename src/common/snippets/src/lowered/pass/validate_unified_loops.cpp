@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <iterator>
 #include <set>
 #include <vector>
 
@@ -56,16 +57,14 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
                 if (dim_idx == LoopPort::UNDEFINED_DIM_IDX) {
                     continue;
                 }
-                if (i > 0) {
-                    if (std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx) != dim_indexes.cend()) {
-                        OPENVINO_ASSERT(*dim_indexes.rbegin() == dim_idx,
-                                        "Incorrect Loop ID configuration: the Loops with splitted dimension should be "
-                                        "successively nested");
-                        OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->get_increment() ==
-                                            loop_manager->get_loop_info(id)->get_work_amount(),
-                                        "Incorrect Loop ID configuration: the Loops with splitted dimension should be "
-                                        "successively nested");
-                    }
+                auto it = std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx);
+                // loop by the same dim means that the original loop was split
+                if (it != dim_indexes.cend()) {
+                    const size_t loop_ids_idx = std::distance(dim_indexes.cbegin(), it);
+                    OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[loop_ids_idx])->get_increment() ==
+                                        loop_manager->get_loop_info(id)->get_work_amount(),
+                                    "Incorrect Loop ID configuration: the Loops with splitted dimension should be "
+                                    "successively nested");
                 }
                 dim_indexes.push_back(dim_idx);
             }

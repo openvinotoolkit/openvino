@@ -8,6 +8,11 @@ on:
         required: false
   merge_group:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   push:
     branches:
       - master
@@ -25,6 +30,7 @@ env:
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
@@ -66,7 +72,6 @@ jobs:
       cmake-options: >-
         -G 'Ninja'
         -DENABLE_PYTHON=OFF
-        -DENABLE_CPPLINT=OFF
         -DENABLE_TESTS=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
