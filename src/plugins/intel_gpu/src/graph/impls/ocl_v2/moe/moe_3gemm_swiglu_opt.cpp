@@ -1645,7 +1645,7 @@ public:
         //      0: final hidden states, shape = [token_len, hidden_size]
         {
             auto input_shape = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout().get_shape();
-            auto token_size = input_shape[0] * max_topk;
+            auto token_size = input_shape[0];// * max_topk;
             auto [local_threads_count, batches_per_thread, _] = calc_thread_count(const_cast<RuntimeParams&>(*instance.get_impl_params()), 4, _hidden_size);
 
             #if DEBUG_MOE_LOG
