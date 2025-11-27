@@ -381,6 +381,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
     }
     case ov::element::i8:
     case ov::element::u8: {
+        // Stability-first: always lane-wise for i8/u8 to avoid crossing boundaries in tails.
         const size_t lane_count = cpu_isa_traits<isa>::vlen / dst_prc.size();
         utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this, lane_count);
 
@@ -548,6 +549,7 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
     }
     case ov::element::i8:
     case ov::element::u8: {
+        // Safe path: always lane-wise for i8/u8
         const size_t lane_count = cpu_isa_traits<isa>::vlen / src_prc.size();
         auto data_bytes = data;
         for (size_t lane = 0; lane < lane_count; ++lane) {
