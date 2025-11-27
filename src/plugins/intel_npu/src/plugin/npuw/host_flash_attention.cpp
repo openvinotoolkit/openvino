@@ -7,6 +7,7 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "pyramid_attention.hpp"
 #include "util.hpp"
 
 namespace ov {
@@ -395,97 +396,55 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     LOG_INFO("Attempting to create HostFlashAttention from model");
     LOG_BLOCK();
 
-    // Pattern matching to find decomposed SDPA components
-    // Look for the key MatMul operations in the SDPA pattern
+    // Validate and setup using shared function from pyramid attention
+    auto validation_result = validate_and_setup_pyramid_attention(model);
+    if (!validation_result) {
+        LOG_WARN("Failed to validate SDPA pattern for HFA");
+        std::cout << "HostFlashAttention::from - pattern validation failed" << std::endl;
+        return std::nullopt;
+    }
 
-    std::shared_ptr<ov::Node> q_input = nullptr;
-    std::shared_ptr<ov::Node> k_concat = nullptr;
-    std::shared_ptr<ov::Node> v_concat = nullptr;
-    std::shared_ptr<ov::Node> softmax_node = nullptr;
+    LOG_INFO("Successfully validated decomposed SDPA pattern");
 
-    // Find the Softmax node (key indicator of attention)
-    for (const auto& node : model->get_ordered_ops()) {
-        if (auto sm = std::dynamic_pointer_cast<ov::op::v8::Softmax>(node)) {
-            softmax_node = sm;
-            LOG_DEBUG("Found Softmax node: " << sm->get_friendly_name());
+    // Extract pre-computed dimensions
+    const auto& past_key_sequence_dims = validation_result->past_key_sequence_dims;
+    const auto& past_value_sequence_dims = validation_result->past_value_sequence_dims;
 
-            // Trace back to find Q, K inputs
-            // Pattern: MatMul(Q, K) -> Add(mask) -> Softmax
-            if (sm->get_input_size() > 0) {
-                auto add_node = sm->get_input_node_shared_ptr(0);
-                if (auto add_op = std::dynamic_pointer_cast<ov::op::v1::Add>(add_node)) {
-                    LOG_DEBUG("Found Add node before Softmax");
+    // Create Attention instance from model using shared function
+    auto attention_opt = create_attention_from_model(model, past_key_sequence_dims, past_value_sequence_dims);
+    if (!attention_opt) {
+        LOG_WARN("Failed to create attention from model");
+        return std::nullopt;
+    }
 
-                    // Get MatMul(Q, K)
-                    if (add_op->get_input_size() > 0) {
-                        auto matmul_qk = add_op->get_input_node_shared_ptr(0);
-                        if (auto mm = std::dynamic_pointer_cast<ov::op::v0::MatMul>(matmul_qk)) {
-                            LOG_DEBUG("Found MatMul(Q,K) node");
-                            q_input = mm->get_input_node_shared_ptr(0);
+    LOG_INFO("Successfully created attention metadata from model");
 
-                            // Skip Convert nodes to get to the actual Parameter/input
-                            while (q_input && std::dynamic_pointer_cast<ov::op::v0::Convert>(q_input)) {
-                                if (q_input->get_input_size() > 0) {
-                                    q_input = q_input->get_input_node_shared_ptr(0);
-                                    LOG_DEBUG("Skipped Convert node, now at: " << q_input->get_friendly_name());
-                                } else {
-                                    break;
-                                }
-                            }
+    // Re-find pattern nodes to extract Q input and K concat for tile model creation
+    auto pattern_nodes = find_sdpa_pattern_nodes(model);
+    if (!pattern_nodes.is_valid()) {
+        LOG_WARN("Failed to re-find SDPA pattern nodes");
+        return std::nullopt;
+    }
 
-                            // K should come from Reshape <- Broadcast <- Unsqueeze <- Concat
-                            auto k_path = mm->get_input_node_shared_ptr(1);
-                            while (k_path && !std::dynamic_pointer_cast<ov::op::v0::Concat>(k_path)) {
-                                if (k_path->get_input_size() > 0) {
-                                    k_path = k_path->get_input_node_shared_ptr(0);
-                                } else {
-                                    break;
-                                }
-                            }
-                            if (auto concat = std::dynamic_pointer_cast<ov::op::v0::Concat>(k_path)) {
-                                k_concat = concat;
-                                LOG_DEBUG("Found K Concat node");
-                            }
-                        }
-                    }
-                }
-            }
+    auto q_input = pattern_nodes.matmul1_node->get_input_node_shared_ptr(0);
+    auto k_concat = pattern_nodes.past_key_concat_node;
 
-            // Trace forward to find V
-            // Pattern: Softmax -> MatMul(S, V)
-            for (const auto& output : sm->outputs()) {
-                for (const auto& target : output.get_target_inputs()) {
-                    auto consumer = target.get_node()->shared_from_this();
-                    if (auto mm_sv = std::dynamic_pointer_cast<ov::op::v0::MatMul>(consumer)) {
-                        LOG_DEBUG("Found MatMul(S,V) node");
-
-                        // V should be the second input
-                        auto v_path = mm_sv->get_input_node_shared_ptr(1);
-                        while (v_path && !std::dynamic_pointer_cast<ov::op::v0::Concat>(v_path)) {
-                            if (v_path->get_input_size() > 0) {
-                                v_path = v_path->get_input_node_shared_ptr(0);
-                            } else {
-                                break;
-                            }
-                        }
-                        if (auto concat = std::dynamic_pointer_cast<ov::op::v0::Concat>(v_path)) {
-                            v_concat = concat;
-                            LOG_DEBUG("Found V Concat node");
-                        }
-                    }
-                }
-            }
+    // Skip Convert nodes to get to the actual Parameter/input
+    while (q_input && std::dynamic_pointer_cast<ov::op::v0::Convert>(q_input)) {
+        if (q_input->get_input_size() > 0) {
+            q_input = q_input->get_input_node_shared_ptr(0);
+            LOG_DEBUG("Skipped Convert node, now at: " << q_input->get_friendly_name());
+        } else {
             break;
         }
     }
 
-    if (!q_input || !k_concat || !v_concat || !softmax_node) {
-        LOG_WARN("Failed to identify decomposed SDPA pattern");
-        std::cout << "HostFlashAttention::from - pattern not found" << std::endl;
+    if (!q_input || !k_concat) {
+        LOG_WARN("Failed to extract Q input or K concat from pattern");
         return std::nullopt;
     }
 
-    LOG_INFO("Successfully identified decomposed SDPA pattern");
+    LOG_INFO("Successfully extracted Q input and K concat nodes");
 
     // Extract shape information
     auto q_shape = q_input->get_output_partial_shape(0);
@@ -568,10 +527,12 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
 
     // Create HostFlashAttention structure
     HostFlashAttention hfa;
+    hfa._original_model = model;  // Store original SDPA model for parameter extraction
     hfa._tile_model = tile_model;
     hfa._final_tile_model = final_tile_model;
     hfa._tile_size = DEFAULT_TILE_SIZE;
     hfa._kv_cache_size = kv_cache_size;
+    hfa._sdpa_attention = std::move(attention_opt.value());  // Store SDPA attention metadata
 
     LOG_INFO("Successfully created HostFlashAttention");
     std::cout << "HostFlashAttention created with tile_size=" << hfa._tile_size
@@ -597,7 +558,20 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _tile_model_to_compile = func_hfa._tile_model;
     _final_tile_model_to_compile = func_hfa._final_tile_model;
 
+    // Extract attention parameter info from original SDPA model (not from tile models)
+    const auto& sdpa_attn = func_hfa._sdpa_attention;
+    const auto& original_model = func_hfa._original_model;
+
+    _sdpa_attention_info.params.reserve(sdpa_attn._inputs.size());
+    for (const auto& input : sdpa_attn._inputs) {
+        std::size_t p_idx = original_model->get_parameter_index(input.param);
+        _sdpa_attention_info.params.push_back({p_idx, input.dim});
+    }
+    _sdpa_attention_info.mask_idx = original_model->get_parameter_index(sdpa_attn._mask);
+    _sdpa_attention_info.query_size = sdpa_attn.query_len();
+
     LOG_INFO("Extracted HFA config: tile_size=" << _tile_size << ", kv_cache_size=" << _kv_cache_size);
+    LOG_INFO("Extracted " << _sdpa_attention_info.params.size() << " past KV parameters from original SDPA model");
 
     // Note: _compiled_tile_model and _compiled_final_tile_model will be set later by
     // compile_host_flash_attention_model()

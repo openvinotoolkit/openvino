@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 
+#include "attention.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
@@ -20,11 +21,17 @@ namespace function {
 
 // HostFlashAttention structure definition
 struct HostFlashAttention {
+    // Original SDPA model (for parameter extraction)
+    std::shared_ptr<ov::Model> _original_model;
+
     // Tiled model for flash attention execution (regular tiles)
     std::shared_ptr<ov::Model> _tile_model;
 
     // Final tiled model for flash attention execution (with division and transpose)
     std::shared_ptr<ov::Model> _final_tile_model;
+
+    // Attention metadata from original SDPA model (mask, past key/value inputs)
+    Attention _sdpa_attention;
 
     // Tile configuration
     int64_t _tile_size = 1024;  // Default K/V tile size
@@ -49,6 +56,18 @@ struct HostFlashAttention {
 
 namespace compiled {
 
+// Simplified host flash attention parameter info
+// Contains parameter indices from the original SDPA model
+struct HostFlashAttentionInfo {
+    struct Param {
+        std::size_t idx;  // parameter index in original SDPA model
+        std::size_t dim;  // dimension index for sequence length
+    };
+    std::vector<Param> params;    // past key/value parameters from original SDPA
+    std::size_t mask_idx = 0u;    // mask parameter index in original SDPA model
+    std::size_t query_size = 0u;  // query size for selector compatibility
+};
+
 // Compile-time host flash attention information
 struct HostFlashAttention {
     // Models to compile (will be cleared after compilation)
@@ -60,6 +79,9 @@ struct HostFlashAttention {
 
     // Compiled FINAL tile model for NPU execution (with division and transpose)
     ov::SoPtr<ov::ICompiledModel> _compiled_final_tile_model;
+
+    // Attention parameter info from original SDPA model (not from tile models)
+    HostFlashAttentionInfo _sdpa_attention_info;
 
     // Tile configuration
     int64_t _tile_size = 1024;
