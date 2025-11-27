@@ -177,7 +177,12 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
     std::string tensor_type = is_input ? "input" : "output";
 
     if (!support_strides) {
-        OPENVINO_ASSERT(tensor->is_continuous(), "The tensor is not continuous");
+        OPENVINO_ASSERT(
+            tensor->is_continuous(),
+            "The tensor has a non-contiguous memory layout (custom strides), which is not supported by the "
+            "current driver/compiler version. To use strided tensors, either:\n"
+            "  1. Upgrade to a driver version that supports strides, or\n"
+            "  2. Enable stride support using the 'enable_strides_for' configuration property if this is supported.");
     }
 
     if ((port.get_element_type() == ov::element::Type_t::boolean ||

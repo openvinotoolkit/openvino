@@ -227,6 +227,47 @@ std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properti
     return modelPtr;
 }
 
+std::optional<int> findIOByName(const std::vector<ov::Output<const ov::Node>>& ioVector, const std::string& name) {
+    int index = 0;
+
+    for (const auto& io : ioVector) {
+        if (io.get_node()->get_name() == name || io.get_node()->get_friendly_name() == name) {
+            return index;
+        }
+
+        // Check tensor names
+        const auto& tensorNames = io.get_tensor().get_names();
+        if (tensorNames.find(name) != tensorNames.end()) {
+            return index;
+        }
+
+        ++index;
+    }
+    return std::nullopt;
+};
+
+auto convertNamesToIndices(FilteredConfig& config,
+                           const std::vector<ov::Output<const ov::Node>>& ioVector,
+                           const std::string& propertyName) {
+    if (config.get<ENABLE_STRIDES_FOR>().empty()) {
+        return;
+    }
+
+    std::vector<int> indices;
+    for (auto name : config.get<ENABLE_STRIDES_FOR>()) {
+        auto index = findIOByName(ioVector, name);
+        if (index.has_value()) {
+            indices.push_back(index.value());
+        }
+    }
+
+    if (!indices.empty()) {
+        std::ostringstream oss;
+        ov::intel_npu::operator<<(oss, indices);
+        config.update({{propertyName, oss.str()}});
+    }
+};
+
 }  // namespace
 
 namespace intel_npu {
@@ -697,54 +738,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    auto findIOByName = [](const auto& ioVector, const std::string& name) -> std::optional<int> {
-        int index = 0;
-
-        for (const auto& io : ioVector) {
-            if (io.get_node()->get_name() == name || io.get_node()->get_friendly_name() == name) {
-                return index;
-            }
-
-            // Check tensor names
-            const auto& tensorNames = io.get_tensor().get_names();
-            if (tensorNames.find(name) != tensorNames.end()) {
-                return index;
-            }
-
-            ++index;
-        }
-        return std::nullopt;
-    };
-
-    auto convertNamesToIndices = [&localConfig, &findIOByName](const std::vector<std::string>& names,
-                                                               const auto& ioVector,
-                                                               const std::string& propertyName) {
-        if (names.empty()) {
-            return;
-        }
-
-        std::vector<int> indices;
-        for (size_t i = 0; i < names.size(); ++i) {
-            if (auto index = findIOByName(ioVector, names[i])) {
-                indices.push_back(index.value());
-            }
-        }
-
-        if (!indices.empty()) {
-            std::ostringstream oss;
-            ov::intel_npu::operator<<(oss, indices);
-            localConfig.update({{propertyName, oss.str()}});
-        }
-    };
-
     if (localConfig.has(ov::intel_npu::enable_strides_for.name())) {
-        convertNamesToIndices(localConfig.get<ENABLE_STRIDES_FOR>(),
-                              model->inputs(),
-                              ov::intel_npu::inputs_with_dynamic_strides.name());
-
-        convertNamesToIndices(localConfig.get<ENABLE_STRIDES_FOR>(),
-                              model->outputs(),
-                              ov::intel_npu::outputs_with_dynamic_strides.name());
+        convertNamesToIndices(localConfig, model->inputs(), ov::intel_npu::inputs_with_dynamic_strides.name());
+        convertNamesToIndices(localConfig, model->outputs(), ov::intel_npu::outputs_with_dynamic_strides.name());
     }
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
