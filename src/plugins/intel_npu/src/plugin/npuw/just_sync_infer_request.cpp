@@ -202,6 +202,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     m_spatial_io.resize(m_num_submodels);
     m_attention_io.resize(m_num_submodels);
+    m_hfa_io.resize(m_num_submodels);
 
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
@@ -287,7 +288,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 }
                 has_hfa = true;
                 hfa_sub_idx = real_idx;
-            }
+                m_hfa_io[i].inputs.resize(proto_comp_model_desc.param_base);
+                const auto num_outputs =
+                    proto_comp_model_desc.host_flash_attention.value()._compiled_final_tile_model->outputs().size();
+                m_hfa_io[i].outputs.resize(num_outputs);
+            }  // if(hfa)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
@@ -675,6 +680,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     const bool is_spatial = func_desc.spatial.has_value();
     const bool is_dynamic = func_desc.attention.has_value();
     const bool is_pyramid = func_desc.pyramid_attention.has_value();
+    const bool is_hfa = func_desc.host_flash_attention.has_value();
 
     // Generalized: check if input is neither param nor mask
     auto is_non_param_mask = [](const auto& info, std::size_t in_idx) {
@@ -711,6 +717,11 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                     return m_funcall_result.at({prod_idx, prod_port});
                 }
             }();
+
+            if (is_hfa) {
+                // Host Flash Attention case - defer, use dedicated HFA I/O structure
+                m_hfa_io[real_idx].inputs.at(i) = i_tensor;
+            }
 
             if (is_spatial) {
                 // Spatial case - defer
@@ -769,7 +780,10 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         LOG_DEBUG("Binding result[" << i << "]...");
         auto& oport = func_desc.compiled_model->outputs()[i];
         auto o_tensor = m_funcall_result.at({idx, i});
-        if (!is_spatial) {
+        if (is_hfa) {
+            // HFA case - defer, store in dedicated HFA I/O structure
+            m_hfa_io[real_idx].outputs.at(i) = o_tensor;
+        } else if (!is_spatial) {
             // Non-spatial case - set immediately
             m_subrequests[real_idx]->set_tensor(oport, o_tensor);
         } else {
@@ -1177,8 +1191,6 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
 
     NPUW_ASSERT(hfa.is_valid() && "HFA configuration must be valid");
 
-    auto& r = m_subrequests[real_idx];
-
     std::cout << "=== HFA Tiled Inference Performance ===" << std::endl;
 
     double setup_time = 0.0;
@@ -1205,20 +1217,26 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
     // Create infer request for the HFA FINAL tile model (with division and transpose)
     auto final_tile_request = hfa._compiled_final_tile_model->create_infer_request();
 
-    // Get input tensors from the decomposed SDPA request
-    // Based on the IO mapping:
-    // r inputs: [0] past_key, [1] past_value, [2] npuw_in_tensor_2 (q),
-    //           [3] npuw_in_tensor_3 (k_tile), [4] npuw_in_tensor_4 (mask),
-    //           [5] npuw_in_tensor_5 (v_tile)
-    auto past_key_tensor = r->get_tensor(comp_model_desc.compiled_model->inputs()[0]);
-    auto past_value_tensor = r->get_tensor(comp_model_desc.compiled_model->inputs()[1]);
-    auto q_tensor = r->get_tensor(comp_model_desc.compiled_model->inputs()[2]);
-    auto present_k_input_tensor = r->get_tensor(comp_model_desc.compiled_model->inputs()[3]);
-    auto mask_tensor = r->get_tensor(comp_model_desc.compiled_model->inputs()[4]);
-    auto present_v_input_tensor = r->get_tensor(comp_model_desc.compiled_model->inputs()[5]);
+    // Get input tensors from m_hfa_io (already set in function_prologue)
+    // Use _sdpa_attention_info to get the parameter indices from original SDPA model
+    const auto& sdpa_info = hfa._sdpa_attention_info;
+    const auto& hfa_inputs = m_hfa_io[real_idx].inputs;
+    const auto& hfa_outputs = m_hfa_io[real_idx].outputs;
 
-    // Get output tensor
-    auto output_tensor = r->get_tensor(comp_model_desc.compiled_model->outputs()[0]);
+    // Note: We need to map from original SDPA model parameter indices to actual tensors
+    // The hfa_inputs are indexed by the original SDPA model's parameter indices
+    // We need to identify which parameter is which based on the SDPA pattern:
+    // Typical SDPA inputs: [0] past_key, [1] past_value, [2] Q, [3] present_K, [4] mask, [5] present_V
+
+    auto past_key_tensor = hfa_inputs.at(0);
+    auto past_value_tensor = hfa_inputs.at(1);
+    auto q_tensor = hfa_inputs.at(2);
+    auto present_k_input_tensor = hfa_inputs.at(3);
+    auto mask_tensor = hfa_inputs.at(sdpa_info.mask_idx);
+    auto present_v_input_tensor = hfa_inputs.at(5);
+
+    // Get output tensor from m_hfa_io (already set in function_prologue)
+    auto output_tensor = hfa_outputs.at(0);
 
     // Get accumulation state tensors from tile_request (already allocated by create_infer_request)
     // Tile model inputs: [0] past_acc, [1] past_max, [2] past_d, [3] k_tile, [4] v_tile, [5] q, [6] mask_tile

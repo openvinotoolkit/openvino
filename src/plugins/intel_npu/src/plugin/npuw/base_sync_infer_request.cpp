@@ -509,6 +509,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     const bool is_spatial = proto_comp_model_desc.spatial.has_value();
     const bool is_attention = proto_comp_model_desc.attention.has_value();
     const bool is_pyramid_attention = proto_comp_model_desc.pyramid_attention.has_value();
+    const bool is_hfa_attention = proto_comp_model_desc.host_flash_attention.has_value();
 
     // a list of ports to copy tensors, if needed: FROM -> TO
     std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
@@ -547,6 +548,16 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         });
     };
 
+    auto is_hfa_attn_param = [&](std::size_t sub_in_idx) -> bool {
+        if (!is_hfa_attention) {
+            return false;  // Early return
+        }
+        auto& hfa_attn = proto_comp_model_desc.host_flash_attention.value()._sdpa_attention_info;
+        return std::any_of(hfa_attn.params.begin(), hfa_attn.params.end(), [&](const auto& p) -> bool {
+            return p.idx == sub_in_idx;
+        });
+    };
+
     for (auto&& it : iodesc.global_params) {
         std::size_t param_idx{}, sub_in_idx{};
         std::tie(param_idx, sub_in_idx) = it;
@@ -557,6 +568,11 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         const auto& s_port = request->get_inputs()[sub_in_idx];
         LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
         LOG_BLOCK();
+        if (is_hfa_attn_param(sub_in_idx)) {
+            // Register for future use
+            m_hfa_io[idx].inputs.at(sub_in_idx) = g_tnsr;
+        }
+
         if (is_spatial_param(sub_in_idx)) {
             // Register for future use
             // FIXME: Not sure why this code is here. There should be no

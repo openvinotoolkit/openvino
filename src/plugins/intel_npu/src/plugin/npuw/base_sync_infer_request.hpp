@@ -147,6 +147,14 @@ protected:
     };
     std::vector<AttentionIO> m_attention_io;
 
+    // Host Flash Attention I/O structure
+    // Stores input and output tensors for HFA tiled inference
+    struct HostFlashAttentionIO {
+        std::vector<ov::SoPtr<ov::ITensor>> inputs;   // # of elements - # of original SDPA model inputs
+        std::vector<ov::SoPtr<ov::ITensor>> outputs;  // # of elements - # of original SDPA model outputs
+    };
+    std::vector<HostFlashAttentionIO> m_hfa_io;
+
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
     // Represents spatial run-time info
