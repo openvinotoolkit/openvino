@@ -743,7 +743,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 }
             } else if (is_hfa) {
                 // Host Flash Attention case - defer, use dedicated HFA I/O structure
-                m_hfa_io[real_idx].inputs.at(i) = i_tensor;
+                m_hfa_io[idx].inputs.at(i) = i_tensor;
             } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -784,7 +784,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         auto o_tensor = m_funcall_result.at({idx, i});
         if (is_hfa) {
             // HFA case - defer, store in dedicated HFA I/O structure
-            m_hfa_io[real_idx].outputs.at(i) = o_tensor;
+            m_hfa_io[idx].outputs.at(i) = o_tensor;
         } else if (!is_spatial) {
             // Non-spatial case - set immediately
             m_subrequests[real_idx]->set_tensor(oport, o_tensor);
@@ -1247,8 +1247,9 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
 
     // Perform HFA tiled inference if enabled
     if (comp_model_desc.host_flash_attention.has_value()) {
-        // print_hfa_compiled_model_io(real_idx, idx);
-        run_hfa_tiled_inference(real_idx);
+        auto future = std::async(std::launch::async, f);
+        unsafe_infer(real_idx, idx);
+        future.wait();
         return;
     }
 
@@ -1269,7 +1270,7 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
     }
 }
 
-void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
+void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& hfa = comp_model_desc.host_flash_attention.value();
 
@@ -1301,8 +1302,8 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
     // Get input tensors from m_hfa_io (already set in function_prologue)
     // Use _sdpa_attention_info to get the parameter indices from original SDPA model
     const auto& sdpa_info = hfa._sdpa_attention_info;
-    const auto& hfa_inputs = m_hfa_io[real_idx].inputs;
-    const auto& hfa_outputs = m_hfa_io[real_idx].outputs;
+    const auto& hfa_inputs = m_hfa_io[idx].inputs;
+    const auto& hfa_outputs = m_hfa_io[idx].outputs;
 
     // Note: We need to map from original SDPA model parameter indices to actual tensors
     // The hfa_inputs are indexed by the original SDPA model's parameter indices
@@ -1509,83 +1510,6 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
     std::cout << "====================================" << std::endl;
 }
 
-void ov::npuw::JustInferRequest::print_hfa_compiled_model_io(std::size_t real_idx, std::size_t idx) {
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    if (!comp_model_desc.host_flash_attention) {
-        return;
-    }
-
-    std::cout << "Submodel " << idx << " is HFA" << std::endl;
-
-    // Print all input/output information of the compiled tile model
-    std::cout << "\n=== HostFlashAttention Compiled Tile Model I/O Information ===" << std::endl;
-
-    // Print inputs
-    auto hfa = comp_model_desc.host_flash_attention.value();
-    std::cout << "Inputs (" << hfa._compiled_tile_model->inputs().size() << "):" << std::endl;
-    for (size_t i = 0; i < hfa._compiled_tile_model->inputs().size(); ++i) {
-        const auto& input = hfa._compiled_tile_model->inputs()[i];
-        std::string name =
-            input.get_names().empty() ? ("<unnamed_input_" + std::to_string(i) + ">") : input.get_any_name();
-        std::cout << "  [" << i << "] Name: " << name << " | Shape: " << input.get_partial_shape()
-                  << " | Type: " << input.get_element_type() << std::endl;
-    }
-
-    // Print outputs
-    std::cout << "Outputs (" << hfa._compiled_tile_model->outputs().size() << "):" << std::endl;
-    for (size_t i = 0; i < hfa._compiled_tile_model->outputs().size(); ++i) {
-        const auto& output = hfa._compiled_tile_model->outputs()[i];
-        std::string name =
-            output.get_names().empty() ? ("<unnamed_output_" + std::to_string(i) + ">") : output.get_any_name();
-        std::cout << "  [" << i << "] Name: " << name << " | Shape: " << output.get_partial_shape()
-                  << " | Type: " << output.get_element_type() << std::endl;
-    }
-    std::cout << "============================================================\n" << std::endl;
-
-    // Print infer request I/O information
-    auto& r = m_subrequests[real_idx];
-    auto& compiled_model = comp_model_desc.compiled_model;
-
-    std::cout << "\n=== Infer Request I/O Information ===" << std::endl;
-
-    // Print request inputs
-    std::cout << "Request Inputs (" << compiled_model->inputs().size() << "):" << std::endl;
-    for (size_t i = 0; i < compiled_model->inputs().size(); ++i) {
-        const auto& input = compiled_model->inputs()[i];
-        std::string name =
-            input.get_names().empty() ? ("<unnamed_input_" + std::to_string(i) + ">") : input.get_any_name();
-
-        // Try to get the tensor to see actual shape
-        try {
-            auto tensor = r->get_tensor(input);
-            std::cout << "  [" << i << "] Name: " << name << " | Shape: " << tensor->get_shape()
-                      << " | Type: " << tensor->get_element_type() << std::endl;
-        } catch (...) {
-            std::cout << "  [" << i << "] Name: " << name << " | Shape: " << input.get_partial_shape()
-                      << " | Type: " << input.get_element_type() << " | (tensor not set)" << std::endl;
-        }
-    }
-
-    // Print request outputs
-    std::cout << "Request Outputs (" << compiled_model->outputs().size() << "):" << std::endl;
-    for (size_t i = 0; i < compiled_model->outputs().size(); ++i) {
-        const auto& output = compiled_model->outputs()[i];
-        std::string name =
-            output.get_names().empty() ? ("<unnamed_output_" + std::to_string(i) + ">") : output.get_any_name();
-
-        // Try to get the tensor to see actual shape
-        try {
-            auto tensor = r->get_tensor(output);
-            std::cout << "  [" << i << "] Name: " << name << " | Shape: " << tensor->get_shape()
-                      << " | Type: " << tensor->get_element_type() << std::endl;
-        } catch (...) {
-            std::cout << "  [" << i << "] Name: " << name << " | Shape: " << output.get_partial_shape()
-                      << " | Type: " << output.get_element_type() << " | (tensor not set)" << std::endl;
-        }
-    }
-    std::cout << "============================================================\n" << std::endl;
-}
-
 void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std::size_t) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     NPUW_ASSERT(comp_model_desc.spatial.has_value());
@@ -1694,6 +1618,8 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
     auto& r = m_subrequests[real_idx];
     if (comp_model_desc.spatial) {
         unsafe_infer_spatial(real_idx, idx);
+    } else if (comp_model_desc.host_flash_attention) {
+        run_hfa_tiled_inference(real_idx, idx);
     } else {
         r->infer();  // Run normally
     }
