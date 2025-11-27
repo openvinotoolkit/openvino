@@ -26,8 +26,6 @@ static std::vector<std::string> compareOutputs(
     const InferDesc& infer,
     const AccuracySimulation::Options& opts) {
 
-    std::cout << "Infer output layer size " << infer.output_layers.size() << "\n";
-
     std::vector<std::string> failed_list;
 
     auto default_metric = opts.global_metric ? opts.global_metric : std::make_shared<Norm>(0.0);
@@ -40,7 +38,6 @@ static std::vector<std::string> compareOutputs(
     for (size_t i = 0; i < infer.output_layers.size(); ++i) {
         const auto& layer = infer.output_layers[i];
         LayerValidator validator{infer.tag, layer.name, per_layer_metrics.at(layer.name)};
-        std::cout << "\n\nRef mats[" << i << "].size = " << ref_mats.size() << "\tTgt ref mats: " << tgt_mats.size() << "\n";
         auto result = validator(ref_mats[i], tgt_mats[i]);
         if (!result) {
             failed_list.push_back(std::move(result.str()));
@@ -173,7 +170,9 @@ struct OutputDataVisitor {
 };
 
 void OutputDataVisitor::operator()(std::monostate) {
-    // TODO: It shouldn't fail if no output path is provided, it should just do nothing
+    for (uint32_t i = 0; i < infer.output_layers.size(); ++i) {
+        metas[i].set(InferOutput{});
+    }
 }
 
 void OutputDataVisitor::operator()(const LayerVariantAttr<std::string>&) {

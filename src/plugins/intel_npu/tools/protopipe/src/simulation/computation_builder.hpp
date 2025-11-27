@@ -31,6 +31,8 @@ struct GOperation {
     F on;
 };
 
+struct InferOutput {};
+
 struct Dump {
     std::filesystem::path path;
 };
