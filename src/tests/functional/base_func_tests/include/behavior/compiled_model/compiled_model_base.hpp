@@ -1173,7 +1173,7 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_which_fails_load_from_cache) {
 }
 
 TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weights) {
-    auto cache_dir = ov::util::Path(utils::getCurrentWorkingDir()) / (utils::generateTestFilePrefix() + "cache");
+    auto cache_dir = std::filesystem::path(utils::getCurrentWorkingDir()) / (utils::generateTestFilePrefix() + "cache");
     auto w_file_path = cache_dir / "weights.bin";
     std::filesystem::create_directories(cache_dir);
 

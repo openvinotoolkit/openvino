@@ -6,8 +6,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <tuple>
+#include <vector>
 
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -68,14 +70,28 @@ class BrgemmKernelExecutorHelper {
 public:
     virtual ~BrgemmKernelExecutorHelper() = default;
 
+    // This function returns M, N, K dimensions, beta, and LDC of brgemm as a tuple, based on loop info in linear_ir.
+    static std::tuple<int64_t, int64_t, int64_t, float, int64_t> get_runtime_brgemm_params(
+        const ov::snippets::lowered::ExpressionPtr& expr,
+        const ov::snippets::lowered::LinearIRCPtr& linear_ir);
+
+private:
     static float get_beta(const ov::snippets::lowered::LoopManagerPtr& loop_manager,
                           int loop_id,
                           const ov::snippets::lowered::ExpandedLoopInfoPtr& current_expanded_loop_info);
 
-    // This function returns M, N, K dimensions and beta of brgemm as a tuple, based on loop info in linear_ir.
-    static std::tuple<int64_t, int64_t, int64_t, float> get_runtime_brgemm_params(
-        const ov::snippets::lowered::ExpressionPtr& expr,
-        const ov::snippets::lowered::LinearIRCPtr& linear_ir);
+    /**
+     * @brief Determines if Brgemm output buffer is inside the N blocking loop.
+     * @param n_loop_out_ports Output ports of the N blocking loop
+     * @param cur_brgemm_out_port Current Brgemm expression's output port
+     * @param loop_manager Loop manager containing loop information
+     * @param inner_loop_idx Optional index of inner blocking loop (e.g., K loop)
+     * @return true if output buffer is inside N loop (LDC should be adjusted)
+     */
+    static bool is_out_buffer_inside_n_loop(const std::vector<ov::snippets::lowered::LoopPort>& n_loop_out_ports,
+                                            const ov::snippets::lowered::ExpressionPort& cur_brgemm_out_port,
+                                            const ov::snippets::lowered::LoopManagerPtr& loop_manager,
+                                            const std::optional<size_t>& inner_loop_idx);
 };
 
 }  // namespace ov::intel_cpu
