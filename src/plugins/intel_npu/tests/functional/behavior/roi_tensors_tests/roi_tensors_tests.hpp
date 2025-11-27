@@ -98,6 +98,17 @@ public:
 TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabled) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
+
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModel(element::f32, shape, "N...");
@@ -112,6 +123,17 @@ TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabled) {
 
 TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
@@ -137,8 +159,48 @@ TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
     OV_ASSERT_NO_THROW(req.infer());
 }
 
+TEST_P(RoiTensorsTestsRun, SetStridedTensorForUnexpectedTensorExpectedThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
+
+    auto shape = Shape{1, 2, 2, 2};
+    ov::CompiledModel compiled_model;
+    auto model = createModel(element::f32, shape, "N...");
+    auto zero_context = core->get_default_context(target_device);
+    auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
+    auto output_strides = output_host_tensor.get_strides();
+
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input"};
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+    ov::Tensor output_view_tensor = ov::Tensor(ov::element::f32, shape, output_host_tensor.data(), output_strides);
+    EXPECT_THROW(req.set_output_tensor(output_view_tensor), ov::Exception);
+}
+
 TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
@@ -165,6 +227,17 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
 
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
@@ -207,6 +280,17 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
 
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContext) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
 
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
@@ -262,6 +346,75 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContext) {
     }
 
     init_struct = nullptr;
+}
+
+TEST_P(RoiTensorsTestsRun, ImportStandardAllocation) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
+
+    auto shape = Shape{1, 10, 15, 5};
+    ov::CompiledModel compiled_model;
+    auto model = createModel(element::f32, shape, "N...");
+
+    auto shape_input = Shape{1, 25, 25, 25};
+    auto shape_output = Shape{3, 15, 20, 30};
+
+    auto input_data = static_cast<float*>(
+        ::operator new(ov::shape_size(shape_input) * ov::element::f32.size(), std::align_val_t(4096)));
+    auto output_data = static_cast<float*>(
+        ::operator new(ov::shape_size(shape_output) * ov::element::f32.size(), std::align_val_t(4096)));
+
+    auto input_tensor = ov::Tensor{ov::element::f32, shape_input, input_data};
+    auto output_tensor = ov::Tensor{ov::element::f32, shape_output, output_data};
+
+    for (size_t i = 0; i < input_tensor.get_size(); ++i) {
+        input_data[i] = 50.0f;
+    }
+
+    for (size_t i = 0; i < output_tensor.get_size(); ++i) {
+        output_data[i] = 10.0f;
+    }
+
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result"};
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+
+    ov::Tensor input_roi_tensor = ov::Tensor(input_tensor, {0, 4, 4, 4}, {1, 14, 19, 9});
+    OV_ASSERT_NO_THROW(req.set_input_tensor(input_roi_tensor));
+
+    ov::Tensor output_roi_tensor = ov::Tensor(output_tensor, {2, 2, 5, 6}, {3, 12, 20, 11});
+    OV_ASSERT_NO_THROW(req.set_output_tensor(output_roi_tensor));
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    auto check_out_roi_tensor = ov::Tensor(ov::element::f32, shape);
+    output_roi_tensor.copy_to(check_out_roi_tensor);
+    auto* check_data = check_out_roi_tensor.data<float>();
+    for (size_t i = 0; i < check_out_roi_tensor.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 51.0f);
+    }
+
+    req = {};
+    check_out_roi_tensor = {};
+    input_roi_tensor = {};
+    output_roi_tensor = {};
+    input_tensor = {};
+    output_tensor = {};
+
+    ::operator delete(input_data, std::align_val_t(4096));
+    ::operator delete(output_data, std::align_val_t(4096));
 }
 
 }  // namespace behavior
