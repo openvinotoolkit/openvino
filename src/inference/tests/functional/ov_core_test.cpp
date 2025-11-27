@@ -85,14 +85,13 @@ TEST_F(CoreBaseTest, LoadPluginXML) {
 
 TEST_F(CoreBaseTest, LoadPluginXMLWithFsPath) {
     std::string xml_file_name = "test_plugin.xml";
-    std::string xml_file_path =
-        ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
-    create_plugin_xml(xml_file_path, "1");
-    const auto xml_file_fs_path = std::filesystem::path(xml_file_path);
-    ov::Core core(xml_file_fs_path);
+    const auto xml_file_path = std::filesystem::path(ov::test::utils::getOpenvinoLibDirectory() +
+                                                     ov::util::FileTraits<char>::file_separator + xml_file_name);
+    create_plugin_xml(xml_file_path.string(), "1");
+    ov::Core core(xml_file_path);
     auto versions = core.get_versions("1");
     EXPECT_FALSE(versions.empty());
-    remove_plugin_xml(xml_file_path);
+    remove_plugin_xml(xml_file_path.string());
 }
 
 TEST_F(CoreBaseTest, LoadPluginDifferentXMLExtension) {
