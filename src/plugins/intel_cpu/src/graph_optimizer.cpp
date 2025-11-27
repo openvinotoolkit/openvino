@@ -301,9 +301,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         // Per-channel DQ scales fusion is not supported by ACL
-        if (scalesDims[channelAxis] != 1) {
-            return false;
-        }
+        return scalesDims[channelAxis] == 1;
 #endif
 
         return true;
