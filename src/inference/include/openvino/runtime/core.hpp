@@ -55,16 +55,7 @@ public:
      */
     explicit Core(const std::string& xml_config_file = {});
 
-    /** @brief Constructs an OpenVINO Core instance with devices
-     * and their plugins description.
-     *
-     * There are two ways how to configure device plugins:
-     * 1. (default) Use XML configuration file in case of dynamic libraries build;
-     * 2. Use strictly defined configuration in case of static libraries build.
-     *
-     * @param xml_config_file Path to the .xml file with plugins to load from. If path contains only file name
-     * with extension, file will be searched in a folder with OpenVINO runtime shared library.
-     */
+    /** @brief Constructs an OpenVINO Core instance with devices and their plugins description. */
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     explicit Core(const Path& xml_config_file) : Core(xml_config_file.string()) {}
 
@@ -853,22 +844,7 @@ public:
      */
     void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& config = {});
 
-    /**
-     * @brief Register a new device and plugin that enables this device inside OpenVINO Runtime.
-     *
-     * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
-     * shared library suffix and prefix to identify library full name.
-     * For example, on Linux platform, plugin name specified as `plugin_name` will be wrapped as `libplugin_name.so`.
-     * Plugin search algorithm:
-     * - If `plugin` points to an exact library path (absolute or relative), it will be used.
-     * - If `plugin` specifies file name (`libplugin_name.so`) or plugin name (`plugin_name`), it will be searched by
-     *   file name (`libplugin_name.so`) in CWD or in paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
-     *   environment variables depending on the platform.
-     * @note For security, use an absolute path to register plugin.
-     *
-     * @param device_name Device name to register a plugin for.
-     * @param config Plugin configuration options
-     */
+    /** @brief Register a new device and plugin that enables this device inside OpenVINO Runtime. */
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     void register_plugin(const Path& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
         register_plugin(plugin_path.string(), device_name, config);
@@ -917,33 +893,6 @@ public:
 
     /** @brief Registers a device plugin to the OpenVINO Runtime Core instance using an XML configuration file with
      * plugins description.
-     *
-     *  The XML file has the following structure:
-     *
-     * ```xml
-     * <ie>
-     *     <plugins>
-     *         <plugin name="" location="">
-     *             <extensions>
-     *                 <extension location=""/>
-     *             </extensions>
-     *             <properties>
-     *                 <property key="" value=""/>
-     *             </properties>
-     *         </plugin>
-     *     </plugins>
-     * </ie>
-     * ```
-     *
-     * - `name` identifies name of a device enabled by a plugin.
-     * - `location` specifies absolute path to dynamic library with a plugin.
-     *    The path can also be relative to XML file directory. It allows having common config
-     *    for different systems with different configurations.
-     * - `properties` are set to a plugin via the ov::Core::set_property method.
-     * - `extensions` are set to a plugin via the ov::Core::add_extension method.
-     * @note For security, use an absolute path to register plugin.
-     *
-     * @param xml_config_file A path to .xml file with plugins to register.
      */
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     void register_plugins(const Path& xml_config_file) {
