@@ -514,9 +514,22 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
  */
 static constexpr ov::Property<bool> disable_version_check{"NPU_DISABLE_VERSION_CHECK"};
 
-// TODO: add comments, find proper name.
-// Initial commit just to match compiler expected properties
+/**
+ * @brief [Internal Use Only]
+ * Type: std::vector<int>
+ * Indices of input tensors that support non-contiguous memory layout with custom strides
+ *
+ * Note: This is an internal compiler property. Users should use 'enable_strides_for' instead.
+ */
 static constexpr Property<std::vector<int>> inputs_with_dynamic_strides("INPUTS_WITH_DYNAMIC_STRIDES");
+
+/**
+ * @brief [Internal Use Only]
+ * Type: std::vector<int>
+ * Indices of output tensors that support non-contiguous memory layout with custom strides.
+ *
+ * Note: This is an internal compiler property. Users should use 'enable_strides_for' instead.
+ */
 static constexpr Property<std::vector<int>> outputs_with_dynamic_strides("OUTPUTS_WITH_DYNAMIC_STRIDES");
 
 }  // namespace intel_npu

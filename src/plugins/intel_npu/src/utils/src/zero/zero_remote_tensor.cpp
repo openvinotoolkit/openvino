@@ -66,6 +66,15 @@ ov::Strides default_byte_strides(const ov::Shape& shape, const ov::element::Type
     return strides;
 }
 
+/**
+ * @brief Copies tensor data between source and destination, handling strided memory layouts
+ * @param src Source tensor
+ * @param dst Destination tensor
+ * @param src_shape Shape of region to copy from source
+ * @param dst_shape Shape of region to copy to destination (must match src_shape)
+ * @param src_data Pointer to source data (with offset applied)
+ * @param dst_data Pointer to destination data (with offset applied)
+ */
 void perform_copy_operation(const std::shared_ptr<const ov::ITensor>& src,
                             const std::shared_ptr<ov::ITensor>& dst,
                             const ov::Shape& src_shape,
