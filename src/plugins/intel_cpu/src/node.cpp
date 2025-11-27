@@ -1700,13 +1700,21 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
         OPENVINO_ASSERT(constInputNode, "Cannot cast ", constInput->getName(), " to Input");
         auto constBlob = constInputNode->getMemoryPtr();
         // Calculate element count from actual allocated memory size to handle both
-        // plain and blocked layouts correctly
+        // plain and blocked layouts correctly. For sub-byte precisions (i2, i4, u3, u6, etc.),
+        // use shape product since precision.size() doesn't accurately represent elements per byte.
         const auto precision = constBlob->getPrecision();
-        const auto elementsCount = constBlob->getSize() / precision.size();
+        const auto elementType = DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType());
+        size_t elementsCount;
+        if (elementType.bitwidth() < 8) {
+            // For sub-byte precisions, use the shape to get accurate element count
+            elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getShape().getElementsCount();
+        } else {
+            elementsCount = constBlob->getSize() / precision.size();
+        }
         buffer.resize(elementsCount);
         cpu_convert(constBlob->getData(),
                     buffer.data(),
-                    DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
+                    elementType,
                     ov::element::f32,
                     elementsCount);
     };

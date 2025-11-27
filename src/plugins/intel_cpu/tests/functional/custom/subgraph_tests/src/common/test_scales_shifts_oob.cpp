@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,8 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "utils/cpu_test_utils.hpp"
 
-using namespace ov::test;
-using namespace CPUTestUtils;
-
 namespace {
+using namespace CPUTestUtils;
 
 // Regression test for #32070
 // Verifies that getScalesAndShifts correctly handles memory with blocked layouts
