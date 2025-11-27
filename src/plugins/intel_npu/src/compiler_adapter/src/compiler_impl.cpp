@@ -280,7 +280,7 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
 
     // This information cannot be determined during the initialization phase; set device desc default value, the related
     // info will be processed in compile phase if passed by user.
-    _logger.warning("Device description is not provided, using default values");
+    _logger.info("Device description is not provided, using default values");
     vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
                                      0x00,
                                      static_cast<uint16_t>(-1),
