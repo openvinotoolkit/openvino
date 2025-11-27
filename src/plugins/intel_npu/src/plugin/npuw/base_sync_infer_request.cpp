@@ -568,10 +568,6 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         const auto& s_port = request->get_inputs()[sub_in_idx];
         LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
         LOG_BLOCK();
-        if (is_hfa_attn_param(sub_in_idx)) {
-            // Register for future use
-            m_hfa_io[idx].inputs.at(sub_in_idx) = g_tnsr;
-        }
 
         if (is_spatial_param(sub_in_idx)) {
             // Register for future use
@@ -586,6 +582,9 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         } else if (is_attn_param(sub_in_idx) || is_pyramid_attn_param(sub_in_idx)) {
             // Register for future use
             m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
+        } else if (is_hfa_attn_param(sub_in_idx)) {
+            // Register for future use
+            m_hfa_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
             // Lock mutex just in case. m_input_allocated might be altered in parallel in get_tensor()
             std::unique_lock lock(m_io_storages_mutex);

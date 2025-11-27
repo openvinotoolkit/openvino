@@ -368,7 +368,15 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             if (compiled_fcn_iter == compiledFunctions.end()) {
                 // A function call: store the model for function call only once...
                 compiledFunctions.insert({subgraph._funcall, id});
-                m_compiled_submodels[id].model = fcn_template._model;
+
+                // For HFA, use the final tile model instead of the original SDPA model
+                // because the original SDPA model won't be compiled
+                if (fcn_template._host_flash_attention) {
+                    m_compiled_submodels[id].model = fcn_template._host_flash_attention.value()._final_tile_model;
+                } else {
+                    m_compiled_submodels[id].model = fcn_template._model;
+                }
+
                 m_compiled_submodels[id].replaced_by = id;  // FIXME: UGLY
 
                 // Fill in the spatial information, if it is present
@@ -1766,21 +1774,26 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
 
     auto& hfa = m_compiled_submodels[id].host_flash_attention.value();
 
-    // Check if we have tile models to compile
-    if (!hfa._tile_model_to_compile || !hfa._final_tile_model_to_compile) {
-        LOG_WARN("Host flash attention tile models are null, skipping compilation");
+    // Check if we have tile model to compile
+    if (!hfa._tile_model_to_compile) {
+        LOG_WARN("Host flash attention tile model is null, skipping compilation");
         return;
     }
 
+    // Note: The final tile model has already been compiled at line ~1676
+    // via compile_submodel(m_compiled_submodels[id].model, ...)
+    // because m_compiled_submodels[id].model points to _final_tile_model for HFA
+    // So we only need to compile the regular tile model here
+
     // Compile regular tile model
-    LOG_INFO("Compiling flash attention tile model on " << device);
+    LOG_INFO("Compiling flash attention regular tile model on " << device);
     try {
         auto compiled_tile_model = compile_submodel(hfa._tile_model_to_compile, device);
         OPENVINO_ASSERT(compiled_tile_model, "Failed to compile host flash attention tile model");
 
         hfa.set_compiled_tile_model(std::move(compiled_tile_model));
 
-        LOG_INFO("Successfully compiled host flash attention tile model");
+        LOG_INFO("Successfully compiled host flash attention regular tile model");
         std::cout << "HostFlashAttention tile model compiled on " << device << " (tile_size=" << hfa._tile_size
                   << ", kv_cache_size=" << hfa._kv_cache_size << ")" << std::endl;
     } catch (const std::exception& ex) {
@@ -1791,26 +1804,17 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
         OPENVINO_THROW("Host flash attention tile model compilation failed with unknown error");
     }
 
-    // Compile FINAL tile model (with division and transpose)
-    LOG_INFO("Compiling flash attention FINAL tile model on " << device);
-    try {
-        auto compiled_final_tile_model = compile_submodel(hfa._final_tile_model_to_compile, device);
-        OPENVINO_ASSERT(compiled_final_tile_model, "Failed to compile host flash attention final tile model");
-
-        hfa.set_compiled_final_tile_model(std::move(compiled_final_tile_model));
-
-        LOG_INFO("Successfully compiled host flash attention FINAL tile model");
-        std::cout << "HostFlashAttention FINAL tile model compiled on " << device << " (with division and transpose)"
-                  << std::endl;
-    } catch (const std::exception& ex) {
-        LOG_ERROR("Failed to compile host flash attention final tile model: " << ex.what());
-        OPENVINO_THROW("Host flash attention final tile model compilation failed: ", ex.what());
-    } catch (...) {
-        LOG_ERROR("Failed to compile host flash attention final tile model: Unknown error");
-        OPENVINO_THROW("Host flash attention final tile model compilation failed with unknown error");
-    }
+    // Store the already-compiled final tile model reference
+    // The final tile model was compiled at line ~1676 and stored in compiled_model
+    hfa.set_compiled_final_tile_model(m_compiled_submodels[id].compiled_model);
 
     LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
+
+    // Memory cleanup notes:
+    // 1. _tile_model_to_compile is released by set_compiled_tile_model()
+    // 2. _final_tile_model_to_compile is released by set_compiled_final_tile_model()
+    // 3. m_compiled_submodels[id].model points to _final_tile_model and will be managed by detach_memory()
+    // 4. The original SDPA model from function::HostFlashAttention._original_model is no longer referenced
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& submodel,
