@@ -9,7 +9,14 @@ from openvino._pyopenvino import Node, Output
 
 
 class Op(OpBase):
-    def __init__(self, py_obj: "Op", inputs: Optional[Union[list[Union[Node, Output]], tuple[Union[Node, Output, list[Union[Node, Output]]]]]] = None) -> None:
+    def __init__(
+        self,
+        py_obj: "Op",
+        inputs: Optional[Union[
+            list[Union[Node, Output]],
+            tuple[Union[Node, Output, list[Union[Node, Output]]]]
+        ]] = None
+    ) -> None:
         super().__init__(py_obj)
         self._update_type_info()
         if isinstance(inputs, tuple):
