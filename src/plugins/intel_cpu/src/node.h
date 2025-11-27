@@ -188,7 +188,8 @@ public:
 
     struct PerfCounters {
         PerfCounters()
-            : getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
+            : execute(openvino::itt::handle<Tag<Node, -1>>("Node::execute")),
+              getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
                   openvino::itt::handle<Tag<Node, 1>>("Node::initSupportedPrimitiveDescriptors")),
               filterSupportedPrimitiveDescriptors(
@@ -214,7 +215,7 @@ public:
                 openvino::itt::handle<Tag<NodeType, 5>>(type_name + "::initOptimalPrimitiveDescriptor");
         }
 
-        openvino::itt::handle_t execute{};
+        openvino::itt::handle_t execute;
         openvino::itt::handle_t getSupportedDescriptors;
         openvino::itt::handle_t initSupportedPrimitiveDescriptors;
         openvino::itt::handle_t filterSupportedPrimitiveDescriptors;
