@@ -48,8 +48,8 @@ std::shared_ptr<intel_npu::ICompiler> get_compiler(std::shared_ptr<void> so) {
 }
 
 ov::SoPtr<intel_npu::ICompiler> load_compiler(const std::string& libpath) {
-    auto compilerSO = load_library(libpath);
-    auto compiler = get_compiler(compilerSO);
+    auto compilerSO = load_library(libpath);  // void
+    auto compiler = get_compiler(compilerSO); //std::shared_ptr<intel_npu::ICompiler>
 
     return ov::SoPtr<intel_npu::ICompiler>(compiler, compilerSO);
 }
@@ -189,6 +189,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         mainNetworkDescription = initMainNetworkDescriptions.back();
         initMainNetworkDescriptions.pop_back();
         OPENVINO_ASSERT(initMainNetworkDescriptions.size() > 0, "No init schedules have been returned by the compiler");
+        /// does driver not need check?
         initNetworkDescriptions = std::move(initMainNetworkDescriptions);
 
         tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
@@ -245,14 +246,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         std::shared_ptr<ov::Model> targetModel = model;
         size_t i = 0;
 
-        while (auto networkDescription =
+        while (auto networkDescription =  /// blob + metadata(empty form vcl compiler)
                    std::make_shared<NetworkDescription>(_compiler->compileWsIterative(targetModel, localConfig, i++))) {
             ov::Tensor tensor = make_tensor_from_vector(networkDescription->compiledNetwork);
             GraphDescriptor graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
             NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphDesc);
 
-            if (isInitMetadata(networkDescription->metadata)) {
-                networkMetadata.name = model->get_friendly_name() + "_init";
+            if (isInitMetadata(networkMetadata)) {
                 targetModel = originalModel->clone();
                 initGraphDescriptors.push_back(graphDesc);
                 tensorsInits.push_back(std::move(tensor));
@@ -261,7 +261,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
                 continue;
             }
 
-            networkMetadata.name = model->get_friendly_name() + "_main";
             tensorMain = std::move(tensor);
             mainGraphDesc = graphDesc;
             mainNetworkMetadata = std::move(networkMetadata);
