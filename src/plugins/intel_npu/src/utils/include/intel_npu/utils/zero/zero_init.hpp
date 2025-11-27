@@ -75,7 +75,7 @@ public:
         return _external_memory_fd_win32_supported;
     }
 
-    static const std::shared_ptr<ZeroInitStructsHolder>& getInstance();
+    static const std::shared_ptr<ZeroInitStructsHolder> getInstance();
 
     ze_device_graph_properties_t getCompilerProperties();
 

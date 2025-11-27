@@ -554,7 +554,7 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
     return {};
 }
 
-bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
+bool ZeGraphExtWrappers::isOptionSupported(std::string optName, std::optional<std::string> optValue) const {
     // Early exit if api is not supported
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
         return false;
@@ -570,11 +570,12 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
     }
 #endif
 
-    const char* optname_ch = optname.c_str();
+    const char* optname_ch = optName.c_str();
+    const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
     auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
                                                                                    ZE_NPU_COMPILER_OPTIONS,
                                                                                    optname_ch,
-                                                                                   nullptr);
+                                                                                   optvalue_ch);
     if (result == ZE_RESULT_SUCCESS) {
         return true;
     } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE) ||

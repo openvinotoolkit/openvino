@@ -58,6 +58,21 @@ void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
     }
 }
 
+/**
+ * @brief On-going migration from "use_base_model_serializer" to "model_serializer_version". So we have to check both,
+ * depending on which one is supported by the compiler.
+ */
+bool useBaseModelSerializer(const intel_npu::FilteredConfig& config) {
+    if (config.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+        return config.get<intel_npu::USE_BASE_MODEL_SERIALIZER>();
+    }
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        return (config.get<intel_npu::MODEL_SERIALIZER_VERSION>() !=
+                ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
+    }
+    return true;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -90,12 +105,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("serialize IR");
 
-    auto serializedIR = driver_compiler_utils::serializeIR(
-        model,
-        compilerVersion,
-        maxOpsetVersion,
-        config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? config.get<USE_BASE_MODEL_SERIALIZER>()
-                                                                            : true);
+    auto serializedIR =
+        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -151,12 +162,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
 
     _logger.debug("serialize IR");
-    auto serializedIR = driver_compiler_utils::serializeIR(
-        model,
-        compilerVersion,
-        maxOpsetVersion,
-        config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? config.get<USE_BASE_MODEL_SERIALIZER>()
-                                                                            : true);
+    auto serializedIR =
+        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -299,12 +306,8 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    auto serializedIR = driver_compiler_utils::serializeIR(
-        model,
-        compilerVersion,
-        maxOpsetVersion,
-        config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? config.get<USE_BASE_MODEL_SERIALIZER>()
-                                                                            : true);
+    auto serializedIR =
+        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
 
     std::string buildFlags;
     buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
@@ -344,8 +347,8 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
     return compilerOpts;
 }
 
-bool DriverCompilerAdapter::is_option_supported(std::string optname) const {
-    return _zeGraphExt->isOptionSupported(std::move(optname));
+bool DriverCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
+    return _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
 }
 
 }  // namespace intel_npu
