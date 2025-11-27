@@ -1380,14 +1380,14 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
 
         if (dest_type == source_type) {
             // Types match - direct copy
-            view->copy_to(dest_tensor._ptr);
+            ov::npuw::util::copy_tensor_by_dim(view, dest_tensor, view_dim, view_dim);
         } else {
             std::cout << "[WARN]Perform data type conversion for " << tensor_name << ": " << source_type << " -> "
                       << dest_type << std::endl;
             // Types don't match - convert via intermediate tensor
             // Note: view is always non-contiguous, so intermediate is necessary
             auto intermediate = ov::Tensor(source_type, view->get_shape());
-            view->copy_to(ov::get_tensor_impl(intermediate)._ptr);
+            ov::npuw::util::copy_tensor_by_dim(view, ov::get_tensor_impl(intermediate), view_dim, view_dim);
 
             size_t total_elements = intermediate.get_size();
             if (dest_type == ov::element::f32 && source_type == ov::element::f16) {
@@ -1491,8 +1491,8 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         tile_prep_time += tile_prep_single;
         tile_infer_time += tile_infer_single;
 
-        std::cout << "Tile[" << tile_idx << "/" << num_tiles << "] prep=" << tile_prep_single
-                  << "ms, infer=" << tile_infer_single << "ms" << std::endl;
+        // std::cout << "Tile[" << tile_idx << "/" << num_tiles << "] prep=" << tile_prep_single
+        //           << "ms, infer=" << tile_infer_single << "ms" << std::endl;
     }
 
     // Print performance summary (final_compute_time is now 0 since it's done in model)
