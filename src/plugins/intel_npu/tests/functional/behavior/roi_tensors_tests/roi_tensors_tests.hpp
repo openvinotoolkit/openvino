@@ -113,11 +113,49 @@ TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabled) {
     ov::CompiledModel compiled_model;
     auto model = createModel(element::f32, shape, "N...");
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result", "dummy"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(req.infer());
+}
+
+TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabledInternalOperator) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
+
+    auto shape = Shape{1, 2, 2, 2};
+    ov::CompiledModel compiled_model;
+    auto model = createModel(element::f32, shape, "N...");
+    auto zero_context = core->get_default_context(target_device);
+    auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 10, 10, 10});
+    auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
+    auto input_strides = input_host_tensor.get_strides();
+    auto output_strides = output_host_tensor.get_strides();
+
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input,Result,dummy";
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+
+    ov::Tensor input_view_tensor = ov::Tensor(ov::element::f32, shape, input_host_tensor.data(), input_strides);
+    OV_ASSERT_NO_THROW(req.set_input_tensor(input_view_tensor));
+
+    ov::Tensor output_view_tensor = ov::Tensor(ov::element::f32, shape, output_host_tensor.data(), output_strides);
+    OV_ASSERT_NO_THROW(req.set_output_tensor(output_view_tensor));
+
     OV_ASSERT_NO_THROW(req.infer());
 }
 
