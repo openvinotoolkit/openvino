@@ -1498,11 +1498,40 @@ void ov::npuw::JustInferRequest::unsafe_infer_flash_attention(std::size_t real_i
     auto r_concat = comp_model_desc.flash_infer_requests[FA::eConcat];
     r_concat->infer();
 
+    LOG_DEBUG("tensor for port: " << r_concat->get_outputs()[0].get_shape());
     auto full_k = r_concat->get_tensor(r_concat->get_outputs()[0]);
+    LOG_DEBUG("tensor for port: " << r_concat->get_outputs()[1].get_shape());
     auto full_v = r_concat->get_tensor(r_concat->get_outputs()[1]);
 
     const auto& iport = comp_model_desc.compiled_model->inputs()[0];
-    auto full_m = r->get_tensor(iport);
+
+    LOG_DEBUG("tensor for port: " << iport.get_shape());
+
+    for (auto && main_input : r->get_inputs()) {
+        LOG_DEBUG("main inputs for external request: " << main_input.get_shape());
+    }
+
+    for (auto && main_input : comp_model_desc.compiled_model->inputs()) {
+        LOG_DEBUG("main inputs for compiled model: " << main_input.get_shape());
+    }
+
+    auto m_input = comp_model_desc.compiled_model->inputs()[4];
+    // TODO: where to get m_tensors ?
+    // we dont have infer-request that might satisfy - so have to pick from attention_io i guess
+
+    auto r_tile = comp_model_desc.flash_infer_requests[FA::eTile];
+    auto r_last_tile = comp_model_desc.flash_infer_requests[FA::eDivide];
+
+    auto tile_inputs = r->get_inputs();
+
+    // TODO: need to follow spatial case colution with dim-index selection per parameter
+    auto k_tensor_spatial_dim = 2;
+    auto v_tensor_spatial_dim = 3;
+    auto m_tensor_spatial_dim = 3;
+    //k [ NPUW: DBG ]                 tensor for port: [1,32,8192,128]
+    //v [ NPUW: DBG ]                 tensor for port: [1,32,128,8192]
+    //m [ NPUW: DBG ]                 main inputs for compiled model: [1,1,1024,8192]
+
 
     // TODO: how to specify that
     const size_t TSZ = 1024;
@@ -1510,6 +1539,19 @@ void ov::npuw::JustInferRequest::unsafe_infer_flash_attention(std::size_t real_i
         // this_k = np.copy(full_k[:, :, offset:offset+TSZ, :])
         // this_v = np.copy(full_v[:, :, :, offset:offset+TSZ])
         // this_m = np.copy(full_m[:, :, :, offset:offset+TSZ])
+
+        ov::SoPtr<ov::IAsyncInferRequest> r_current_tile = (offset + TSZ == 8192) ? r_last_tile : r_tile;
+
+        const auto& this_k = ov::npuw::util::view(full_k, k_tensor_spatial_dim, offset, TSZ);
+        this_k->copy_to(r_current_tile->get_tensor(tile_inputs[3])._ptr);
+
+        const auto& this_v = ov::npuw::util::view(full_v, v_tensor_spatial_dim, offset, TSZ);
+        this_v->copy_to(r_current_tile->get_tensor(tile_inputs[4])._ptr);
+
+        // TODO: incomplete
+        //        const auto& this_m = ov::npuw::util::view(full_m, m_tensor_spatial_dim, offset, TSZ);
+        // TODO: need to bind past_a, past_m, past_d
+        r_current_tile->infer();
     }
 
     // t.start()
@@ -1517,7 +1559,6 @@ void ov::npuw::JustInferRequest::unsafe_infer_flash_attention(std::size_t real_i
     // t.stop()
 
     // tile inferes are need to reuse parts of concat_outputs and it's own outputs
-    auto r_tile = comp_model_desc.flash_infer_requests[FA::eTile];
     LOG_DEBUG("Done.");
 }
 

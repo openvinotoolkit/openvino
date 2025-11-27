@@ -788,7 +788,7 @@ void ov::npuw::IBaseInferRequest::bind_flash_attention_inputs(std::size_t idx, R
     const auto& attention_params = flash_attention.params;
     const auto& flash_models = flash_attention._compiled_models;
 
-    // TODO: here we are different from pyramid - all models in pipeline should be binded i guess
+    // TODO: es why bind global not enough???
     ///    const auto& attention_model = pyramid_attention._compiled_models[pyramid_id];
 
     using PA = npuw::function::FlashAttention;
