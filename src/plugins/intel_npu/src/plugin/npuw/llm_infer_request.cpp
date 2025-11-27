@@ -931,7 +931,6 @@ void ov::npuw::LLMInferRequest::infer() {
         position_ids->data<int64_t>()[0] == m_first_position_id) {
         infer_prefill(input_ids, attention_mask, position_ids, token_type_ids);
     } else {
-        auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
         // FIXME: Need to make the solution smarter.
         // Qwen2.5VL uses 3D position_ids but current `trim_kvcache_for_speculative_decoding`
         // doesn't take this into account and causes accuracy issues.
