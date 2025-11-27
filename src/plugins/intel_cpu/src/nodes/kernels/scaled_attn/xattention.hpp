@@ -18,6 +18,7 @@
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
+
 #    include "common.hpp"
 #endif
 #include "softmax_kernel.hpp"

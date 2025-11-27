@@ -850,17 +850,14 @@ struct MHAHelper {
         // Sparse attention mask pointer for current softmax kernel processing
         uint8_t* xattn_mask = nullptr;
         if (!sparse_attention_mask.empty()) {
-            sparse_scale = (_sparse_mask_block_size == 0 || _sparse_mask_block_size == _block_size)
-                               ? 1
-                               : (_sparse_mask_block_size / _block_size);  // >=1
-            map_to_mask_idx = [sparse_scale](size_t q_blk_rt, size_t k_blk_rt) {
-                if (sparse_scale == 1) {
-                    return std::pair<size_t, size_t>{q_blk_rt, k_blk_rt};
-                }
-                size_t q_mask = q_blk_rt / sparse_scale;
-                size_t k_mask = k_blk_rt / sparse_scale;
-                return std::pair<size_t, size_t>{q_mask, k_mask};
-            };
+            if (!(_sparse_mask_block_size == 0 || _sparse_mask_block_size == _block_size)) {
+                sparse_scale = _sparse_mask_block_size / _block_size;
+                map_to_mask_idx = [sparse_scale](size_t q_blk_rt, size_t k_blk_rt) {
+                    size_t q_mask = q_blk_rt / sparse_scale;
+                    size_t k_mask = k_blk_rt / sparse_scale;
+                    return std::pair<size_t, size_t>{q_mask, k_mask};
+                };
+            }
         }
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
@@ -2130,10 +2127,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
         if (xattention_threshold) {
             xattention_threshold.assert_dims({B_seq});
-            OPENVINO_ASSERT(xattention_block_size > 0);
+            OPENVINO_ASSERT(static_cast<size_t>(xattention_block_size) >= block_size &&
+                            static_cast<size_t>(xattention_block_size) % block_size == 0);
             OPENVINO_ASSERT(xattention_stride > 0);
-            // TODO: add assertions on the block size and stride limitations as defined by the
-            // block sparse operation and importance score computation impls
         }
 
         if (sinks) {
@@ -2147,22 +2143,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         OPENVINO_ASSERT(block_size == 32, "CPU: block size must be 32, current: ", block_size);
 
 #    if defined(OPENVINO_ARCH_X86_64)
-        // If to support second token sparse attention, need generate sparse mask after concat_pastkv
+        // TODO: Support multiple batches. Currently only support B_seq is 1.
         if (xattention_threshold && q.size(0) > 1 && B_seq == 1) {
-            // Only support block_size <= sparse_attention_BlockSize and sparse_attention_BlockSize must be an integer
-            // multiple
-            if (block_size != static_cast<size_t>(xattention_block_size)) {
-                if (block_size > static_cast<size_t>(xattention_block_size)) {
-                    OPENVINO_THROW("not supported: block_size > xattention_block_size");
-                }
-                if (xattention_block_size % block_size != 0) {
-                    OPENVINO_THROW("not supported: xattention_block_size ",
-                                   xattention_block_size,
-                                   " is not an integer multiple of block_size ",
-                                   block_size);
-                }
-            }
-
             sparse_attention_mask.resize(B_seq);
             _xatt.init(B_token, H, 1, S, Hk, xattention_stride, xattention_block_size, q.m_dt);
             size_t seq_idx = 0;
