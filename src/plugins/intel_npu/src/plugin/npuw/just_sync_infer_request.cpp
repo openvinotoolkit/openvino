@@ -1279,14 +1279,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
 
     std::cout << "=== HFA Tiled Inference Performance ===" << std::endl;
 
-    double setup_time = 0.0;
     double tile_prep_time = 0.0;
     double tile_infer_time = 0.0;
     double final_compute_time = 0.0;
-
-    setup_time = ov::npuw::perf::ms_to_run([&]() {
-        // Setup is measured in the lambda below
-    });
 
     // Get the tile configuration
     int64_t tile_size = hfa._tile_size;
@@ -1351,44 +1346,66 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
     size_t q_seq_len = q_shape[2];   // 1024
     size_t head_dim = q_shape[3];    // 128
 
-    // Use PRESENT K and V from present_k_input_tensor and present_v_input_tensor
+    // Get shape information from present K/V tensors
     auto present_k_shape = present_k_input_tensor->get_shape();
-    auto present_v_shape = present_v_input_tensor->get_shape();
-
-    // Prepare tile tensors from tile_request (already allocated)
-    auto k_tile = tile_request->get_tensor(hfa._compiled_tile_model->inputs()[3]);
-    auto v_tile = tile_request->get_tensor(hfa._compiled_tile_model->inputs()[4]);
-    auto mask_tile = tile_request->get_tensor(hfa._compiled_tile_model->inputs()[6]);
-
-    // Initialize mask_tile with -inf to ensure proper masking for padding regions
-    auto mask_tile_type = mask_tile->get_element_type();
-    if (mask_tile_type == ov::element::f16) {
-        std::fill_n(mask_tile->data<ov::float16>(),
-                    mask_tile->get_size(),
-                    ov::float16(-std::numeric_limits<float>::infinity()));
-    } else if (mask_tile_type == ov::element::f32) {
-        std::fill_n(mask_tile->data<float>(), mask_tile->get_size(), -std::numeric_limits<float>::infinity());
-    }
-
-    // Check K/V tile element types to handle conversions correctly
-    auto k_tile_type = k_tile->get_element_type();
-    auto v_tile_type = v_tile->get_element_type();
+    size_t kv_num_heads = present_k_shape[1];     // 8
+    size_t present_seq_len = present_k_shape[2];  // 1024 (query length in PREFILL)
 
     // Set Q tensor directly (tile model accepts input_dtype)
     tile_request->set_tensor(hfa._compiled_tile_model->inputs()[5], q_tensor);
-
-    // Source shapes for K, V, Mask
-    // present_k: [1, 8, 1024, 128] -> need to expand to [1, 32, tile_size, 128]
-    // present_v: [1, 8, 128, 1024] -> need to expand to [1, 32, 128, tile_size]
-    // mask: [1, 1, 1024, 8192]
-    size_t kv_num_heads = present_k_shape[1];          // 8
-    size_t present_seq_len = present_k_shape[2];       // 1024 (query length in PREFILL)
-    size_t head_expansion = num_heads / kv_num_heads;  // 32 / 8 = 4
 
     // Dimension indices for K, V, Mask tensors
     const uint32_t k_seq_dim = 2;     // K: [batch, heads, seq, head_dim]
     const uint32_t v_seq_dim = 3;     // V: [batch, heads, head_dim, seq]
     const uint32_t mask_seq_dim = 3;  // Mask: [batch, 1, q_seq, kv_seq]
+
+    // Helper lambda: Extract and copy tile with type conversion if needed
+    auto extract_tile = [&](const ov::SoPtr<ov::ITensor>& source_tensor,
+                            const ov::SoPtr<ov::ITensor>& dest_tensor,
+                            uint32_t view_dim,
+                            int64_t offset,
+                            int64_t tile_length,
+                            const std::string& tensor_name) {
+        // CRITICAL: dest_tensor MUST be continuous for direct copy to work correctly
+        if (!dest_tensor->is_continuous()) {
+            OPENVINO_THROW("HFA tile extraction error: dest_tensor for ",
+                           tensor_name,
+                           " is not continuous - cannot perform direct copy");
+        }
+
+        auto view = ov::npuw::util::view(source_tensor, view_dim, offset, tile_length);
+        auto dest_type = dest_tensor->get_element_type();
+        auto source_type = source_tensor->get_element_type();
+
+        if (dest_type == source_type) {
+            // Types match - direct copy
+            view->copy_to(dest_tensor._ptr);
+        } else {
+            std::cout << "[WARN]Perform data type conversion for " << tensor_name << ": " << source_type << " -> "
+                      << dest_type << std::endl;
+            // Types don't match - convert via intermediate tensor
+            // Note: view is always non-contiguous, so intermediate is necessary
+            auto intermediate = ov::Tensor(source_type, view->get_shape());
+            view->copy_to(ov::get_tensor_impl(intermediate)._ptr);
+
+            size_t total_elements = intermediate.get_size();
+            if (dest_type == ov::element::f32 && source_type == ov::element::f16) {
+                auto src_data = intermediate.data<ov::float16>();
+                auto dst_data = dest_tensor->data<float>();
+                for (size_t i = 0; i < total_elements; ++i) {
+                    dst_data[i] = static_cast<float>(src_data[i]);
+                }
+            } else if (dest_type == ov::element::f16 && source_type == ov::element::f32) {
+                auto src_data = intermediate.data<float>();
+                auto dst_data = dest_tensor->data<ov::float16>();
+                for (size_t i = 0; i < total_elements; ++i) {
+                    dst_data[i] = static_cast<ov::float16>(src_data[i]);
+                }
+            } else {
+                OPENVINO_THROW("Unsupported ", tensor_name, " tile type conversion: ", source_type, " -> ", dest_type);
+            }
+        }
+    };
 
     // Loop over tiles
     for (int64_t tile_idx = 0; tile_idx < num_tiles; ++tile_idx) {
@@ -1426,132 +1443,18 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx) {
             auto v_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[4]);
             auto mask_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[6]);
 
-            // Check element types
-            auto k_tile_type_current = k_tile_current->get_element_type();
-            auto v_tile_type_current = v_tile_current->get_element_type();
-            auto mask_tile_type_current = mask_tile_current->get_element_type();
+            // === Extract K, V, Mask tiles with unified type handling ===
 
-            // === NEW: Direct copy without head expansion (GPU will do broadcast) ===
+            // Extract K tile: [batch, kv_num_heads, current_tile_size, head_dim]
+            extract_tile(source_k_tensor, k_tile_current, k_seq_dim, k_offset, current_tile_size, "K");
 
-            // Extract K tile view: [batch, kv_num_heads, current_tile_size, head_dim]
-            auto k_view = ov::npuw::util::view(source_k_tensor, k_seq_dim, k_offset, current_tile_size);
+            // Extract V tile: [batch, kv_num_heads, head_dim, current_tile_size]
+            extract_tile(source_v_tensor, v_tile_current, v_seq_dim, k_offset, current_tile_size, "V");
 
-            // Direct copy - shapes should match automatically
-            if (k_tile_type_current == ov::element::f16 && source_k_tensor->get_element_type() == ov::element::f16) {
-                // No type conversion needed - direct copy
-                k_view->copy_to(k_tile_current._ptr);
-            } else {
-                // Type conversion needed - use intermediate tensor
-                auto k_intermediate_shape =
-                    ov::Shape{batch_size, kv_num_heads, static_cast<size_t>(current_tile_size), head_dim};
-                auto k_intermediate = ov::Tensor(source_k_tensor->get_element_type(), k_intermediate_shape);
-                k_view->copy_to(ov::get_tensor_impl(k_intermediate)._ptr);
-
-                // Convert type if needed
-                if (k_tile_type_current == ov::element::f32) {
-                    auto k_src_data = k_intermediate.data<ov::float16>();
-                    auto k_dst_data = k_tile_current->data<float>();
-                    size_t total_elements = batch_size * kv_num_heads * current_tile_size * head_dim;
-                    for (size_t i = 0; i < total_elements; ++i) {
-                        k_dst_data[i] = static_cast<float>(k_src_data[i]);
-                    }
-                } else if (k_tile_type_current == ov::element::f16) {
-                    auto k_src_data = k_intermediate.data<float>();
-                    auto k_dst_data = k_tile_current->data<ov::float16>();
-                    size_t total_elements = batch_size * kv_num_heads * current_tile_size * head_dim;
-                    for (size_t i = 0; i < total_elements; ++i) {
-                        k_dst_data[i] = static_cast<ov::float16>(k_src_data[i]);
-                    }
-                }
-            }
-
-            // Extract V tile view: [batch, kv_num_heads, head_dim, current_tile_size]
-            auto v_view = ov::npuw::util::view(source_v_tensor, v_seq_dim, k_offset, current_tile_size);
-
-            // Direct copy - shapes should match automatically
-            if (v_tile_type_current == ov::element::f16 && source_v_tensor->get_element_type() == ov::element::f16) {
-                // No type conversion needed - direct copy
-                v_view->copy_to(v_tile_current._ptr);
-            } else {
-                // Type conversion needed - use intermediate tensor
-                auto v_intermediate_shape =
-                    ov::Shape{batch_size, kv_num_heads, head_dim, static_cast<size_t>(current_tile_size)};
-                auto v_intermediate = ov::Tensor(source_v_tensor->get_element_type(), v_intermediate_shape);
-                v_view->copy_to(ov::get_tensor_impl(v_intermediate)._ptr);
-
-                // Convert type if needed
-                if (v_tile_type_current == ov::element::f32) {
-                    auto v_src_data = v_intermediate.data<ov::float16>();
-                    auto v_dst_data = v_tile_current->data<float>();
-                    size_t total_elements = batch_size * kv_num_heads * head_dim * current_tile_size;
-                    for (size_t i = 0; i < total_elements; ++i) {
-                        v_dst_data[i] = static_cast<float>(v_src_data[i]);
-                    }
-                } else if (v_tile_type_current == ov::element::f16) {
-                    auto v_src_data = v_intermediate.data<float>();
-                    auto v_dst_data = v_tile_current->data<ov::float16>();
-                    size_t total_elements = batch_size * kv_num_heads * head_dim * current_tile_size;
-                    for (size_t i = 0; i < total_elements; ++i) {
-                        v_dst_data[i] = static_cast<ov::float16>(v_src_data[i]);
-                    }
-                }
-            }
-
-            // Extract mask tile based on the KV position
-            // Mask shape: [1, 1, q_seq_len, kv_total_len]
-            // For tile i, extract mask[:, :, :, i*tile_size : (i+1)*tile_size]
-            auto mask_shape = mask_tensor->get_shape();
-            int64_t mask_total_len = mask_shape[mask_seq_dim];  // Total KV length in mask
-
-            // Calculate mask offset based on tile position
-            // For past tiles: offset = tile_idx * tile_size
-            // For last tile (present): offset corresponds to the last tile_size positions
+            // Extract mask tile: [batch, 1, q_seq_len, current_tile_size]
+            int64_t mask_total_len = mask_tensor->get_shape()[mask_seq_dim];
             int64_t mask_offset = is_last_tile ? (mask_total_len - current_tile_size) : (tile_idx * tile_size);
-
-            auto mask_view = ov::npuw::util::view(mask_tensor, mask_seq_dim, mask_offset, current_tile_size);
-
-            // Create intermediate tensor to receive the view with proper stride handling
-            // Shape: [batch, 1, q_seq_len, current_tile_size]
-            auto mask_intermediate_shape = ov::Shape{batch_size, 1, q_seq_len, static_cast<size_t>(current_tile_size)};
-            auto mask_intermediate = ov::Tensor(mask_tensor->get_element_type(), mask_intermediate_shape);
-
-            // Use copy_to to properly handle strided view
-            mask_view->copy_to(ov::get_tensor_impl(mask_intermediate)._ptr);
-
-            // Now copy from intermediate to mask_tile_current with type conversion if needed
-
-            if (mask_tile_type_current == ov::element::f16) {
-                // Convert f32 -> f16 for mask_tile_current
-                auto mask_tile_data = mask_tile_current->data<ov::float16>();
-                auto mask_intermediate_data = mask_intermediate.data<float>();
-
-                // Copy with proper indexing: current_tile_size in source, tile_size in destination
-                for (size_t b = 0; b < batch_size; ++b) {
-                    for (size_t q = 0; q < q_seq_len; ++q) {
-                        for (size_t k = 0; k < static_cast<size_t>(current_tile_size); ++k) {
-                            size_t src_idx = b * q_seq_len * current_tile_size + q * current_tile_size + k;
-                            size_t dst_idx = b * q_seq_len * tile_size + q * tile_size + k;
-                            mask_tile_data[dst_idx] = ov::float16(mask_intermediate_data[src_idx]);
-                        }
-                    }
-                }
-            } else if (mask_tile_type_current == ov::element::f32) {
-                // Direct copy f32 -> f32
-                auto mask_tile_data = mask_tile_current->data<float>();
-                auto mask_intermediate_data = mask_intermediate.data<float>();
-
-                for (size_t b = 0; b < batch_size; ++b) {
-                    for (size_t q = 0; q < q_seq_len; ++q) {
-                        for (size_t k = 0; k < static_cast<size_t>(current_tile_size); ++k) {
-                            size_t src_idx = b * q_seq_len * current_tile_size + q * current_tile_size + k;
-                            size_t dst_idx = b * q_seq_len * tile_size + q * tile_size + k;
-                            mask_tile_data[dst_idx] = mask_intermediate_data[src_idx];
-                        }
-                    }
-                }
-            } else {
-                OPENVINO_THROW("Unsupported mask_tile element type: ", mask_tile_type_current);
-            }
+            extract_tile(mask_tensor, mask_tile_current, mask_seq_dim, mask_offset, current_tile_size, "Mask");
 
             // Set Q tensor and past state for current request
             current_tile_request->set_tensor(current_compiled_model->inputs()[5], q_tensor);
