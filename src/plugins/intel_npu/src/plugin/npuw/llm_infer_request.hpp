@@ -147,6 +147,13 @@ protected:
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();
 
+    // To share kvcache between prefill and generate
+    bool m_past_kv_bound = false;
+    void bind_past_kv();
+
+    std::string m_pre_alloc_device = "CPU";
+    std::string init_pre_alloc_device();
+
     // Support prefix caching
     std::unique_ptr<PrefixCachingHelper> m_prefix_caching_helper;
 
