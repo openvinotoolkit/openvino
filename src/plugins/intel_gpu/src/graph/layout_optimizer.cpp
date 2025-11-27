@@ -511,9 +511,10 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
 }  // namespace
 
 layout_optimizer::layout_optimizer(bool output_size_handling_enabled)
-    : _optimization_attributes(), _output_size_handling_enabled(output_size_handling_enabled), _total_conv(0) {
+    : _optimization_attributes(), _output_size_handling_enabled(output_size_handling_enabled), _total_conv(0), _total_deconv(0) {
     for (auto& format : optimized_formats) {
         _optimized_conv_count.insert({format, 0});
+        _optimized_deconv_count.insert({format, 0});
     }
 }
 
@@ -1581,8 +1582,17 @@ void layout_optimizer::update_formats_map(const convolution_node &node) {
     _total_conv++;
 }
 
-size_t layout_optimizer::get_total_conv_count() {
-    return _total_conv;
+void layout_optimizer::update_formats_map(const deconvolution_node &node) {
+    for (auto& format : optimized_formats) {
+        if (is_format_optimized(node, format.first)) {
+            _optimized_deconv_count.at(format)++;
+        }
+    }
+    _total_deconv++;
+}
+
+size_t layout_optimizer::get_total_conv_deconv_count() {
+    return _total_conv + _total_deconv;
 }
 
 size_t layout_optimizer::get_optimized_conv_count(const std::pair<format::type, bool>& format) {
@@ -1592,20 +1602,34 @@ size_t layout_optimizer::get_optimized_conv_count(const std::pair<format::type, 
     return 0;
 }
 
+size_t layout_optimizer::get_optimized_deconv_count(const std::pair<format::type, bool>& format) {
+    if (_optimized_deconv_count.count(format) > 0) {
+        return _optimized_deconv_count.at(format);
+    }
+    return 0;
+}
+
 bool layout_optimizer::is_format_optimized(const deconvolution_node& node, const format& format) {
     auto input_layout = node.get_input_layout();
     auto weights_layout = node.weights().get_output_layout();
     auto prim = node.get_primitive();
 
+    if (input_layout.is_dynamic())
+        return true;
     switch (format) {
-    case format::b_fs_zyx_fsv16:
-    case format::bs_fs_zyx_bsv16_fsv16:
-        return deconvolution_b_fs_zyx_fsv16_opt(input_layout, weights_layout, prim);
-    case format::b_fs_yx_fsv16:
-        return deconvolution_b_fs_yx_fsv16_opt(input_layout, weights_layout, prim);
-    default:
-        throw std::invalid_argument(
-            "[Layout optimizer] Other formats in is_format_optimized(...) method are not implemented!");
+        case format::b_fs_zyx_fsv16:
+        case format::bs_fs_zyx_bsv16_fsv16:
+            return deconvolution_b_fs_zyx_fsv16_opt(input_layout, weights_layout, prim);
+        case format::b_fs_yx_fsv16:
+            return deconvolution_b_fs_yx_fsv16_opt(input_layout, weights_layout, prim);
+        case format::fs_b_yx_fsv32:
+        case format::bs_fs_yx_bsv16_fsv16:
+        case format::bs_fs_yx_bsv32_fsv32:
+        case format::bs_fs_yx_bsv32_fsv16:
+            return false;
+        default:
+            throw std::invalid_argument(
+                "[Layout optimizer] Other formats in is_format_optimized(...) method are not implemented!");
     }
 }
 
