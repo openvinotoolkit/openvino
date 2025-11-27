@@ -41,10 +41,22 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
+    std::cerr << "[DEBUG_CVS-172561] Graph constructor - START" << std::endl;
+    std::cerr << "[DEBUG_CVS-172561]   stream_id: " << stream_id << std::endl;
+    std::cerr << "[DEBUG_CVS-172561]   model_name: " << model->get_friendly_name() << std::endl;
+    std::cerr.flush();
+    std::cerr << "[DEBUG_CVS-172561] Creating ProgramBuilder..." << std::endl;
+    std::cerr.flush();
     auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config);
+    std::cerr << "[DEBUG_CVS-172561] ProgramBuilder created successfully" << std::endl;
+    std::cerr.flush();
     m_config = program_builder->get_config();
 
+    std::cerr << "[DEBUG_CVS-172561] Building Graph from compiled program..." << std::endl;
+    std::cerr.flush();
     build(program_builder->get_compiled_program());
+    std::cerr << "[DEBUG_CVS-172561] Graph build completed successfully" << std::endl;
+    std::cerr.flush();
 
     primitiveIDs = program_builder->primitive_ids;
     inputPrimitiveIDs = program_builder->inputPrimitiveIDs;
