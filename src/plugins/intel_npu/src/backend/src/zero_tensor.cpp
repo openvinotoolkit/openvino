@@ -158,15 +158,25 @@ void ZeroTensor::update_strides() const {
 size_t ZeroTensor::get_bytes_capacity() const {
     size_t original_shape_size = ov::shape_size(_shape);
 
-    if (_user_tensor == nullptr) {
+    if (_user_tensor == nullptr || _element_type.bitwidth() < 8 || original_shape_size == 0 || _shape.empty() ||
+        _strides.empty()) {
         return ov::util::get_memory_size(_element_type, original_shape_size);
     }
 
-    if (_element_type.bitwidth() < 8 || original_shape_size == 0 || _shape.empty() || _strides.empty()) {
-        return ov::util::get_memory_size(_element_type, original_shape_size);
+    size_t capacity = 0;
+    const size_t rank = _shape.size();
+
+    for (size_t i = 0; i < rank; ++i) {
+        if (i == rank - 1) {
+            // Last dimension: use shape[i] * stride[i]
+            capacity += _shape[i] * _strides[i];
+        } else {
+            // Other dimensions: use (shape[i] - 1) * stride[i]
+            capacity += (_shape[i] - 1) * _strides[i];
+        }
     }
 
-    return _strides[0] * _shape[0];
+    return capacity;
 }
 
 const ov::Strides& ZeroTensor::get_strides() const {
