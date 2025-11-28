@@ -48,8 +48,6 @@ enum class HFATileInputId : uint8_t {
     COUNT
 };
 
-constexpr int64_t DEFAULT_TILE_SIZE = 1024;
-
 // Helper functions to convert enum values to string representations for logging/debugging
 inline const char* sdpa_input_id_to_string(SDPAInputId id) {
     switch (id) {
@@ -102,7 +100,7 @@ struct HostFlashAttention {
     std::shared_ptr<ov::Model> _final_tile_model;
 
     // Tile configuration
-    int64_t _tile_size = 1024;  // K/V tile size for flash attention chunking
+    int64_t _tile_size = 0;  // K/V tile size for flash attention chunking
 
     // Query sequence length (extracted from Q shape[2])
     // Used for selector compatibility and runtime decision-making
@@ -177,7 +175,7 @@ struct HostFlashAttention {
     HostFlashAttentionInfo _sdpa_attention_info;
 
     // Tile configuration
-    int64_t _tile_size = 1024;
+    int64_t _tile_size = 0;
 
     HostFlashAttention() = default;
 
