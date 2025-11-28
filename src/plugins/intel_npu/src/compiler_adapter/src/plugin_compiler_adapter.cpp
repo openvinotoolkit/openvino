@@ -83,7 +83,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
             throw std::runtime_error("VCL compiler or library is nullptr");
         }
     } catch (const std::exception& vcl_exception) {
-        _logger.warning("VCL compiler load failed: %s. Trying to load MLIR compiler...", vcl_exception.what());
+        _logger.info("VCL compiler load failed: %s. Trying to load MLIR compiler...", vcl_exception.what());
         std::string baseName = "npu_mlir_compiler";
         auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
         try {
@@ -94,7 +94,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
                 _logger.info("MLIR compiler loaded successfully. PLUGIN compiler will be used.");
             }
         } catch (const std::exception& mlir_exception) {
-            _logger.error("MLIR compiler load failed: %s", mlir_exception.what());
+            _logger.info("MLIR compiler load failed: %s", mlir_exception.what());
             throw std::runtime_error("Both VCL and MLIR compiler load failed, aborting.");
         }
     }
@@ -426,11 +426,12 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname, std::option
         return false;
     }
 
-    if (vclCompiler->is_option_supported(optname)) {
-        _logger.debug("Option %s is supported by VCLCompilerImpl", optname.c_str());
+    const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
+    if (vclCompiler->is_option_supported(optname, optValue)) {
+        _logger.debug("Option %s is supported `%s` by VCLCompilerImpl", optname.c_str(), optvalue_ch ? optvalue_ch : "null");
         return true;
     } else {
-        _logger.debug("Option %s is not supported by VCLCompilerImpl", optname.c_str());
+        _logger.debug("Option %s is not supported `%s` by VCLCompilerImpl", optname.c_str(), optvalue_ch ? optvalue_ch : "null");
         return false;
     }
 }
