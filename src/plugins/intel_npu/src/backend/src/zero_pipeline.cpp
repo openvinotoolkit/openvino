@@ -95,10 +95,7 @@ Pipeline::Pipeline(const Config& config,
 
             if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("Pipeline - set args for input index: %zu", io_index);
-                const auto& tensor = input_tensors.at(io_index).at(i);
-                graph->set_argument_value(desc.indexUsedByDriver,
-                                          input_tensors.at(io_index).at(i)->data(),
-                                          get_strides(tensor));
+                graph->set_argument_value(desc.indexUsedByDriver, input_tensors.at(io_index).at(i)->data());
                 ++io_index;
                 continue;
             }

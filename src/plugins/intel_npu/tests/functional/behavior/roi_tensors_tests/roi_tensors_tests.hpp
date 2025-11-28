@@ -434,12 +434,12 @@ TEST_P(RoiTensorsTestsRun, ImportStandardAllocation) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
-    auto shape = Shape{1, 10, 15, 5};
+    auto shape = Shape{1, 2, 2, 1024};
     ov::CompiledModel compiled_model;
     auto model = createModel(element::f32, shape, "N...");
 
-    auto shape_input = Shape{1, 16, 28, 64};
-    auto shape_output = Shape{3, 16, 32, 72};
+    auto shape_input = Shape{1, 4, 8, 1024};
+    auto shape_output = Shape{1, 2, 4, 2048};
 
     auto input_data = static_cast<float*>(
         ::operator new(ov::shape_size(shape_input) * ov::element::f32.size(), std::align_val_t(4096)));
@@ -463,10 +463,10 @@ TEST_P(RoiTensorsTestsRun, ImportStandardAllocation) {
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
 
-    ov::Tensor input_roi_tensor = ov::Tensor(input_tensor, {0, 0, 0, 0}, {1, 10, 15, 5});
+    ov::Tensor input_roi_tensor = ov::Tensor(input_tensor, {0, 0, 0, 0}, {1, 2, 2, 1024});
     OV_ASSERT_NO_THROW(req.set_input_tensor(input_roi_tensor));
 
-    ov::Tensor output_roi_tensor = ov::Tensor(output_tensor, {1, 0, 0, 0}, {2, 10, 15, 5});
+    ov::Tensor output_roi_tensor = ov::Tensor(output_tensor, {0, 0, 2, 0}, {1, 2, 4, 1024});
     OV_ASSERT_NO_THROW(req.set_output_tensor(output_roi_tensor));
 
     OV_ASSERT_NO_THROW(req.infer());
