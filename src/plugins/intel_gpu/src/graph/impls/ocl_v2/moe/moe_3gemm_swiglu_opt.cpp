@@ -1472,7 +1472,7 @@ public:
             std::cout << "\nstep 2.5: repack scale/zp for moe_gemm" << std::endl;
             #endif
             // gate
-            ret_event = execute_stage(events,
+            ret_event = execute_stage({ret_event},
                                       instance,
                                       *prefill_scale_zp_repack,
                                       {
@@ -1486,7 +1486,7 @@ public:
                                       {static_cast<size_t>(num_total_experts), static_cast<size_t>(_hidden_size/_gate_up_group_size), static_cast<size_t>(_intermediate_size/2)},
                                       {1, 1, subgroup_size});
             // up
-            ret_event = execute_stage(events,
+            ret_event = execute_stage({ret_event},
                                       instance,
                                       *prefill_scale_zp_repack,
                                       {
@@ -1500,7 +1500,7 @@ public:
                                       {static_cast<size_t>(num_total_experts), static_cast<size_t>(_hidden_size/_gate_up_group_size), static_cast<size_t>(_intermediate_size/2)},
                                       {1, 1, subgroup_size});
             // down
-            ret_event = execute_stage(events,
+            ret_event = execute_stage({ret_event},
                                       instance,
                                       *prefill_scale_zp_repack,
                                       {
@@ -1668,7 +1668,8 @@ public:
                                       {local_threads_count, 1, 1},
                                       instance.needs_completion_event(),
                                       {num_actually_used_experts});
-
+            // TODO: remove this sync which maybe lead to output is incorrect
+            stream.finish();
             #if DUMP_TENSOR_CONTENTS
             {
                 stream.finish(); //debug
