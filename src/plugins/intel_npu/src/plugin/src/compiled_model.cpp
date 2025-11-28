@@ -66,7 +66,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     }
 
     if (!_graph->init_completed()) {
-        OPENVINO_THROW("The driver is currently not applicable. The driver may not exist or the driver version may be outdated.");
+        OPENVINO_THROW(
+            "The driver is not applicable. The driver doesn't exist or is too old to run inference for this blob.");
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
