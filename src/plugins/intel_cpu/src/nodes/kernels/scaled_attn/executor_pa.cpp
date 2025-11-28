@@ -1882,7 +1882,6 @@ struct MHA {
                         score_output,
                         q_start_idx_score,
                         score_info_ptr,
-                        0,
                         PlainTensor());
                 }
 #    else

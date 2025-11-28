@@ -37,7 +37,7 @@ using namespace ov::op;
 namespace ov {
 namespace test {
 using InputShapes = std::vector<InputShape>;
-using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, bool, int32_t, ov::AnyMap>;
+using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, bool, bool, int32_t, ov::AnyMap>;
 
 class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams>,
                           virtual public ov::test::SubgraphBaseTest,
@@ -137,7 +137,7 @@ public:
         auto xattention_block_size =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{64});
         auto xattention_stride =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{8});
         // Create sink_input parameter for testing - shape [1, num_heads, 1, 1] as per PagedAttentionExecutor::ID_SINKS
         // PagedAttentionExtension always expects 21 inputs, so we must always include sinks parameter
         auto sinks = make_param(PartialShape{1, head_num, 1, 1}, data_type, "sinks");
@@ -656,6 +656,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest,
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false),
                                             ::testing::Values(true, false),
+                                            ::testing::Values(true, false),
                                             ::testing::Values(0),  // sliding_window = 0
                                             ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
@@ -666,6 +667,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest_WithSlidingWindow,
                          ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(false),  // extendBlockIndices
+                                            ::testing::Values(false),  // enableXattn
                                             ::testing::Values(true),   // sinkInput
                                             ::testing::Values(8),      // sliding_window = 8
                                             ::testing::Values(ov::AnyMap{
@@ -909,7 +911,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::Values(true, false),
                                             ::testing::Values(true, false),
-                                            ::testing::Values(0),  // sliding_window = 0
+                                            ::testing::Values(false),  // sinkInput = false
+                                            ::testing::Values(0),      // sliding_window = 0
                                             ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
