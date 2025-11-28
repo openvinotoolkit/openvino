@@ -17,7 +17,7 @@
 
 namespace ov::snippets::op {
 
-// Result op in snippets has multiple input corresponding specific loops output.
+// Result op in snippets has multiple inputs connected to specific loops' output.
 class Result : public ov::op::Op {
 public:
     OPENVINO_OP("SnippetsResult", "SnippetsOpset");

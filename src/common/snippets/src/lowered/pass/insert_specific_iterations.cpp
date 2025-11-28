@@ -67,7 +67,7 @@ void connect_cloned_body_with_buffers_outside(const LoopManager::LoopBounds& cur
                         OutputVector new_op_inputs = {result_expr->get_node()->output(i)};
                         for (size_t j = 0; j < consumer_expr->get_input_count(); ++j) {
                             const auto& source = consumer_expr->get_input_port_connector(j)->get_source();
-                            // new_op_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
+                            new_op_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
                             new_descs.push_back(consumer_expr->get_input_port_descriptor(j)->clone());
                             new_inputs.push_back(consumer_expr->get_input_port_connector(j));
                         }
