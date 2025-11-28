@@ -65,20 +65,20 @@ jobs:
       fail-fast: false
       matrix:
         variant:
-          - name: nvme
-            runner: aks-win-32-cores-128gb-nvme-st
+          # - name: nvme
+          #   runner: aks-win-32-cores-128gb-nvme-st
 
 
-          - name: nvme_lessram
-            runner: aks-win-32-cores-64gb-nvme-st
+          # - name: nvme_lessram
+          #   runner: aks-win-32-cores-64gb-nvme-st
 
 
-          - name: nvme_lessram_lesscores
-            runner: aks-win-16-cores-64gb-nvme-st
+          # - name: nvme_lessram_lesscores
+          #   runner: aks-win-16-cores-64gb-nvme-st
 
 
-          - name: nvme_more_cores_same_ram
-            runner: aks-win-64-cores-128gb-nvme-st
+          # - name: nvme_more_cores_same_ram
+          #   runner: aks-win-64-cores-128gb-nvme-st
 
 
           - name: amd-nvme
@@ -98,7 +98,7 @@ jobs:
 
 
         cache:
-          - False
+#          - False
           - True
 
     needs: [ Smart_CI ]
