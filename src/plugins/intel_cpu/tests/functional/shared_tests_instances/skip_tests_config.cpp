@@ -266,7 +266,7 @@ std::vector<std::string> disabledTestPatterns() {
         // This transformation is disabled on CPU
         R"(.*smoke_LPT.*MultiplyToGroupConvolutionTransformation.*)",
         // Disabled due to sporadic failures in CI, Issue: 157267
-        R"(.*smoke_Conv_1D_GEMM_FP32.*ConvolutionLayerCPUTest.*",
+        R"(.*smoke_Conv_1D_GEMM_FP32.*ConvolutionLayerCPUTest.*)",
         R"(.*smoke_CompareWithRefs_4D_Blocked_Blocked_Fusing.*EltwiseLayerCPUTest.*)",
         R"(.*smoke_CompareWithRefs_4D_Fusing_Blocked_Blocked.*EltwiseLayerCPUTest.*)",
     };
