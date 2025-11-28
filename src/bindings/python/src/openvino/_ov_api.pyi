@@ -93,13 +93,19 @@ class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
         
                                       If set to `True` the data dispatcher tries to provide "zero-copy"
                                       Tensors for every input in form of:
-                                      * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+        
+                                      * `numpy.ndarray` and all the types that are castable to it,
+                                        e.g. `torch.Tensor`
+        
                                       Data that is going to be copied:
-                                      * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
+        
+                                      * `numpy.ndarray` which are not C contiguous and/or not writable
+                                        (WRITEABLE flag is set to False)
                                       * inputs which data types are mismatched from Infer Request's inputs
                                       * inputs that should be in `BF16` data type
                                       * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
                                       * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
+        
                                       Keeps Tensor inputs "as-is".
         
                                       Note: Use with extra care, shared data can be modified during runtime!
@@ -157,13 +163,19 @@ class CompiledModel(openvino._pyopenvino.CompiledModel):
         
                                       If set to `True` the data dispatcher tries to provide "zero-copy"
                                       Tensors for every input in form of:
-                                      * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+        
+                                      * `numpy.ndarray` and all the types that are castable to it,
+                                        e.g. `torch.Tensor`
+        
                                       Data that is going to be copied:
-                                      * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
+        
+                                      * `numpy.ndarray` which are not C contiguous and/or not writable
+                                        (WRITEABLE flag is set to False)
                                       * inputs which data types are mismatched from Infer Request's inputs
                                       * inputs that should be in `BF16` data type
                                       * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
                                       * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
+        
                                       Keeps Tensor inputs "as-is".
         
                                       Note: Use with extra care, shared data can be modified during runtime!
@@ -386,13 +398,19 @@ class InferRequest(openvino.utils.data_helpers.wrappers._InferRequestWrapper):
         
                                       If set to `True` the data dispatcher tries to provide "zero-copy"
                                       Tensors for every input in form of:
-                                      * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+        
+                                      * `numpy.ndarray` and all the types that are castable to it,
+                                        e.g. `torch.Tensor`
+        
                                       Data that is going to be copied:
-                                      * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
+        
+                                      * `numpy.ndarray` which are not C contiguous and/or not writable
+                                        (WRITEABLE flag is set to False)
                                       * inputs which data types are mismatched from Infer Request's inputs
                                       * inputs that should be in `BF16` data type
                                       * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
                                       * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
+        
                                       Keeps Tensor inputs "as-is".
         
                                       Note: Use with extra care, shared data can be modified during runtime!
@@ -461,13 +479,19 @@ class InferRequest(openvino.utils.data_helpers.wrappers._InferRequestWrapper):
         
                                       If set to `True` the data dispatcher tries to provide "zero-copy"
                                       Tensors for every input in form of:
-                                      * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
+        
+                                      * `numpy.ndarray` and all the types that are castable to it,
+                                        e.g. `torch.Tensor`
+        
                                       Data that is going to be copied:
-                                      * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
+        
+                                      * `numpy.ndarray` which are not C contiguous and/or not writable
+                                        (WRITEABLE flag is set to False)
                                       * inputs which data types are mismatched from Infer Request's inputs
                                       * inputs that should be in `BF16` data type
                                       * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
                                       * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
+        
                                       Keeps Tensor inputs "as-is".
         
                                       Note: Use with extra care, shared data can be modified during runtime!
