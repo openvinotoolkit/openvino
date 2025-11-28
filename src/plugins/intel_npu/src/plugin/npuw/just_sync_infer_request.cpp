@@ -457,10 +457,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             m_hfa_selector.reset(new runtime::host_flash_attention::All());
         } else {
             const auto& hfa_desc = m_npuw_model->m_compiled_submodels.at(hfa_sub_idx).host_flash_attention.value();
-            // Extract query_size from the compiled HFA tile model
-            // The Q input is at index 5 in the tile model: [batch, num_heads, seq_len, head_dim]
-            auto q_shape = hfa_desc._compiled_tile_model->inputs()[5].get_shape();
-            size_t query_size = q_shape[2];  // seq_len dimension
+
+            // Get Q input index from tile model mapping
+            // Use query_size directly from _sdpa_attention_info (populated during pattern analysis)
+            const size_t query_size = hfa_desc._sdpa_attention_info.query_size;
 
             m_hfa_selector = runtime::host_flash_attention::PositionIDs::find(query_size, *this);
             if (!m_hfa_selector) {
@@ -1333,18 +1333,28 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     // ================================================================================================
 
     // Extract input tensors from HFA I/O structure (set in function_prologue)
-    // Original SDPA model layout: [0] past_key, [1] past_value, [2] Q,
-    //                             [3] present_K, [4] mask, [5] present_V
+    // Use SDPA input index mapping to access tensors by semantic name instead of hardcoded indices
     const auto& hfa_inputs = m_hfa_io[idx].inputs;
     const auto& hfa_outputs = m_hfa_io[idx].outputs;
     const auto& sdpa_info = hfa_desc._sdpa_attention_info;
+    const auto& sdpa_param_map = sdpa_info.sdpa_param_index_map;
 
-    auto past_key_tensor = hfa_inputs.at(0);                         // Historical K cache
-    auto past_value_tensor = hfa_inputs.at(1);                       // Historical V cache
-    auto query_tensor = hfa_inputs.at(2);                            // Query tensor (constant across tiles)
-    auto present_key_tensor = hfa_inputs.at(3);                      // Current K (new tokens)
-    auto attention_mask_tensor = hfa_inputs.at(sdpa_info.mask_idx);  // Attention mask
-    auto present_value_tensor = hfa_inputs.at(5);                    // Current V (new tokens)
+    // Helper lambda to safely get input tensor by SDPA input ID
+    auto get_input_tensor = [&](SDPAInputId input_id) -> ov::SoPtr<ov::ITensor> {
+        auto it = sdpa_param_map.find(input_id);
+        if (it == sdpa_param_map.end()) {
+            OPENVINO_THROW("HFA: SDPA input mapping not found for input ID: ", static_cast<uint8_t>(input_id));
+        }
+        return hfa_inputs.at(it->second);
+    };
+
+    // Extract input tensors using semantic IDs instead of hardcoded indices
+    auto past_key_tensor = get_input_tensor(SDPAInputId::PAST_KEY);              // Historical K cache
+    auto past_value_tensor = get_input_tensor(SDPAInputId::PAST_VALUE);          // Historical V cache
+    auto query_tensor = get_input_tensor(SDPAInputId::QUERY);                    // Query tensor (constant across tiles)
+    auto present_key_tensor = get_input_tensor(SDPAInputId::PRESENT_KEY);        // Current K (new tokens)
+    auto attention_mask_tensor = get_input_tensor(SDPAInputId::ATTENTION_MASK);  // Attention mask
+    auto present_value_tensor = get_input_tensor(SDPAInputId::PRESENT_VALUE);    // Current V (new tokens)
 
     auto attention_output_tensor = hfa_outputs.at(0);  // Final attention output
 
@@ -1357,11 +1367,22 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     // - max: Running maximum for numerical stability
     // - d: Running normalization denominator (sum of exp terms)
     //
-    // Tile model input layout: [0] past_acc, [1] past_max, [2] past_d,
-    //                          [3] k_tile, [4] v_tile, [5] q, [6] mask_tile
-    auto state_acc = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[0]);
-    auto state_max = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[1]);
-    auto state_sum = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[2]);
+    // Get state tensor indices from tile model mapping
+    const auto& tile_input_map = hfa_desc._sdpa_attention_info.tile_param_index_map;
+    auto get_tile_param_idx = [&](ov::npuw::HFATileInputId input_id) -> std::size_t {
+        auto it = tile_input_map.find(input_id);
+        if (it == tile_input_map.end()) {
+            OPENVINO_THROW("HFA: Tile input mapping not found for input ID: ", static_cast<uint8_t>(input_id));
+        }
+        return it->second;
+    };
+
+    auto state_acc = regular_tile_request->get_tensor(
+        hfa_desc._compiled_tile_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::PAST_ACC)]);
+    auto state_max = regular_tile_request->get_tensor(
+        hfa_desc._compiled_tile_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::PAST_MAX)]);
+    auto state_sum = regular_tile_request->get_tensor(
+        hfa_desc._compiled_tile_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::PAST_D)]);
 
     // Initialize state tensors based on element type
     const auto acc_element_type = state_acc->get_element_type();
@@ -1393,7 +1414,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     const size_t present_seq_length = present_key_tensor->get_shape()[K_SEQ_DIM];
 
     // Set query tensor once (constant across all tiles)
-    regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[5], query_tensor);
+    regular_tile_request->set_tensor(
+        hfa_desc._compiled_tile_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::Q)],
+        query_tensor);
 
     // ================================================================================================
     // SECTION 6: Tile Extraction Helper Lambda
@@ -1521,10 +1544,13 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         // 7.3: Get Destination Tile Tensors from Infer Request
         // ============================================================================================
 
-        // Tile model input indices: [3] k_tile, [4] v_tile, [6] mask_tile
-        auto k_tile_buffer = current_request->get_tensor(current_model->inputs()[3]);
-        auto v_tile_buffer = current_request->get_tensor(current_model->inputs()[4]);
-        auto mask_tile_buffer = current_request->get_tensor(current_model->inputs()[6]);
+        // Get tile model input buffers using semantic names instead of hardcoded indices
+        auto k_tile_buffer =
+            current_request->get_tensor(current_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::K_TILE)]);
+        auto v_tile_buffer =
+            current_request->get_tensor(current_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::V_TILE)]);
+        auto mask_tile_buffer = current_request->get_tensor(
+            current_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::MASK_TILE)]);
 
         // ============================================================================================
         // 7.4: Extract K Tile (with Zero-Copy Optimization)
@@ -1536,7 +1562,8 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                                        kv_tile_offset,
                                        current_tile_length)) {
             // Optimization: Reuse source tensor directly (zero-copy)
-            current_request->set_tensor(current_model->inputs()[3], source_k_tensor);
+            current_request->set_tensor(current_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::K_TILE)],
+                                        source_k_tensor);
         } else {
             // Extract and copy K tile slice
             extract_and_copy_tile(source_k_tensor, k_tile_buffer, K_SEQ_DIM, kv_tile_offset, current_tile_length, "K");
@@ -1552,7 +1579,8 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                                        kv_tile_offset,
                                        current_tile_length)) {
             // Optimization: Reuse source tensor directly (zero-copy)
-            current_request->set_tensor(current_model->inputs()[4], source_v_tensor);
+            current_request->set_tensor(current_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::V_TILE)],
+                                        source_v_tensor);
         } else {
             // Extract and copy V tile slice
             extract_and_copy_tile(source_v_tensor, v_tile_buffer, V_SEQ_DIM, kv_tile_offset, current_tile_length, "V");
@@ -1575,7 +1603,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                                        mask_tile_offset,
                                        current_tile_length)) {
             // Optimization: Reuse mask tensor directly (zero-copy)
-            current_request->set_tensor(current_model->inputs()[6], attention_mask_tensor);
+            current_request->set_tensor(
+                current_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::MASK_TILE)],
+                attention_mask_tensor);
         } else {
             // Extract and copy mask tile slice
             extract_and_copy_tile(attention_mask_tensor,
@@ -1590,12 +1620,15 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         // 7.7: Set Query and State Tensors
         // ============================================================================================
 
-        // Set input tensors for current tile inference:
-        // [5] Query (constant across tiles), [0-2] Accumulation state (updated each iteration)
-        current_request->set_tensor(current_model->inputs()[5], query_tensor);
-        current_request->set_tensor(current_model->inputs()[0], state_acc);
-        current_request->set_tensor(current_model->inputs()[1], state_max);
-        current_request->set_tensor(current_model->inputs()[2], state_sum);
+        // Set input tensors for current tile inference using semantic mapping
+        current_request->set_tensor(current_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::Q)],
+                                    query_tensor);
+        current_request->set_tensor(current_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::PAST_ACC)],
+                                    state_acc);
+        current_request->set_tensor(current_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::PAST_MAX)],
+                                    state_max);
+        current_request->set_tensor(current_model->inputs()[get_tile_param_idx(ov::npuw::HFATileInputId::PAST_D)],
+                                    state_sum);
 
         // ============================================================================================
         // 7.8: Execute Tile Inference
