@@ -22,6 +22,7 @@ permissions: read-all
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
@@ -110,6 +111,7 @@ jobs:
         -DENABLE_LTO=ON
         -DENABLE_TESTS=ON
         -DENABLE_PYTHON=OFF
+        -DTHREADING=SEQ
         -DCMAKE_TOOLCHAIN_FILE=cmake/arm.toolchain.cmake
 
   CXX_Unit_Tests:
