@@ -19,16 +19,19 @@ using namespace ov::pass::pattern;
         auto weights_param_reshape_m = wrap_type<ov::op::v1::Reshape>({weights_param_m, any_input()});\
         auto compressed_weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m, weights_param_reshape_m});\
         auto convert_m = wrap_type<ov::op::v0::Convert>({compressed_weights_m});\
+        auto weights_param_convert_m = wrap_type<ov::op::v0::Convert>({weights_param_m});\
+        auto weights_convert_reshape_m = wrap_type<ov::op::v1::Reshape>({weights_param_convert_m, any_input()});\
+        auto decompressed_weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert_m, weights_convert_reshape_m});\
 \
         auto sub_const_m = wrap_type<ov::op::v0::Constant>();\
         auto sub_convert_const_m = wrap_type<ov::op::v0::Convert>({sub_const_m});\
-        auto sub_with_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_convert_const_m});\
-        auto sub_no_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m});\
+        auto sub_with_convert_m = wrap_type<ov::op::v1::Subtract>({decompressed_weights_m, sub_convert_const_m});\
+        auto sub_no_convert_m = wrap_type<ov::op::v1::Subtract>({decompressed_weights_m, sub_const_m});\
         auto subtract_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sub_with_convert_m, sub_no_convert_m});\
 \
         auto mul_const_m = wrap_type<ov::op::v0::Constant>();\
         auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m});\
-        auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({convert_m, mul_const_m});\
+        auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({decompressed_weights_m, mul_const_m});\
         auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_with_sub_m, mul_no_sub_m});\
 \
         auto reshape_const_m = wrap_type<ov::op::v0::Constant>();\

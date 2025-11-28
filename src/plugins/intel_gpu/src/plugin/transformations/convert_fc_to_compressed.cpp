@@ -40,9 +40,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         const auto& pattern_map = m.get_pattern_value_map();
         OPENVINO_ASSERT(pattern_map.count(fully_connected_m));
         OPENVINO_ASSERT(pattern_map.count(mul_const_m));
-        OPENVINO_ASSERT(pattern_map.count(compressed_weights_m));
+        OPENVINO_ASSERT(pattern_map.count(decompressed_weights_m));
         OPENVINO_ASSERT(pattern_map.count(bias_m));
-        OPENVINO_ASSERT(pattern_map.count(convert_m));
         auto fc = ov::as_type_ptr<op::FullyConnected>(pattern_map.at(fully_connected_m).get_node_shared_ptr());
         if (!fc || transformation_callback(fc)) {
             return false;
@@ -55,7 +54,6 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         auto weight_shape = fc->get_input_shape(1);
         bool is_weight_3d = (std::count_if(weight_shape.begin(), weight_shape.end(), [](size_t d) { return d > 1; }) == 3);
 
-        auto weight_ptr = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(compressed_weights_m).get_node_shared_ptr());
         bool weight_u8 = false;
         if (pattern_map.count(weights_const_m)) {
             auto weight_ptr = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights_const_m).get_node_shared_ptr());
@@ -80,7 +78,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                     return constant;
                 else
                     new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}
-                                                         : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
+                                                            : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
             } else {
                 OPENVINO_ASSERT(current_shape.size() == 4 && is_weight_3d);
                     new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0], current_shape[1] * current_shape[2], current_shape[3]}
@@ -120,12 +118,25 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         std::shared_ptr<ov::Node> fc_input_b =
             pattern_map.count(weights_const_m) ? reshape_const(pattern_map.at(weights_const_m).get_node_shared_ptr())
-                                                : (pattern_map.count(weights_param_reshape_m) ? pattern_map.at(weights_param_reshape_m).get_node_shared_ptr()
-                                                                                                : pattern_map.at(weights_param_m).get_node_shared_ptr());
+                                               : (pattern_map.count(weights_param_reshape_m) ? pattern_map.at(weights_param_reshape_m).get_node_shared_ptr()
+                                                                                             : pattern_map.at(weights_param_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> fc_input_scale = scale;
         std::shared_ptr<ov::Node> fc_input_zp = optional_zero_point;
         std::shared_ptr<ov::Node> fc_input_bias = pattern_map.at(bias_m).get_node_shared_ptr();
         std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
+
+        if (fc_input_b->get_output_partial_shape(0).size() != weight_shape.size()) {
+            OPENVINO_ASSERT(weight_shape.size() < 3);
+            if (has_transpose) {
+                OPENVINO_ASSERT(weight_shape.size() == 2);
+                std::swap(weight_shape[0], weight_shape[1]);
+            }
+            std::shared_ptr<ov::Node> weight_shape_const =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{weight_shape.size()}, weight_shape);
+            fc_input_b = std::make_shared<ov::op::v1::Reshape>(fc_input_b, weight_shape_const, false);
+            result_nodes.push_back(weight_shape_const);
+            result_nodes.push_back(fc_input_b);
+        }
 
         if (has_transpose) {
             const auto& transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
