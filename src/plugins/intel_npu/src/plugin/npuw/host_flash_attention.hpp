@@ -108,6 +108,12 @@ struct HostFlashAttention {
     // Used for selector compatibility and runtime decision-making
     std::size_t _query_size = 0;
 
+    // Sequence dimension indices for K and V tensors
+    // These indicate which dimension is the sequence/cache dimension in past_key and past_value tensors
+    // Extracted from Concat operations in the SDPA pattern
+    std::size_t _k_seq_dim = 0;
+    std::size_t _v_seq_dim = 0;
+
     // SDPA model parameter index mapping
     // Maps semantic SDPA parameter IDs (QUERY, PAST_KEY, etc.) to actual parameter indices
     // This is created during pattern analysis in from() method
@@ -137,6 +143,12 @@ namespace compiled {
 // Contains parameter indices from the original SDPA model
 struct HostFlashAttentionInfo {
     std::size_t _query_size = 0u;  // query size for selector compatibility
+
+    // Sequence dimension indices for K and V tensors in the original SDPA model
+    // These indicate which dimension is the sequence/cache dimension in past_key and past_value tensors
+    // Copied from function::HostFlashAttention::_k_seq_dim and _v_seq_dim
+    std::size_t _k_seq_dim = 0u;
+    std::size_t _v_seq_dim = 0u;
 
     // Mapping from SDPA parameter identifier to actual parameter index in original SDPA model
     // This allows accessing SDPA model parameters by semantic name rather than hardcoded indices
