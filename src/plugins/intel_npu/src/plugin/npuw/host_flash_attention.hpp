@@ -17,6 +17,37 @@
 namespace ov {
 namespace npuw {
 
+// SDPA (Scaled Dot-Product Attention) input tensor identifiers
+// Represents the standardized input layout for SDPA operations
+// Defined at namespace level for use in both function and compiled namespaces
+enum class SDPAInputId : uint8_t {
+    PAST_KEY = 0,        // Historical key cache tensor
+    PAST_VALUE = 1,      // Historical value cache tensor
+    QUERY = 2,           // Query tensor for current iteration
+    PRESENT_KEY = 3,     // Current key tensor (new tokens)
+    ATTENTION_MASK = 4,  // Attention mask tensor
+    PRESENT_VALUE = 5,   // Current value tensor (new tokens)
+
+    // Sentinel value for enum range
+    COUNT
+};
+
+// HFA Tile Model input tensor identifiers
+// Represents the input layout for Host Flash Attention tile models
+// Input names: [past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile]
+enum class HFATileInputId : uint8_t {
+    PAST_ACC = 0,   // Accumulated attention output from previous tiles
+    PAST_MAX = 1,   // Maximum values from previous tiles (for numerical stability)
+    PAST_D = 2,     // Normalization denominator from previous tiles
+    K_TILE = 3,     // Current K (key) tile slice
+    V_TILE = 4,     // Current V (value) tile slice
+    Q = 5,          // Query tensor (full, not tiled)
+    MASK_TILE = 6,  // Current attention mask tile slice
+
+    // Sentinel value for enum range
+    COUNT
+};
+
 namespace function {
 
 // HostFlashAttention structure definition
@@ -43,6 +74,16 @@ struct HostFlashAttention {
     // Total KV cache size for tiling
     int64_t _kv_cache_size = 0;
 
+    // SDPA model parameter index mapping
+    // Maps semantic SDPA parameter IDs to actual parameter indices in the original SDPA model
+    // This is created during pattern analysis in from() method
+    std::map<SDPAInputId, std::size_t> _sdpa_param_index_map;
+
+    // HFA Tile Model parameter index mapping
+    // Maps semantic tile parameter IDs to actual parameter indices in the tile model
+    // This is created after tile model generation in from() method
+    std::map<HFATileInputId, std::size_t> _tile_param_index_map;
+
     // Validation helpers
     bool is_valid() const {
         return _tile_model != nullptr && _final_tile_model != nullptr && _tile_size > 0 && _kv_cache_size > 0;
@@ -66,6 +107,16 @@ struct HostFlashAttentionInfo {
     std::vector<Param> params;    // past key/value parameters from original SDPA
     std::size_t mask_idx = 0u;    // mask parameter index in original SDPA model
     std::size_t query_size = 0u;  // query size for selector compatibility
+
+    // Mapping from SDPA parameter identifier to actual parameter index in original SDPA model
+    // This allows accessing SDPA model parameters by semantic name rather than hardcoded indices
+    // Populated from function::HostFlashAttention::_sdpa_param_index_map
+    std::map<SDPAInputId, std::size_t> sdpa_param_index_map;
+
+    // Mapping from HFA Tile parameter identifier to actual parameter index in tile model
+    // This allows accessing tile model parameters by semantic name
+    // Populated from function::HostFlashAttention::_tile_param_index_map
+    std::map<HFATileInputId, std::size_t> tile_param_index_map;
 };
 
 // Compile-time host flash attention information
