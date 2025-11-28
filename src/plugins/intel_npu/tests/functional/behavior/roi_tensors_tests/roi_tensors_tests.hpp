@@ -182,6 +182,16 @@ TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
     auto input_strides = input_host_tensor.get_strides();
     auto output_strides = output_host_tensor.get_strides();
 
+    auto* input_data = input_host_tensor.data<float>();
+    for (size_t i = 0; i < input_host_tensor.get_size(); ++i) {
+        input_data[i] = 50.0f;
+    }
+
+    auto* output_data = output_host_tensor.data<float>();
+    for (size_t i = 0; i < output_host_tensor.get_size(); ++i) {
+        output_data[i] = 10.0f;
+    }
+
     configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
@@ -195,6 +205,13 @@ TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
     OV_ASSERT_NO_THROW(req.set_output_tensor(output_view_tensor));
 
     OV_ASSERT_NO_THROW(req.infer());
+
+    auto check_out_view_tensor = ov::Tensor(ov::element::f32, shape);
+    output_view_tensor.copy_to(check_out_view_tensor);
+    auto* check_data = check_out_view_tensor.data<float>();
+    for (size_t i = 0; i < check_out_view_tensor.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 51.0f);
+    }
 }
 
 TEST_P(RoiTensorsTestsRun, SetStridedTensorForUnexpectedTensorExpectedThrow) {
@@ -248,6 +265,16 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
     auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 10, 10, 10});
     auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
 
+    auto* input_data = input_host_tensor.data<float>();
+    for (size_t i = 0; i < input_host_tensor.get_size(); ++i) {
+        input_data[i] = 50.0f;
+    }
+
+    auto* output_data = output_host_tensor.data<float>();
+    for (size_t i = 0; i < output_host_tensor.get_size(); ++i) {
+        output_data[i] = 10.0f;
+    }
+
     configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
@@ -261,6 +288,13 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
     OV_ASSERT_NO_THROW(req.set_output_tensor(output_roi_tensor));
 
     OV_ASSERT_NO_THROW(req.infer());
+
+    auto check_out_roi_tensor = ov::Tensor(ov::element::f32, shape);
+    output_roi_tensor.copy_to(check_out_roi_tensor);
+    auto* check_data = check_out_roi_tensor.data<float>();
+    for (size_t i = 0; i < check_out_roi_tensor.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 51.0f);
+    }
 }
 
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
@@ -404,8 +438,8 @@ TEST_P(RoiTensorsTestsRun, ImportStandardAllocation) {
     ov::CompiledModel compiled_model;
     auto model = createModel(element::f32, shape, "N...");
 
-    auto shape_input = Shape{1, 25, 25, 25};
-    auto shape_output = Shape{3, 15, 20, 30};
+    auto shape_input = Shape{1, 16, 28, 64};
+    auto shape_output = Shape{3, 16, 32, 72};
 
     auto input_data = static_cast<float*>(
         ::operator new(ov::shape_size(shape_input) * ov::element::f32.size(), std::align_val_t(4096)));
@@ -429,10 +463,10 @@ TEST_P(RoiTensorsTestsRun, ImportStandardAllocation) {
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
 
-    ov::Tensor input_roi_tensor = ov::Tensor(input_tensor, {0, 4, 4, 4}, {1, 14, 19, 9});
+    ov::Tensor input_roi_tensor = ov::Tensor(input_tensor, {0, 0, 0, 0}, {1, 10, 15, 5});
     OV_ASSERT_NO_THROW(req.set_input_tensor(input_roi_tensor));
 
-    ov::Tensor output_roi_tensor = ov::Tensor(output_tensor, {2, 2, 5, 6}, {3, 12, 20, 11});
+    ov::Tensor output_roi_tensor = ov::Tensor(output_tensor, {1, 0, 0, 0}, {2, 10, 15, 5});
     OV_ASSERT_NO_THROW(req.set_output_tensor(output_roi_tensor));
 
     OV_ASSERT_NO_THROW(req.infer());
