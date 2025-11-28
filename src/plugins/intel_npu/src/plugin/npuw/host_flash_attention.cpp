@@ -635,6 +635,14 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     auto q_shape_static = q_shape.to_shape();
     auto dtype = q_input->get_output_element_type(0);
 
+    // Validate Q shape and extract query_size (seq_len dimension)
+    if (q_shape_static.size() != 4) {
+        LOG_WARN("Q shape must be 4D, got " << q_shape_static.size() << "D shape");
+        return std::nullopt;
+    }
+    std::size_t query_size = q_shape_static[2];  // seq_len at index 2
+    LOG_DEBUG("Extracted query_size (seq_len) from Q shape: " << query_size);
+
     auto mask_param = find_mask_parameter(pattern_nodes.add_node);
     if (!mask_param) {
         LOG_WARN("Could not find mask parameter in model");
@@ -684,16 +692,17 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     }
 
     // ========================================================================
-    // Step 5: Create tile models (regular and final)
+    // Step 5: Create tile models using query_size as tile_size
     // ========================================================================
-    auto tile_model = create_hfa_tile_model(q_shape_static, dtype, mask_dtype, DEFAULT_TILE_SIZE, kv_num_heads, false);
+    LOG_INFO("Creating HFA tile models with tile_size=" << query_size);
+    auto tile_model = create_hfa_tile_model(q_shape_static, dtype, mask_dtype, query_size, kv_num_heads, false);
     if (!tile_model) {
         LOG_WARN("Failed to create HFA tile model");
         return std::nullopt;
     }
 
     auto final_tile_model =
-        create_hfa_tile_model(q_shape_static, dtype, mask_dtype, DEFAULT_TILE_SIZE, kv_num_heads, true, output_dtype);
+        create_hfa_tile_model(q_shape_static, dtype, mask_dtype, query_size, kv_num_heads, true, output_dtype);
     if (!final_tile_model) {
         LOG_WARN("Failed to create HFA final tile model");
         return std::nullopt;
@@ -705,17 +714,16 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     save_debug_models(model, tile_model, final_tile_model);
 
     // ========================================================================
-    // Step 7: Create HostFlashAttention structure and set sequence dimensions
+    // Step 7: Create HostFlashAttention structure and set configuration
     // ========================================================================
     HostFlashAttention hfa;
     hfa._tile_model = tile_model;
     hfa._final_tile_model = final_tile_model;
-    hfa._tile_size = DEFAULT_TILE_SIZE;
+    hfa._query_size = query_size;
+    hfa._tile_size = query_size;
     hfa._k_seq_dim = k_seq_dim;
     hfa._v_seq_dim = v_seq_dim;
 
-    // ========================================================================
-    // Step 8: Build SDPA parameter index mapping
     // ========================================================================
     // Step 8: Build SDPA parameter index mapping
     // ========================================================================
@@ -726,21 +734,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     build_tile_param_mapping(hfa, tile_model);
 
-    // ========================================================================
-    // Step 10: Extract query size from Q parameter shape
-    // ========================================================================
-    const auto query_idx = hfa._sdpa_param_index_map.at(SDPAInputId::QUERY);
-    const auto& query_param = model->get_parameters().at(query_idx);
-    const auto query_shape = query_param->get_shape();
-
-    if (query_shape.size() != 4) {
-        LOG_WARN("Q shape must be 4D, got " << query_shape.size() << "D shape");
-        return std::nullopt;
-    }
-
-    hfa._query_size = query_shape[2];  // seq_len at index 2
-
-    LOG_INFO("Successfully created HostFlashAttention");
+    LOG_INFO("Successfully created HostFlashAttention with query_size=" << query_size << ", tile_size=" << query_size);
 
     return hfa;
 }
