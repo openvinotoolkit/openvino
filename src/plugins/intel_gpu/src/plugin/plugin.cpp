@@ -83,6 +83,14 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
     std::string id = m_default_device_id;
     if (config.find(ov::device::id.name()) != config.end()) {
         id = config.at(ov::device::id.name()).as<std::string>();
+    } else {
+        for (const auto& [dev_id, dev_context] : get_default_contexts()) {
+            const auto& dev_info = dev_context->get_device().get_info();
+            // prefer the first available Intel dGPU over iGPU
+            if (dev_info.dev_type == cldnn::device_type::discrete_gpu && dev_info.arch != cldnn::gpu_arch::unknown) {
+                return dev_id;
+            }
+        }
     }
     return id;
 }
