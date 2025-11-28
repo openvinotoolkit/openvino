@@ -1518,3 +1518,68 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_conv_transpose_autopad) {
 
     test_case.run_with_tolerance_as_fp(0.00001f);
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_with_batch_channels) {
+    // Test ConvTranspose with output_shape containing batch and channel dimensions
+    // Per ONNX spec, output_shape should only contain spatial dimensions [H, W]
+    // However, some models incorrectly include all dimensions [N, C, H, W]
+    // This test verifies that OpenVINO gracefully handles this by extracting spatial dims
+    auto model = convert_model("convtranspose_output_shape_with_batch_channels.onnx");
+
+    // Verify model loaded correctly and output shape is correct
+    // Expected output: [1, 2, 10, 8] from input [1, 1, 3, 3]
+    ASSERT_EQ(model->get_output_shape(0), (ov::Shape{1, 2, 10, 8}));
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input data: [1,1,3,3]
+    test_case.add_input<float>({0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+
+    // Filters: [1,2,3,3]
+    test_case.add_input<float>(
+        {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.7f, 1.8f});
+
+    // Expected output shape: [1, 2, 10, 8]
+    // This test verifies that the conversion succeeded despite invalid output_shape format
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_with_batch_channels_stride2) {
+    // Test ConvTranspose with output_shape=[1,2,6,6] (includes batch/channels)
+    // Input: [1,1,4,4], output_shape attribute: [1,2,6,6]
+    // Should extract spatial dims: [6,6] and produce output [1,2,6,6]
+    auto model = convert_model("convtranspose_output_shape_with_batch_channels_stride2.onnx");
+
+    // Verify output shape matches expected: [1, 2, 6, 6]
+    ASSERT_EQ(model->get_output_shape(0), (ov::Shape{1, 2, 6, 6}));
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input data: [1,1,4,4] - values 0 to 15
+    std::vector<float> input_data(16);
+    std::iota(input_data.begin(), input_data.end(), 0.0f);
+    test_case.add_input<float>(input_data);
+
+    // Filters: [1,2,3,3] - all 0.1f
+    std::vector<float> filter_data(18, 0.1f);
+    test_case.add_input<float>(filter_data);
+
+    // Bias: [2] - all 0.0f
+    std::vector<float> bias_data(2, 0.0f);
+    test_case.add_input<float>(bias_data);
+
+    // Expected output from ONNX Runtime: [1, 2, 6, 6]
+    test_case.add_expected_output<float>(
+        ov::Shape{1, 2, 6, 6},
+        {1.00000000f, 0.60000002f, 1.40000010f, 0.80000001f, 1.79999995f, 1.00000000f, 0.89999998f, 0.50000000f,
+         1.10000002f, 0.60000002f, 1.29999995f, 0.69999999f, 2.60000014f, 1.40000010f, 3.00000000f, 1.60000002f,
+         3.40000010f, 1.79999995f, 1.70000005f, 0.90000004f, 1.90000010f, 1.00000000f, 2.09999990f, 1.10000002f,
+         4.20000029f, 2.20000005f, 4.59999990f, 2.40000010f, 5.00000000f, 2.59999990f, 2.50000000f, 1.30000007f,
+         2.70000005f, 1.39999998f, 2.90000010f, 1.50000000f, 1.00000000f, 0.60000002f, 1.40000010f, 0.80000001f,
+         1.79999995f, 1.00000000f, 0.89999998f, 0.50000000f, 1.10000002f, 0.60000002f, 1.29999995f, 0.69999999f,
+         2.60000014f, 1.40000010f, 3.00000000f, 1.60000002f, 3.40000010f, 1.79999995f, 1.70000005f, 0.90000004f,
+         1.90000010f, 1.00000000f, 2.09999990f, 1.10000002f, 4.20000029f, 2.20000005f, 4.59999990f, 2.40000010f,
+         5.00000000f, 2.59999990f, 2.50000000f, 1.30000007f, 2.70000005f, 1.39999998f, 2.90000010f, 1.50000000f});
+
+    test_case.run();
+}
