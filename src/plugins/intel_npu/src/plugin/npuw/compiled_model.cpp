@@ -230,9 +230,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Pass attention hint to partitioning context
     ctx.attn_hint = m_cfg.get<::intel_npu::NPUW_ATTENTION_HINT>();
 
-    std::cout << "[compiled_model.cpp] attention_hint = " << ::intel_npu::NPUW_ATTENTION_HINT::toString(ctx.attn_hint)
-              << std::endl;
-
     ov::npuw::Partitioning partitioning;
     m_profile["partitioning"].record([&]() {
         partitioning = getPartitioning(model, m_cfg, ctx);
@@ -1812,7 +1809,6 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
     // 1. _tile_model_to_compile is released by set_compiled_tile_model()
     // 2. _final_tile_model_to_compile is released by set_compiled_final_tile_model()
     // 3. m_compiled_submodels[id].model points to _final_tile_model and will be managed by detach_memory()
-    // 4. The original SDPA model from function::HostFlashAttention._original_model is no longer referenced
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& submodel,

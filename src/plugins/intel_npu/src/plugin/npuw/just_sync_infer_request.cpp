@@ -1262,29 +1262,21 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
 }
 
 // ====================================================================================================
-// Host Flash Attention (HFA) Tiled Inference Implementation
+// Host Flash Attention (HFA) Tiled Inference
 // ====================================================================================================
 //
-// This function implements Flash Attention algorithm using tile-based processing on the host CPU.
-// The algorithm splits large KV cache into fixed-size tiles and processes them sequentially to
-// reduce memory footprint while maintaining numerical accuracy.
+// Implements Flash Attention using tile-based processing to reduce memory footprint.
 //
-// Algorithm Overview:
-//   For each tile in [past_key/value, present_key/value]:
-//     1. Extract K/V/Mask tile from full tensors
-//     2. Compute local attention: Q @ K^T, apply mask, softmax, @ V
-//     3. Accumulate with numerically stable online softmax (track max, sum)
-//     4. Final tile: compute division, transpose to output format
-//
-// Key Components:
-//   - Regular Tile Model: Processes tiles [0..N-2], outputs intermediate states (acc, max, d)
-//   - Final Tile Model: Processes tile [N-1], includes final division + transpose operations
-//   - State Tensors: Accumulation (acc), max values (max), normalization sum (d)
+// Algorithm:
+//   - Split KV cache into tiles of size tile_size
+//   - For tiles [0..N-2]: Use regular_tile_model, output intermediate states (acc, max, d)
+//   - For tile [N-1]: Use final_tile_model, output final result with division + transpose
+//   - Maintain numerically stable online softmax across tiles
 //
 // Optimizations:
-//   - Zero-copy: Direct tensor reuse when tile==full_size (avoid copy)
-//   - Type conversion: Automatic FP16<->FP32 conversion if needed
-//   - Numerically stable: Online softmax algorithm prevents overflow/underflow
+//   - Zero-copy when tile size equals full tensor size
+//   - Pre-cached input/output indices to avoid repeated map lookups
+//   - Automatic FP16/FP32 conversion when needed
 //
 // ====================================================================================================
 
@@ -1311,9 +1303,6 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     // SECTION 2: Infer Request Setup
     // ================================================================================================
 
-    // Get pre-created infer requests:
-    // - regular_tile_request: For tiles [0..N-2], outputs intermediate accumulation states
-    // - final_tile_request: For tile [N-1], includes final division and transpose
     auto& regular_tile_request =
         comp_model_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE];
     auto& final_tile_request =
@@ -1323,14 +1312,11 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     // SECTION 3: Input/Output Tensor Extraction
     // ================================================================================================
 
-    // Extract input tensors from HFA I/O structure (set in function_prologue)
-    // Use SDPA input index mapping to access tensors by semantic name instead of hardcoded indices
     const auto& hfa_inputs = m_hfa_io[idx].inputs;
     const auto& hfa_outputs = m_hfa_io[idx].outputs;
     const auto& sdpa_info = hfa_desc._sdpa_attention_info;
     const auto& sdpa_param_map = sdpa_info._sdpa_param_index_map;
 
-    // Helper lambda to safely get input tensor by SDPA input ID
     auto get_input_tensor = [&](SDPAInputId input_id) -> ov::SoPtr<ov::ITensor> {
         auto it = sdpa_param_map.find(input_id);
         if (it == sdpa_param_map.end()) {
@@ -1339,26 +1325,19 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         return hfa_inputs.at(it->second);
     };
 
-    // Extract input tensors using semantic IDs instead of hardcoded indices
-    auto past_key_tensor = get_input_tensor(SDPAInputId::PAST_KEY);              // Historical K cache
-    auto past_value_tensor = get_input_tensor(SDPAInputId::PAST_VALUE);          // Historical V cache
-    auto query_tensor = get_input_tensor(SDPAInputId::QUERY);                    // Query tensor (constant across tiles)
-    auto present_key_tensor = get_input_tensor(SDPAInputId::PRESENT_KEY);        // Current K (new tokens)
-    auto attention_mask_tensor = get_input_tensor(SDPAInputId::ATTENTION_MASK);  // Attention mask
-    auto present_value_tensor = get_input_tensor(SDPAInputId::PRESENT_VALUE);    // Current V (new tokens)
+    auto past_key_tensor = get_input_tensor(SDPAInputId::PAST_KEY);
+    auto past_value_tensor = get_input_tensor(SDPAInputId::PAST_VALUE);
+    auto query_tensor = get_input_tensor(SDPAInputId::QUERY);
+    auto present_key_tensor = get_input_tensor(SDPAInputId::PRESENT_KEY);
+    auto attention_mask_tensor = get_input_tensor(SDPAInputId::ATTENTION_MASK);
+    auto present_value_tensor = get_input_tensor(SDPAInputId::PRESENT_VALUE);
 
-    auto attention_output_tensor = hfa_outputs.at(0);  // Final attention output
+    auto attention_output_tensor = hfa_outputs.at(0);
 
     // ================================================================================================
-    // SECTION 4: Accumulation State Initialization
+    // SECTION 4: Index Pre-caching and State Initialization
     // ================================================================================================
 
-    // Flash Attention state tensors for online softmax algorithm:
-    // - acc: Accumulated attention-weighted values
-    // - max: Running maximum for numerical stability
-    // - d: Running normalization denominator (sum of exp terms)
-    //
-    // Get state tensor indices from tile model mapping
     const auto& tile_input_map = hfa_desc._sdpa_attention_info._tile_param_index_map;
     auto get_tile_param_idx = [&](ov::npuw::HFATileInputId input_id) -> std::size_t {
         auto it = tile_input_map.find(input_id);
@@ -1368,7 +1347,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         return it->second;
     };
 
-    // Pre-cache all tile input indices
+    // Pre-cache tile input indices
     const std::size_t tile_idx_q = get_tile_param_idx(ov::npuw::HFATileInputId::Q);
     const std::size_t tile_idx_k = get_tile_param_idx(ov::npuw::HFATileInputId::K_TILE);
     const std::size_t tile_idx_v = get_tile_param_idx(ov::npuw::HFATileInputId::V_TILE);
@@ -1377,8 +1356,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     const std::size_t tile_idx_max = get_tile_param_idx(ov::npuw::HFATileInputId::PAST_MAX);
     const std::size_t tile_idx_d = get_tile_param_idx(ov::npuw::HFATileInputId::PAST_D);
 
-    // Pre-cache regular tile model output indices (final tile has only 1 output at index 0)
-    // Regular tile outputs: [ACC, MAXX, D]
+    // Pre-cache tile output indices
     const auto& tile_output_map = hfa_desc._sdpa_attention_info._tile_output_index_map;
     auto get_tile_output_idx = [&](ov::npuw::HFATileOutputId output_id) -> std::size_t {
         auto it = tile_output_map.find(output_id);
@@ -1392,70 +1370,62 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     const std::size_t regular_tile_output_max = get_tile_output_idx(ov::npuw::HFATileOutputId::MAXX);
     const std::size_t regular_tile_output_d = get_tile_output_idx(ov::npuw::HFATileOutputId::D);
 
+    // Initialize state tensors (acc, max, d) to zero/negative infinity
     auto state_acc = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_idx_acc]);
     auto state_max = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_idx_max]);
     auto state_sum = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_idx_d]);
 
-    // Initialize state tensors based on element type
     const auto acc_element_type = state_acc->get_element_type();
     if (acc_element_type == ov::element::f16) {
         std::fill_n(state_acc->data<ov::float16>(), state_acc->get_size(), ov::float16(0.0f));
-        std::fill_n(state_max->data<ov::float16>(), state_max->get_size(), ov::float16(-65500.0f));  // -inf approx
+        std::fill_n(state_max->data<ov::float16>(), state_max->get_size(), ov::float16(-65500.0f));
         std::fill_n(state_sum->data<ov::float16>(), state_sum->get_size(), ov::float16(0.0f));
     } else if (acc_element_type == ov::element::f32) {
         std::fill_n(state_acc->data<float>(), state_acc->get_size(), 0.0f);
-        std::fill_n(state_max->data<float>(), state_max->get_size(), -65500.0f);  // -inf approximation
+        std::fill_n(state_max->data<float>(), state_max->get_size(), -65500.0f);
         std::fill_n(state_sum->data<float>(), state_sum->get_size(), 0.0f);
     } else {
         OPENVINO_THROW("Unsupported element type for HFA state tensors: ", acc_element_type);
     }
 
     // ================================================================================================
-    // SECTION 5: Tensor Dimension Configuration
+    // SECTION 5: Dimension Configuration
     // ================================================================================================
 
-    // Get sequence dimension indices from HFA descriptor (extracted during pattern analysis)
-    // These indicate which dimension is the sequence/cache dimension in K/V tensors
     const uint32_t K_SEQ_DIM = static_cast<uint32_t>(sdpa_info._k_seq_dim);
     const uint32_t V_SEQ_DIM = static_cast<uint32_t>(sdpa_info._v_seq_dim);
-    constexpr uint32_t MASK_KV_SEQ_DIM = 3;  // Mask shape: [batch, 1, query_seq, kv_seq]
+    constexpr uint32_t MASK_KV_SEQ_DIM = 3;
 
-    // Get present sequence length for validation
     const size_t present_seq_length = present_key_tensor->get_shape()[K_SEQ_DIM];
 
-    // Set query tensor once (constant across all tiles) using pre-cached indices
+    // Set query tensor once (constant across all tiles)
     regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[tile_idx_q], query_tensor);
     final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->inputs()[tile_idx_q], query_tensor);
 
     // ================================================================================================
-    // SECTION 6: Tile Extraction Helper Lambda
+    // SECTION 6: Helper Functions
     // ================================================================================================
 
-    // Helper function: Extract tile slice from source tensor with optional type conversion
-    // Handles both zero-copy (same type) and copy-with-conversion (different types)
+    // Extract tile slice with optional type conversion
     auto extract_and_copy_tile = [](const ov::SoPtr<ov::ITensor>& source_tensor,
                                     const ov::SoPtr<ov::ITensor>& dest_tensor,
                                     uint32_t sequence_dim,
                                     int64_t sequence_offset,
                                     int64_t sequence_length,
                                     const std::string& tensor_name) {
-        // Validate destination tensor is contiguous in memory
         if (!dest_tensor->is_continuous()) {
             OPENVINO_THROW("HFA tile extraction error: destination tensor for '",
                            tensor_name,
                            "' is not continuous - cannot perform direct copy");
         }
 
-        // Create view of the source tensor slice
         auto source_view = ov::npuw::util::view(source_tensor, sequence_dim, sequence_offset, sequence_length);
         const auto dest_type = dest_tensor->get_element_type();
         const auto source_type = source_tensor->get_element_type();
 
         if (dest_type == source_type) {
-            // Fast path: Types match - direct memory copy
             ov::npuw::util::copy_tensor_by_dim(source_view, dest_tensor, sequence_dim, sequence_dim);
         } else {
-            // Slow path: Type conversion required (e.g., FP16 <-> FP32)
             LOG_WARN("Performing type conversion for " << tensor_name << " tile: " << source_type << " -> "
                                                        << dest_type);
 
@@ -1513,93 +1483,55 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     // ================================================================================================
     // SECTION 7: Tile Processing Loop
     // ================================================================================================
+    // NOTE: When num_tiles==1, only final tile exists (no past KV cache, only present tokens)
 
-    // Process each tile sequentially:
-    // - Tiles [0..N-2]: Process past KV cache using regular tile model
-    // - Tile [N-1]: Process present KV (new tokens) using final tile model
-    //
-    // NOTE: Special case when num_tiles == 1 (total_kv_length == tile_size):
-    //       Since tile_size is set to query_size during model creation, when num_tiles == 1,
-    //       it means there is no past KV cache (past is empty), only present tokens exist.
-    //       In this case, only the final tile is executed to process the present tokens.
     for (int64_t tile_idx = 0; tile_idx < num_tiles; ++tile_idx) {
         const bool is_final_tile = (tile_idx == num_tiles - 1);
 
-        // ============================================================================================
-        // 7.1: Select Tile Model and Request
-        // ============================================================================================
-
-        // Use different model for final tile (includes extra operations: division, transpose)
+        // 7.1: Select tile model and request
         auto& current_request = is_final_tile ? final_tile_request : regular_tile_request;
         auto& current_model = is_final_tile ? hfa_desc._compiled_final_tile_model : hfa_desc._compiled_tile_model;
 
-        // ============================================================================================
-        // 7.2: Determine Source Tensors and Offsets
-        // ============================================================================================
-
-        // Tile source selection and offset calculation:
-        // - Regular tiles [0..N-2]: Extract from past_key/past_value at offset (tile_idx * tile_size)
-        // - Final tile [N-1]: Use present_key/present_value at offset 0 (always process full present)
+        // 7.2: Determine source tensors and offsets
         const int64_t kv_tile_offset = is_final_tile ? 0 : (tile_idx * tile_size);
         const int64_t current_tile_length = is_final_tile ? static_cast<int64_t>(present_seq_length) : tile_size;
 
         auto source_k_tensor = is_final_tile ? present_key_tensor : past_key_tensor;
         auto source_v_tensor = is_final_tile ? present_value_tensor : past_value_tensor;
 
-        // Validation: Final tile must process entire present sequence (tile_size == query_size)
         if (is_final_tile) {
             NPUW_ASSERT(current_tile_length == static_cast<int64_t>(present_seq_length) &&
                         "Final tile must process entire present sequence");
         }
 
-        // ============================================================================================
-        // 7.3: Get Destination Tile Tensors from Infer Request
-        // ============================================================================================
-
-        // Get tile model input buffers using pre-cached indices
+        // 7.3: Get tile input buffers
         auto k_tile_buffer = current_request->get_tensor(current_model->inputs()[tile_idx_k]);
         auto v_tile_buffer = current_request->get_tensor(current_model->inputs()[tile_idx_v]);
         auto mask_tile_buffer = current_request->get_tensor(current_model->inputs()[tile_idx_mask]);
 
-        // ============================================================================================
-        // 7.4: Extract K Tile (with Zero-Copy Optimization)
-        // ============================================================================================
-
+        // 7.4: Extract K tile
         if (can_reuse_tensor_zero_copy(source_k_tensor,
                                        k_tile_buffer,
                                        K_SEQ_DIM,
                                        kv_tile_offset,
                                        current_tile_length)) {
-            // Optimization: Reuse source tensor directly (zero-copy)
             current_request->set_tensor(current_model->inputs()[tile_idx_k], source_k_tensor);
         } else {
-            // Extract and copy K tile slice
             extract_and_copy_tile(source_k_tensor, k_tile_buffer, K_SEQ_DIM, kv_tile_offset, current_tile_length, "K");
         }
 
-        // ============================================================================================
-        // 7.5: Extract V Tile (with Zero-Copy Optimization)
-        // ============================================================================================
-
+        // 7.5: Extract V tile
         if (can_reuse_tensor_zero_copy(source_v_tensor,
                                        v_tile_buffer,
                                        V_SEQ_DIM,
                                        kv_tile_offset,
                                        current_tile_length)) {
-            // Optimization: Reuse source tensor directly (zero-copy)
             current_request->set_tensor(current_model->inputs()[tile_idx_v], source_v_tensor);
         } else {
-            // Extract and copy V tile slice
             extract_and_copy_tile(source_v_tensor, v_tile_buffer, V_SEQ_DIM, kv_tile_offset, current_tile_length, "V");
         }
 
-        // ============================================================================================
-        // 7.6: Extract Mask Tile (with Zero-Copy Optimization)
-        // ============================================================================================
-
-        // Mask offset calculation:
-        // - Regular tiles: Linear offset (tile_idx * tile_size)
-        // - Final tile: Aligned to end of mask (mask_length - tile_length)
+        // 7.6: Extract mask tile
         const int64_t mask_total_length = attention_mask_tensor->get_shape()[MASK_KV_SEQ_DIM];
         const int64_t mask_tile_offset =
             is_final_tile ? (mask_total_length - current_tile_length) : (tile_idx * tile_size);
@@ -1609,10 +1541,8 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                                        MASK_KV_SEQ_DIM,
                                        mask_tile_offset,
                                        current_tile_length)) {
-            // Optimization: Reuse mask tensor directly (zero-copy)
             current_request->set_tensor(current_model->inputs()[tile_idx_mask], attention_mask_tensor);
         } else {
-            // Extract and copy mask tile slice
             extract_and_copy_tile(attention_mask_tensor,
                                   mask_tile_buffer,
                                   MASK_KV_SEQ_DIM,
@@ -1621,42 +1551,28 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                                   "Mask");
         }
 
-        // ============================================================================================
-        // 7.7: Set State Tensors
-        // ============================================================================================
-
-        // Set state input tensors for current tile inference using pre-cached indices
+        // 7.7: Set state tensors
         current_request->set_tensor(current_model->inputs()[tile_idx_acc], state_acc);
         current_request->set_tensor(current_model->inputs()[tile_idx_max], state_max);
         current_request->set_tensor(current_model->inputs()[tile_idx_d], state_sum);
 
-        // ============================================================================================
-        // 7.8: Execute Tile Inference
-        // ============================================================================================
-
+        // 7.8: Execute tile inference
         current_request->infer();
 
-        // ============================================================================================
-        // 7.9: Process Tile Outputs
-        // ============================================================================================
-
+        // 7.9: Process outputs
         if (is_final_tile) {
-            // Final tile: Output is the complete attention result (already transposed)
-            // No state updates needed - this is the last iteration
             auto final_attention_output = current_request->get_tensor(current_model->outputs()[0]);
             final_attention_output->copy_to(attention_output_tensor._ptr);
         } else {
-            // Regular tile: Update accumulation state for next iteration
             auto output_acc = current_request->get_tensor(current_model->outputs()[regular_tile_output_acc]);
             auto output_max = current_request->get_tensor(current_model->outputs()[regular_tile_output_max]);
             auto output_sum = current_request->get_tensor(current_model->outputs()[regular_tile_output_d]);
 
-            // Copy updated state back to input buffers for next tile
             output_acc->copy_to(state_acc._ptr);
             output_max->copy_to(state_max._ptr);
             output_sum->copy_to(state_sum._ptr);
         }
-    }  // End tile processing loop
+    }
 }
 
 void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std::size_t) {
