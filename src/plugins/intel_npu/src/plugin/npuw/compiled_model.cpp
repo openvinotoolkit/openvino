@@ -724,7 +724,6 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, host_flash_attention);
     if (host_flash_attention.has_value()) {
         write(stream, host_flash_attention.value()._tile_size);
-        write(stream, host_flash_attention.value()._kv_cache_size);
 
         // Serialize compiled tile model
         if (host_flash_attention.value()._compiled_tile_model) {
@@ -843,7 +842,6 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, host_flash_attention);
     if (host_flash_attention.has_value()) {
         read(stream, host_flash_attention.value()._tile_size);
-        read(stream, host_flash_attention.value()._kv_cache_size);
 
         bool has_compiled_model = false;
         read(stream, has_compiled_model);
@@ -1794,8 +1792,8 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
         hfa.set_compiled_tile_model(std::move(compiled_tile_model));
 
         LOG_INFO("Successfully compiled host flash attention regular tile model");
-        std::cout << "HostFlashAttention tile model compiled on " << device << " (tile_size=" << hfa._tile_size
-                  << ", kv_cache_size=" << hfa._kv_cache_size << ")" << std::endl;
+        std::cout << "HostFlashAttention tile model compiled on " << device << " (tile_size=" << hfa._tile_size << ")"
+                  << std::endl;
     } catch (const std::exception& ex) {
         LOG_ERROR("Failed to compile host flash attention tile model: " << ex.what());
         OPENVINO_THROW("Host flash attention tile model compilation failed: ", ex.what());
