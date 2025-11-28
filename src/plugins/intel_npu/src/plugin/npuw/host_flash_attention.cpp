@@ -572,6 +572,172 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     hfa._kv_cache_size = kv_cache_size;
     hfa._sdpa_attention = std::move(attention_opt.value());  // Store SDPA attention metadata
 
+    // Build SDPA input parameter index mapping from pattern nodes
+    // This mapping will be transferred to compiled::HostFlashAttentionInfo
+    LOG_INFO("Building SDPA input parameter index mapping...");
+
+    // Helper lambda to safely extract parameter from node (skipping Convert ops)
+    auto extract_param = [&](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::op::v0::Parameter> {
+        auto current = node;
+        // Skip Convert nodes to get to actual Parameter
+        while (current && ov::is_type<ov::op::v0::Convert>(current.get())) {
+            if (current->get_input_size() > 0) {
+                current = current->get_input_node_shared_ptr(0);
+            } else {
+                break;
+            }
+        }
+        return ov::as_type_ptr<ov::op::v0::Parameter>(current);
+    };
+
+    // Extract Q (query) parameter - input 0 of MatMul1
+    if (auto q_param = extract_param(pattern_nodes.matmul1_node->get_input_node_shared_ptr(0))) {
+        std::size_t q_idx = model->get_parameter_index(q_param);
+        hfa._sdpa_param_index_map[SDPAInputId::QUERY] = q_idx;
+        LOG_DEBUG("Mapped QUERY to parameter index " << q_idx);
+    }
+
+    // Extract past_key parameter - input 0 of past_key_concat
+    if (pattern_nodes.past_key_concat_node) {
+        if (auto past_k_param = extract_param(pattern_nodes.past_key_concat_node->get_input_node_shared_ptr(0))) {
+            std::size_t past_k_idx = model->get_parameter_index(past_k_param);
+            hfa._sdpa_param_index_map[SDPAInputId::PAST_KEY] = past_k_idx;
+            LOG_DEBUG("Mapped PAST_KEY to parameter index " << past_k_idx);
+        }
+
+        // Extract present_key parameter - input 1 of past_key_concat
+        if (auto present_k_param = extract_param(pattern_nodes.past_key_concat_node->get_input_node_shared_ptr(1))) {
+            std::size_t present_k_idx = model->get_parameter_index(present_k_param);
+            hfa._sdpa_param_index_map[SDPAInputId::PRESENT_KEY] = present_k_idx;
+            LOG_DEBUG("Mapped PRESENT_KEY to parameter index " << present_k_idx);
+        }
+    }
+
+    // Extract past_value parameter - input 0 of past_value_concat
+    if (pattern_nodes.past_value_concat_node) {
+        if (auto past_v_param = extract_param(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(0))) {
+            std::size_t past_v_idx = model->get_parameter_index(past_v_param);
+            hfa._sdpa_param_index_map[SDPAInputId::PAST_VALUE] = past_v_idx;
+            LOG_DEBUG("Mapped PAST_VALUE to parameter index " << past_v_idx);
+        }
+
+        // Extract present_value parameter - input 1 of past_value_concat
+        if (auto present_v_param = extract_param(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(1))) {
+            std::size_t present_v_idx = model->get_parameter_index(present_v_param);
+            hfa._sdpa_param_index_map[SDPAInputId::PRESENT_VALUE] = present_v_idx;
+            LOG_DEBUG("Mapped PRESENT_VALUE to parameter index " << present_v_idx);
+        }
+    }
+
+    // Extract mask parameter - from SDPA attention metadata
+    std::size_t mask_idx = model->get_parameter_index(hfa._sdpa_attention._mask);
+    hfa._sdpa_param_index_map[SDPAInputId::ATTENTION_MASK] = mask_idx;
+    LOG_DEBUG("Mapped ATTENTION_MASK to parameter index " << mask_idx);
+
+    LOG_INFO("Built SDPA input mapping with " << hfa._sdpa_param_index_map.size() << " entries");
+
+    // Print the complete mapping table
+    std::cout << "\n========== SDPA Input Index Mapping ==========\n";
+    std::cout << "Total entries: " << hfa._sdpa_param_index_map.size() << "\n";
+
+    // Helper to convert enum to string for printing
+    auto sdpa_input_id_to_string = [](SDPAInputId id) -> const char* {
+        switch (id) {
+        case SDPAInputId::PAST_KEY:
+            return "PAST_KEY";
+        case SDPAInputId::PAST_VALUE:
+            return "PAST_VALUE";
+        case SDPAInputId::QUERY:
+            return "QUERY";
+        case SDPAInputId::PRESENT_KEY:
+            return "PRESENT_KEY";
+        case SDPAInputId::ATTENTION_MASK:
+            return "ATTENTION_MASK";
+        case SDPAInputId::PRESENT_VALUE:
+            return "PRESENT_VALUE";
+        default:
+            return "UNKNOWN";
+        }
+    };
+
+    for (const auto& [input_id, param_idx] : hfa._sdpa_param_index_map) {
+        std::cout << "  " << sdpa_input_id_to_string(input_id) << " -> parameter[" << param_idx << "]" << std::endl;
+    }
+    std::cout << "=============================================\n" << std::endl;
+
+    // Build HFA Tile Model input index mapping
+    // This mapping allows accessing tile model inputs by semantic name
+    LOG_INFO("Building HFA Tile Model input index mapping...");
+
+    // Parse tile model inputs by their tensor names
+    // Expected input order: [past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile]
+    const auto& tile_inputs = tile_model->inputs();
+    for (std::size_t i = 0; i < tile_inputs.size(); ++i) {
+        const auto& tensor_names = tile_inputs[i].get_names();
+        if (tensor_names.empty()) {
+            LOG_WARN("Tile model input[" << i << "] has no tensor name");
+            continue;
+        }
+
+        const std::string& name = *tensor_names.begin();
+
+        // Map tensor name to enum ID
+        if (name == "past_acc") {
+            hfa._tile_param_index_map[HFATileInputId::PAST_ACC] = i;
+            LOG_DEBUG("Mapped PAST_ACC to tile input[" << i << "]");
+        } else if (name == "past_max") {
+            hfa._tile_param_index_map[HFATileInputId::PAST_MAX] = i;
+            LOG_DEBUG("Mapped PAST_MAX to tile input[" << i << "]");
+        } else if (name == "past_d") {
+            hfa._tile_param_index_map[HFATileInputId::PAST_D] = i;
+            LOG_DEBUG("Mapped PAST_D to tile input[" << i << "]");
+        } else if (name == "k_tile") {
+            hfa._tile_param_index_map[HFATileInputId::K_TILE] = i;
+            LOG_DEBUG("Mapped K_TILE to tile input[" << i << "]");
+        } else if (name == "v_tile") {
+            hfa._tile_param_index_map[HFATileInputId::V_TILE] = i;
+            LOG_DEBUG("Mapped V_TILE to tile input[" << i << "]");
+        } else if (name == "q") {
+            hfa._tile_param_index_map[HFATileInputId::Q] = i;
+            LOG_DEBUG("Mapped Q to tile input[" << i << "]");
+        } else if (name == "mask_tile") {
+            hfa._tile_param_index_map[HFATileInputId::MASK_TILE] = i;
+            LOG_DEBUG("Mapped MASK_TILE to tile input[" << i << "]");
+        } else {
+            LOG_WARN("Unknown tile model input name: " << name);
+        }
+    }
+
+    // Print the tile input mapping
+    std::cout << "\n========== HFA Tile Model Input Mapping ==========\n";
+    std::cout << "Total entries: " << hfa._tile_param_index_map.size() << "\n";
+
+    auto tile_input_id_to_string = [](HFATileInputId id) -> const char* {
+        switch (id) {
+        case HFATileInputId::PAST_ACC:
+            return "PAST_ACC";
+        case HFATileInputId::PAST_MAX:
+            return "PAST_MAX";
+        case HFATileInputId::PAST_D:
+            return "PAST_D";
+        case HFATileInputId::K_TILE:
+            return "K_TILE";
+        case HFATileInputId::V_TILE:
+            return "V_TILE";
+        case HFATileInputId::Q:
+            return "Q";
+        case HFATileInputId::MASK_TILE:
+            return "MASK_TILE";
+        default:
+            return "UNKNOWN";
+        }
+    };
+
+    for (const auto& [input_id, input_idx] : hfa._tile_param_index_map) {
+        std::cout << "  " << tile_input_id_to_string(input_id) << " -> input[" << input_idx << "]" << std::endl;
+    }
+    std::cout << "==================================================\n" << std::endl;
+
     LOG_INFO("Successfully created HostFlashAttention");
     std::cout << "HostFlashAttention created with tile_size=" << hfa._tile_size
               << ", kv_cache_size=" << hfa._kv_cache_size << std::endl;
@@ -600,6 +766,7 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     const auto& sdpa_attn = func_hfa._sdpa_attention;
     const auto& original_model = func_hfa._original_model;
 
+    // Build parameter info for past key/value tensors
     _sdpa_attention_info.params.reserve(sdpa_attn._inputs.size());
     for (const auto& input : sdpa_attn._inputs) {
         std::size_t p_idx = original_model->get_parameter_index(input.param);
@@ -608,8 +775,16 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _sdpa_attention_info.mask_idx = original_model->get_parameter_index(sdpa_attn._mask);
     _sdpa_attention_info.query_size = sdpa_attn.query_len();
 
+    // Copy SDPA input index mapping from function HFA (already built in from() method)
+    _sdpa_attention_info.sdpa_param_index_map = func_hfa._sdpa_param_index_map;
+
+    // Copy HFA Tile Model input index mapping from function HFA
+    _sdpa_attention_info.tile_param_index_map = func_hfa._tile_param_index_map;
+
     LOG_INFO("Extracted HFA config: tile_size=" << _tile_size << ", kv_cache_size=" << _kv_cache_size);
     LOG_INFO("Extracted " << _sdpa_attention_info.params.size() << " past KV parameters from original SDPA model");
+    LOG_INFO("Copied SDPA input mapping with " << _sdpa_attention_info.sdpa_param_index_map.size() << " entries");
+    LOG_INFO("Copied Tile input mapping with " << _sdpa_attention_info.tile_param_index_map.size() << " entries");
 
     // Note: _compiled_tile_model and _compiled_final_tile_model will be set later by
     // compile_host_flash_attention_model()
