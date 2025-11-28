@@ -786,9 +786,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             }
         } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
             if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "YES"}});
+                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
             } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "ALL_WEIGHTS_COPY"}});
+                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
             }
         }
     }
@@ -1034,9 +1034,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
             }
         } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
             if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "YES"}});
+                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
             } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "ALL_WEIGHTS_COPY"}});
+                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
             }
         }
     }
