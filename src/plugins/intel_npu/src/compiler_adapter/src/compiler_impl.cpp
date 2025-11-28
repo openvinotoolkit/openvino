@@ -391,7 +391,6 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                                      buildFlags.c_str(),
                                      buildFlags.size()};
 
-
     if (usedVersion.Major >= 7 && usedVersion.Minor >= 4) {
         // support the lastest vcl api
         // For VCL 7.4 and later, we can use vclAllocatedExecutableCreate2
