@@ -269,6 +269,7 @@
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
 #    include "snippets/utils/tokenization_utils.hpp"
+#    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -959,12 +960,16 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                              supportedPrecisions,
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
-    CPU_SET_CALLBACK_COMMON(
+    auto lpt_pass = lptManager.register_pass<LowPrecision>(supportedPrecisions,
+                                                           quantizationRestrictions,
+                                                           LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
+    lpt_pass->add_main<ConvertConvolutionBias>();
+    /*CPU_SET_CALLBACK_COMMON(
         lptManager,
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
         },
-        AddTransformation);
+        AddTransformation);*/
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
@@ -978,6 +983,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_DISABLE_PASS_ARM(lptManager, ReduceMeanTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, ReduceMinTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, ReduceSumTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, FakeQuantizeTransformation);
 
     // Enable MatMulTransformation against FC nodes only
     // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
@@ -992,7 +998,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         MatMulTransformation);
 
     // Disable FakeQuantizeTransformation to preserve Convolution dequantization scale as a separate op
-    CPU_SET_CALLBACK_ARM(
+    /*CPU_SET_CALLBACK_ARM(
         lptManager,
         [&](const_node_ptr& node) -> bool {
             auto eltwise = node->get_input_node_shared_ptr(0);
@@ -1001,7 +1007,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
             }
             return false;
         },
-        FakeQuantizeTransformation);
+        FakeQuantizeTransformation);*/
 
     CPU_SET_CALLBACK_X64(
         lptManager,
