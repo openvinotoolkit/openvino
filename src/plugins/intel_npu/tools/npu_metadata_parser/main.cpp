@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
 
         std::cout << "Build ........... ";
         std::cout << version.buildNumber << std::endl;
-        std::cout << "Parsing command-line arguments ........... " << std::endl;
+        std::cout << "Parsing command-line arguments ........... ";
         if (!parseCommandLine(&argc, &argv)) {
             return EXIT_SUCCESS;
         }

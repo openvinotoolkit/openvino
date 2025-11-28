@@ -516,10 +516,10 @@ int main(int argc, char* argv[]) {
             std::ofstream rawOutputFile{rawOutputName, std::ios::out | std::ios::binary};
             std::stringstream tmpBlobBuf;
             if (!rawOutputFile.is_open()) {
-                std::cout << "Outputting file " << outputName << " can't be opened for writing" << std::endl;
+                std::cout << "Outputting file " << rawOutputName << " can't be opened for writing" << std::endl;
                 return EXIT_FAILURE;
             } else {
-                std::cout << "Writing into file - " << outputName << std::endl;
+                std::cout << "Writing into file - " << rawOutputName << std::endl;
                 compiledModel.export_model(tmpBlobBuf);
                 [[maybe_unused]] auto [version, metadataPtr] = npu::utils::parseNPUMetadata(tmpBlobBuf);
                 rawOutputFile << tmpBlobBuf.rdbuf();

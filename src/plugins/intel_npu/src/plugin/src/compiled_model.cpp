@@ -87,20 +87,29 @@ void CompiledModel::export_model(std::ostream& stream) const {
     std::stringstream blobStream;
     auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(blobStream);
 
-    std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
-    std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
+    bool shouldExportRawBlobOnly =
+        (_config.isAvailable(ov::intel_npu::export_raw_blob.name()) && _config.get<EXPORT_RAW_BLOB>() == true);
 
-    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
-        inputLayouts->push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
-    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
-        outputLayouts->push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
+    if (!shouldExportRawBlobOnly) {
+        std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
+        std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
 
-    Metadata<CURRENT_METADATA_VERSION>(CURRENT_OPENVINO_VERSION, initBlobSizes, _batchSize, inputLayouts, outputLayouts)
-        .write(stream);
+        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+            inputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+            outputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+
+        Metadata<CURRENT_METADATA_VERSION>(CURRENT_OPENVINO_VERSION,
+                                           initBlobSizes,
+                                           _batchSize,
+                                           inputLayouts,
+                                           outputLayouts)
+            .write(stream);
+    }
     stream << blobStream.rdbuf();
 }
 
