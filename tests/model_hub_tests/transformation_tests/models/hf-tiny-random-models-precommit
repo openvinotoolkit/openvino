@@ -1,13 +1,10 @@
 optimum-intel-internal-testing/opt-125m,https://huggingface.co/optimum-intel-internal-testing/opt-125m
 optimum-intel-internal-testing/opt-125m-gptq-4bit,https://huggingface.co/optimum-intel-internal-testing/opt-125m-gptq-4bit
 optimum-intel-internal-testing/really-tiny-falcon-testing,https://huggingface.co/optimum-intel-internal-testing/really-tiny-falcon-testing
-optimum-intel-internal-testing/tiny-GptOssForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-GptOssForCausalLM
 optimum-intel-internal-testing/tiny-dummy-qwen2,https://huggingface.co/optimum-intel-internal-testing/tiny-dummy-qwen2
 optimum-intel-internal-testing/tiny-marian-en-de,https://huggingface.co/optimum-intel-internal-testing/tiny-marian-en-de
 optimum-intel-internal-testing/tiny-mixtral,https://huggingface.co/optimum-intel-internal-testing/tiny-mixtral
 optimum-intel-internal-testing/tiny-mixtral-AWQ-4bit,https://huggingface.co/optimum-intel-internal-testing/tiny-mixtral-AWQ-4bit
-optimum-intel-internal-testing/tiny-random-ArceeForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-ArceeForCausalLM
-optimum-intel-internal-testing/tiny-random-BioGptForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-BioGptForCausalLM
 optimum-intel-internal-testing/tiny-random-BlenderbotModel,https://huggingface.co/optimum-intel-internal-testing/tiny-random-BlenderbotModel
 optimum-intel-internal-testing/tiny-random-BloomModel,https://huggingface.co/optimum-intel-internal-testing/tiny-random-BloomModel
 optimum-intel-internal-testing/tiny-random-CodeGenForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-CodeGenForCausalLM
@@ -17,7 +14,6 @@ optimum-intel-internal-testing/tiny-random-GPTJModel,https://huggingface.co/opti
 optimum-intel-internal-testing/tiny-random-GPTNeoModel,https://huggingface.co/optimum-intel-internal-testing/tiny-random-GPTNeoModel
 optimum-intel-internal-testing/tiny-random-GPTNeoXForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-GPTNeoXForCausalLM
 optimum-intel-internal-testing/tiny-random-GemmaForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-GemmaForCausalLM
-optimum-intel-internal-testing/tiny-random-Idefics3ForConditionalGeneration,https://huggingface.co/optimum-intel-internal-testing/tiny-random-Idefics3ForConditionalGeneration
 optimum-intel-internal-testing/tiny-random-LlamaForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-LlamaForCausalLM
 optimum-intel-internal-testing/tiny-random-MptForCausalLM,https://huggingface.co/optimum-intel-internal-testing/tiny-random-MptForCausalLM
 optimum-intel-internal-testing/tiny-random-OPTModel,https://huggingface.co/optimum-intel-internal-testing/tiny-random-OPTModel
@@ -30,7 +26,6 @@ optimum-intel-internal-testing/tiny-random-aquila2,https://huggingface.co/optimu
 optimum-intel-internal-testing/tiny-random-aquilachat,https://huggingface.co/optimum-intel-internal-testing/tiny-random-aquilachat
 optimum-intel-internal-testing/tiny-random-baichuan2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-baichuan2
 optimum-intel-internal-testing/tiny-random-baichuan2-13b,https://huggingface.co/optimum-intel-internal-testing/tiny-random-baichuan2-13b
-optimum-intel-internal-testing/tiny-random-bart,https://huggingface.co/optimum-intel-internal-testing/tiny-random-bart
 optimum-intel-internal-testing/tiny-random-chatglm,https://huggingface.co/optimum-intel-internal-testing/tiny-random-chatglm
 optimum-intel-internal-testing/tiny-random-chatglm4,https://huggingface.co/optimum-intel-internal-testing/tiny-random-chatglm4
 optimum-intel-internal-testing/tiny-random-codegen2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-codegen2
@@ -40,19 +35,13 @@ optimum-intel-internal-testing/tiny-random-deepseek-v3,https://huggingface.co/op
 optimum-intel-internal-testing/tiny-random-exaone,https://huggingface.co/optimum-intel-internal-testing/tiny-random-exaone
 optimum-intel-internal-testing/tiny-random-falcon-40b,https://huggingface.co/optimum-intel-internal-testing/tiny-random-falcon-40b
 optimum-intel-internal-testing/tiny-random-gemma2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-gemma2
-optimum-intel-internal-testing/tiny-random-gemma3,https://huggingface.co/optimum-intel-internal-testing/tiny-random-gemma3
-optimum-intel-internal-testing/tiny-random-gemma3-text,https://huggingface.co/optimum-intel-internal-testing/tiny-random-gemma3-text
 optimum-intel-internal-testing/tiny-random-glm-edge,https://huggingface.co/optimum-intel-internal-testing/tiny-random-glm-edge
-optimum-intel-internal-testing/tiny-random-glm4,https://huggingface.co/optimum-intel-internal-testing/tiny-random-glm4
-optimum-intel-internal-testing/tiny-random-got-ocr2-hf,https://huggingface.co/optimum-intel-internal-testing/tiny-random-got-ocr2-hf
 optimum-intel-internal-testing/tiny-random-gpt2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-gpt2
 optimum-intel-internal-testing/tiny-random-granite,https://huggingface.co/optimum-intel-internal-testing/tiny-random-granite
 optimum-intel-internal-testing/tiny-random-granite-moe,https://huggingface.co/optimum-intel-internal-testing/tiny-random-granite-moe
 optimum-intel-internal-testing/tiny-random-internlm,https://huggingface.co/optimum-intel-internal-testing/tiny-random-internlm
 optimum-intel-internal-testing/tiny-random-internlm2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-internlm2
 optimum-intel-internal-testing/tiny-random-jais,https://huggingface.co/optimum-intel-internal-testing/tiny-random-jais
-optimum-intel-internal-testing/tiny-random-llama4,https://huggingface.co/optimum-intel-internal-testing/tiny-random-llama4
-optimum-intel-internal-testing/tiny-random-mbart,https://huggingface.co/optimum-intel-internal-testing/tiny-random-mbart
 optimum-intel-internal-testing/tiny-random-minicpm,https://huggingface.co/optimum-intel-internal-testing/tiny-random-minicpm
 optimum-intel-internal-testing/tiny-random-minicpm3,https://huggingface.co/optimum-intel-internal-testing/tiny-random-minicpm3
 optimum-intel-internal-testing/tiny-random-mistral,https://huggingface.co/optimum-intel-internal-testing/tiny-random-mistral
@@ -61,7 +50,5 @@ optimum-intel-internal-testing/tiny-random-olmo-hf,https://huggingface.co/optimu
 optimum-intel-internal-testing/tiny-random-pegasus,https://huggingface.co/optimum-intel-internal-testing/tiny-random-pegasus
 optimum-intel-internal-testing/tiny-random-qwen,https://huggingface.co/optimum-intel-internal-testing/tiny-random-qwen
 optimum-intel-internal-testing/tiny-random-qwen1.5-moe,https://huggingface.co/optimum-intel-internal-testing/tiny-random-qwen1.5-moe
-optimum-intel-internal-testing/tiny-random-qwen3,https://huggingface.co/optimum-intel-internal-testing/tiny-random-qwen3
-optimum-intel-internal-testing/tiny-random-qwen3moe,https://huggingface.co/optimum-intel-internal-testing/tiny-random-qwen3moe
 optimum-intel-internal-testing/tiny-random-snowflake,https://huggingface.co/optimum-intel-internal-testing/tiny-random-snowflake
 optimum-intel-internal-testing/tiny-random-xverse,https://huggingface.co/optimum-intel-internal-testing/tiny-random-xverse
