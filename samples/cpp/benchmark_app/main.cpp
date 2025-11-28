@@ -1414,6 +1414,9 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        // release static oneDNN cache used for inference
+        compiledModel.release_memory();
+
         slog::info << "Throughput:          " << double_to_string(fps) << " FPS" << slog::endl;
 
     } catch (const std::exception& ex) {
