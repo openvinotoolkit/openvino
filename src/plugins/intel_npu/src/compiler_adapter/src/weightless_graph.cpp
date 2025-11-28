@@ -275,7 +275,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 }
 
 void WeightlessGraph::initialize(const Config& config) {
-    if (!_zeroInitStruct) {
+    if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
         // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
         return;
     }

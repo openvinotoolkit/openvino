@@ -983,26 +983,26 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
+    CompilerAdapterFactory compilerAdapterFactory;
+    auto npu_plugin_properties = properties;
     // There is an on-going migration from "USE_BASE_MODEL_SERIALIZER" to "MODEL_SERIALIZER_VERSION". Until done, make
     // sure only the option supported by the compiler is registered in the config.
     bool useBaseModelSerializer = true;
     bool modelSerializerChosenExplicitly = false;
     const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
     const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
-    if (properties.count(useBaseModelSerializerKey)) {
+    if (npu_plugin_properties.count(useBaseModelSerializerKey)) {
         modelSerializerChosenExplicitly = true;
-        useBaseModelSerializer = properties.at(useBaseModelSerializerKey).as<bool>();
-        properties.erase(useBaseModelSerializerKey);
-        properties.erase(modelSerializerVersionKey);
-    } else if (properties.count(modelSerializerVersionKey)) {
+        useBaseModelSerializer = npu_plugin_properties.at(useBaseModelSerializerKey).as<bool>();
+        npu_plugin_properties.erase(useBaseModelSerializerKey);
+        npu_plugin_properties.erase(modelSerializerVersionKey);
+    } else if (npu_plugin_properties.count(modelSerializerVersionKey)) {
         modelSerializerChosenExplicitly = true;
         const auto modelSerializerVersion =
-            properties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
+            npu_plugin_properties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
         useBaseModelSerializer = !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
-        properties.erase(modelSerializerVersionKey);
+        npu_plugin_properties.erase(modelSerializerVersionKey);
     }
-    CompilerAdapterFactory compilerAdapterFactory;
-    auto npu_plugin_properties = properties;
     exclude_model_ptr_from_map(npu_plugin_properties);
     const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
