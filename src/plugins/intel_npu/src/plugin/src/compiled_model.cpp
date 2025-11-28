@@ -65,8 +65,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         _graph->initialize(_config);
     }
 
-    if (!_graph->isGraphFinishedInitialize()) {
-        OPENVINO_THROW("Graph handle is not finished initializing! Failed to create infer request!");
+    if (!_graph->init_completed()) {
+        OPENVINO_THROW("The driver is currently not applicable. The driver may not exist or the driver version may be outdated.");
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
