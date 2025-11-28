@@ -1278,20 +1278,11 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     NPUW_ASSERT(comp_model_desc.hfa_infer_requests.size() == CompiledModel::CompiledModelDesc::HFATileIdx::COUNT &&
                 "HFA infer requests must be created");
 
-    std::cout << "=== HFA Tiled Inference Performance ===" << std::endl;
-
-    double tile_prep_time = 0.0;
-    double tile_infer_time = 0.0;
-    double final_compute_time = 0.0;
-
     // Get the tile configuration
     int64_t tile_size = hfa._tile_size;
     int64_t full_kv_size = m_hfa_selector->length() + m_hfa_selector->past_length();
     NPUW_ASSERT(full_kv_size % tile_size == 0 && "HFA full KV size must be multiple of tile size for now");
     int64_t num_tiles = full_kv_size / tile_size;
-
-    std::cout << "Tile configuration: tile_size=" << tile_size << ", num_tiles=" << num_tiles
-              << ", full_kv_size=" << full_kv_size << std::endl;
 
     // Use pre-created infer requests (input tensors already shared)
     // [REGULAR_TILE]: regular tile model, [FINAL_TILE]: final tile model
@@ -1400,9 +1391,6 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
 
     // Loop over tiles
     for (int64_t tile_idx = 0; tile_idx < num_tiles; ++tile_idx) {
-        double tile_prep_single = 0.0;
-        double tile_infer_single = 0.0;
-
         // Determine if this is the last tile
         bool is_last_tile = (tile_idx == num_tiles - 1);
 
@@ -1410,82 +1398,78 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         auto& current_tile_request = is_last_tile ? final_tile_request : tile_request;
         auto& current_compiled_model = is_last_tile ? hfa._compiled_final_tile_model : hfa._compiled_tile_model;
 
-        tile_prep_single = ov::npuw::perf::ms_to_run([&]() {
-            // Determine source tensor and offset based on tile index
-            int64_t k_offset = tile_idx * tile_size;
-            int64_t current_tile_size = tile_size;
+        // Determine source tensor and offset based on tile index
+        int64_t k_offset = tile_idx * tile_size;
+        int64_t current_tile_size = tile_size;
 
-            // Select source tensors:
-            // - First (num_tiles - 1) tiles: from past_key/past_value
-            // - Last tile: from present k_tile_input/v_tile_input
-            auto source_k_tensor = is_last_tile ? present_k_input_tensor : past_key_tensor;
-            auto source_v_tensor = is_last_tile ? present_v_input_tensor : past_value_tensor;
+        // Select source tensors:
+        // - First (num_tiles - 1) tiles: from past_key/past_value
+        // - Last tile: from present k_tile_input/v_tile_input
+        auto source_k_tensor = is_last_tile ? present_k_input_tensor : past_key_tensor;
+        auto source_v_tensor = is_last_tile ? present_v_input_tensor : past_value_tensor;
 
-            // For the last tile (present K/V), offset is 0
-            if (is_last_tile) {
-                k_offset = 0;
-                current_tile_size = std::min(tile_size, static_cast<int64_t>(present_seq_len));
-                NPUW_ASSERT(current_tile_size == static_cast<int64_t>(present_seq_len) &&
-                            "Last tile must process entire present sequence");
-            }
+        // For the last tile (present K/V), offset is 0
+        if (is_last_tile) {
+            k_offset = 0;
+            current_tile_size = std::min(tile_size, static_cast<int64_t>(present_seq_len));
+            NPUW_ASSERT(current_tile_size == static_cast<int64_t>(present_seq_len) &&
+                        "Last tile must process entire present sequence");
+        }
 
-            // Get tile tensors from current request
-            auto k_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[3]);
-            auto v_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[4]);
-            auto mask_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[6]);
+        // Get tile tensors from current request
+        auto k_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[3]);
+        auto v_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[4]);
+        auto mask_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[6]);
 
-            // === Extract K, V, Mask tiles with zero-copy optimization ===
+        // === Extract K, V, Mask tiles with zero-copy optimization ===
 
-            // Compute mask_offset first
-            int64_t mask_total_len = mask_tensor->get_shape()[mask_seq_dim];
-            int64_t mask_offset = is_last_tile ? (mask_total_len - current_tile_size) : (tile_idx * tile_size);
+        // Compute mask_offset first
+        int64_t mask_total_len = mask_tensor->get_shape()[mask_seq_dim];
+        int64_t mask_offset = is_last_tile ? (mask_total_len - current_tile_size) : (tile_idx * tile_size);
 
-            // Optimization: Check if we can use source tensors directly (zero-copy)
-            // Conditions: offset==0 && tile_size==full_size && same_type
-            auto k_source_shape = source_k_tensor->get_shape();
-            auto v_source_shape = source_v_tensor->get_shape();
-            auto mask_source_shape = mask_tensor->get_shape();
+        // Optimization: Check if we can use source tensors directly (zero-copy)
+        // Conditions: offset==0 && tile_size==full_size && same_type
+        auto k_source_shape = source_k_tensor->get_shape();
+        auto v_source_shape = source_v_tensor->get_shape();
+        auto mask_source_shape = mask_tensor->get_shape();
 
-            bool k_can_reuse = (k_offset == 0 && current_tile_size == static_cast<int64_t>(k_source_shape[k_seq_dim]) &&
-                                k_tile_current->get_element_type() == source_k_tensor->get_element_type());
+        bool k_can_reuse = (k_offset == 0 && current_tile_size == static_cast<int64_t>(k_source_shape[k_seq_dim]) &&
+                            k_tile_current->get_element_type() == source_k_tensor->get_element_type());
 
-            bool v_can_reuse = (k_offset == 0 && current_tile_size == static_cast<int64_t>(v_source_shape[v_seq_dim]) &&
-                                v_tile_current->get_element_type() == source_v_tensor->get_element_type());
+        bool v_can_reuse = (k_offset == 0 && current_tile_size == static_cast<int64_t>(v_source_shape[v_seq_dim]) &&
+                            v_tile_current->get_element_type() == source_v_tensor->get_element_type());
 
-            bool mask_can_reuse =
-                (mask_offset == 0 && current_tile_size == static_cast<int64_t>(mask_source_shape[mask_seq_dim]) &&
-                 mask_tile_current->get_element_type() == mask_tensor->get_element_type());
+        bool mask_can_reuse =
+            (mask_offset == 0 && current_tile_size == static_cast<int64_t>(mask_source_shape[mask_seq_dim]) &&
+             mask_tile_current->get_element_type() == mask_tensor->get_element_type());
 
-            // Extract tiles only if cannot reuse source directly
-            if (!k_can_reuse) {
-                extract_tile(source_k_tensor, k_tile_current, k_seq_dim, k_offset, current_tile_size, "K");
-            } else {
-                current_tile_request->set_tensor(current_compiled_model->inputs()[3], source_k_tensor);
-            }
+        // Extract tiles only if cannot reuse source directly
+        if (!k_can_reuse) {
+            extract_tile(source_k_tensor, k_tile_current, k_seq_dim, k_offset, current_tile_size, "K");
+        } else {
+            current_tile_request->set_tensor(current_compiled_model->inputs()[3], source_k_tensor);
+        }
 
-            if (!v_can_reuse) {
-                extract_tile(source_v_tensor, v_tile_current, v_seq_dim, k_offset, current_tile_size, "V");
-            } else {
-                current_tile_request->set_tensor(current_compiled_model->inputs()[4], source_v_tensor);
-            }
+        if (!v_can_reuse) {
+            extract_tile(source_v_tensor, v_tile_current, v_seq_dim, k_offset, current_tile_size, "V");
+        } else {
+            current_tile_request->set_tensor(current_compiled_model->inputs()[4], source_v_tensor);
+        }
 
-            if (!mask_can_reuse) {
-                extract_tile(mask_tensor, mask_tile_current, mask_seq_dim, mask_offset, current_tile_size, "Mask");
-            } else {
-                current_tile_request->set_tensor(current_compiled_model->inputs()[6], mask_tensor);
-            }
+        if (!mask_can_reuse) {
+            extract_tile(mask_tensor, mask_tile_current, mask_seq_dim, mask_offset, current_tile_size, "Mask");
+        } else {
+            current_tile_request->set_tensor(current_compiled_model->inputs()[6], mask_tensor);
+        }
 
-            // Set Q tensor and past state for current request
-            current_tile_request->set_tensor(current_compiled_model->inputs()[5], q_tensor);
-            current_tile_request->set_tensor(current_compiled_model->inputs()[0], past_acc);
-            current_tile_request->set_tensor(current_compiled_model->inputs()[1], past_max);
-            current_tile_request->set_tensor(current_compiled_model->inputs()[2], past_d);
-        });  // End of tile preparation timing
+        // Set Q tensor and past state for current request
+        current_tile_request->set_tensor(current_compiled_model->inputs()[5], q_tensor);
+        current_tile_request->set_tensor(current_compiled_model->inputs()[0], past_acc);
+        current_tile_request->set_tensor(current_compiled_model->inputs()[1], past_max);
+        current_tile_request->set_tensor(current_compiled_model->inputs()[2], past_d);
 
         // Run tile inference
-        tile_infer_single = ov::npuw::perf::ms_to_run([&]() {
-            current_tile_request->infer();
-        });
+        current_tile_request->infer();
 
         // Handle outputs based on whether this is the last tile
         if (is_last_tile) {
@@ -1505,27 +1489,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
             output_max->copy_to(past_max._ptr);
             output_d->copy_to(past_d._ptr);
         }
-
-        tile_prep_time += tile_prep_single;
-        tile_infer_time += tile_infer_single;
-
-        // std::cout << "Tile[" << tile_idx << "/" << num_tiles << "] prep=" << tile_prep_single
-        //           << "ms, infer=" << tile_infer_single << "ms" << std::endl;
     }
-
-    // Print performance summary (final_compute_time is now 0 since it's done in model)
-    double total_time = tile_prep_time + tile_infer_time + final_compute_time;
-    std::cout << "HFA Performance Summary:" << std::endl;
-    std::cout << "  Tile preparation total:  " << tile_prep_time << " ms (" << (tile_prep_time / total_time * 100.0)
-              << "%)" << std::endl;
-    std::cout << "  Tile inference total:    " << tile_infer_time << " ms (" << (tile_infer_time / total_time * 100.0)
-              << "%)" << std::endl;
-    std::cout << "  Final computation:       " << final_compute_time << " ms (fused into last tile - model)"
-              << std::endl;
-    std::cout << "  Total HFA time:          " << total_time << " ms" << std::endl;
-    std::cout << "  Average per tile (prep): " << (tile_prep_time / num_tiles) << " ms" << std::endl;
-    std::cout << "  Average per tile (infer):" << (tile_infer_time / num_tiles) << " ms" << std::endl;
-    std::cout << "====================================" << std::endl;
 }
 
 void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std::size_t) {
