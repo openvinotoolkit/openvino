@@ -1340,17 +1340,8 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         OPENVINO_THROW("Unsupported element type for HFA state tensors: ", acc_type);
     }
 
-    // Get shape information from q_tensor
-    auto q_shape = q_tensor->get_shape();
-    size_t batch_size = q_shape[0];  // 1
-    size_t num_heads = q_shape[1];   // 32
-    size_t q_seq_len = q_shape[2];   // 1024
-    size_t head_dim = q_shape[3];    // 128
-
-    // Get shape information from present K/V tensors
-    auto present_k_shape = present_k_input_tensor->get_shape();
-    size_t kv_num_heads = present_k_shape[1];     // 8
-    size_t present_seq_len = present_k_shape[2];  // 1024 (query length in PREFILL)
+    // Get present sequence length for last tile size calculation
+    size_t present_seq_len = present_k_input_tensor->get_shape()[2];
 
     // Set Q tensor directly (tile model accepts input_dtype)
     tile_request->set_tensor(hfa._compiled_tile_model->inputs()[5], q_tensor);
@@ -1367,7 +1358,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                             int64_t offset,
                             int64_t tile_length,
                             const std::string& tensor_name) {
-        // CRITICAL: dest_tensor MUST be continuous for direct copy to work correctly
+        // Check dest_tensor is continuous for direct copy
         if (!dest_tensor->is_continuous()) {
             OPENVINO_THROW("HFA tile extraction error: dest_tensor for ",
                            tensor_name,
@@ -1382,10 +1373,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
             // Types match - direct copy
             ov::npuw::util::copy_tensor_by_dim(view, dest_tensor, view_dim, view_dim);
         } else {
-            std::cout << "[WARN]Perform data type conversion for " << tensor_name << ": " << source_type << " -> "
+            std::cout << "[WARN] Perform data type conversion for " << tensor_name << ": " << source_type << " -> "
                       << dest_type << std::endl;
             // Types don't match - convert via intermediate tensor
-            // Note: view is always non-contiguous, so intermediate is necessary
             auto intermediate = ov::Tensor(source_type, view->get_shape());
             ov::npuw::util::copy_tensor_by_dim(view, ov::get_tensor_impl(intermediate), view_dim, view_dim);
 
@@ -1444,18 +1434,46 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
             auto v_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[4]);
             auto mask_tile_current = current_tile_request->get_tensor(current_compiled_model->inputs()[6]);
 
-            // === Extract K, V, Mask tiles with unified type handling ===
+            // === Extract K, V, Mask tiles with zero-copy optimization ===
 
-            // Extract K tile: [batch, kv_num_heads, current_tile_size, head_dim]
-            extract_tile(source_k_tensor, k_tile_current, k_seq_dim, k_offset, current_tile_size, "K");
-
-            // Extract V tile: [batch, kv_num_heads, head_dim, current_tile_size]
-            extract_tile(source_v_tensor, v_tile_current, v_seq_dim, k_offset, current_tile_size, "V");
-
-            // Extract mask tile: [batch, 1, q_seq_len, current_tile_size]
+            // Compute mask_offset first
             int64_t mask_total_len = mask_tensor->get_shape()[mask_seq_dim];
             int64_t mask_offset = is_last_tile ? (mask_total_len - current_tile_size) : (tile_idx * tile_size);
-            extract_tile(mask_tensor, mask_tile_current, mask_seq_dim, mask_offset, current_tile_size, "Mask");
+
+            // Optimization: Check if we can use source tensors directly (zero-copy)
+            // Conditions: offset==0 && tile_size==full_size && same_type
+            auto k_source_shape = source_k_tensor->get_shape();
+            auto v_source_shape = source_v_tensor->get_shape();
+            auto mask_source_shape = mask_tensor->get_shape();
+
+            bool k_can_reuse = (k_offset == 0 && current_tile_size == static_cast<int64_t>(k_source_shape[k_seq_dim]) &&
+                                k_tile_current->get_element_type() == source_k_tensor->get_element_type());
+
+            bool v_can_reuse = (k_offset == 0 && current_tile_size == static_cast<int64_t>(v_source_shape[v_seq_dim]) &&
+                                v_tile_current->get_element_type() == source_v_tensor->get_element_type());
+
+            bool mask_can_reuse =
+                (mask_offset == 0 && current_tile_size == static_cast<int64_t>(mask_source_shape[mask_seq_dim]) &&
+                 mask_tile_current->get_element_type() == mask_tensor->get_element_type());
+
+            // Extract tiles only if cannot reuse source directly
+            if (!k_can_reuse) {
+                extract_tile(source_k_tensor, k_tile_current, k_seq_dim, k_offset, current_tile_size, "K");
+            } else {
+                current_tile_request->set_tensor(current_compiled_model->inputs()[3], source_k_tensor);
+            }
+
+            if (!v_can_reuse) {
+                extract_tile(source_v_tensor, v_tile_current, v_seq_dim, k_offset, current_tile_size, "V");
+            } else {
+                current_tile_request->set_tensor(current_compiled_model->inputs()[4], source_v_tensor);
+            }
+
+            if (!mask_can_reuse) {
+                extract_tile(mask_tensor, mask_tile_current, mask_seq_dim, mask_offset, current_tile_size, "Mask");
+            } else {
+                current_tile_request->set_tensor(current_compiled_model->inputs()[6], mask_tensor);
+            }
 
             // Set Q tensor and past state for current request
             current_tile_request->set_tensor(current_compiled_model->inputs()[5], q_tensor);
