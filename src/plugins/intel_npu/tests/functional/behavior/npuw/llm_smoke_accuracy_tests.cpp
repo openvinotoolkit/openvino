@@ -89,7 +89,7 @@ protected:
 
 TEST_P(LLMSmokeAccuracyTestsNPUW, ConfigIsAccurate) {
     actual_ids = simple_llm.generate(input_ids);
-    for (auto i = 0; i < actual_ids.size(); ++i) {
+    for (std::size_t i = 0; i < actual_ids.size(); ++i) {
         ASSERT_EQ(actual_ids[i], reference_ids[i]);
     }
 }
