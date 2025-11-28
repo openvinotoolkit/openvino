@@ -1377,6 +1377,21 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     const std::size_t tile_idx_max = get_tile_param_idx(ov::npuw::HFATileInputId::PAST_MAX);
     const std::size_t tile_idx_d = get_tile_param_idx(ov::npuw::HFATileInputId::PAST_D);
 
+    // Pre-cache regular tile model output indices (final tile has only 1 output at index 0)
+    // Regular tile outputs: [ACC, MAXX, D]
+    const auto& tile_output_map = hfa_desc._sdpa_attention_info._tile_output_index_map;
+    auto get_tile_output_idx = [&](ov::npuw::HFATileOutputId output_id) -> std::size_t {
+        auto it = tile_output_map.find(output_id);
+        if (it == tile_output_map.end()) {
+            OPENVINO_THROW("HFA: Tile output mapping not found for output ID: ", static_cast<uint8_t>(output_id));
+        }
+        return it->second;
+    };
+
+    const std::size_t regular_tile_output_acc = get_tile_output_idx(ov::npuw::HFATileOutputId::ACC);
+    const std::size_t regular_tile_output_max = get_tile_output_idx(ov::npuw::HFATileOutputId::MAXX);
+    const std::size_t regular_tile_output_d = get_tile_output_idx(ov::npuw::HFATileOutputId::D);
+
     auto state_acc = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_idx_acc]);
     auto state_max = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_idx_max]);
     auto state_sum = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_idx_d]);
@@ -1632,10 +1647,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
             final_attention_output->copy_to(attention_output_tensor._ptr);
         } else {
             // Regular tile: Update accumulation state for next iteration
-            // Tile model outputs: [0] updated_acc, [1] updated_max, [2] updated_sum
-            auto output_acc = current_request->get_tensor(current_model->outputs()[0]);
-            auto output_max = current_request->get_tensor(current_model->outputs()[1]);
-            auto output_sum = current_request->get_tensor(current_model->outputs()[2]);
+            auto output_acc = current_request->get_tensor(current_model->outputs()[regular_tile_output_acc]);
+            auto output_max = current_request->get_tensor(current_model->outputs()[regular_tile_output_max]);
+            auto output_sum = current_request->get_tensor(current_model->outputs()[regular_tile_output_d]);
 
             // Copy updated state back to input buffers for next tile
             output_acc->copy_to(state_acc._ptr);
