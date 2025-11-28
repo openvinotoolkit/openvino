@@ -71,6 +71,7 @@ if (ENABLE_ONEDNN_FOR_GPU)
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE openvino::runtime::dev)
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
 
