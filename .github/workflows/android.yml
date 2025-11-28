@@ -374,7 +374,7 @@ jobs:
 
   CXX_Func_Tests:
     needs: [Smart_CI, Docker, Build]
-    timeout-minutes: 120
+    timeout-minutes: 20
     runs-on: aks-linux-4-cores-16gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_android }}
