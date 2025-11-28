@@ -132,7 +132,6 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::HostF
     using ov::npuw::s11n::write;
 
     write(stream, var._tile_size);
-    write(stream, var._kv_cache_size);
     // Note: _tile_model_to_compile and _compiled_tile_model are not serialized here
     // They are handled separately in CompiledModelDesc::serialize()
 }
@@ -289,7 +288,6 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::HostFlashAtt
     using ov::npuw::s11n::read;
 
     read(stream, var._tile_size);
-    read(stream, var._kv_cache_size);
     // Note: _tile_model_to_compile and _compiled_tile_model are not deserialized here
     // They are handled separately in CompiledModelDesc::deserialize()
 }

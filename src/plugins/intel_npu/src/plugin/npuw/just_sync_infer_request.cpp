@@ -460,7 +460,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             // Get Q input index from tile model mapping
             // Use query_size directly from _sdpa_attention_info (populated during pattern analysis)
-            const size_t query_size = hfa_desc._sdpa_attention_info.query_size;
+            const size_t query_size = hfa_desc._sdpa_attention_info._query_size;
 
             m_hfa_selector = runtime::host_flash_attention::PositionIDs::find(query_size, *this);
             if (!m_hfa_selector) {
@@ -1311,7 +1311,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
 
     // Calculate tile configuration
     const int64_t tile_size = hfa_desc._tile_size;
-    const int64_t total_kv_length = m_hfa_selector->length() + m_hfa_selector->past_length();
+    const int64_t total_kv_length = m_hfa_selector->context_length();
     const int64_t num_tiles = total_kv_length / tile_size;
 
     NPUW_ASSERT(total_kv_length % tile_size == 0 && "HFA total KV length must be multiple of tile size for now");
@@ -1337,7 +1337,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     const auto& hfa_inputs = m_hfa_io[idx].inputs;
     const auto& hfa_outputs = m_hfa_io[idx].outputs;
     const auto& sdpa_info = hfa_desc._sdpa_attention_info;
-    const auto& sdpa_param_map = sdpa_info.sdpa_param_index_map;
+    const auto& sdpa_param_map = sdpa_info._sdpa_param_index_map;
 
     // Helper lambda to safely get input tensor by SDPA input ID
     auto get_input_tensor = [&](SDPAInputId input_id) -> ov::SoPtr<ov::ITensor> {
@@ -1368,7 +1368,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     // - d: Running normalization denominator (sum of exp terms)
     //
     // Get state tensor indices from tile model mapping
-    const auto& tile_input_map = hfa_desc._sdpa_attention_info.tile_param_index_map;
+    const auto& tile_input_map = hfa_desc._sdpa_attention_info._tile_param_index_map;
     auto get_tile_param_idx = [&](ov::npuw::HFATileInputId input_id) -> std::size_t {
         auto it = tile_input_map.find(input_id);
         if (it == tile_input_map.end()) {

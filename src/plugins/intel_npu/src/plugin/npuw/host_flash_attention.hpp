@@ -48,45 +48,81 @@ enum class HFATileInputId : uint8_t {
     COUNT
 };
 
+constexpr int64_t DEFAULT_TILE_SIZE = 1024;
+
+// Helper functions to convert enum values to string representations for logging/debugging
+inline const char* sdpa_input_id_to_string(SDPAInputId id) {
+    switch (id) {
+    case SDPAInputId::PAST_KEY:
+        return "PAST_KEY";
+    case SDPAInputId::PAST_VALUE:
+        return "PAST_VALUE";
+    case SDPAInputId::QUERY:
+        return "QUERY";
+    case SDPAInputId::PRESENT_KEY:
+        return "PRESENT_KEY";
+    case SDPAInputId::ATTENTION_MASK:
+        return "ATTENTION_MASK";
+    case SDPAInputId::PRESENT_VALUE:
+        return "PRESENT_VALUE";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+inline const char* hfa_tile_input_id_to_string(HFATileInputId id) {
+    switch (id) {
+    case HFATileInputId::PAST_ACC:
+        return "PAST_ACC";
+    case HFATileInputId::PAST_MAX:
+        return "PAST_MAX";
+    case HFATileInputId::PAST_D:
+        return "PAST_D";
+    case HFATileInputId::K_TILE:
+        return "K_TILE";
+    case HFATileInputId::V_TILE:
+        return "V_TILE";
+    case HFATileInputId::Q:
+        return "Q";
+    case HFATileInputId::MASK_TILE:
+        return "MASK_TILE";
+    default:
+        return "UNKNOWN";
+    }
+}
+
 namespace function {
 
 // HostFlashAttention structure definition
 struct HostFlashAttention {
-    // Original SDPA model (for parameter extraction)
-    std::shared_ptr<ov::Model> _original_model;
-
     // Tiled model for flash attention execution (regular tiles)
     std::shared_ptr<ov::Model> _tile_model;
 
     // Final tiled model for flash attention execution (with division and transpose)
     std::shared_ptr<ov::Model> _final_tile_model;
 
-    // Attention metadata from original SDPA model (mask, past key/value inputs)
-    Attention _sdpa_attention;
-
     // Tile configuration
-    int64_t _tile_size = 1024;  // Default K/V tile size
+    int64_t _tile_size = 1024;  // K/V tile size for flash attention chunking
 
-    // Input/Output mapping for tiled execution
-    // Inputs: [past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile]
-    // Outputs: [new_acc, new_max, new_d]
-
-    // Total KV cache size for tiling
-    int64_t _kv_cache_size = 0;
+    // Query sequence length (extracted from Q shape[2])
+    // Used for selector compatibility and runtime decision-making
+    std::size_t _query_size = 0;
 
     // SDPA model parameter index mapping
-    // Maps semantic SDPA parameter IDs to actual parameter indices in the original SDPA model
+    // Maps semantic SDPA parameter IDs (QUERY, PAST_KEY, etc.) to actual parameter indices
     // This is created during pattern analysis in from() method
     std::map<SDPAInputId, std::size_t> _sdpa_param_index_map;
 
-    // HFA Tile Model parameter index mapping
-    // Maps semantic tile parameter IDs to actual parameter indices in the tile model
+    // Tile model parameter index mapping
+    // Maps tile parameter IDs (PAST_ACC, K_TILE, Q, etc.) to actual input indices
+    // Tile model I/O: Inputs[past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile]
+    //                 Outputs[acc, max, d] for regular tiles or [output] for final tile
     // This is created after tile model generation in from() method
     std::map<HFATileInputId, std::size_t> _tile_param_index_map;
 
     // Validation helpers
     bool is_valid() const {
-        return _tile_model != nullptr && _final_tile_model != nullptr && _tile_size > 0 && _kv_cache_size > 0;
+        return _tile_model != nullptr && _final_tile_model != nullptr && _tile_size > 0;
     }
 
     // Factory method
@@ -100,23 +136,17 @@ namespace compiled {
 // Simplified host flash attention parameter info
 // Contains parameter indices from the original SDPA model
 struct HostFlashAttentionInfo {
-    struct Param {
-        std::size_t idx;  // parameter index in original SDPA model
-        std::size_t dim;  // dimension index for sequence length
-    };
-    std::vector<Param> params;    // past key/value parameters from original SDPA
-    std::size_t mask_idx = 0u;    // mask parameter index in original SDPA model
-    std::size_t query_size = 0u;  // query size for selector compatibility
+    std::size_t _query_size = 0u;  // query size for selector compatibility
 
     // Mapping from SDPA parameter identifier to actual parameter index in original SDPA model
     // This allows accessing SDPA model parameters by semantic name rather than hardcoded indices
     // Populated from function::HostFlashAttention::_sdpa_param_index_map
-    std::map<SDPAInputId, std::size_t> sdpa_param_index_map;
+    std::map<SDPAInputId, std::size_t> _sdpa_param_index_map;
 
     // Mapping from HFA Tile parameter identifier to actual parameter index in tile model
     // This allows accessing tile model parameters by semantic name
     // Populated from function::HostFlashAttention::_tile_param_index_map
-    std::map<HFATileInputId, std::size_t> tile_param_index_map;
+    std::map<HFATileInputId, std::size_t> _tile_param_index_map;
 };
 
 // Compile-time host flash attention information
@@ -136,7 +166,6 @@ struct HostFlashAttention {
 
     // Tile configuration
     int64_t _tile_size = 1024;
-    int64_t _kv_cache_size = 0;
 
     HostFlashAttention() = default;
 
@@ -156,8 +185,7 @@ struct HostFlashAttention {
     }
 
     bool is_valid() const {
-        return _compiled_tile_model != nullptr && _compiled_final_tile_model != nullptr && _tile_size > 0 &&
-               _kv_cache_size > 0;
+        return _compiled_tile_model != nullptr && _compiled_final_tile_model != nullptr && _tile_size > 0;
     }
 };
 
@@ -174,42 +202,38 @@ public:
     using Ptr = std::shared_ptr<Selector>;
     virtual ~Selector() = default;
     virtual void prepare(int64_t past_len) = 0;
-    virtual int64_t length() const = 0;
-    virtual int64_t past_length() const = 0;
+    virtual int64_t context_length() const = 0;
 
     Case this_case() const {
-        return m_case;
+        return _case;
     }
 
 protected:
-    Case m_case = Case::UNKNOWN;
+    Case _case = Case::UNKNOWN;
 };
 
-// No dynamic dispatch - just use default execution
+// Selector that processes all tiles unconditionally (no dynamic range optimization)
 class All final : public Selector {
 public:
     void prepare(int64_t past_len) override {}
-    int64_t length() const override {
-        return -1;
-    }
-    int64_t past_length() const override {
+
+    int64_t context_length() const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 };
 
 // Define execution selection based on position ids
 class PositionIDs final : public Selector {
-    std::size_t m_position_ids_idx = 0u;
-    int64_t m_current_length = 0;
-    int64_t m_past_length = 0;
-    std::size_t m_query_size = 0u;
+    std::size_t _position_ids_idx = 0u;
+    int64_t _current_length = 0;
+    int64_t _past_length = 0;
+    std::size_t _query_size = 0u;
 
-    const ov::ISyncInferRequest& m_rq;
+    const ov::ISyncInferRequest& _rq;
 
     PositionIDs(std::size_t param_idx, std::size_t query_size, const ov::ISyncInferRequest& rq);
     void prepare(int64_t past_len) override;
-    int64_t length() const override;
-    int64_t past_length() const override;
+    int64_t context_length() const override;
 
 public:
     static Selector::Ptr find(std::size_t query_size, const ov::ISyncInferRequest& rq);
