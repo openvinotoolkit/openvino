@@ -18,11 +18,16 @@ public:
         eTile, eConcat, eDivide, eLast
     };
 
+    size_t _query_length = 0;
+    size_t _full_context_length = 0;
+
+
     std::vector<std::shared_ptr<ov::Model>> models;
 
 public:
-    size_t num_models() const {
-        return models.size();
+    size_t num_tiles() const {
+        // TODO: this should means total number of tile model inferences
+        return 8;
     }
     // Factory method
     static std::optional<FlashAttention> from(const std::shared_ptr<ov::Model>& model);
@@ -37,10 +42,14 @@ public:
         std::size_t idx;  // function input index for this spatial parameter
         std::size_t dim;
     };
+    size_t _query_length = 0;
+    size_t _full_context_length = 0;
+
     std::vector<ov::SoPtr<ov::ICompiledModel>> _compiled_models;
     std::vector<std::shared_ptr<ov::Model>> _models_to_compile;
     std::vector<Param> params;
     std::size_t mask_idx = 0u;
+    std::size_t _num_tiles;
 
 public:
     explicit FlashAttention(const function::FlashAttention& func_flash_attention);
@@ -53,6 +62,11 @@ public:
         // Clear temporary models storage
         _models_to_compile.clear();
         _models_to_compile.shrink_to_fit();
+    }
+
+    size_t num_tiles() const {
+        // TODO: this should means total number of tile model inferences
+        return _num_tiles;
     }
 };
 
@@ -75,8 +89,8 @@ public:
     virtual int64_t past_length() const = 0;
 
     // Getter for the selected pyramid model ID (updated by prepare())
-    std::size_t pyramid_id() const {
-        return m_pyramid_id;
+    std::size_t tile_id() const {
+        return m_tile_id;
     }
 
     Case this_case() const {
@@ -85,19 +99,19 @@ public:
 
 protected:
     Case m_case = Case::UNKNOWN;
-    std::size_t m_pyramid_id = 0;  // Selected pyramid model ID, updated by prepare()
+    std::size_t m_tile_id = 0;  // Selected last tile ID, updated by prepare()
 };
 
 // No dynamic dispatch - just run over the whole range
 class All final : public Selector {
-    std::size_t m_pyramid_count = 0;
+    std::size_t m_hfa_tile_count = 0;
 
     public:
-        explicit All(std::size_t pyramid_count) : m_pyramid_count(pyramid_count) {}
+        explicit All(std::size_t tile_count) : m_hfa_tile_count(tile_count) {}
 
         void prepare(int64_t past_len) override {
             // Always use the largest pyramid model (last one)
-            m_pyramid_id = m_pyramid_count > 0 ? m_pyramid_count - 1 : 0;
+            m_hfa_tile_count = m_hfa_tile_count > 0 ? m_hfa_tile_count - 1 : 0;
         }
         int64_t length() const override {
             return -1;
@@ -115,11 +129,11 @@ class PositionIDs final : public Selector {
     std::size_t m_query_size = 0u;
 
     // Store pyramid attention reference for pyramid model selection
-    const compiled::FlashAttention* m_pyramid_attention = nullptr;
+    const std::reference_wrapper<const compiled::FlashAttention> m_flash_attention;
 
     const ov::ISyncInferRequest& m_rq;
 
-    PositionIDs(std::size_t param_idx, const compiled::FlashAttention& d, const ov::ISyncInferRequest& rq);
+    PositionIDs(std::size_t param_idx, const compiled::FlashAttention & d, const ov::ISyncInferRequest& rq);
     void prepare(int64_t past_len) override;
     int64_t length() const override;
     int64_t past_length() const override;

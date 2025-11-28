@@ -617,7 +617,7 @@ namespace pyramid_attention {
 PositionIDs::PositionIDs(std::size_t param_idx, const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
       m_query_size(d.query_size),
-      m_pyramid_attention(&d),
+      m_pyramid_attention(&d), // TODO: es that is c-langugage error storing adress of temporal object
       m_rq(rq) {
     // FIXME: speculative decode is indistinguishable at this point!
     m_case = m_query_size == 1 ? Case::GENERATE : Case::PREFILL;

@@ -783,7 +783,7 @@ void ov::npuw::IBaseInferRequest::bind_flash_attention_inputs(std::size_t idx, R
     LOG_DEBUG("Binding Flash Attention inputs...");
     LOG_BLOCK();
 
-    const auto pyramid_id = m_flash_selector->pyramid_id();
+    const auto tile_id = m_flash_selector->tile_id();
     const auto& flash_attention = comp_model_desc.flash_attention.value();
     const auto& attention_params = flash_attention.params;
     const auto& flash_models = flash_attention._compiled_models;

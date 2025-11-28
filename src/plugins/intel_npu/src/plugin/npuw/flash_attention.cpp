@@ -136,9 +136,36 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
 
     LOG_INFO("SDPA_located for flash-attention: matmul=" << pattern_nodes.matmul1_node->get_friendly_name());
 
+     // copy from Pyramid attention
+     // Extract query_length and full_context_length from Softmax output shape
+     auto softmax_output_shape = pattern_nodes.softmax_node->get_output_shape(0);
+     size_t query_length = 0;
+     size_t past_kv_length = 0;
+     size_t full_context_length = 0;
+
+     if (softmax_output_shape.size() >= 2) {
+         full_context_length = softmax_output_shape.back();                     // Last dimension
+         query_length = softmax_output_shape[softmax_output_shape.size() - 2];  // Second-to-last dimension
+
+         LOG_DEBUG("Extracted from Softmax output shape:");
+         LOG_DEBUG("  Query length: " << query_length);
+         LOG_DEBUG("  Full context length: " << full_context_length);
+     } else {
+         LOG_WARN("Softmax output shape has insufficient dimensions: " << softmax_output_shape.size());
+         return std::nullopt;
+     }
+
+     // Early return for invalid parameters
+     if (query_length == 0 || full_context_length == 0 || full_context_length < query_length) {
+         LOG_WARN("Invalid query_length (" << query_length << ") or full_context_length (" << full_context_length
+                                           << ") for flash attention");
+         return std::nullopt;
+     }
+
+
     FlashAttention hfa;
-    // TODO: where to get that
-    //hfa.nIterations = 8;
+    hfa._full_context_length = full_context_length;
+    hfa._query_length = query_length;
 
     // // A bad test but it is what it is
     // // Find the attention inputs with dynamic range
@@ -155,9 +182,9 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
 
     // ii = self.input_tensors
     // full_k = self.make_full_k()
-    auto full_k_shape = full_k.get_shape();
+    //auto full_k_shape = full_k.get_shape();
     // full_v = self.make_full_v()
-    auto full_v_shape = full_v.get_shape();
+    //auto full_v_shape = full_v.get_shape();
     // past_a = np.zeros([1,32,1024,128], np.half)
     auto past_a_shape = pattern_nodes.matmul2_node->output(0).get_shape();
     // past_m = np.ones ([1,32,1024,1], np.half)*(np.float16(-65500.0))
@@ -165,30 +192,45 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
     past_m_shape[3] = 1;
     // past_d = np.zeros([1,32,1024,1], np.half)
     auto past_d_shape = pattern_nodes.matmul2_node->output(0).get_shape();
-    past_m_shape[3] = 1;
+    past_d_shape[3] = 1;
 
     // in_q = op.parameter(ii[Inputs.Q.value].shape, ov.Type.f16)
     auto in_q_shape = pattern_nodes.matmul1_node->input(0).get_shape();
-    // in_m = op.parameter(ii[Inputs.M.value].shape, ov.Type.f16)
-    auto in_m_shape = pattern_nodes.add_node->input(1).get_shape();
 
-    // acc, maxx, d = self.ov_hfa_tile(in_q, in_full_k, in_full_v, in_m,
-    //                                 in_past_m, in_past_d, in_past_a)
-    auto in_full_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, full_k.get_shape());
-    auto in_full_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, full_v.get_shape());
+    // TODO: find this spatial dimension idx and provide constant for tile size
+
+    // in_m = op.parameter([1,1,1024,TSZ], ov.Type.f16)
+    auto this_m_shape = pattern_nodes.add_node->input(1).get_shape();
+    this_m_shape[3] = 1024;
+    // in_k = op.parameter([1,32,TSZ,128], ov.Type.f16)
+    auto this_k_shape = full_k.get_shape();
+    this_k_shape[2] = 1024;
+    // in_v = op.parameter([1,32,128,TSZ], ov.Type.f16)
+    auto this_v_shape = full_v.get_shape();
+    this_v_shape[3] = 1024;
+
+
+
+    auto in_this_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, this_k_shape);
+    auto in_this_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, this_v_shape);
     auto in_past_m = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, past_m_shape);
     auto in_past_d = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, past_d_shape);
     auto in_past_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, past_a_shape);
 
     auto in_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, in_q_shape);
-    auto in_m = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, in_m_shape);
+    auto in_this_m = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, this_m_shape);
 
-    auto tile_result = make_hfa_tile(in_q, in_full_k, in_full_v, in_m, in_past_m, in_past_d, in_past_a);
+    LOG_INFO("HFA tile shapes:" <<
+        in_q <<  in_this_k <<  in_this_v << in_this_m << in_past_m << in_past_d << in_past_a);
+    //acc, maxx, d = self.ov_hfa_tile(in_q, in_k, in_v, in_m, in_past_m, in_past_d, in_past_a)
+
+    auto tile_result = make_hfa_tile(in_q, in_this_k, in_this_v, in_this_m, in_past_m, in_past_d, in_past_a);
     hfa.models.resize(FlashAttention::eLast);
     hfa.models[FlashAttention::eTile] = std::make_shared<ov::Model>(
         tile_result,
-        ov::ParameterVector{in_past_a, in_past_m, in_past_d, in_full_k, in_full_v, in_q, in_m},
+        ov::ParameterVector{in_past_a, in_past_m, in_past_d, in_this_k, in_this_v, in_q, in_this_m},
         "hfa_tile");
+
 
     // TODO: ES for some reason this doesnt work always - some unreferenced parameters double check
     // auto kv_cache_concat_results = ov::OutputVector{
@@ -237,7 +279,7 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
     // can be also last model - hfa_tile + transpose + divide
     hfa.models[FlashAttention::eDivide] = std::make_shared<ov::Model>(
         ov::ResultVector{result1},
-        ov::ParameterVector{in_past_a, in_past_m, in_past_d, in_full_k, in_full_v, in_q, in_m},
+        ov::ParameterVector{in_past_a, in_past_m, in_past_d, in_this_k, in_this_v, in_q, in_this_m},
         "hfa_final_tile");
 
     return std::move(hfa);
@@ -247,7 +289,10 @@ std::optional<FlashAttention> FlashAttention::from(const std::shared_ptr<ov::Mod
 
 namespace ov::npuw::compiled {
 FlashAttention:: FlashAttention(const function::FlashAttention& func_flash_attention)
-: _models_to_compile(func_flash_attention.models) {
+    : _models_to_compile(func_flash_attention.models)
+    , _query_length(func_flash_attention._query_length)
+    , _full_context_length(func_flash_attention._full_context_length)
+    , _num_tiles(func_flash_attention.num_tiles()) {
     LOG_INFO("Constructing compiled::FlashAttention ");
 
     // fixed params for attention
@@ -267,3 +312,84 @@ FlashAttention:: FlashAttention(const function::FlashAttention& func_flash_atten
     //     }
 }
 }   // namespace ov::npuw::compiled
+
+
+namespace ov::npuw::runtime::flash_attention {
+
+PositionIDs::PositionIDs(std::size_t param_idx,
+    const ov::npuw::compiled::FlashAttention& d,
+    const ov::ISyncInferRequest& rq)
+      : m_position_ids_idx(param_idx),
+        m_flash_attention(d),
+        m_rq(rq) {
+    // FIXME: speculative decode is indistinguishable at this point!
+    m_case = m_flash_attention.get()._query_length == 1 ? Case::GENERATE : Case::PREFILL;
+}
+
+void PositionIDs::prepare(int64_t past_len) {
+    const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
+    const auto in_tensor = m_rq.get_tensor(iport);
+    const auto in_dims = in_tensor->get_shape();
+    const auto pos_ids_len = static_cast<int64_t>(in_dims.back());
+
+    // There's several cases possible:
+    // a. Prefill input_ids, including chunk
+    // b. Generate input_ids, 1
+    // c. Generate input_ids, N (speculative)
+    // Prefill (even chunked) is left-padded, so for (a) it's enough to take the last element.
+    // Same works for b (there's no choice).
+    // c may require traversing the tensor backwards as Generate with N>1 is right_padded (?)
+
+    auto* pos_data_ptr = in_tensor->data<int64_t>();
+    for (auto idx = pos_ids_len - 1; idx >= 0; idx--) {
+        if (pos_data_ptr[idx] > 0) {
+            // Initialize fields
+            m_current_length = pos_data_ptr[idx];
+            switch (m_case) {
+                case Case::GENERATE:
+                    // decode case, we have pos_id-1 past elements to take from kvcache
+                    m_past_length = m_current_length;
+                    break;
+                case Case::PREFILL: {
+                    // chunked prefill case. calculate the past_length in full chunks
+                    // FIXME: We know too much about chunking here
+                    auto query_size = m_flash_attention.get()._query_length;
+                    m_past_length = ((past_len + query_size - 1) / query_size) * query_size;
+                    break;
+                }
+                default:
+                    NPUW_ASSERT(false && "Reached the unreachable code");
+            }
+            return;
+        }
+    }
+    LOG_WARN("Dynamic selector - no data found in the feature?");
+    m_current_length = -1;
+}
+Selector::Ptr PositionIDs::find(const compiled::FlashAttention& flash, const ov::ISyncInferRequest& rq) {
+    auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
+        const auto& shape = p.get_shape();
+        // FIXME: 2D/3D position IDs are not supported here YET
+        return p.get_node()->get_friendly_name() == "position_ids" &&
+               (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1));
+    };
+
+    const auto& inputs = rq.get_inputs();
+    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), is_position_ids);
+    if (pos_ids_iter != inputs.end()) {
+        const auto param_idx = std::distance(inputs.begin(), pos_ids_iter);
+        return Selector::Ptr{new PositionIDs(param_idx, flash, rq)};
+    }
+    return Selector::Ptr{};
+}
+
+int64_t PositionIDs::length() const {
+    return m_current_length;
+}
+
+int64_t PositionIDs::past_length() const {
+    return m_past_length;
+}
+
+
+}  // namespace ov::npuw::runtime::flash_attention

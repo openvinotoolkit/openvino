@@ -449,6 +449,22 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     if (has_flash) {
         // TODO: es runtime features??? not sure we need it here at all while we need to recreate inferrequests
         m_flash_selector.reset(new runtime::flash_attention::All(3));
+
+        const auto& flash_dyn = m_npuw_model->m_compiled_submodels.at(flash_sub_idx).flash_attention.value();
+
+        const auto tile_count = flash_dyn.num_tiles();
+        if (!m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_DYN>()) {
+            // Even if the attention is detected and ready to go pyramid,
+            // force it on the full range
+            m_flash_selector.reset(new runtime::flash_attention::All(tile_count));
+        } else {
+            m_flash_selector = runtime::flash_attention::PositionIDs::find(flash_dyn, *this);
+            if (!m_flash_selector) {
+                LOG_WARN("Flash-attention dynamic capability is enabled, but no run-time features were found.");
+                // Create All selector with the number of pyramid models
+                m_flash_selector.reset(new runtime::flash_attention::All(tile_count));
+            }
+        }
     }
 }
 
@@ -1503,9 +1519,8 @@ void ov::npuw::JustInferRequest::unsafe_infer_flash_attention(std::size_t real_i
     LOG_DEBUG("tensor for port: " << r_concat->get_outputs()[1].get_shape());
     auto full_v = r_concat->get_tensor(r_concat->get_outputs()[1]);
 
-    const auto& iport = comp_model_desc.compiled_model->inputs()[0];
-
-    LOG_DEBUG("tensor for port: " << iport.get_shape());
+    // const auto& iport = comp_model_desc.compiled_model->inputs()[0];
+    // LOG_DEBUG("tensor for port: " << iport.get_shape());
 
     for (auto && main_input : r->get_inputs()) {
         LOG_DEBUG("main inputs for external request: " << main_input.get_shape());
@@ -1515,6 +1530,8 @@ void ov::npuw::JustInferRequest::unsafe_infer_flash_attention(std::size_t real_i
         LOG_DEBUG("main inputs for compiled model: " << main_input.get_shape());
     }
 
+
+
     auto m_input = comp_model_desc.compiled_model->inputs()[4];
     // TODO: where to get m_tensors ?
     // we dont have infer-request that might satisfy - so have to pick from attention_io i guess
@@ -1522,7 +1539,21 @@ void ov::npuw::JustInferRequest::unsafe_infer_flash_attention(std::size_t real_i
     auto r_tile = comp_model_desc.flash_infer_requests[FA::eTile];
     auto r_last_tile = comp_model_desc.flash_infer_requests[FA::eDivide];
 
-    auto tile_inputs = r->get_inputs();
+    auto tile_inputs = r_tile->get_inputs();
+    auto last_tile_inputs = r_last_tile->get_inputs();
+
+
+    for (auto && main_input : r_concat->get_inputs()) {
+        LOG_DEBUG("concat input: " << main_input.get_shape());
+    }
+
+    for (auto && main_input : r_tile->get_inputs()) {
+        LOG_DEBUG("tile input: " << main_input.get_shape());
+    }
+
+    for (auto && main_input : r_tile->get_inputs()) {
+        LOG_DEBUG("last-tile input: " << main_input.get_shape());
+    }
 
     // TODO: need to follow spatial case colution with dim-index selection per parameter
     auto k_tensor_spatial_dim = 2;
@@ -1532,25 +1563,41 @@ void ov::npuw::JustInferRequest::unsafe_infer_flash_attention(std::size_t real_i
     //v [ NPUW: DBG ]                 tensor for port: [1,32,128,8192]
     //m [ NPUW: DBG ]                 main inputs for compiled model: [1,1,1024,8192]
 
+// [ NPUW: DBG ]                 concat input: [1,8,1024,128]
+// [ NPUW: DBG ]                 concat input: [1,8,7168,128]
+// [ NPUW: DBG ]                 concat input: [1,8,128,1024]
+// [ NPUW: DBG ]                 concat input: [1,8,128,7168]
+// [ NPUW: DBG ]                 tile input: [1,32,1024,128]
+// [ NPUW: DBG ]                 tile input: [1,32,1024,1]
+// [ NPUW: DBG ]                 tile input: [1,32,1024,128]
+// [ NPUW: DBG ]                 tile input: [1,32,8192,128]  - k(2)
+// [ NPUW: DBG ]                 tile input: [1,32,128,8192]  - v(3)
+// [ NPUW: DBG ]                 tile input: [1,32,1024,128]
+// [ NPUW: DBG ]                 tile input: [1,1,1024,8192]  - m(3)
 
     // TODO: how to specify that
     const size_t TSZ = 1024;
     for (size_t offset = 0; offset != 8192; offset += TSZ) {
+        auto last_tile = (offset + TSZ == 8192);
         // this_k = np.copy(full_k[:, :, offset:offset+TSZ, :])
         // this_v = np.copy(full_v[:, :, :, offset:offset+TSZ])
         // this_m = np.copy(full_m[:, :, :, offset:offset+TSZ])
 
-        ov::SoPtr<ov::IAsyncInferRequest> r_current_tile = (offset + TSZ == 8192) ? r_last_tile : r_tile;
+        ov::SoPtr<ov::IAsyncInferRequest> r_current_tile = last_tile ? r_last_tile : r_tile;
+        auto current_inputs = last_tile ?  last_tile_inputs : tile_inputs;
 
         const auto& this_k = ov::npuw::util::view(full_k, k_tensor_spatial_dim, offset, TSZ);
-        this_k->copy_to(r_current_tile->get_tensor(tile_inputs[3])._ptr);
+        LOG_DEBUG("copy this_k at offset=" << offset);
+        this_k->copy_to(r_current_tile->get_tensor(current_inputs[3])._ptr);
 
         const auto& this_v = ov::npuw::util::view(full_v, v_tensor_spatial_dim, offset, TSZ);
-        this_v->copy_to(r_current_tile->get_tensor(tile_inputs[4])._ptr);
+        LOG_DEBUG("copy this_v at offset=" << offset);
+        this_v->copy_to(r_current_tile->get_tensor(current_inputs[4])._ptr);
 
         // TODO: incomplete
         //        const auto& this_m = ov::npuw::util::view(full_m, m_tensor_spatial_dim, offset, TSZ);
         // TODO: need to bind past_a, past_m, past_d
+        LOG_DEBUG("running "<< (last_tile ? "last_tile" : "tile") <<" inference at offset=" << offset);
         r_current_tile->infer();
     }
 
