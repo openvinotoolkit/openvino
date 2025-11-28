@@ -356,7 +356,12 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
             // In cldnn::layer, when it is a 3D shape, the values ​​of the XY axes can sometimes be flipped,
             // so the larger value of the two is used.
             dims.push_back(std::max(l.spatial(0), l.spatial(1)));
-            target_fmt = dnnl::memory::format_tag::abc;
+            if (l.get_format() == format::bfyx)
+                target_fmt = dnnl::memory::format_tag::abc;
+            else if (l.get_format() == format::byxf)
+                target_fmt = dnnl::memory::format_tag::acb;
+            else
+                OPENVINO_THROW("[GPU] Unexpected layout format " + l.to_short_string());
         } else {
             auto rank = cldnn::format::dimension(l.format);
             dims = convert_tensor(l.get_tensor(), rank, cldnn::format::is_grouped(l.format));
