@@ -7,7 +7,6 @@ function to create CMake target and setup its options in a declarative style.
 Example:
 ov_add_target(
    NAME core_lib
-   ADD_CPPLINT
    ADD_CLANG_FORMAT
    TYPE <SHARED / STATIC / EXECUTABLE>
    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -35,7 +34,6 @@ ov_add_target(
 #]]
 function(ov_add_target)
     set(options
-        ADD_CPPLINT                   # Enables code style checks for the target
         ADD_CLANG_FORMAT              # Enables code style checks for the target
         )
     set(oneValueRequiredArgs
@@ -115,10 +113,6 @@ function(ov_add_target)
         get_target_property(oldLinkFlags ${ARG_NAME} LINK_FLAGS)
         string(REPLACE ";" " " ARG_LINK_FLAGS "${ARG_LINK_FLAGS}")
         set_target_properties(${ARG_NAME} PROPERTIES LINK_FLAGS "${oldLinkFlags} ${ARG_LINK_FLAGS}")
-    endif()
-    if (ARG_ADD_CPPLINT)
-        # code style
-        add_cpplint_target(${ARG_NAME}_cpplint FOR_TARGETS ${ARG_NAME})
     endif()
     if (ARG_ADD_CLANG_FORMAT)
         # code style

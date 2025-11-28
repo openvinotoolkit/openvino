@@ -85,11 +85,13 @@ public:
                     const std::vector<std::string>& names,
                     const void* data,
                     const size_t data_size,
+                    const ov::Any& data_any,
                     std::shared_ptr<std::string> data_location,
                     const bool is_raw)
         : ov::frontend::onnx::TensorPlace(input_model, pshape, type, names),
           m_input_model(input_model),
           m_data(data),
+          m_data_any(data_any),
           m_data_size(data_size),
           m_data_location(data_location),
           m_is_raw(is_raw) {};
@@ -125,6 +127,10 @@ public:
         return m_data_size;
     }
 
+    const ov::Any get_data_any() const {
+        return m_data_any;
+    }
+
     std::shared_ptr<std::string> get_data_location() const {
         return m_data_location;
     }
@@ -140,6 +146,7 @@ protected:
     int64_t m_input_idx = -1, m_output_idx = -1;
     const ov::frontend::InputModel& m_input_model;
     const void* m_data;
+    ov::Any m_data_any;
     size_t m_data_size;
     std::shared_ptr<std::string> m_data_location;
     bool m_is_raw;
@@ -178,7 +185,7 @@ public:
           m_shape{std::begin(tensor.dims()), std::end(tensor.dims())},
           m_model_dir{model_dir},
           m_mmap_cache{mmap_cache} {
-        if (m_shape == ov::Shape{0}) {
+        if (m_shape == ov::Shape{0} && get_data_size() == 1) {
             // It's possible to construct a tensor in ONNX with "dims: 0" property
             // Such tensor contains a scalar. This results in a ov::Shape{0} stored in m_shape.
             // In OpenVINO a scalar is represented with ov::Shape{} and thus this replacement.
@@ -333,12 +340,14 @@ private:
             return m_tensor_proto->int32_data().data();
         case TensorProto_DataType::TensorProto_DataType_INT64:
             return m_tensor_proto->int64_data().data();
+        case TensorProto_DataType::TensorProto_DataType_UINT32:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT64:
             return m_tensor_proto->uint64_data().data();
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
             return m_tensor_proto->double_data().data();
         }
-        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT64, DOUBLE");
+        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT32, UINT64, DOUBLE");
     }
 
     size_t get_data_size() const {
@@ -360,10 +369,10 @@ private:
         switch (m_tensor_proto->data_type()) {
         case TensorProto_DataType::TensorProto_DataType_FLOAT:
             return m_tensor_proto->float_data_size();
-        case TensorProto_DataType::TensorProto_DataType_INT32:
-            return m_tensor_proto->int32_data_size();
         case TensorProto_DataType::TensorProto_DataType_INT64:
             return m_tensor_proto->int64_data_size();
+        case TensorProto_DataType::TensorProto_DataType_UINT32:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT64:
             return m_tensor_proto->uint64_data_size();
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
@@ -371,22 +380,36 @@ private:
         case TensorProto_DataType::TensorProto_DataType_STRING:
             return m_tensor_proto->string_data_size();
         case TensorProto_DataType::TensorProto_DataType_INT4:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_INT8:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_INT16:
+            [[fallthrough]];
+        case TensorProto_DataType::TensorProto_DataType_INT32:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT4:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT8:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT16:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_BOOL:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_FLOAT16:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
             return m_tensor_proto->int32_data_size();
+        default: {
+            ONNX_INVALID_DATA_TYPE(
+                m_tensor_proto->data_type(),
+                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
+                "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
-        ONNX_INVALID_DATA_TYPE(
-            m_tensor_proto->data_type(),
-            "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
-            "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
+        }
     }
 
     const TensorProto* m_tensor_proto;

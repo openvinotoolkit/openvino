@@ -328,7 +328,8 @@ public:
         auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({range, opp::any_input()});
         auto unsqueeze2 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze1, opp::any_input()});
         auto unsqueeze3 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze2, opp::any_input()});
-        auto lessequal = opp::wrap_type<ov::op::v1::LessEqual>({unsqueeze3, opp::any_input()});
+        auto opt_convert = opp::optional<ov::op::v0::Convert>({unsqueeze3->output(0)});
+        auto lessequal = opp::wrap_type<ov::op::v1::LessEqual>({opt_convert, opp::any_input()});
 
         register_matcher(
             std::make_shared<opp::Matcher>(lessequal, this->get_type_info().name),
@@ -393,20 +394,26 @@ public:
         attention_mask->get_output_tensor(0).set_names({"attention_mask"});
         model->add_parameters({attention_mask});
 
-        auto slice = self_attn_nodes[0]->input(kAttnMaskPort).get_source_output().get_node();
-        auto cvt = std::make_shared<ov::op::v0::Convert>(attention_mask->output(0), ov::element::f32);
-        auto add = std::make_shared<ov::op::v1::Add>(slice->output(0), cvt->output(0));
-
-        auto trps = std::make_shared<ov::op::v1::Transpose>(
-            cvt->output(0),
-            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int>{1, 0}));
-        auto mtpl = std::make_shared<ov::op::v1::Multiply>(trps->output(0), add->output(0));
-
         auto cst_ninf = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
                                                                ov::Shape{1},
                                                                std::vector<float>{-std::numeric_limits<float>::max()});
         auto cst_1 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{1});
         auto cst_0 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0});
+
+        auto slice = self_attn_nodes[0]->input(kAttnMaskPort).get_source_output().get_node_shared_ptr();
+        std::shared_ptr<ov::Node> slice_f32;
+        if (slice->get_element_type() == ov::element::boolean) {
+            slice_f32 = std::make_shared<ov::op::v1::Select>(slice->output(0), cst_0->output(0), cst_ninf->output(0));
+        } else {
+            slice_f32 = slice;
+        }
+        auto cvt = std::make_shared<ov::op::v0::Convert>(attention_mask->output(0), ov::element::f32);
+        auto add = std::make_shared<ov::op::v1::Add>(slice_f32->output(0), cvt->output(0));
+
+        auto trps = std::make_shared<ov::op::v1::Transpose>(
+            cvt->output(0),
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int>{1, 0}));
+        auto mtpl = std::make_shared<ov::op::v1::Multiply>(trps->output(0), add->output(0));
 
         auto equal = std::make_shared<ov::op::v1::Equal>(mtpl->output(0), cst_1->output(0));
         auto select = std::make_shared<ov::op::v1::Select>(equal->output(0), cst_0->output(0), cst_ninf->output(0));
@@ -450,11 +457,54 @@ public:
         }
     }
 };
+
+class CachePositionInput : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::CachePositionInput");
+
+    CachePositionInput(std::shared_ptr<ov::Model> model) {
+        auto gather = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
+        auto add = opp::wrap_type<ov::op::v1::Add>({gather, opp::any_input()});
+        auto range = opp::wrap_type<ov::op::v4::Range>({gather, add, opp::any_input()});
+        auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({range, opp::any_input()});
+        auto tile = opp::wrap_type<ov::op::v0::Tile>({unsqueeze, opp::any_input()});
+
+        register_matcher(
+            std::make_shared<opp::Matcher>(tile, this->get_type_info().name),
+            [model, unsqueeze](opp::Matcher& m) {
+                auto& node_to_output = m.get_pattern_value_map();
+                auto unsqueeze_node = node_to_output.at(unsqueeze).get_node_shared_ptr();
+                auto matched_unsqueeze = std::static_pointer_cast<ov::op::v0::Unsqueeze>(unsqueeze_node);
+
+                auto cache_position = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+                cache_position->get_output_tensor(0).set_names({"cache_position"});
+                cache_position->set_friendly_name("cache_position");
+                model->add_parameters({cache_position});
+                std::shared_ptr<ov::Node> cache_pos_unsqueeze_arg;
+                if (matched_unsqueeze->input(0).get_element_type() == ov::element::f32) {
+                    cache_pos_unsqueeze_arg = std::make_shared<ov::op::v0::Convert>(cache_position, ov::element::f32);
+                } else {
+                    cache_pos_unsqueeze_arg = cache_position;
+                }
+
+                matched_unsqueeze->input(0).replace_source_output(cache_pos_unsqueeze_arg->output(0));
+                return false;
+            });
+    }
+};
 }  // namespace
 
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
+
+bool ov::npuw::util::has_input(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    auto inputs = model->inputs();
+    auto it = std::find_if(inputs.begin(), inputs.end(), [&](const auto& port) {
+        return port.get_names().count(name) != 0;
+    });
+    return it != inputs.end();
+}
 
 bool ov::npuw::util::optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
     ov::pass::GraphRewrite rewr;
@@ -705,6 +755,14 @@ void add_attention_mask_input(std::shared_ptr<ov::Model> model,
 
     ov::pass::Validate().run_on_model(model);
 }
+
+void add_cache_position_input(std::shared_ptr<ov::Model> model) {
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<CachePositionInput>(model);
+    rewr.run_on_model(model);
+
+    ov::pass::Validate().run_on_model(model);
+}
 }  // namespace
 
 std::shared_ptr<ov::Model> ov::npuw::util::prepare_whisper_prefill_model(std::shared_ptr<ov::Model>& model,
@@ -714,8 +772,10 @@ std::shared_ptr<ov::Model> ov::npuw::util::prepare_whisper_prefill_model(std::sh
     // remove_input_kv_tensors(model); -> Done for LLM also
     // 3) Expose all states that requires initialization on the first run as outputs
     expose_runtime_states_as_outputs(model);
-    // 4) Remove cache_position input
-    remove_cache_position(model);
+    // 4) Remove cache_position input if it exists
+    if (has_input(model, "cache_position")) {
+        remove_cache_position(model);
+    }
     // 5) Normalize output names - should be done in stateful_to_stateless_transformation
     normalize_output_key_value_names(model);
 
@@ -730,6 +790,10 @@ std::shared_ptr<ov::Model> ov::npuw::util::prepare_whisper_kvcache_model(std::sh
     normalize_input_key_value_names(model);
     normalize_output_key_value_names(model);
     expose_runtime_states_as_inputs(model);
+
+    if (!has_input(model, "cache_position")) {
+        add_cache_position_input(model);
+    }
 
     add_attention_mask_input(model);
 

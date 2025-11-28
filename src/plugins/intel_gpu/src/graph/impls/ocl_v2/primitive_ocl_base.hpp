@@ -244,6 +244,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         if (kd.need_args_update) {
             auto args = get_arguments(instance);
             args.scalars = &params.scalars;
+            args.local_memory_args = &params.local_memory_args;
 
             GPU_DEBUG_TRACE_DETAIL << "\nExecute stage = " << stage.kernel->get_id() << '\n';
             GPU_DEBUG_TRACE_DETAIL << "Configured kernel arguments:" << params.arguments.size() << '\n';
@@ -251,13 +252,9 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
                 GPU_DEBUG_TRACE_DETAIL << "\t" << i << ": type = " << static_cast<size_t>(params.arguments[i].t) << ", index = " << params.arguments[i].index
                                        << '\n';
             }
-            GPU_DEBUG_TRACE_DETAIL << "Memory buffers:"
-                                   << "shape_info=" << args.shape_info << " "
-                                   << "inputs=" << args.inputs.size() << " "
-                                   << "outputs=" << args.outputs.size() << " "
-                                   << "intermediates=" << args.intermediates.size() << " "
-                                   << "weights=" << args.weights << " "
-                                   << "scalars=" << (args.scalars ? args.scalars->size() : 0) << "\n";
+            GPU_DEBUG_TRACE_DETAIL << "Memory buffers:" << "shape_info=" << args.shape_info << " " << "inputs=" << args.inputs.size() << " "
+                                   << "outputs=" << args.outputs.size() << " " << "intermediates=" << args.intermediates.size() << " "
+                                   << "weights=" << args.weights << " " << "scalars=" << (args.scalars ? args.scalars->size() : 0) << "\n";
             stream.set_arguments(*stage.kernel, params, args);
             kd.need_args_update = false;
         }

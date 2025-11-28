@@ -14,6 +14,7 @@
 #include <random>
 
 #include "common.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "pyopenvino/core/remote_context.hpp"
 #include "pyopenvino/graph/op_extension.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -156,7 +157,7 @@ void regclass_Core(py::module m) {
            const std::string& device_name,
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             return self.compile_model(model, device_name, _properties);
         },
         py::arg("model"),
@@ -185,7 +186,7 @@ void regclass_Core(py::module m) {
            const std::shared_ptr<const ov::Model>& model,
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             return self.compile_model(model, _properties);
         },
         py::arg("model"),
@@ -213,7 +214,7 @@ void regclass_Core(py::module m) {
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
             std::string path = Common::utils::convert_path_to_string(model_path);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             return self.compile_model(path, device_name, _properties);
         },
         py::arg("model_path"),
@@ -258,7 +259,7 @@ void regclass_Core(py::module m) {
                 tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size});
             }
             auto _properties = Common::utils::properties_to_any_map(properties);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             return self.compile_model(model.cast<std::string>(), tensor, device_name, _properties);
         },
         py::arg("model_buffer"),
@@ -289,7 +290,7 @@ void regclass_Core(py::module m) {
         [](ov::Core& self, const py::object& model_path, const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
             std::string path = Common::utils::convert_path_to_string(model_path);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             return self.compile_model(path, _properties);
         },
         py::arg("model_path"),
@@ -316,7 +317,7 @@ void regclass_Core(py::module m) {
            const RemoteContextWrapper& context,
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             return self.compile_model(model, context.context, _properties);
         },
         py::arg("model"),
@@ -397,7 +398,7 @@ void regclass_Core(py::module m) {
                 const uint8_t* bin = reinterpret_cast<const uint8_t*>(info.ptr);
                 std::memcpy(tensor.data(), bin, bin_size);
             }
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             return self.read_model(ir, tensor);
         },
         py::arg("model"),
@@ -422,7 +423,7 @@ void regclass_Core(py::module m) {
            const std::string& weight_path,
            const std::map<std::string, py::object>& config) {
             const auto any_map = Common::utils::properties_to_any_map(config);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             return self.read_model(model_path, weight_path, any_map);
         },
         py::arg("model"),
@@ -452,7 +453,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "read_model",
         (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const ov::Tensor&) const) & ov::Core::read_model,
-        CallGuardConditionalGILRelease(),
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("weights"),
         R"(
@@ -491,7 +492,7 @@ void regclass_Core(py::module m) {
                     const uint8_t* bin = reinterpret_cast<const uint8_t*>(info.ptr);
                     std::memcpy(tensor.data(), bin, bin_size);
                 }
-                ConditionalGILScopedRelease release;
+                py::gil_scoped_release release;
                 return self.read_model(std::string(static_cast<char*>(buffer_info.ptr), buffer_info.size), tensor);
             } else if (py::isinstance(model_path, py::module_::import("pathlib").attr("Path")) ||
                        py::isinstance<py::str>(model_path)) {
@@ -501,7 +502,7 @@ void regclass_Core(py::module m) {
                     weights_path_cpp = py::str(weights_path);
                 }
                 const auto any_map = Common::utils::properties_to_any_map(config);
-                ConditionalGILScopedRelease release;
+                py::gil_scoped_release release;
                 return self.read_model(model_path_cpp, weights_path_cpp, any_map);
             }
 
@@ -535,6 +536,35 @@ void regclass_Core(py::module m) {
     cls.def(
         "import_model",
         [](ov::Core& self,
+           const ov::Tensor& exported_blob,
+           const std::string& device_name,
+           const std::map<std::string, py::object>& properties) {
+            const auto _properties = Common::utils::properties_to_any_map(properties);
+            py::gil_scoped_release release;
+            return self.import_model(exported_blob, device_name, _properties);
+        },
+        py::arg("tensor"),
+        py::arg("device_name"),
+        py::arg("properties"),
+        R"(
+            Imports a compiled model from a previously exported one.
+
+            GIL is released while running this function.
+
+            :param compiled_blob: ov::Tensor input blob containing a model previously exported using the ov::CompiledModel::export_model method.
+            :type compiled_blob: openvino.Tensor
+            :param device_name: Name of device to which compiled model is imported.
+                                Note: if device_name is not used to compile the original model, an exception is thrown.
+            :type device_name: str
+            :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
+            :type properties: dict[str, typing.Any], optional
+            :return: A compiled model.
+            :rtype: openvino.CompiledModel
+        )");
+
+    cls.def(
+        "import_model",
+        [](ov::Core& self,
            const py::object& model_stream,
            const std::string& device_name,
            const std::map<std::string, py::object>& properties) {
@@ -554,10 +584,10 @@ void regclass_Core(py::module m) {
                 info = py::buffer(model_stream).request();
             }
 
-            Common::utils::MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
-            std::istream stream(&mb);
+            ov::SharedStreamBuffer mb{info.ptr, static_cast<size_t>(info.size)};
+            std::istream stream{&mb};
 
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             return self.import_model(stream, device_name, _properties);
         },
         py::arg("model_stream"),
@@ -671,7 +701,7 @@ void regclass_Core(py::module m) {
            const std::string& device_name,
            const std::map<std::string, py::object>& properties) -> std::map<std::string, std::string> {
             auto _properties = Common::utils::properties_to_any_map(properties);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             return self.query_model(model, device_name, _properties);
         },
         py::arg("model"),
@@ -738,7 +768,7 @@ void regclass_Core(py::module m) {
 
     cls.def("get_available_devices",
             &ov::Core::get_available_devices,
-            CallGuardConditionalGILRelease(),
+            py::call_guard<py::gil_scoped_release>(),
             R"(
                 Returns devices available for inference Core objects goes over all registered plugins.
 
@@ -753,7 +783,7 @@ void regclass_Core(py::module m) {
 
     cls.def_property_readonly("available_devices",
                               &ov::Core::get_available_devices,
-                              CallGuardConditionalGILRelease(),
+                              py::call_guard<py::gil_scoped_release>(),
                               R"(
                                     Returns devices available for inference Core objects goes over all registered plugins.
 
