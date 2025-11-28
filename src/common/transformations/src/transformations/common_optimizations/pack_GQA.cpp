@@ -16,8 +16,10 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -94,6 +96,8 @@ bool PackGQA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<ov::pass::Serialize>("PackGQA_before.xml", "PackGQA_before.bin");
     manager.register_pass<ov::pass::MergeTwoUnrolledSDPAAdd>(); 
     manager.register_pass<ov::pass::Serialize>("PackGQA_sdpa_fused.xml", "PackGQA_sdpa_fused.bin");
+    manager.register_pass<ov::pass::MergeKVCaches>();
+    manager.register_pass<ov::pass::Serialize>("PackGQA_MergeKVCaches.xml", "PackGQA_MergeKVCaches.bin");
     manager.register_pass<ov::pass::MergeTwoUnrolledRoPEConcat>();
     manager.register_pass<ov::pass::Serialize>("PackGQA_after.xml", "PackGQA_after.bin");
     manager.register_pass<ov::pass::ConcatFusion>();
@@ -287,6 +291,7 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         std::shared_ptr<Node> scale;
         std::shared_ptr<Node> mul_l;
         std::shared_ptr<Node> mul_r;
+        std::shared_ptr<Node> add;
         std::shared_ptr<Node> output;
     };
     
@@ -302,7 +307,10 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         auto concat = wrap_type<v0::Concat>({nodes.scale, var_split->output(0)});
         nodes.mul_l= wrap_type<v1::Multiply>({concat, any_input()});
         nodes.mul_r = wrap_type<v1::Multiply>({nodes.input, any_input()});
-        nodes.output = wrap_type<v1::Add>({nodes.mul_r, nodes.mul_l});  // todo: use mul_2 as 2nd input
+        nodes.add = wrap_type<v1::Add>({nodes.mul_r, nodes.mul_l});  // todo: use mul_2 as 2nd input
+        auto reshape = wrap_type<v1::Reshape>({nodes.add, any_input()});
+        nodes.output = std::make_shared<pattern::op::Or>(OutputVector{reshape, nodes.add});
+
         return nodes;
     };
     
@@ -321,8 +329,8 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         if (!concat_node)
             return false;
         
-        auto add_lhs = as_type_ptr<v1::Add>(pm[rope_lhs.output].get_node_shared_ptr());
-        auto add_rhs = as_type_ptr<v1::Add>(pm[rope_rhs.output].get_node_shared_ptr());
+        auto add_lhs = as_type_ptr<v1::Add>(pm[rope_lhs.add].get_node_shared_ptr());
+        auto add_rhs = as_type_ptr<v1::Add>(pm[rope_rhs.add].get_node_shared_ptr());
         if (!add_lhs || !add_rhs)
             return false;
             
@@ -370,7 +378,76 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         auto mul_down_r_fused = mul_down_2_lhs->copy_with_new_inputs({mul_down_2_lhs->input_value(0), mul_down_input_r_fused});
         replace_node(mul_down_2_lhs, mul_down_r_fused);
         
-        replace_node(concat_node, add_lhs);
+        auto output_node = pm[rope_lhs.output].get_node_shared_ptr();
+        replace_node(concat_node, output_node);
+        
+        return true;
+    });
+}
+
+MergeKVCaches::MergeKVCaches() {
+    MATCHER_SCOPE(MergeKVCaches);
+    
+    // Helper to create cache pattern
+    auto create_cache_pattern = [&]() {
+        auto cache_input = any_input();
+        auto input = any_input();
+        auto concat = wrap_type<v0::Concat>({cache_input, input});
+        return concat;
+    };
+    
+    auto cache_lhs = create_cache_pattern();
+    auto cache_rhs = create_cache_pattern();
+    
+    auto slice_lhs = wrap_type<v1::StridedSlice>({cache_lhs, any_input(), any_input(), any_input()});
+    auto slice_rhs = wrap_type<v1::StridedSlice>({cache_rhs, any_input(), any_input(), any_input()});
+    
+    auto concat = wrap_type<v0::Concat>({cache_lhs, cache_rhs});
+
+    auto m = std::make_shared<pattern::Matcher>(concat, "MergeKVCaches");
+    register_matcher(m, [=](pattern::Matcher& matcher) {
+        std::cout << "MergeKVCaches transformation is started." << std::endl;
+        
+        auto pm = matcher.get_pattern_value_map();
+        
+        auto concat_node = std::dynamic_pointer_cast<v0::Concat>(matcher.get_match_root());
+        if (!concat_node)
+            return false;
+        
+        auto concat_cache_lhs = as_type_ptr<v0::Concat>(pm[cache_lhs].get_node_shared_ptr());
+        auto concat_cache_rhs = as_type_ptr<v0::Concat>(pm[cache_rhs].get_node_shared_ptr());
+        if (!concat_cache_lhs || !concat_cache_rhs)
+            return false;
+          
+        // Concatenate along head axis (1)
+        std::cout << "Concatenating Input tensors" << std::endl;
+        int64_t head_axis = 1;
+        int64_t rank = 4;  // Assuming 4D tensors [batch, heads, seq_len, dim]
+           
+        auto concat_merged_input1 = concat_any(OutputVector{concat_cache_lhs->input_value(0), concat_cache_rhs->input_value(0)}, head_axis, rank);
+        auto concat_merged_input2 = concat_any(OutputVector{concat_cache_lhs->input_value(1), concat_cache_rhs->input_value(1)}, head_axis, rank);
+        auto concat_merged = concat_cache_lhs->copy_with_new_inputs({concat_merged_input1, concat_merged_input2});
+                
+        // spliting cache output
+        int64_t len_lhs = concat_node->input_value(0).get_shape()[head_axis];
+        int64_t len_rhs = concat_node->input_value(1).get_shape()[head_axis];
+        auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, std::vector<int64_t>({head_axis}));
+        auto sizes = ov::op::v0::Constant::create(element::i64, Shape{2}, {len_lhs, len_rhs});
+        auto split_out = std::make_shared<v1::VariadicSplit>(concat_merged, axis, sizes);
+        
+        replace_node(concat_node, concat_merged);
+            
+        // replace concat consumers
+        auto replace_consumers = [&split_out](const std::shared_ptr<Node>& node, size_t output_idx) {
+            for(auto& target_input : node->get_output_target_inputs(0)) {
+            std::cout << "Replacing consumer of " << node->get_friendly_name() << ": " << target_input.get_node()->get_friendly_name() << std::endl;
+            target_input.replace_source_output(split_out->output(output_idx));
+            }
+        };
+        
+        replace_consumers(concat_cache_lhs, 0);
+        replace_consumers(concat_cache_rhs, 1);
+
         return true;
     });
 }
