@@ -71,6 +71,7 @@ CPU Device Plugin
   has been enhanced by improving utilization of the underlying AMX FP16 capabilities and graph-level optimizations.
 * Inference support for AI workloads is now available on Intel® Xeon® 6 processors with E-cores 
   for Windows 11 and Windows Server.
+* Starting with OpenVINO release 2026.0, the CPU plugin will require support for the AVX2 instruction set as a minimum system requirement. The SSE instruction set will no longer be supported. 
 
 
 GPU Device Plugin
@@ -89,7 +90,7 @@ GPU Device Plugin
 * 4.2 GB memory allocation limit has been removed, with large allocations now allowed using the ``GPU_ENABLE_LARGE_ALLOCATIONS`` property.
 * Querying of discrete and integrated GPUs upon plugin creation has been optimized, extending
   battery life and reducing power consumption.
-* Qwen2/2.5-VL performance and memory footprint has been optimized with accelerating image processing 
+* Qwen2/2.5-VL performance and memory footprint has been optimized by accelerating image processing 
   on GPU and supporting 3D Rotary Position Embedding fusion.
 * XAttention (Block Sparse Attention with Antidiagonal Scoring) is now initially supported on Xe2 architecture to improve time-to-first-token.
 
@@ -197,10 +198,10 @@ OpenVINO™ Model Server
 
 	.. code-block:: bash
 
-		ovms –pull –task text_generation OpenVINO/Qwen3-8B-int4 
-		ovms –list_models 
-		ovms –add_to_models –model_name OpenVINO/Qwen3-8B-int4 
-		ovms –remove_from_models –model_name OpenVINO/Qwen3-8B-int4 
+		ovms -pull -task text_generation OpenVINO/Qwen3-8B-int4 
+		ovms -list_models 
+		ovms -add_to_models -model_name OpenVINO/Qwen3-8B-int4 
+		ovms -remove_from_models -model_name OpenVINO/Qwen3-8B-int4 
 
 * The ``--api_key`` parameter is now available, enabling client authorization using an API key.
 * Binding parameters are added for both IPv6 and IPv4 addresses for gRPC and REST interfaces. 
@@ -241,7 +242,7 @@ Breaking changes:
 
 Bug fixes: 
 
-* Fixed model phi-4-mini-instruct generating incorrect responses when context exceeded 4k tokens.  
+* Fixed the model phi-4-mini-instruct generating incorrect responses when context exceeded 4k tokens.  
 
 Neural Network Compression Framework
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -281,7 +282,7 @@ OpenVINO GenAI
     and optional metadata for chat templates. This is a recommended way to manage history instead of ``start/finish_chat()`` for LLMs. See updated `C++ and Python chat_sample <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2025/4/samples/cpp/text_generation/chat_sample.cpp>`__
   * Automatic memory allocation for ContinuousBatching has been improved: it now allocates a 
     fixed number of extra tokens instead of exponential growth, aligning with the GPU plugin.
-  * SDPA based Speculative Decoding has been implemented (used for NPU). 
+  * SDPA-based Speculative Decoding has been implemented (used for NPU). 
   * GGUF Q4_1 gibberish has been fixed. 
 
 * VLM Pipeline enhancements: 
@@ -1407,12 +1408,12 @@ Deprecated and to be removed in the future
 
   * The dedicated OpenVINO operator for Kubernetes and OpenShift is now deprecated in favor of the recommended KServe operator.
     The OpenVINO operator will remain functional in upcoming OpenVINO Model Server releases but will no longer be actively developed.
-    Since KServe provides broader capabilities, no loss of functionality is expected. In contrary, more functionalities will be accessible and migration between other serving solutions and OpenVINO Model Server will be much easier.
+    Since KServe provides broader capabilities, no loss of functionality is expected. On the contrary, more functionalities will be accessible and migration between other serving solutions and OpenVINO Model Server will be much easier.
   * TensorFlow Serving (TFS) API support is planned for deprecation. With increasing adoption of the KServe API for classic models 
-    and the OpenAI API for generative workloads, usage of the TFS API has significantly declined. Dropping data is to be determined based on the feedback, with a tentative target of mid-2026. 
+    and the OpenAI API for generative workloads, usage of the TFS API has significantly declined. Dropping date is to be determined based on the feedback, with a tentative target of mid-2026. 
   * Support for `Stateful models  <https://docs.openvino.ai/2025/model-server/ovms_docs_stateful_models.html>`__  will be deprecated.
-    This capabilities was originally introduced for Kaldi audio models which is no longer relevant. Current audio models support relies on the OpenAI API, and pipelines implemented via OpenVINO GenAI library. 
-  * `Directed Acyclic Graph Scheduler <https://docs.openvino.ai/2025/model-server/ovms_docs_dag.html>`__ will be deprecated in favor of pipelines managed by MediaPipe scheduler and will be removed in 2026.3 . That approach gives more flexibility, includes wider range of calculators and has support for using processing accelerators. 
+    These capabilities were originally introduced for Kaldi audio models which is no longer relevant. Current audio models support relies on the OpenAI API, and pipelines implemented via OpenVINO GenAI library. 
+  * `Directed Acyclic Graph Scheduler <https://docs.openvino.ai/2025/model-server/ovms_docs_dag.html>`__ will be deprecated in favor of pipelines managed by MediaPipe scheduler and will be removed in 2026.3. That approach gives more flexibility, includes wider range of calculators and has support for using processing accelerators. 
 
 
 Legal Information
