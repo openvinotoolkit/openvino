@@ -552,9 +552,12 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         if (!is_hfa_attention) {
             return false;  // Early return
         }
+        // Check if sub_in_idx matches any SDPA parameter in the mapping
+        // HFA parameters: PAST_KEY, PAST_VALUE, QUERY, PRESENT_KEY, PRESENT_VALUE
         auto& hfa_attn = proto_comp_model_desc.host_flash_attention.value()._sdpa_attention_info;
-        return std::any_of(hfa_attn.params.begin(), hfa_attn.params.end(), [&](const auto& p) -> bool {
-            return p.idx == sub_in_idx;
+        const auto& param_map = hfa_attn._sdpa_param_index_map;
+        return std::any_of(param_map.begin(), param_map.end(), [&](const auto& kv) -> bool {
+            return kv.second == sub_in_idx;
         });
     };
 
