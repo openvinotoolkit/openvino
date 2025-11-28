@@ -451,22 +451,13 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     }
 
     if (has_hfa) {
-        if (!m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_DYN>()) {
-            // Even if HFA is detected, force it on full range if dynamic is disabled
-            LOG_WARN("HFA dynamic capability is enabled, but won't be used due to user preference");
-            m_hfa_selector.reset(new runtime::host_flash_attention::All());
-        } else {
-            const auto& hfa_desc = m_npuw_model->m_compiled_submodels.at(hfa_sub_idx).host_flash_attention.value();
-
-            // Get Q input index from tile model mapping
-            // Use query_size directly from _sdpa_attention_info (populated during pattern analysis)
-            const size_t query_size = hfa_desc._sdpa_attention_info._query_size;
-
-            m_hfa_selector = runtime::host_flash_attention::PositionIDs::find(query_size, *this);
-            if (!m_hfa_selector) {
-                LOG_WARN("HFA dynamic capability is enabled, but no run-time features were found.");
-                m_hfa_selector.reset(new runtime::host_flash_attention::All());
-            }
+        const auto& hfa_desc = m_npuw_model->m_compiled_submodels.at(hfa_sub_idx).host_flash_attention.value();
+        const size_t query_size = hfa_desc._sdpa_attention_info._query_size;
+        m_hfa_selector = runtime::host_flash_attention::PositionIDs::find(query_size, *this);
+        if (!m_hfa_selector) {
+            // HFA requires PositionIDs selector - cannot fallback to 'All' like Dynamic/Pyramid
+            // because HFA uses tile-based execution without a full-range infer request
+            OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
         }
         LOG_VERB("Done");
     }
@@ -1399,16 +1390,14 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     }
 
     // ================================================================================================
-    // SECTION 5: Tensor Dimension Constants
+    // SECTION 5: Tensor Dimension Configuration
     // ================================================================================================
 
-    // Dimension indices for sequence length in different tensor layouts:
-    // - K tensor shape: [batch, num_heads, seq_len, head_dim] -> seq_dim = 2
-    // - V tensor shape: [batch, num_heads, head_dim, seq_len] -> seq_dim = 3 (transposed)
-    // - Mask shape:     [batch, 1, query_seq, kv_seq]         -> kv_seq_dim = 3
-    constexpr uint32_t K_SEQ_DIM = 2;
-    constexpr uint32_t V_SEQ_DIM = 3;
-    constexpr uint32_t MASK_KV_SEQ_DIM = 3;
+    // Get sequence dimension indices from HFA descriptor (extracted during pattern analysis)
+    // These indicate which dimension is the sequence/cache dimension in K/V tensors
+    const uint32_t K_SEQ_DIM = static_cast<uint32_t>(sdpa_info._k_seq_dim);
+    const uint32_t V_SEQ_DIM = static_cast<uint32_t>(sdpa_info._v_seq_dim);
+    constexpr uint32_t MASK_KV_SEQ_DIM = 3;  // Mask shape: [batch, 1, query_seq, kv_seq]
 
     // Get present sequence length for validation
     const size_t present_seq_length = present_key_tensor->get_shape()[K_SEQ_DIM];

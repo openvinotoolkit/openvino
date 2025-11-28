@@ -4,6 +4,7 @@
 #include "host_flash_attention.hpp"
 
 #include "logging.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -578,6 +579,26 @@ static void build_tile_param_mapping(HostFlashAttention& hfa, const std::shared_
     std::cout << "==================================================\n" << std::endl;
 }
 
+// ============================================================================
+// Helper function: Extract sequence dimension from Concat node
+// ============================================================================
+static std::optional<std::size_t> extract_sequence_dim_from_concat(const std::shared_ptr<ov::Node>& concat_node,
+                                                                   const std::string& tensor_name) {
+    if (!concat_node) {
+        LOG_WARN("Failed to extract " << tensor_name << " concat node");
+        return std::nullopt;
+    }
+
+    auto concat_op = std::dynamic_pointer_cast<ov::op::v0::Concat>(concat_node);
+    if (!concat_op) {
+        LOG_WARN("Failed to cast " << tensor_name << "_concat to Concat op");
+        return std::nullopt;
+    }
+
+    const auto& concat_out_shape = concat_op->get_output_partial_shape(0);
+    return ov::util::try_normalize_axis(concat_op->get_axis(), concat_out_shape.rank(), *concat_op);
+}
+
 std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model) {
     LOG_INFO("Attempting to create HostFlashAttention from model");
     LOG_BLOCK();
@@ -602,8 +623,6 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
         return std::nullopt;
     }
 
-    LOG_INFO("Successfully extracted Q input and K concat nodes");
-
     // ========================================================================
     // Step 2: Extract shape and data type information
     // ========================================================================
@@ -616,16 +635,12 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     auto q_shape_static = q_shape.to_shape();
     auto dtype = q_input->get_output_element_type(0);
 
-    LOG_DEBUG("Q shape: " << q_shape_static);
-    LOG_DEBUG("Data type: " << dtype);
-
     auto mask_param = find_mask_parameter(pattern_nodes.add_node);
     if (!mask_param) {
         LOG_WARN("Could not find mask parameter in model");
         return std::nullopt;
     }
     auto mask_dtype = mask_param->get_output_element_type(0);
-    LOG_DEBUG("Mask data type: " << mask_dtype);
 
     auto output_dtype = ov::element::f16;  // Default fallback
     if (model->outputs().size() > 0) {
@@ -636,7 +651,22 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     }
 
     // ========================================================================
-    // Step 3: Extract KV heads configuration
+    // Step 3: Extract K/V sequence dimensions from Concat nodes
+    // ========================================================================
+    auto k_seq_dim_opt = extract_sequence_dim_from_concat(pattern_nodes.past_key_concat_node, "K");
+    if (!k_seq_dim_opt) {
+        return std::nullopt;
+    }
+    std::size_t k_seq_dim = k_seq_dim_opt.value();
+
+    auto v_seq_dim_opt = extract_sequence_dim_from_concat(pattern_nodes.past_value_concat_node, "V");
+    if (!v_seq_dim_opt) {
+        return std::nullopt;
+    }
+    std::size_t v_seq_dim = v_seq_dim_opt.value();
+
+    // ========================================================================
+    // Step 4: Extract KV heads configuration
     // ========================================================================
     size_t kv_num_heads = 0;
     if (k_concat->get_output_partial_shape(0).is_static()) {
@@ -654,7 +684,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     }
 
     // ========================================================================
-    // Step 4: Create tile models (regular and final)
+    // Step 5: Create tile models (regular and final)
     // ========================================================================
     auto tile_model = create_hfa_tile_model(q_shape_static, dtype, mask_dtype, DEFAULT_TILE_SIZE, kv_num_heads, false);
     if (!tile_model) {
@@ -670,30 +700,34 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     }
 
     // ========================================================================
-    // Step 5: Save debug models to disk
+    // Step 6: Save debug models to disk
     // ========================================================================
     save_debug_models(model, tile_model, final_tile_model);
 
     // ========================================================================
-    // Step 6: Create HostFlashAttention structure
+    // Step 7: Create HostFlashAttention structure and set sequence dimensions
     // ========================================================================
     HostFlashAttention hfa;
     hfa._tile_model = tile_model;
     hfa._final_tile_model = final_tile_model;
     hfa._tile_size = DEFAULT_TILE_SIZE;
+    hfa._k_seq_dim = k_seq_dim;
+    hfa._v_seq_dim = v_seq_dim;
 
     // ========================================================================
-    // Step 7: Build SDPA parameter index mapping
+    // Step 8: Build SDPA parameter index mapping
+    // ========================================================================
+    // Step 8: Build SDPA parameter index mapping
     // ========================================================================
     build_sdpa_param_mapping(hfa, model, pattern_nodes);
 
     // ========================================================================
-    // Step 8: Build tile model parameter index mapping
+    // Step 9: Build tile model parameter index mapping
     // ========================================================================
     build_tile_param_mapping(hfa, tile_model);
 
     // ========================================================================
-    // Step 9: Extract query size from Q parameter shape
+    // Step 10: Extract query size from Q parameter shape
     // ========================================================================
     const auto query_idx = hfa._sdpa_param_index_map.at(SDPAInputId::QUERY);
     const auto& query_param = model->get_parameters().at(query_idx);
@@ -736,9 +770,9 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     // Copy query size directly from function HFA (no need to extract from model)
     _sdpa_attention_info._query_size = func_hfa._query_size;
 
-    LOG_INFO("Extracted HFA config: tile_size=" << _tile_size);
-    LOG_INFO("Copied SDPA input mapping with " << _sdpa_attention_info._sdpa_param_index_map.size() << " entries");
-    LOG_INFO("Copied Tile input mapping with " << _sdpa_attention_info._tile_param_index_map.size() << " entries");
+    // Copy K/V sequence dimensions from function HFA
+    _sdpa_attention_info._k_seq_dim = func_hfa._k_seq_dim;
+    _sdpa_attention_info._v_seq_dim = func_hfa._v_seq_dim;
 
     // Note: _compiled_tile_model and _compiled_final_tile_model will be set later by
     // compile_host_flash_attention_model()
