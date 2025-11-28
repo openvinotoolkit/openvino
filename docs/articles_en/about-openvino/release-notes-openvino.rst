@@ -16,7 +16,7 @@ OpenVINO Release Notes
 
 
 
-2025.4 - December 2025
+2025.4 - 1 December 2025
 #############################################################################################
 
 :doc:`System Requirements <./release-notes-openvino/system-requirements>` | :doc:`Release policy <./release-notes-openvino/release-policy>` | :doc:`Installation Guides <./../get-started/install-openvino>`
