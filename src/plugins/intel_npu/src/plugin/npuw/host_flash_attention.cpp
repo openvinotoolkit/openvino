@@ -580,6 +580,49 @@ static void build_tile_param_mapping(HostFlashAttention& hfa, const std::shared_
 }
 
 // ============================================================================
+// Helper function: Build tile model output index mapping
+// ============================================================================
+static void build_tile_output_mapping(HostFlashAttention& hfa, const std::shared_ptr<ov::Model>& tile_model) {
+    LOG_INFO("Building HFA Tile Model output index mapping...");
+
+    // Parse tile model outputs by their tensor names
+    // Expected output order: [acc, maxx, d]
+    const auto& tile_outputs = tile_model->outputs();
+    for (std::size_t i = 0; i < tile_outputs.size(); ++i) {
+        const auto& tensor_names = tile_outputs[i].get_names();
+        if (tensor_names.empty()) {
+            LOG_WARN("Tile model output[" << i << "] has no tensor name");
+            continue;
+        }
+
+        const std::string& name = *tensor_names.begin();
+
+        // Map tensor name to enum ID
+        if (name == "acc") {
+            hfa._tile_output_index_map[HFATileOutputId::ACC] = i;
+            LOG_DEBUG("Mapped ACC to tile output[" << i << "]");
+        } else if (name == "maxx") {
+            hfa._tile_output_index_map[HFATileOutputId::MAXX] = i;
+            LOG_DEBUG("Mapped MAXX to tile output[" << i << "]");
+        } else if (name == "d") {
+            hfa._tile_output_index_map[HFATileOutputId::D] = i;
+            LOG_DEBUG("Mapped D to tile output[" << i << "]");
+        } else {
+            LOG_WARN("Unknown tile model output name: " << name);
+        }
+    }
+
+    // Print the tile output mapping
+    std::cout << "\n========== HFA Tile Model Output Mapping ==========\n";
+    std::cout << "Total entries: " << hfa._tile_output_index_map.size() << "\n";
+
+    for (const auto& [output_id, output_idx] : hfa._tile_output_index_map) {
+        std::cout << "  " << hfa_tile_output_id_to_string(output_id) << " -> output[" << output_idx << "]" << std::endl;
+    }
+    std::cout << "==================================================\n" << std::endl;
+}
+
+// ============================================================================
 // Helper function: Extract sequence dimension from Concat node
 // ============================================================================
 static std::optional<std::size_t> extract_sequence_dim_from_concat(const std::shared_ptr<ov::Node>& concat_node,
@@ -734,6 +777,11 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     build_tile_param_mapping(hfa, tile_model);
 
+    // ========================================================================
+    // Step 10: Build tile model output index mapping
+    // ========================================================================
+    build_tile_output_mapping(hfa, tile_model);
+
     LOG_INFO("Successfully created HostFlashAttention with query_size=" << query_size << ", tile_size=" << query_size);
 
     return hfa;
@@ -760,6 +808,9 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
 
     // Copy HFA Tile Model input index mapping from function HFA
     _sdpa_attention_info._tile_param_index_map = func_hfa._tile_param_index_map;
+
+    // Copy HFA Tile Model output index mapping from function HFA
+    _sdpa_attention_info._tile_output_index_map = func_hfa._tile_output_index_map;
 
     // Copy query size directly from function HFA (no need to extract from model)
     _sdpa_attention_info._query_size = func_hfa._query_size;

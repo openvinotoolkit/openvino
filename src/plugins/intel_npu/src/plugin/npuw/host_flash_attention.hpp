@@ -48,6 +48,18 @@ enum class HFATileInputId : uint8_t {
     COUNT
 };
 
+// HFA Regular Tile Model output tensor identifiers
+// Represents the output layout for regular (non-final) tile models
+// Output names: [acc, maxx, d]
+enum class HFATileOutputId : uint8_t {
+    ACC = 0,   // Accumulated attention output
+    MAXX = 1,  // Maximum values for numerical stability
+    D = 2,     // Normalization denominator
+
+    // Sentinel value for enum range
+    COUNT
+};
+
 // Helper functions to convert enum values to string representations for logging/debugging
 inline const char* sdpa_input_id_to_string(SDPAInputId id) {
     switch (id) {
@@ -89,6 +101,19 @@ inline const char* hfa_tile_input_id_to_string(HFATileInputId id) {
     }
 }
 
+inline const char* hfa_tile_output_id_to_string(HFATileOutputId id) {
+    switch (id) {
+    case HFATileOutputId::ACC:
+        return "ACC";
+    case HFATileOutputId::MAXX:
+        return "MAXX";
+    case HFATileOutputId::D:
+        return "D";
+    default:
+        return "UNKNOWN";
+    }
+}
+
 namespace function {
 
 // HostFlashAttention structure definition
@@ -124,6 +149,12 @@ struct HostFlashAttention {
     // This is created after tile model generation in from() method
     std::map<HFATileInputId, std::size_t> _tile_param_index_map;
 
+    // Tile model output index mapping
+    // Maps tile output IDs (UPDATED_ACC, UPDATED_MAX, UPDATED_D) to actual output indices
+    // Only applicable to regular tile model (final tile has single output at index 0)
+    // This is created after tile model generation in from() method
+    std::map<HFATileOutputId, std::size_t> _tile_output_index_map;
+
     // Validation helpers
     bool is_valid() const {
         return _tile_model != nullptr && _final_tile_model != nullptr && _tile_size > 0;
@@ -157,6 +188,11 @@ struct HostFlashAttentionInfo {
     // This allows accessing tile model parameters by semantic name
     // Populated from function::HostFlashAttention::_tile_param_index_map
     std::map<HFATileInputId, std::size_t> _tile_param_index_map;
+
+    // Mapping from HFA Tile output identifier to actual output index in tile model
+    // This allows accessing tile model outputs by semantic name rather than hardcoded indices
+    // Populated from function::HostFlashAttention::_tile_output_index_map
+    std::map<HFATileOutputId, std::size_t> _tile_output_index_map;
 };
 
 // Compile-time host flash attention information
