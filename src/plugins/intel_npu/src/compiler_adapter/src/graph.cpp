@@ -210,7 +210,7 @@ void Graph::initialize(const Config& config) {
         _lastSubmittedEvent.resize(numberOfCommandLists);
     }
     // To ensure that the initialization of the graph does not exit prematurely due to nullptrs
-    _finishedInitialize = true;
+    _init_completed = true;
 }
 
 bool Graph::release_blob(const Config& config) {
