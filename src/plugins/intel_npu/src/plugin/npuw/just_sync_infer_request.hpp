@@ -108,6 +108,20 @@ protected:
 
     void run_hfa_tiled_inference(std::size_t real_idx, std::size_t idx);
 
+    // HFA helper functions
+    static void hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
+                                          const ov::SoPtr<ov::ITensor>& dest_tensor,
+                                          uint32_t sequence_dim,
+                                          int64_t sequence_offset,
+                                          int64_t sequence_length,
+                                          const std::string& tensor_name);
+
+    static bool hfa_can_reuse_tensor_zero_copy(const ov::SoPtr<ov::ITensor>& source_tensor,
+                                               const ov::SoPtr<ov::ITensor>& dest_tensor,
+                                               uint32_t sequence_dim,
+                                               int64_t sequence_offset,
+                                               int64_t tile_length);
+
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
 
