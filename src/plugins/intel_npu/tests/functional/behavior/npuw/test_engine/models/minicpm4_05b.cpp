@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <iostream>
 
+#include "openvino/util/file_util.hpp"
+
 #include "minicpm4_05b.hpp"
 
 const std::string get_minicpm4_05b_path() {
@@ -14,6 +16,11 @@ const std::string get_minicpm4_05b_path() {
     if (pdir != nullptr) {
         std::filesystem::path dir(pdir);
         auto openvino_xml_full_path = dir / model_name / "openvino_model.xml";
+        if (!ov::util::file_exists(openvino_xml_full_path)) {
+            std::cout << "[INFO] Model is not found by \"" << openvino_xml_full_path
+                      << "\" path" << std::endl;
+             return "";
+        }
         return openvino_xml_full_path.string();
     } else {
         std::cout << "[INFO] Environment variable \"NPU_TESTS_MODELS_PATH\" is not set, "
