@@ -803,26 +803,81 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _tile_model_to_compile = func_hfa._tile_model;
     _final_tile_model_to_compile = func_hfa._final_tile_model;
 
-    // Copy SDPA input index mapping from function HFA (already built in from() method)
-    _sdpa_attention_info._sdpa_param_index_map = func_hfa._sdpa_param_index_map;
-
-    // Copy HFA Tile Model input index mapping from function HFA
-    _sdpa_attention_info._tile_param_index_map = func_hfa._tile_param_index_map;
-
-    // Copy HFA Tile Model output index mapping from function HFA
-    _sdpa_attention_info._tile_output_index_map = func_hfa._tile_output_index_map;
-
-    // Copy query size directly from function HFA (no need to extract from model)
+    // Copy query size and K/V sequence dimensions from function HFA
     _sdpa_attention_info._query_size = func_hfa._query_size;
-
-    // Copy K/V sequence dimensions from function HFA
     _sdpa_attention_info._k_seq_dim = func_hfa._k_seq_dim;
     _sdpa_attention_info._v_seq_dim = func_hfa._v_seq_dim;
+
+    // Pre-cache all indices from function HFA maps
+    LOG_INFO("Pre-caching SDPA and tile indices...");
+
+    // Pre-cache SDPA parameter indices
+    auto get_sdpa_param_idx = [&](SDPAInputId input_id) -> std::size_t {
+        auto it = func_hfa._sdpa_param_index_map.find(input_id);
+        if (it == func_hfa._sdpa_param_index_map.end()) {
+            OPENVINO_THROW("HFA: SDPA parameter mapping not found for input ID: ", static_cast<uint8_t>(input_id));
+        }
+        return it->second;
+    };
+
+    _sdpa_attention_info._sdpa_indices.query = get_sdpa_param_idx(SDPAInputId::QUERY);
+    _sdpa_attention_info._sdpa_indices.past_key = get_sdpa_param_idx(SDPAInputId::PAST_KEY);
+    _sdpa_attention_info._sdpa_indices.past_value = get_sdpa_param_idx(SDPAInputId::PAST_VALUE);
+    _sdpa_attention_info._sdpa_indices.present_key = get_sdpa_param_idx(SDPAInputId::PRESENT_KEY);
+    _sdpa_attention_info._sdpa_indices.present_value = get_sdpa_param_idx(SDPAInputId::PRESENT_VALUE);
+    _sdpa_attention_info._sdpa_indices.attention_mask = get_sdpa_param_idx(SDPAInputId::ATTENTION_MASK);
+
+    // Pre-cache tile input indices
+    auto get_tile_input_idx = [&](HFATileInputId input_id) -> std::size_t {
+        auto it = func_hfa._tile_param_index_map.find(input_id);
+        if (it == func_hfa._tile_param_index_map.end()) {
+            OPENVINO_THROW("HFA: Tile input mapping not found for input ID: ", static_cast<uint8_t>(input_id));
+        }
+        return it->second;
+    };
+
+    auto get_tile_output_idx = [&](HFATileOutputId output_id) -> std::size_t {
+        auto it = func_hfa._tile_output_index_map.find(output_id);
+        if (it == func_hfa._tile_output_index_map.end()) {
+            OPENVINO_THROW("HFA: Tile output mapping not found for output ID: ", static_cast<uint8_t>(output_id));
+        }
+        return it->second;
+    };
+
+    // Cache all tile input indices
+    _sdpa_attention_info._tile_input_indices.q = get_tile_input_idx(HFATileInputId::Q);
+    _sdpa_attention_info._tile_input_indices.k = get_tile_input_idx(HFATileInputId::K_TILE);
+    _sdpa_attention_info._tile_input_indices.v = get_tile_input_idx(HFATileInputId::V_TILE);
+    _sdpa_attention_info._tile_input_indices.mask = get_tile_input_idx(HFATileInputId::MASK_TILE);
+    _sdpa_attention_info._tile_input_indices.acc = get_tile_input_idx(HFATileInputId::PAST_ACC);
+    _sdpa_attention_info._tile_input_indices.max = get_tile_input_idx(HFATileInputId::PAST_MAX);
+    _sdpa_attention_info._tile_input_indices.d = get_tile_input_idx(HFATileInputId::PAST_D);
+
+    // Cache all tile output indices
+    _sdpa_attention_info._tile_output_indices.acc = get_tile_output_idx(HFATileOutputId::ACC);
+    _sdpa_attention_info._tile_output_indices.max = get_tile_output_idx(HFATileOutputId::MAXX);
+    _sdpa_attention_info._tile_output_indices.d = get_tile_output_idx(HFATileOutputId::D);
+
+    LOG_INFO("Pre-cached SDPA indices: [query="
+             << _sdpa_attention_info._sdpa_indices.query << ", past_key=" << _sdpa_attention_info._sdpa_indices.past_key
+             << ", past_value=" << _sdpa_attention_info._sdpa_indices.past_value
+             << ", present_key=" << _sdpa_attention_info._sdpa_indices.present_key
+             << ", present_value=" << _sdpa_attention_info._sdpa_indices.present_value
+             << ", attention_mask=" << _sdpa_attention_info._sdpa_indices.attention_mask << "]");
+    LOG_INFO("Pre-cached tile indices: inputs[q=" << _sdpa_attention_info._tile_input_indices.q
+                                                  << ", k=" << _sdpa_attention_info._tile_input_indices.k
+                                                  << ", v=" << _sdpa_attention_info._tile_input_indices.v
+                                                  << ", mask=" << _sdpa_attention_info._tile_input_indices.mask
+                                                  << ", acc=" << _sdpa_attention_info._tile_input_indices.acc
+                                                  << ", max=" << _sdpa_attention_info._tile_input_indices.max
+                                                  << ", d=" << _sdpa_attention_info._tile_input_indices.d
+                                                  << "], outputs[acc=" << _sdpa_attention_info._tile_output_indices.acc
+                                                  << ", max=" << _sdpa_attention_info._tile_output_indices.max
+                                                  << ", d=" << _sdpa_attention_info._tile_output_indices.d << "]");
 
     // Note: _compiled_tile_model and _compiled_final_tile_model will be set later by
     // compile_host_flash_attention_model()
 }
-
 }  // namespace compiled
 
 namespace runtime {

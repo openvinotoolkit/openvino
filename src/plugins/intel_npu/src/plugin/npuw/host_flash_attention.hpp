@@ -179,20 +179,36 @@ struct HostFlashAttentionInfo {
     std::size_t _k_seq_dim = 0u;
     std::size_t _v_seq_dim = 0u;
 
-    // Mapping from SDPA parameter identifier to actual parameter index in original SDPA model
-    // This allows accessing SDPA model parameters by semantic name rather than hardcoded indices
-    // Populated from function::HostFlashAttention::_sdpa_param_index_map
-    std::map<SDPAInputId, std::size_t> _sdpa_param_index_map;
+    // NOTE: SDPA parameter map is not stored to save memory.
+    // Indices are pre-cached below during compilation.
 
-    // Mapping from HFA Tile parameter identifier to actual parameter index in tile model
-    // This allows accessing tile model parameters by semantic name
-    // Populated from function::HostFlashAttention::_tile_param_index_map
-    std::map<HFATileInputId, std::size_t> _tile_param_index_map;
+    // Pre-cached SDPA parameter indices
+    struct {
+        std::size_t query = 0u;
+        std::size_t past_key = 0u;
+        std::size_t past_value = 0u;
+        std::size_t present_key = 0u;
+        std::size_t present_value = 0u;
+        std::size_t attention_mask = 0u;
+    } _sdpa_indices;
 
-    // Mapping from HFA Tile output identifier to actual output index in tile model
-    // This allows accessing tile model outputs by semantic name rather than hardcoded indices
-    // Populated from function::HostFlashAttention::_tile_output_index_map
-    std::map<HFATileOutputId, std::size_t> _tile_output_index_map;
+    // Pre-cached tile input indices
+    struct {
+        std::size_t q = 0u;
+        std::size_t k = 0u;
+        std::size_t v = 0u;
+        std::size_t mask = 0u;
+        std::size_t acc = 0u;
+        std::size_t max = 0u;
+        std::size_t d = 0u;
+    } _tile_input_indices;
+
+    // Pre-cached tile output indices
+    struct {
+        std::size_t acc = 0u;
+        std::size_t max = 0u;
+        std::size_t d = 0u;
+    } _tile_output_indices;
 };
 
 // Compile-time host flash attention information
