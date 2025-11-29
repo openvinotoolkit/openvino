@@ -1315,65 +1315,31 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     const auto& hfa_inputs = m_hfa_io[idx].inputs;
     const auto& hfa_outputs = m_hfa_io[idx].outputs;
     const auto& sdpa_info = hfa_desc._sdpa_attention_info;
-    const auto& sdpa_param_map = sdpa_info._sdpa_param_index_map;
 
-    auto get_input_tensor = [&](SDPAInputId input_id) -> ov::SoPtr<ov::ITensor> {
-        auto it = sdpa_param_map.find(input_id);
-        if (it == sdpa_param_map.end()) {
-            OPENVINO_THROW("HFA: SDPA input mapping not found for input ID: ", static_cast<uint8_t>(input_id));
-        }
-        return hfa_inputs.at(it->second);
-    };
+    // Use pre-cached SDPA indices
+    const auto& sdpa_in = sdpa_info._sdpa_indices;
 
-    auto past_key_tensor = get_input_tensor(SDPAInputId::PAST_KEY);
-    auto past_value_tensor = get_input_tensor(SDPAInputId::PAST_VALUE);
-    auto query_tensor = get_input_tensor(SDPAInputId::QUERY);
-    auto present_key_tensor = get_input_tensor(SDPAInputId::PRESENT_KEY);
-    auto attention_mask_tensor = get_input_tensor(SDPAInputId::ATTENTION_MASK);
-    auto present_value_tensor = get_input_tensor(SDPAInputId::PRESENT_VALUE);
+    auto past_key_tensor = hfa_inputs.at(sdpa_in.past_key);
+    auto past_value_tensor = hfa_inputs.at(sdpa_in.past_value);
+    auto query_tensor = hfa_inputs.at(sdpa_in.query);
+    auto present_key_tensor = hfa_inputs.at(sdpa_in.present_key);
+    auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
+    auto present_value_tensor = hfa_inputs.at(sdpa_in.present_value);
 
     auto attention_output_tensor = hfa_outputs.at(0);
 
     // ================================================================================================
-    // SECTION 4: Index Pre-caching and State Initialization
+    // SECTION 4: State Initialization
     // ================================================================================================
 
-    const auto& tile_input_map = hfa_desc._sdpa_attention_info._tile_param_index_map;
-    auto get_tile_param_idx = [&](ov::npuw::HFATileInputId input_id) -> std::size_t {
-        auto it = tile_input_map.find(input_id);
-        if (it == tile_input_map.end()) {
-            OPENVINO_THROW("HFA: Tile input mapping not found for input ID: ", static_cast<uint8_t>(input_id));
-        }
-        return it->second;
-    };
+    // Use pre-cached indices (populated during compilation)
+    const auto& tile_in = sdpa_info._tile_input_indices;
+    const auto& tile_out = sdpa_info._tile_output_indices;
 
-    // Pre-cache tile input indices
-    const std::size_t tile_idx_q = get_tile_param_idx(ov::npuw::HFATileInputId::Q);
-    const std::size_t tile_idx_k = get_tile_param_idx(ov::npuw::HFATileInputId::K_TILE);
-    const std::size_t tile_idx_v = get_tile_param_idx(ov::npuw::HFATileInputId::V_TILE);
-    const std::size_t tile_idx_mask = get_tile_param_idx(ov::npuw::HFATileInputId::MASK_TILE);
-    const std::size_t tile_idx_acc = get_tile_param_idx(ov::npuw::HFATileInputId::PAST_ACC);
-    const std::size_t tile_idx_max = get_tile_param_idx(ov::npuw::HFATileInputId::PAST_MAX);
-    const std::size_t tile_idx_d = get_tile_param_idx(ov::npuw::HFATileInputId::PAST_D);
-
-    // Pre-cache tile output indices
-    const auto& tile_output_map = hfa_desc._sdpa_attention_info._tile_output_index_map;
-    auto get_tile_output_idx = [&](ov::npuw::HFATileOutputId output_id) -> std::size_t {
-        auto it = tile_output_map.find(output_id);
-        if (it == tile_output_map.end()) {
-            OPENVINO_THROW("HFA: Tile output mapping not found for output ID: ", static_cast<uint8_t>(output_id));
-        }
-        return it->second;
-    };
-
-    const std::size_t regular_tile_output_acc = get_tile_output_idx(ov::npuw::HFATileOutputId::ACC);
-    const std::size_t regular_tile_output_max = get_tile_output_idx(ov::npuw::HFATileOutputId::MAXX);
-    const std::size_t regular_tile_output_d = get_tile_output_idx(ov::npuw::HFATileOutputId::D);
-
-    // Initialize state tensors (acc, max, d) to zero/negative infinity
-    auto state_acc = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_idx_acc]);
-    auto state_max = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_idx_max]);
-    auto state_sum = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_idx_d]);
+    // Initialize state tensors to zero/negative infinity
+    auto state_acc = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.acc]);
+    auto state_max = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.max]);
+    auto state_sum = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.d]);
 
     const auto acc_element_type = state_acc->get_element_type();
     if (acc_element_type == ov::element::f16) {
@@ -1399,8 +1365,8 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     const size_t present_seq_length = present_key_tensor->get_shape()[K_SEQ_DIM];
 
     // Set query tensor once (constant across all tiles)
-    regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[tile_idx_q], query_tensor);
-    final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->inputs()[tile_idx_q], query_tensor);
+    regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.q], query_tensor);
+    final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->inputs()[tile_in.q], query_tensor);
 
     // ================================================================================================
     // SECTION 6: Helper Functions
@@ -1505,9 +1471,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         }
 
         // 7.3: Get tile input buffers
-        auto k_tile_buffer = current_request->get_tensor(current_model->inputs()[tile_idx_k]);
-        auto v_tile_buffer = current_request->get_tensor(current_model->inputs()[tile_idx_v]);
-        auto mask_tile_buffer = current_request->get_tensor(current_model->inputs()[tile_idx_mask]);
+        auto k_tile_buffer = current_request->get_tensor(current_model->inputs()[tile_in.k]);
+        auto v_tile_buffer = current_request->get_tensor(current_model->inputs()[tile_in.v]);
+        auto mask_tile_buffer = current_request->get_tensor(current_model->inputs()[tile_in.mask]);
 
         // 7.4: Extract K tile
         if (can_reuse_tensor_zero_copy(source_k_tensor,
@@ -1515,7 +1481,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                                        K_SEQ_DIM,
                                        kv_tile_offset,
                                        current_tile_length)) {
-            current_request->set_tensor(current_model->inputs()[tile_idx_k], source_k_tensor);
+            current_request->set_tensor(current_model->inputs()[tile_in.k], source_k_tensor);
         } else {
             extract_and_copy_tile(source_k_tensor, k_tile_buffer, K_SEQ_DIM, kv_tile_offset, current_tile_length, "K");
         }
@@ -1526,7 +1492,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                                        V_SEQ_DIM,
                                        kv_tile_offset,
                                        current_tile_length)) {
-            current_request->set_tensor(current_model->inputs()[tile_idx_v], source_v_tensor);
+            current_request->set_tensor(current_model->inputs()[tile_in.v], source_v_tensor);
         } else {
             extract_and_copy_tile(source_v_tensor, v_tile_buffer, V_SEQ_DIM, kv_tile_offset, current_tile_length, "V");
         }
@@ -1541,7 +1507,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                                        MASK_KV_SEQ_DIM,
                                        mask_tile_offset,
                                        current_tile_length)) {
-            current_request->set_tensor(current_model->inputs()[tile_idx_mask], attention_mask_tensor);
+            current_request->set_tensor(current_model->inputs()[tile_in.mask], attention_mask_tensor);
         } else {
             extract_and_copy_tile(attention_mask_tensor,
                                   mask_tile_buffer,
@@ -1552,9 +1518,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         }
 
         // 7.7: Set state tensors
-        current_request->set_tensor(current_model->inputs()[tile_idx_acc], state_acc);
-        current_request->set_tensor(current_model->inputs()[tile_idx_max], state_max);
-        current_request->set_tensor(current_model->inputs()[tile_idx_d], state_sum);
+        current_request->set_tensor(current_model->inputs()[tile_in.acc], state_acc);
+        current_request->set_tensor(current_model->inputs()[tile_in.max], state_max);
+        current_request->set_tensor(current_model->inputs()[tile_in.d], state_sum);
 
         // 7.8: Execute tile inference
         current_request->infer();
@@ -1564,9 +1530,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
             auto final_attention_output = current_request->get_tensor(current_model->outputs()[0]);
             final_attention_output->copy_to(attention_output_tensor._ptr);
         } else {
-            auto output_acc = current_request->get_tensor(current_model->outputs()[regular_tile_output_acc]);
-            auto output_max = current_request->get_tensor(current_model->outputs()[regular_tile_output_max]);
-            auto output_sum = current_request->get_tensor(current_model->outputs()[regular_tile_output_d]);
+            auto output_acc = current_request->get_tensor(current_model->outputs()[tile_out.acc]);
+            auto output_max = current_request->get_tensor(current_model->outputs()[tile_out.max]);
+            auto output_sum = current_request->get_tensor(current_model->outputs()[tile_out.d]);
 
             output_acc->copy_to(state_acc._ptr);
             output_max->copy_to(state_max._ptr);
