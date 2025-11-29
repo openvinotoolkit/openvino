@@ -149,10 +149,13 @@ struct WeightsContext {
     BF16Cache bf16_consts;
 };
 
-struct PyramidCtx {
-    PyramidCtx(const std::shared_ptr<const ov::IPlugin>& _plugin,
-               const std::string& _device,
-               const ov::SoPtr<ov::ICompiledModel>& _compiled_model)
+// Context for deserializing submodels with dynamic attention mechanisms
+// (Pyramid Attention, Host Flash Attention, etc.)
+// Provides plugin, device, and compiled model reference for proper deserialization
+struct SubmodelDeserializeCtx {
+    SubmodelDeserializeCtx(const std::shared_ptr<const ov::IPlugin>& _plugin,
+                           const std::string& _device,
+                           const ov::SoPtr<ov::ICompiledModel>& _compiled_model)
         : plugin(_plugin),
           device(_device),
           compiled_model(_compiled_model) {}

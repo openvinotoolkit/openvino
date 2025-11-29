@@ -720,8 +720,6 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     // Serialize host flash attention
     write(stream, host_flash_attention);
     if (host_flash_attention.has_value()) {
-        write(stream, host_flash_attention.value()._tile_size);
-
         // Serialize compiled tile model
         if (host_flash_attention.value()._compiled_tile_model) {
             write(stream, true);
@@ -785,9 +783,10 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     LOG_DEBUG("DONE.");
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& stream,
-                                                             const ov::npuw::s11n::WeightsContext& ctx,
-                                                             const ov::npuw::s11n::PyramidCtx& pyramid_ctx) {
+void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
+    std::istream& stream,
+    const ov::npuw::s11n::WeightsContext& ctx,
+    const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx) {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Deserializing CompiledModelDesc...");
@@ -824,12 +823,12 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
                 read(stream, model_str);
                 std::stringstream ss(model_str);
                 pyramid_attention->_compiled_models[i] =
-                    pyramid_ctx.plugin->get_core()->import_model(ss, pyramid_ctx.device);
+                    submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device);
             }
 
             // Reuse the already compiled model for the last pyramid attention model
-            if (pyramid_ctx.compiled_model) {
-                pyramid_attention->_compiled_models[num_models - 1] = pyramid_ctx.compiled_model;
+            if (submodel_ctx.compiled_model) {
+                pyramid_attention->_compiled_models[num_models - 1] = submodel_ctx.compiled_model;
                 LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
             }
         }
@@ -838,8 +837,6 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     // Deserialize host flash attention
     read(stream, host_flash_attention);
     if (host_flash_attention.has_value()) {
-        read(stream, host_flash_attention.value()._tile_size);
-
         bool has_compiled_model = false;
         read(stream, has_compiled_model);
         if (has_compiled_model) {
@@ -847,9 +844,13 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
             read(stream, model_str);
             std::stringstream ss(model_str);
             host_flash_attention->_compiled_tile_model =
-                pyramid_ctx.plugin->get_core()->import_model(ss, pyramid_ctx.device);
+                submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device);
             LOG_DEBUG("Imported compiled tile model for host flash attention");
         }
+
+        // Set reference to the final tile model (which is the main compiled_model for HFA)
+        host_flash_attention->_compiled_final_tile_model = submodel_ctx.compiled_model;
+        LOG_DEBUG("Set compiled final tile model reference for host flash attention");
     }
 
     auto& closure_desc = closure.get();
@@ -1337,10 +1338,12 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
             }
             compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
 
-            ov::npuw::s11n::PyramidCtx pyramid_ctx(plugin,
-                                                   compiled->m_dev_list[device_idx],
-                                                   compiled->m_compiled_submodels[i].compiled_model);
-            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx, pyramid_ctx);
+            // Create unified deserialization context for submodels with dynamic mechanisms
+            // (Pyramid Attention, Host Flash Attention, etc.)
+            ov::npuw::s11n::SubmodelDeserializeCtx submodel_ctx(plugin,
+                                                                compiled->m_dev_list[device_idx],
+                                                                compiled->m_compiled_submodels[i].compiled_model);
+            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx, submodel_ctx);
         }
 
         compiled->implement_properties();
