@@ -242,7 +242,7 @@ private:
         void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
         void deserialize(std::istream& stream,
                          const ov::npuw::s11n::WeightsContext& ctx,
-                         const ov::npuw::s11n::PyramidCtx& pyramid_ctx);
+                         const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
