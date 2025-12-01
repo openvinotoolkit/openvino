@@ -4,6 +4,8 @@
 
 #include "openvino/frontend/complex_type_mark.hpp"
 
+#include <iostream>  // DEBUG CVS-176305
+
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -205,6 +207,15 @@ ov::Output<ov::Node> ComplexTypeMark::mul(const NodeContext& context,
     auto lhs_complex = as_type_ptr<ComplexTypeMark>(lhs.get_node_shared_ptr());
     auto rhs_complex = as_type_ptr<ComplexTypeMark>(rhs.get_node_shared_ptr());
 
+    // DEBUG CVS-176305
+    std::cout << "[DEBUG ComplexTypeMark::mul]" << std::endl;
+    std::cout << "  lhs_complex=" << (lhs_complex ? "true" : "false")
+              << ", rhs_complex=" << (rhs_complex ? "true" : "false") << std::endl;
+    std::cout << "  lhs_node=" << lhs.get_node_shared_ptr()->get_type_name()
+              << ", lhs_shape=" << lhs.get_partial_shape() << std::endl;
+    std::cout << "  rhs_node=" << rhs.get_node_shared_ptr()->get_type_name()
+              << ", rhs_shape=" << rhs.get_partial_shape() << std::endl;
+
     if (lhs_complex && rhs_complex) {
         // both operands are of complex type
         // formula for guidance: (a + b*i) * (c + d*i) = (ac-bd) + (ad+bc)*i
@@ -231,6 +242,7 @@ ov::Output<ov::Node> ComplexTypeMark::mul(const NodeContext& context,
         // rhs is of a real type
         auto unsqueeze_axis = context.mark_node(make_shared<v0::Constant>(element::i32, Shape{1}, -1));
         auto unsqueezed_rhs = context.mark_node(make_shared<v0::Unsqueeze>(rhs, unsqueeze_axis));
+
         auto result = context.mark_node(make_shared<v1::Multiply>(lhs_data, unsqueezed_rhs))->output(0);
 
         auto complex_result = context.mark_node(make_shared<ComplexTypeMark>(result, result.get_element_type()));
@@ -238,9 +250,10 @@ ov::Output<ov::Node> ComplexTypeMark::mul(const NodeContext& context,
     } else if (rhs_complex) {
         auto rhs_data = rhs_complex->get_data();
 
-        // rhs is of a real type
+        // lhs is of a real type
         auto unsqueeze_axis = context.mark_node(make_shared<v0::Constant>(element::i32, Shape{1}, -1));
         auto unsqueezed_lhs = context.mark_node(make_shared<v0::Unsqueeze>(lhs, unsqueeze_axis));
+
         auto result = context.mark_node(make_shared<v1::Multiply>(unsqueezed_lhs, rhs_data))->output(0);
 
         auto complex_result = context.mark_node(make_shared<ComplexTypeMark>(result, result.get_element_type()));
@@ -298,6 +311,16 @@ ov::Output<ov::Node> ComplexTypeMark::convert_like(const NodeContext& context,
                                                    const ov::Output<ov::Node>& input,
                                                    const ov::Output<ov::Node>& like) {
     auto like_complex = as_type_ptr<ComplexTypeMark>(like.get_node_shared_ptr());
+    auto input_complex = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+
+    // DEBUG CVS-176305
+    std::cout << "[DEBUG ComplexTypeMark::convert_like]" << std::endl;
+    std::cout << "  input_complex=" << (input_complex ? "true" : "false")
+              << ", like_complex=" << (like_complex ? "true" : "false") << std::endl;
+    std::cout << "  input_node=" << input.get_node_shared_ptr()->get_type_name()
+              << ", input_shape=" << input.get_partial_shape() << std::endl;
+    std::cout << "  like_node=" << like.get_node_shared_ptr()->get_type_name()
+              << ", like_shape=" << like.get_partial_shape() << std::endl;
 
     ov::Output<ov::Node> like_data = like;
     if (like_complex) {
@@ -305,17 +328,24 @@ ov::Output<ov::Node> ComplexTypeMark::convert_like(const NodeContext& context,
             (like_complex->get_data().get_node_shared_ptr() ? like_complex->get_data() : like_complex->get_real());
     }
 
-    auto input_complex = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     if (input_complex && input_complex->get_data().get_node_shared_ptr()) {
+        std::cout << "  -> CASE 1: preserving ComplexTypeMark (data repr)" << std::endl;
         auto new_input_data = input_complex->get_data();
         new_input_data = context.mark_node(make_shared<v1::ConvertLike>(new_input_data, like_data));
         return context.mark_node(make_shared<ComplexTypeMark>(new_input_data));
     } else if (input_complex) {
+        std::cout << "  -> CASE 2: preserving ComplexTypeMark (real/imag repr)" << std::endl;
         auto new_real = input_complex->get_real();
         auto new_imag = input_complex->get_imag();
         new_real = context.mark_node(make_shared<v1::ConvertLike>(new_real, like_data));
         new_imag = context.mark_node(make_shared<v1::ConvertLike>(new_imag, like_data));
         return context.mark_node(make_shared<ComplexTypeMark>(new_real, new_imag));
+    }
+
+    // DEBUG CVS-176305
+    std::cout << "  -> CASE 3: input is NOT ComplexTypeMark" << std::endl;
+    if (like_complex) {
+        std::cout << "  WARNING: like IS complex but result won't have ComplexTypeMark!" << std::endl;
     }
 
     return context.mark_node(make_shared<v1::ConvertLike>(input, like_data));

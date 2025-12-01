@@ -125,3 +125,215 @@ class TestComplexOutput(PytorchLayerTest):
     def test_complex_output(self, op_name, ie_device, precision, ir_version):
         self._test(*self.create_model(op_name), ie_device,
                    precision, ir_version, trace_model=True)
+
+
+class TestComplexMulWithBuffer(PytorchLayerTest):
+    """
+    Test complex multiplication with buffer (CVS-176305).
+    This tests that complex buffers from prim::GetAttr are correctly
+    wrapped in ComplexTypeMark and preserved through operations.
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        # Input: [batch, seq, features] - will be reshaped to complex
+        return (np.random.randn(2, 4, 16).astype(np.float32),)
+
+    def create_model(self, freqs_dtype):
+        class complex_mul_with_buffer(torch.nn.Module):
+            def __init__(self, freqs_dtype):
+                super().__init__()
+                # Register complex buffer
+                freqs = torch.randn(4, 8, 2, dtype=freqs_dtype)
+                self.register_buffer('freqs', torch.view_as_complex(freqs))
+
+            def forward(self, x):
+                # Reshape input for complex view
+                x_reshaped = x.reshape(*x.shape[:-1], -1, 2)
+                x_complex = torch.view_as_complex(x_reshaped.float())
+                # Multiply with complex buffer
+                result = x_complex * self.freqs
+                return torch.view_as_real(result).flatten(-2)
+
+        return complex_mul_with_buffer(freqs_dtype), None, "aten::mul"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("freqs_dtype", [torch.float32, torch.float64])
+    def test_complex_mul_with_buffer(self, freqs_dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(freqs_dtype), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestComplexRoPEPattern(PytorchLayerTest):
+    """
+    Test Qwen-Image-like RoPE pattern with complex multiplication (CVS-176305).
+    This tests the full RoPE pattern: view_as_complex -> unsqueeze -> mul -> view_as_real.
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        # Input: [batch, seq, heads, head_dim]
+        return (np.random.randn(1, 8, 4, 16).astype(np.float32),)
+
+    def create_model(self):
+        class rope_pattern(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                # freqs_cis: [seq, head_dim//2] complex
+                freqs = torch.randn(8, 8, 2, dtype=torch.float32)
+                self.register_buffer('freqs_cis', torch.view_as_complex(freqs))
+
+            def forward(self, x):
+                # Reshape for complex: [batch, seq, heads, head_dim//2, 2]
+                x_reshaped = x.reshape(*x.shape[:-1], -1, 2)
+                x_complex = torch.view_as_complex(x_reshaped.float())
+
+                # Add dimensions for broadcasting: [1, seq, 1, head_dim//2]
+                freqs = self.freqs_cis.unsqueeze(0).unsqueeze(2)
+
+                # Complex multiplication with broadcasting
+                x_rotated = x_complex * freqs
+
+                return torch.view_as_real(x_rotated).flatten(-2).type_as(x)
+
+        return rope_pattern(), None, "aten::mul"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_rope_pattern(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestComplexSqueeze(PytorchLayerTest):
+    """
+    Test squeeze preserves ComplexTypeMark (CVS-176305).
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(2, 4, 16).astype(np.float32),)
+
+    def create_model(self, squeeze_dim):
+        class complex_squeeze(torch.nn.Module):
+            def __init__(self, dim):
+                super().__init__()
+                self.dim = dim
+                freqs = torch.randn(1, 4, 8, 2)
+                self.register_buffer('freqs', torch.view_as_complex(freqs))
+
+            def forward(self, x):
+                x_reshaped = x.reshape(*x.shape[:-1], -1, 2)
+                x_complex = torch.view_as_complex(x_reshaped.float())
+                freqs = self.freqs.squeeze(self.dim)
+                result = x_complex * freqs
+                return torch.view_as_real(result).flatten(-2)
+
+        return complex_squeeze(squeeze_dim), None, "aten::squeeze"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("squeeze_dim", [0, -3])
+    def test_complex_squeeze(self, squeeze_dim, ie_device, precision, ir_version):
+        self._test(*self.create_model(squeeze_dim), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestComplexSelect(PytorchLayerTest):
+    """
+    Test select preserves ComplexTypeMark (CVS-176305).
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(2, 4, 16).astype(np.float32),)
+
+    def create_model(self):
+        class complex_select(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                freqs = torch.randn(4, 4, 8, 2)
+                self.register_buffer('freqs', torch.view_as_complex(freqs))
+
+            def forward(self, x):
+                x_reshaped = x.reshape(*x.shape[:-1], -1, 2)
+                x_complex = torch.view_as_complex(x_reshaped.float())
+                freqs = self.freqs.select(0, 0)
+                result = x_complex * freqs
+                return torch.view_as_real(result).flatten(-2)
+
+        return complex_select(), None, "aten::select"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_complex_select(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestComplexNarrow(PytorchLayerTest):
+    """
+    Test narrow preserves ComplexTypeMark (CVS-176305).
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(2, 4, 16).astype(np.float32),)
+
+    def create_model(self):
+        class complex_narrow(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                freqs = torch.randn(8, 8, 2)
+                self.register_buffer('freqs', torch.view_as_complex(freqs))
+
+            def forward(self, x):
+                x_reshaped = x.reshape(*x.shape[:-1], -1, 2)
+                x_complex = torch.view_as_complex(x_reshaped.float())
+                freqs = self.freqs.narrow(0, 0, 4)
+                result = x_complex * freqs
+                return torch.view_as_real(result).flatten(-2)
+
+        return complex_narrow(), None, "aten::narrow"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_complex_narrow(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestComplexTypeAsChain(PytorchLayerTest):
+    """
+    Test CVS-176305: type_as in complex operation chain.
+    Tests the full RoPE pattern with type conversion.
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(1, 8, 4, 16).astype(np.float32),)
+
+    def create_model(self, freqs_dtype):
+        class rope_with_type_as(torch.nn.Module):
+            def __init__(self, freqs_dtype):
+                super().__init__()
+                freqs = torch.randn(8, 8, 2, dtype=freqs_dtype)
+                self.register_buffer('freqs_cis', torch.view_as_complex(freqs))
+
+            def forward(self, x):
+                x_reshaped = x.reshape(*x.shape[:-1], -1, 2)
+                x_complex = torch.view_as_complex(x_reshaped.float())
+                freqs = self.freqs_cis.unsqueeze(0).unsqueeze(2)
+                freqs = freqs.type_as(x_complex)
+                x_rotated = x_complex * freqs
+                return torch.view_as_real(x_rotated).flatten(-2).type_as(x)
+
+        return rope_with_type_as(freqs_dtype), None, "aten::mul"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("freqs_dtype", [torch.float32, torch.float64])
+    def test_rope_with_type_as(self, freqs_dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(freqs_dtype), ie_device,
+                   precision, ir_version, trace_model=True)
