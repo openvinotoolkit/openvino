@@ -73,37 +73,71 @@ struct ConstProperties {
 };
 
 static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
+    std::cerr << "[DEBUG_CVS-172561] create_data - ENTRY: op name: " << op->get_friendly_name() 
+              << ", element_type: " << op->get_output_element_type(0)
+              << ", shape: " << const_shape 
+              << ", shape_size: " << ov::shape_size(const_shape) << std::endl;
+    std::cerr.flush();
+    
     cldnn::tensor constTensor = getConstTensor(const_shape);
+    std::cerr << "[DEBUG_CVS-172561]   After getConstTensor()" << std::endl;
+    std::cerr.flush();
+    
     auto constFormat = cldnn::format::get_default_format(const_shape.size());
+    std::cerr << "[DEBUG_CVS-172561]   After get_default_format(), format: " << constFormat.to_string() << std::endl;
+    std::cerr.flush();
 
     if (props.needsBatchInterpretation) {
         constTensor.batch[0] = static_cast<ov::Dimension::value_type>(constTensor.count());
         constTensor.feature[0] = 1;
+        std::cerr << "[DEBUG_CVS-172561]   Applied batch interpretation" << std::endl;
+        std::cerr.flush();
     }
 
     cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
+    std::cerr << "[DEBUG_CVS-172561]   After element_type_to_data_type(), out_dtype: " << static_cast<int>(out_dtype) << std::endl;
+    std::cerr.flush();
+    
     cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(const_shape, out_dtype, constFormat) :
                                                           cldnn::layout(out_dtype, constFormat, constTensor);
+    std::cerr << "[DEBUG_CVS-172561]   After creating constLayout, bytes_count: " << constLayout.bytes_count() << std::endl;
+    std::cerr.flush();
 
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
     cldnn::primitive_id constPrimID;
+    
+    std::cerr << "[DEBUG_CVS-172561]   Before get_data_ptr()" << std::endl;
+    std::cerr.flush();
     auto data = op->get_data_ptr<char>();
+    std::cerr << "[DEBUG_CVS-172561]   After get_data_ptr(), data_ptr: " << (void*)data << std::endl;
+    std::cerr.flush();
 
     const auto cache_key = std::make_tuple(data, const_shape, op->get_output_element_type(0));
 
     auto bufIter = p.blobMemCache.find(cache_key);
 
     if (bufIter != p.blobMemCache.end()) {
+        std::cerr << "[DEBUG_CVS-172561]   Found in cache, reusing primitive: " << bufIter->second << std::endl;
+        std::cerr.flush();
         constPrimID = bufIter->second;
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
+        std::cerr << "[DEBUG_CVS-172561]   Not in cache, creating new memory..." << std::endl;
+        std::cerr.flush();
+        
         cldnn::memory::ptr mem = nullptr;
         if (constLayout.bytes_count() > 0) {
+            std::cerr << "[DEBUG_CVS-172561]   Allocating memory: " << constLayout.bytes_count() << " bytes" << std::endl;
+            std::cerr.flush();
             mem = p.get_engine().allocate_memory(constLayout, false);
+            std::cerr << "[DEBUG_CVS-172561]   Memory allocated successfully, ptr: " << (void*)mem.get() << std::endl;
+            std::cerr.flush();
         } else {
             // In the case of empty const data with {0} shape, it has zero byte.
             // To avoid zero byte memory allocation issue, reinterpret one dimension memory to zero dimension memory.
+            std::cerr << "[DEBUG_CVS-172561]   Zero-byte allocation, using reinterpret workaround" << std::endl;
+            std::cerr.flush();
             auto one_dim_layout = cldnn::layout(ov::PartialShape({1}), constLayout.data_type, constLayout.format);
             auto one_dim_mem = p.get_engine().allocate_memory(one_dim_layout, false);
             mem = p.get_engine().reinterpret_buffer(*one_dim_mem, constLayout);
@@ -111,26 +145,65 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
 
         GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
                         << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
+        
+        std::cerr << "[DEBUG_CVS-172561]   Before mem_lock" << std::endl;
+        std::cerr.flush();
         auto& stream = p.get_engine().get_service_stream();
         cldnn::mem_lock<char> lock{mem, stream};
+        std::cerr << "[DEBUG_CVS-172561]   After mem_lock" << std::endl;
+        std::cerr.flush();
+        
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();
+        
+        std::cerr << "[DEBUG_CVS-172561]   buf_ptr: " << (void*)buf 
+                  << ", bufSize: " << bufSize 
+                  << ", data_ptr: " << (void*)data << std::endl;
+        std::cerr.flush();
 
         // If a constant has element type f64 but contains no elements (empty tensor),
         // convert it to f32 because the GPU plugin only supports the f32 data type internally.
         if (ov::shape_size(const_shape) == 1 &&
             out_dtype == cldnn::data_types::f32 &&
             op->get_output_element_type(0) == ov::element::f64) {
+            std::cerr << "[DEBUG_CVS-172561]   Special f64->f32 conversion path" << std::endl;
+            std::cerr.flush();
             const auto* f64data = op->get_data_ptr<double>();
             auto f32buf = reinterpret_cast<float*>(buf);
             f32buf[0] = static_cast<float>(f64data[0]);
         } else {
-            std::memcpy(&buf[0], &data[0], bufSize);
+            // Validate pointers before memcpy
+            if (data == nullptr) {
+                std::cerr << "[DEBUG_CVS-172561] ERROR: data pointer is NULL!" << std::endl;
+                std::cerr.flush();
+                OPENVINO_THROW("[GPU] Constant data pointer is null for primitive: ", initialconstPrimID);
+            }
+            if (buf == nullptr) {
+                std::cerr << "[DEBUG_CVS-172561] ERROR: buf pointer is NULL!" << std::endl;
+                std::cerr.flush();
+                OPENVINO_THROW("[GPU] Buffer pointer is null for primitive: ", initialconstPrimID);
+            }
+            if (bufSize == 0) {
+                std::cerr << "[DEBUG_CVS-172561]   bufSize is 0, skipping memcpy" << std::endl;
+                std::cerr.flush();
+            } else {
+                std::cerr << "[DEBUG_CVS-172561]   Before memcpy: copying " << bufSize << " bytes" << std::endl;
+                std::cerr.flush();
+                std::memcpy(&buf[0], &data[0], bufSize);
+                std::cerr << "[DEBUG_CVS-172561]   After memcpy - SUCCESS" << std::endl;
+                std::cerr.flush();
+            }
         }
+        std::cerr << "[DEBUG_CVS-172561]   Before add_primitive" << std::endl;
+        std::cerr.flush();
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
+        std::cerr << "[DEBUG_CVS-172561]   After add_primitive" << std::endl;
+        std::cerr.flush();
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }
+    std::cerr << "[DEBUG_CVS-172561] create_data - EXIT: " << initialconstPrimID << std::endl;
+    std::cerr.flush();
 }
 
 static bool is_btiwise(Node* node) {
