@@ -71,7 +71,6 @@ CPU Device Plugin
   has been enhanced by improving utilization of the underlying AMX FP16 capabilities and graph-level optimizations.
 * Inference support for AI workloads is now available on Intel® Xeon® 6 processors with E-cores 
   for Windows 11 and Windows Server.
-* Starting with OpenVINO release 2026.0, the CPU plugin will require support for the AVX2 instruction set as a minimum system requirement. The SSE instruction set will no longer be supported. 
 
 
 GPU Device Plugin
@@ -172,7 +171,7 @@ OpenVINO™ Model Server
   * Integration with OpenWebU
   * Integration with Visual Studio Code using the Continue extension
   * Agentic client demo
-  * `Audio endpoints <https://docs.openvino.ai/nightly/model-server/ovms_demos_audio.html>`__
+  * `Audio endpoints <https://docs.openvino.ai/2025/model-server/ovms_demos_audio.html>`__
   * Windows service usage
   * GGUF model pulling
 
@@ -360,6 +359,10 @@ Known Issues
 | Description:
 | Accuracy regression of Mistral-7b-instruct-v0.2 and Mistral-7b-instruct-v0.3 on all devices when executed with OpenVINO GenAI. As a workaround, use the IR converted with OpenVINO 2025.3. The accuracy will be improved with the next release. 
 
+| **Component: OpenVINO GenAI**
+| ID: 176777 
+| Description:
+| Using the ``callback`` parameter with the Python API call generate() in Text2ImagePipeline, Image2ImagePipeline, InpaintingPipeline may cause the process to hang. As a workaround, do not use the ``callback`` parameter. The issue will be resolved in the next release. C++ implementations are not affected. 
 
 Previous 2025 releases
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1159,7 +1162,7 @@ Previous 2025 releases
 		 model and automatically truncate the input to match the embeddings context length.
 		 By default, an error is raised if the input is too long.
 	  * Speculative decoding algorithm in text generation. Check
-		 `the demo <https://docs.openvino.ai/nightly/openvino-workflow/model-server/ovms_demos_continuous_batching_speculative_decoding.html>`__.
+		 `the demo <https://docs.openvino.ai/2025/openvino-workflow/model-server/ovms_demos_continuous_batching_speculative_decoding.html>`__.
 	  * Direct support for models without named outputs. For models without named outputs, generic
 		 names are assigned during model initialization using the pattern ``out_<index>``.
 	  * Chat/completions have been extended to support max_completion_tokens parameter and message
@@ -1385,6 +1388,7 @@ Deprecated and to be removed in the future
 * ``auto shape`` and ``auto batch size`` (reshaping a model in runtime) will be removed in the future. OpenVINO's dynamic shape models are recommended instead.   
 * MacOS x86 is no longer recommended for use due to the discontinuation of validation. Full support will be removed later in 2025.   
 * The ``openvino`` namespace of the OpenVINO Python API has been redesigned, removing the nested  ``openvino.runtime`` module. The old namespace is now considered deprecated and will be discontinued in 2026.0.   
+* Starting with OpenVINO release 2026.0, the CPU plugin will require support for the AVX2 instruction set as a minimum system requirement. The SSE instruction set will no longer be supported. 
 * APT & YUM Repositories Restructure:
   Starting with release 2025.1, users can switch to the new repository structure for APT and YUM,
   which no longer uses year-based subdirectories (like “2025”). The old (legacy) structure will
