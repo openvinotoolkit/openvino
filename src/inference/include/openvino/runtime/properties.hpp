@@ -606,6 +606,52 @@ enum class DynamicQuantizationDataType {
     MXF4E2M1,
 };
 
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const DynamicQuantizationDataType& dyn_quan_dtype) {
+    switch (dyn_quan_dtype) {
+    case DynamicQuantizationDataType::INT8:
+        return os << "INT8";
+    case DynamicQuantizationDataType::F8E4M3:
+        return os << "F8E4M3";
+    case DynamicQuantizationDataType::F8E5M2:
+        return os << "F8E5M2";
+    case DynamicQuantizationDataType::F4E2M1:
+        return os << "F4E2M1";
+    case DynamicQuantizationDataType::MXF8E4M3:
+        return os << "MXF8E4M3";
+    case DynamicQuantizationDataType::MXF8E5M2:
+        return os << "MXF8E5M2";
+    case DynamicQuantizationDataType::MXF4E2M1:
+        return os << "MXF4E2M1";
+    default:
+        OPENVINO_THROW("Unsupported DynamicQuantizationDataType value");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, DynamicQuantizationDataType& dyn_quan_dtype) {
+    std::string str;
+    is >> str;
+    if (str == "INT8") {
+        dyn_quan_dtype = DynamicQuantizationDataType::INT8;
+    } else if (str == "F8E4M3") {
+        dyn_quan_dtype = DynamicQuantizationDataType::F8E4M3;
+    } else if (str == "F8E5M2") {
+        dyn_quan_dtype = DynamicQuantizationDataType::F8E5M2;
+    } else if (str == "F4E2M1") {
+        dyn_quan_dtype = DynamicQuantizationDataType::F4E2M1;
+    } else if (str == "MXF8E4M3") {
+        dyn_quan_dtype = DynamicQuantizationDataType::MXF8E4M3;
+    } else if (str == "MXF8E5M2") {
+        dyn_quan_dtype = DynamicQuantizationDataType::MXF8E5M2;
+    } else if (str == "MXF4E2M1") {
+        dyn_quan_dtype = DynamicQuantizationDataType::MXF4E2M1;
+    } else {
+        OPENVINO_THROW("Unsupported log level: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
 static constexpr Property<DynamicQuantizationDataType, PropertyMutability::RW> dynamic_quantization_data_type{
     "DYNAMIC_QUANTIZATION_TARGET_TYPE"};
 
