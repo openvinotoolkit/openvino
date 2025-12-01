@@ -11,13 +11,13 @@
 #include <limits>
 #include <list>
 #include <memory>
-#include <mutex>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/aligned_buffer.hpp"
 
 #ifndef CM_DEBUG
 #    define CM_DEBUG 0
@@ -55,8 +55,6 @@ public:
     };
 
     PagedCacheManager(ov::element::Type elem_type, std::size_t total_bytes = CACHE_SIZE);
-    ~PagedCacheManager();
-
     PagedCacheManager(const PagedCacheManager&) = delete;
     PagedCacheManager& operator=(const PagedCacheManager&) = delete;
 
@@ -147,9 +145,6 @@ private:
     static bool heap_less(const std::vector<block_t>& blocks, std::size_t a, std::size_t b) noexcept;
 
 private:
-    static void* aligned_allocate(std::size_t size);
-    static void aligned_free(void* p);
-
     const ov::element::Type m_elem_type{};
     const std::size_t m_total_bytes{0};
 
@@ -161,8 +156,8 @@ private:
 
     std::size_t m_num_blocks{0};
 
-    void* m_key_base{nullptr};
-    void* m_value_base{nullptr};
+    ov::AlignedBuffer m_key_buffer;
+    ov::AlignedBuffer m_value_buffer;
 
     std::vector<block_t> m_blocks;
     std::list<std::size_t> m_free_block_list;
@@ -170,7 +165,6 @@ private:
 
     std::vector<std::size_t> m_evict_heap;
 
-    mutable std::mutex m_mutex;
 };
 
 // -------- inline trivials & templates --------
@@ -209,7 +203,7 @@ std::vector<std::size_t> PagedCacheManager::insert(size_t node_id,
     if (block_count == 0)
         return {};
 
-    std::lock_guard<std::mutex> lock(m_mutex);
+
 
     auto block_idxs = acquire_blocks_unlocked(node_id, block_count);
 
@@ -238,7 +232,7 @@ void PagedCacheManager::set_block_scores(size_t node_id,
     if (block_indices.empty())
         return;
 
-    std::lock_guard<std::mutex> lock(m_mutex);
+
 
     std::vector<float> fs(block_indices.size());
     for (std::size_t i = 0; i < block_indices.size(); ++i) {

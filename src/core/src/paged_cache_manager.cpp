@@ -3,6 +3,7 @@
 //
 
 #include "openvino/core/paged_cache_manager.hpp"
+#include "openvino/reference/convert.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -11,30 +12,6 @@
 #include <cstdio>
 #include <cstdlib>
 
-#if defined(_MSC_VER)
-#    include <malloc.h>
-#endif
-
-// aligned allocation for better performance (similar to CPU plugin)
-// aligned to 64 bits for all dtypes
-void* ov::util::PagedCacheManager::aligned_allocate(std::size_t size) {
-#if defined(_MSC_VER)
-    return _aligned_malloc(size, 64);
-#else
-    void* ptr = nullptr;
-    if (posix_memalign(&ptr, 64, size) != 0)
-        return nullptr;
-    return ptr;
-#endif
-}
-
-void ov::util::PagedCacheManager::aligned_free(void* p) {
-#if defined(_MSC_VER)
-    _aligned_free(p);
-#else
-    free(p);
-#endif
-}
 
 ov::util::PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, std::size_t total_bytes)
     : m_elem_type(elem_type),
@@ -44,19 +21,14 @@ ov::util::PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, std:
         OPENVINO_THROW("PagedCacheManager: total allocated bytes must be divisible by 2");
     }
 
-    m_key_base = aligned_allocate(m_total_bytes / 2);
-    m_value_base = aligned_allocate(m_total_bytes / 2);
+    const size_t half_bytes = m_total_bytes / 2;
 
-    if (!m_key_base || !m_value_base) {
-        aligned_free(m_key_base);
-        aligned_free(m_value_base);
+    try {
+        m_key_buffer   = ov::AlignedBuffer(half_bytes, 64);
+        m_value_buffer = ov::AlignedBuffer(half_bytes, 64);
+    } catch (const std::bad_alloc&) {
         OPENVINO_THROW("PagedCacheManager: aligned allocation failed");
     }
-}
-
-ov::util::PagedCacheManager::~PagedCacheManager() {
-    aligned_free(m_key_base);
-    aligned_free(m_value_base);
 }
 
 // every op registered once
@@ -71,7 +43,7 @@ size_t ov::util::PagedCacheManager::register_operator(const size_t block_size,
                                                       const size_t key_head_size,
                                                       const size_t value_head_size,
                                                       const size_t query_head_size) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+
 
     operator_state state;
     state.node_id = m_node_id++;
@@ -83,14 +55,15 @@ size_t ov::util::PagedCacheManager::register_operator(const size_t block_size,
 
 // buffers
 ov::util::PagedCacheManager::cache_blocks ov::util::PagedCacheManager::get_cache_blocks() const noexcept {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return cache_blocks{m_key_base, m_value_base, m_total_bytes / 2, m_total_bytes / 2};
+    const std::size_t half_bytes = m_total_bytes / 2;
+    return cache_blocks{m_key_buffer.get_ptr(),
+        m_value_buffer.get_ptr(),half_bytes, half_bytes};
 }
 
 // per-operator metadata
 ov::util::PagedCacheManager::subsequence_view ov::util::PagedCacheManager::get_subsequence_begins(
     size_t node_id) const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
         return {};
@@ -167,12 +140,12 @@ void ov::util::PagedCacheManager::compute_operator_cache_geometry(operator_state
 
 // block mgmt
 std::vector<std::size_t> ov::util::PagedCacheManager::acquire_blocks(size_t node_id, std::size_t block_count) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+
     return acquire_blocks_unlocked(node_id, block_count);
 }
 
 void ov::util::PagedCacheManager::release_blocks(size_t node_id, const std::vector<std::size_t>& blocks) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
         return;
@@ -325,7 +298,7 @@ void ov::util::PagedCacheManager::evict_one_unlocked() {
 }
 
 void ov::util::PagedCacheManager::evict_to_target_free(std::size_t target_free_blocks) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+
     while (m_free_block_list.size() < target_free_blocks) {
         evict_one_unlocked();
         if (m_evict_heap.empty())
@@ -333,51 +306,52 @@ void ov::util::PagedCacheManager::evict_to_target_free(std::size_t target_free_b
     }
 }
 
-// priv helpers
 void* ov::util::PagedCacheManager::offset_key(std::size_t block_idx) const noexcept {
-    return static_cast<void*>(static_cast<unsigned char*>(m_key_base) + block_idx * m_block_bytes);
+    unsigned char* base = static_cast<unsigned char*>(m_key_buffer.get_ptr());
+    return static_cast<void*>(base + block_idx * m_block_bytes);
 }
 
 void* ov::util::PagedCacheManager::offset_value(std::size_t block_idx) const noexcept {
-    return static_cast<void*>(static_cast<unsigned char*>(m_value_base) + block_idx * m_block_bytes);
+    unsigned char* base = static_cast<unsigned char*>(m_value_buffer.get_ptr());
+    return static_cast<void*>(base + block_idx * m_block_bytes);
 }
 
 float ov::util::PagedCacheManager::cast_score_to_float(ov::element::Type et, const void* src_scalar) noexcept {
+    float dst = 0.0f;
     switch (et) {
     case ov::element::f32:
-        return *static_cast<const float*>(src_scalar);
-    case ov::element::f16: {
-        const uint16_t u = *static_cast<const uint16_t*>(src_scalar);
-        const uint32_t s = (u >> 15) & 1u;
-        const uint32_t e = (u >> 10) & 0x1fu;
-        const uint32_t f = u & 0x3ffu;
-        float out;
-        if (e == 0)
-            out = std::ldexp(static_cast<float>(f), -24);
-        else if (e != 31)
-            out = std::ldexp(static_cast<float>(f + 1024), static_cast<int>(e) - 25);
-        else
-            out = f ? std::numeric_limits<float>::quiet_NaN() : std::numeric_limits<float>::infinity();
-        return s ? -out : out;
-    }
-    case ov::element::bf16: {
-        const uint16_t u = *static_cast<const uint16_t*>(src_scalar);
-        const uint32_t v = static_cast<uint32_t>(u) << 16;
-        float f;
-        std::memcpy(&f, &v, sizeof(float));
-        return f;
-    }
+        ov::reference::convert(static_cast<const float*>(src_scalar), &dst, 1);
+        break;
+
+    case ov::element::f16:
+        ov::reference::convert(static_cast<const ov::float16*>(src_scalar), &dst, 1);
+        break;
+
+    case ov::element::bf16:
+        ov::reference::convert(static_cast<const ov::bfloat16*>(src_scalar), &dst, 1);
+        break;
+
     case ov::element::i32:
-        return static_cast<float>(*static_cast<const int32_t*>(src_scalar));
+        ov::reference::convert(static_cast<const int32_t*>(src_scalar), &dst, 1);
+        break;
+
     case ov::element::i64:
-        return static_cast<float>(*static_cast<const int64_t*>(src_scalar));
+        ov::reference::convert(static_cast<const int64_t*>(src_scalar), &dst, 1);
+        break;
+
     case ov::element::u32:
-        return static_cast<float>(*static_cast<const uint32_t*>(src_scalar));
+        ov::reference::convert(static_cast<const uint32_t*>(src_scalar), &dst, 1);
+        break;
+
     case ov::element::u64:
-        return static_cast<float>(*static_cast<const uint64_t*>(src_scalar));
+        ov::reference::convert(static_cast<const uint64_t*>(src_scalar), &dst, 1);
+        break;
+
     default:
-        return *static_cast<const float*>(src_scalar);
+        ov::reference::convert(static_cast<const float*>(src_scalar), &dst, 1);
+        break;
     }
+    return dst;
 }
 
 bool ov::util::PagedCacheManager::is_element_compatible_with_T(ov::element::Type et, size_t sizeofT) noexcept {
