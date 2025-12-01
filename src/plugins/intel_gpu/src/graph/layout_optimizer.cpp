@@ -59,6 +59,7 @@ using namespace cldnn;
 
 void layout_optimizer::optimization_attributes::save(BinaryOutputBuffer& ob) const {
     ob << group_convolution;
+    ob << byxf_onednn_convolution;
     ob << bfyx_only_layer;
     ob << fs_b_yx_fsv32_network;
     ob << b_fs_zyx_fsv32_network;
@@ -75,6 +76,7 @@ void layout_optimizer::optimization_attributes::save(BinaryOutputBuffer& ob) con
 
 void layout_optimizer::optimization_attributes::load(BinaryInputBuffer& ib) {
     ib >> group_convolution;
+    ib >> byxf_onednn_convolution;
     ib >> bfyx_only_layer;
     ib >> fs_b_yx_fsv32_network;
     ib >> b_fs_zyx_fsv32_network;
