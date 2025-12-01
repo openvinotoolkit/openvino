@@ -384,9 +384,11 @@ VectorDims LinearIR::get_master_shape() const {
             master_shape = utils::get_preordered_vdims(expr->get_input_port_connector(0)->get_source());
         }
     } else {
-        for (const auto& oe : m_result_expressions) {
-            const auto& port_desc = oe->get_input_port_descriptor(0);
-            OPENVINO_ASSERT(ov::snippets::broadcast_merge_into(master_shape, port_desc->get_shape()),
+        for (const auto& result_expr : m_result_expressions) {
+            const auto& shape_infer_seq = utils::get_first_parent_shape_infer_expr_seq(result_expr);
+            const auto& expr = shape_infer_seq.empty() ? result_expr : shape_infer_seq.back();
+            auto shape = utils::get_preordered_vdims(expr->get_input_port_connector(0)->get_source());
+            OPENVINO_ASSERT(ov::snippets::broadcast_merge_into(master_shape, shape),
                             "Failed to merge input shapes in infer_master_shape");
         }
     }
