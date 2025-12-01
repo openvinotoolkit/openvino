@@ -390,7 +390,7 @@ pass::FuseScaleShift::FuseScaleShift() {
     auto m_beta = wrap_type<Scalar>(scalar_predicate);
     auto m_shift = wrap_type<ov::op::v1::Add>({m_scale, m_beta});
 
-    auto callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    auto callback = [=](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseScaleShift")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto scale = pattern_map.at(m_scale).get_node_shared_ptr();
