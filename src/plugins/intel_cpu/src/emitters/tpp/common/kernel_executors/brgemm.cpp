@@ -139,7 +139,7 @@ std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(co
 void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                          const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                          BrgemmKernelConfig& config) const {
-    auto [M, N, K, beta] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
+    const auto [M, N, K, beta, LDC] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
     const auto& tpp_mod = std::dynamic_pointer_cast<tpp::modifier::TensorProcessingPrimitive>(expr->get_node());
     auto replace_full_dim = [](size_t dim, size_t replace_dim) {
         if (ov::snippets::utils::is_full_dim_value(dim)) {
@@ -148,23 +148,11 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
         return dim;
     };
 
-    const auto num_ins = expr->get_node()->get_input_size();
-    const auto num_outs = expr->get_node()->get_output_size();
-
-    std::vector<size_t> io_strides(num_ins + num_outs);
-
-    for (size_t i = 0; i < num_ins; i++) {
-        io_strides[i] =
-            replace_full_dim(tpp_mod->get_input_stride(i), expr->get_input_port_descriptor(i)->get_shape().back());
-    }
-
-    for (size_t i = 0; i < num_outs; i++) {
-        const auto i_off = i + num_ins;
-        io_strides[i_off] =
-            replace_full_dim(tpp_mod->get_output_stride(i), expr->get_output_port_descriptor(i)->get_shape().back());
-    }
-
-    config.update(M, N, K, io_strides[0], io_strides[1], io_strides[2], beta);
+    const auto LDA =
+        replace_full_dim(tpp_mod->get_input_stride(0), expr->get_input_port_descriptor(0)->get_shape().back());
+    const auto LDB =
+        replace_full_dim(tpp_mod->get_input_stride(1), expr->get_input_port_descriptor(1)->get_shape().back());
+    config.update(M, N, K, LDA, LDB, LDC, beta);
 }
 
 void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, void* in0, void* in1, void* out0) {

@@ -14,9 +14,9 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
-struct MoeScatterReductionRef : public ImplementationManager {
-    OV_GPU_PRIMITIVE_IMPL("ocl::moe_scatter_reduction")
-    explicit MoeScatterReductionRef(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
+struct MoeMaskGenRef : public ImplementationManager {
+    OV_GPU_PRIMITIVE_IMPL("ocl::moe_mask_gen::ref")
+    explicit MoeMaskGenRef(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         static constexpr std::array supported_fmts = {
@@ -25,20 +25,12 @@ struct MoeScatterReductionRef : public ImplementationManager {
 
         static constexpr std::array supported_types = {
             ov::element::f32,
-            ov::element::f16,
             ov::element::i32,
             ov::element::i64,
-            ov::element::i8,
-            ov::element::u8,
         };
 
         const auto& in0_layout = node.get_input_layout(0);
         const auto& out_layout = node.get_output_layout(0);
-        const auto& input_pshapes = in0_layout.get_partial_shape();
-
-        if (input_pshapes.rank().get_length() != 3 || input_pshapes[2].is_dynamic()) {
-            return false;
-        }
 
         if (!one_of(in0_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {
             return false;

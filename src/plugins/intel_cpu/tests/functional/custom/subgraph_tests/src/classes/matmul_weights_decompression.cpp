@@ -3,6 +3,7 @@
 //
 
 #include "matmul_weights_decompression.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 
 using namespace CPUTestUtils;
@@ -43,8 +44,8 @@ std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(const ov::Pa
                                                                     const ov::element::Type decompression_precision,
                                                                     const ov::element::Type scale_precision,
                                                                     const bool transpose_weights,
-                                                                    const DecompressionType decompression_multiply_type,
-                                                                    const DecompressionType decompression_subtract_type,
+                                                                    const ov::test::utils::DecompressionType decompression_multiply_type,
+                                                                    const ov::test::utils::DecompressionType decompression_subtract_type,
                                                                     const bool reshape_on_decompression) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(data_precision, data_shape)};
     const auto weights_subgraph = initMatMulDecompressionSubgraph(weights_shape,

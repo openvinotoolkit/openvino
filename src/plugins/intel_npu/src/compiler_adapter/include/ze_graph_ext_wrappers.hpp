@@ -37,7 +37,7 @@ public:
                                        const std::string& buildFlags,
                                        const bool bypassUmdCache = false) const;
 
-    GraphDescriptor getGraphDescriptor(void* data, size_t size) const;
+    GraphDescriptor getGraphDescriptor(const void* data, size_t size) const;
 
     NetworkMetadata getNetworkMeta(GraphDescriptor& graphDescriptor) const;
 
@@ -45,7 +45,7 @@ public:
 
     std::string getCompilerSupportedOptions() const;
 
-    bool isOptionSupported(std::string optname) const;
+    bool isOptionSupported(std::string optName, std::optional<std::string> optValue = std::nullopt) const;
     bool isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const;
 
     void getGraphBinary(const GraphDescriptor& graphDescriptor,
@@ -61,13 +61,13 @@ public:
 
 private:
     void getMetadata(ze_graph_handle_t graphHandle,
-                     uint32_t index,
+                     uint32_t indexUsedByDriver,
                      std::vector<IODescriptor>& inputs,
                      std::vector<IODescriptor>& outputs) const;
 
     void initializeGraphThroughCommandList(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
 
-    bool canCpuVaBeImported(void* data, size_t size) const;
+    bool canCpuVaBeImported(const void* data, size_t size) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;
