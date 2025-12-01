@@ -89,6 +89,7 @@ jobs:
             ov_build/manylinux_2_28
             ov_test/ubuntu_20_04_x64_py313
             ov_test/ubuntu_22_04_x64
+            ov_test/ubuntu_22_04_x64_py314
             ov_test/ubuntu_24_04_x64
             ov_test/fedora_33
             ov_test/debian_10_py310
@@ -174,9 +175,9 @@ jobs:
         env:
           CXXFLAGS: "-Wno-dangling-reference" # bug in gcc-14: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107532
             
-      - name: Build Python API (Python 3.10-3.13)
+      - name: Build Python API (Python 3.10-3.14)
         run: |
-          SUPPORTED_PYTHON_VERSIONS=("3.10" "3.11" "3.12" "3.13")
+          SUPPORTED_PYTHON_VERSIONS=("3.10" "3.11" "3.12" "3.13" "3.14")
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
 
             py_build_dir=${{ github.workspace }}/build_py${PY_VER}

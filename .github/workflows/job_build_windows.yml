@@ -227,11 +227,21 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
+        
+      # Setup additional Python versions for wheels building
+      - name: Setup Python 3.14
+        if: ${{ inputs.build-additional-python-wheels }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.14'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
 
       - name: Build additional Python wheels
         if: ${{ inputs.build-additional-python-wheels }}
         run: |
-          $pyVersions = '3.10', '3.11', '3.12', '3.13'
+          $pyVersions = '3.10', '3.11', '3.12', '3.13' '3.14'
           foreach ($pyVersion in $pyVersions) {
             $pyBuildDir = "${{ github.workspace }}/py$pyVersion"
             New-Item -ItemType Directory -Path "$pyBuildDir" -Force
