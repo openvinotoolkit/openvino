@@ -384,11 +384,21 @@ void parse_node_info_linux(const std::vector<std::string> node_info_table,
 
     if (_proc_type_table.size() > 1) {
         _proc_type_table.insert(_proc_type_table.begin(), line_value_0);
+        _proc_type_table[0][PROC_NUMA_NODE_ID] = _proc_type_table[1][PROC_NUMA_NODE_ID];
+        _proc_type_table[0][PROC_SOCKET_ID] = _proc_type_table[1][PROC_SOCKET_ID];
 
         for (size_t m = 1; m < _proc_type_table.size(); m++) {
             for (int n = 0; n < PROC_NUMA_NODE_ID; n++) {
                 _proc_type_table[0][n] += _proc_type_table[m][n];
             }
+            _proc_type_table[0][PROC_NUMA_NODE_ID] =
+                _proc_type_table[0][PROC_NUMA_NODE_ID] == _proc_type_table[m][PROC_NUMA_NODE_ID]
+                    ? _proc_type_table[0][PROC_NUMA_NODE_ID]
+                    : -1;
+            _proc_type_table[0][PROC_SOCKET_ID] =
+                _proc_type_table[0][PROC_SOCKET_ID] == _proc_type_table[m][PROC_SOCKET_ID]
+                    ? _proc_type_table[0][PROC_SOCKET_ID]
+                    : -1;
         }
     }
 
@@ -602,11 +612,21 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
         if (_proc_type_table.size() > 1) {
             _proc_type_table.push_back(_proc_type_table[0]);
             _proc_type_table[0] = line_value_0;
+            _proc_type_table[0][PROC_NUMA_NODE_ID] = _proc_type_table[1][PROC_NUMA_NODE_ID];
+            _proc_type_table[0][PROC_SOCKET_ID] = _proc_type_table[1][PROC_SOCKET_ID];
 
             for (int m = 1; m <= _sockets; m++) {
                 for (int n = 0; n < PROC_NUMA_NODE_ID; n++) {
                     _proc_type_table[0][n] += _proc_type_table[m][n];
                 }
+                _proc_type_table[0][PROC_NUMA_NODE_ID] =
+                    _proc_type_table[0][PROC_NUMA_NODE_ID] == _proc_type_table[m][PROC_NUMA_NODE_ID]
+                        ? _proc_type_table[0][PROC_NUMA_NODE_ID]
+                        : -1;
+                _proc_type_table[0][PROC_SOCKET_ID] =
+                    _proc_type_table[0][PROC_SOCKET_ID] == _proc_type_table[m][PROC_SOCKET_ID]
+                        ? _proc_type_table[0][PROC_SOCKET_ID]
+                        : -1;
             }
         }
         _numa_nodes = _sockets;
