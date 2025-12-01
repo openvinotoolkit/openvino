@@ -107,6 +107,9 @@ public:
         int32_t b_fs_zyx_fsv16_network = 0;
         int32_t bs_fs_yx_bsv16_fsv16_network = 0;
         std::map<primitive_type_id, bool> onednn_impls = {};
+
+        void save(BinaryOutputBuffer& ob) const;
+        void load(BinaryInputBuffer& ib);
     };
 
 private:
@@ -220,9 +223,6 @@ public:
 
     void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
     const std::map<primitive_id, std::pair<format::type, impl_types>>& get_implementation_forcing() const;
-
-    void save(cldnn::BinaryOutputBuffer& ob) const;
-    void load(cldnn::BinaryInputBuffer& ib);
 
     void update_formats_map(const convolution_node& node);
     bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false);
