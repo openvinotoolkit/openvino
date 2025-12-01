@@ -1383,7 +1383,7 @@ Deprecated and to be removed in the future
 --------------------------------------------
 * ``openvino.Type.undefined`` is now deprecated and will be removed with version 2026.0.
   ``openvino.Type.dynamic`` should be used instead.
-* Ubuntu 20.04 support will be deprecated in future OpenVINO releases due to the end of standard support.
+* Support for Ubuntu 20.04 has been discontinued due to the end of its standard support.
 * The openvino-nightly PyPI module will soon be discontinued. End-users should proceed with the  Simple PyPI nightly repo instead. Find more information in the :doc:`Release policy <./release-notes-openvino/release-policy>`.   
 * ``auto shape`` and ``auto batch size`` (reshaping a model in runtime) will be removed in the future. OpenVINO's dynamic shape models are recommended instead.   
 * MacOS x86 is no longer recommended for use due to the discontinuation of validation. Full support will be removed later in 2025.   
