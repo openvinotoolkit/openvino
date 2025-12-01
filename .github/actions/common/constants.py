@@ -23,6 +23,8 @@ productTypes = (
     'public_manylinux_2_28_x86_64_release',
     'public_macos_x86_64_release',
     'public_macos_arm64_release',
+    'public_android_x64_release',
+    'public_android_arm64_release',
 )
 ProductType = Enum('ProductType', {t.upper(): t for t in productTypes})
 
@@ -41,6 +43,8 @@ platformKeys = (
     'macos_12_6_x86_64',
     'macos_14_7_arm64',
     'windows_x86_64',
+    'android_x64',
+    'android_arm64',
 )
 PlatformKey = Enum('PlatformKey', {t.upper(): t for t in platformKeys})
 
@@ -56,4 +60,6 @@ PlatformMapping = {
     PlatformKey.MACOS_14_7_ARM64: ProductType.PUBLIC_MACOS_ARM64_RELEASE,
     PlatformKey.CENTOS7_X86_64: ProductType.PUBLIC_MANYLINUX2014_X86_64_RELEASE,
     PlatformKey.ALMALINUX8_X86_64: ProductType.PUBLIC_MANYLINUX_2_28_X86_64_RELEASE,
+    PlatformKey.ANDROID_X64: ProductType.PUBLIC_ANDROID_X64_RELEASE,
+    PlatformKey.ANDROID_ARM64: ProductType.PUBLIC_ANDROID_ARM64_RELEASE,
 }
