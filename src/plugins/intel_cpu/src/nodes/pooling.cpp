@@ -345,17 +345,25 @@ void Pooling::getSupportedDescriptors() {
         dataLayout);
     arm_compute::Pooling3dLayerInfo pool3d_info;
     arm_compute::PoolingLayerInfo pool_info;
-    useACL =
-        AclPoolingExecutor::isSupported(srcTensorInfo,
-                                        dstTensorInfo,
-                                        poolingAttrs,
-                                        inShape.getDims().size(),
-                                        getOriginalOutputsNumber(),
-                                        dataLayout,
-                                        (getOriginalOutputsNumber() > 1) ? &getOutputShapeAtPort(1).getDims() : nullptr,
-                                        &pool_info,
-                                        &pool3d_info,
-                                        isDynamicNode());
+    VectorDims indDims;
+    if (getOriginalOutputsNumber() > 1) {
+        if (isDynamicNode()) {
+            indDims = MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(1)).getDims();
+        } else {
+            indDims = getOutputShapeAtPort(1).getDims();
+        }
+    }
+
+    useACL = AclPoolingExecutor::isSupported(srcTensorInfo,
+                                             dstTensorInfo,
+                                             poolingAttrs,
+                                             inShape.getDims().size(),
+                                             getOriginalOutputsNumber(),
+                                             dataLayout,
+                                             &indDims,
+                                             &pool_info,
+                                             &pool3d_info,
+                                             isDynamicNode());
     // FIXME: 5D tensors case is not assigned to ACL because there is no way to check layout here
     // NEPooling3dLayer supports NDHWC only
     if (inShape.getDims().size() == 5) {
