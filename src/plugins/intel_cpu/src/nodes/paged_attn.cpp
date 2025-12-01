@@ -25,9 +25,15 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/core/shape.hpp"
+#endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 #    include "kernels/scaled_attn/executor_pa.hpp"
@@ -302,7 +308,20 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
         }
         auto orgInput = static_cast<int>(op->get_input_size());
         if (op->get_type_name() == std::string("PagedAttentionExtension") &&
-            orgInput == PagedAttentionExecutor::ID_SLIDING_WINDOW + 1) {
+            orgInput == PagedAttentionExecutor::ID_SINKS + 1) {
+            if (!ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(PagedAttentionExecutor::ID_SINKS))) {
+                errorMessage = "Only Constant operation on sink input is supported";
+                return false;
+            }
+#if defined(OPENVINO_ARCH_ARM64)
+            // ARM platform doesn't support non-empty sink input yet
+            // Check if sink input is non-empty (shape size > 0)
+            const auto& sink_shape = op->get_input_partial_shape(PagedAttentionExecutor::ID_SINKS);
+            if (sink_shape.is_static() && ov::shape_size(sink_shape.to_shape()) > 0) {
+                errorMessage = "PagedAttentionExtension with non-empty sink input is not supported on ARM platform";
+                return false;
+            }
+#endif
             return true;
         }
     } catch (...) {

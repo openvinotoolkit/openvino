@@ -926,7 +926,7 @@ struct MHAHelper {
                 // sink processing is independent of sliding_window size
                 float* sink = nullptr;
                 if (sinks) {
-                    sink = &sinks.at<float>({batch_in_seq, h, m, 0}, true);
+                    sink = &sinks.at<float>({0, h, 0, 0}, true);
                 }
                 if (_sliding_window) {
                     size_t start_idx = 0;
@@ -1227,7 +1227,6 @@ struct MHAHelper {
                             size_t cur_kv_len,
                             const PlainTensor& alibi_slopes,
                             float* score_output,
-                            size_t batch_in_seq,
                             const PlainTensor& sinks) {
 #    if defined(OPENVINO_ARCH_X86_64)
         if (any_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
@@ -1288,7 +1287,7 @@ struct MHAHelper {
                 }
                 float* sink = nullptr;
                 if (sinks) {
-                    sink = &sinks.at<float>({batch_in_seq, h, pq, 0}, true);
+                    sink = &sinks.at<float>({0, h, 0, 0}, true);
                 }
                 if (_sliding_window) {
                     size_t start_idx = 0;
@@ -1498,7 +1497,7 @@ struct MHAHelper {
             }
             float* sink = nullptr;
             if (sinks) {
-                sink = &sinks.at<float>({b, h, pq, 0}, true);
+                sink = &sinks.at<float>({0, h, 0, 0}, true);
             }
             if (_sliding_window) {
                 size_t start_idx = 0;
@@ -1808,7 +1807,6 @@ struct MHA {
                     cur_kv_len,
                     alibi_slopes,
                     score_output,
-                    batch_in_seq,
                     sinks);
             } else {
                 const auto batch_in_reorder = item.batch_in_reorder;
