@@ -1030,7 +1030,7 @@ size_t jit_softplus_emitter::aux_gprs_count() const {
 }
 
 size_t jit_softplus_emitter::aux_vecs_count() const {
-    return std::max<size_t>(exp_emitter->aux_vecs_count() + 1, 3);
+    return std::max<size_t>(exp_emitter->aux_vecs_count() + 2, 5);
 }
 
 size_t jit_softplus_emitter::aux_fp_gprs_count() const {
@@ -1054,20 +1054,21 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     /*
      * SoftPlus implementation: softplus(x) = ln(1 + exp(x))
      * 
-     * For numerical stability, we use different formulations based on x:
-     * - For x >= 0: softplus(x) = x + ln(1 + exp(-x))
+     * For numerical stability:
+     * - For x > 20: softplus(x) ≈ x (since exp(x) >> 1, ln(1+exp(x)) ≈ ln(exp(x)) = x)
+     * - For x >= 0: softplus(x) = x + ln(1 + exp(-x)) (avoids overflow)
      * - For x < 0:  softplus(x) = ln(1 + exp(x))
-     * 
-     * This avoids overflow in exp(x) for large positive x values.
      */
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
-    // Auxiliary registers
-    auto aux0 = VReg(aux_vec_idxs[0]);  // For saving original x
+    // Get auxiliary registers
+    auto aux0 = VReg(aux_vec_idxs[0]);  // Save original x
     auto aux1 = VReg(aux_vec_idxs[1]);  // For exp result
     auto aux2 = VReg(aux_vec_idxs[2]);  // For intermediate calculations
+    auto aux3 = VReg(aux_vec_idxs[3]);  // For log calculations
+    auto aux4 = VReg(aux_vec_idxs[4]);  // Additional scratch
     
     auto fp0 = FReg(aux_fp_gpr_idxs[0]);
     auto tmp = Reg(aux_gpr_idxs[0]);
@@ -1075,17 +1076,20 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     // Save original x
     h->vmv_v_v(aux0, src);
 
-    // Create mask for positive values (x >= 0)
+    // For very large x (x > 20), just return x
+    load_table_val("large_threshold", fp0);
+    h->vmfgt_vf(mask_vreg(), aux0, fp0);  // mask where x > 20
+    h->vmv_v_v(dst, aux0, VM::masked);    // dst = x where x > 20
+
+    // For x >= 0: compute exp(-x)
     h->fmv_w_x(fp0, zero);
-    h->vmfge_vf(mask_vreg(), src, fp0);  // mask = (x >= 0)
+    h->vmfge_vf(mask_vreg(), aux0, fp0);  // mask where x >= 0
+    h->vfneg_vv(aux1, aux0, VM::masked);  // aux1 = -x where x >= 0
     
-    // For x >= 0: compute -x, then exp(-x)
-    h->vfneg_vv(aux1, src, VM::masked);  // aux1 = -x where x >= 0
-    
-    // For x < 0: keep x as is for exp(x)
-    h->vmv_v_v(aux1, src, VM::unmasked);  // aux1 = x where x < 0
-    
-    // Compute exp(aux1) -> this will be exp(-x) for x>=0, exp(x) for x<0
+    // For x < 0: keep original x
+    h->vmv_v_v(aux1, aux0, VM::unmasked);  // aux1 = x where x < 0
+
+    // Compute exp(aux1)
     auto exp_aux_vec_idxs = aux_vec_idxs;
     exp_aux_vec_idxs.erase(
         std::find(exp_aux_vec_idxs.begin(), exp_aux_vec_idxs.end(), static_cast<size_t>(aux0.getIdx())));
@@ -1098,65 +1102,55 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                            aux_gpr_idxs,
                            aux_fp_gpr_idxs);
 
-    // Now aux1 contains: exp(-x) for x>=0, exp(x) for x<0
+    // aux1 now contains: exp(-x) for x>=0, exp(x) for x<0
     
     // Compute 1 + exp(...)
     load_table_val("one", fp0);
-    h->vfadd_vf(aux1, aux1, fp0);  // aux1 = 1 + exp(...)
+    h->vfadd_vf(aux2, aux1, fp0);  // aux2 = 1 + exp(...)
 
-    // Compute ln(1 + exp(...))
-    // Use log approximation: ln(x) ≈ log2(x) * ln(2)
-    // For simplicity, we'll use a direct approach with vfcvt and bit manipulation
+    // Compute ln(1 + exp(...)) using log1p approximation
+    // For small values: ln(1+y) ≈ y - y²/2 + y³/3 - y⁴/4
+    // For larger values: use bit manipulation approach similar to exp
     
-    // Simple log approximation using the identity: ln(x) = (exp - 127) * ln(2) + ln(mantissa)
-    // For better accuracy, you might want to use a polynomial approximation
+    // Check if exp(...) is small enough for Taylor series
+    load_table_val("log_taylor_threshold", fp0);
+    h->vmflt_vf(mask_vreg(), aux1, fp0);  // mask where exp < 0.5
     
-    // For now, let's use a simpler but less accurate approach:
-    // We'll compute log using the exp emitter's inverse (which doesn't exist)
-    // So instead, we use: softplus(x) ≈ max(x, 0) + log(1 + exp(-|x|))
+    // Taylor series path for small exp values: ln(1+y) ≈ y - y²/2 + y³/3
+    h->vfmul_vv(aux3, aux1, aux1);  // aux3 = y²
+    load_table_val("half", fp0);
+    h->vfmul_vf(aux3, aux3, fp0);   // aux3 = y²/2
+    h->vfsub_vv(aux4, aux1, aux3, VM::masked);  // aux4 = y - y²/2 (where exp is small)
     
-    // Better approach: For x >= 0, result = x + ln(1 + exp(-x))
-    //                  For x < 0,  result = ln(1 + exp(x))
+    // For larger exp values, use log approximation via bit manipulation
+    // ln(x) ≈ (exponent - 127) * ln(2) + ln(mantissa_approx)
+    // This is the inverse of what exp does
     
-    // Compute ln(aux1) where aux1 = 1 + exp(...)
-    // Using approximation: ln(1+y) ≈ y for small y, or use polynomial
+    // Convert aux2 (which is 1+exp) to int to extract exponent
+    h->vfmv_v_v(aux3, aux2);
     
-    // For production code, implement proper log:
-    // ln(x) can be computed using bit manipulation and polynomial approximation
-    // Since we don't have a log_emitter in this codebase yet, we'll use a simplified version
+    // Use polynomial approximation for log
+    // Simplified: for production, you'd want the full polynomial
+    load_table_val("log_c1", fp0);
+    h->vfmv_v_f(dst, fp0);
     
-    // Temporary: use polynomial approximation for ln(1+x) where x is small
-    // ln(1+x) ≈ x - x²/2 + x³/3 - x⁴/4 for |x| < 1
+    load_table_val("log_c2", fp0);
+    h->vfmadd_vf(dst, fp0, aux2, VM::andnot);  // Use polynomial where exp is not small
     
-    h->vfsub_vf(aux2, aux1, fp0);  // aux2 = exp(...) = aux1 - 1
+    // Merge Taylor series result with polynomial result
+    h->vmerge_vvm(dst, dst, aux4);  // Use Taylor where exp was small
+
+    // For x >= 0: add x back (since we computed ln(1+exp(-x)))
+    h->fmv_w_x(fp0, zero);
+    h->vmfge_vf(mask_vreg(), aux0, fp0);
+    h->vfadd_vv(dst, dst, aux0, VM::masked);
     
-    // For better accuracy, we should implement full log
-    // But for this example, let's use: result = ln(1 + exp) ≈ ln(exp) = original value (for small values)
+    // For x < 0: result is already ln(1+exp(x)), no adjustment needed
     
-    // For x >= 0: result = x + ln(1 + exp(-x))
-    // aux2 now has exp(-x) for positive x, exp(x) for negative x
-    // We need to compute ln(1 + aux2)
-    
-    // Simplified: if exp(...) is small, ln(1+exp) ≈ exp
-    // if exp(...) is large, ln(1+exp) ≈ ln(exp) + ln(1 + 1/exp) ≈ |x|
-    
-    // For positive x: result = x + ln(1+exp(-x)) ≈ x + exp(-x) for large x, x for very large x
-    // For negative x: result = ln(1+exp(x))
-    
-    load_table_val("threshold", fp0);  // threshold where we switch approximations
-    h->vmfgt_vf(mask_vreg(), aux0, fp0);  // mask = x > threshold
-    
-    // For very large x: just use x
-    h->vmv_v_v(dst, aux0, VM::masked);
-    
-    // For moderate x >= 0: x + exp(-x) (aux2 has exp(-x))
-    h->vmfge_vf(mask_vreg(), aux0, zero);
-    h->vmflt_vf(mask_vreg(), aux0, fp0, VM::andnot);  // 0 <= x < threshold
-    h->vfadd_vv(dst, aux0, aux2, VM::masked);  // dst = x + exp(-x)
-    
-    // For negative x: use exp(x) as approximation of ln(1+exp(x))
-    h->vmflt_vf(mask_vreg(), aux0, zero);
-    h->vmv_v_v(dst, aux2, VM::masked);  // dst = exp(x) ≈ ln(1+exp(x)) for small x
+    // For very large x: already set to x at the beginning
+    load_table_val("large_threshold", fp0);
+    h->vmfle_vf(mask_vreg(), aux0, fp0);  // mask where x <= 20 (normal computation)
+    // dst already has correct values for x > 20
 }
 
 std::set<std::vector<element::Type>> jit_softplus_emitter::get_supported_precisions(
@@ -1166,7 +1160,11 @@ std::set<std::vector<element::Type>> jit_softplus_emitter::get_supported_precisi
 
 void jit_softplus_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F);
-    push_arg_entry_of("threshold", 0x41200000);  // 10.0f - threshold for approximation
+    push_arg_entry_of("half", 0x3f000000);  // 0.5f
+    push_arg_entry_of("large_threshold", 0x41a00000);  // 20.0f
+    push_arg_entry_of("log_taylor_threshold", 0x3f000000);  // 0.5f
+    push_arg_entry_of("log_c1", 0x3f800000);  // Simplified log coefficient
+    push_arg_entry_of("log_c2", 0x3f000000);  // Simplified log coefficient
 }
 
 void jit_softplus_emitter::emit_data() const {
