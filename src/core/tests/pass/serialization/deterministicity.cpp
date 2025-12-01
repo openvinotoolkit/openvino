@@ -5,13 +5,17 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
+#include <regex>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
+
+namespace ov::test {
 
 class DeterministicityCommon {
 protected:
@@ -350,3 +354,41 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromOvModelBybPath) {
 INSTANTIATE_TEST_SUITE_P(DeterministicityInputOutput,
                          SerializationDeterministicityInputOutputTest,
                          ::testing::Values(ov::pass::Serialize::Version::IR_V10, ov::pass::Serialize::Version::IR_V11));
+
+TEST(DeterministicityInputOutput, LayerIdOrder) {
+    const auto p1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    const auto p2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    const auto p3 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    const auto a1 = std::make_shared<op::v1::Add>(p3, p2);
+    const auto a2 = std::make_shared<op::v1::Add>(p2, p1);
+    const auto a3 = std::make_shared<op::v1::Add>(p1, p3);
+    const auto r1 = std::make_shared<op::v0::Result>(a1);
+    const auto r2 = std::make_shared<op::v0::Result>(a2);
+    const auto r3 = std::make_shared<op::v0::Result>(a3);
+    const auto model = std::make_shared<Model>(ResultVector{r3, r2, r1}, ParameterVector{p3, p2, p1}, "param_order");
+    p3->set_friendly_name("expect id 0");
+    p2->set_friendly_name("expect id 1");
+    p1->set_friendly_name("expect id 2");
+    r3->set_friendly_name("expect id 6");
+    r2->set_friendly_name("expect id 7");
+    r1->set_friendly_name("expect id 8");
+
+    std::stringstream xml, bin;
+    ov::pass::Serialize(xml, bin).run_on_model(model);
+
+    const std::regex ids_pattern(R"(<layer id=\"(\d+)\" name=\"expect id (\d+)\" type=\"(?:Parameter|Result)\".*>)");
+    const std::string text = xml.str();
+    const std::sregex_iterator end;
+    std::sregex_iterator match(text.begin(), text.end(), ids_pattern);
+    int match_count = 0;
+    while (match != end) {
+        const auto stored_id = match->str(1);
+        const auto expeted_id = match->str(2);
+        EXPECT_EQ(stored_id, expeted_id) << match->str(0);
+
+        ++match_count;
+        ++match;
+    }
+    EXPECT_EQ(match_count, 6);
+}
+}  // namespace ov::test
