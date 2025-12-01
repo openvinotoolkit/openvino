@@ -229,24 +229,38 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         return ai_onnx::opset_13::dequantize_linear(node);
     }
 
-    // squeeze constant input to 2d, [N, C, 1, 1] -> [N, C]
+    auto is_squeezable_const = [](const ov::Output<ov::Node>& tensor) -> bool {
+        const auto const_node = ov::as_type_ptr<v0::Constant>(tensor.get_node_shared_ptr());
+        if (!const_node) {
+            return false;
+        }
+        const auto& shape = tensor.get_partial_shape();
+        if (shape.rank().is_dynamic() || shape.rank().get_length() <= 2) {
+            return false;
+        }
+        for (int64_t i = 2; i < shape.rank().get_length(); ++i) {
+            if (shape[i].is_dynamic() || shape[i].get_length() != 1) {
+                return false;
+            }
+        }
+        return true;
+    };
+
     auto const_input_to_2d = [&](ov::Output<ov::Node>& tensor) {
         auto const_node = ov::as_type_ptr<v0::Constant>(tensor.get_node_shared_ptr());
         auto shape = tensor.get_partial_shape();
-        if (const_node && shape.rank().is_static() && shape.rank().get_length() > 2) {
-            for (int64_t i = 2; i < shape.rank().get_length(); ++i) {
-                if (shape[i].is_dynamic() || shape[i].get_length() != 1) {
-                    return;
-                }
-            }
-            tensor = std::make_shared<v0::Constant>(
-                const_node->get_element_type(),
-                Shape{static_cast<size_t>(shape[0].get_length()), static_cast<size_t>(shape[1].get_length())},
-                const_node->get_data_ptr());
-        }
+        tensor = std::make_shared<v0::Constant>(
+            const_node->get_element_type(),
+            Shape{static_cast<size_t>(shape[0].get_length()), static_cast<size_t>(shape[1].get_length())},
+            const_node->get_data_ptr());
     };
 
-    if (scale_shape.rank().is_static() && scale_shape.rank().get_length() > 2) {
+    const bool can_squeeze_all = is_squeezable_const(src_x) && is_squeezable_const(scale) &&
+                                 (zp.get_node_shared_ptr() == nullptr || is_squeezable_const(zp));
+
+    // If src_x/scale/zp are constant nodes with shape [N, C, 1, 1, ..., 1].
+    // Squeeze the inputs as 2d with shape [N, C].
+    if (can_squeeze_all) {
         const_input_to_2d(src_x);
         const_input_to_2d(scale);
         if (zp.get_node_shared_ptr()) {
