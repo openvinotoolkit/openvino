@@ -16,8 +16,9 @@ using namespace ov::pass::pattern;
         \
         auto weights_const_m = wrap_type<ov::op::v0::Constant>(compressed_constant);\
         auto weights_param_m = wrap_type<ov::op::v0::Parameter>(compressed_constant);\
-        auto weights_param_reshape_m = wrap_type<ov::op::v1::Reshape>({weights_param_m, any_input()});\
-        auto compressed_weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m, weights_param_reshape_m});\
+        auto weights_initial_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m});\
+        auto weights_reshape_m = wrap_type<ov::op::v1::Reshape>({weights_initial_m, any_input()});\
+        auto compressed_weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m, weights_reshape_m});\
         auto convert_m = wrap_type<ov::op::v0::Convert>({compressed_weights_m});\
         auto weights_param_convert_m = wrap_type<ov::op::v0::Convert>({weights_param_m});\
         auto weights_convert_reshape_m = wrap_type<ov::op::v1::Reshape>({weights_param_convert_m, any_input()});\
