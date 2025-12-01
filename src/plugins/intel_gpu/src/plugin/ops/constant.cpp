@@ -188,6 +188,38 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
                 std::cerr.flush();
             } else {
                 std::cerr << "[DEBUG_CVS-172561]   Before memcpy: copying " << bufSize << " bytes" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561]   buf address range: " << (void*)buf << " to " << (void*)(buf + bufSize) << std::endl;
+                std::cerr << "[DEBUG_CVS-172561]   data address range: " << (void*)data << " to " << (void*)(data + bufSize) << std::endl;
+                std::cerr.flush();
+                
+                // Test buf write access - single byte
+                std::cerr << "[DEBUG_CVS-172561]   Testing buf[0] write..." << std::endl;
+                std::cerr.flush();
+                volatile char test_val = buf[0];  // Read first
+                std::cerr << "[DEBUG_CVS-172561]   buf[0] read OK, value: 0x" << std::hex << (int)(unsigned char)test_val << std::dec << std::endl;
+                std::cerr.flush();
+                buf[0] = 0x42;  // Write
+                std::cerr << "[DEBUG_CVS-172561]   buf[0] write OK" << std::endl;
+                std::cerr.flush();
+                buf[0] = test_val;  // Restore
+                std::cerr << "[DEBUG_CVS-172561]   buf[0] restored" << std::endl;
+                std::cerr.flush();
+                
+                // Test data read access
+                std::cerr << "[DEBUG_CVS-172561]   Testing data[0] read..." << std::endl;
+                std::cerr.flush();
+                volatile char data_val = data[0];
+                std::cerr << "[DEBUG_CVS-172561]   data[0] read OK, value: 0x" << std::hex << (int)(unsigned char)data_val << std::dec << std::endl;
+                std::cerr.flush();
+                
+                // Try reading last byte of data
+                std::cerr << "[DEBUG_CVS-172561]   Testing data[bufSize-1] read..." << std::endl;
+                std::cerr.flush();
+                volatile char data_last = data[bufSize-1];
+                std::cerr << "[DEBUG_CVS-172561]   data[bufSize-1] read OK, value: 0x" << std::hex << (int)(unsigned char)data_last << std::dec << std::endl;
+                std::cerr.flush();
+                
+                std::cerr << "[DEBUG_CVS-172561]   All pointer tests passed, calling memcpy..." << std::endl;
                 std::cerr.flush();
                 std::memcpy(&buf[0], &data[0], bufSize);
                 std::cerr << "[DEBUG_CVS-172561]   After memcpy - SUCCESS" << std::endl;
