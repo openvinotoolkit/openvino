@@ -35,6 +35,7 @@
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/prim_unpack_parameter_replacer.hpp"
+#include "transforms/complex_type_mark_remover.hpp"
 #include "transforms/quantized_node_remover.hpp"
 #include "transforms/remove_packing_ops.hpp"
 #include "transforms/reverseprop_resolver.hpp"
@@ -297,6 +298,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::DictParameterResolver>();
         manager.register_pass<ov::frontend::pytorch::pass::DictResultResolver>();
         manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
+        manager.register_pass<ov::frontend::pytorch::pass::ComplexTypeMarkRemover>();
         manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
         manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
         manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();

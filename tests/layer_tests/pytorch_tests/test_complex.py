@@ -75,3 +75,53 @@ class TestReal(PytorchLayerTest):
         self._test(*self.create_model(), ie_device,
                    precision, ir_version, trace_model=True,
                    kwargs_to_prepare_input={"y": second_input})
+
+
+class TestComplexOutput(PytorchLayerTest):
+    """
+    Test that models with complex tensor outputs can be converted.
+    This tests the ComplexTypeMarkRemover transformation which removes
+    ComplexTypeMark nodes from the graph before model finalization.
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        # Input shape [batch, features, 2] where 2 is for complex (real, imag)
+        return (np.random.randn(2, 3, 2).astype(np.float32),)
+
+    def create_model(self, op_name):
+        class complex_output_unsqueeze(torch.nn.Module):
+            def forward(self, x):
+                # Convert real tensor to complex, apply unsqueeze, convert back
+                complex_x = torch.view_as_complex(x)
+                result = complex_x.unsqueeze(0)
+                return torch.view_as_real(result)
+
+        class complex_output_reshape(torch.nn.Module):
+            def forward(self, x):
+                # Convert real tensor to complex, apply reshape, convert back
+                complex_x = torch.view_as_complex(x)
+                result = complex_x.reshape(-1)
+                return torch.view_as_real(result)
+
+        class complex_output_permute(torch.nn.Module):
+            def forward(self, x):
+                # Convert real tensor to complex, apply permute, convert back
+                complex_x = torch.view_as_complex(x)
+                result = complex_x.permute(1, 0)
+                return torch.view_as_real(result)
+
+        models = {
+            "unsqueeze": complex_output_unsqueeze,
+            "reshape": complex_output_reshape,
+            "permute": complex_output_permute,
+        }
+
+        return models[op_name](), None, f"aten::{op_name}"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("op_name", ["unsqueeze", "reshape", "permute"])
+    def test_complex_output(self, op_name, ie_device, precision, ir_version):
+        self._test(*self.create_model(op_name), ie_device,
+                   precision, ir_version, trace_model=True)

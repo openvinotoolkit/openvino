@@ -43,7 +43,7 @@ OutputVector translate_unsqueeze(const NodeContext& context) {
         auto new_dim = context.mark_node(std::make_shared<v1::Select>(zero_cond, neg_dim, dim));
         const auto dim_const = ov::util::get_constant_from_source(new_dim);
         auto res = context.mark_node(std::make_shared<v0::Unsqueeze>(data, dim_const));
-        res = context.mark_node(std::make_shared<ComplexTypeMark>(res));
+        res = context.mark_node(std::make_shared<ComplexTypeMark>(res, complex->get_complex_part_type()));
         return {res};
     }
 
