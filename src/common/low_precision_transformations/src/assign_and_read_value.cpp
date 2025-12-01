@@ -23,7 +23,7 @@ AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::sh
     MATCHER_SCOPE(AssignAndReadValueTransformation);
     auto assign_m = pattern::wrap_type<opset3::Assign, opset6::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
 
-    ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [=, this](pattern::Matcher& m) {
         const auto assign = m.get_match_root();
         // check that we have ReadValue as the first dependency
         if (assign->get_control_dependencies().empty()) {

@@ -43,7 +43,7 @@ TSReductionForward::TSReductionForward() {
     MATCHER_SCOPE(TSReductionForward);
 
     create_pattern<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>({0});
-    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+    auto sinking_transformation = [=, this](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
         auto keep_dims = get_keep_dims(main_node);
         auto transpose_order = transpose_info.transpose_const;
@@ -100,7 +100,7 @@ TSReductionBackward::TSReductionBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=, this](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
         auto transpose = pattern_to_output.at(transpose_label);
         auto main_node = pattern_to_output.at(reduce_label);

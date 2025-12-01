@@ -28,7 +28,7 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
     MATCHER_SCOPE(DecomposeRMSNorm);
     auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::RMS>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto node = ov::as_type_ptr<ov::op::internal::RMS>(pattern_to_output.at(pattern_node).get_node_shared_ptr());
 

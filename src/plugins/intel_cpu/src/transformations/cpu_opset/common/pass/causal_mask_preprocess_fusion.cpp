@@ -174,7 +174,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
     auto index_Gather =
         pattern::wrap_type<v8::Gather>({slice1 | strided_slice1, cache_positions, 2}, {{"batch_dims", 0}});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         ov::intel_cpu::CausalMaskPreprocessNode::Config config;

@@ -69,7 +69,7 @@ public:
     }
 
 private:
-    RegPrinter() {}
+    RegPrinter() = default;
     template <typename PRC_T, typename REG_T>
     static void print_vmm(jit_generator_t& h, REG_T vmm, const char* name);
     template <typename PRC_T, typename REG_T>

@@ -137,7 +137,7 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
     auto bias = any_input();
     auto fully_connected = wrap_type<ov::op::internal::FullyConnected>({activation, weights_block, bias});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto fc =
             ov::as_type_ptr<ov::op::internal::FullyConnected>(pattern_map.at(fully_connected).get_node_shared_ptr());

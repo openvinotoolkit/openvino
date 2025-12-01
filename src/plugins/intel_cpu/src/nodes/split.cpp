@@ -202,7 +202,7 @@ void Split::initSupportedPrimitiveDescriptors() {
                     [](size_t dim) {
                         return dim == 1;
                     }) &&
-        std::all_of(outputShapes.begin(), outputShapes.end(), [OV_CAPTURE_CPY_AND_THIS](const Shape& shape) {
+        std::all_of(outputShapes.begin(), outputShapes.end(), [=, this](const Shape& shape) {
             return shape.getDims()[axis] != Shape::UNDEFINED_DIM;
         })) {
         for (auto refPdIndex : pdIndexesToReuse) {

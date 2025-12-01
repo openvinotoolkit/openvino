@@ -89,7 +89,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
 
     register_matcher(
         std::make_shared<ov::pass::pattern::Matcher>(m_matmul0, matcher_name),
-        [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        [=, this](ov::pass::pattern::Matcher& m) {
             OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TokenizeMLPSeqSnippets")
             auto& pattern_to_output = m.get_pattern_value_map();
 

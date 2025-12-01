@@ -1992,7 +1992,7 @@ void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
             DQScales[i] *= scaleData[i];
         }
     }
-    if (std::all_of(DQScales.begin(), DQScales.end(), [OV_CAPTURE_CPY_AND_THIS](float val) {
+    if (std::all_of(DQScales.begin(), DQScales.end(), [=, this](float val) {
             return (val == DQScales[0]);
         })) {
         DQScales.resize(1);

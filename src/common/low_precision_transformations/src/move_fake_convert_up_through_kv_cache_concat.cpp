@@ -59,7 +59,7 @@ MoveFakeConvertUpThroughKVCacheConcat::MoveFakeConvertUpThroughKVCacheConcat() {
                   wrap_type<ov::op::v13::ScaledDotProductAttention>({ANY, key, value, ANY, ANY});
 #undef ANY
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback callback = [=, this](Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }

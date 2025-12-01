@@ -25,7 +25,7 @@ TSSliceForward::TSSliceForward() {
     MATCHER_SCOPE(TSSliceForward);
     create_pattern<ov::op::v8::Slice>({0});
 
-    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+    auto sinking_transformation = [=, this](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
         if (main_node->get_input_size() < 5) {
             return false;
@@ -68,7 +68,7 @@ TSSliceBackward::TSSliceBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [=, this](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());

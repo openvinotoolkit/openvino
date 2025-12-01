@@ -30,7 +30,7 @@ add_library(${TARGET_NAME}
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
 
-target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)
+target_compile_features(${TARGET_NAME} PUBLIC cxx_std_20)
 
 ov_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime library")
 

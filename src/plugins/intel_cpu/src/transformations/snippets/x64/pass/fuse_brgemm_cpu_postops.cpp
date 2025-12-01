@@ -37,6 +37,7 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/predicate.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/convert_saturation.hpp"
@@ -323,7 +324,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
     auto m_min = wrap_type<ov::op::v1::Minimum>({m_brgemm, m_rank_norm});
     auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_mul, m_add, m_sub, m_max, m_min});
 
-    auto callback = [=](Matcher& m) {
+    auto callback = [=, this](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseScalarEltwise")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto post_op = pattern_map.at(m_postop).get_node_shared_ptr();

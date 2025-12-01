@@ -67,7 +67,7 @@ ov::pass::GroupNormalizationDecomposition::GroupNormalizationDecomposition() {
 
     auto group_norm_pattern = pattern::wrap_type<v12::GroupNormalization>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& matcher) {
+    matcher_pass_callback callback = [=, this](pattern::Matcher& matcher) {
         NodeRegistry reg;
 
         const auto group_norm_node = ov::as_type_ptr<v12::GroupNormalization>(matcher.get_match_root());

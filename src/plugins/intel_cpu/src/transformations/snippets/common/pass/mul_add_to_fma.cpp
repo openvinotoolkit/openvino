@@ -37,7 +37,7 @@ ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
     auto add_input_2 = ov::pass::pattern::any_input();
     auto add_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({mul_m, add_input_2}, is_not_memory_access);
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::MulAddToFMA_callback")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto multiply = pattern_map.at(mul_m).get_node_shared_ptr();

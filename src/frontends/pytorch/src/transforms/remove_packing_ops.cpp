@@ -40,7 +40,7 @@ bool is_rnn(std::shared_ptr<Node> node) {
 MovePackThroughLstm::MovePackThroughLstm() {
     auto pack_op = pattern::wrap_type<PackPadded>();
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         auto pack = m.get_match_root();
 
         auto targets = pack->output(0).get_target_inputs();

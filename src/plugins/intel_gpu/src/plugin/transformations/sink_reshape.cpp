@@ -93,7 +93,7 @@ SinkReshape::SinkReshape() {
     auto transpose_const_m = wrap_type<v0::Constant>();
     auto transpose_m = wrap_type<v1::Transpose>({reshape_m, transpose_const_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto reshape = std::dynamic_pointer_cast<v1::Reshape>(pattern_map.at(reshape_m).get_node_shared_ptr());
         if (!reshape || transformation_callback(reshape)) {

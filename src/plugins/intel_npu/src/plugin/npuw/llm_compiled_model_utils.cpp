@@ -16,6 +16,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/validate.hpp"
+#include "openvino/util/pp.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -87,7 +88,7 @@ private:
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, concat});
 
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto callback = [=, this](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
 
             auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
@@ -132,7 +133,7 @@ private:
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, reshape});
 
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto callback = [=, this](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
 
             auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
@@ -189,7 +190,7 @@ public:
     explicit ScaledDotProductAttentionDecomposition(bool use_high_precision_on_add) {
         auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
 
-        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(
                 pattern_to_output.at(pattern_node).get_node_shared_ptr());

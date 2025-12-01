@@ -75,7 +75,7 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
 
     auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), rope_cos_input, rope_sin_input});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(gemm_or_matmul).get_node_shared_ptr());
@@ -134,7 +134,7 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
     auto tranpose_1 = wrap_type<ov::op::v1::Transpose>({reshape_3, any_input()});
     auto sdpa = wrap_type<ov::op::v13::ScaledDotProductAttention>({any_input(), tranpose_1, any_input()});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto mul_node = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul).get_node_shared_ptr());
@@ -239,7 +239,7 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
     auto concat_qk_2 = wrap_type<ov::op::v0::Concat>({qk_half_first, qk_half_second});
     auto concat_qk = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat_qk_1, concat_qk_2});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         bool matched = false;
         if (pattern_map.count(concat_qk_1) > 0) {
@@ -362,7 +362,7 @@ DisableFP16ComForGPTOSSROPEPattern::DisableFP16ComForGPTOSSROPEPattern() {
     auto transpose = wrap_type<ov::op::v1::Transpose>({matmul_freq_pos_id, any_input()});
     auto sin = wrap_type<ov::op::v0::Sin>({transpose});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());

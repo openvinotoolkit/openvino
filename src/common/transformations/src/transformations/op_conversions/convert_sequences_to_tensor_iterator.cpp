@@ -354,7 +354,7 @@ ov::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator
     auto B_m = pattern::any_input();
     auto rnn_seq = ov::pass::pattern::wrap_type<ov::op::v5::RNNSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         auto sequence = ov::as_type_ptr<ov::op::v5::RNNSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
@@ -397,7 +397,7 @@ ov::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator
     auto B_m = pattern::any_input();
     auto gru_seq = ov::pass::pattern::wrap_type<ov::op::v5::GRUSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         auto sequence = ov::as_type_ptr<ov::op::v5::GRUSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
@@ -442,7 +442,7 @@ ov::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterat
     auto lstm_seq =
         ov::pass::pattern::wrap_type<ov::op::v5::LSTMSequence>({X_m, H_t_m, C_t_m, seq_lengths_m, W_m, R_m, B_m});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         auto sequence = ov::as_type_ptr<ov::op::v5::LSTMSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward

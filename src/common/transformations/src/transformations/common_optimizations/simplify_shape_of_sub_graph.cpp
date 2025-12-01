@@ -37,7 +37,7 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
     MATCHER_SCOPE(GroupedGatherElimination);
     auto concat_label = wrap_type<v0::Concat>(rank_equals(1));
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback callback = [=, this](Matcher& m) {
         auto concat = m.get_match_root();
         OutputVector inputs = concat->input_values();
         NodeRegistry new_ops;

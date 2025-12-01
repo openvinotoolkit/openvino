@@ -40,6 +40,7 @@
 # Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
 # -modernize-use-constraints,
 # -modernize-use-std-numbers
+# -readability-container-contains
 
 Checks: >
   -*,
@@ -78,6 +79,7 @@ Checks: >
   -misc-const-correctness,
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes,
+  -readability-container-contains,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
   -readability-isolate-declaration,

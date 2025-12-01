@@ -27,7 +27,7 @@ ov::pass::MVN6Decomposition::MVN6Decomposition() {
     // (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     auto mvn = ov::pass::pattern::wrap_type<ov::op::v6::MVN>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto mvn_node = ov::as_type_ptr<ov::op::v6::MVN>(pattern_to_output.at(mvn).get_node_shared_ptr());
 

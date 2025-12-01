@@ -11,6 +11,7 @@ ov_add_test_target(
             gtest_main_manifest 
             frontend_shared_test_classes
             openvino_tensorflow_common
+            openvino::runtime
         ADD_CLANG_FORMAT
         LABELS
             OV UNIT TF_COMMON

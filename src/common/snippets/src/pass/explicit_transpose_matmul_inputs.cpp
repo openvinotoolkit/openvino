@@ -99,7 +99,7 @@ ov::snippets::pass::ExplicitTransposeMatMulInputs::ExplicitTransposeMatMulInputs
         std::make_shared<ov::op::v0::MatMul>(ov::pass::pattern::any_input(), ov::pass::pattern::any_input());
 
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_matmul0, matcher_name),
-                     [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+                     [=, this](ov::pass::pattern::Matcher& m) {
                          OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform,
                                             "Snippets::op::ExplicitTransposeMatMulInputs")
                          auto root = m.get_match_root();

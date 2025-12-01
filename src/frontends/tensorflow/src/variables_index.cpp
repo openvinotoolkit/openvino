@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include <fstream>
+#include <limits>
 #include <string>
 
 #include "checkpoint_utils.hpp"
@@ -30,12 +31,18 @@ void VariablesIndex::read_variables_index_block(std::ifstream& fs,
                                                 uint32_t& offset,
                                                 uint32_t& offset_end) {
     size_t block_size = index.m_size;
-    data.clear();
-    data.resize(block_size + BLOCK_TRAILER_SIZE);
+    constexpr size_t trailer_size = BLOCK_TRAILER_SIZE;
+
     FRONT_END_GENERAL_CHECK(index.m_offset <= m_variables_index_size,
                             "Block offset is bigger than variables index size");
-    FRONT_END_GENERAL_CHECK(index.m_offset + data.size() <= m_variables_index_size,
+    FRONT_END_GENERAL_CHECK(block_size <= std::numeric_limits<size_t>::max() - trailer_size,
+                            "Block size overflow detected");
+    const size_t data_size = block_size + trailer_size;
+    FRONT_END_GENERAL_CHECK(data_size <= m_variables_index_size - index.m_offset,
                             "Block size is bigger than variables index size");
+    FRONT_END_GENERAL_CHECK(block_size >= sizeof(uint32_t), "Block size is too small");
+
+    data.assign(data_size, 0);
     fs.seekg(index.m_offset, std::ios::beg);
     fs.read(data.data(), data.size());
 #ifndef ENABLE_SNAPPY_COMPRESSION
@@ -54,6 +61,8 @@ void VariablesIndex::read_variables_index_block(std::ifstream& fs,
         block_size = uncompressed_length;
     }
 #endif
+    FRONT_END_GENERAL_CHECK(block_size >= sizeof(uint32_t), "Block size is too small");
+    FRONT_END_GENERAL_CHECK(block_size <= std::numeric_limits<uint32_t>::max(), "Block size is too large");
     uint32_t numRestarts = decode_fixed32(data.data() + block_size - sizeof(uint32_t));
     size_t maxRestarts = (block_size - sizeof(uint32_t)) / sizeof(uint32_t);
     FRONT_END_GENERAL_CHECK(maxRestarts >= numRestarts, "Wrong restarts value");

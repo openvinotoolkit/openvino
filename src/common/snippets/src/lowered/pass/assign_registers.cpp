@@ -175,7 +175,8 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         std::map<Reg, Reg> register_map;
         std::stack<Reg> bank;
         // regs are stored in ascending order in reg_pool, so walk in reverse to assign them the same way
-        for (auto rit = reg_pool.crbegin(); rit != reg_pool.crend(); rit++) {
+        // NOLINTNEXTLINE(modernize-loop-convert)
+        for (auto rit = reg_pool.rbegin(); rit != reg_pool.rend(); ++rit) {
             bank.push(*rit);
         }
 

@@ -126,7 +126,7 @@ AsymmetricConvolutionMatcher::AsymmetricConvolutionMatcher() {
 
     auto convolution_m = wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>({ conv_activations_m, conv_weights_m });
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;
@@ -190,7 +190,7 @@ ConvolutionMatcher::ConvolutionMatcher() {
     auto bias_val_m = wrap_type<ov::op::v0::Constant>();
     auto convolution_m = wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>({ input_m, weights_m });
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;

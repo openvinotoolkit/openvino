@@ -25,7 +25,7 @@ TSGatherForward::TSGatherForward() {
 
     create_pattern<ov::op::v8::Gather>({0});
 
-    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+    auto sinking_transformation = [=, this](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
         auto gather = as_type_ptr<ov::op::v8::Gather>(main_node);
         if (!gather) {
@@ -162,7 +162,7 @@ TSGatherBackward::TSGatherBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=, this](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose = as_type_ptr<ov::op::v1::Transpose>(pattern_to_output.at(transpose_label));

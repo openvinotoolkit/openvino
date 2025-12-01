@@ -54,7 +54,7 @@ SDPAScaleFusionPass::SDPAScaleFusionPass() {
     auto sdpa_simple = wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v}, {{"causal", false}});
     auto sdpa = sdpa_simple | sdpa_mask | sdpa_mask_scale;
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;

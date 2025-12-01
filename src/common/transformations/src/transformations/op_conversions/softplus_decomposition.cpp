@@ -24,7 +24,7 @@ ov::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
     auto input = pattern::any_input();
     auto softplus = std::make_shared<ov::op::v4::SoftPlus>(input);
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto softplus_input = pattern_to_output.at(input);
         auto softplus_node = pattern_to_output.at(softplus).get_node_shared_ptr();

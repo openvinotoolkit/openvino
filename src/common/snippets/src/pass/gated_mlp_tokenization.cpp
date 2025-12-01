@@ -96,7 +96,7 @@ TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const TokenizationConfig& con
     auto m_mul = wrap_type<v1::Multiply>({m_act, m_fc_up}, consumers_count(1));
     auto m_fc_down = wrap_type<v0::MatMul>({m_mul, make_weights()}, fc_predicate(true));
 
-    register_matcher(std::make_shared<Matcher>(m_fc_down, matcher_name), [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    register_matcher(std::make_shared<Matcher>(m_fc_down, matcher_name), [=, this](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TokenizeGatedMLPSnippets")
         auto& pattern_map = m.get_pattern_value_map();
 

@@ -43,7 +43,7 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
     auto reshape_m = wrap_type<ov::op::v1::Reshape>({broadcast_m, any_input()}, reshape_predicate);
     auto matmul_m = wrap_type<op::Gemm>({input_a_m, reshape_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }

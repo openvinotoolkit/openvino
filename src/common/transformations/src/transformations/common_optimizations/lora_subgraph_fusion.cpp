@@ -45,7 +45,7 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
     auto main_flow_m = wrap_type<ov::op::v0::MatMul, ov::op::v1::Convolution>({lora_input_m, any_input()});
     auto add_m = wrap_type<ov::op::v1::Add>({transpose2_m, main_flow_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& lora_input = pattern_map.at(lora_input_m);
         const auto& matmul1 = pattern_map.at(matmul1_m);

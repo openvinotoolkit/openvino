@@ -34,7 +34,7 @@ DecomposeReduceForFalseKeepDims::DecomposeReduceForFalseKeepDims() {
         ov::pass::pattern::has_static_shape());
 
     // register callback
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto reduce =
             as_type_ptr<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());

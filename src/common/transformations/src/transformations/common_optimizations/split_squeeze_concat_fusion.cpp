@@ -27,7 +27,7 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion(bool use_shapes) {
     // Detect only concat, because we don't know how many inputs will go into concat
     auto concat_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_to_output.at(concat_pattern).get_node_shared_ptr());
         if (!concat)

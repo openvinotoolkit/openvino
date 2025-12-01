@@ -72,7 +72,7 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
                                                         ov::op::util::BinaryElementwiseArithmetic,
                                                         ov::op::v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto eltwise = pattern_map.at(eltwise_pattern).get_node_shared_ptr();
@@ -185,7 +185,7 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
         ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({eltw_data_flow_in, eltw_const_in},
                                                                                 eltw_predicate);
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto eltwise = pattern_map.at(eltwise_pattern).get_node_shared_ptr();

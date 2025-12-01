@@ -152,7 +152,7 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
     //
     // Detect only concat, because we don't know how many inputs will go into concat.
     auto concat_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         auto concat = ov::as_type_ptr<ov::op::v0::Concat>(m.get_match_root());
         if (!concat)
             return false;

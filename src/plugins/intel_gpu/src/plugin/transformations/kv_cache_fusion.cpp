@@ -44,7 +44,7 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
     auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
     auto present = wrap_type<ov::op::v6::Assign>({present_input});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }

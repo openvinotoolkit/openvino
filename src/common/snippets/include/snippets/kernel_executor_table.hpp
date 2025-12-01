@@ -173,7 +173,7 @@ public:
     /*** Returns lambda function that contains current state of the table, and restores this state when called  */
     std::function<void()> get_state_reset() {
         auto current_state = get_state();
-        return [OV_CAPTURE_CPY_AND_THIS]() {
+        return [=, this]() {
             reset_state(current_state);
         };
     }
