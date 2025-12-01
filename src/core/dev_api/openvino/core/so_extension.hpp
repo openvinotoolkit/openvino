@@ -26,19 +26,17 @@ private:
     std::shared_ptr<void> m_so;
 };
 
-inline std::string resolve_extension_path(const std::string& path) {
-    std::string retvalue;
+inline std::filesystem::path resolve_extension_path(const std::filesystem::path& path) {
     try {
-        const std::string absolute_path = ov::util::get_absolute_file_path(path);
-        retvalue = ov::util::file_exists(absolute_path) ? absolute_path : path;
+        auto absolute_path = std::filesystem::absolute(std::filesystem::weakly_canonical(path));
+        return ov::util::file_exists(absolute_path) ? absolute_path : path;
     } catch (const std::runtime_error&) {
-        retvalue = path;
+        return path;
     }
-    return retvalue;
 }
 
-inline std::vector<Extension::Ptr> load_extensions(const std::string& path) {
-    const std::string resolved_path = resolve_extension_path(path);
+inline std::vector<Extension::Ptr> load_extensions(const std::filesystem::path& path) {
+    const auto resolved_path = resolve_extension_path(path);
     auto so = ov::util::load_shared_object(resolved_path.c_str());
     using CreateFunction = void(std::vector<Extension::Ptr>&);
     std::vector<Extension::Ptr> extensions;
@@ -53,11 +51,9 @@ inline std::vector<Extension::Ptr> load_extensions(const std::string& path) {
     return so_extensions;
 }
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-inline std::vector<Extension::Ptr> load_extensions(const std::wstring& path) {
-    return load_extensions(ov::util::wstring_to_string(path).c_str());
+template <class T>
+inline std::vector<Extension::Ptr> load_extensions(const std::basic_string<T>& path) {
+    return load_extensions(ov::util::make_path(path));
 }
-#endif
-
 }  // namespace detail
 }  // namespace ov

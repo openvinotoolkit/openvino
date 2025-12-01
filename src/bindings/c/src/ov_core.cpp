@@ -209,7 +209,7 @@ ov_status_e ov_core_add_extension(const ov_core_t* core, const char* path) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        core->object->add_extension(path);
+        core->object->add_extension(ov::util::make_path(path));
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;

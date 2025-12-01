@@ -167,7 +167,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
     });
 }
 
-void Core::add_extension(const std::string& library_path) {
+void Core::add_extension(const std::filesystem::path& library_path) {
     try {
         add_extension(ov::detail::load_extensions(library_path));
     } catch (const std::runtime_error& e) {
@@ -178,13 +178,13 @@ void Core::add_extension(const std::string& library_path) {
     }
 }
 
+void Core::add_extension(const std::string& library_path) {
+    add_extension(ov::util::make_path(library_path));
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void Core::add_extension(const std::wstring& library_path) {
-    try {
-        add_extension(ov::detail::load_extensions(library_path));
-    } catch (const std::runtime_error&) {
-        OPENVINO_THROW("Cannot add extension. Cannot find entry point to the extension library");
-    }
+    add_extension(ov::util::make_path(library_path));
 }
 #endif
 
