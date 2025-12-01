@@ -49,6 +49,8 @@ __pycache__
 *htmlcov
 *pylint_report.txt
 *pylint_report_comments.txt
+report_api.xml
+report_op.xml
 
 # JS specific
 !__tests__
