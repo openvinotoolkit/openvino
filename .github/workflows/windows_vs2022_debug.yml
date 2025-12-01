@@ -86,7 +86,7 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'windows_2022'
       build-type: 'Debug'
-      timeout-minutes: 90
+      timeout-minutes: 60
 
   Overall_Status:
     name: ci/gha_overall_status_windows_debug
