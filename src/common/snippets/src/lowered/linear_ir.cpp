@@ -262,6 +262,18 @@ void LinearIR::unregister_expression(const ExpressionPtr& expr) {
                         "BufferExpression has not been found in the list of LinearIR Buffers!");
         m_buffer_expressions.erase(it);
     }
+    if (ov::is_type_any_of<ov::op::v0::Result, snippets::op::Result>(node)) {
+        auto match = [&node](const ExpressionPtr& expr) {
+            if (expr->get_node() == node) {
+                return true;
+            }
+            return false;
+        };
+        auto result_it = std::find_if(m_result_expressions.cbegin(), m_result_expressions.cend(), match);
+        OPENVINO_ASSERT(result_it != m_result_expressions.cend(),
+                        "Result has not been found in the list of LinearIR Results!");
+        m_result_expressions.erase(result_it);
+    }
 }
 
 LinearIR::exprIt LinearIR::insert(constExprIt pos, container::value_type&& value) {
