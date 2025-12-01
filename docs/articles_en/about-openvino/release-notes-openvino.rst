@@ -171,7 +171,7 @@ OpenVINO™ Model Server
   * Integration with OpenWebU
   * Integration with Visual Studio Code using the Continue extension
   * Agentic client demo
-  * `Audio endpoints <https://docs.openvino.ai/nightly/model-server/ovms_demos_audio.html>`__
+  * `Audio endpoints <https://docs.openvino.ai/2025/model-server/ovms_demos_audio.html>`__
   * Windows service usage
   * GGUF model pulling
 
