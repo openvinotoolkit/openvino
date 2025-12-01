@@ -138,20 +138,23 @@ public:
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{64});
         auto xattention_stride =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{8});
-        // Create sink_input parameter for testing - shape [1, num_heads, 1, 1] as per PagedAttentionExecutor::ID_SINKS
-        // PagedAttentionExtension always expects 21 inputs, so we must always include sinks parameter
-        auto sinks = make_param(PartialShape{1, head_num, 1, 1}, data_type, "sinks");
+        // Create sink input as Constant (not Parameter) for testing
+        // PagedAttentionExtension requires sink input to be Constant
+        // Use shape [1, head_num, 1, 1] when use_sink_input=true, or empty shape [0] when false
+        std::shared_ptr<ov::op::v0::Constant> sinks;
+        if (use_sink_input) {
+            // Create real sink tokens for testing sink functionality
+            std::vector<float> sink_data(static_cast<size_t>(head_num), 0.1f);
+            sinks = std::make_shared<ov::op::v0::Constant>(data_type,
+                                                           Shape{1, static_cast<size_t>(head_num), 1, 1},
+                                                           sink_data);
+        } else {
+            // Create empty sink (matching SDPA->PA transformation behavior when no sink)
+            sinks = std::make_shared<ov::op::v0::Constant>(data_type, Shape{0}, std::vector<float>{});
+        }
 
-        ParameterVector params = {q,
-                                  k,
-                                  v,
-                                  key_cache,
-                                  value_cache,
-                                  past_lens,
-                                  subsequence_begins,
-                                  block_indices,
-                                  block_indices_begins,
-                                  sinks};
+        ParameterVector params =
+            {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         OutputVector paged_attn_inputs = {q,
                                           k,
                                           v,
@@ -461,10 +464,7 @@ public:
             inputs.insert({function->get_parameters()[7], block_indices});
             inputs.insert({function->get_parameters()[8], block_indices_begins});
 
-            // Create sink_input data - shape [1, num_heads, 1, 1] as per PagedAttentionExtensor specification
-            // Always create the sink input data since PagedAttentionExtension expects 21 inputs
-            // The value will be ignored when use_sink_input=false
-            create_input(function->get_parameters()[9], {1, qkv_shape[2], 1, 1}, use_sink_input ? 0.1f : 0.0f);
+            // Note: sink is a Constant in the model, not a Parameter, so no need to provide input for it
 
             past_len_count += static_cast<int32_t>(qkv_shape[0]);
 
@@ -655,21 +655,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false),
+                                            // TODO: Xattn should not direcctly compare with SDPA/decomposed Matmul
+                                            // which not contain sparse logics
                                             ::testing::Values(true, false),
-                                            ::testing::Values(true, false),
-                                            ::testing::Values(0),  // sliding_window = 0
+                                            ::testing::Values(false),
+                                            ::testing::Values(0),
                                             ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
 
-// Sliding window test with same shapes as normal test
-INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest_WithSlidingWindow,
+INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest_WithSlidingWindowAndSinks,
                          PagedAttnVSSDPATest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(inputShapeAndReorders),
-                                            ::testing::Values(false),  // extendBlockIndices
-                                            ::testing::Values(false),  // enableXattn
-                                            ::testing::Values(true),   // sinkInput
-                                            ::testing::Values(8),      // sliding_window = 8
+                                            ::testing::Values(false),        // extendBlockIndices
+                                            ::testing::Values(false),        // enableXattn
+                                            ::testing::Values(true, false),  // sinkInput
+                                            ::testing::Values(0, 8),         // sliding_window = 8
                                             ::testing::Values(ov::AnyMap{
                                                 {ov::intel_cpu::enable_sage_attn.name(), false}})),
                          PagedAttnTestBase::getTestCaseName);
