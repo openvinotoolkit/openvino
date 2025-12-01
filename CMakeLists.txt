@@ -145,6 +145,22 @@ endfunction()
 # Build
 #
 
+# Configure job pools
+# Because we use Ninja generator by default, we can set the number of parallel
+# jobs separately for different tasks, like compiling and linking.
+# Especially useful on Windows, we avoid to be out of memory during linking stage that way.
+# Number of jobs will never exceed the amount passed in `--parallel` to `cmake --build` command,
+# even if larger `JOB_POOL` specified.
+
+# Implicitly add a job pool called `four_jobs`.
+# It is used in a few places across all CMake files to limit
+# the number of concurrent jobs to 4 (e.g. to convert *.prototxt files).
+set_property(GLOBAL PROPERTY JOB_POOLS ${CMAKE_JOB_POOLS} four_jobs=4)
+message(STATUS "JOB_POOLS is set to " ${JOB_POOLS})
+message(STATUS "JOB_POOL_COMPILE is set to " ${JOB_POOL_COMPILE})
+message(STATUS "JOB_POOL_LINK is set to " ${JOB_POOL_LINK})
+message(STATUS "JOB_POOL_PRECOMPILE_HEADER is set to " ${JOB_POOL_PRECOMPILE_HEADER})
+
 if(ENABLE_TESTS)
     # add target with processed tests model zoo
     include(cmake/test_model_zoo.cmake)
