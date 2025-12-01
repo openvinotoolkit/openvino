@@ -24,6 +24,13 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
+// GCC 13 may emit a false-positive -Wstringop-overflow for std::vector<char>::resize
+// when built with FORTIFY_SOURCE; suppress it locally for this function.
+#if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+
 void VariablesIndex::read_variables_index_block(std::ifstream& fs,
                                                 const VIBlock& index,
                                                 std::vector<char>& data,
@@ -60,6 +67,10 @@ void VariablesIndex::read_variables_index_block(std::ifstream& fs,
     offset_end = static_cast<uint32_t>(block_size) - ((numRestarts + 1) * sizeof(uint32_t));
     offset = decode_fixed32(data.data() + offset_end);
 }
+
+#if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC diagnostic pop
+#endif
 
 void VariablesIndex::read_variables_index_pair(char*& ptr,
                                                const char* ptr_end,
