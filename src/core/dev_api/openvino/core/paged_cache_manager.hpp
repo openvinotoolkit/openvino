@@ -15,9 +15,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "openvino/core/aligned_buffer.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/aligned_buffer.hpp"
 
 #ifndef CM_DEBUG
 #    define CM_DEBUG 0
@@ -164,7 +164,6 @@ private:
     std::unordered_map<size_t, operator_state> m_ops;
 
     std::vector<std::size_t> m_evict_heap;
-
 };
 
 // -------- inline trivials & templates --------
@@ -203,8 +202,6 @@ std::vector<std::size_t> PagedCacheManager::insert(size_t node_id,
     if (block_count == 0)
         return {};
 
-
-
     auto block_idxs = acquire_blocks_unlocked(node_id, block_count);
 
     const void* kbytes = static_cast<const void*>(key_src);
@@ -231,8 +228,6 @@ void PagedCacheManager::set_block_scores(size_t node_id,
     }
     if (block_indices.empty())
         return;
-
-
 
     std::vector<float> fs(block_indices.size());
     for (std::size_t i = 0; i < block_indices.size(); ++i) {

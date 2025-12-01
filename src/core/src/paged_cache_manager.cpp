@@ -3,7 +3,6 @@
 //
 
 #include "openvino/core/paged_cache_manager.hpp"
-#include "openvino/reference/convert.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -12,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "openvino/reference/convert.hpp"
 
 ov::util::PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, std::size_t total_bytes)
     : m_elem_type(elem_type),
@@ -24,7 +24,7 @@ ov::util::PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, std:
     const size_t half_bytes = m_total_bytes / 2;
 
     try {
-        m_key_buffer   = ov::AlignedBuffer(half_bytes, 64);
+        m_key_buffer = ov::AlignedBuffer(half_bytes, 64);
         m_value_buffer = ov::AlignedBuffer(half_bytes, 64);
     } catch (const std::bad_alloc&) {
         OPENVINO_THROW("PagedCacheManager: aligned allocation failed");
@@ -43,8 +43,6 @@ size_t ov::util::PagedCacheManager::register_operator(const size_t block_size,
                                                       const size_t key_head_size,
                                                       const size_t value_head_size,
                                                       const size_t query_head_size) {
-
-
     operator_state state;
     state.node_id = m_node_id++;
     compute_operator_cache_geometry(state, block_size, num_heads, key_head_size, value_head_size, query_head_size);
@@ -56,14 +54,12 @@ size_t ov::util::PagedCacheManager::register_operator(const size_t block_size,
 // buffers
 ov::util::PagedCacheManager::cache_blocks ov::util::PagedCacheManager::get_cache_blocks() const noexcept {
     const std::size_t half_bytes = m_total_bytes / 2;
-    return cache_blocks{m_key_buffer.get_ptr(),
-        m_value_buffer.get_ptr(),half_bytes, half_bytes};
+    return cache_blocks{m_key_buffer.get_ptr(), m_value_buffer.get_ptr(), half_bytes, half_bytes};
 }
 
 // per-operator metadata
 ov::util::PagedCacheManager::subsequence_view ov::util::PagedCacheManager::get_subsequence_begins(
     size_t node_id) const {
-
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
         return {};
@@ -140,12 +136,10 @@ void ov::util::PagedCacheManager::compute_operator_cache_geometry(operator_state
 
 // block mgmt
 std::vector<std::size_t> ov::util::PagedCacheManager::acquire_blocks(size_t node_id, std::size_t block_count) {
-
     return acquire_blocks_unlocked(node_id, block_count);
 }
 
 void ov::util::PagedCacheManager::release_blocks(size_t node_id, const std::vector<std::size_t>& blocks) {
-
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
         return;
@@ -298,7 +292,6 @@ void ov::util::PagedCacheManager::evict_one_unlocked() {
 }
 
 void ov::util::PagedCacheManager::evict_to_target_free(std::size_t target_free_blocks) {
-
     while (m_free_block_list.size() < target_free_blocks) {
         evict_one_unlocked();
         if (m_evict_heap.empty())
