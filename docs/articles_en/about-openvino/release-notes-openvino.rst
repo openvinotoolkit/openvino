@@ -1162,7 +1162,7 @@ Previous 2025 releases
 		 model and automatically truncate the input to match the embeddings context length.
 		 By default, an error is raised if the input is too long.
 	  * Speculative decoding algorithm in text generation. Check
-		 `the demo <https://docs.openvino.ai/nightly/openvino-workflow/model-server/ovms_demos_continuous_batching_speculative_decoding.html>`__.
+		 `the demo <https://docs.openvino.ai/2025/openvino-workflow/model-server/ovms_demos_continuous_batching_speculative_decoding.html>`__.
 	  * Direct support for models without named outputs. For models without named outputs, generic
 		 names are assigned during model initialization using the pattern ``out_<index>``.
 	  * Chat/completions have been extended to support max_completion_tokens parameter and message
