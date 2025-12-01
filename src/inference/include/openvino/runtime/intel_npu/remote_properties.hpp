@@ -25,6 +25,7 @@ enum class MemType {
     L0_INTERNAL_BUF = 0,  //!< Internal Level Zero buffer type allocated by plugin
     SHARED_BUF = 1,       //!< Shared buffer
     MMAPED_FILE = 2,      //!< Memory-mapped file buffer
+    CPU_VA = 3            //!< CPU Virtual Address buffer
 };
 
 /** @cond INTERNAL */
@@ -36,6 +37,8 @@ inline std::ostream& operator<<(std::ostream& os, const MemType& mem_type) {
         return os << "SHARED_BUF";
     case MemType::MMAPED_FILE:
         return os << "MMAPED_FILE";
+    case MemType::CPU_VA:
+        return os << "CPU_VA";
     default:
         OPENVINO_THROW("Unsupported memory type");
     }
@@ -50,6 +53,8 @@ inline std::istream& operator>>(std::istream& is, MemType& mem_type) {
         mem_type = MemType::SHARED_BUF;
     } else if (str == "MMAPED_FILE") {
         mem_type = MemType::MMAPED_FILE;
+    } else if (str == "CPU_VA") {
+        mem_type = MemType::CPU_VA;
     } else {
         OPENVINO_THROW("Unsupported memory type: ", str);
     }
