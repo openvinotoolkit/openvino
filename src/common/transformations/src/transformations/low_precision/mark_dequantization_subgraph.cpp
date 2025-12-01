@@ -342,7 +342,7 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
     auto scale_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, any_input()});
     auto multiply_pattern = pattern::wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pt_map = m.get_pattern_value_map();
         auto multiply = m.get_match_root();
 
@@ -401,7 +401,7 @@ ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& tabl
     auto axis = any_input(value_matches("0"));
     auto gather = wrap_type<op::v8::Gather>({data_convert, indices_convert, axis});
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pm = m.get_pattern_map();
         auto gather_node = pm.at(gather);
         if (transformation_callback(gather_node)) {
