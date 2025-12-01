@@ -175,8 +175,12 @@ CPU::CPU() {
 
         if (valid_cpu_mapping_table.size() == 0) {
             return -1;
-        } else if (valid_cpu_mapping_table.size() == _cpu_mapping_table.size() &&
+        } else if (valid_cpu_mapping_table.size() == _cpu_mapping_table.size() + _blocked_cores &&
                    (_numa_nodes == (int)node_info_table.size() || 0 == node_info_table.size())) {
+            if (_blocked_cores > 0) {
+                std::lock_guard<std::mutex> lock{_cpu_mutex};
+                _cpu_mapping_table.swap(valid_cpu_mapping_table);
+            }
             return 0;
         } else {
             int cur_numa_nodes = _numa_nodes;
