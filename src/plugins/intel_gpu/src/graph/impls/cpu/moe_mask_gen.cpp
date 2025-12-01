@@ -187,8 +187,5 @@ attach_moe_mask_gen_reshape_impl::attach_moe_mask_gen_reshape_impl() {
 }  // namespace cpu
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::moe_mask_gen_impl)
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_mask_gen)
-
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::moe_mask_gen_reshape_impl)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_mask_gen_reshape)
