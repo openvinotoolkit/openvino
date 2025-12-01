@@ -79,6 +79,10 @@ typedef enum _npu_mlir_runtime_version_t {
 /// @brief NPU MLIR runtime handle
 typedef struct _npu_mlir_runtime_handle_t* npu_mlir_runtime_handle_t;
 
+//////////////////////////////////////////////////////////////////////////////
+/// @brief NPU MLIR runtime MemRef handle
+typedef struct _npu_mlir_runtime_mem_ref_handle_t* npu_mlir_runtime_mem_ref_handle_t;
+
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Defined Return/Error codes
 typedef enum _npu_mlir_runtime_result_t {
@@ -102,21 +106,21 @@ typedef struct _npu_mlir_runtime_properties_t {
     uint32_t numOfGraphArgs;
 } npu_mlir_runtime_properties_t;
 
-typedef struct _npu_mlir_runtime_mem_ref_t {
-    const void* basePtr;
-    const void* data;
-    int64_t offset;
-    int64_t sizes[ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE];
-    int64_t strides[ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE];
-    uint32_t dimsCount;
-} npu_mlir_runtime_mem_ref_t;
+// typedef struct _npu_mlir_runtime_mem_ref_t {
+//     const void* basePtr;
+//     const void* data;
+//     int64_t offset;
+//     int64_t sizes[ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE];
+//     int64_t strides[ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE];
+//     uint32_t dimsCount;
+// } npu_mlir_runtime_mem_ref_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Execute params
 typedef struct _npu_mlir_runtime_execute_params_t {
-    npu_mlir_runtime_mem_ref_t** pInputs;
+    npu_mlir_runtime_mem_ref_handle_t* pInputs;
     uint32_t numOfInputs;
-    npu_mlir_runtime_mem_ref_t** pOutputs;
+    npu_mlir_runtime_mem_ref_handle_t* pOutputs;
     uint32_t numOfOutputs;
     ze_context_handle_t ctx;
     ze_device_handle_t device;
@@ -173,6 +177,50 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
     npu_mlir_runtime_mem_ref_t** pOutputArgs,  ///< [out] pointer to output argument mem descriptor pointer array
     uint32_t numOfOutputArgs                   ///< [in] number of
 );
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Create MemRef handle
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
+npuMLIRRuntimeCreateMemRef(npu_mlir_runtime_mem_ref_handle_t* phMemRef,  ///< [out] handle of mlir runtime MemRef object
+                           void** pBasePtr,                              ///< [in] pointer to basePtr
+                           void** pData,                                 ///< [in] pointer to data
+                           int64_t offset,                               ///< [in] offset in MemRef
+                           int64_t* pSizes,                              ///< [in] pointer to tensor sizes
+                           int64_t* pStrides,                            ///< [in] pointer to tensor strides
+                           uint32_t dimsCount);                          ///< [in] value of tensor rank
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Destroy MemRef handle
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
+npuMLIRRuntimeDestroyMemRef(npu_mlir_runtime_mem_ref_handle_t hMemRef)  ///< [out] handle of mlir runtime MemRef object
+
+    ///////////////////////////////////////////////////////////////////////////////
+    /// @brief Set new value to MemRef
+    NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
+    npuMLIRRuntimeSetMemRef(npu_mlir_runtime_mem_ref_handle_t hMemRef,  ///< [out] handle of mlir runtime MemRef object
+                            void** pBasePtr,                            ///< [in] pointer to basePtr
+                            void** pData,                               ///< [in] pointer to data
+                            int64_t offset,                             ///< [in] offset in MemRef
+                            int64_t* pSizes,                            ///< [in] pointer to tensor sizes
+                            int64_t* pStrides,                          ///< [in] pointer to tensor strides
+                            uint32_t dimsCount);                        ///< [in] value of tensor rank
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Update pointer of a MemRef
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeSetMemRefPointer(
+    npu_mlir_runtime_mem_ref_handle_t hMemRef,  ///< [out] handle of mlir runtime MemRef object
+    void** pBasePtr,                            ///< [in] pointer to basePtr
+    void** pData,                               ///< [in] pointer to data
+    int64_t offset)                             ///< [in] offset in MemRef
+
+    ///////////////////////////////////////////////////////////////////////////////
+    /// @brief Update sizes and strides of MemRef
+    NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
+    npuMLIRRuntimeSetMemRefSizesAndStrides(
+        npu_mlir_runtime_mem_ref_handle_t hMemRef,  ///< [out] handle of mlir runtime MemRef object
+        int64_t* pSizes,                            ///< [in] pointer to tensor sizes
+        int64_t* pStrides,                          ///< [in] pointer to tensor strides
+        uint32_t dimsCount);                        ///< [in] value of tensor rank
 
 #if defined(__cplusplus)
 }  // extern "C"
