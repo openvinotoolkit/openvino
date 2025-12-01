@@ -107,14 +107,14 @@ inline std::filesystem::path library_extension() {
  * @return std::filesystem::path object.
  */
 template <class Source>
-std::filesystem::path make_path(const Source& source) {
-    if constexpr (std::is_same_v<std::decay_t<Source>, wchar_t*>) {
-        return {std::wstring(source)};
-    } else if constexpr (std::is_same_v<std::filesystem::path::value_type, std::wstring::value_type> &&
-                         std::is_same_v<Source, std::string>) {
-        return {ov::util::string_to_wstring(source)};
+std::filesystem::path make_path(Source&& source) {
+    if constexpr (std::is_same_v<std::add_const_t<std::remove_pointer_t<std::decay_t<Source>>>, const wchar_t>) {
+        return {std::wstring(std::forward<Source>(source))};
+    } else if constexpr (std::is_same_v<std::filesystem::path::string_type, std::wstring> &&
+                         std::is_same_v<std::decay_t<Source>, std::string>) {
+        return {ov::util::string_to_wstring(std::forward<Source>(source))};
     } else {
-        return {source};
+        return {std::forward<Source>(source)};
     }
 }
 
