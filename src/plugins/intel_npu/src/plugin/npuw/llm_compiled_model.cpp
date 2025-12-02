@@ -842,6 +842,23 @@ void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
         model->validate_nodes_and_infer_types();
     }
 }
+
+// Filter rt_info to only keep essential keys needed for LLM inference
+ov::AnyMap filter_essential_rt_info(const ov::AnyMap& rt_info) {
+    // Whitelist of rt_info keys that are essential for LLM inference
+    static const std::set<std::string> essential_keys = {
+        "eagle3_mode",
+        // Add other essential keys here as needed
+    };
+
+    ov::AnyMap essential_rt_info;
+    for (const auto& key : essential_keys) {
+        if (rt_info.count(key)) {
+            essential_rt_info[key] = rt_info.at(key);
+        }
+    }
+    return essential_rt_info;
+}
 }  // namespace
 
 class CutLMHead : public ov::pass::MatcherPass {
@@ -1924,7 +1941,9 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_prefix_caching_max_num_blocks);
         write(model_stream, m_gemma_sliding_window_size);
         write(model_stream, m_is_whisper);
-        write(model_stream, m_model_rt_info);
+
+        // Serialize only essential rt_info needed for LLM inference
+        write(model_stream, filter_essential_rt_info(m_model_rt_info));
 
         // Write config
         write(model_stream, m_cfg);

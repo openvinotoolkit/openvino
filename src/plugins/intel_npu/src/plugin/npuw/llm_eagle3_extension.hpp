@@ -65,17 +65,17 @@ public:
         const std::function<ov::SoPtr<ov::ITensor>(const ov::Output<const ov::Node>&)>& get_tensor_func);
 
     // Prepare Eagle3 input tensors (hidden_states, internal_hidden_states) for draft models
-    void prepare_inputs(std::shared_ptr<ov::IAsyncInferRequest> request,
+    void prepare_inputs(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                         const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports);
 
     // Prepare Eagle3 input tensors for chunked prefill (draft models), using a token range
-    void prepare_inputs_for_chunk(std::shared_ptr<ov::IAsyncInferRequest> request,
+    void prepare_inputs_for_chunk(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                   const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
                                   uint32_t chunk_start_token,
                                   uint32_t chunk_token_count);
 
     // Retrieve and store last_hidden_state output tensor for draft and target models
-    void update_last_hidden_state(std::shared_ptr<ov::IAsyncInferRequest> request,
+    void update_last_hidden_state(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                   const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports);
 
     ov::SoPtr<ov::ITensor> get_hidden_states() const {
