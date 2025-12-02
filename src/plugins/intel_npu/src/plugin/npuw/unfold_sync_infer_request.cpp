@@ -33,6 +33,9 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
             if (proto_comp_model_desc.attention) {
                 NPUW_ASSERT(false && "Dynamic is not supported in unfold");
             }
+            if (proto_comp_model_desc.flash_attention) {
+                NPUW_ASSERT(false && "Flash-attention is not supported in unfold");
+            }
         }  // if(replaced_by)
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(i);

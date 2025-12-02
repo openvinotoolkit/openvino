@@ -1522,6 +1522,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const bool generate_attn_pyramid = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
 
     const bool prefill_attn_flash = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::FLASH;
+    const bool generate_attn_flash = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::FLASH;
 
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
@@ -1591,12 +1592,41 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
         {"NPUW_UNFOLD_IREQS", "NO"},
     };
+
+    const ov::AnyMap dyn_hint_prefil = {
+        {ov::intel_npu::npuw::partitioning::attn.name(), ::intel_npu::ATTN_HINT_BASE::toString(prefill_attn_hint)}
+    };
+    const ov::AnyMap dyn_hint_generate = {
+        {ov::intel_npu::npuw::partitioning::attn.name(), ::intel_npu::ATTN_HINT_BASE::toString(generate_attn_hint)}
+    };
+
+
     if (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_flash) {
         merge_config_with(prefill_config, dyn_attn_opts);
+        merge_config_with(prefill_config, dyn_hint_prefil);
     }
-    if (generate_attn_dyn || generate_attn_pyramid) {
+    if (generate_attn_dyn || generate_attn_pyramid || generate_attn_flash) {
         merge_config_with(generate_config, dyn_attn_opts);
+        merge_config_with(generate_config, dyn_hint_generate);
     }
+
+    auto print_config = [](std::string name, ov::AnyMap config) {
+        LOG_VERB("hand_crafted_config: " << name);
+        LOG_BLOCK();
+        for (const auto& [key, value] : config) {
+            try {
+                // Try to cast to string
+                const std::string& s = s11n::anyToString(value);
+                LOG_VERB(key << ": " << value.as<std::string>());
+            }
+            catch (const std::exception&) {
+                LOG_VERB(key << ": <non-string value>");
+            }
+        }
+    };
+
+    print_config("GENERATE", generate_config);
+    print_config("PREFIL", prefill_config);
 
     // Note: with dynamic attention in EITHER STAGE, we have to
     // explicitly disable the run-time fallback to so extra ov::Model

@@ -240,7 +240,7 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
  * Apply attention optimizations (e.g. DYNAMIC, PYRAMID, and others) when attention block detected.
  * Default value: true
  */
-static constexpr ov::Property<bool> attn{"NPUW_ATTN"};
+static constexpr ov::Property<std::string> attn{"NPUW_ATTN"};
 
 /**
  * @brief
@@ -614,6 +614,14 @@ static constexpr ov::Property<ov::AnyMap> additional_generate_config{"++NPUW_LLM
  * via hint. Possible values: "DYNAMIC", "STATIC". Default value: "STATIC".
  */
 static constexpr ov::Property<std::string> generate_attn_hint{"NPUW_LLM_GENERATE_ATTENTION_HINT"};
+
+/**
+ * @brief
+ * Type: std::string.
+ * Hint for the attention handling in generate stage. NPUW will use optimal configuration based on the passed preference
+ * via hint. Possible values: "DYNAMIC", "STATIC". Default value: "STATIC".
+ */
+static constexpr ov::Property<std::string> attn_hint{"NPUW_ATTENTION_HINT"};
 
 /**
  * @brief

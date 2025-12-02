@@ -26,7 +26,7 @@ public:
 
 public:
     size_t num_tiles() const {
-        // TODO: this should means total number of tile model inferences
+        // TODO: this should mean total number of tiled model inferences
         return 8;
     }
     // Factory method
@@ -88,7 +88,7 @@ public:
     virtual int64_t length() const = 0;
     virtual int64_t past_length() const = 0;
 
-    // Getter for the selected pyramid model ID (updated by prepare())
+    // Getter for the selected tiles model ID (updated by prepare())
     std::size_t tile_id() const {
         return m_tile_id;
     }
@@ -109,9 +109,9 @@ class All final : public Selector {
     public:
         explicit All(std::size_t tile_count) : m_hfa_tile_count(tile_count) {}
 
-        void prepare(int64_t past_len) override {
+        void prepare(int64_t /*past_len*/) override {
             // Always use the largest pyramid model (last one)
-            m_hfa_tile_count = m_hfa_tile_count > 0 ? m_hfa_tile_count - 1 : 0;
+            m_tile_id = m_hfa_tile_count > 0 ? m_hfa_tile_count - 1 : 0;
         }
         int64_t length() const override {
             return -1;

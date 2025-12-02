@@ -327,6 +327,7 @@ PositionIDs::PositionIDs(std::size_t param_idx,
 }
 
 void PositionIDs::prepare(int64_t past_len) {
+    LOG_WARN("HFA Dynamic selector ++");
     const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
     const auto in_tensor = m_rq.get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
@@ -351,6 +352,7 @@ void PositionIDs::prepare(int64_t past_len) {
                     m_past_length = m_current_length;
                     break;
                 case Case::PREFILL: {
+                    LOG_WARN("HFA Dynamic selector past_len: " << m_past_length);
                     // chunked prefill case. calculate the past_length in full chunks
                     // FIXME: We know too much about chunking here
                     auto query_size = m_flash_attention.get()._query_length;

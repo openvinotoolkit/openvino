@@ -89,23 +89,46 @@ void ov::npuw::FuncMemMgr::assign_memory() {
         LOG_VERB("Process Subgraph[" << idx << "]");
         LOG_BLOCK();
         const auto& comp_model_desc = m_model->m_compiled_submodels[idx];
-        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
-            // no model & no funcall - optimized out, do nothing
-            continue;
+        LOG_VERB("DEBUG assign_memory 0");
+
+        if (comp_model_desc.flash_attention) {
+            NPUW_ASSERT(!comp_model_desc.compiled_model || comp_model_desc.replaced_by);
+        } else {
+            LOG_VERB("DEBUG assign_memory -0");
+
+            if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+                // no model & no funcall - optimized out, do nothing
+                continue;
+            }
         }
+        LOG_VERB("DEBUG assign_memory 1");
 
         // Simulate subgraph execution: poll its input list first
         const auto& read_list = m_sim.read_list(idx);
+        LOG_VERB("DEBUG assign_memory 2");
 
         // Now, get the outputs for the subgraph. If it is "regular", there's
         // nothing to do - this subgraph owns its outputs on its own.
         // If it is a function, though - look up in the function's memory storage.
         if (comp_model_desc.replaced_by) {
+            LOG_VERB("DEBUG assign_memory 3");
+
             const auto real_idx = comp_model_desc.replaced_by.value();
             const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
+            LOG_VERB("DEBUG assign_memory 4");
+            size_t num_outs = 0;
+            if (proto_comp_model_desc.flash_attention) {
+                LOG_VERB("DEBUG assign_memory 5");
+                auto & fam = proto_comp_model_desc.flash_attention->_compiled_models;
+                // taking last FA model with its sizes, intermidiate tensors are handled internally
+                num_outs = fam[fam.size() - 1]->outputs().size();
+                LOG_VERB("DEBUG assign_memory 6");
+            } else {
+                num_outs = proto_comp_model_desc.compiled_model->outputs().size();
+            }
 
-            const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
             for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
+                LOG_VERB("DEBUG assign_memory 7+" << out_idx);
                 const LinkFrom this_out = LinkFrom{idx, out_idx};
                 assign(this_out);
             }
@@ -115,6 +138,7 @@ void ov::npuw::FuncMemMgr::assign_memory() {
         // simulation after all
         // After the execution, mark that the read_list was read.
         for (auto&& from : read_list) {
+            LOG_VERB("DEBUG assign_memory 8");
             m_sim.register_read(from);
         }
         LOG_VERB("Done");
@@ -164,9 +188,16 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
     } else {
         // No free space at this point - allocate a new tensor
         const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
-        const auto& proto_comp_model = proto_comp_model_desc.compiled_model;
 
-        const auto& oport = proto_comp_model->outputs()[from.second];
+        auto get_proto_model = [&]() {
+            if (proto_comp_model_desc.flash_attention) {
+                const auto & acm = proto_comp_model_desc.flash_attention->_compiled_models;
+                return acm[acm.size() - 1];
+            }
+            return proto_comp_model_desc.compiled_model;
+        };
+
+        const auto& oport = get_proto_model()->outputs()[from.second];
         ov::Shape oshape = oport.get_shape();
 
         if (proto_comp_model_desc.spatial) {
@@ -219,10 +250,20 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         LOG_BLOCK();
         auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
 
-        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
-            // no model & no funcall - optimized out, do nothing
-            LOG_INFO("OPTIMIZED OUT");
-            continue;
+        // if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+        //     // no model & no funcall - optimized out, do nothing
+        //     LOG_INFO("OPTIMIZED OUT");
+        //     continue;
+        // }
+
+
+        if (comp_model_desc.flash_attention) {
+            NPUW_ASSERT(!comp_model_desc.compiled_model || comp_model_desc.replaced_by);
+        } else {
+            if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+                // no model & no funcall - optimized out, do nothing
+                continue;
+            }
         }
 
         // FIXME: Shouldn't this be handled by the base class? (in create_tensor)
@@ -231,7 +272,14 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             // Pre-allocate output tensors for this function call
             const auto real_idx = comp_model_desc.replaced_by.value();
             auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-            auto& proto_comp_model = proto_comp_model_desc.compiled_model;
+            auto get_proto_model = [&]() {
+                if (proto_comp_model_desc.flash_attention) {
+                    const auto & acm = proto_comp_model_desc.flash_attention->_compiled_models;
+                    return acm[acm.size() - 1];
+                }
+                return proto_comp_model_desc.compiled_model;
+            };
+            auto& proto_comp_model = get_proto_model();
             const auto num_outputs = proto_comp_model->outputs().size();
 
             // Initialize the spatial IO placeholders, if required
@@ -247,11 +295,12 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                     // Preallocate extra buffers for tail processing
                     // Note: these buffers are allocated to the entire NWAY (> tail_size)
                     for (auto&& p : proto_comp_model_desc.spatial->params) {
-                        const auto& iport = proto_comp_model_desc.compiled_model->inputs()[p.idx];
+                        //TODO: es this might no work at all for input and output there might be not a model but enssamble of ports
+                        const auto& iport = get_proto_model()->inputs()[p.idx];
                         m_spatial_io[real_idx].input_tails[p.idx] =
                             allocOut(iport, m_npuw_model->funcall_mem_device(real_idx));
                     }
-                    const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
+                    const auto num_outs = get_proto_model()->outputs().size();
                     for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
                         const auto& oport = proto_comp_model_desc.compiled_model->outputs()[out_idx];
                         m_spatial_io[real_idx].output_tails[out_idx] =
@@ -289,7 +338,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 has_flash = true;
                 flash_sub_idx = real_idx;
                 m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
-            }  // if(pyramid)
+            }  // if(flash-attention)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
@@ -306,7 +355,26 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         // Special cases are handled -- so nothing to do here
         const bool is_piped = is_pipelined(i);
         bool recompiled = false;
-        auto rqs = create_infer_requests(i, is_piped ? 2 : 1, &recompiled);
+        ov::npuw::IBaseInferRequest::RqPtrs rqs;
+
+        bool need_regual_ir = true;
+        // Flash-attention infer-requests are different so we dont need to reuse or create original one
+        if (comp_model_desc.replaced_by) {
+            const auto real_idx = comp_model_desc.replaced_by.value();
+            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+            if (proto_comp_model_desc.flash_attention) {
+                LOG_INFO("FLASH - attention: creating inferrequest internally for: " << real_idx);
+                NPUW_ASSERT(is_piped && "flash-attention pipelining not supported yet");
+                setup_flash_infer_requests(real_idx, is_piped, false);
+                rqs = m_npuw_model->m_compiled_submodels[real_idx].flash_infer_requests;
+                need_regual_ir = false;
+            }
+        }
+
+        if (need_regual_ir) {
+            rqs = create_infer_requests(i, is_piped ? 2 : 1, &recompiled);
+        }
+
         failover_happened |= recompiled;
         m_subrequests[i] = rqs.at(0);
         m_subrequest_devices[i] = *comp_model_desc.device_it;
@@ -322,9 +390,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
             if (proto_comp_model_desc.pyramid_attention) {
                 setup_pyramid_infer_requests(real_idx, is_piped, false);
-            }
-            if (proto_comp_model_desc.flash_attention) {
-                setup_flash_infer_requests(real_idx, is_piped, false);
             }
         }
 
@@ -448,12 +513,13 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     if (has_flash) {
         // TODO: es runtime features??? not sure we need it here at all while we need to recreate inferrequests
-        m_flash_selector.reset(new runtime::flash_attention::All(3));
+        m_flash_selector.reset(new runtime::flash_attention::All(8));
 
         const auto& flash_dyn = m_npuw_model->m_compiled_submodels.at(flash_sub_idx).flash_attention.value();
 
         const auto tile_count = flash_dyn.num_tiles();
         if (!m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_DYN>()) {
+            LOG_DEBUG("flash-attention: no dynamic attention");
             // Even if the attention is detected and ready to go pyramid,
             // force it on the full range
             m_flash_selector.reset(new runtime::flash_attention::All(tile_count));
@@ -464,6 +530,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 // Create All selector with the number of pyramid models
                 m_flash_selector.reset(new runtime::flash_attention::All(tile_count));
             }
+            LOG_DEBUG("flash-attention: + dynamic attention num_tiles="
+                << m_flash_selector->tile_id() << ", len=" << m_flash_selector->length() << "past_len" << m_flash_selector->past_length());
         }
     }
 }
@@ -707,6 +775,26 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         const bool not_mask = in_idx != info.mask_idx;
         return not_param && not_mask;
     };
+    auto get_compiled = [&]() {
+        if (is_flash) {
+            return func_desc.flash_attention->_compiled_models[0];
+        }
+        return func_desc.compiled_model;
+    };
+    auto get_compiled_back_by_id = [&](size_t prod_idx) {
+        auto submodel_desc = m_npuw_model->m_compiled_submodels[prod_idx];//.compiled_model->outputs()[prod_port];
+        if (submodel_desc.flash_attention) {
+            return submodel_desc.flash_attention->_compiled_models.back();
+        }
+        return submodel_desc.compiled_model;
+    };
+    auto get_back_subrequest_by_id = [&](size_t prod_idx) {
+        auto submodel_desc = m_npuw_model->m_compiled_submodels[prod_idx];//.compiled_model->outputs()[prod_port];
+        if (submodel_desc.flash_attention) {
+            return submodel_desc.flash_infer_requests.back();
+        }
+        return m_subrequests[prod_idx];
+    };
 
     // Function call prologue:
     // 1. Walk through function dependencies and set the respective tensors
@@ -715,7 +803,9 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         LOG_DEBUG("Binding parameter[" << i << "]...");
         LOG_BLOCK();
 
-        const auto& iport = func_desc.compiled_model->inputs()[i];
+
+
+        const auto& iport = get_compiled()->inputs()[i];
         auto link_iter = m_npuw_model->m_submodels_input_to_prev_output.find({idx, i});
 
         if (link_iter != m_npuw_model->m_submodels_input_to_prev_output.end()) {
@@ -726,9 +816,8 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             const auto& i_tensor = [&]() {
                 if (!m_npuw_model->m_compiled_submodels[prod_idx].replaced_by) {
                     // Producer is a normal model -> take its tensor directly
-                    const auto& oport =
-                        m_npuw_model->m_compiled_submodels[prod_idx].compiled_model->outputs()[prod_port];
-                    return m_subrequests[prod_idx]->get_tensor(oport);
+                    const auto& oport = get_compiled_back_by_id(prod_idx)->outputs()[prod_port];
+                    return get_back_subrequest_by_id(prod_idx)->get_tensor(oport);
                 } else {
                     // Producer is a function - maybe the same as we're calling now.
                     // Take its tensor from the storage
@@ -758,15 +847,12 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             } else if (is_flash) {
                 // flash attention
                 // if (is_non_param_mask(*func_desc.flash_attention, i)) {
-                //     LOG_DEBUG("Binding 8");
                 //     m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                 // } else
                 {
                     LOG_DEBUG("Binding m_attention_io at"<< idx);
                     m_attention_io[idx].inputs.at(i) = i_tensor;
                 }
-                LOG_DEBUG("Binding 10");
-
             } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -800,7 +886,12 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     if (!is_pipelined(idx) && m_closure_update_required && !func_desc.forced_to_fcall) {
         LOG_DEBUG("Unpacking closures...");
         LOG_BLOCK();
-        unpack_closure(idx, m_subrequests[real_idx]);
+        if (is_flash) {
+            LOG_DEBUG("Unpacking for flash_attention look not implemented...");
+        } else {
+            unpack_closure(idx, m_subrequests[real_idx]);
+        }
+        LOG_DEBUG("Done.");
     }
 
     // 3. Tell the function which results to produce (this time).
@@ -809,13 +900,14 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     // ..Since the tensors allocated for outputs of the networks ARE taken from the
     // "funcall_results" if those are produced by funcall results.
 
-    for (std::size_t i = 0; i < func_desc.compiled_model->outputs().size(); i++) {
+    for (std::size_t i = 0; i < get_compiled_back_by_id(real_idx)->outputs().size(); i++) {
         LOG_DEBUG("Binding result[" << i << "]...");
-        auto& oport = func_desc.compiled_model->outputs()[i];
+        auto& oport = get_compiled_back_by_id(real_idx)->outputs()[i];
         auto o_tensor = m_funcall_result.at({idx, i});
         if (is_flash) {
             //TODO: what to do with flash attention IO?
             LOG_DEBUG("binding results for flash_attn - loooks not implemented yet");
+            //m_spatial_io[real_idx].outputs.at(i) = o_tensor;
         } else if (!is_spatial) {
             // Non-spatial case - set immediately
             m_subrequests[real_idx]->set_tensor(oport, o_tensor);
@@ -910,7 +1002,6 @@ void ov::npuw::JustInferRequest::function_prologue_flash_attn(std::size_t real_i
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     NPUW_ASSERT(comp_model_desc.flash_attention.has_value());
 
-    auto& r = m_subrequests[real_idx];
 
     //TODO: es why do we need that at all ???
 }
@@ -1082,7 +1173,8 @@ void ov::npuw::JustInferRequest::setup_flash_infer_requests(std::size_t real_idx
     const auto & concat_model = flash_models[FA::eConcat];
     auto & concat_infer_request = submodel_desc.flash_infer_requests[FA::eConcat];
     const size_t num_inputs = concat_model->inputs().size();
-    LOG_INFO("num_inputs=" << num_inputs << ", submodel_desc.compiled_model->inputs().size()=" << submodel_desc.compiled_model->inputs().size());
+    // TODO: have to avoid compiled_model inputs
+    //LOG_INFO("num_inputs=" << num_inputs << ", submodel_desc.compiled_model->inputs().size()=" << submodel_desc.compiled_model->inputs().size());
     //NPUW_ASSERT(num_inputs == submodel_desc.compiled_model->inputs().size());
 
 
@@ -1132,12 +1224,14 @@ void ov::npuw::JustInferRequest::setup_flash_infer_requests(std::size_t real_idx
         return true;
     };
 
+    // TODO: es we removed imput tensor completely as opposed to pyramid -
+    // where that infer-request masched shape of biggest pyramid
     // reuse tensor and connecting to tile and concat models
-    for (size_t input_idx = 0; input_idx < submodel_desc.compiled_model->inputs().size(); ++input_idx) {
-        for (auto cached_idx : cached_inputs) {
-            reuse_input_tensor(cached_idx.first, input_idx);
-        }
-    }
+    // for (size_t input_idx = 0; input_idx < submodel_desc.compiled_model->inputs().size(); ++input_idx) {
+    //     for (auto cached_idx : cached_inputs) {
+    //         reuse_input_tensor(cached_idx.first, input_idx);
+    //     }
+    // }
 
 
 
@@ -1526,13 +1620,13 @@ void ov::npuw::JustInferRequest::unsafe_infer_flash_attention(std::size_t real_i
         LOG_DEBUG("main inputs for external request: " << main_input.get_shape());
     }
 
-    for (auto && main_input : comp_model_desc.compiled_model->inputs()) {
-        LOG_DEBUG("main inputs for compiled model: " << main_input.get_shape());
-    }
+    // for (auto && main_input : comp_model_desc.compiled_model->inputs()) {
+    //     LOG_DEBUG("main inputs for compiled model: " << main_input.get_shape());
+    // }
 
 
 
-    auto m_input = comp_model_desc.compiled_model->inputs()[4];
+    //auto m_input = comp_model_desc.compiled_model->inputs()[4];
     // TODO: where to get m_tensors ?
     // we dont have infer-request that might satisfy - so have to pick from attention_io i guess
 
@@ -1559,25 +1653,10 @@ void ov::npuw::JustInferRequest::unsafe_infer_flash_attention(std::size_t real_i
     auto k_tensor_spatial_dim = 2;
     auto v_tensor_spatial_dim = 3;
     auto m_tensor_spatial_dim = 3;
-    //k [ NPUW: DBG ]                 tensor for port: [1,32,8192,128]
-    //v [ NPUW: DBG ]                 tensor for port: [1,32,128,8192]
-    //m [ NPUW: DBG ]                 main inputs for compiled model: [1,1,1024,8192]
-
-// [ NPUW: DBG ]                 concat input: [1,8,1024,128]
-// [ NPUW: DBG ]                 concat input: [1,8,7168,128]
-// [ NPUW: DBG ]                 concat input: [1,8,128,1024]
-// [ NPUW: DBG ]                 concat input: [1,8,128,7168]
-// [ NPUW: DBG ]                 tile input: [1,32,1024,128]
-// [ NPUW: DBG ]                 tile input: [1,32,1024,1]
-// [ NPUW: DBG ]                 tile input: [1,32,1024,128]
-// [ NPUW: DBG ]                 tile input: [1,32,8192,128]  - k(2)
-// [ NPUW: DBG ]                 tile input: [1,32,128,8192]  - v(3)
-// [ NPUW: DBG ]                 tile input: [1,32,1024,128]
-// [ NPUW: DBG ]                 tile input: [1,1,1024,8192]  - m(3)
 
     // TODO: how to specify that
     const size_t TSZ = 1024;
-    for (size_t offset = 0; offset != 8192; offset += TSZ) {
+    for (size_t offset = 8192 - TSZ; offset != 8192; offset += TSZ) {
         auto last_tile = (offset + TSZ == 8192);
         // this_k = np.copy(full_k[:, :, offset:offset+TSZ, :])
         // this_v = np.copy(full_v[:, :, :, offset:offset+TSZ])

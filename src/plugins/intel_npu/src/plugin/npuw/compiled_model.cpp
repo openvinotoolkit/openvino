@@ -184,6 +184,23 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     std::map<std::string, ov::Any> npuw_props;
     split_properties(properties, m_non_npuw_props, npuw_props);
 
+    auto print_ov_config = [](std::string name, ov::AnyMap config) {
+        LOG_VERB("hand_crafted_config: " << name);
+        LOG_BLOCK();
+        for (const auto& [key, value] : config) {
+            try {
+                // Try to cast to string
+                const std::string& s = s11n::anyToString(value);
+                LOG_VERB(key << ": " << value.as<std::string>());
+            }
+            catch (const std::exception&) {
+                LOG_VERB(key << ": <non-string value>");
+            }
+        }
+    };
+    print_ov_config("npuw_props", npuw_props);
+    print_ov_config("non_npuw_props", m_non_npuw_props);
+
     m_cfg.parseEnvVars();
     m_cfg.update(any_copy(npuw_props));
 
@@ -228,6 +245,13 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Identify based on compiler version, user config and pattern
     ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
 
+    auto print_config = [](std::string name, ::intel_npu::Config config) {
+        LOG_VERB("hand_crafted_config: " << name);
+        LOG_BLOCK();
+        LOG_VERB(config.toString());
+    };
+
+    print_config("config-before-partitioning", m_cfg);
     ov::npuw::Partitioning partitioning;
     m_profile["partitioning"].record([&]() {
         partitioning = getPartitioning(model, m_cfg, ctx);
@@ -1660,14 +1684,21 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     try {
         // WARNING: These requests can be issues in parallel, so timer should be thread-safe
         m_profile["compile/" + device_to_try].record([&]() {
-            m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
+            // flash-pipeline not reused any model with main
+            if (!m_compiled_submodels[id].flash_attention.has_value()) {
+                m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
+            }
         });
 
         // Compile pyramid attention models if present
-        compile_pyramid_attention_models(id, device_to_try);
+        m_profile["compile/" + device_to_try + "/pyramid"].record([&]() {
+            compile_pyramid_attention_models(id, device_to_try);
+        });
 
         // Compile flash attention models if present
-        compile_flash_attention_model(id, device_to_try);
+        m_profile["compile/" + device_to_try + "/flash"].record([&]() {
+            compile_flash_attention_model(id, device_to_try);
+        });
     } catch (const std::exception& ex) {
         LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
         dump_on_fail(id, device_to_try, ex.what());
