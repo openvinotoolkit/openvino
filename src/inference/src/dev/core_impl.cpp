@@ -712,7 +712,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
             // Check that device plugin name is the same as requested for HW plugins
             if (!plugin_name.empty() && !ov::is_virtual_device(plugin_name)) {
                 OPENVINO_ASSERT(device_name.find(plugin_name) != std::string::npos,
-                                desc.m_lib_location,
+                                ov::util::path_to_string(desc.m_lib_location),
                                 " is used for ",
                                 device_name,
                                 " , while it contains implementation for ",
@@ -820,7 +820,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
         return m_plugins.emplace(device_name, plugin).first->second;
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to create plugin ",
-                       desc.m_lib_location,
+                       ov::util::path_to_string(desc.m_lib_location),
                        " for device ",
                        device_name,
                        "\n",
@@ -1326,7 +1326,7 @@ void ov::CoreImpl::register_plugin(const std::string& plugin,
         OPENVINO_THROW("Device name must not contain dot '.' symbol");
     }
 
-    PluginDescriptor desc{ov::util::get_plugin_path(plugin), properties};
+    PluginDescriptor desc{ov::util::get_plugin_path(ov::util::make_path(plugin)), properties};
     register_plugin_in_registry_unsafe(device_name, desc);
 }
 
