@@ -666,6 +666,18 @@ namespace whisper {
 static constexpr ov::Property<bool> enabled{"NPUW_WHISPER"};
 }  // namespace whisper
 
+namespace text_embed {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass text-embedding model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_TEXT_EMBED"};
+static constexpr ov::Property<std::string> post_type{"NPUW_TEXT_EMBED_POST_TYPE"};
+
+}  // namespace text_embed
+
 }  // namespace npuw
 }  // namespace intel_npu
 }  // namespace ov
