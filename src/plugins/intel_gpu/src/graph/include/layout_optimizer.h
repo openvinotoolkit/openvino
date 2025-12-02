@@ -269,5 +269,13 @@ public:
     size_t get_total_conv_count();
 
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
+
+    void save(BinaryOutputBuffer& ob) const {
+        _optimization_attributes.save(ob);
+    }
+
+    void load(BinaryInputBuffer& ib) {
+        _optimization_attributes.load(ib);
+    }
 };
 }  // namespace cldnn

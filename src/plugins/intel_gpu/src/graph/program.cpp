@@ -1860,7 +1860,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << _is_body_program;
     ob << _can_be_optimized;
 
-    get_layout_optimizer().get_optimization_attributes().save(ob);
+    _layout_optimizer->save(ob);
 
     processing_order.save(ob);
 
@@ -2004,7 +2004,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     ib >> _is_body_program;
     ib >> _can_be_optimized;
 
-    get_layout_optimizer().get_optimization_attributes().load(ib);
+    _layout_optimizer->load(ib);
     _layout_optimizer->set_implementation_forcing(_config.get_force_implementations());
 
     _loaded_from_cache = true;
