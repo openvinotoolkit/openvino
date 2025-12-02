@@ -15,8 +15,8 @@ namespace test {
 namespace snippets {
 
 void GatedMLP::SetUp() {
-    const auto [shapes, weightFormat, ActType, prc, target_num_nodes, target_num_subgraphs, device, additional_config] = this->GetParam();
-    auto [inShape, weightsShapes] = shapes;
+    const auto& [shapes, weightFormat, ActType, prc, target_num_nodes, target_num_subgraphs, device, additional_config] = this->GetParam();
+    const auto& [inShape, weightsShapes] = shapes;
 
     ref_num_nodes = target_num_nodes;
     ref_num_subgraphs = target_num_subgraphs;
@@ -28,17 +28,15 @@ void GatedMLP::SetUp() {
     function = subgraph_model.getOriginal();
 
     configuration.insert(additional_config.begin(), additional_config.end());
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 
     inType = outType = prc;
     setInferenceType(prc);
 }
 
-std::string GatedMLP::getTestCaseName(testing::TestParamInfo<ov::test::snippets::GatedMLPParams> obj) {
-    auto [shapes, weightFormat, ActType, prc, num_nodes, num_subgraphs, target_device, additional_config] = obj.param;
-    auto [inputShape, weightsShapes] = shapes;
+std::string GatedMLP::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::GatedMLPParams>& obj) {
+    const auto& [shapes, weightFormat, ActType, prc, num_nodes, num_subgraphs, target_device, additional_config] = obj.param;
+    const auto& [inputShape, weightsShapes] = shapes;
 
     std::ostringstream result;
     result << "InputShape=" << inputShape << "_";

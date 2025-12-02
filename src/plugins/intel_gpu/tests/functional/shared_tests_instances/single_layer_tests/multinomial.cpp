@@ -20,16 +20,8 @@ private:
 void MultinomialLayerTestGPU::SetUp() {
     MultinomialTestParams test_params;
 
-    std::string test_type;
-    ov::Tensor probs;
-    ov::Tensor num_samples;
-    ov::test::ElementType convert_type;
-    bool with_replacement;
-    bool log_probs;
-    std::pair<uint64_t, uint64_t> global_op_seed;
-
-    std::tie(test_type, probs, num_samples, convert_type, with_replacement, log_probs, global_op_seed, targetDevice) =
-        GetParam();
+    const auto& [test_type, probs, num_samples, convert_type, with_replacement, log_probs, global_op_seed, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     m_probs = probs;
     m_num_samples = num_samples;

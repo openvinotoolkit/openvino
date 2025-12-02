@@ -74,7 +74,7 @@ else()
     set(STYLE_CHECKS_DEFAULT ON)
 endif()
 
-ov_option (ENABLE_CPPLINT "Enable cpplint checks during the build" ${STYLE_CHECKS_DEFAULT})
+ov_option (ENABLE_CPPLINT "Enable cpplint checks during the build" OFF)
 
 ov_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 

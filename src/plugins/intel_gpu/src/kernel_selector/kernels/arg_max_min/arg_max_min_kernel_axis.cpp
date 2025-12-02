@@ -86,14 +86,14 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
 
 bool ArgMaxMinKernelAxis::Validate(const Params& p) const {
     if (!ArgMaxMinKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const arg_max_min_params& params = static_cast<const arg_max_min_params&>(p);
 
     if (params.inputs.size() > 1) {
         if (params.inputs[1].PitchesDifferFromLogicalDims() || params.outputs[0].PitchesDifferFromLogicalDims())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -124,7 +124,7 @@ void ArgMaxMinKernelAxis::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
         const size_t elem_size = prim_params.inputs[0].ElementSize();
-        const size_t iav_type_size = elem_size + 4;
+        const size_t iav_type_size = Align(elem_size + 4, 4);
         const size_t sort_size = getSortSize(prim_params);
         const size_t ops_size = getOperationNumber(prim_params);
         const size_t group_size = prim_params.topK >= 8 ? prim_params.topK : 8;
@@ -168,7 +168,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params) const {
                      orgParams.outputs_num,
                      orgParams.is_shape_agnostic);
 
-    if (is_dynamic) {
+    if (is_dynamic || getSortSize(orgParams) * orgParams.inputs[0].ElementSize() > 4096) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
@@ -202,6 +202,10 @@ JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& para
 
     if (params.values_first)
         jit.AddConstant(MakeJitConstant("TOP_K_ORDER", 1));
+
+    if (params.has_dynamic_tensors() || getSortSize(params) * params.inputs[0].ElementSize() > 4096) {
+        jit.AddConstant(MakeJitConstant("USE_INTERNAL_BUFFERS", 1));
+    }
 
     return jit;
 }

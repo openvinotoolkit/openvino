@@ -46,7 +46,7 @@ class FullyConnected : public Node {
 public:
     FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
@@ -90,9 +90,6 @@ public:
     void keepWeightsNonTransposed(bool weightsNonTransposed) {
         this->attrs.weightsNonTransposed = weightsNonTransposed;
     }
-
-    void fuseDecompressionMultiply(const MemoryCPtr& memory);
-    void fuseDecompressionSubtract(const MemoryCPtr& memory);
 
 protected:
     void toNumaNodeImpl(int numaID) override;

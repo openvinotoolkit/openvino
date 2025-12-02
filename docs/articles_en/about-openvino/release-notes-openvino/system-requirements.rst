@@ -19,8 +19,8 @@ CPU
 
    .. tab-item:: Supported Hardware
 
-      * Intel® Core™ Ultra Series 1 and Series 2 (Windows only)
-      * Intel® Xeon® 6 processor (preview)
+      * Intel® Core™ Ultra Series 1 and Series 2
+      * Intel® Xeon® 6 processor
       * Intel Atom® Processor X Series
       * Intel Atom® processor with Intel® SSE4.2 support
       * Intel® Pentium® processor N4200/5, N3350/5, N3450/5 with Intel® HD Graphics
@@ -32,7 +32,7 @@ CPU
 
       * Windows 11, 64-bit
       * Windows 10, 64-bit
-      * Ubuntu 24.04 long-term support (LTS), 64-bit (Kernel 6.8+) (preview support)
+      * Ubuntu 24.04 long-term support (LTS), 64-bit (Kernel 6.8+)
       * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * macOS 12.6 and above, 64-bit and ARM64
@@ -113,7 +113,7 @@ Operating systems and developer environment
 
       Build environment components:
 
-      * Python 3.9-3.12
+      * Python 3.10-3.14
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
         required for inference on GPU
       * GNU Compiler Collection and CMake are needed for building from source:
@@ -136,7 +136,7 @@ Operating systems and developer environment
 
       * `Microsoft Visual Studio 2019 or later <https://visualstudio.microsoft.com/downloads/>`__
       * `CMake <https://cmake.org/download/>`__ 3.16 or higher
-      * `Python <https://www.python.org/downloads/>`__ 3.9-3.12
+      * `Python <https://www.python.org/downloads/>`__ 3.10-3.14
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
         required for inference on GPU
 
@@ -148,7 +148,7 @@ Operating systems and developer environment
 
       * `Xcode <https://developer.apple.com/xcode/>`__ 10.3
       * `CMake <https://cmake.org/download/>`__ 3.13 or higher
-      * `Python <https://www.python.org/downloads/>`__ 3.9-3.12
+      * `Python <https://www.python.org/downloads/>`__ 3.10-3.14
 
    .. tab-item:: DL framework versions:
 
@@ -186,7 +186,7 @@ to learn more about the release types.
             :name: archive-lnx-sysreq
 
             * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-            * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`__
+            * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`__
             * GCC:
 
               .. tab-set::
@@ -226,7 +226,7 @@ to learn more about the release types.
             :name: archive-mac-sysreq
 
             * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
-            * `Python 3.9 - 3.12 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.9 - 3.12). Install and add to path.
+            * `Python 3.10 - 3.14 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.10 - 3.14). Install and add to path.
             * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory
             * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -236,7 +236,7 @@ to learn more about the release types.
             * `C++ libraries (included in Visual Studio redistributable) <https://aka.ms/vs/17/release/vc_redist.x64.exe>`__ (a core dependency for OpenVINO Runtime)
             * `Microsoft Visual Studio 2019 or later <http://visualstudio.microsoft.com/downloads/>`__ (for development and app compilation with OpenVINO)
             * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`__ (optional, only required for building sample applications)
-            * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/windows/>`__
+            * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/windows/>`__
 
             .. note::
 
@@ -261,7 +261,7 @@ to learn more about the release types.
 
             * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
             * GCC 9.3.0 (for Ubuntu 20.04), GCC 11.3.0 (for Ubuntu 22.04) or GCC 13.2.0 (for Ubuntu 24.04)
-            * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`__
+            * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`__
 
    .. tab-item:: Homebrew
       :name: homebrew-sysreq
@@ -274,14 +274,14 @@ to learn more about the release types.
             * `Homebrew <https://brew.sh/>`_
             * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
             * GCC 9.3.0 (for Ubuntu 20.04), GCC 11.3.0 (for Ubuntu 22.04) or GCC 13.2.0 (for Ubuntu 24.04)
-            * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`__
+            * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`__
 
          .. tab-item:: macOS
             :sync: macos
 
             * `Homebrew <https://brew.sh/>`_
             * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default installation).
-            * `Python 3.9 - 3.12 <https://www.python.org/downloads/mac-osx/>`__ . Install and add it to path.
+            * `Python 3.10 - 3.14 <https://www.python.org/downloads/mac-osx/>`__ . Install and add it to path.
             * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory to install it.
             * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -335,7 +335,7 @@ to learn more about the release types.
 
             * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
             * GCC 8.4.1
-            * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`_
+            * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`_
 
    .. tab-item:: ZYPPER
       :name: zypper-sysreq
@@ -351,7 +351,7 @@ to learn more about the release types.
 
             * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
             * GCC 8.2.0
-            * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`_
+            * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`_
 
 
 The claims stated here may not apply to all use cases and setups. See

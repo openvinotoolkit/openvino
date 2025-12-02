@@ -30,7 +30,7 @@ KERNEL(second_token_a)(OPTIONAL_SHAPE_INFO_ARG
     __local ACCUMULATOR_TYPE *sg_fma_buff = fma_buff + sgid_k * MAX_LORA_RANK;
 
     // Put all need input activation into SLM. 'sgN' sgs would share same input.
-    __local ACCUMULATOR_TYPE local_input[MAX_GEMMA_SGK * MAX_GEMMA_SG_BK];
+    __local ACCUMULATOR_TYPE local_input[MAX_GEMMA_SGK * GEMMA_SG_BK];
 
     // sg could diverge here. Not all the sgs can satisfy 'offset < k_len'.
     int local_sz = get_num_sub_groups() * SUBGROUP_SIZE;
@@ -168,7 +168,7 @@ KERNEL(second_token_b)(OPTIONAL_SHAPE_INFO_ARG
         ACCUMULATOR_TYPE scale = AS_ACCUMULATOR_TYPE(intel_sub_group_block_read_us((const __global ushort*)(state_alpha + kk)));
         ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(intel_sub_group_block_read_us((const __local ushort*)(reduce + kk)));
 #endif
-        input *= scale / TO_ACCUMULATOR_TYPE(LORA_RANK);
+        input *= scale;
 
         __attribute__((opencl_unroll_hint))
         for (int j = 0; j < SUBGROUP_SIZE; j++) {

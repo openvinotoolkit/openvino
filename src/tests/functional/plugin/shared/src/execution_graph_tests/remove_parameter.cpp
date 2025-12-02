@@ -14,8 +14,8 @@
 namespace ExecutionGraphTests {
 
 std::string ExecGraphRemoveParameterNode::getTestCaseName(
-    testing::TestParamInfo<std::string> obj) {
-  std::string targetDevice = obj.param;
+    const testing::TestParamInfo<std::string>& obj) {
+  const std::string& targetDevice = obj.param;
   return "Dev=" + targetDevice;
 }
 

@@ -30,7 +30,7 @@ namespace ov::intel_cpu::node {
 
 bool Range::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v0::Range::get_type_info_static(),
                     ov::op::v4::Range::get_type_info_static())) {
             errorMessage = "Only v0 and v4 Range operation is supported";
@@ -49,29 +49,20 @@ Range::Range(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-    }
+    CPU_NODE_ASSERT(getOriginalInputsNumber() == 3 && getOriginalOutputsNumber() == 1,
+                    "has incorrect number of input/output edges!");
 
     auto start_dims = op->get_input_shape(RANGE_START);
-    if (ov::shape_size(start_dims) != 1) {
-        THROW_CPU_NODE_ERR("has start scalar with more than 1 value");
-    }
+    CPU_NODE_ASSERT(ov::shape_size(start_dims) == 1, "has start scalar with more than 1 value");
 
     auto limit_dims = op->get_input_shape(RANGE_LIMIT);
-    if (ov::shape_size(limit_dims) != 1) {
-        THROW_CPU_NODE_ERR("has limit scalar with more than 1 value");
-    }
+    CPU_NODE_ASSERT(ov::shape_size(limit_dims) == 1, "has limit scalar with more than 1 value");
 
     auto delta_dims = op->get_input_shape(RANGE_DELTA);
-    if (ov::shape_size(delta_dims) != 1) {
-        THROW_CPU_NODE_ERR("has delta scalar with more than 1 value");
-    }
+    CPU_NODE_ASSERT(ov::shape_size(delta_dims) == 1, "has delta scalar with more than 1 value");
 
     size_t dstRank = op->get_output_partial_shape(0).size();
-    if (dstRank > 1) {
-        THROW_CPU_NODE_ERR("has unsupported rank for output: ", dstRank);
-    }
+    CPU_NODE_ASSERT(dstRank <= 1, "has unsupported rank for output: ", dstRank);
 }
 
 void Range::initSupportedPrimitiveDescriptors() {
@@ -100,10 +91,10 @@ void Range::initSupportedPrimitiveDescriptors() {
     } else {
         inDataConf.reserve(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); ++i) {
-            inDataConf.emplace_back(LayoutType::ncsp);
+            inDataConf.emplace_back(LayoutType::ncsp, ov::element::dynamic);
         }
         outDataConf.reserve(1);
-        outDataConf.emplace_back(LayoutType::ncsp);
+        outDataConf.emplace_back(LayoutType::ncsp, ov::element::dynamic);
         addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
     }
 }
@@ -122,11 +113,9 @@ void Range::execute([[maybe_unused]] const dnnl::stream& strm) {
         retcode = rangeKernel<int32_t>();
         break;
     default:
-        THROW_CPU_NODE_ERR("Incorrect output precision. Only FP32 and I32 are supported!");
+        CPU_NODE_THROW("Incorrect output precision. Only FP32 and I32 are supported!");
     }
-    if (retcode == PARAMETER_MISMATCH) {
-        THROW_CPU_NODE_ERR("Range indexes exceeds data tensor dimension");
-    }
+    CPU_NODE_ASSERT(retcode != PARAMETER_MISMATCH, "Range indexes exceeds data tensor dimension");
 }
 
 template <typename data_t>
@@ -148,7 +137,7 @@ size_t Range::getWorkAmount(data_t* startPtr, data_t* stopPtr, data_t* stepPtr) 
     *stepPtr = getSrcDataAtPortAs<const data_t>(RANGE_DELTA)[0];
     const data_t span = *stopPtr - *startPtr;
     const data_t step = *stepPtr;
-    if (std::is_same<data_t, int>::value) {
+    if (std::is_same_v<data_t, int>) {
         auto iSpan = static_cast<int>(span);
         auto iStep = static_cast<int>(step);
         return static_cast<size_t>(div_up(iSpan < 0 ? -iSpan : iSpan, iStep < 0 ? -iStep : iStep));

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 
 #define ROUND_MODE_TO_NEAREST_EVEN
 
@@ -20,24 +21,29 @@ namespace ov {
 class OPENVINO_API bfloat16 {
 public:
     bfloat16() = default;
-    bfloat16(float value) : m_value {
+    bfloat16(float value)
+        : m_value{
 #if defined ROUND_MODE_TO_NEAREST
-        round_to_nearest(value)
+              round_to_nearest(value)
 #elif defined ROUND_MODE_TO_NEAREST_EVEN
-        round_to_nearest_even(value)
+              round_to_nearest_even(value)
 #elif defined ROUND_MODE_TRUNCATE
-        truncate(value)
+              truncate(value)
 #else
 #    error "ROUNDING_MODE must be one of ROUND_MODE_TO_NEAREST, ROUND_MODE_TO_NEAREST_EVEN, or ROUND_MODE_TRUNCATE"
 #endif
+          } {
     }
-    {}
 
     template <typename I>
     explicit bfloat16(I value) : m_value{bfloat16{static_cast<float>(value)}.m_value} {}
 
+    OPENVINO_DEPRECATED("This type is deprecated and will be removed in 2026.0. Use `std::to_string` instead.")
     std::string to_string() const;
+
+    OPENVINO_DEPRECATED("This type is deprecated and will be removed in 2026.0. Use `sizeof` instead.")
     size_t size() const;
+
     template <typename T>
     bool operator==(const T& other) const;
     template <typename T>

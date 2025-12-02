@@ -62,6 +62,65 @@ public:
     SDPAReshapeFusion();
 };
 
+/// This pass transforms the following sub-graph with sinks to a single Scaled Dot Product Attention operation.
+/// Before:
+/// ┌───────┐     ┌───────┐     ┌───────┐    ┌───────┐
+/// │ Sinks │     │   Q   │     │   K   │    │   V   │
+/// └───┬───┘     └───┬───┘     └───┬───┘    └───┬───┘
+///     │             │             │            │
+///     │             │             │            │
+///     │         ┌───┴───┐   ┌─────┴──────┐     │
+///     │         │ MatMul│<──│ Transpose  │     │
+///     │         └───┬───┘   | (Optional) │     │
+///     │             │       └────────────┘     │
+///     │         ┌───┴───┐    ┌─────────────┐   │
+///     │         │  Add  │<───│AttentionMask│   │
+///     │         └───┬───┘    | (Optional)  │   │
+///     │             │        └─────────────┘   │
+///     │     ┌───────┴────────┐                 │
+///     │     │Multiply (scale)│                 │
+///     │     └───────┬────────┘                 │
+///     │             │                          │
+///     │         ┌───┴───┐                      │
+///     └────────>│Concat │                      │
+///               └───┬───┘                      │
+///                   │                          │
+///               ┌───┴───┐                      │
+///               │Softmax│                      │
+///               └───┬───┘                      │
+///                   │                          │
+///             ┌─────┴──────┐                   │
+///             │StridedSlice│                   │
+///             └─────┬──────┘                   │
+///                   │                          │
+///               ┌───┴───┐                      │
+///               │ MatMul│<─────────────────────┘
+///               └───┬───┘
+///               ┌───┴───┐
+///               │ Output│
+///               └───────┘
+///
+/// After:
+///     ┌───────┐    ┌───────┐    ┌───────┐    ┌─────────────┐    ┌─────┐  ┌─────┐
+///     │   Q   │    │   K   │    │   V   │    │AttentionMask│    │Sinks│  │Scale│
+///     └───┬───┘    └───┬───┘    └───┬───┘    └──────┬──────┘    └──┬──┘  └──┬──┘
+///         │            │            │               │              │        │
+///         │            │            │               │              │        │
+///     ┌───┴────────────┴────────────┴───────────────┴──────────────┴─┐      │
+///     │                    ScaledDotProductAttention                 │──────┘
+///     └────────────────────────────────┬─────────────────────────────┘
+///                                      │
+///                                      │
+///                                 ┌────┴────┐
+///                                 │  Output │
+///                                 └─────────┘
+
+class TRANSFORMATIONS_API SDPAFusionMatcherSinks : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("SDPAFusionMatcherSinks", "0");
+    SDPAFusionMatcherSinks();
+};
+
 // Temporary wrapper to enable Symbolic infrastructure inside.
 class TRANSFORMATIONS_API SDPAFusion : public ov::pass::ModelPass {
 public:

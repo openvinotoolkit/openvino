@@ -86,7 +86,7 @@ bool Allocator::operator==(const Allocator& other) const {
         if (_impl == other._impl) {
             return true;
         }
-        return _impl->is_equal(*other._impl);
+        return other._impl && _impl->is_equal(*other._impl);
     });
 }
 

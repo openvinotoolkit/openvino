@@ -4,13 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <vector>
+
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface OptimizeDomain
@@ -63,7 +65,4 @@ private:
                                                     size_t total_work_amount);
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

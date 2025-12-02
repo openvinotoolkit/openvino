@@ -29,6 +29,14 @@ public:
                               const Output<Node>& value,
                               const Output<Node>& attn_mask,
                               const Output<Node>& scale,
+                              const Output<Node>& sink,
+                              bool causal);
+
+    ScaledDotProductAttention(const Output<Node>& query,
+                              const Output<Node>& key,
+                              const Output<Node>& value,
+                              const Output<Node>& attn_mask,
+                              const Output<Node>& scale,
                               bool causal);
 
     ScaledDotProductAttention(const Output<Node>& query,

@@ -24,9 +24,9 @@ class OneHot : public Node {
 public:
     OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override{};
+    void createPrimitive() override {};
     void execute(const dnnl::stream& strm) override;
     [[nodiscard]] bool created() const override;
 
@@ -56,6 +56,7 @@ private:
 
     mutable Dim depth = Shape::UNDEFINED_DIM;
     int32_t axis = -1;
+    bool is_mode_normalize = false;
 
     ov::element::Type output_precision;
 

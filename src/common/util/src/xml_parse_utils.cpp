@@ -28,8 +28,7 @@ int pugixml::get_int_attr(const pugi::xml_node& node, const char* str) {
     if (idx != str_value.length()) {
         std::stringstream ss;
         ss << "node <" << node.name() << "> has attribute \"" << str << "\" = \"" << str_value
-           << "\" which is not an integer"
-           << " at offset " << node.offset_debug();
+           << "\" which is not an integer at offset " << node.offset_debug();
         throw std::runtime_error(ss.str());
     }
     return int_value;
@@ -49,8 +48,7 @@ int64_t pugixml::get_int64_attr(const pugi::xml_node& node, const char* str) {
     if (idx != str_value.length()) {
         std::stringstream ss;
         ss << "node <" << node.name() << "> has attribute \"" << str << "\" = \"" << str_value
-           << "\" which is not a signed 64 bit integer"
-           << " at offset " << node.offset_debug();
+           << "\" which is not a signed 64 bit integer at offset " << node.offset_debug();
         throw std::runtime_error(ss.str());
     }
     return static_cast<int64_t>(int_value);
@@ -70,8 +68,7 @@ uint64_t pugixml::get_uint64_attr(const pugi::xml_node& node, const char* str) {
     if (idx != str_value.length() || int_value < 0) {
         std::stringstream ss;
         ss << "node <" << node.name() << "> has attribute \"" << str << "\" = \"" << str_value
-           << "\" which is not an unsigned 64 bit integer"
-           << " at offset " << node.offset_debug();
+           << "\" which is not an unsigned 64 bit integer at offset " << node.offset_debug();
         throw std::runtime_error(ss.str());
     }
     return static_cast<uint64_t>(int_value);
@@ -91,8 +88,7 @@ unsigned int pugixml::get_uint_attr(const pugi::xml_node& node, const char* str)
     if (idx != str_value.length() || int_value < 0 || int_value > (std::numeric_limits<unsigned int>::max)()) {
         std::stringstream ss;
         ss << "node <" << node.name() << "> has attribute \"" << str << "\" = \"" << str_value
-           << "\" which is not an unsigned integer"
-           << " at offset " << node.offset_debug();
+           << "\" which is not an unsigned integer at offset " << node.offset_debug();
         throw std::runtime_error(ss.str());
     }
     return static_cast<unsigned int>(int_value);
@@ -188,8 +184,7 @@ float pugixml::get_float_attr(const pugi::xml_node& node, const char* str) {
     if (!str_stream.eof()) {
         std::stringstream ss;
         ss << "node <" << node.name() << "> has attribute \"" << str << "\" = \"" << str_value
-           << "\" which is not a floating point"
-           << " at offset " << node.offset_debug();
+           << "\" which is not a floating point at offset " << node.offset_debug();
         throw std::runtime_error(ss.str());
     }
     return float_value;

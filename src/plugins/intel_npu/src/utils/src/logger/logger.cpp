@@ -12,6 +12,8 @@
 #include <regex>
 #include <sstream>
 
+#include "openvino/core/log_util.hpp"
+
 #define DEFAULT_COLOR "\033[0m"
 #define RED           "\033[31m"
 #define GREEN         "\033[32m"
@@ -80,45 +82,28 @@ bool Logger::isActive(ov::log::Level msgLevel) const {
     return static_cast<int32_t>(msgLevel) <= static_cast<int32_t>(_logLevel);
 }
 
-std::ostream& Logger::getBaseStream() {
-    return std::cout;
-}
-
 namespace {
 
-std::ostream& getColor(ov::log::Level msgLevel) {
-    std::ostream& stream = std::cout;
-
+const char* getColor(ov::log::Level msgLevel) {
     switch (msgLevel) {
     case ov::log::Level::ERR:
-        stream << RED;
-        break;
+        return RED;
     case ov::log::Level::WARNING:
-        stream << YELLOW;
-        break;
+        return YELLOW;
     case ov::log::Level::INFO:
-        stream << CYAN;
-        break;
+        return CYAN;
     case ov::log::Level::DEBUG:
-        stream << GREEN;
-        break;
+        return GREEN;
     case ov::log::Level::TRACE:
-        stream << BLUE;
-        break;
+        return BLUE;
     default:
-        stream << DEFAULT_COLOR;
+        return DEFAULT_COLOR;
     }
-    return stream;
 }
 
 }  // namespace
 
-std::ostream& Logger::getLevelStream(ov::log::Level msgLevel) {
-    return getColor(msgLevel);
-}
-
 void Logger::addEntryPackedActive(ov::log::Level msgLevel, std::string_view msg) const {
-    std::stringstream tempStream;
     char timeStr[] = "undefined_time";
     time_t now = time(nullptr);
     struct tm* loctime = localtime(&now);
@@ -128,24 +113,18 @@ void Logger::addEntryPackedActive(ov::log::Level msgLevel, std::string_view msg)
 
     using namespace std::chrono;
     uint32_t ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() % 1000;
-    auto& stream = getLevelStream(msgLevel);
     try {
-        tempStream << "[" << logLevelPrintout[static_cast<int32_t>(msgLevel) + 1] << "] " << timeStr << "." << ms
-                   << " [" << _name << "] ";
-
-        tempStream << msg;
-
+        std::stringstream logStream;
+        logStream << getColor(msgLevel) << "[" << logLevelPrintout[static_cast<int32_t>(msgLevel) + 1] << "] "
+                  << timeStr << "." << ms << " [" << _name << "] " << msg << DEFAULT_COLOR;
         static std::mutex logMtx;
         std::lock_guard<std::mutex> logMtxLock(logMtx);
-        stream << tempStream.str() << DEFAULT_COLOR;
-        stream << std::endl;
-        stream.flush();
+        ov::util::log_message(logStream.str());
     } catch (const std::exception& e) {
         std::cerr << "Exception caught in Logger::addEntryPackedActive - " << e.what() << std::endl;
     } catch (...) {
         std::cerr << "Unknown/internal exception happened in Logger::addEntryPackedActive" << std::endl;
     }
-    stream.flush();
 }
 
 }  // namespace intel_npu

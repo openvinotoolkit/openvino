@@ -49,11 +49,11 @@ enum impl_desc_type : int64_t {
     sve512 = 1 << 31,
 
     // shl backend
-    shl = 1ll << 32,
+    shl = 1LL << 32,
 
-    gv = 1ll << 33,
+    gv = 1LL << 33,
 
-    kleidiai = 1ll << 34,
+    kleidiai = 1LL << 34,
 
     // real types
     ref_any = ref | any,

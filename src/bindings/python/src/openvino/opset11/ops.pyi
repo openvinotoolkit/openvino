@@ -11,7 +11,7 @@ import typing
 """
 Factory functions for all openvino ops.
 """
-__all__ = ['Node', 'NodeInput', 'as_nodes', 'interpolate', 'nameable_op', 'partial', 'topk']
+__all__: list[str] = ['Node', 'NodeInput', 'as_nodes', 'interpolate', 'nameable_op', 'partial', 'topk']
 def interpolate(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Perfors the interpolation of the input tensor.

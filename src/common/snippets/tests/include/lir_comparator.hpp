@@ -25,6 +25,7 @@ public:
         PORT_CONNECTORS = 1 << 1,
         LOOP_INDICES = 1 << 2,
         LOOP_MANAGER = 1 << 3,
+        EXPR_ATTRS = 1 << 4,
     };
 
     // Creates LIRComparator with all CmpValues disabled
@@ -67,6 +68,10 @@ private:
 
     bool should_compare(LIRCmpValues f) const noexcept {
         return m_lir_cmp_values & f;
+    }
+
+    bool should_compare(NodesCmpValues f) const noexcept {
+        return m_nodes_cmp_values & f;
     }
 
     static Result compare_descs(const std::vector<ov::snippets::lowered::PortDescriptorPtr>& descs,

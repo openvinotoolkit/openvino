@@ -14,7 +14,7 @@
 #include "remote_tensor_tests/helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/convert_transpose.hpp"
@@ -71,10 +71,8 @@ protected:
 public:
     void SetUp() override {
         deviceName = ov::test::utils::DEVICE_GPU;
-        RemoteTensorSharingType sharing_type;
-        bool with_auto_batching;
-        bool is_dynamic;
-        std::tie(sharing_type, with_auto_batching, is_dynamic) = this->GetParam();
+
+        const auto& [sharing_type, with_auto_batching, is_dynamic] = this->GetParam();
         if (with_auto_batching) {
             config =
                     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
@@ -89,10 +87,7 @@ public:
         }
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RemoteTensorSharingTestOptionsParams>& obj) {
-        RemoteTensorSharingType sharing_type;
-        bool with_auto_batching;
-        bool is_dynamic;
-        std::tie(sharing_type, with_auto_batching, is_dynamic) = obj.param;
+        const auto& [sharing_type, with_auto_batching, is_dynamic] = obj.param;
 
         std::ostringstream result;
         result << "OVRemoteTensorInputBlob_Test_";
@@ -106,10 +101,7 @@ public:
 };
 
 TEST_P(OVRemoteTensorInputBlob_Test, smoke_cantCreateBlobWithInvalidSize) {
-    RemoteTensorSharingType sharing_type;
-    bool with_auto_batching;
-    bool is_dynamic;
-    std::tie(sharing_type, with_auto_batching, is_dynamic) = GetParam();
+    const auto& [sharing_type, with_auto_batching, is_dynamic] = GetParam();
     if (with_auto_batching || is_dynamic)
         GTEST_SKIP();
 
@@ -169,10 +161,8 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
     p.input().preprocess().convert_element_type(ov::element::f32);
 
     auto function = p.build();
-    RemoteTensorSharingType sharing_type;
-    bool with_auto_batching;
-    bool is_dynamic;
-    std::tie(sharing_type, with_auto_batching, is_dynamic) = GetParam();
+
+    const auto& [sharing_type, with_auto_batching, is_dynamic] = GetParam();
 
     // auto-batching relies on availability of the lock() for the tensor (and the *USM_DEVICE is not lockable)
     if (with_auto_batching
@@ -351,10 +341,8 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputOutputRemoteTensor) {
     p.input().preprocess().convert_element_type(ov::element::f32);
 
     auto model = p.build();
-    RemoteTensorSharingType sharing_type;
-    bool with_auto_batching;
-    bool is_dynamic;
-    std::tie(sharing_type, with_auto_batching, is_dynamic) = GetParam();
+
+    const auto& [sharing_type, with_auto_batching, is_dynamic] = GetParam();
 
     // auto-batching relies on availability of the lock() for the tensor (and the *USM_DEVICE is not lockable)
     if (with_auto_batching)
@@ -2662,10 +2650,8 @@ TEST_P(RemoteTensor, smoke_CopyFrom) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
-    ov::element::Type type;
-    TestParams p;
-    RemoteTensorSharingType sharing_type;
-    std::tie(type, sharing_type, p) = GetParam();
+
+    const auto& [type, sharing_type, p] = GetParam();
 
     auto core = ov::Core();
     auto remote_context = core.get_default_context(ov::test::utils::DEVICE_GPU);
@@ -2714,10 +2700,8 @@ TEST_P(RemoteTensor, smoke_CopyTo) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
-    ov::element::Type type;
-    TestParams p;
-    RemoteTensorSharingType sharing_type;
-    std::tie(type, sharing_type, p) = GetParam();
+
+    const auto& [type, sharing_type, p] = GetParam();
 
     auto core = ov::Core();
     auto remote_context = core.get_default_context(ov::test::utils::DEVICE_GPU);
@@ -2898,8 +2882,7 @@ public:
         fn_ptr = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input1});
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RemoteTensorDataTypesOptionsParams>& obj) {
-        ov::element::Type_t elem_type;
-        std::tie(elem_type) = obj.param;
+        const auto& [elem_type] = obj.param;
 
         std::ostringstream result;
         result << "OVRemoteTensorTest_" << elem_type;

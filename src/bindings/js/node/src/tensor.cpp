@@ -44,7 +44,8 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
-                        InstanceMethod("isContinuous", &TensorWrap::is_continuous)});
+                        InstanceMethod("isContinuous", &TensorWrap::is_continuous),
+                        InstanceMethod("setShape", &TensorWrap::set_shape)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -167,6 +168,20 @@ Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info) {
         return info.Env().Undefined();
     }
     return cpp_to_js<ov::Shape, Napi::Array>(info, _tensor.get_shape());
+}
+Napi::Value TensorWrap::set_shape(const Napi::CallbackInfo& info) {
+    if (info.Length() == 1) {
+        try {
+            const auto& shape = js_to_cpp<ov::Shape>(info, 0);
+            _tensor.set_shape(shape);
+        } catch (const std::exception& e) {
+            reportError(info.Env(), e.what());
+        }
+    } else {
+        reportError(info.Env(), "Error in setShape(). Wrong number of parameters.");
+    }
+
+    return info.Env().Undefined();
 }
 
 Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info) {

@@ -132,7 +132,7 @@ void regclass_graph_Any(py::module m) {
             :type dtype: Union[bool, int, str, float]
 
             :return: A runtime attribute as a list.
-            :rtype: Union[List[float], List[int], List[str], List[bool]]
+            :rtype: Union[list[float], list[int], list[str], list[bool]]
     )");
     ov_any.def(
         "get",

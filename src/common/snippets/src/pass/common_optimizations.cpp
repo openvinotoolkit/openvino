@@ -4,6 +4,12 @@
 
 #include "snippets/pass/common_optimizations.hpp"
 
+#include <memory>
+
+#include "openvino/core/type.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -11,24 +17,19 @@
 #include "snippets/pass/extract_constants.hpp"
 #include "snippets/pass/extract_unsupported_transposes.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
-#include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/softmax_reshape_elimination.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/subgraph_manager.hpp"
 #include "snippets/pass/transform_convert.hpp"
-#include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/validate.hpp"
-#include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 #define REGISTER_SNIPPETS_PASS(manager, pass, enabled, ...) \
     if (enabled)                                            \
         manager.register_pass<pass>(__VA_ARGS__);
 
-CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& config) {
+CommonOptimizations::CommonOptimizations(const CommonOptimizations::Config& config) {
     MATCHER_SCOPE(CommonOptimizations);
     ov::graph_rewrite_callback callback = [&](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CommonOptimizations");
@@ -55,7 +56,10 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
         // At the moment only non-scalar Constants of FakeQuantize can be inside Subgraph
         // so we can enable ExtractConstants pass for quantized models
         REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractConstants, is_quantized);
-        REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractUnsupportedTransposes, is_domain_sensitive);
+        REGISTER_SNIPPETS_PASS(subgraph_manager,
+                               ov::snippets::pass::ExtractUnsupportedTransposes,
+                               is_domain_sensitive,
+                               config.get_transpose_support_callback());
         REGISTER_SNIPPETS_PASS(subgraph_manager,
                                ov::snippets::pass::SplitDimensionM,
                                is_domain_sensitive && config.get_split_m_dimension(),
@@ -73,6 +77,4 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
     this->register_matcher(m, callback);
 }
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

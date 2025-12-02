@@ -15,8 +15,8 @@
 #include "cache/multi_cache.h"
 #include "cpu_memory.h"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "emitters/snippets/input_repacker.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "emitters/snippets/repacked_input.hpp"
 #include "graph_context.h"
 #include "nodes/executors/subgraph.hpp"
 #include "openvino/core/except.hpp"
@@ -37,14 +37,10 @@ public:
                  const std::vector<MemoryPtr>& in_mem_ptrs,
                  const std::vector<MemoryPtr>& out_mem_ptrs) override;
 
-    static std::vector<MemoryPtr> prepare_weights(const std::vector<MemoryPtr>& in_mem_ptrs,
-                                                  const RepackedInputConfig& repacked_const_input_config,
-                                                  const GraphContext::CPtr& context);
-
 protected:
     static void separately_repack_input(const MemoryPtr& src_mem_ptr,
                                         const MemoryPtr& dst_mem_ptr,
-                                        const ov::intel_cpu::RepackedInput& repacked_input,
+                                        const ov::intel_cpu::InputRepacker& input_repacker,
                                         size_t tensor_rank);
 
     std::vector<MemoryPtr> separately_repack_inputs(const dnnl::stream& strm,
@@ -55,12 +51,12 @@ protected:
                                    jit_snippets_call_args& call_args);
 
     void* get_external_scratchpad_ptr(size_t ithr, size_t idx) const {
-        if (m_repacked_input_config.empty()) {
+        if (m_input_repackers.empty()) {
             return nullptr;
         }
 
         uint8_t* data_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + m_internal_buffer_size;
-        for (const auto& p : m_repacked_input_config) {
+        for (const auto& p : m_input_repackers) {
             const auto& desc = p.second.desc();
             const auto size = desc->getCurrentMemSize();
             if (p.first == idx) {
@@ -73,7 +69,7 @@ protected:
 
     // [ Thread Index -> Index of input with repacking data - > last repacked src_offset ]
     std::vector<std::vector<size_t>> m_repacked_offsets_by_threads;
-    RepackedInputConfig m_repacked_input_config;
+    InputRepackerMap m_input_repackers;
 
     std::function<void(const std::vector<size_t>&, const std::vector<size_t>&, size_t&)> init_offset;
 
@@ -83,7 +79,7 @@ protected:
     }
 
     void clean_repacked_offsets(size_t ithr) {
-        m_repacked_offsets_by_threads[ithr].assign(m_repacked_input_config.size(), std::numeric_limits<size_t>::max());
+        m_repacked_offsets_by_threads[ithr].assign(m_input_repackers.size(), std::numeric_limits<size_t>::max());
     }
 
 #ifdef SNIPPETS_DEBUG_CAPS

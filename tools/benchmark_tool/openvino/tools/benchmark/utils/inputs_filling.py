@@ -4,7 +4,6 @@
 import os
 import sys
 import re
-from typing import Dict, List
 import numpy as np
 from collections import defaultdict
 from pathlib import Path
@@ -68,7 +67,7 @@ def get_group_batch_sizes(app_input_info):
     return batch_sizes
 
 
-def get_batch_sizes_per_input_map(app_input_info: List[AppInputInfo]):
+def get_batch_sizes_per_input_map(app_input_info: list[AppInputInfo]):
     batch_sizes_map = {}
     for info in app_input_info:
         if info.layout.has_name('N'):
@@ -80,7 +79,7 @@ def get_batch_sizes_per_input_map(app_input_info: List[AppInputInfo]):
             batch_sizes_map[info.name] = [1] * len(info.shapes)
     return batch_sizes_map
 
-def verify_objects_to_be_used(objects_to_be_used_map: Dict[str, List[str]], info: AppInputInfo, total_frames: int, input_type_name: str):
+def verify_objects_to_be_used(objects_to_be_used_map: dict[str, list[str]], info: AppInputInfo, total_frames: int, input_type_name: str):
         if objects_to_be_used_map[info.name] > total_frames and objects_to_be_used_map[info.name] % total_frames != 0:
             objects_to_be_used_map[info.name] = objects_to_be_used_map[info.name] - objects_to_be_used_map[info.name] % total_frames
             logger.warning(f"Number of provided {input_type_name} for input '{info.name}' is not a multiple of the number of "
@@ -144,7 +143,7 @@ def get_input_data(paths_to_input, app_input_info):
     return DataQueue(data, get_group_batch_sizes(app_input_info))
 
 
-def get_image_tensors(image_paths: List[str], info: AppInputInfo, batch_sizes: List[int]) -> List[Tensor]:
+def get_image_tensors(image_paths: list[str], info: AppInputInfo, batch_sizes: list[int]) -> list[Tensor]:
     if 'cv2' not in sys.modules:
         logger.error("Loading images requires the opencv-python or opencv-python-headless package. "
                      "Please install it before continuing or run benchmark without "
@@ -215,7 +214,7 @@ def get_image_tensors(image_paths: List[str], info: AppInputInfo, batch_sizes: L
     return tensors
 
 
-def get_numpy_tensors(numpy_paths: List[str], info: AppInputInfo, batch_sizes: List[int]) -> List[Tensor]:
+def get_numpy_tensors(numpy_paths: list[str], info: AppInputInfo, batch_sizes: list[int]) -> list[Tensor]:
 
     num_shapes = len(info.shapes)
     num_arrays = len(numpy_paths)
@@ -283,7 +282,7 @@ def get_numpy_tensors(numpy_paths: List[str], info: AppInputInfo, batch_sizes: L
 
     return tensors
 
-def get_binary_tensors(binary_paths: List[str], info: AppInputInfo, batch_sizes: List[int]) -> List[Tensor]:
+def get_binary_tensors(binary_paths: list[str], info: AppInputInfo, batch_sizes: list[int]) -> list[Tensor]:
     num_shapes = len(info.shapes)
     num_binaries = len(binary_paths)
     niter = max(num_shapes, num_binaries)

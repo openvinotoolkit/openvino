@@ -52,7 +52,7 @@ bool pass::EliminateBrgemmCopyB::run_on_model(const std::shared_ptr<ov::Model>& 
         const auto& layout = in_desc->get_layout();
 
         // TODO [157340]: support external repacking for copyB with compensations
-        if (copy_b_node->get_config().with_compensations() || transformation_callback(copy_b_node)) {
+        if (brgemm_config.with_compensations() || transformation_callback(copy_b_node)) {
             return false;
         }
 
@@ -61,9 +61,7 @@ bool pass::EliminateBrgemmCopyB::run_on_model(const std::shared_ptr<ov::Model>& 
         OPENVINO_ASSERT(param_idx < model->get_parameters().size(),
                         "Parameter index is invalid in EliminateBrgemmCopyB transformation");
         // Update external repacking config for the further pipeline stages to mark this input as repacked
-        auto& config =
-            brgemm_config.are_wei_constant() ? m_repacked_constant_inputs_config : m_repacked_runtime_inputs_config;
-        config[param_idx] = RepackedInput();
+        m_input_repackers[param_idx] = InputRepacker();
 
         // Since repacking is moved out of Subgraph body,
         // the rest weights subgraph must be updated with precision after repacking

@@ -5,7 +5,7 @@ import typing
 """
 openvino.properties.device submodule that simulates ov::device
 """
-__all__ = ['Capability', 'PCIInfo', 'Priorities', 'Type', 'architecture', 'capabilities', 'full_name', 'gops', 'id', 'luid', 'pci_info', 'priorities', 'properties', 'thermal', 'type', 'uuid']
+__all__: list[str] = ['Capability', 'PCIInfo', 'Priorities', 'Type', 'architecture', 'capabilities', 'full_name', 'gops', 'id', 'luid', 'pci_info', 'priorities', 'properties', 'thermal', 'type', 'uuid']
 class Capability:
     """
     openvino.properties.device.Capability that simulates ov::device::capability
@@ -19,7 +19,7 @@ class Capability:
     INT8: typing.ClassVar[str] = 'INT8'
     WINOGRAD: typing.ClassVar[str] = 'WINOGRAD'
 class PCIInfo:
-    def __init__(self, arg0: int, arg1: int, arg2: int, arg3: int) -> None:
+    def __init__(self, arg0: typing.SupportsInt, arg1: typing.SupportsInt, arg2: typing.SupportsInt, arg3: typing.SupportsInt) -> None:
         ...
     def __repr__(self) -> typing.Any:
         ...
@@ -60,7 +60,7 @@ class Type:
         ...
     def __index__(self) -> int:
         ...
-    def __init__(self, value: int) -> None:
+    def __init__(self, value: typing.SupportsInt) -> None:
         ...
     def __int__(self) -> int:
         ...
@@ -72,7 +72,7 @@ class Type:
         ...
     def __repr__(self) -> str:
         ...
-    def __setstate__(self, state: int) -> None:
+    def __setstate__(self, state: typing.SupportsInt) -> None:
         ...
     def __str__(self) -> str:
         ...

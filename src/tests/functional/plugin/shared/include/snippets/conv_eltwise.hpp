@@ -22,7 +22,7 @@ typedef std::tuple<
 class ConvEltwise : public testing::WithParamInterface<ov::test::snippets::ConvEltwiseParams>,
                     virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::ConvEltwiseParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ConvEltwiseParams>& obj);
 
 protected:
     void SetUp() override;

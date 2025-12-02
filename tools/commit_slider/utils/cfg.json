@@ -5,7 +5,9 @@
         "compareBlobs" : "CompareBlobsMode",
         "ac" : "AccuracyCheckerMode",
         "llmBench" : "LLMBenchMode",
-        "nop" : "NopMode"
+        "nop" : "NopMode",
+        "crossCheck" : "CrossCheckMode",
+        "mComp" : "ModelCompilationMode"
     },
     "traversalMap" : {
         "firstFailedVersion" : "FirstFailedVersion",
@@ -83,6 +85,7 @@
     "clearCache" : false,
     "checkIfBordersDiffer" : true,
     "printCSV" : true,
+    "template" : "common_template",
     "usePrevRunCache" : false,
     "verboseOutput": false,
     "venvCfg": {

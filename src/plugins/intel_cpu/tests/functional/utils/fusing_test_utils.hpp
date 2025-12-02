@@ -17,6 +17,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
+#include "utils/quantization_utils.hpp"
 
 using namespace ov::test;
 
@@ -72,9 +73,21 @@ typedef std::tuple<
         std::vector<std::string> // list of node types that are to be fused
         > fusingSpecificParams;
 
+struct ExtraOperationsParams {
+    ExtraOperationsParams(fusingSpecificParams fusingParams)
+        : fusingParams(std::move(fusingParams)), qinfo({}) {}
+
+    ExtraOperationsParams(fusingSpecificParams fusingParams,
+                          QuantizationInfo qinfo)
+        : fusingParams(std::move(fusingParams)), qinfo(std::move(qinfo)) {}
+
+    fusingSpecificParams fusingParams;
+    QuantizationInfo qinfo;
+};
+
 class CpuTestWithFusing : public CPUTestsBase {
 public:
-    static std::string getTestCaseName(fusingSpecificParams params);
+    static std::string getTestCaseName(const fusingSpecificParams& params);
 
 protected:
     /**

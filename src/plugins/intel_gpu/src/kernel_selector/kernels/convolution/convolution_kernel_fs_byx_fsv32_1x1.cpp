@@ -128,20 +128,20 @@ KernelsPriority ConvolutionKernel_fs_byx_fsv32_1x1::GetKernelsPriority(const Par
 
 bool ConvolutionKernel_fs_byx_fsv32_1x1::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
     if (cp.filterSize.x != 1 || cp.filterSize.y != 1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // Output feature padding must be multiple of fsv to keep block alignment
     if (cp.outputs[0].Feature().pad.before % fsv != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // Input feature padding must be multiple of fsv to keep block alignment
     if (cp.inputs[0].Feature().pad.before % fsv != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

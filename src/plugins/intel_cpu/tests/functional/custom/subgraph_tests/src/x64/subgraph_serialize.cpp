@@ -4,8 +4,10 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset9_decl.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -33,7 +35,7 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraph) {
         auto add = std::make_shared<Add>(ininput0, ininput1);
         auto subgraph_body =
             std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{ininput0, ininput1});
-        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, subgraph_body.get()->clone());
+        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::OutputVector{input0, input1}, subgraph_body.get()->clone());
         return std::make_shared<ov::Model>(ov::OutputVector{subgraph}, ov::ParameterVector{input0, input1});
     })();
     ov::Core core;
@@ -82,7 +84,7 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithScalarConst)
         auto internal_add = std::make_shared<Add>(internal_input, internal_constant);
         auto subgraph_body =
             std::make_shared<ov::Model>(ov::OutputVector{internal_add}, ov::ParameterVector{internal_input});
-        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{add}, subgraph_body.get()->clone());
+        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::OutputVector{add}, subgraph_body.get()->clone());
         return std::make_shared<ov::Model>(ov::OutputVector{subgraph}, ov::ParameterVector{input});
     })();
     ov::Core core;

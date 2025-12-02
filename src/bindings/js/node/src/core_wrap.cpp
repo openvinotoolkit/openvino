@@ -196,12 +196,7 @@ void compileModelThreadModel(TsfnContextModel* context) {
     context->_compiled_model = core.compile_model(context->_model, context->_device, context->_config);
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContextModel* context) {
-        Napi::HandleScope scope(env);
-        auto obj = CompiledModelWrap::get_class(env).New({});
-        auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
-        cm->set_compiled_model(context->_compiled_model);
-
-        context->deferred.Resolve(obj);
+        context->deferred.Resolve(CompiledModelWrap::wrap(env, context->_compiled_model));
     };
 
     context->tsfn.BlockingCall(context, callback);
@@ -213,12 +208,7 @@ void compileModelThreadPath(TsfnContextPath* context) {
     context->_compiled_model = core.compile_model(context->_model, context->_device, context->_config);
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContextPath* context) {
-        Napi::HandleScope scope(env);
-        auto obj = CompiledModelWrap::get_class(env).New({});
-        auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
-        cm->set_compiled_model(context->_compiled_model);
-
-        context->deferred.Resolve(obj);
+        context->deferred.Resolve(CompiledModelWrap::wrap(env, context->_compiled_model));
     };
 
     context->tsfn.BlockingCall(context, callback);

@@ -32,9 +32,9 @@ public:
         m_ptr.reset(t, traits::destructor);
     }
 
-    T get(bool allow_empty = false) const {
+    [[nodiscard]] T get(bool allow_empty = false) const {
         T result = m_ptr.get();
-        OPENVINO_ASSERT(allow_empty || result != nullptr, "ShlStructure is not initialized");
+        OPENVINO_ASSERT(allow_empty || result, "ShlStructure is not initialized");
         return result;
     }
 
@@ -68,13 +68,13 @@ protected:
 template <>
 struct ShlStructureTraits<csinn_session*> {
     static void destructor(csinn_session* p) {
-        return csinn_free_session(p);
+        csinn_free_session(p);
     }
 };
 struct ShlSession : public ShlStructure<csinn_session*> {
     ShlSession() {
         csinn_session* session = csinn_alloc_session();
-        OPENVINO_ASSERT(session != nullptr, "Failed to create csinn_session");
+        OPENVINO_ASSERT(session, "Failed to create csinn_session");
         // CPU Plugin supports only per layer execution in SHL
         session->base_run_mode = CSINN_RM_LAYER;
         reset(session);
@@ -84,19 +84,19 @@ struct ShlSession : public ShlStructure<csinn_session*> {
 template <>
 struct ShlStructureTraits<csinn_tensor*> {
     static void destructor(csinn_tensor* p) {
-        return csinn_free_tensor(p);
+        csinn_free_tensor(p);
     }
 };
 struct ShlTensor : public ShlStructure<csinn_tensor*> {
     ShlTensor() {
         csinn_tensor* tensor = csinn_alloc_tensor(nullptr);
-        OPENVINO_ASSERT(tensor != nullptr, "Failed to create csinn_tensor");
+        OPENVINO_ASSERT(tensor, "Failed to create csinn_tensor");
         reset(tensor);
     }
 
-    ShlTensor(const ShlSession& session) {
+    explicit ShlTensor(const ShlSession& session) {
         csinn_tensor* tensor = csinn_alloc_tensor(session.get());
-        OPENVINO_ASSERT(tensor != nullptr, "Failed to create csinn_tensor");
+        OPENVINO_ASSERT(tensor, "Failed to create csinn_tensor");
         reset(tensor);
     }
 
@@ -152,7 +152,7 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
         std::cout << "Shape: " << ov::Shape(getShape()) << " "
                   << "DataType: " << getPrecision() << " "
                   << "Layout: " << getLayout() << " "
-                  << "Ptr: " << getData() << std::endl;
+                  << "Ptr: " << getData() << '\n';
     }
 #endif
 
@@ -185,13 +185,13 @@ template <typename T, typename traits = ShlStructureTraits<T>>
 struct ShlParams : public ShlStructure<T>, public IShlParams {
     ShlParams() {
         T params = static_cast<T>(csinn_alloc_params(sizeof(std::remove_pointer_t<T>), nullptr));
-        OPENVINO_ASSERT(params != nullptr, "Failed to create csinn_params");
+        OPENVINO_ASSERT(params, "Failed to create csinn_params");
         this->reset(params);
     }
 
-    ShlParams(const ShlSession& session) {
+    explicit ShlParams(const ShlSession& session) {
         T params = static_cast<T>(csinn_alloc_params(sizeof(std::remove_pointer_t<T>), session.get()));
-        OPENVINO_ASSERT(params != nullptr, "Failed to create csinn_params");
+        OPENVINO_ASSERT(params, "Failed to create csinn_params");
         this->reset(params);
     }
 
@@ -213,7 +213,7 @@ private:
 template <>
 struct ShlStructureTraits<csinn_fc_params*> {
     static void destructor(csinn_fc_params* p) {
-        return csinn_free_params(p);
+        csinn_free_params(p);
     }
 };
 struct ShlFCParams : public ShlParams<csinn_fc_params*> {
@@ -223,7 +223,7 @@ struct ShlFCParams : public ShlParams<csinn_fc_params*> {
 template <>
 struct ShlStructureTraits<csinn_diso_params*> {
     static void destructor(csinn_diso_params* p) {
-        return csinn_free_params(p);
+        csinn_free_params(p);
     }
 };
 struct ShlDisoParams : public ShlParams<csinn_diso_params*> {
@@ -233,7 +233,7 @@ struct ShlDisoParams : public ShlParams<csinn_diso_params*> {
 template <>
 struct ShlStructureTraits<csinn_siso_params*> {
     static void destructor(csinn_siso_params* p) {
-        return csinn_free_params(p);
+        csinn_free_params(p);
     }
 };
 struct ShlSisoParams : public ShlParams<csinn_siso_params*> {
@@ -243,25 +243,25 @@ struct ShlSisoParams : public ShlParams<csinn_siso_params*> {
 template <>
 struct ShlStructureTraits<csinn_relu_params*> {
     static void destructor(csinn_relu_params* p) {
-        return csinn_free_params(p);
+        csinn_free_params(p);
     }
 };
 struct ShlReluParams : public ShlParams<csinn_relu_params*> {
     using ShlParams<csinn_relu_params*>::ShlParams;
 
-    ShlReluParams(float alpha) : ShlParams<csinn_relu_params*>() {
-        auto params = static_cast<csinn_relu_params*>(this->get());
+    explicit ShlReluParams(float alpha) {
+        auto* params = static_cast<csinn_relu_params*>(this->get());
         params->n = alpha;
     }
 
     ShlReluParams(const ShlSession& session, float alpha) : ShlParams<csinn_relu_params*>(session) {
-        auto params = static_cast<csinn_relu_params*>(this->get());
+        auto* params = static_cast<csinn_relu_params*>(this->get());
         params->n = alpha;
     }
 
     ShlReluParams(const ShlSession& session, csinn_api_enum api, float alpha)
         : ShlParams<csinn_relu_params*>(session, api) {
-        auto params = static_cast<csinn_relu_params*>(this->get());
+        auto* params = static_cast<csinn_relu_params*>(this->get());
         params->n = alpha;
     }
 };
@@ -269,7 +269,7 @@ struct ShlReluParams : public ShlParams<csinn_relu_params*> {
 template <>
 struct ShlStructureTraits<csinn_prelu_params*> {
     static void destructor(csinn_prelu_params* p) {
-        return csinn_free_params(p);
+        csinn_free_params(p);
     }
 };
 struct ShlPReluParams : public ShlParams<csinn_prelu_params*> {
@@ -279,27 +279,27 @@ struct ShlPReluParams : public ShlParams<csinn_prelu_params*> {
 template <>
 struct ShlStructureTraits<csinn_clip_params*> {
     static void destructor(csinn_clip_params* p) {
-        return csinn_free_params(p);
+        csinn_free_params(p);
     }
 };
 struct ShlClipParams : public ShlParams<csinn_clip_params*> {
     using ShlParams<csinn_clip_params*>::ShlParams;
 
-    ShlClipParams(float min, float max) : ShlParams<csinn_clip_params*>() {
-        auto params = static_cast<csinn_clip_params*>(this->get());
+    ShlClipParams(float min, float max) {
+        auto* params = static_cast<csinn_clip_params*>(this->get());
         params->min_value = min;
         params->max_value = max;
     }
 
     ShlClipParams(const ShlSession& session, float min, float max) : ShlParams<csinn_clip_params*>(session) {
-        auto params = static_cast<csinn_clip_params*>(this->get());
+        auto* params = static_cast<csinn_clip_params*>(this->get());
         params->min_value = min;
         params->max_value = max;
     }
 
     ShlClipParams(const ShlSession& session, csinn_api_enum api, float min, float max)
         : ShlParams<csinn_clip_params*>(session, api) {
-        auto params = static_cast<csinn_clip_params*>(this->get());
+        auto* params = static_cast<csinn_clip_params*>(this->get());
         params->min_value = min;
         params->max_value = max;
     }

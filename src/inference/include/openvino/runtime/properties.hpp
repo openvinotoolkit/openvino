@@ -606,6 +606,52 @@ enum class DynamicQuantizationDataType {
     MXF4E2M1,
 };
 
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const DynamicQuantizationDataType& dyn_quan_dtype) {
+    switch (dyn_quan_dtype) {
+    case DynamicQuantizationDataType::INT8:
+        return os << "INT8";
+    case DynamicQuantizationDataType::F8E4M3:
+        return os << "F8E4M3";
+    case DynamicQuantizationDataType::F8E5M2:
+        return os << "F8E5M2";
+    case DynamicQuantizationDataType::F4E2M1:
+        return os << "F4E2M1";
+    case DynamicQuantizationDataType::MXF8E4M3:
+        return os << "MXF8E4M3";
+    case DynamicQuantizationDataType::MXF8E5M2:
+        return os << "MXF8E5M2";
+    case DynamicQuantizationDataType::MXF4E2M1:
+        return os << "MXF4E2M1";
+    default:
+        OPENVINO_THROW("Unsupported DynamicQuantizationDataType value");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, DynamicQuantizationDataType& dyn_quan_dtype) {
+    std::string str;
+    is >> str;
+    if (str == "INT8") {
+        dyn_quan_dtype = DynamicQuantizationDataType::INT8;
+    } else if (str == "F8E4M3") {
+        dyn_quan_dtype = DynamicQuantizationDataType::F8E4M3;
+    } else if (str == "F8E5M2") {
+        dyn_quan_dtype = DynamicQuantizationDataType::F8E5M2;
+    } else if (str == "F4E2M1") {
+        dyn_quan_dtype = DynamicQuantizationDataType::F4E2M1;
+    } else if (str == "MXF8E4M3") {
+        dyn_quan_dtype = DynamicQuantizationDataType::MXF8E4M3;
+    } else if (str == "MXF8E5M2") {
+        dyn_quan_dtype = DynamicQuantizationDataType::MXF8E5M2;
+    } else if (str == "MXF4E2M1") {
+        dyn_quan_dtype = DynamicQuantizationDataType::MXF4E2M1;
+    } else {
+        OPENVINO_THROW("Unsupported log level: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
 static constexpr Property<DynamicQuantizationDataType, PropertyMutability::RW> dynamic_quantization_data_type{
     "DYNAMIC_QUANTIZATION_TARGET_TYPE"};
 
@@ -741,6 +787,15 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADED_FROM_CACHE"};
 
 /**
+ * @brief Write property to specify the origin path of compiled model to speed cache model ID calculation.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property has meaning when used in `core::compile_model(const std::shared_ptr<const ov::Model>& model, ...)` and
+ * cache feature is enabled.
+ */
+static inline constexpr Property<std::filesystem::path, PropertyMutability::WO> cache_model_path{"CACHE_MODEL_PATH"};
+
+/**
  * @brief Enum to define possible workload types
  *
  * Workload type represents the execution priority for an inference.
@@ -824,10 +879,10 @@ inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
 /** @endcond */
 
 /**
- * @brief Read-write property to select the cache mode between optimize_size and optimize_speed.
- * If optimize_speed is selected(default), loading time will decrease but the cache file size will increase.
- * If optimize_size is selected, smaller cache files will be created.
- * This is only supported from GPU.
+ * @brief Read-write property to select the cache mode between OPTIMIZE_SIZE and OPTIMIZE_SPEED.
+ * If OPTIMIZE_SPEED is selected (default), loading time will decrease but the cache file size will increase.
+ * If OPTIMIZE_SIZE is selected, smaller cache files will be created.
+ * The cache model default behaviour can be overridden by ENABLE_WEIGHTLESS property.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
@@ -838,13 +893,17 @@ struct EncryptionCallbacks {
 };
 
 /**
+ * @brief Read-write property to enable/disable weightless cache.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_weightless{"ENABLE_WEIGHTLESS"};
+
+/**
  * @brief Write-only property to set encryption/decryption function for saving/loading model cache.
  * If cache_encryption_callbacks is set, the model topology will be encrypted when saving to the cache and decrypted
  * when loading from the cache. This property is set in core.compile_model only.
  * - First value of the struct is encryption function.
  * - Second value of the struct is decryption function.
- * @note GPU Plugin: encrypts whole blob, not only model structure. Only used when ov::cache_mode property is set to
- * "OPTIMIZE_SIZE".
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<EncryptionCallbacks, PropertyMutability::WO> cache_encryption_callbacks{

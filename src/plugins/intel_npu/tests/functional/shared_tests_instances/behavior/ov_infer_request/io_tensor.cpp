@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_infer_request/io_tensor.hpp"
-
+#include <behavior/ov_infer_request/io_tensor.hpp>
 #include <vector>
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/config/options.hpp"
-#include "overload/ov_infer_request/io_tensor.hpp"
 
 using namespace ov::test::behavior;
 
@@ -30,18 +27,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          OVInferRequestIOTensorTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(multiConfigs)),
-                         InferRequestParamsAnyMapTestName::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVInferRequestIOTensorTestNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs)),
-                         InferRequestParamsAnyMapTestName::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         OVInferRequestIOTensorTestNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multiConfigs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
@@ -92,27 +77,6 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Auto_BehaviorTests,
                                             ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTest>);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
-                         OVInferRequestIOTensorSetPrecisionTestNPU,
-                         ::testing::Combine(::testing::ValuesIn(prcs),
-                                            ::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Mutli_BehaviorTests,
-                         OVInferRequestIOTensorSetPrecisionTestNPU,
-                         ::testing::Combine(::testing::ValuesIn(prcs),
-                                            ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(multiConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Auto_BehaviorTests,
-                         OVInferRequestIOTensorSetPrecisionTestNPU,
-                         ::testing::Combine(::testing::ValuesIn(prcs),
-                                            ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(autoConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVInferRequestCheckTensorPrecision,

@@ -44,8 +44,10 @@ void slice(const char* data,
     const auto in_data_strides = row_major_strides(data_shape);
     const auto out_data_strides = row_major_strides(out_shape);
     std::vector<int64_t> in_data_coord(aligned_starts);
-    for (size_t out_idx = 0; out_idx < shape_size(out_shape); ++out_idx) {
-        for (size_t i = 0; i < in_data_coord.size(); ++i) {
+    const auto out_shape_size = shape_size(out_shape);
+    const auto in_data_coord_size = in_data_coord.size();
+    for (size_t out_idx = 0; out_idx < out_shape_size; ++out_idx) {
+        for (size_t i = 0; i < in_data_coord_size; ++i) {
             in_data_coord[i] = aligned_starts[i] + (out_idx / out_data_strides[i] % out_shape[i]) * aligned_steps[i];
         }
         const auto in_idx =

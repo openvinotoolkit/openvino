@@ -41,7 +41,7 @@ ParamsKey EltwiseKernelRef::GetSupportedKey() const {
 
 bool EltwiseKernelRef::Validate(const Params& p) const {
     if (!EltwiseKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

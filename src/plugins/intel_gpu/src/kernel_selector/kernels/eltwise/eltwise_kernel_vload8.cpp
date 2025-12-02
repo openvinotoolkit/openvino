@@ -28,7 +28,7 @@ JitConstants EltwiseKernel_vload8::GetJitConstants(const eltwise_params& params)
 
 bool EltwiseKernel_vload8::Validate(const Params& params) const {
     if (!EltwiseKernelBase::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& ewParams = static_cast<const eltwise_params&>(params);
@@ -36,7 +36,7 @@ bool EltwiseKernel_vload8::Validate(const Params& params) const {
     // Only one activation can be fused.
     if (ewParams.fused_ops.size() > 1 ||
         (ewParams.activations.size() !=0 && ewParams.fused_ops.size() != 0)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
         for (size_t i = 0; i < ewParams.inputs.size(); i++) {
@@ -50,7 +50,7 @@ bool EltwiseKernel_vload8::Validate(const Params& params) const {
                 input_layout == DataLayout::fs_b_yx_fsv32 ||
                 (input_layout == DataLayout::bs_fs_yx_bsv32_fsv16 && (feature_size % 16 != 0 || batch_size % 32 != 0)) ||
                 (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 && (feature_size % 32 != 0 || batch_size % 32 != 0)))
-                return false;
+                DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
         if ((ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
             (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.outputs[0].Feature().v % 32 != 0) ||
@@ -61,7 +61,7 @@ bool EltwiseKernel_vload8::Validate(const Params& params) const {
                 (ewParams.outputs[0].Feature().v % 16 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)) ||
             (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
                 (ewParams.outputs[0].Feature().v % 32 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& output = ewParams.outputs[0];
     const auto count = output.PhysicalSize();
@@ -94,10 +94,10 @@ bool EltwiseKernel_vload8::Validate(const Params& params) const {
     }
 
     if (IsUnsupportedModeForVecCode(ewParams))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (!bCheckSizes || !bSupportedCount || !bCheckUpdateInput || !bCheckUseOutput) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

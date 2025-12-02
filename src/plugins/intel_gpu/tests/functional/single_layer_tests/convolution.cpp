@@ -27,19 +27,9 @@ class ConvolutionLayerGPUTest : public testing::WithParamInterface<convLayerTest
                                 virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convLayerTestParamsSet>& obj) {
-        convSpecificParams convParams;
-        ov::element::Type netType;
-        ov::element::Type inType, outType;
-        InputShape inputShape;
-        bool is_ReduceSum_test;
-        std::string targetDevice;
-        std::tie(convParams, netType, inType, outType, inputShape, is_ReduceSum_test, targetDevice) = obj.param;
+        const auto& [convParams, netType, inType, outType, inputShape, is_ReduceSum_test, targetDevice] = obj.param;
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType] = convParams;
 
         std::ostringstream result;
         result << "IS=";
@@ -70,19 +60,15 @@ public:
 
 protected:
     void SetUp() override {
-        convSpecificParams convParams;
-        InputShape inputShape;
-        auto netType = ov::element::dynamic;
-        bool is_ReduceSum_test;
-        std::tie(convParams, netType, inType, outType, inputShape, is_ReduceSum_test, targetDevice) = this->GetParam();
+        const auto& [convParams, netType, _inType, _outType, inputShape, is_ReduceSum_test, _targetDevice] = this->GetParam();
+        inType = _inType;
+        outType = _outType;
+        targetDevice = _targetDevice;
 
         init_input_shapes({inputShape});
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+        const auto& [_kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType] = convParams;
+        auto kernel = _kernel;
 
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes)

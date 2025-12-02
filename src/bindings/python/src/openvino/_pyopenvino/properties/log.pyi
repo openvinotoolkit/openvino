@@ -5,7 +5,7 @@ import typing
 """
 openvino.properties.log submodule that simulates ov::log
 """
-__all__ = ['Level', 'level']
+__all__: list[str] = ['Level', 'level']
 class Level:
     """
     Members:
@@ -41,7 +41,7 @@ class Level:
         ...
     def __index__(self) -> int:
         ...
-    def __init__(self, value: int) -> None:
+    def __init__(self, value: typing.SupportsInt) -> None:
         ...
     def __int__(self) -> int:
         ...
@@ -53,7 +53,7 @@ class Level:
         ...
     def __repr__(self) -> str:
         ...
-    def __setstate__(self, state: int) -> None:
+    def __setstate__(self, state: typing.SupportsInt) -> None:
         ...
     def __str__(self) -> str:
         ...

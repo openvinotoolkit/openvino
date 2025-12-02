@@ -366,9 +366,9 @@ available options and parameters:
                                     Required. Path to an .xml/.onnx file with a trained model or to a .blob file with a trained compiled model.
 
               -d TARGET_DEVICE, --target_device TARGET_DEVICE
-                                    Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma
-                                    separated devices list>' format to specify HETERO plugin. Use '-d MULTI:<comma separated devices list>' format to specify MULTI plugin. The
-                                    application looks for a suitable plugin for the specified device.
+                                     Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma
+                                     separated devices list>' format to specify HETERO plugin. Use '-d AUTO[:<comma separated devices list>]' format to let the Auto plugin pick the
+                                     best device or execute across multiple devices. The application looks for a suitable plugin for the specified device.
 
               -hint {throughput,cumulative_throughput,latency,none}, --perf_hint {throughput,cumulative_throughput,latency,none}
                                     Optional. Performance hint (latency or throughput or cumulative_throughput or none). Performance hint allows the OpenVINO device to select the
@@ -390,7 +390,7 @@ available options and parameters:
                                     Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation
 
               -shape SHAPE          Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size. This parameter
-                                    affect model Parameter shape, can be dynamic. For dynamic dimesions use symbol `?`, `-1` or range `low.. up`.
+                                    affect model Parameter shape, can be dynamic. For dynamic dimensions use symbol `?`, `-1` or range `low.. up`.
 
               -data_shape DATA_SHAPE
                                     Optional. Optional if model shapes are all static (original ones or set by -shape).Required if at least one input shape is dynamic and input
@@ -528,12 +528,12 @@ available options and parameters:
                 -h, --help                    Print the usage message
                 -m  <path>                    Required. Path to an .xml/.onnx file with a trained model or to a .blob files with a trained compiled model.
                 -i  <path>                    Optional. Path to a folder with images and/or binaries or to specific image or binary file.
-                                          In case of dynamic shapes models with several inputs provide the same number of files for each input (except cases with single file for any input)   :"input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ". Also you can pass specific keys for inputs: "random" - for    fillling input with random data, "image_info" - for filling input with image size.
+                                          In case of dynamic shapes models with several inputs provide the same number of files for each input (except cases with single file for any input)   :"input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ". Also you can pass specific keys for inputs: "random" - for    filling input with random data, "image_info" - for filling input with image size.
                                           You should specify either one files set to be used for all inputs (without providing input names) or separate files sets for every input of model    (providing inputs names).
                                           Currently supported data types: bmp, bin, npy.
                                           If OPENCV is enabled, this functionality is extended with the following data types:
                                           dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif.
-                -d  <device>                  Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d    HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. The application looks for    a suitable plugin for the specified device.
+                -d  <device>                  Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d    HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Use "-d AUTO[:<comma-separated_devices_list>]" format to let the Auto plugin pick the best device or execute across multiple devices. The application looks for a suitable plugin for the specified device.
                 -hint  <performance hint> (latency or throughput or cumulative_throughput or none)   Optional. Performance hint allows the OpenVINO device to select the right model-specific    settings.
                                            'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
                                            'cumulative_throughput' or 'ctput': device performance mode will be set to CUMULATIVE_THROUGHPUT.
@@ -542,7 +542,7 @@ available options and parameters:
                                           Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
                 -niter  <integer>             Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
                 -max_irate <float>            Optional. Maximum inference rate by frame per second.
-                                          If not specified, default value is 0, the inference will run at maximium rate depending on a device capabilities.
+                                          If not specified, default value is 0, the inference will run at maximum rate depending on a device capabilities.
                                           Tweaking this value allow better accuracy in power usage measurement by limiting the execution.
                 -t                            Optional. Time in seconds to execute topology.
 
@@ -562,6 +562,8 @@ available options and parameters:
                 -nstreams  <integer>          Optional. Number of streams to use for inference on the CPU or GPU devices (for HETERO and MULTI device cases use format <dev1>:<nstreams1>,   <dev2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device.Please note that although the automatic selection usually provides a reasonable    performance, it still may be non - optimal for some cases, especially for very small models. See sample's README for more details. Also, using nstreams>1 is inherently    throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1.
                 -inference_only         Optional. Measure only inference stage. Default option for static models. Dynamic models are measured in full mode which includes inputs setup stage,    inference only mode available for them with single input data shape only. To enable full mode for static models pass "false" value to this argument: ex. "-inference_only=false".
                 -infer_precision        Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision CPU:bf16,GPU:f32'
+                -no_warmup                    Optional. Skip warmup inference. Useful for benchmarking purposes in simulated environments. Otherwise, not recommended.
+
 
             Preprocessing options:
                 -ip   <value>           Optional. Specifies precision for all input layers of the model.

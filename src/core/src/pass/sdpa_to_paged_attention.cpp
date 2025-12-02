@@ -12,10 +12,13 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/sdpa_fusion.hpp"
+#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
+#include "transformations/utils/print_model.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::op;
@@ -23,11 +26,13 @@ using namespace ov::op;
 ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs,
                                                      bool use_score_outputs,
                                                      bool allow_score_aggregation,
-                                                     bool allow_cache_rotation)
+                                                     bool allow_cache_rotation,
+                                                     bool allow_xattention)
     : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
       m_use_score_outputs(use_score_outputs),
       m_allow_score_aggregation(use_score_outputs),
-      m_allow_cache_rotation(allow_cache_rotation) {}
+      m_allow_cache_rotation(allow_cache_rotation),
+      m_allow_xattention(allow_xattention) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
@@ -40,6 +45,7 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
 
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
+
     OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
@@ -62,11 +68,16 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
             setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "score_aggregation_window");
     }
 
-    std::shared_ptr<v0::Parameter> model_rotation_trig_lut;
-
     if (m_allow_cache_rotation) {
-        model_rotation_trig_lut =
+        optional_model_wide_params["model_rotation_trig_lut"] =
             setName(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}), "rotation_trig_lut");
+    }
+
+    if (m_allow_xattention) {
+        optional_model_wide_params["xattention_block_size"] =
+            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_block_size");
+        optional_model_wide_params["xattention_stride"] =
+            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_stride");
     }
 
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
@@ -115,6 +126,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ParameterVector block_indices_inputs_for_each_layer;
     ParameterVector rotated_block_indices_inputs_for_each_layer;
     ParameterVector rotation_deltas_inputs_for_each_layer;
+    ParameterVector xattention_threshold_inputs_for_each_layer;
 
     ResultVector score_results;
 
@@ -149,15 +161,18 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   m_use_score_outputs,
                                                   m_allow_cache_rotation,
                                                   m_allow_score_aggregation,
+                                                  m_allow_xattention,
                                                   rotated_block_indices_inputs_for_each_layer,
                                                   rotation_deltas_inputs_for_each_layer,
-                                                  model_rotation_trig_lut,
+                                                  xattention_threshold_inputs_for_each_layer,
                                                   optional_model_wide_params);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
+    manager.register_pass<TotalSequenceLengthPatternCodeGen2>(max_context_len);
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
+    manager.register_pass<PositionIDsReplacerCodeGen2>(position_ids);
     manager.run_passes(model);
 
     {
@@ -217,7 +232,13 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     if (m_allow_cache_rotation) {
         model->add_parameters(rotated_block_indices_inputs_for_each_layer);
         model->add_parameters(rotation_deltas_inputs_for_each_layer);
-        model->add_parameters({std::move(model_rotation_trig_lut)});
+        model->add_parameters({optional_model_wide_params["model_rotation_trig_lut"]});
+    }
+
+    if (m_allow_xattention) {
+        model->add_parameters(xattention_threshold_inputs_for_each_layer);
+        model->add_parameters({optional_model_wide_params["xattention_block_size"]});
+        model->add_parameters({optional_model_wide_params["xattention_stride"]});
     }
 
     model->add_parameters(kv_parameters);

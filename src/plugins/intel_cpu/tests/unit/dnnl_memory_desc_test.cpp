@@ -365,10 +365,7 @@ TEST(MakeUndefinedDnnlDesc, checkLayout) {
     ov::PartialShape fullyUndef({{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
 
     for (const auto& item : payload) {
-        dnnl::memory::format_tag fmt;
-        dnnl::memory::dims dims;
-        std::string strFormat;
-        std::tie(fmt, dims, strFormat) = item;
+        const auto& [fmt, dims, strFormat] = item;
         const memory::desc origin(dims, dataType, fmt);
 
         auto undefDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef));
@@ -399,9 +396,7 @@ TEST(MakeUndefinedDnnlDesc, extraData) {
     ov::PartialShape fullyUndef({{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
 
     for (const auto& item : payload) {
-        dnnl::memory::format_tag fmt;
-        dnnl::memory::dims dims;
-        std::tie(fmt, dims) = item;
+        const auto& [fmt, dims] = item;
         memory::desc origin(dims, dataType, fmt);
 
         origin.get()->extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;

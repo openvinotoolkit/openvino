@@ -4,7 +4,19 @@
 
 #include "jit_horizon_emitters.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <vector>
+
 #include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 

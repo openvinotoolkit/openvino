@@ -79,10 +79,10 @@ size_t getThreadsNum() {
     return ret 
         ?   entry.cntThreads
         :   -1;
-    }
+}
 
 #else
-size_t getSystemDataByName(char* name) {
+size_t getSystemDataByName(char const* name) {
     auto parseLine = [](std::string line) -> size_t {
         std::string res = "";
         for (auto c : line)
@@ -113,11 +113,11 @@ size_t getSystemDataByName(char* name) {
     return result;
 }
 
-size_t getVmSizeInKB() {return getSystemDataByName((char*) "VmSize:");}
-size_t getVmPeakInKB() {return getSystemDataByName((char*) "VmPeak:");}
-size_t getVmRSSInKB() {return getSystemDataByName((char*) "VmRSS:");}
-size_t getVmHWMInKB() {return getSystemDataByName((char*) "VmHWM:");}
-size_t getThreadsNum() {return getSystemDataByName((char*) "Threads:");}
+size_t getVmSizeInKB() {return getSystemDataByName("VmSize:");}
+size_t getVmPeakInKB() {return getSystemDataByName("VmPeak:");}
+size_t getVmRSSInKB() {return getSystemDataByName("VmRSS:");}
+size_t getVmHWMInKB() {return getSystemDataByName("VmHWM:");}
+size_t getThreadsNum() {return getSystemDataByName("Threads:");}
 
 #endif
 

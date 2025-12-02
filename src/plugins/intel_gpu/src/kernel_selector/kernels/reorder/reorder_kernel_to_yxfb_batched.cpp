@@ -31,11 +31,11 @@ DeviceFeaturesKey ReorderKernel_to_yxfb_batched::get_required_device_features_ke
 
 bool ReorderKernel_to_yxfb_batched::Validate(const Params& params) const {
     if (!ReorderKernelBase::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (!IsSIMDSizeSupported(params.engineInfo, 8))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const reorder_params& r_params = static_cast<const reorder_params&>(params);
 
@@ -43,12 +43,12 @@ bool ReorderKernel_to_yxfb_batched::Validate(const Params& params) const {
     // output cannot have padding for this implementation
     if (output.X().pad.Total() != 0 || output.Y().pad.Total() != 0 || output.Feature().pad.Total() != 0 ||
         output.Batch().pad.Total() != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if ((r_params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 || r_params.inputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
         r_params.inputs[0].Z().v != 1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

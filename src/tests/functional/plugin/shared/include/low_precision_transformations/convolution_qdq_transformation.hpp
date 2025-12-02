@@ -47,7 +47,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConvolutionQDqTransform
 
 typedef std::tuple<
     ov::element::Type,
-    ov::PartialShape,
+    ov::test::InputShape,
     std::string,
     ConvolutionQDqTransformationParam
 > ConvolutionQDqTransformationParams;

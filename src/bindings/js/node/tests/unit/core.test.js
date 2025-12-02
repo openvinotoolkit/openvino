@@ -2,12 +2,12 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-const { addon: ov } = require('../..');
-const assert = require('assert');
-const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, isModelAvailable } = require('../utils.js');
+const { addon: ov } = require("../..");
+const assert = require("assert");
+const { describe, it, before, beforeEach } = require("node:test");
+const { testModels, isModelAvailable } = require("../utils.js");
 
-describe('ov.Core tests', () => {
+describe("ov.Core tests", () => {
   const { testModelFP32 } = testModels;
   let core = null;
   before(async () => {
@@ -18,94 +18,88 @@ describe('ov.Core tests', () => {
     core = new ov.Core();
   });
 
-  it('Core.setProperty()', () => {
-    const tmpDir = '/tmp';
+  it("Core.setProperty()", () => {
+    const tmpDir = "/tmp";
 
     core.setProperty({ CACHE_DIR: tmpDir });
 
-    const cacheDir = core.getProperty('CACHE_DIR');
+    const cacheDir = core.getProperty("CACHE_DIR");
 
     assert.equal(cacheDir, tmpDir);
   });
 
-  it('Core.setProperty(\'CPU\')', () => {
-    const tmpDir = '/tmp';
+  it('Core.setProperty("CPU")', () => {
+    const tmpDir = "/tmp";
 
-    core.setProperty('CPU', { CACHE_DIR: tmpDir });
+    core.setProperty("CPU", { CACHE_DIR: tmpDir });
 
-    const cacheDir = core.getProperty('CPU', 'CACHE_DIR');
+    const cacheDir = core.getProperty("CPU", "CACHE_DIR");
 
     assert.equal(cacheDir, tmpDir);
   });
 
-  it('Core.getProperty(\'CPU\', \'SUPPORTED_PROPERTIES\') is Array', () => {
-    const supportedPropertiesArray = core.getProperty(
-      'CPU',
-      'SUPPORTED_PROPERTIES',
-    );
+  it('Core.getProperty("CPU", "SUPPORTED_PROPERTIES") is Array', () => {
+    const supportedPropertiesArray = core.getProperty("CPU", "SUPPORTED_PROPERTIES");
 
     assert.ok(Array.isArray(supportedPropertiesArray));
   });
 
-  it('Core.setProperty(\'CPU\', { \'NUM_STREAMS\': 5 })', () => {
+  it('Core.setProperty("CPU", { "NUM_STREAMS": 5 })', () => {
     const streams = 5;
 
-    core.setProperty('CPU', { NUM_STREAMS: streams });
-    const result = core.getProperty('CPU', 'NUM_STREAMS');
+    core.setProperty("CPU", { NUM_STREAMS: streams });
+    const result = core.getProperty("CPU", "NUM_STREAMS");
 
     assert.equal(result, streams);
   });
 
-  it('Core.setProperty(\'CPU\', { \'INFERENCE_NUM_THREADS\': 3 })', () => {
+  it('Core.setProperty("CPU", { "INFERENCE_NUM_THREADS": 3 })', () => {
     const threads = 3;
 
-    core.setProperty('CPU', { INFERENCE_NUM_THREADS: threads });
-    const result = core.getProperty('CPU', 'INFERENCE_NUM_THREADS');
+    core.setProperty("CPU", { INFERENCE_NUM_THREADS: threads });
+    const result = core.getProperty("CPU", "INFERENCE_NUM_THREADS");
 
     assert.equal(result, threads);
   });
 
-  it('Core.addExtension() with empty parameters', () => {
+  it("Core.addExtension() with empty parameters", () => {
     assert.throws(
       () => core.addExtension(),
       /addExtension method applies one argument of string type/,
     );
   });
 
-  it('Core.addExtension(\'not_exists\') with non-existed library', () => {
-    const notExistsExt = 'not_exists';
+  it('Core.addExtension("not_exists") with non-existed library', () => {
+    const notExistsExt = "not_exists";
 
-    assert.throws(
-      () => core.addExtension(notExistsExt),
-      /Cannot load library 'not_exists'/,
-    );
+    assert.throws(() => core.addExtension(notExistsExt), /Cannot load library 'not_exists'/);
   });
 
-  it('Core.queryModel() with empty parameters should throw an error', () => {
+  it("Core.queryModel() with empty parameters should throw an error", () => {
     assert.throws(
       () => core.queryModel().then(),
       /'queryModel' method called with incorrect parameters./,
     );
   });
 
-  it('Core.queryModel() with less arguments should throw an error', () => {
+  it("Core.queryModel() with less arguments should throw an error", () => {
     assert.throws(
-      () => core.queryModel('Unexpected Argument').then(),
+      () => core.queryModel("Unexpected Argument").then(),
       /'queryModel' method called with incorrect parameters./,
     );
   });
 
-  it('Core.queryModel() with incorrect arguments should throw an error', () => {
+  it("Core.queryModel() with incorrect arguments should throw an error", () => {
     const model = core.readModelSync(testModelFP32.xml);
     assert.throws(
-      () => core.queryModel(model, 'arg1', 'arg2').then(),
+      () => core.queryModel(model, "arg1", "arg2").then(),
       /'queryModel' method called with incorrect parameters./,
     );
   });
 
-  it('Core.queryModel() should have device in the result values', () => {
+  it("Core.queryModel() should have device in the result values", () => {
     const model = core.readModelSync(testModelFP32.xml);
-    const device = 'CPU';
+    const device = "CPU";
     const queryModel = core.queryModel(model, device);
     assert(Object.values(queryModel).includes(device));
   });

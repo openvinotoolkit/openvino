@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,6 +73,22 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(std::string
     return return_value;
 }
 
+bool hasOtherDynamicDims(const ov::PartialShape& shape, const ov::Layout& layout) {
+    auto batch_idx = ov::layout::batch_idx(layout);
+
+    for (size_t dim_idx = 0; dim_idx < shape.size(); dim_idx++) {
+        // Skip the batch dimension
+        if (dim_idx == static_cast<size_t>(batch_idx)) {
+            continue;
+        }
+
+        if (shape[dim_idx].is_dynamic()) {
+            return true;  // Found dynamic dimension other than batch
+        }
+    }
+    return false;
+}
+
 /**
  * @brief Checks the model for dynamism and ensures it is compatible with NPU.
  *
@@ -106,16 +122,16 @@ void boundDynamicShape(std::shared_ptr<ov::Model>& model, bool shapeOrBatchGiven
             item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
             layout = item->get_layout();
         }
-        if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
+        auto otherDimsDynamic = hasOtherDynamicDims(shape, layout);
+        if (shape[ov::layout::batch_idx(layout)].is_dynamic() && otherDimsDynamic) {
             if (shapeOrBatchGiven) {
                 throw std::logic_error("ERROR: Shape \"" + shape.to_string() + "\"" +
                                        " has dynamic batch size which is not supported by NPU\n");
-            }
-            else {
+            } else {
                 std::cout << "WARNING: Shape \"" + shape.to_string() + "\"" +
-                             " has dynamic batch size which is not supported by NPU\n"
-                             "         Setting batch to 1 forcibly" 
-                            << std::endl;
+                                 " has dynamic batch size which is not the only dynamic dimension. This scenario\n"
+                                 " is not yet supported by NPU. Setting batch to 1 forcibly"
+                          << std::endl;
                 ov::set_batch(model, 1);
                 // Get the shape again
                 shape = item->get_partial_shape();
@@ -148,8 +164,12 @@ void boundDynamicShape(std::shared_ptr<ov::Model>& model, bool shapeOrBatchGiven
  *                          the shape string contains multiple shapes for one input, or if the
  *                          model's shape is dynamic and not supported by the device.
  */
-void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<ov::Model>& model,
-             std::string& shapeString, int overrideModelBatchSize, std::string_view device) {
+void reshape(ov::OutputVector inputsInfo,
+             InputsInfo& infoMap,
+             std::shared_ptr<ov::Model>& model,
+             std::string& shapeString,
+             int overrideModelBatchSize,
+             std::string_view device) {
     std::vector<InputsInfo> infoMaps;
 
     // shape and override_model_batch_size cannot be specificed together
@@ -212,8 +232,8 @@ void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<o
             }
         }
         model->reshape(newShapes);
-    } else { // FLAGS_shape is empty
-        if (device.find("NPU") != std::string::npos ||
+    } else {  // FLAGS_shape is empty
+        if (device.find("NPU") != std::string::npos || device.find("IMD") != std::string::npos ||
             // FIXME: SIT on CPU also requires to bound dynamic shapes
             device.find("CPU") != std::string::npos || device.find("TEMPLATE") != std::string::npos) {
             boundDynamicShape(model, false);

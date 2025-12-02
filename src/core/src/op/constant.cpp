@@ -12,6 +12,8 @@
 #include "compare.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/core/tensor_util.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -255,16 +257,17 @@ Constant::Constant(bool memset_allocation, const element::Type& type, const Shap
 void Constant::allocate_buffer(bool memset_allocation) {
     // memset_allocation flag is to switch on initialization of objects in memory for element::string type
     // and set memory to zero for numeric element types
-    const auto num_elements = shape_size(m_shape);
-    const auto byte_size = element::get_memory_size(m_element_type, num_elements);
+    const auto byte_size = ov::util::get_memory_size_safe(m_element_type, m_shape);
+    OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", m_element_type, " and shape: ", m_shape);
     if (m_element_type == ov::element::string) {
-        m_data = std::make_shared<StringAlignedBuffer>(num_elements, byte_size, host_alignment(), memset_allocation);
+        const auto num_elements = shape_size(m_shape);
+        m_data = std::make_shared<StringAlignedBuffer>(num_elements, *byte_size, host_alignment(), memset_allocation);
     } else {
         constexpr uint8_t init_value = 0;
-        m_data = std::make_shared<AlignedBuffer>(byte_size, host_alignment());
+        m_data = std::make_shared<AlignedBuffer>(*byte_size, host_alignment());
 
         // AlignedBuffer allocates 1 byte for empty constants, and we set it to zero
-        if (memset_allocation || byte_size == 0) {
+        if (memset_allocation || *byte_size == 0) {
             std::memset(m_data->get_ptr(), init_value, m_data->size());
         } else {
             set_unused_bits(m_data->get_ptr());
@@ -281,7 +284,9 @@ void Constant::set_unused_bits(void* buffer) const {
         if (element::is_bit_type(m_element_type)) {
             constexpr size_t storage_unit_byte_size = 1;
             const auto not_aligned_elements = num_elements % (8 / m_element_type.bitwidth());
-            const uint8_t not_used_bits_mask = 0xff >> (m_element_type.bitwidth() * not_aligned_elements);
+            const uint8_t not_used_bits_mask = element::is_lsb_packed(m_element_type)
+                                                   ? 0xff << (m_element_type.bitwidth() * not_aligned_elements)
+                                                   : 0xff >> (m_element_type.bitwidth() * not_aligned_elements);
             reinterpret_cast<uint8_t*>(buffer)[byte_size - storage_unit_byte_size] &= ~not_used_bits_mask;
         } else if (element::is_nibble_type(m_element_type) && (num_elements % 2)) {
             constexpr size_t storage_unit_byte_size = 1;
@@ -307,7 +312,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
         const auto dst_strings = static_cast<std::string*>(get_data_ptr_nc());
         std::uninitialized_copy_n(src_strings, num_elements, dst_strings);
     } else {
-        std::memcpy(get_data_ptr_nc(), data, element::get_memory_size(m_element_type, num_elements));
+        std::memcpy(get_data_ptr_nc(), data, ov::util::get_memory_size(m_element_type, num_elements));
     }
 }
 
@@ -349,7 +354,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
           shape,
           // Note: const_cast used to store pointer only
           std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(reinterpret_cast<char*>(const_cast<void*>(data)),
-                                                                    element::get_memory_size(type, shape_size(shape)),
+                                                                    ov::util::get_memory_size(type, shape_size(shape)),
                                                                     so)) {}
 
 Constant::~Constant() = default;

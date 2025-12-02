@@ -15,12 +15,13 @@ protected:
     void SetUp() override {
         MatMulLayerTest::SetUp();
         ov::test::MatMulLayerTestParamsSet params = GetParam();
-        std::vector<ov::test::InputShape> shapes;            // Input Shapes
-        std::pair<bool, bool> transpose_type;              // Transpose inputs
-        ov::element::Type model_type;                  // Model type
-        ov::test::utils::InputLayerType input_layer_type;    // Secondary input type
-        std::map<std::string, std::string>  additional_config; // Additional network configuration
-        std::tie(shapes, transpose_type, model_type, input_layer_type, targetDevice, additional_config) = this->GetParam();
+        // Input Shapes
+        // Transpose inputs
+        // Model type
+        // Secondary input type
+        // Additional network configuration
+        const auto& [shapes, transpose_type, model_type, input_layer_type, _targetDevice, additional_config] = this->GetParam();
+        targetDevice = _targetDevice;
         // Some rounding float to integer types on GPU may differ from CPU, and as result,
         // the actual values may differ from reference ones on 1 when the float is very close to an integer,
         // e.g 6,0000023 calculated on CPU may be cast to 5 by OpenCL convert_uchar function.

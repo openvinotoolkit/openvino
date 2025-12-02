@@ -265,7 +265,7 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     output = output.permute(actual_internal_order);
     pastkv = pastkv.permute(actual_internal_order);
     // S should be always the last dimension
-    OPENVINO_ASSERT(pastkv.stride(3) == 1 && output.stride(3) == 1);
+    OPENVINO_ASSERT(all_of(1U, pastkv.stride(3), output.stride(3)));
     auto L0 = pastkv.size(0);
     auto B = pastkv.size(1);
     auto H = pastkv.size(2);
@@ -296,8 +296,7 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
                     attn_dequant_u8(pastkv.ptr<uint8_t>(m, b_kv, h, group_id * m_group_size),
                                     buffers[ithr].ptr<float>() + group_id * m_group_size,
                                     m_group_size,
-                                    m_scale_zp.ptr<float>(m, b_kv, h, group_id * 2)[0],
-                                    m_scale_zp.ptr<float>(m, b_kv, h, group_id * 2)[1]);
+                                    m_scale_zp.ptr<float>(m, b_kv, h, group_id * 2));
                 }
                 cpu_convert(buffers[ithr].ptr<float>(), output.ptr_v(m, b, h), element::f32, output.m_dt, S);
             });

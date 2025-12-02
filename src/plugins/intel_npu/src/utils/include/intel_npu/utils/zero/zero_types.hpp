@@ -34,6 +34,9 @@ private:
     ze_graph_dditable_ext_decorator(const ze_graph_dditable_ext_decorator&) = delete;
     ze_graph_dditable_ext_decorator(ze_graph_dditable_ext_decorator&&) = delete;
 
+    ze_graph_dditable_ext_decorator& operator=(const ze_graph_dditable_ext_decorator&) = delete;
+    ze_graph_dditable_ext_decorator& operator=(ze_graph_dditable_ext_decorator&&) = delete;
+
     void throwWhenUnsupported(std::string_view func, uint32_t since) {
         if (_driverExtVersion < since) {
             OPENVINO_THROW("Driver Graph extension function ",
@@ -185,6 +188,33 @@ public:
         throwWhenUnsupported("pfnCompilerIsOptionSupported", ZE_GRAPH_EXT_VERSION_1_11);
         return _impl->pfnCompilerIsOptionSupported(hDevice, type, pOption, pValue);
     }
+
+    // version 1.12
+    ze_result_t ZE_APICALL pfnCreate3(ze_context_handle_t hContext,
+                                      ze_device_handle_t hDevice,
+                                      const ze_graph_desc_2_t* desc,
+                                      ze_graph_handle_t* phGraph,
+                                      ze_graph_build_log_handle_t* phGraphBuildLog) {
+        throwWhenUnsupported("pfnCreate3", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnCreate3(hContext, hDevice, desc, phGraph, phGraphBuildLog);
+    }
+
+    ze_result_t ZE_APICALL pfnGetProperties3(ze_graph_handle_t hGraph, ze_graph_properties_3_t* pGraphProperties) {
+        throwWhenUnsupported("pfnGetProperties3", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnGetProperties3(hGraph, pGraphProperties);
+    }
+
+    ze_result_t ZE_APICALL pfnBuildLogGetString2(ze_graph_build_log_handle_t hGraphBuildLog,
+                                                 uint32_t* pSize,
+                                                 char* pBuildLog) {
+        throwWhenUnsupported("pfnBuildLogGetString2", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnBuildLogGetString2(hGraphBuildLog, pSize, pBuildLog);
+    }
+
+    ze_result_t ZE_APICALL pfnBuildLogDestroy(ze_graph_build_log_handle_t hGraphBuildLog) {
+        throwWhenUnsupported("pfnBuildLogDestroy", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnBuildLogDestroy(hGraphBuildLog);
+    }
 };
 
 /**
@@ -199,6 +229,9 @@ private:
 
     ze_command_queue_npu_dditable_ext_decorator(const ze_command_queue_npu_dditable_ext_decorator&) = delete;
     ze_command_queue_npu_dditable_ext_decorator(ze_command_queue_npu_dditable_ext_decorator&&) = delete;
+
+    ze_command_queue_npu_dditable_ext_decorator& operator=(const ze_command_queue_npu_dditable_ext_decorator&) = delete;
+    ze_command_queue_npu_dditable_ext_decorator& operator=(ze_command_queue_npu_dditable_ext_decorator&&) = delete;
 
     void throwWhenUnsupported(std::string_view func, uint32_t since) {
         if (_commandQueueExtVersion < since) {
@@ -241,6 +274,9 @@ private:
 
     ze_graph_profiling_ddi_table_ext_decorator(const ze_graph_profiling_ddi_table_ext_decorator&) = delete;
     ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_ddi_table_ext_decorator&&) = delete;
+
+    ze_graph_profiling_ddi_table_ext_decorator& operator=(const ze_graph_profiling_ddi_table_ext_decorator&) = delete;
+    ze_graph_profiling_ddi_table_ext_decorator& operator=(ze_graph_profiling_ddi_table_ext_decorator&&) = delete;
 
 public:
     ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_dditable_ext_last_t* impl)

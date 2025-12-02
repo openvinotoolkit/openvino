@@ -4,14 +4,16 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov::intel_cpu {
 
-class CausalMaskPreprocessFusion : public ov::pass::GraphRewrite {
+class CausalMaskPreprocessFusion : public ov::pass::ModelPass {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("CausalMaskPreprocessFusion");
-    CausalMaskPreprocessFusion();
+    OPENVINO_MODEL_PASS_RTTI("CausalMaskPreprocessFusion");
+    CausalMaskPreprocessFusion() = default;
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace ov::intel_cpu

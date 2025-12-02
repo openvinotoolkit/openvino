@@ -77,8 +77,8 @@ public:
     static constexpr size_t SIZE_OR_SCALE_ID_V11 = 1;
     static constexpr size_t AXES_ID_V11 = 2;
     static constexpr int CUBIC_GRID_LEN = 4;
-    static constexpr float PILLOW_BILINEAR_WINDOW_SCALE = 1.0f;
-    static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0f;
+    static constexpr float PILLOW_BILINEAR_WINDOW_SCALE = 1.0F;
+    static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0F;
 
     Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
@@ -110,8 +110,8 @@ private:
     class InterpolateExecutorBase {
     public:
         InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
-                                const VectorDims& srcDims,
-                                const VectorDims& dstDims,
+                                VectorDims srcDims,
+                                VectorDims dstDims,
                                 const std::vector<float>& dataScales);
 
         virtual void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) = 0;
@@ -172,7 +172,7 @@ private:
         int spatialDimSize;
         std::vector<int> auxTable;
         std::vector<uint8_t> pillow_working_buf;
-        size_t m_threads_num = 0lu;
+        size_t m_threads_num = 0LU;
     };
     std::shared_ptr<InterpolateExecutorBase> execPtr = nullptr;
 
@@ -330,7 +330,7 @@ private:
                                           const std::vector<int>& padBegin,
                                           const std::vector<int>& padEnd);
     std::vector<float> getScales(const VectorDims& srcDimPad, const VectorDims& dstDim);
-    static size_t getSpatialDimsNum(Dim rank);
+    static size_t getSpatialDimsNum(const std::vector<float>& scales);
 
     bool hasPad = false;
 
@@ -338,6 +338,8 @@ private:
     std::vector<int> axes;
     std::vector<float> scales;
     bool isScaleConstant = false;
+
+    std::vector<int> conversion5DMap;
 
     // 6 ptrs for each quantization, 2 ptrs for each depth_wise
     std::vector<const void*> postOpsDataPtrs;

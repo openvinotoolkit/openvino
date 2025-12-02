@@ -4,12 +4,15 @@
 
 #include "snippets/lowered/port_connector.hpp"
 
-#include "snippets/itt.hpp"
-#include "snippets/utils/utils.hpp"
+#include <algorithm>
+#include <set>
+#include <utility>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+#include "openvino/core/except.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/lowered/expression_port.hpp"
+
+namespace ov::snippets::lowered {
 
 PortConnector::PortConnector(ExpressionPort source_descriptor, const std::set<ExpressionPort>& consumer_descriptors)
     : m_source_port(std::move(source_descriptor)),
@@ -45,6 +48,4 @@ void PortConnector::remove_consumer(const ExpressionPort& consumer) {
     m_consumer_ports.erase(found);
 }
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

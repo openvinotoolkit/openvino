@@ -30,7 +30,7 @@ def parse_arguments():
     output_folder_help = "Output report folder"
     expected_devices_help = "List of expected devices"
     expected_test_mode_help = """
-        Test mode like static, dymanic or ov_api_conformance_tests,
+        Test mode like static, dynamic or ov_api_conformance_tests,
         it will be defined by path
         If script will found xml, but path will not include test_mode,
         script will save result in Other.
@@ -38,12 +38,12 @@ def parse_arguments():
     report_tag_help = "Report tag"
     report_version_help = "Report version"
     current_commit_help = """
-        Commit hash of current repo state, which was specifyed in --current_xmls.
+        Commit hash of current repo state, which was specified in --current_xmls.
         This state will be used as main source for creating highlite table.
     """
     prev_commit_help = """
-        Commit hash of previos repo state, which was specifyed in --prev_xmls.
-        This state will be used for comparing with curent results and showing changes.
+        Commit hash of previous repo state, which was specified in --prev_xmls.
+        This state will be used for comparing with current results and showing changes.
     """
 
     parser.add_argument('--current_xmls', help=xml_help, required=True)

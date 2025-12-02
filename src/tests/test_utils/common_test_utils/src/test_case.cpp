@@ -219,7 +219,8 @@ TestCase::TestCase(const std::shared_ptr<ov::Model>& function, const std::string
             "TEMPLATE");
     } catch (...) {
     }
-    m_request = m_core.compile_model(function, dev).create_infer_request();
+    AnyMap config = {{ov::hint::inference_precision.name(), ov::element::f32}};
+    m_request = m_core.compile_model(function, dev, config).create_infer_request();
 }
 
 void TestCase::run(const size_t tolerance_bits) {

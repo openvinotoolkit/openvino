@@ -82,7 +82,7 @@ void infer_forward_convbackprop_output_shape(const Shape& in_spatial_shape,
                                              const Strides& dilations,
                                              const CoordinateDiff& output_padding) {
     for (size_t idx = 0; idx < in_spatial_shape.size(); idx++) {
-        // FIXME: Incorrect logic with negative pad
+        // CVS-169881: Incorrect logic with negative pad
         int total_padding =
             static_cast<int>(strides[idx] * (in_spatial_shape[idx] - 1) + dilations[idx] * (f_spatial_shape[idx] - 1) +
                              1 - out_spatial_shape[idx] + output_padding[idx]);

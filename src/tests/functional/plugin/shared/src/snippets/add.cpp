@@ -11,12 +11,8 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string Add::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddParams> obj) {
-    ov::test::InputShape inputShapes0, inputShapes1;
-    ov::element::Type type;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes0, inputShapes1, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string Add::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::AddParams>& obj) {
+    const auto& [inputShapes0, inputShapes1, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes0.first}) << "_";
@@ -37,25 +33,19 @@ std::string Add::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddP
 }
 
 void Add::SetUp() {
-    ov::test::InputShape inputShape0, inputShape1;
-    ov::element::Type type;
-    std::tie(inputShape0, inputShape1, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape0, inputShape1, type, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({inputShape0, inputShape1});
     auto f = ov::test::snippets::AddFunction(inputDynamicShapes);
     function = f.getOriginal();
     setInferenceType(type);
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
-std::string AddConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj) {
-    InputShape inputShapes;
-    PartialShape constShape;
-    ov::element::Type type;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes, constShape, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string AddConst::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::AddConstParams>& obj) {
+    const auto& [inputShapes, constShape, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -72,46 +62,38 @@ std::string AddConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets:
 }
 
 void AddConst::SetUp() {
-    InputShape inputShape;
-    PartialShape constShape;
-    ov::element::Type type;
-    std::tie(inputShape, constShape, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, constShape, type, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({{inputShape}});
     auto f = ov::test::snippets::AddConstFunction({inputDynamicShapes}, constShape);
     function = f.getOriginal();
     setInferenceType(type);
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
     if (type == ov::element::f16) {
         abs_threshold = 3e-2;
     }
 }
 
 void AddRollConst::SetUp() {
-    InputShape inputShape;
-    PartialShape constShape;
-    ov::element::Type type;
-    std::tie(inputShape, constShape, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, constShape, type, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({inputShape});
     auto f = ov::test::snippets::AddRollConstFunction({inputDynamicShapes}, constShape);
     function = f.getOriginal();
     setInferenceType(type);
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 
     if (type == ov::element::bf16) {
         abs_threshold = 3e-2;
     }
 }
 
-std::string AddPair::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddParamsPair> obj) {
-    std::vector<InputShape> input_shapes;
-    ov::element::Type type;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(input_shapes, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string AddPair::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::AddParamsPair>& obj) {
+    const auto& [input_shapes, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
     OPENVINO_ASSERT(input_shapes.size() == 2, "Invalid input shapes vector size");
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({input_shapes[0].first}) << "_";
@@ -132,16 +114,15 @@ std::string AddPair::getTestCaseName(testing::TestParamInfo<ov::test::snippets::
 }
 
 void AddPair::SetUp() {
-    std::vector<InputShape> input_shapes;
-    ov::element::Type type;
-    std::tie(input_shapes, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [input_shapes, type, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(input_shapes);
     auto f = ov::test::snippets::AddFunction(inputDynamicShapes);
     function = f.getOriginal();
     setInferenceType(type);
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(Add, CompareWithRefImpl) {

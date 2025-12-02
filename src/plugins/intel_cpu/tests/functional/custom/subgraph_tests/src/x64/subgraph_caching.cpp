@@ -34,6 +34,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "internal_properties.hpp"
@@ -51,10 +52,7 @@ class SubgraphCacheTest : public testing::WithParamInterface<SubgraphCacheTestPa
                           virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SubgraphCacheTestParams> &obj) {
-        std::vector<InputShape> inputShapes;
-        ElementType inputPrecision;
-        std::tie(inputShapes, inputPrecision) = obj.param;
-
+        const auto& [inputShapes, inputPrecision] = obj.param;
         std::ostringstream results;
 
          for (size_t i = 0; i < inputShapes.size(); i++) {
@@ -69,11 +67,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        std::vector<InputShape> inputShapes;
-        ElementType inputPrecision;
-        std::tie(inputShapes, inputPrecision) = this->GetParam();
-
+        const auto& [inputShapes, inputPrecision] = this->GetParam();
         init_input_shapes(inputShapes);
 
         // Enable Snippets

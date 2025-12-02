@@ -4,9 +4,21 @@
 
 #include "gemm.hpp"
 
-#include "openvino/core/parallel.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <utility>
+
+#include "emitters/snippets/brgemm_generic.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_utils.hpp"
-#include "transformations/tpp/common/op/brgemm.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -22,7 +34,7 @@ bool GemmKernelKaiConfig::operator==(const GemmKernelKaiConfig& rhs) const {
 GemmKaiKernelExecutor::GemmKaiKernelExecutor(GemmKernelKaiConfig config)
     : snippets::KernelExecutor<GemmKernelKaiConfig, GemmCompiledKernel>(std::move(config)) {}
 
-void GemmKaiKernelExecutor::update_kernel(const GemmKernelKaiConfig& config,
+void GemmKaiKernelExecutor::update_kernel([[maybe_unused]] const GemmKernelKaiConfig& config,
                                           std::shared_ptr<GemmCompiledKernel>& kernel) const {
     if (kernel == nullptr) {
         // universal kernel could be used in any config and shape, as excuted peice by peice as binary call.
@@ -42,9 +54,10 @@ void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::Expressio
     config.update(M, N, K, LDA, LDB, LDC, beta);
 }
 
-void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void* in0, void* in1, void* out0) {
+void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, const call_args* args) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
-    // matmul for input1 and slices of repacked input2
+    OV_CPU_JIT_EMITTER_ASSERT(args, "has nullptr args");
+
     const auto& config = static_cast<const GemmKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
     const auto& ukernel = *kernel->gemm_ukernel;
@@ -68,18 +81,18 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void*
         const size_t dst_offset = ukernel.get_dst_offset(0, n_start, dst_stride_row);
         // in0, in1, out is point to current block memory, based on block loop info, and shift done in loop begin and
         // end emitters(adjusted copyb loop info as repack outside block loops).
-        float* rhs_ptr = static_cast<float*>(in1) + rhs_packed_offset / sizeof(float);
-        float* dst_ptr = (static_cast<float*>(out0) + dst_offset / (sizeof(float)));
+        const float* rhs_ptr = static_cast<const float*>(args->B) + rhs_packed_offset / sizeof(float);
+        float* dst_ptr = static_cast<float*>(args->C) + dst_offset / (sizeof(float));
         ukernel.run_matmul(M,
                            n_block_size,
                            K,
-                           in0,
+                           args->A,
                            lhs_stride,
                            rhs_ptr,
                            dst_ptr,
                            dst_stride_row,
                            dst_stride_col,
-                           std::numeric_limits<float>::min(),
+                           std::numeric_limits<float>::lowest(),
                            std::numeric_limits<float>::max());
     }
 }

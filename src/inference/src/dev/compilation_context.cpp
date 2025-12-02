@@ -10,6 +10,7 @@
 #endif
 
 #include "itt.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/compilation_context.hpp"
@@ -54,13 +55,20 @@ std::string ModelCache::calculate_file_info(const std::string& filePath) {
 
 std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
+    return compute_hash(model, {}, compileOptions);
+}
+
+std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model,
+                                     const std::filesystem::path& model_path,
+                                     const ov::AnyMap& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model and path");
 
     OPENVINO_ASSERT(model);
 
     uint64_t seed = 0;
-    // 1. Calculate hash on function
+    // 1. Calculate hash on function, skipping weights if model path is provided
     ov::pass::Manager m;
-    m.register_pass<ov::pass::Hash>(seed);
+    m.register_pass<ov::pass::Hash>(seed, !model_path.empty());
     m.run_passes(std::const_pointer_cast<ov::Model>(model));
 
     // 2. Compute hash on serialized data and options
@@ -79,6 +87,11 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
                 seed = hash_combine(seed, strm.str());
             }
         }
+    }
+
+    // 4. If model path is provided add file info to the hash
+    if (!model_path.empty()) {
+        seed = hash_combine(seed, compute_hash(model_path.string(), compileOptions));
     }
 
     return std::to_string(seed);
@@ -162,14 +175,19 @@ CompiledBlobHeader::CompiledBlobHeader() {}
 
 CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion,
                                        const std::string& fileInfo,
-                                       const std::string& runtimeInfo)
+                                       const std::string& runtimeInfo,
+                                       const uint32_t headerSizeAlignment)
     : m_ieVersion(ieVersion),
       m_fileInfo(fileInfo),
-      m_runtimeInfo(runtimeInfo) {}
+      m_runtimeInfo(runtimeInfo),
+      m_headerSizeAlignment(headerSizeAlignment) {}
 
 std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     std::string xmlStr;
+
+    const auto start = stream.tellg();
     std::getline(stream, xmlStr);
+    const auto bytes_read = static_cast<size_t>(stream.tellg() - start);
 
     pugi::xml_document document;
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
@@ -179,6 +197,12 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     header.m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");
     header.m_fileInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "file_info");
     header.m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
+    header.m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
+
+    if (const auto pad = util::align_padding_size(header.m_headerSizeAlignment, bytes_read); pad > 0) {
+        stream.seekg(static_cast<std::streamoff>(pad), std::ios::cur);
+        OPENVINO_ASSERT(stream.good(), "Failed to seek over padding in compiled blob header");
+    }
 
     return stream;
 }
@@ -189,12 +213,56 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     compiledBlobNode.append_attribute("ie_version").set_value(header.m_ieVersion.c_str());
     compiledBlobNode.append_attribute("file_info").set_value(header.m_fileInfo.c_str());
     compiledBlobNode.append_attribute("runtime_info").set_value(header.m_runtimeInfo.c_str());
+    compiledBlobNode.append_attribute("header_size_alignment")
+        .set_value(std::to_string(header.m_headerSizeAlignment).c_str());
 
+    const auto start = stream.tellp();
     document.save(stream, nullptr, pugi::format_raw);
     document.reset();
     stream << std::endl;
 
+    // add padding
+    const auto bytes_written = static_cast<size_t>(stream.tellp() - start);
+    const auto pad = util::align_padding_size(header.get_header_size_alignment(), bytes_written);
+    std::fill_n(std::ostream_iterator<char>(stream), pad, 0);
+
     return stream;
 }
 
+namespace {
+inline std::string getline_from_buffer(const char* buffer, size_t size, size_t& pos, char delim = '\n') {
+    if (pos >= size) {
+        return {};
+    }
+
+    const char* start = buffer + pos;
+    const char* end = buffer + size;
+    const char* newline = std::find(start, end, delim);
+
+    size_t line_length = (newline == end) ? (end - start) : (newline - start);
+    std::string line(start, line_length);
+
+    // Update position (skip the delimiter if found)
+    pos += line_length + (newline != end ? 1 : 0);
+
+    return line;
+}
+}  // namespace
+
+void CompiledBlobHeader::read_from_buffer(const char* buffer, size_t buffer_size, size_t& pos) {
+    const auto start = pos;
+    std::string xmlStr = ov::getline_from_buffer(buffer, buffer_size, pos);
+
+    pugi::xml_document document;
+    pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
+    OPENVINO_ASSERT(res.status == pugi::status_ok, "Error reading compiled blob header");
+
+    pugi::xml_node compiledBlobNode = document.document_element();
+    m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");
+    m_fileInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "file_info");
+    m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
+    m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
+
+    pos += util::align_padding_size(m_headerSizeAlignment, pos - start);
+}
 }  // namespace ov

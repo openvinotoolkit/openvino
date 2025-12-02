@@ -24,6 +24,7 @@ ParamsKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetSupportedKey() const 
     k.EnableOutputDataType(Datatype::F16);
 
     k.EnableInputWeightsType(WeightsType::INT8);
+    k.EnableInputWeightsType(WeightsType::UINT8);
 
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
@@ -58,23 +59,23 @@ DeviceFeaturesKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::get_required_dev
 
 bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::Validate(const Params &p) const {
     if (!Parent::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     auto params = dynamic_cast<const convolution_params&>(p);
 
     if (params.inputs[0].Dimentions() != params.outputs[0].Dimentions())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.inputs[0].Feature().v != 3 && params.inputs[0].Feature().v != 4)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.outputs[0].Feature().v % 2 != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if ((params.quantization == QuantizationType::ASYMMETRIC_DATA || params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)
         && !params.HasCompensation()) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -209,6 +210,12 @@ JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetJitConstants(const
 
     jit.Merge(MakeTypeJitConstants(GetPackedInputType(params), "PACKED_IN"));
     jit.Merge(MakeTypeJitConstants(GetPackedType(params.outputs[0].GetDType(), 2), "PACKED_OUT"));
+
+    if (params.weights.GetDType() == WeightsType::INT8) {
+        jit.AddConstant(MakeJitConstant("FILTER_TYPE_CHAR", 1));
+    } else if (params.weights.GetDType() == WeightsType::UINT8) {
+        jit.AddConstant(MakeJitConstant("FILTER_TYPE_UCHAR", 1));
+    }
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);

@@ -1108,6 +1108,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
             case onednn_post_op_type::binary_mul:
             case onednn_post_op_type::binary_max:
             case onednn_post_op_type::binary_min:
+            case onednn_post_op_type::binary_div:
             {
                 dnnl::algorithm alg;
                 dnnl::memory::desc desc;
@@ -1523,6 +1524,14 @@ void program_node::create_onednn_primitive_attributes(
         }
     };
 
+    const auto& get_output_layout = [&]() -> cldnn::layout {
+        if (impl_params != nullptr) {
+            return impl_params->get_output_layout();
+        } else {
+            return this->get_output_layout();
+        }
+    };
+
     // Add information about post-operation into the list, update indices
     auto update_onednn_post_op_list = [&](onednn_post_op_type type, size_t m_dep,
                                           dnnl::memory::format_tag tag = dnnl::memory::format_tag::undef,
@@ -1538,6 +1547,7 @@ void program_node::create_onednn_primitive_attributes(
                                   type == onednn_post_op_type::binary_max ||
                                   type == onednn_post_op_type::binary_min ||
                                   type == onednn_post_op_type::binary_relu ||
+                                  type == onednn_post_op_type::binary_div ||
                                   type == onednn_post_op_type::scale ||
                                   type == onednn_post_op_type::sum;
 
@@ -1559,16 +1569,13 @@ void program_node::create_onednn_primitive_attributes(
         auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
             auto fused_desc = desc.typed_desc<activation>();
-            bool allow_new_shape_infer = get_program().is_new_shape_infer();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && fused_desc->additional_params_input.is_valid()) {
-                auto dep_idx = cldnn_post_ops[idx].outer_dep_start_idx;
-                int oc_dim = 1;
-                if (allow_new_shape_infer)
-                    oc_dim = static_cast<int>(desc.output_layout.get_partial_shape()[1].get_max_length());
-                else
-                    oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
-                post_ops.append_prelu(1 << static_cast<unsigned>(std::max(0, oc_dim)));
+                auto dep_idx = desc.outer_dep_start_idx;
+                auto prelu_mask = onednn::get_prelu_mask_from_layouts(get_output_layout, get_input_layout, dep_idx);
+                if (is_type<fully_connected>() && this->as<fully_connected>().get_primitive()->input_size > 2 && prelu_mask == 2)
+                    prelu_mask = 4; // 3d fc has per_oc mask is 4
+                post_ops.append_prelu(prelu_mask);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
                 post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, fused_desc->additional_params.a, fused_desc->additional_params.b);
@@ -1633,7 +1640,8 @@ void program_node::create_onednn_primitive_attributes(
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
                     update_onednn_post_op_list(op_type, dep_idx, fmt, false, dims, dt);
                 } else {
-                    auto mem_desc = onednn::layout_to_memory_desc(in);
+                    auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ? onednn::mem_flags::need_blocked : onednn::mem_flags::None;
+                    auto mem_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::undef, mem_flag);
                     post_ops.append_binary(alg, mem_desc);
                     update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false,
                             mem_desc.get_dims(), mem_desc.get_data_type());
@@ -1657,6 +1665,8 @@ void program_node::create_onednn_primitive_attributes(
                 set_binary_op(dnnl::algorithm::binary_sub, onednn_post_op_type::binary_sub);
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
                 set_binary_op(dnnl::algorithm::binary_mul, onednn_post_op_type::binary_mul);
+            } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::div) {
+                set_binary_op(dnnl::algorithm::binary_div, onednn_post_op_type::binary_div);
             } else {
                 std::stringstream error_msg;
                 error_msg << "Unsupported eltwise mode: " << static_cast<int>(desc.typed_desc<eltwise>()->mode) << ". ";
@@ -1669,6 +1679,17 @@ void program_node::create_onednn_primitive_attributes(
             // ********************************* Common case with output range usage ********************************* //
             const auto& q_param = desc.get_typed_fuse_params<QuantizeFuseParams>();
             if (q_param->_per_tensor_output_range && q_param->_out_lo < q_param->_out_hi) {
+                auto generate_onednn_memory_desc = [this](const cldnn::layout& lay) -> dnnl::memory::desc {
+                    if (this->is_type<gemm>() || this->is_type<fully_connected>()) {
+                        return onednn::layout_to_memory_desc(lay, onednn::get_default_data_format(lay));
+                    } else {
+                        auto mem_flag = cldnn::format::is_blocked(this->get_output_layout().format) ?
+                            onednn::mem_flags::need_blocked : onednn::mem_flags::None;
+                        return onednn::layout_to_memory_desc(lay, dnnl::memory::format_tag::undef, mem_flag);
+                    }
+                };
+
+
                 // 1. pre-scale & pre-shift
                 {
                     if (q_param->_per_tensor_input_scale && q_param->_per_tensor_input_shift) {
@@ -1681,7 +1702,8 @@ void program_node::create_onednn_primitive_attributes(
                         } else {
                             auto in_scale = get_input_layout(dep_idx++);
                             resize_layout_for_fc(this, in_scale);
-                            dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, onednn::get_default_data_format(in_scale));
+
+                            dnnl::memory::desc in_scale_desc = generate_onednn_memory_desc(in_scale);
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                             update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, onednn::get_default_data_format(in_scale), false,
                                                        in_scale_desc.get_dims(), in_scale_desc.get_data_type());
@@ -1694,7 +1716,8 @@ void program_node::create_onednn_primitive_attributes(
                             } else {
                                 auto in_shift = get_input_layout(dep_idx++);
                                 resize_layout_for_fc(this, in_shift);
-                                dnnl::memory::desc in_shift_desc = onednn::layout_to_memory_desc(in_shift, onednn::get_default_data_format(in_shift));
+
+                                dnnl::memory::desc in_shift_desc = generate_onednn_memory_desc(in_shift);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, onednn::get_default_data_format(in_shift), false,
                                                            in_shift_desc.get_dims(), in_shift_desc.get_data_type());
@@ -1727,7 +1750,8 @@ void program_node::create_onednn_primitive_attributes(
                             } else {
                                 auto out_scale = get_input_layout(dep_idx++);
                                 resize_layout_for_fc(this, out_scale);
-                                dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, onednn::get_default_data_format(out_scale));
+
+                                dnnl::memory::desc out_scale_desc = generate_onednn_memory_desc(out_scale);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, onednn::get_default_data_format(out_scale), false,
                                                            out_scale_desc.get_dims(), out_scale_desc.get_data_type());
@@ -1766,6 +1790,8 @@ void program_node::create_onednn_primitive_attributes(
                     if (q_param->_need_clamp) {
                         auto in_lo = get_input_layout(dep_idx++);
                         auto in_hi = get_input_layout(dep_idx++);
+                        resize_layout_for_fc(this, in_lo);
+                        resize_layout_for_fc(this, in_hi);
                         dnnl::algorithm clamp_max = dnnl::algorithm::binary_max;
                         dnnl::algorithm clamp_min = dnnl::algorithm::binary_min;
                         dnnl::memory::desc in_lo_desc = onednn::layout_to_memory_desc(in_lo, onednn::get_default_data_format(in_lo));
@@ -1791,6 +1817,7 @@ void program_node::create_onednn_primitive_attributes(
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_input_layout(dep_idx++);
+                            resize_layout_for_fc(this, in_scale);
                             dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, onednn::get_default_data_format(in_scale));
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                             update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, onednn::get_default_data_format(in_scale), false,
@@ -1803,6 +1830,7 @@ void program_node::create_onednn_primitive_attributes(
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto in_shift = get_input_layout(dep_idx++);
+                                resize_layout_for_fc(this, in_shift);
                                 dnnl::memory::desc in_shift_desc = onednn::layout_to_memory_desc(in_shift, onednn::get_default_data_format(in_shift));
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, onednn::get_default_data_format(in_shift), false,
@@ -1831,6 +1859,7 @@ void program_node::create_onednn_primitive_attributes(
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_scale = get_input_layout(dep_idx++);
+                                resize_layout_for_fc(this, out_scale);
                                 dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, onednn::get_default_data_format(out_scale));
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, onednn::get_default_data_format(out_scale), false,
@@ -1844,6 +1873,7 @@ void program_node::create_onednn_primitive_attributes(
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_shift = get_input_layout(dep_idx++);
+                                resize_layout_for_fc(this, out_shift);
                                 dnnl::memory::desc out_shift_desc = onednn::layout_to_memory_desc(out_shift, onednn::get_default_data_format(out_shift));
                                 post_ops.append_binary(dnnl::algorithm::binary_add, out_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, onednn::get_default_data_format(out_shift), false,

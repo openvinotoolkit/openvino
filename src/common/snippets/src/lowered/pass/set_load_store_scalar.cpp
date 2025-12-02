@@ -4,19 +4,17 @@
 
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
 
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/lowered/pass/insert_load_store.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
-bool SetLoadStoreScalar::run(LinearIR& linear_ir,
+bool SetLoadStoreScalar::run([[maybe_unused]] LinearIR& linear_ir,
                              lowered::LinearIR::constExprIt begin,
                              lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetLoadStoreScalar")
@@ -44,7 +42,4 @@ bool SetLoadStoreScalar::run(LinearIR& linear_ir,
     return modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

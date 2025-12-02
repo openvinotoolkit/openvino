@@ -5,7 +5,6 @@
 #include "include/batch_headers/fetch_data.cl"
 
 #ifdef BASE_KERNEL
-#if LORA_COUNT == 1
 KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
                  const __global OUTPUT_TYPE* main_input,
                  const __global INPUT1_TYPE* lora_input,
@@ -32,7 +31,7 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
                   acc);
     }
 
-    acc *= TO_ACCUMULATOR_TYPE(state_alpha[local_id]) / TO_ACCUMULATOR_TYPE(LORA_RANK);
+    acc *= TO_ACCUMULATOR_TYPE(state_alpha[local_id]);
 
     __local ACCUMULATOR_TYPE tmp_buf[MAX_LORA_RANK];
     tmp_buf[local_id] = acc;
@@ -54,9 +53,9 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
     uint output_idx = bf * INPUT0_SIZE_Y * INPUT0_SIZE_X + new_yx;
     output[output_idx] = TO_OUTPUT_TYPE(final_acc) + main_input[output_idx];
 }
+#endif
 
-#else
-
+#ifdef HORIZONTAL_FUSED
 KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
                  const __global OUTPUT_TYPE* main_input,
                  const __global INPUT1_TYPE* lora_input,
@@ -87,7 +86,7 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
 
     for (uint ki = 0; ki < K; ++ki) {
         uint lora_idx = bf * K + ki;
-        uint state_idx = local_id * K + ki;
+        uint state_idx = ki * LORA_RANK + local_id;
 
         ACCUMULATOR_TYPE lora_val = TO_ACCUMULATOR_TYPE(lora_input[lora_idx]);
 
@@ -98,10 +97,10 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     }
 
-    acc0 *= TO_ACCUMULATOR_TYPE(state_alpha_0[local_id]) / TO_ACCUMULATOR_TYPE(LORA_RANK);
-    acc1 *= TO_ACCUMULATOR_TYPE(state_alpha_1[local_id]) / TO_ACCUMULATOR_TYPE(LORA_RANK);
+    acc0 *= TO_ACCUMULATOR_TYPE(state_alpha_0[local_id]);
+    acc1 *= TO_ACCUMULATOR_TYPE(state_alpha_1[local_id]);
 #if LORA_COUNT == 3
-    acc2 *= TO_ACCUMULATOR_TYPE(state_alpha_2[local_id]) / TO_ACCUMULATOR_TYPE(LORA_RANK);
+    acc2 *= TO_ACCUMULATOR_TYPE(state_alpha_2[local_id]);
 #endif
 
     __local ACCUMULATOR_TYPE tmp_buf[LORA_COUNT * MAX_LORA_RANK];
@@ -154,7 +153,7 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
             ACCUMULATOR_TYPE final_acc = ACCUMULATOR_VAL_ZERO;
 
             for (uint ki = 0; ki < LORA_RANK; ++ki) {
-                uint state_b_idx = (yx_range - proc_range_start[i]) * LORA_RANK + ki;
+                uint state_b_idx = ki * processing_size + (yx_range - proc_range_start[i]);
 
                 final_acc = mad(tmp_buf[tmp_offset + ki],
                                 TO_ACCUMULATOR_TYPE(state_b[i][state_b_idx]),
@@ -170,7 +169,7 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
             ACCUMULATOR_TYPE final_acc = ACCUMULATOR_VAL_ZERO;
 
             for (uint ki = 0; ki < LORA_RANK; ++ki) {
-                uint state_b_idx = (yx_range - proc_range_start[i]) * LORA_RANK + ki;
+                uint state_b_idx = ki * processing_size + (yx_range - proc_range_start[i]);
 
                 final_acc = mad(tmp_buf[tmp_offset + ki],
                                 TO_ACCUMULATOR_TYPE(state_b[i][state_b_idx]),
@@ -181,8 +180,6 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
         }
     }
 }
-
-#endif
 #endif
 
 #ifdef FUSED_OPS_KERNEL

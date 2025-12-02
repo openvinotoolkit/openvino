@@ -9,7 +9,11 @@
 #include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
 
+#include "cache/multi_cache.h"
 #include "cpu_memory.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
@@ -18,19 +22,40 @@
 #include "nodes/reorder.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "thread_pool_imp.hpp"
+#include "weights_cache.hpp"
 
 namespace ov::intel_cpu::utils {
 
-MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
-                               const DnnlMemoryDescPtr dstWeightDesc,
-                               const MemoryCPtr weightsMem,
-                               const ExecutorContext::CPtr context,
+MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
+                               const DnnlMemoryDescPtr& dstWeightDesc,
+                               const MemoryCPtr& weightsMem,
+                               const ExecutorContext::CPtr& context,
                                const bool needShiftSignedToUnsigned) {
-    const auto& eng = context->getEngine();
-    const auto& format = dstWeightDesc->serializeFormat();
-
-    const auto privateWeightCache = context->getPrivateWeighCache();
+    const auto privateWeightCache = context->getPrivateWeightCache();
     OPENVINO_ASSERT(privateWeightCache, "privateWeightCache is nullptr");
+
+    return prepareWeightsMemory(srcWeightDesc,
+                                dstWeightDesc,
+                                weightsMem,
+                                context->getEngine(),
+                                context->getRuntimeCache(),
+                                context->getWeightsCache(),
+                                privateWeightCache,
+                                context->getThreadPool(),
+                                needShiftSignedToUnsigned);
+}
+
+MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
+                               const DnnlMemoryDescPtr& dstWeightDesc,
+                               const MemoryCPtr& weightsMem,
+                               const dnnl::engine& eng,
+                               const MultiCachePtr& rtCache,
+                               const WeightsSharing::Ptr& globalWeightCache,
+                               const std::shared_ptr<std::unordered_map<std::string, MemoryPtr>>& privateWeightCache,
+                               const std::shared_ptr<ThreadPool>& threadPool,
+                               bool needShiftSignedToUnsigned) {
+    const auto format = dstWeightDesc->serializeFormat();
     if (privateWeightCache) {
         auto itr = privateWeightCache->find(format);
         if (privateWeightCache->end() != itr) {
@@ -49,8 +74,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
             // prevent reorderData from doing conversion
             Memory srcMemory{eng, srcWeightDesc->cloneWithNewPrecision(dst_wdt), weightsMem->getData()};
             MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
-            auto rtCache = context->getRuntimeCache();
-            node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
+            node::Reorder::reorderData(srcMemory, *_ptr, rtCache, threadPool);
 
             // do shift
             auto count = _ptr->getSize() / _ptr->getDesc().getPrecision().size();
@@ -67,29 +91,30 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                     data[i] = (high << 4) | (low & 0xF);
                 }
             } else {
-                OPENVINO_ASSERT(false, "Unsupported data type for shiftting sign to unsign");
+                OPENVINO_THROW("Unsupported data type for shiftting sign to unsign");
             }
             return _ptr;
         }
 
         Memory srcMemory{eng, srcWeightDesc, weightsMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
-        auto rtCache = context->getRuntimeCache();
-        node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
+        node::Reorder::reorderData(srcMemory, *_ptr, rtCache, threadPool);
 
         return _ptr;
     };
 
-    auto globalWeightCache = context->getWeightsCache();
     MemoryPtr ptr;
     if (globalWeightCache && dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
-        ptr = *globalWeightCache->findOrCreate(DnnlExtensionUtils::computeWeightsStringHash(weightsMem, dstWeightDesc),
-                                               create);
+        ptr = MemoryPtr(
+            *globalWeightCache->findOrCreate(DnnlExtensionUtils::computeWeightsStringHash(weightsMem, dstWeightDesc),
+                                             create));
     } else {
         ptr = create();
     }
 
-    (*privateWeightCache)[format] = ptr;
+    if (privateWeightCache) {
+        (*privateWeightCache)[format] = ptr;
+    }
 
     return ptr;
 }

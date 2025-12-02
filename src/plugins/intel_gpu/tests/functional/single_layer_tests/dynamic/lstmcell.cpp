@@ -30,16 +30,7 @@ class LSTMCellLayerGPUTest : public testing::WithParamInterface<LSTMCellLayerPar
                                  virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LSTMCellLayerParamSet>& obj) {
-        size_t batch;
-        size_t hidden_size;
-        size_t input_size;
-        InputLayerType WType;
-        InputLayerType RType;
-        InputLayerType BType;
-        ov::element::Type model_type;
-        std::string targetDevice;
-        std::tie(batch, hidden_size, input_size, WType, RType, BType,
-                model_type, targetDevice) = obj.param;
+        const auto& [batch, hidden_size, input_size, WType, RType, BType, model_type, targetDevice] = obj.param;
         std::ostringstream result;
         result << "batch=" << batch << "_";
         result << "hidden_size=" << hidden_size << "_";
@@ -54,15 +45,8 @@ public:
 
 protected:
     void SetUp() override {
-        size_t batch;
-        size_t hidden_size;
-        size_t input_size;
-        InputLayerType WType;
-        InputLayerType RType;
-        InputLayerType BType;
-        ov::element::Type model_type;
-        std::tie(batch, hidden_size, input_size, WType, RType, BType,
-                model_type, targetDevice) = this->GetParam();
+        const auto& [batch, hidden_size, input_size, WType, RType, BType, model_type, _targetDevice] = this->GetParam();
+        targetDevice = _targetDevice;
 
         int32_t is = input_size;
         int32_t hs = hidden_size;

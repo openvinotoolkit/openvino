@@ -36,6 +36,8 @@ void stft(const float* signal,
     std::copy(window, window + window_shape[0], pad_window.begin() + (frame_size_dim - window_length) / 2);
 
     const auto fft_out_shape_size = shape_size(fft_out_shape);
+    const auto fft_out_shape_d0 = fft_out_shape[0];
+    const auto fft_out_shape_d1 = fft_out_shape[1];
     for (size_t batch = 0, batch_in_start = 0, batch_frames_out = 0; batch < batch_size; ++batch) {
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
             const auto frame_start = batch_in_start + frame_idx * frame_step;
@@ -58,11 +60,11 @@ void stft(const float* signal,
         batch_frames_out += num_frames;
     }
     if (transpose_frames) {
-        const auto stft_transp_out_shape = Shape{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]};
+        const auto stft_transp_out_shape = Shape{batch_size, fft_out_shape_d0, num_frames, fft_out_shape_d1};
         std::vector<float> signal_t(rdft_result, rdft_result + shape_size(stft_transp_out_shape));
         transpose(reinterpret_cast<const char*>(signal_t.data()),
                   reinterpret_cast<char*>(rdft_result),
-                  Shape{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]},
+                  Shape{batch_size, num_frames, fft_out_shape_d0, fft_out_shape_d1},
                   sizeof(float),
                   {0, 2, 1, 3},
                   stft_transp_out_shape);

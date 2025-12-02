@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <gtest/gtest.h>
-#include "nodes/eltwise.h"
+#include "kernels/jit_eltwise_common.hpp"
 
 using namespace ov::intel_cpu;
 

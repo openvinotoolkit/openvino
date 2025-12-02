@@ -4,23 +4,29 @@
 
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 
-#include "snippets/itt.hpp"
-#include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
+#include <cstddef>
+#include <set>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/op/loop.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop_manager,
                                                       const ExpressionPtr& loop_end_expr) {
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
-    if (!loop_end)
+    if (!loop_end) {
         return false;
+    }
 
-    const auto& loop_connectors = loop_end_expr->get_input_port_connectors();
     const auto input_count = loop_end->get_input_num();
     const auto output_count = loop_end->get_output_num();
 
@@ -33,7 +39,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
     //    Load_0  Load_1
     std::set<ExpressionPtr> read_data_exprs;
     for (size_t i = 0; i < input_count; ++i) {
-        const auto& parent_output = loop_connectors[i]->get_source().get_expr();
+        const auto& parent_output = loop_end_expr->get_input_expr_ptr(i);
         if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(parent_output)) {
             // If Buffer is missed in set, Just save - it's first meeting
             if (buffers_groups.count(buffer_expr->get_reg_group()) == 0) {
@@ -53,6 +59,8 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
             }
         }
     }
+
+    const auto& loop_connectors = loop_end_expr->get_input_port_connectors();
     for (size_t i = 0; i < output_count; ++i) {
         const auto consumer_inputs = loop_connectors[input_count + i]->get_consumers();
         size_t buffer_count = 0;
@@ -79,8 +87,9 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
         }
     }
 
-    if (resetting_data_indexes.empty())
+    if (resetting_data_indexes.empty()) {
         return false;
+    }
 
     // TODO [133463]: We have to update LoopEnd and LoopInfo since the both entities must be valid.
     //                To avoid the both changes, we have to insert Loop ops to LinearIR in the end of pipeline.
@@ -129,7 +138,4 @@ bool CleanRepeatedDataPointerShifts::run(lowered::LinearIR& linear_ir,
     return modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

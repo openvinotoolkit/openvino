@@ -45,7 +45,7 @@ const ov::Version ov::Plugin::get_version() const {
 }
 
 void ov::Plugin::set_property(const ov::AnyMap& config) {
-    m_ptr->set_property(config);
+    OV_PLUGIN_CALL_STATEMENT(m_ptr->set_property(config));
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -79,6 +79,16 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model,
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, context, config), m_so});
 }
 
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(const ov::Tensor& model, const ov::AnyMap& properties) const {
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, properties), m_so});
+}
+
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(const ov::Tensor& model,
+                                                       const ov::SoPtr<ov::IRemoteContext>& context,
+                                                       const ov::AnyMap& config) const {
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, context, config), m_so});
+}
+
 ov::SoPtr<ov::IRemoteContext> ov::Plugin::create_context(const AnyMap& params) const {
     OV_PLUGIN_CALL_STATEMENT({
         auto remote = m_ptr->create_context(params);
@@ -98,7 +108,7 @@ ov::SoPtr<ov::IRemoteContext> ov::Plugin::get_default_context(const AnyMap& para
 }
 
 ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& arguments) const {
-    return {m_ptr->get_property(name, arguments), {m_so}};
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->get_property(name, arguments), {m_so}});
 }
 
 bool ov::Plugin::supports_model_caching(const ov::AnyMap& arguments) const {

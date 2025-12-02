@@ -99,7 +99,7 @@ public:
             m_name = std::move(name);
     }
 
-    bool operator()(PatternSymbolMap& m, const Output<Node>& output) const;
+    bool operator()(Matcher* m, const Output<Node>& output) const;
     bool operator()(const std::shared_ptr<Node>& node) const;
     bool operator()(const Output<Node>& output) const;
 

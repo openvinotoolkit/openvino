@@ -145,7 +145,7 @@ bool DetectionOutputKernelRef::Validate(const Params& p) const {
     const bool bSupportedBatch = batches <= params.engineInfo.maxWorkGroupSize;
 
     if (!bSupportedBatch) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -331,7 +331,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params) const
 
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
         auto& kernel = kd.kernels[i];
-        KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo.maxWorkGroupSize);
+        KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo);
         kernel.params.workGroups.global = dispatchData.gws;
         kernel.params.workGroups.local  = dispatchData.lws;
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);

@@ -154,7 +154,7 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
         fused_matmul2->set_friendly_name(matmul2_name);
         copy_runtime_info_from_outputs(matmul2_nodes, fused_matmul2);
 
-        auto fused_add = std::make_shared<ov::op::v1::Add>(split->get_input_node_shared_ptr(0), fused_matmul2);
+        auto fused_add = std::make_shared<ov::op::v1::Add>(split->input_value(0), fused_matmul2);
         auto fused_add_name = add_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(add_nodes.size()) + "_Adds";
         fused_add->set_friendly_name(fused_add_name);
         ov::copy_runtime_info(add_nodes, fused_add);

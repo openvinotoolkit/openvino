@@ -42,8 +42,8 @@
 // clang-format on
 
 // Copied from linux libc sys/stat.h:
-#    define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)
-#    define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+#    define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#    define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 
 struct dirent {
     char* d_name;

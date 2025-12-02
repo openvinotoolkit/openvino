@@ -129,6 +129,6 @@ private:
      *        inputs needed directly for matrix multiplication execution.
      *        The rest inputs represents binary postops
      */
-    const size_t m_gemm_inputs_count = 0lu;
+    const size_t m_gemm_inputs_count = 0LU;
 };
 }  // namespace ov::intel_cpu

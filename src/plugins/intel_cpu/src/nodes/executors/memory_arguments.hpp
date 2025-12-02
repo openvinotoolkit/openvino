@@ -19,6 +19,13 @@ using MemoryArgs = std::unordered_map<int, MemoryPtr>;
 #define ARG_SRC_1 2
 #define ARG_SRC_2 3
 #define ARG_SRC_3 4
+#define ARG_SRC_4 5
+#define ARG_SRC_5 6
+#define ARG_SRC_6 7
+#define ARG_SRC_7 8
+#define ARG_SRC_8 9
+#define ARG_SRC_9 10
+
 #define ARG_SUM   ARG_SRC_2
 #define ARG_DST_0 17
 #define ARG_DST   ARG_DST_0

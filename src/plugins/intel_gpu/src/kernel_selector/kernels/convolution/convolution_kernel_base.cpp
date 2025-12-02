@@ -12,14 +12,14 @@
 namespace kernel_selector {
 bool ConvolutionKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::CONVOLUTION) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -410,8 +410,8 @@ Datatype ConvolutionKernelBase::GetPackedInputType(const convolution_params& par
     return GetPackedType(params.inputs[0].GetDType());
 }
 
-Datatype ConvolutionKernelBase::GetPackedOutputType(const convolution_params& params) const {
-    return GetPackedType(params.outputs[0].GetDType());
+Datatype ConvolutionKernelBase::GetPackedOutputType(const convolution_params& params, size_t pack_size) const {
+    return GetPackedType(params.outputs[0].GetDType(), pack_size);
 }
 
 Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& params) const {

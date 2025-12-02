@@ -12,23 +12,11 @@ using namespace tests;
 
 namespace {
 
-template <typename vecElementType>
-std::string vec2str(const std::vector<vecElementType>& vec) {
-    if (!vec.empty()) {
-        std::ostringstream result;
-        result << "(";
-        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<vecElementType>(result, "."));
-        result << vec.back() << ")";
-        return result.str();
-    }
-    return "()";
-}
-
 template <class T>
 struct roll_test_input {
-    std::vector<int32_t> input_shape;
+    std::vector<ov::Dimension::value_type> input_shape;
     std::vector<T> input_values;
-    std::vector<int32_t> shift;
+    std::vector<ov::Dimension::value_type> shift;
     std::vector<T> expected_values;
 };
 
@@ -38,9 +26,7 @@ using roll_test_params = std::tuple<roll_test_input<T>, format::type>;
 template <class T>
 struct roll_test : testing::TestWithParam<roll_test_params<T>> {
     void test(bool is_caching_test) {
-        roll_test_input<T> p;
-        format::type input_format;
-        std::tie(p, input_format) = testing::TestWithParam<roll_test_params<T>>::GetParam();
+        const auto& [p, input_format] = testing::TestWithParam<roll_test_params<T>>::GetParam();
         auto& engine = get_test_engine();
 
         format::type plane_format = format::get_default_format(p.input_shape.size());

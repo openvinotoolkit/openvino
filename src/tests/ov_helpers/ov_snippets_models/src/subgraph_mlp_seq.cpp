@@ -11,6 +11,7 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/op/convert_saturation.hpp"
 
 namespace ov {
 namespace test {
@@ -151,7 +152,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
     auto sub_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shapes[0]);
     ov::ParameterVector subgraph_params = {sub_A};
 
-    ov::NodeVector subgraph_nodes = {A};
+    ov::OutputVector subgraph_nodes = {A};
 
     ov::builder::subgraph::FakeQuantizeOnData onData = {
         256, {1, 1}, {0.0f}, {2.55f}, {0.f}, {255.f}, ov::element::u8

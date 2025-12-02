@@ -2,26 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/op/indirect_sdpa.hpp"
+#include "intel_gpu/op/kv_cache.hpp"
+#include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
+#include "openvino/op/sparse_fill_empty_rows.hpp"
 #include "openvino/op/stft.hpp"
-#include "openvino/op/istft.hpp"
-#include "ov_ops/dynamic_quantize.hpp"
-#include "ov_ops/rms.hpp"
 #include "openvino/runtime/internal_properties.hpp"
-#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
+#include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
-#include "intel_gpu/op/kv_cache.hpp"
-
 
 namespace ov::intel_gpu {
 
@@ -48,7 +53,10 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     // E.g. static input shapes: sorted:[8], values:[2,3,4] are prefectly fine,
     // but sorted:[8,1,1,1], values:[2,3,4,1] is not valid.
     // Similar case for STFT and ISTFT
-    if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op) || ov::is_type<ov::op::v16::ISTFT>(op))
+    if (ov::is_type<ov::op::v15::SearchSorted>(op)||
+        ov::is_type<ov::op::v15::STFT>(op) ||
+        ov::is_type<ov::op::v16::ISTFT>(op) ||
+        ov::is_type<ov::op::v16::SparseFillEmptyRows>(op))
         return true;
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
@@ -63,6 +71,31 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (ov::is_type<ov::op::v5::GRUSequence>(op) || ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
         return true;
     }
+
+    if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op) || ov::is_type<ov::intel_gpu::op::IndirectSDPA>(op) ||
+        ov::is_type<ov::intel_gpu::op::SDPA>(op)) {
+        if (op->get_input_size() > 3) {
+            bool rank_ge_4 = false;
+            bool rank_dynamic = false;
+            for (size_t i = 0; i < op->get_input_size(); i++) {
+                auto input_shape = op->get_input_partial_shape(i);
+                if (input_shape.rank().is_dynamic()) {
+                    rank_dynamic = true;
+                    break;
+                }
+
+                if (input_shape.size() >= 4) {
+                    rank_ge_4 = true;
+                    break;
+                }
+            }
+
+            if (!rank_ge_4 && !rank_dynamic) {
+                return true;
+            }
+        }
+    }
+
     // When input node has dynamic shape with 4 dimension, this function return false
     // because op.is_dynamic() which only checks input shapes return false.
     // So, in the case of input data, we need to check output shape.
@@ -129,10 +162,13 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
     apply_rt_info_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max, rt_info);
 
-    // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
-    // ov::CacheMode::OPTIMIZE_SIZE setting. Not setting WEIGHTS_PATH will result in not
+    // WEIGHTS_PATH is used for the weightless cache mechanism which is used only as defined by
+    // ov::util::is_weightless_enabled. Not setting WEIGHTS_PATH will result in not
     // using that mechanism.
-    if (get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
+    if (const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties()); enable_weightless) {
+        set_property({ov::enable_weightless(*enable_weightless)});
+    }
+    if (get_enable_weightless()) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
 }
@@ -176,6 +212,18 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
                 }
             }
         }
+
+        // w/a : key_by_channel quant mode does not support cache rotation yet
+        // CVS-170994
+        if (auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+            const size_t rotated_block_indices_idx = paged_attn_op->get_input_size() > cldnn::paged_attention::PagedAttentionInputIdx::ROTATED_BLOCK_INDICES;
+            auto rotated_block_indices_input = ov::as_type_ptr<ov::op::v0::Parameter>(paged_attn_op->get_input_node_shared_ptr(rotated_block_indices_idx));
+            bool has_rotated_blocks = rotated_block_indices_input && rotated_block_indices_input->get_output_partial_shape(0).is_dynamic();
+            if (has_rotated_blocks && m_key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                GPU_DEBUG_COUT << "[Warning] BY_CHANNEL quant mode is not supported for cache rotation yet. Switching to BY_TOKEN mode." << std::endl;
+                m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+            }
+        }
     };
 
     for (const auto& op : ops) {
@@ -183,6 +231,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     }
 
     const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
+
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
         if (is_paged_attention_model || !info.supports_immad) {
             // Enable KV-cache compression by default for:
@@ -194,10 +243,22 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     }
 
+    if (!is_set_by_user(ov::internal::key_cache_quant_mode) || get_key_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
+        m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_CHANNEL;
+    }
+
+    if (!is_set_by_user(ov::internal::value_cache_quant_mode) || get_value_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
+        m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+    } else if (get_value_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) {
+        GPU_DEBUG_COUT << "[Warning] Value cache quantization mode BY_CHANNEL is not supported for GPU plugin. "
+            << "Switching to BY_TOKEN mode." << std::endl;
+        m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+    }
     // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
     if (!is_set_by_user(ov::intel_gpu::could_use_flashattn_v2) && !is_LLM) {
         m_could_use_flashattn_v2 = false;
     }
+
     m_optimize_data = true;
 }
 

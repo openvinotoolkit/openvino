@@ -47,7 +47,7 @@ private:
 
     // WA: resize stage might not work because there is no shape change,
     // but the underlying actual memory block changes.
-    size_t m_size = 0ul;
+    size_t m_size = 0UL;
 };
 
 using ProxyMemoryBlockPtr = std::shared_ptr<ProxyMemoryBlock>;

@@ -30,9 +30,9 @@ EmbeddingBag::EmbeddingBag(const std::shared_ptr<ov::Node>& op,
       DEFAULT_INDEX_IDX(defaultIndexIdx),
       _layerName(op->get_friendly_name()) {
     std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
-    if (op->get_input_size() < requiredInputNum || op->get_output_size() != 1) {
-        OPENVINO_THROW(logPrefix, "has incorrect number of input or output edges!");
-    }
+    OPENVINO_ASSERT(op->get_input_size() >= requiredInputNum && op->get_output_size() == 1,
+                    logPrefix,
+                    "has incorrect number of input or output edges!");
     if ((op->get_input_size() > PER_SAMPLE_WEIGHTS_IDX)) {
         _withWeights = true;
     }
@@ -83,9 +83,8 @@ void EmbeddingBag::processData(const T* srcData,
                 withWeights = withWeights & _withWeights;
 
                 size_t inIdx = 0LU;
-                if (static_cast<size_t>(indices[inIdx]) >= inDataDims[0]) {
-                    OPENVINO_THROW(msgPrefix + "' has invalid embedding bag index: " + std::to_string(indices[inIdx]));
-                }
+                OPENVINO_ASSERT(static_cast<size_t>(indices[inIdx]) < inDataDims[0],
+                                msgPrefix + "' has invalid embedding bag index: " + std::to_string(indices[inIdx]));
                 size_t srcIndex = indices[inIdx] * _embDepth;
 
                 if (withWeights) {
@@ -100,10 +99,8 @@ void EmbeddingBag::processData(const T* srcData,
                 }
 
                 for (inIdx = 1LU; inIdx < indicesSize; inIdx++) {
-                    if (static_cast<size_t>(indices[inIdx]) >= inDataDims[0]) {
-                        OPENVINO_THROW(msgPrefix +
-                                       "' has invalid embedding bag index: " + std::to_string(indices[inIdx]));
-                    }
+                    OPENVINO_ASSERT(static_cast<size_t>(indices[inIdx]) < inDataDims[0],
+                                    msgPrefix + "' has invalid embedding bag index: " + std::to_string(indices[inIdx]));
                     size_t srcIndex = indices[inIdx] * _embDepth;
 
                     if (withWeights) {

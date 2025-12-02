@@ -21,7 +21,7 @@ class CumSum : public Node {
 public:
     CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     [[nodiscard]] bool created() const override;
@@ -36,7 +36,7 @@ private:
     void exec();
 
     template <bool reverse, bool exclusive, typename dataType>
-    void cumSum(const dataType* input, dataType* output, const std::vector<size_t>& strides);
+    void cumSum(const dataType* input, dataType* output, const VectorDims& strides);
 
     static void parallelItInit(size_t start, std::vector<size_t>& counters, const std::vector<size_t>& iterationRange);
 

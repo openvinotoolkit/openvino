@@ -15,7 +15,6 @@ except ImportError:
 # #
 # # OpenVINO API
 # # This __init__.py forces checking of runtime modules to propagate errors.
-# # It is not compared with init files from openvino-dev package.
 # #
 
 # Openvino pybind bindings
@@ -40,6 +39,7 @@ from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Layout
 from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import TensorVector
 from openvino._pyopenvino import Type
 from openvino._pyopenvino import OVAny
 from openvino._pyopenvino import get_batch

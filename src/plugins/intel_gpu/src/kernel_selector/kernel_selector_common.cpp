@@ -351,6 +351,8 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_zyx_isa8_osv16_isv4:                   return "OS_IS_ZYX_ISA8_OSV16_ISV4";
         case WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:  return "OS_IS_YX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4: return "OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
+        case WeightsLayout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2: return "OS_IS_YX_OSA2_ISA8_OSV16_ISV4_SWIZZLED_BY_2";
+        case WeightsLayout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2: return "OS_IS_ZYX_OSA2_ISA8_OSV16_ISV4_SWIZZLED_BY_2";
         case WeightsLayout::os_is_yx_osv16_isv4:                         return "OS_IS_YX_OSV16_ISV4";
         case WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2:           return "OS_IS_YX_OSV32_ISV4_SWIZZLED_BY_2";
         case WeightsLayout::os_is_yx_osv32_isv4:                         return "OS_IS_YX_OSV32_ISV4";
@@ -584,14 +586,22 @@ std::string toString(ReduceMode mode) {
 
 void clKernelData::save(cldnn::BinaryOutputBuffer& ob) const {
     ob(params.workGroups.global, params.workGroups.local);
+
     ob << params.arguments.size();
     for (const auto& arg : params.arguments) {
         ob << make_data(&arg.t, sizeof(cldnn::argument_desc::Types)) << arg.index;
     }
+
     ob << params.scalars.size();
     for (const auto& scalar : params.scalars) {
         ob << make_data(&scalar.t, sizeof(cldnn::scalar_desc::Types)) << make_data(&scalar.v, sizeof(cldnn::scalar_desc::ValueT));
     }
+
+    ob << params.local_memory_args.size();
+    for (const auto& arg : params.local_memory_args) {
+        ob << cldnn::make_data(&arg, sizeof(arg));
+    }
+
     ob << params.layerID;
 #ifdef ENABLE_ONEDNN_FOR_GPU
     ob << micro_kernels.size();
@@ -616,6 +626,13 @@ void clKernelData::load(cldnn::BinaryInputBuffer& ib) {
     params.scalars.resize(scalars_desc_size);
     for (auto& scalar : params.scalars) {
         ib >> make_data(&scalar.t, sizeof(cldnn::scalar_desc::Types)) >> make_data(&scalar.v, sizeof(cldnn::scalar_desc::ValueT));
+    }
+
+    typename cldnn::local_memory_args_desc::size_type local_memory_args_size = 0UL;
+    ib >> local_memory_args_size;
+    params.local_memory_args.resize(local_memory_args_size);
+    for (auto& arg : params.local_memory_args) {
+        ib >> cldnn::make_data(&arg, sizeof(arg));
     }
 
     ib >> params.layerID;

@@ -11,12 +11,8 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string PrecisionPropagationConvertion::getTestCaseName(testing::TestParamInfo<PrecisionPropagationParams> obj) {
-    std::vector<InputShape> input_shapes;
-    std::vector<float> fake_quantize_intervals;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(input_shapes, fake_quantize_intervals, num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string PrecisionPropagationConvertion::getTestCaseName(const testing::TestParamInfo<PrecisionPropagationParams>& obj) {
+    const auto& [input_shapes, fake_quantize_intervals, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); ++i) {
@@ -35,15 +31,15 @@ std::string PrecisionPropagationConvertion::getTestCaseName(testing::TestParamIn
 }
 
 void PrecisionPropagationConvertion::SetUp() {
-    std::vector<InputShape> input_shapes;
-    std::vector<float> fake_quantize_intervals;
-    std::tie(input_shapes, fake_quantize_intervals, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [input_shapes, fake_quantize_intervals, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] =
+        this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(input_shapes);
 
     function = PrecisionPropagationConvertionFunction(inputDynamicShapes, ov::element::f32, fake_quantize_intervals).getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(PrecisionPropagationConvertion, CompareWithRefImpl) {

@@ -71,8 +71,10 @@ public:
 
     static bool isFunctionQuantized(
         const std::shared_ptr<const ov::Model>& model,
-        const std::set<levels>& supported_levels = all_levels);
-    static bool isFQLevelsPresent(const std::shared_ptr<const ov::Model>& model, const std::set<size_t>& levels);
+        const std::set<levels>& supported_levels = all_levels,
+        bool check_fake_convert = false);
+
+    static bool doesFunctionContainF8DynQuanPatterns(const std::shared_ptr<const ov::Model>& model);
 
     static bool doesFunctionContainMXFPDynQuanPatterns(const std::shared_ptr<const ov::Model>& model);
 
@@ -86,7 +88,6 @@ public:
 protected:
     std::vector<PrecisionsRestriction> precisionRestrictions;
     std::vector<QuantizationGranularityRestriction> quantizationRestrictions;
-    // remove
     LayerTransformation::Params params;
 
     std::vector<std::shared_ptr<MatcherPass>> additional_main_passes;

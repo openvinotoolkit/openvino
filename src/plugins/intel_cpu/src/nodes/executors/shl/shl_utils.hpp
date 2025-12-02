@@ -62,6 +62,8 @@ inline csinn_layout_enum getShlDataLayoutByMemoryDesc(const MemoryDescPtr& desc,
             return is_weights ? CSINN_LAYOUT_OIHW : CSINN_LAYOUT_NCHW;
         case 5:
             return is_weights ? CSINN_LAYOUT_OIDHW : CSINN_LAYOUT_NCDHW;
+        default:
+            break;
         }
     } else if (desc->hasLayoutType(LayoutType::nspc)) {
         switch (desc->getShape().getRank()) {
@@ -71,6 +73,8 @@ inline csinn_layout_enum getShlDataLayoutByMemoryDesc(const MemoryDescPtr& desc,
             return is_weights ? CSINN_LAYOUT_OHWI : CSINN_LAYOUT_NHWC;
         case 5:
             return is_weights ? CSINN_LAYOUT_ODHWI : CSINN_LAYOUT_NDHWC;
+        default:
+            break;
         }
     }
     return CSINN_LAYOUT_NULL;

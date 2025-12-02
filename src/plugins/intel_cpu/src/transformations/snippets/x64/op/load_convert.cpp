@@ -16,7 +16,6 @@
 #include "snippets/op/load.hpp"
 #include "snippets/op/memory_access.hpp"
 
-using namespace std;
 using namespace ov;
 
 intel_cpu::LoadConvertSaturation::LoadConvertSaturation(const Output<Node>& x,

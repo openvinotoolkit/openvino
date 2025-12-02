@@ -20,7 +20,7 @@ namespace ov::intel_cpu::node {
 
 struct RDFTExecutor {
 public:
-    RDFTExecutor(bool inverse) : isInverse(inverse) {}
+    explicit RDFTExecutor(bool inverse) : isInverse(inverse) {}
     virtual ~RDFTExecutor() = default;
     void execute(float* inputPtr,
                  float* outputPtr,

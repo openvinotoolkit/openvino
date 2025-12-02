@@ -37,38 +37,36 @@ inline T rnd_up(const T a, const U b) {
     return div_up(a, b) * b;
 }
 
-template <typename T, typename P>
-constexpr bool one_of(T val, P item) {
-    return val == item;
+template <typename T, typename... Args>
+constexpr bool any_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'any_of' requires at least one item to compare against.");
+    return ((val == items) || ...);
 }
 
-template <typename T, typename P, typename... Args>
-constexpr bool one_of(T val, P item, Args... item_others) {
-    return val == item || one_of(val, item_others...);
+template <typename T, typename... Args>
+constexpr bool none_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'none_of' requires at least one item to compare against.");
+    return !any_of(val, items...);
 }
 
-template <typename T, typename P>
-constexpr bool everyone_is(T val, P item) {
-    return val == item;
-}
-
-template <typename T, typename P, typename... Args>
-constexpr bool everyone_is(T val, P item, Args... item_others) {
-    return val == item && everyone_is(val, item_others...);
+template <typename T, typename... Args>
+constexpr bool all_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'all_of' requires at least one item to compare against.");
+    return ((val == items) && ...);
 }
 
 constexpr bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
-#ifdef __cpp_lib_make_unique
-using std::make_unique;
-#else
-template <class T, class... Args>
-inline std::unique_ptr<T> make_unique(Args&&... args) {
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
-#endif
+template <typename T, typename... Ts>
+constexpr bool all_of_v = std::conjunction_v<std::is_same<T, Ts>...>;
+
+template <typename T, typename... Ts>
+constexpr bool any_of_v = std::disjunction_v<std::is_same<T, Ts>...>;
+
+template <typename T, typename... Ts>
+constexpr bool none_of_v = std::negation_v<std::disjunction<std::is_same<T, Ts>...>>;
 
 template <typename T>
 std::string vec2str(const std::vector<T>& vec) {
@@ -156,7 +154,7 @@ inline bool dimsEqualWeak(const std::vector<size_t>& lhs,
     return true;
 }
 
-inline ov::element::Type getMaxPrecision(std::vector<ov::element::Type> precisions) {
+inline ov::element::Type getMaxPrecision(const std::vector<ov::element::Type>& precisions) {
     if (!precisions.empty()) {
         return *std::max_element(precisions.begin(),
                                  precisions.end(),
@@ -203,6 +201,23 @@ inline bool all_of_values(const Container& container, const T& value) {
     return std::all_of(container.begin(), container.end(), [&](const auto& elem) {
         return elem == value;
     });
+}
+
+template <typename T>
+inline bool contains(const std::vector<T>& v, const T& value) {
+    return std::any_of(v.begin(), v.end(), [&](const auto& elem) {
+        return elem == value;
+    });
+}
+
+template <class Map>
+bool contains_key_value(const Map& m, const typename Map::value_type& kv) {
+    const auto& [k, v] = kv;
+    if (auto it = m.find(k); it != m.end()) {
+        return it->second == v;
+    }
+
+    return false;
 }
 
 }  // namespace ov::intel_cpu

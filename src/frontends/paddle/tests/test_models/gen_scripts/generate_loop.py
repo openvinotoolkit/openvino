@@ -103,7 +103,7 @@ def loop_dyn():
     @paddle.jit.to_static
     def test_model(x):
         i = paddle.full(shape=[1], fill_value=0, dtype='int64')
-        
+
         i = i + x
         t = paddle.full(shape=[1], fill_value=10, dtype='int64')
         j = i + 1
@@ -123,7 +123,7 @@ def loop_dyn_x():
     @paddle.jit.to_static
     def test_model(x):
         i = paddle.full(shape=[1], fill_value=0, dtype='int64')
-        
+
         i = i + x
         t = paddle.full(shape=[1], fill_value=10, dtype='int64')
 
@@ -141,7 +141,7 @@ def loop_if():
     @paddle.jit.to_static
     def test_model(x):
         i = paddle.full(shape=[1], fill_value=0, dtype='int64')
-        
+
         i = i + x
         t = paddle.full(shape=[1], fill_value=10, dtype='int64')
 
@@ -162,7 +162,7 @@ def loop_if_loop():
     @paddle.jit.to_static
     def test_model(x):
         i = paddle.full(shape=[1], fill_value=0, dtype='int64')
-        
+
         i = i + x
         t = paddle.full(shape=[1], fill_value=10, dtype='int64')
 
@@ -184,7 +184,7 @@ def loop_if_loop_if():
     @paddle.jit.to_static
     def test_model(x):
         i = paddle.full(shape=[1], fill_value=0, dtype='int64')
-        
+
         i = i + x
         t = paddle.full(shape=[1], fill_value=10, dtype='int64')
 
@@ -210,7 +210,7 @@ def loop_if_loop_complex():
     def test_model(x, y):
         i = paddle.full(shape=[1], fill_value=0, dtype='int64')
         j = paddle.full(shape=[1], fill_value=0, dtype='int64')
-        
+
         i = i + x
         j = j + y
         t = paddle.full(shape=[1], fill_value=10, dtype='int64')
@@ -241,7 +241,7 @@ def loop_tensor_array():
     @paddle.jit.to_static
     def test_model(x):
         i = paddle.full(shape=[1], fill_value=0, dtype='int32')
-        
+
         t = paddle.full(shape=[1], fill_value=10, dtype='int32')
         y = paddle.full(shape=[30,3], fill_value=2, dtype='float32')
 
@@ -261,7 +261,7 @@ def loop_if_tensor_array():
     @paddle.jit.to_static
     def test_model(x):
         i = paddle.full(shape=[1], fill_value=0, dtype='int32')
-        
+
         t = paddle.full(shape=[1], fill_value=10, dtype='int32')
         y = paddle.full(shape=[30,3], fill_value=2, dtype='float32')
 
@@ -295,4 +295,6 @@ if __name__ == "__main__":
     print(loop_if_loop_if().numpy())
     print(loop_if_loop_complex())
     print(loop_tensor_array().numpy())
-    x, y = loop_if_tensor_array()
+    #https://github.com/PaddlePaddle/Paddle/issues/73919
+    #CVS-167349
+    #x, y = loop_if_tensor_array()

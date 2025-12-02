@@ -4,20 +4,48 @@
 
 #include "snippets/pass/fq_decomposition.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdlib>
+#include <memory>
 #include <numeric>
+#include <vector>
 
+#include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 #include "openvino/reference/broadcast.hpp"
+#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/utils/utils.hpp"
 
 ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
     MATCHER_SCOPE(FakeQuantizeDecomposition);
@@ -57,17 +85,17 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         if (status) {
             out_scales = calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         }
-        const bool do_dequantize = !(status && ((std::all_of(osc.cbegin(),
+        const bool do_dequantize = !status || ((!std::all_of(osc.cbegin(),
                                                              osc.cend(),
                                                              [](float val) {
-                                                                 return val == 1.f;
-                                                             }) &&
-                                                 std::all_of(osh.cbegin(),
+                                                                 return val == 1.F;
+                                                             }) ||
+                                                !std::all_of(osh.cbegin(),
                                                              osh.cend(),
                                                              [](float val) {
-                                                                 return val == 0.f;
-                                                             })) ||
-                                                out_scales.size() != 0));
+                                                                 return val == 0.F;
+                                                             })) &&
+                                               out_scales.empty());
         const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ov::element::f32 ||
                                  fake_quantize_node->get_output_element_type(0) == ov::element::f16;
 
@@ -86,7 +114,7 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         decomp_ops.push_back(min);
 
         std::shared_ptr<ov::Node> result = nullptr;
-        if (out_scales.size() != 0) {
+        if (!out_scales.empty()) {
             PartialShape scale_shape = input_low.get_partial_shape();
             ov::PartialShape::broadcast_merge_into(scale_shape, input_high.get_partial_shape(), broadcast_type);
             const auto scales = std::make_shared<ov::op::v0::Constant>(input_low.get_element_type(),
@@ -176,8 +204,9 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     auto input_high_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(2));
     auto output_low_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(3));
     auto output_high_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(4));
-    if (!input_low_constant || !input_high_constant || !output_low_constant || !output_high_constant)
+    if (!input_low_constant || !input_high_constant || !output_low_constant || !output_high_constant) {
         return false;
+    }
 
     const auto input_low_shape = input_low_constant->get_shape();
     const auto input_high_shape = input_high_constant->get_shape();
@@ -306,48 +335,48 @@ std::vector<float> ov::snippets::pass::FakeQuantizeDecomposition::calculateScale
         std::all_of(cl.cbegin(),
                     cl.cend(),
                     [](float val) {
-                        return val == 0.0f;
+                        return val == 0.0F;
                     }) &&
         std::all_of(ish.cbegin(),
                     ish.cend(),
                     [](float val) {
-                        return val == 0.0f;
+                        return val == 0.0F;
                     }) &&
         std::all_of(osc.cbegin(),
                     osc.cend(),
                     [](float val) {
-                        return val == 1.0f;
+                        return val == 1.0F;
                     }) &&
         std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-            return val == 0.0f;
+            return val == 0.0F;
         })) {
         out_scales = isc;
     }
 
-    static const float thr = 0.0001f;
+    static const float thr = 0.0001F;
     if (out_type == ov::element::i8 &&
         std::all_of(ish.cbegin(),
                     ish.cend(),
                     [](float val) {
-                        return std::abs(val - 128.f) < thr;
+                        return std::abs(val - 128.F) < thr;
                     }) &&
         std::all_of(osc.cbegin(),
                     osc.cend(),
                     [](float val) {
-                        return val == 1.f;
+                        return val == 1.F;
                     }) &&
         std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-            return std::abs(val + 128.f) < thr;
+            return std::abs(val + 128.F) < thr;
         })) {
         bool is_crop_aligned = true;
         for (size_t i = 0; i < std::max(cl.size(), isc.size()); i++) {
-            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > thr) {
+            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.F) > thr) {
                 is_crop_aligned = false;
             }
         }
 
         for (size_t i = 0; i < std::max(ch.size(), isc.size()); i++) {
-            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > thr) {
+            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.F) > thr) {
                 is_crop_aligned = false;
             }
         }
@@ -369,8 +398,9 @@ bool ov::snippets::pass::CommonFakeQuantizeDecomposition::is_supported_fq(
         const auto greater_equal = std::make_shared<ov::op::v1::Greater>(il, ih);
 
         ov::OutputVector result(1);
-        if (!greater_equal->constant_fold(result, greater_equal->input_values()))
+        if (!greater_equal->constant_fold(result, greater_equal->input_values())) {
             return false;
+        }
 
         const auto res_node = ov::as_type_ptr<const ov::op::v0::Constant>(result[0].get_node_shared_ptr());
         const auto comp_result = res_node->cast_vector<bool>();
@@ -382,17 +412,17 @@ bool ov::snippets::pass::CommonFakeQuantizeDecomposition::is_supported_fq(
            ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(2)) &&
            ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(3)) &&
            ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(4)) &&
-           utils::one_of(fq->get_auto_broadcast(), ov::op::AutoBroadcastType::NUMPY, ov::op::AutoBroadcastType::NONE) &&
+           utils::any_of(fq->get_auto_broadcast(), ov::op::AutoBroadcastType::NUMPY, ov::op::AutoBroadcastType::NONE) &&
            is_valid_range_values(fq);
 }
 
-bool ov::snippets::pass::CommonFakeQuantizeDecomposition::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool ov::snippets::pass::CommonFakeQuantizeDecomposition::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(CommonFakeQuantizeDecomposition);
     ov::pass::Manager manager("Snippets:CommonFakeQuantizeDecomposition");
     manager.set_per_pass_validation(false);
     manager.register_pass<ov::snippets::pass::FakeQuantizeDecomposition>();
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<ov::pass::Validate>();
-    manager.run_passes(f);
+    manager.run_passes(m);
     return false;
 }

@@ -42,7 +42,7 @@ private:
 
 class OneHotShapeInferFactory : public ShapeInferFactory {
 public:
-    OneHotShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit OneHotShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:

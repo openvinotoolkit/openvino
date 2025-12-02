@@ -15,22 +15,9 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLayerCPUTestParamSet> obj) {
-    basicReduceParams basicParams;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    std::map<std::string, ov::element::Type> additionalConfig;
-    std::tie(basicParams, cpuParams, fusingParams, additionalConfig) = obj.param;
-
-    std::vector<int> axes;
-    ov::test::utils::OpType opType;
-    bool keepDims;
-    ov::test::utils::ReductionType reductionType;
-    ElementType netPrecision, inPrc, outPrc;
-    std::vector<InputShape> inputShapes;
-
-    std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inputShapes) = basicParams;
-
+std::string ReduceCPULayerTest::getTestCaseName(const testing::TestParamInfo<ReduceLayerCPUTestParamSet>& obj) {
+    const auto& [basicParams, cpuParams, fusingParams, additionalConfig] = obj.param;
+    const auto& [axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inputShapes] = basicParams;
     std::ostringstream result;
     result << "IS=(";
     for (const auto& shape : inputShapes) {
@@ -68,27 +55,12 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
 
 void ReduceCPULayerTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    basicReduceParams basicParams;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    std::map<std::string, ov::element::Type> additionalConfig;
-    std::tie(basicParams, cpuParams, fusingParams, additionalConfig) = this->GetParam();
-
+    const auto& [basicParams, cpuParams, fusingParams, additionalConfig] = this->GetParam();
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
-
-    std::vector<int> axes;
-    ov::test::utils::OpType opType;
-    bool keepDims;
-    ElementType inPrc, outPrc;
-    std::vector<InputShape> inputShapes;
-
-    std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inputShapes) = basicParams;
-    if (netPrecision == ElementType::boolean) {
-        inPrc = outPrc = netPrecision;
-    }
-
+    const auto& [axes, opType, keepDims, _reductionType, _netPrecision, inPrc, outPrc, inputShapes] = basicParams;
+    reductionType = _reductionType;
+    netPrecision = _netPrecision;
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     updateSelectedType(getPrimitiveType(), netPrecision == ElementType::boolean ? ElementType::i8 : netPrecision, configuration);
 

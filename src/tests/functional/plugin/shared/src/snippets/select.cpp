@@ -36,12 +36,8 @@ void generate_data(std::map<std::shared_ptr<ov::Node>, ov::Tensor>& data_inputs,
 }
 } // namespace
 
-std::string Select::getTestCaseName(testing::TestParamInfo<ov::test::snippets::SelectParams> obj) {
-    InputShape inputShapes0, inputShapes1, inputShapes2;
-    ov::element::Type type;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes0, inputShapes1, inputShapes2, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string Select::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::SelectParams>& obj) {
+    const auto& [inputShapes0, inputShapes1, inputShapes2, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes0.first}) << "_";
@@ -67,30 +63,32 @@ std::string Select::getTestCaseName(testing::TestParamInfo<ov::test::snippets::S
 }
 
 void Select::SetUp() {
-    InputShape inputShape0, inputShape1, inputShape2;
-    ov::element::Type type;
-    std::tie(inputShape0, inputShape1, inputShape2, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape0, inputShape1, inputShape2, type, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] =
+        this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({{inputShape0}, {inputShape1}, {inputShape2}});
 
     auto f = ov::test::snippets::SelectFunction(inputDynamicShapes);
     function = f.getOriginal();
 
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 void Select::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     generate_data(inputs, function->inputs(), targetInputStaticShapes);
 }
 
-std::string BroadcastSelect::getTestCaseName(testing::TestParamInfo<ov::test::snippets::BroadcastSelectParams> obj) {
-    InputShape inputShapes0, inputShapes1, inputShapes2;
-    ov::PartialShape broadcastShape;
-    ov::element::Type type;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes0, inputShapes1, inputShapes2, broadcastShape, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string BroadcastSelect::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::BroadcastSelectParams>& obj) {
+    const auto& [inputShapes0,
+                 inputShapes1,
+                 inputShapes2,
+                 broadcastShape,
+                 type,
+                 num_nodes,
+                 num_subgraphs,
+                 targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes0.first}) << "_";
@@ -117,18 +115,23 @@ std::string BroadcastSelect::getTestCaseName(testing::TestParamInfo<ov::test::sn
 }
 
 void BroadcastSelect::SetUp() {
-    InputShape inputShape0, inputShape1, inputShape2;
-    ov::PartialShape broadcastShape;
-    ov::element::Type type;
-    std::tie(inputShape0, inputShape1, inputShape2, broadcastShape, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape0,
+                 inputShape1,
+                 inputShape2,
+                 broadcastShape,
+                 type,
+                 _ref_num_nodes,
+                 _ref_num_subgraphs,
+                 _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({inputShape0, inputShape1, inputShape2});
 
     auto f = ov::test::snippets::BroadcastSelectFunction({inputDynamicShapes[0], inputDynamicShapes[1], inputDynamicShapes[2]}, broadcastShape);
     function = f.getOriginal();
 
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 void BroadcastSelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {

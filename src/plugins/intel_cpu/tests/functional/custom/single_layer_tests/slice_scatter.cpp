@@ -32,14 +32,8 @@ class SliceScatterLayerCPUTest : public testing::WithParamInterface<SliceScatter
                                  virtual public SubgraphBaseTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SliceScatterLayerTestCPUParam> obj) {
-        std::vector<InputShape> shapes;
-        SliceScatterSpecificParams params;
-        ov::test::utils::InputLayerType secondaryInputType;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, params, secondaryInputType, netPrecision, cpuParams) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<SliceScatterLayerTestCPUParam>& obj) {
+        const auto& [shapes, params, secondaryInputType, netPrecision, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : shapes) {
@@ -90,11 +84,8 @@ protected:
         }
     }
     void SetUp() override {
-        std::vector<InputShape> shapes;
-        ov::test::utils::InputLayerType secondaryInputType;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, sliceParams, secondaryInputType, netPrecision, cpuParams) = this->GetParam();
+        const auto& [shapes, _sliceParams, secondaryInputType, netPrecision, cpuParams] = this->GetParam();
+        sliceParams = _sliceParams;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);

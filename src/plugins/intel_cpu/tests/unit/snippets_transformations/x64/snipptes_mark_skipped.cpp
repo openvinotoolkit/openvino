@@ -6,7 +6,9 @@
 #include <subgraph_customizable.hpp>
 #include <snippets_helpers.hpp>
 #include <transformations/snippets/x64/pass/snippets_mark_skipped.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/tokenization_config.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 
 namespace ov {
@@ -17,11 +19,10 @@ class SnippetsMarkSkippedTests : public TransformationTestsF {
 public:
     void run() {
         ASSERT_TRUE(model);
-        ov::snippets::pass::SnippetsTokenization::Config config = { 1, 11, true, true, true, { 3, 4 }};
+        ov::snippets::pass::TokenizationConfig config(11);
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
-        //
         // todo: This is a temporary work-around. remove when MatMul tokenization is supported through general pipeline
         manager.get_pass_config()->set_callback<ov::snippets::pass::TokenizeSnippets>(
                 [](const std::shared_ptr<const ov::Node>& n) -> bool {
@@ -32,10 +33,8 @@ public:
 
 TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipAfterInputsMatMulEltwise) {
     const auto &f = MatMulEltwiseBranchesFunction(std::vector<PartialShape> {{1, 3, 4, 4}, {1, 3, 4, 4}});
-    model = f.getOriginal();
     // Fully tokenizable, since inputs are followed by MatMul
-    model_ref = f.getReference();
-    run();
+    execute_and_validate_function(*this, f);
 }
 
 TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvMulActivation) {
@@ -44,10 +43,8 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvMulActivation)
                                                    std::make_shared<ov::op::v0::Sqrt>()};
     std::vector<PartialShape> inputShapes {{1, 2, 16, 16}, {1, 2, 1, 16}};
     const auto &f = ConvMulActivationFunction(inputShapes, eltwiseOps);
-    model = f.getOriginal();
     // Fully tokenizable, since Mul with 2 inputs isn't fused into Convolution
-    model_ref = f.getReference();
-    run();
+    execute_and_validate_function(*this, f);
 }
 
 TEST_F(SnippetsMarkSkippedTests, smoke_SkipConvFused_ConvSumActivation) {

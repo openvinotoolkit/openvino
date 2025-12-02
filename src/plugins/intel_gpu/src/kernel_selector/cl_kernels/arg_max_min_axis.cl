@@ -119,7 +119,7 @@ KERNEL(arg_max_min_modified)(
 #ifdef OUTPUT1_TYPE
     ,__global OUTPUT1_TYPE* second_output
 #endif
-#ifdef IS_DYNAMIC
+#ifdef USE_INTERNAL_BUFFERS
     ,__global INPUT0_TYPE* tmp_buffer0
     ,__global INPUT0_TYPE* tmp_buffer1
     ,__global INPUT0_TYPE* tmp_buffer2
@@ -133,8 +133,8 @@ KERNEL(arg_max_min_modified)(
 #elif TOP_K == 1
     iav_type result[TOP_K];
 #else
-#ifdef IS_DYNAMIC
-    const uint iav_type_size = INPUT0_TYPE_SIZE + 4;
+#ifdef USE_INTERNAL_BUFFERS
+    const uint iav_type_size = sizeof(iav_type);
     const uint buffer_size = iav_type_size * VALUES_NUM;
     const uint buffer_offset = buffer_size * OPERATION_NUM;
     __global iav_type *result = OFFSET_GLOBAL_PTR(iav_type, tmp_buffer0, output_idx * buffer_size);
@@ -378,7 +378,7 @@ KERNEL(arg_max_min_modified)(
             }
         }
 
-    #ifdef IS_DYNAMIC
+    #ifdef USE_INTERNAL_BUFFERS
         const uint counter_size = group_num * 4;
         const uint counter_offset = counter_size * OPERATION_NUM;
         __global uint* merge_counter = OFFSET_GLOBAL_PTR(uint, tmp_buffer1, output_idx * counter_size);

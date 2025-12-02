@@ -4,11 +4,14 @@
 
 #include "snippets/pass/subgraph_manager.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+#include <memory>
 
-bool CommonOptimizations::SubgraphManager::run_passes(std::shared_ptr<ov::snippets::op::Subgraph> subgraph) {
+#include "snippets/op/subgraph.hpp"
+#include "snippets/pass/common_optimizations.hpp"
+
+namespace ov::snippets::pass {
+
+bool CommonOptimizations::SubgraphManager::run_passes(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph) {
     bool updated = false;
     for (const auto& pass : m_pass_list) {
         updated = pass->run_on_subgraph(subgraph) || updated;
@@ -16,6 +19,4 @@ bool CommonOptimizations::SubgraphManager::run_passes(std::shared_ptr<ov::snippe
     return updated;
 }
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

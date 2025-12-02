@@ -27,7 +27,7 @@ namespace ov::intel_cpu {
 
 /* ================== jit_reg_spill_begin_emitters ====================== */
 
-jit_reg_spill_begin_emitter::jit_reg_spill_begin_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+jit_reg_spill_begin_emitter::jit_reg_spill_begin_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                          dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                          const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {
@@ -63,14 +63,14 @@ void jit_reg_spill_begin_emitter::emit_impl([[maybe_unused]] const std::vector<s
 
 /* ================== jit_reg_spill_end_emitter ====================== */
 
-jit_reg_spill_end_emitter::jit_reg_spill_end_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+jit_reg_spill_end_emitter::jit_reg_spill_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                      const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::RegSpillEnd>(expr->get_node()) && expr->get_input_count() > 0,
                               "Invalid expression in RegSpillEnd emitter");
-    const auto& parent_expr = expr->get_input_port_connector(0)->get_source().get_expr();
+    const auto& parent_expr = expr->get_input_expr_ptr(0);
     const auto& reg_spill_begin_emitter =
         std::dynamic_pointer_cast<jit_reg_spill_begin_emitter>(parent_expr->get_emitter());
     OV_CPU_JIT_EMITTER_ASSERT(reg_spill_begin_emitter, "Failed to obtain reg_spill_begin emitter");

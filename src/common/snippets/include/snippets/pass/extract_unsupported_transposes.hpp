@@ -4,11 +4,14 @@
 
 #pragma once
 
+#include <memory>
+
+#include "openvino/core/rtti.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "snippets/pass/common_optimizations.hpp"
 #include "subgraph_pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface ExtractUnsupportedTransposes
@@ -18,11 +21,14 @@ namespace pass {
 class ExtractUnsupportedTransposes : public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("ExtractUnsupportedTransposes", "0");
-    ExtractUnsupportedTransposes() = default;
+    explicit ExtractUnsupportedTransposes(CommonOptimizations::Config::TransposeSupportCallback transpose_support_cb)
+        : SubgraphPass("ExtractUnsupportedTransposes"),
+          m_transpose_support_cb(std::move(transpose_support_cb)) {}
 
     bool run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) override;
+
+private:
+    CommonOptimizations::Config::TransposeSupportCallback m_transpose_support_cb;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

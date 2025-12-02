@@ -43,9 +43,9 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
     auto pad_upper = layout::format_sizes(in_pad._upper_size, default_format);
     auto pad_mask = layout::format_sizes(in_pad._dynamic_dims_mask, default_format);
 
-    std::vector<int32_t> update_pad_lower;
-    std::vector<int32_t> update_pad_upper;
-    std::vector<int32_t> update_pad_mask;
+    std::vector<ov::Dimension::value_type> update_pad_lower;
+    std::vector<ov::Dimension::value_type> update_pad_upper;
+    std::vector<ov::Dimension::value_type> update_pad_mask;
 
     if (mode == reshape::reshape_mode::unsqueeze) {
         update_pad_lower = pad_lower;
@@ -153,7 +153,8 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     auto input_layout = impl_param.get_input_layout(0);
 
     auto& memory_deps = impl_param.memory_deps;
-    // On program build stage for the cases with pattern being stored in a runtime tensor
+
+    // For the cases with pattern being stored in a runtime tensor on program build stage
     // we return output_partial_shape taken from the original model intead of something like PartialShape::dynamic(rank)
     // as ngraph may refine output shape using interval arithmetic
     if ((memory_deps.empty() && prim->output_pattern.empty()) || input_layout.is_dynamic()) {

@@ -30,7 +30,7 @@ class DeconvolutionLayerCPUTest : public testing::WithParamInterface<DeconvLayer
                                   virtual public SubgraphBaseTest,
                                   public CpuTestWithFusing {
 public:
-static std::string getTestCaseName(testing::TestParamInfo<DeconvLayerCPUTestParamsSet> obj);
+static std::string getTestCaseName(const testing::TestParamInfo<DeconvLayerCPUTestParamsSet>& obj);
 
 void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 

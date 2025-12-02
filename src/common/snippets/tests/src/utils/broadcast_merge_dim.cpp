@@ -25,8 +25,8 @@ void BroadcastMergeDimTest::SetUp() {
 }
 
 TEST_P(BroadcastMergeDimTest, BrodcastMergeDim) {
-    size_t d1, d2, dst, result;
-    std::tie(d1, d2, dst) = this->m_dims;
+    const auto& [d1, d2, dst] = this->m_dims;
+    size_t result = 0;
     ASSERT_TRUE(ov::snippets::utils::broadcast_merge_dim(result, d1, d2));
     ASSERT_EQ(result, dst);
 }

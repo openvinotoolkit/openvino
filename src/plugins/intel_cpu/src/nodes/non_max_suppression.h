@@ -27,7 +27,7 @@ class NonMaxSuppression : public Node {
 public:
     NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
 
     void initSupportedPrimitiveDescriptors() override;
 
@@ -69,9 +69,9 @@ public:
 
     struct Point2D {
         float x, y;
-        Point2D(const float px = 0.f, const float py = 0.f) : x(px), y(py) {}
+        explicit Point2D(const float px = 0.F, const float py = 0.F) : x(px), y(py) {}
         Point2D operator+(const Point2D& p) const {
-            return {x + p.x, y + p.y};
+            return Point2D(x + p.x, y + p.y);
         }
         Point2D& operator+=(const Point2D& p) {
             x += p.x;
@@ -79,10 +79,10 @@ public:
             return *this;
         }
         Point2D operator-(const Point2D& p) const {
-            return {x - p.x, y - p.y};
+            return Point2D(x - p.x, y - p.y);
         }
         Point2D operator*(const float coeff) const {
-            return {x * coeff, y * coeff};
+            return Point2D(x * coeff, y * coeff);
         }
     };
 
@@ -132,18 +132,18 @@ private:
     bool m_sort_result_descending = true;
     bool m_clockwise = false;
     bool m_rotated_boxes = false;
-    size_t m_coord_num = 1lu;
+    size_t m_coord_num = 1LU;
 
-    size_t m_batches_num = 0lu;
-    size_t m_boxes_num = 0lu;
-    size_t m_classes_num = 0lu;
+    size_t m_batches_num = 0LU;
+    size_t m_boxes_num = 0LU;
+    size_t m_classes_num = 0LU;
 
-    size_t m_max_output_boxes_per_class = 0lu;  // Original value of input NMS_MAX_OUTPUT_BOXES_PER_CLASS
-    size_t m_output_boxes_per_class = 0lu;      // Actual number of output boxes
-    float m_iou_threshold = 0.f;
-    float m_score_threshold = 0.f;
-    float m_soft_nms_sigma = 0.f;
-    float m_scale = 0.f;
+    size_t m_max_output_boxes_per_class = 0LU;  // Original value of input NMS_MAX_OUTPUT_BOXES_PER_CLASS
+    size_t m_output_boxes_per_class = 0LU;      // Actual number of output boxes
+    float m_iou_threshold = 0.F;
+    float m_score_threshold = 0.F;
+    float m_soft_nms_sigma = 0.F;
+    float m_scale = 0.F;
     // control placeholder for NMS in new opset.
     bool m_is_soft_suppressed_by_iou = false;
 

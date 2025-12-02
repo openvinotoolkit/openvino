@@ -11,7 +11,7 @@
 namespace ONNXTestsDefinitions {
 
 std::string QuantizedModelsTests::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
-    std::string targetDevice = obj.param;
+    const std::string& targetDevice = obj.param;
     std::ostringstream result;
     result << "device=" << targetDevice;
     return result.str();

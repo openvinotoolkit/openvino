@@ -23,13 +23,8 @@ using ConvertToPluginSpecificNodeParams = std::tuple<ov::Shape,                 
 class ConvertToPluginSpecificNode : public testing::WithParamInterface<ConvertToPluginSpecificNodeParams>,
                                     public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvertToPluginSpecificNodeParams> obj) {
-        ov::Shape nonConstShape, constShape;
-        ov::element::Type prc;
-        ov::test::utils::EltwiseTypes nodeType;
-        size_t port, constNodeNum;
-        std::tie(nonConstShape, constShape, prc, nodeType, port, constNodeNum) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvertToPluginSpecificNodeParams>& obj) {
+        const auto& [nonConstShape, constShape, prc, nodeType, port, constNodeNum] = obj.param;
         std::ostringstream result;
         result << "IS_NON_CONST=" << nonConstShape << "_";
         result << "IS_CONST=" << constShape << "_";
@@ -46,13 +41,8 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        ov::Shape nonConstShape, constShape;
-        ov::element::Type prc;
-        ov::test::utils::EltwiseTypes nodeType;
-        size_t port;
-
-        std::tie(nonConstShape, constShape, prc, nodeType, port, constNodeNum) = this->GetParam();
+        const auto& [nonConstShape, constShape, prc, nodeType, port, _constNodeNum] = this->GetParam();
+        constNodeNum = _constNodeNum;
         OPENVINO_ASSERT(shape_size(constShape) == 1);
 
         const auto param = std::make_shared<ov::op::v0::Parameter>(prc, ov::Shape(nonConstShape));

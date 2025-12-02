@@ -15,7 +15,7 @@ namespace cldnn {
 struct resample : public primitive_base<resample> {
     CLDNN_DECLARE_PRIMITIVE(resample)
 
-    resample() : primitive_base("", {}), scales_port(0) {}
+    resample() : primitive_base("", {}) {}
 
     using InterpolateOp = ov::op::util::InterpolateBase;
 
@@ -129,7 +129,7 @@ struct resample : public primitive_base<resample> {
     /// @param num_filter Input filter. Only used by bilinear sample_type.
     uint32_t num_filter = 0;
     /// @param num_filter Port number of scales.
-    uint32_t scales_port;
+    uint32_t scales_port = 2;
     /// @param sizes Describing output shape for spatial axes.
     std::vector<int64_t> sizes;
     /// @param scales Scales of spatial axes, i.e. output_shape / input_shape
@@ -156,6 +156,7 @@ struct resample : public primitive_base<resample> {
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, num_filter);
+        seed = hash_combine(seed, scales_port);
         seed = hash_range(seed, scales.begin(), scales.end());
         seed = hash_range(seed, axes.begin(), axes.end());
         seed = hash_range(seed, pads_begin.begin(), pads_begin.end());
@@ -177,6 +178,7 @@ struct resample : public primitive_base<resample> {
 
         #define cmp_fields(name) name == rhs_casted.name
         return cmp_fields(num_filter) &&
+               cmp_fields(scales_port) &&
                cmp_fields(sizes) &&
                cmp_fields(scales) &&
                cmp_fields(axes) &&
@@ -195,6 +197,7 @@ struct resample : public primitive_base<resample> {
         primitive_base<resample>::save(ob);
         ob << output_size;
         ob << num_filter;
+        ob << scales_port;
         ob << sizes;
         ob << scales;
         ob << axes;
@@ -212,6 +215,7 @@ struct resample : public primitive_base<resample> {
         primitive_base<resample>::load(ib);
         ib >> output_size;
         ib >> num_filter;
+        ib >> scales_port;
         ib >> sizes;
         ib >> scales;
         ib >> axes;

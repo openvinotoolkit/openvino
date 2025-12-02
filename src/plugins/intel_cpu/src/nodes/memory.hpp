@@ -237,8 +237,7 @@ protected:
     void runDynamic(dnnl::stream strm) override;
 
 private:
-    void assignStateHook() override { /*pass*/
-    }
+    void assignStateHook() override { /*pass*/ }
 
     bool haveSubgraph() const {
         return body != nullptr;

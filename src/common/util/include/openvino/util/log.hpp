@@ -17,8 +17,7 @@
 
 #include "openvino/util/env_util.hpp"
 
-namespace ov {
-namespace util {
+namespace ov::util {
 
 enum class LOG_TYPE {
     _LOG_TYPE_ERROR,
@@ -30,7 +29,7 @@ enum class LOG_TYPE {
 
 class LogHelper {
 public:
-    LogHelper(LOG_TYPE, const char* file, int line, std::function<void(const std::string&)> m_handler_func);
+    LogHelper(LOG_TYPE, const char* file, int line);
     ~LogHelper();
 
     std::ostream& stream() {
@@ -38,28 +37,8 @@ public:
     }
 
 private:
-    std::function<void(const std::string&)> m_handler_func;
     std::stringstream m_stream;
 };
-
-class Logger {
-    friend class LogHelper;
-
-public:
-    static void set_log_path(const std::string& path);
-    static void start();
-    static void stop();
-
-private:
-    static void log_item(const std::string& s);
-    static void process_event(const std::string& s);
-    static void thread_entry(void* param);
-    static std::string m_log_path;
-    static std::deque<std::string> m_queue;
-};
-
-void default_logger_handler_func(const std::string& s);
-void default_logger_handler_func_length(const std::string& s);
 
 #ifdef ENABLE_OPENVINO_DEBUG
 /* Template function _write_all_to_stream has duplicates
@@ -77,12 +56,8 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
     return ov::util::_write_all_to_stream(os << arg, std::forward<TS>(args)...);
 }
 
-#    define OPENVINO_LOG_STREAM(OPENVINO_HELPER_LOG_TYPE)                     \
-        ::ov::util::LogHelper(::ov::util::LOG_TYPE::OPENVINO_HELPER_LOG_TYPE, \
-                              __FILE__,                                       \
-                              __LINE__,                                       \
-                              ::ov::util::default_logger_handler_func)        \
-            .stream()
+#    define OPENVINO_LOG_STREAM(OPENVINO_HELPER_LOG_TYPE) \
+        ::ov::util::LogHelper(::ov::util::LOG_TYPE::OPENVINO_HELPER_LOG_TYPE, __FILE__, __LINE__).stream()
 
 #    define OPENVINO_ERR(...)                                                                  \
         do {                                                                                   \
@@ -138,6 +113,14 @@ static inline bool is_terminal_output() {
                 }                                                                                                 \
             }                                                                                                     \
         } while (0)
+
+// we use this macro to log from the attribute visitor
+// that doesn't contain a reference or pointer to matcher
+#    define OPENVINO_LOG_MATCHING_NO_MATCHER(...)                                                                    \
+        do {                                                                                                         \
+            ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG_EMPTY), __VA_ARGS__, OPENVINO_RESET); \
+        } while (0)
+
 #else
 #    define OPENVINO_ERR(...) \
         do {                  \
@@ -154,7 +137,9 @@ static inline bool is_terminal_output() {
 #    define OPENVINO_LOG_MATCHING(matcher_ptr, ...) \
         do {                                        \
         } while (0)
+#    define OPENVINO_LOG_MATCHING_NO_MATCHER(...) \
+        do {                                      \
+        } while (0)
 #endif
 
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util

@@ -13,7 +13,7 @@ bool MVNKernelBase::Validate(const Params& params) const {
 
     for (auto& fused_op : orgParams.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

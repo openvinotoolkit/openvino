@@ -221,13 +221,22 @@ void MatrixNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutpu
 }
 
 void MatrixNmsLayerTestGPU::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    TopKParams top_k_params;
-    ThresholdParams threshold_params;
-
-    std::tie(shapes, model_type, m_attrs.sort_result_type, m_attrs.output_type, top_k_params, threshold_params,
-        m_attrs.background_class, m_attrs.normalized, m_attrs.decay_function, targetDevice) = this->GetParam();
+    const auto& [shapes,
+                 model_type,
+                 _sort_result_type,
+                 _output_type,
+                 top_k_params,
+                 threshold_params,
+                 _background_class,
+                 _normalized,
+                 _decay_function,
+                 _targetDevice] = this->GetParam();
+    m_attrs.sort_result_type = _sort_result_type;
+    m_attrs.output_type = _output_type;
+    m_attrs.background_class = _background_class;
+    m_attrs.normalized = _normalized;
+    m_attrs.decay_function = _decay_function;
+    targetDevice = _targetDevice;
 
     std::tie(m_attrs.nms_top_k, m_attrs.keep_top_k) = top_k_params;
     std::tie(m_attrs.score_threshold, m_attrs.gaussian_sigma, m_attrs.post_threshold) = threshold_params;

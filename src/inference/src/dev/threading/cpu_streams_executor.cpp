@@ -26,7 +26,7 @@ namespace ov {
 namespace threading {
 struct CPUStreamsExecutor::Impl {
     struct Stream {
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         struct Observer : public custom::task_scheduler_observer {
             CpuSet _mask;
             int _ncpus = 0;
@@ -66,7 +66,7 @@ struct CPUStreamsExecutor::Impl {
                                                ((_impl->_config.get_streams() + _impl->_usedNumaNodes.size() - 1) /
                                                 _impl->_usedNumaNodes.size()))
                     : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
             if (_impl->_config.get_streams_info_table().size() > 0) {
                 init_stream();
             }
@@ -91,14 +91,14 @@ struct CPUStreamsExecutor::Impl {
                 std::lock_guard<std::mutex> lock{_impl->_streamIdMutex};
                 _impl->_streamIdQueue.push(_streamId);
             }
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
             if (nullptr != _observer) {
                 _observer->observe(false);
             }
 #endif
         }
 
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         void create_tbb_task_arena(const int stream_id,
                                    const StreamCreateType stream_type,
                                    const int concurrency,
@@ -109,22 +109,39 @@ struct CPUStreamsExecutor::Impl {
             auto stream_processors = _impl->_config.get_stream_processor_ids();
             _numaNodeId = numa_node_id;
             _socketId = socket_id;
+#    if (TBB_INTERFACE_VERSION < 12000)
+            const auto tbb_version = tbb::TBB_runtime_interface_version();
+#    else
+            const auto tbb_version = TBB_runtime_interface_version();
+#    endif
             if (stream_type == STREAM_WITHOUT_PARAM) {
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                            .set_max_concurrency(concurrency)
-                                                            .set_max_threads_per_core(max_threads_per_core)});
+                int version_major = tbb_version / 10;
+                int version_patch = tbb_version % 10;
+                bool support_core_types = false;
+                if ((version_major == TBB_VERSION_MAJOR_CORE_TYPES_WINDOWS &&
+                     version_patch >= TBB_VERSION_PATCH_CORE_TYPES_WINDOWS) ||
+                    (version_major == TBB_VERSION_MAJOR_CORE_TYPES_LINUX &&
+                     version_patch >= TBB_VERSION_PATCH_CORE_TYPES_LINUX)) {
+                    support_core_types = true;
+                }
+                const auto core_types = custom::info::core_types();
+                if (support_core_types && core_types.size() >= MIN_CORE_TYPES_FOR_PTL) {
+                    _taskArena.reset(new custom::task_arena{
+                        custom::task_arena::constraints{}
+                            .set_max_concurrency(concurrency)
+                            .set_max_threads_per_core(max_threads_per_core)
+                            .set_core_types({core_types.end() - MIN_CORE_TYPES_FOR_PTL + 1, core_types.end()})});
+                } else {
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_max_concurrency(concurrency)
+                                                                .set_max_threads_per_core(max_threads_per_core)});
+                }
             } else if (stream_type == STREAM_WITH_NUMA_ID) {
                 // Numa node id has used different mapping methods in TBBBind since oneTBB 2021.4.0
 #    if USE_TBBBIND_2_5
                 auto real_numa_node_id = _numaNodeId;
 #    else
                 auto real_numa_node_id = get_org_numa_id(_numaNodeId);
-                int tbb_version;
-#        if (TBB_INTERFACE_VERSION < 12000)
-                tbb_version = tbb::TBB_runtime_interface_version();
-#        else
-                tbb_version = TBB_runtime_interface_version();
-#        endif
                 if (tbb_version >= 12040) {
                     real_numa_node_id = _numaNodeId;
                 }
@@ -134,9 +151,14 @@ struct CPUStreamsExecutor::Impl {
                                                             .set_max_concurrency(concurrency)
                                                             .set_max_threads_per_core(max_threads_per_core)});
             } else if (stream_type == STREAM_WITH_CORE_TYPE) {
-                const auto real_core_type = (core_type == MAIN_CORE_PROC || core_type == HYPER_THREADING_PROC)
-                                                ? custom::info::core_types().back()
-                                                : custom::info::core_types().front();
+                const auto core_types = custom::info::core_types();
+                auto real_core_type = (core_type == MAIN_CORE_PROC || core_type == HYPER_THREADING_PROC)
+                                          ? core_types.back()
+                                          : core_types.front();
+                // core_types=[LPECore, Ecore, Pcore]
+                if (core_type == EFFICIENT_CORE_PROC && core_types.size() >= MIN_CORE_TYPES_FOR_PTL) {
+                    real_core_type = *(core_types.end() - MIN_CORE_TYPES_FOR_PTL + 1);
+                }
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_core_type(real_core_type)
                                                             .set_max_concurrency(concurrency)
@@ -197,7 +219,7 @@ struct CPUStreamsExecutor::Impl {
         bool _execute = false;
         std::vector<int> _rank;
         std::queue<Task> _taskQueue;
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         std::unique_ptr<custom::task_arena> _taskArena;
         std::unique_ptr<Observer> _observer;
         std::vector<int> _cpu_ids;
@@ -386,7 +408,7 @@ struct CPUStreamsExecutor::Impl {
     }
 
     void Execute(const Task& task, Stream& stream) {
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         auto& arena = stream._taskArena;
         if (nullptr != arena) {
             arena->execute(std::move(task));

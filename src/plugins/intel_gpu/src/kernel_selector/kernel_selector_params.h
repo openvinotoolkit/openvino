@@ -370,8 +370,10 @@ enum class gpu_arch {
     xe_hpc = 6,
     xe2 = 7,
     xe3 = 8,
-    xe3p = 9,
-    xe4 = 10,
+    xe3p_35_10 = 9,
+    xe3p_35_11 = 10,
+    xe3p_unknown = 11,
+    xe4 = 12,
 };
 
 
@@ -392,9 +394,11 @@ struct EngineInfo {
     bool supports_imad = false;
     bool supports_immad = false;
     bool enable_sub_groups_emulation = false;
+    bool enable_large_allocations = false;
     bool bOptHintsSupport = false;
     bool supports_microkernels = false;
     bool supports_work_group_collective_functions = false;
+    bool supports_non_uniform_work_group = false;
     uint32_t vendor_id = 0x0;
     dev_type deviceType = dev_type::integrated_gpu;
     uint32_t computeUnitsCount = 0;

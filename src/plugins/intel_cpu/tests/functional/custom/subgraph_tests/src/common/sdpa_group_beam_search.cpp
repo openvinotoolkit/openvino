@@ -44,9 +44,7 @@ class SDPAGroupBeamSearchTest : public testing::WithParamInterface<SDPAGroupBeam
                                 public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SDPAGroupBeamSearchTestParams>& obj) {
-        ElementType inType;
-        std::vector<InputShape> inputShapes;
-        std::tie(inType, inputShapes) = obj.param;
+        const auto& [inType, inputShapes] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -67,9 +65,7 @@ public:
     }
 
     void SetUp() override {
-        ElementType inType;
-        std::vector<InputShape> inputShapes;
-        std::tie(inType, inputShapes) = this->GetParam();
+        const auto& [inType, inputShapes] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         if (inType == ElementType::bf16) {

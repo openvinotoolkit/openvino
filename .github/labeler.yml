@@ -39,8 +39,10 @@
 
 'category: CPU':
 - 'src/plugins/intel_cpu/**/*'
-- 'src/common/snippets/**/*'
 - 'thirdparty/xbyak/**/*'
+
+'category: snippets':
+- 'src/common/snippets/**/*'
 
 'category: dependency_changes':
 - '**/requirement*.txt'

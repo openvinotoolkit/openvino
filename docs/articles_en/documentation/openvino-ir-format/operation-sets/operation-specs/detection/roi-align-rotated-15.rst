@@ -27,7 +27,7 @@ ROIAlignRotated
 The 4 points used for bilinear interpolation are calculated as the closest integer coordinates to the sample point.
 As an example, if the sample point is [2.14, 3.56], then the 4 integer points are [2, 3], [2, 4], [3, 3], [3, 4].
 
-Each ROI box's center is shifted by [-0.5, -0.5] before pooling to achive better alignment with the closest integer coordinates used for bilinear filtering.
+Each ROI box's center is shifted by [-0.5, -0.5] before pooling to achieve better alignment with the closest integer coordinates used for bilinear filtering.
 
 **Attributes**
 
