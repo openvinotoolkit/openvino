@@ -92,6 +92,7 @@ private:
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::CompiledModel> m_lm_head_compiled;
+    std::shared_ptr<ov::npuw::CompiledModel> m_text_embedding_post_compiled;
 
     // Multiple generate models with different static KV cache shapes (1K, 2K, 4K, 8K stepping)
     std::vector<std::shared_ptr<ov::npuw::CompiledModel>> m_generate_compiled_variants;
@@ -113,6 +114,7 @@ private:
     int32_t m_gemma_sliding_window_size = 0;
 
     bool m_is_whisper = false;
+    bool m_is_text_embed = false;
 
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(
