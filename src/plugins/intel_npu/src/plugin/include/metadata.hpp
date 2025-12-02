@@ -41,7 +41,7 @@ public:
     /**
      * @brief Permits overload to metadata write for each version based metadata class.
      */
-    virtual void write_impl(std::ostream& stream);
+    virtual void write_impl(std::ostream& stream) = 0;
 
     virtual bool is_compatible() = 0;
 
@@ -256,7 +256,7 @@ template <>
 class Metadata<METADATA_VERSION_2_1> : public Metadata<METADATA_VERSION_2_0> {
 public:
     Metadata(const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
-             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt);
+             std::optional<std::vector<uint64_t>> initSizes = std::nullopt);
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are read in addition to the
@@ -286,8 +286,8 @@ template <>
 class Metadata<METADATA_VERSION_2_2> : public Metadata<METADATA_VERSION_2_1> {
 public:
     Metadata(std::optional<OpenvinoVersion> ovVersion = std::nullopt,
-             const std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
-             const std::optional<int64_t> batchSize = std::nullopt);
+             std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
+             const std::optional<int64_t>& batchSize = std::nullopt);
 
     void read() override;
 
@@ -309,10 +309,10 @@ template <>
 class Metadata<METADATA_VERSION_3_0> : public Metadata<METADATA_VERSION_2_2> {
 public:
     Metadata(const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
-             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
-             const std::optional<int64_t> batchSize = std::nullopt,
-             const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
-             const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt);
+             std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
+             const std::optional<int64_t>& batchSize = std::nullopt,
+             std::optional<std::vector<ov::Layout>> inputLayouts = std::nullopt,
+             std::optional<std::vector<ov::Layout>> outputLayouts = std::nullopt);
 
     void read() override;
 

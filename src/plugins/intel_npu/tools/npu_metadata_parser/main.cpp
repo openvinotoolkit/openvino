@@ -68,7 +68,7 @@ std::ostream& operator<<(std::ostream& ostream, const std::vector<T>& vec) {
 }
 
 static void showUsage() {
-    std::cout << "raw_blob_extractor [OPTIONS]" << std::endl;
+    std::cout << "npu_metadata_parser [OPTIONS]" << std::endl;
     std::cout << std::endl;
     std::cout << " Common options:                             " << std::endl;
     std::cout << "    -h                                       " << help_message << std::endl;

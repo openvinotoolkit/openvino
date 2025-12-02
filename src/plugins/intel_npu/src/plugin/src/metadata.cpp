@@ -68,28 +68,28 @@ Metadata<METADATA_VERSION_2_0>::Metadata(const std::optional<OpenvinoVersion>& o
       _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)} {}
 
 Metadata<METADATA_VERSION_2_1>::Metadata(const std::optional<OpenvinoVersion>& ovVersion,
-                                         const std::optional<std::vector<uint64_t>>& initSizes)
+                                         std::optional<std::vector<uint64_t>> initSizes)
     : Metadata<METADATA_VERSION_2_0>{ovVersion},
-      _initSizes{initSizes} {
+      _initSizes{std::move(initSizes)} {
     _version = METADATA_VERSION_2_1;
 }
 
 Metadata<METADATA_VERSION_2_2>::Metadata(std::optional<OpenvinoVersion> ovVersion,
-                                         const std::optional<std::vector<uint64_t>> initSizes,
-                                         const std::optional<int64_t> batchSize)
-    : Metadata<METADATA_VERSION_2_1>{ovVersion, initSizes},
+                                         std::optional<std::vector<uint64_t>> initSizes,
+                                         const std::optional<int64_t>& batchSize)
+    : Metadata<METADATA_VERSION_2_1>{ovVersion, std::move(initSizes)},
       _batchSize{batchSize} {
     _version = METADATA_VERSION_2_2;
 }
 
 Metadata<METADATA_VERSION_3_0>::Metadata(const std::optional<OpenvinoVersion>& ovVersion,
-                                         const std::optional<std::vector<uint64_t>>& initSizes,
-                                         const std::optional<int64_t> batchSize,
-                                         const std::optional<std::vector<ov::Layout>>& inputLayouts,
-                                         const std::optional<std::vector<ov::Layout>>& outputLayouts)
-    : Metadata<METADATA_VERSION_2_2>{ovVersion, initSizes, batchSize},
-      _inputLayouts{inputLayouts},
-      _outputLayouts{outputLayouts} {
+                                         std::optional<std::vector<uint64_t>> initSizes,
+                                         const std::optional<int64_t>& batchSize,
+                                         std::optional<std::vector<ov::Layout>> inputLayouts,
+                                         std::optional<std::vector<ov::Layout>> outputLayouts)
+    : Metadata<METADATA_VERSION_2_2>{ovVersion, std::move(initSizes), batchSize},
+      _inputLayouts{std::move(inputLayouts)},
+      _outputLayouts{std::move(outputLayouts)} {
     _version = METADATA_VERSION_3_0;
 }
 
