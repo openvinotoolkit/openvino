@@ -154,7 +154,16 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         std::cerr.flush();
         
         auto buf = lock.data();
+        // CRITICAL: For types that are converted (u16->f32, i16->f32, etc.), 
+        // we must use the ORIGINAL element type size for memcpy, not the converted layout size
+        auto original_element_type = op->get_output_element_type(0);
+        size_t actual_data_bytes = ov::shape_size(const_shape) * original_element_type.size();
         auto bufSize = constLayout.bytes_count();
+        
+        std::cerr << "[DEBUG_CVS-172561]   original_element_type: " << original_element_type
+                  << ", actual_data_bytes: " << actual_data_bytes 
+                  << ", layout_bufSize: " << bufSize << std::endl;
+        std::cerr.flush();
         
         std::cerr << "[DEBUG_CVS-172561]   buf_ptr: " << (void*)buf 
                   << ", bufSize: " << bufSize 
@@ -165,65 +174,47 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         // convert it to f32 because the GPU plugin only supports the f32 data type internally.
         if (ov::shape_size(const_shape) == 1 &&
             out_dtype == cldnn::data_types::f32 &&
-            op->get_output_element_type(0) == ov::element::f64) {
+            original_element_type == ov::element::f64) {
             std::cerr << "[DEBUG_CVS-172561]   Special f64->f32 conversion path" << std::endl;
             std::cerr.flush();
             const auto* f64data = op->get_data_ptr<double>();
             auto f32buf = reinterpret_cast<float*>(buf);
             f32buf[0] = static_cast<float>(f64data[0]);
-        } else {
-            // Validate pointers before memcpy
-            if (data == nullptr) {
-                std::cerr << "[DEBUG_CVS-172561] ERROR: data pointer is NULL!" << std::endl;
+        } else if (bufSize > 0) {
+            // For u16/i16 types that need conversion, do comparison in ONE place
+            if (original_element_type == ov::element::u16 || original_element_type == ov::element::i16) {
+                std::cerr << "[DEBUG_CVS-172561] ========================================" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561] === STEP 1: NEW FIX ===" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561] ========================================" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561]   NEW FIX: Use actual_data_bytes for memcpy" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561]   NEW FIX: actual_data_bytes=" << actual_data_bytes << " bytes (correct)" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561]   NEW FIX: bufSize=" << bufSize << " bytes (converted, too large)" << std::endl;
                 std::cerr.flush();
-                OPENVINO_THROW("[GPU] Constant data pointer is null for primitive: ", initialconstPrimID);
-            }
-            if (buf == nullptr) {
-                std::cerr << "[DEBUG_CVS-172561] ERROR: buf pointer is NULL!" << std::endl;
+                
+                // NEW FIX: Use actual_data_bytes instead of bufSize to avoid buffer overread
+                std::memcpy(&buf[0], &data[0], actual_data_bytes);
+                std::cerr << "[DEBUG_CVS-172561]   NEW FIX: memcpy with actual_data_bytes completed successfully!" << std::endl;
                 std::cerr.flush();
-                OPENVINO_THROW("[GPU] Buffer pointer is null for primitive: ", initialconstPrimID);
-            }
-            if (bufSize == 0) {
-                std::cerr << "[DEBUG_CVS-172561]   bufSize is 0, skipping memcpy" << std::endl;
+                
+                // STEP 2: OLD CODE - Execute immediately after for comparison
+                std::cerr << "[DEBUG_CVS-172561] ========================================" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561] === STEP 2: OLD CODE (WILL CRASH) ===" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561] ========================================" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561]   OLD CODE: std::memcpy(&buf[0], &data[0], bufSize);" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561]   OLD CODE: bufSize=" << bufSize << " bytes (too large!)" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561]   OLD CODE: actual_data_bytes=" << actual_data_bytes << " bytes (actual size)" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561]   OLD CODE: Attempting to read " << bufSize << " bytes from " << actual_data_bytes << " byte buffer..." << std::endl;
+                std::cerr << "[DEBUG_CVS-172561]   OLD CODE: THIS WILL CRASH with buffer overread!" << std::endl;
+                std::cerr.flush();
+                
+                std::memcpy(&buf[0], &data[0], bufSize);
+                
+                std::cerr << "[DEBUG_CVS-172561]   OLD CODE: memcpy completed (should not reach here!)" << std::endl;
+                std::cerr << "[DEBUG_CVS-172561] ========================================" << std::endl;
                 std::cerr.flush();
             } else {
-                std::cerr << "[DEBUG_CVS-172561]   Before memcpy: copying " << bufSize << " bytes" << std::endl;
-                std::cerr << "[DEBUG_CVS-172561]   buf address range: " << (void*)buf << " to " << (void*)(buf + bufSize) << std::endl;
-                std::cerr << "[DEBUG_CVS-172561]   data address range: " << (void*)data << " to " << (void*)(data + bufSize) << std::endl;
-                std::cerr.flush();
-                
-                // Test buf write access - single byte
-                std::cerr << "[DEBUG_CVS-172561]   Testing buf[0] write..." << std::endl;
-                std::cerr.flush();
-                volatile char test_val = buf[0];  // Read first
-                std::cerr << "[DEBUG_CVS-172561]   buf[0] read OK, value: 0x" << std::hex << (int)(unsigned char)test_val << std::dec << std::endl;
-                std::cerr.flush();
-                buf[0] = 0x42;  // Write
-                std::cerr << "[DEBUG_CVS-172561]   buf[0] write OK" << std::endl;
-                std::cerr.flush();
-                buf[0] = test_val;  // Restore
-                std::cerr << "[DEBUG_CVS-172561]   buf[0] restored" << std::endl;
-                std::cerr.flush();
-                
-                // Test data read access
-                std::cerr << "[DEBUG_CVS-172561]   Testing data[0] read..." << std::endl;
-                std::cerr.flush();
-                volatile char data_val = data[0];
-                std::cerr << "[DEBUG_CVS-172561]   data[0] read OK, value: 0x" << std::hex << (int)(unsigned char)data_val << std::dec << std::endl;
-                std::cerr.flush();
-                
-                // Try reading last byte of data
-                std::cerr << "[DEBUG_CVS-172561]   Testing data[bufSize-1] read..." << std::endl;
-                std::cerr.flush();
-                volatile char data_last = data[bufSize-1];
-                std::cerr << "[DEBUG_CVS-172561]   data[bufSize-1] read OK, value: 0x" << std::hex << (int)(unsigned char)data_last << std::dec << std::endl;
-                std::cerr.flush();
-                
-                std::cerr << "[DEBUG_CVS-172561]   All pointer tests passed, calling memcpy..." << std::endl;
-                std::cerr.flush();
+                // For other types, just use the standard memcpy
                 std::memcpy(&buf[0], &data[0], bufSize);
-                std::cerr << "[DEBUG_CVS-172561]   After memcpy - SUCCESS" << std::endl;
-                std::cerr.flush();
             }
         }
         std::cerr << "[DEBUG_CVS-172561]   Before add_primitive" << std::endl;
