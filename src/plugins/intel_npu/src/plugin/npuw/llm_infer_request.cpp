@@ -123,13 +123,6 @@ std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_nam
     return std::make_pair(low_rank_dim, full_rank_dim);
 }
 
-void copy_to_right(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
-    OPENVINO_ASSERT(src->get_byte_size() <= dst->get_byte_size());
-    std::copy_n(reinterpret_cast<uint8_t*>(src->data()),
-                src->get_byte_size(),
-                reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - src->get_byte_size());
-}
-
 void fill_sliding_mask(const ov::SoPtr<ov::ITensor>& mask, int64_t curr_pos, int64_t window_size) {
     auto start = curr_pos - window_size;
     auto end = curr_pos;
@@ -703,8 +696,8 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
     auto position_id = position_ids->data<int64_t>()[0];
     auto dirty_num = kvcache_desc.num_stored_tokens - static_cast<uint32_t>(position_id);
     if (dirty_num > 0) {
-        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length" << " to " << position_id
-                                        << " length");
+        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length"
+                                        << " to " << position_id << " length");
     }
     kvcache_desc.num_stored_tokens -= dirty_num;
 }
@@ -891,7 +884,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         auto padded_token_type_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::token_type_ids));
 
         std::fill_n(reinterpret_cast<uint8_t*>(padded_token_type_ids->data()), token_type_ids->get_byte_size(), 0);
-        copy_to_right(token_type_ids, padded_token_type_ids);
+        util::copy_to_right(token_type_ids, padded_token_type_ids);
     }
 
     auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
@@ -945,7 +938,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     }
 
     if (m_eagle3_ext.is_eagle3_model()) {
-        m_eagle3_ext.process_outputs(m_prefill_request, m_prefill_out_ports);
+        m_eagle3_ext.update_last_hidden_state(m_prefill_request, m_prefill_out_ports);
     }
 
     m_generate_initialized = false;
@@ -1015,7 +1008,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     if (token_type_ids) {
         auto kv_token_type_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids));
-        copy_to_right(token_type_ids, kv_token_type_ids);
+        util::copy_to_right(token_type_ids, kv_token_type_ids);
     }
 
     // NOTE: Attention mask pattern for generate model requires the set of "1"
@@ -1070,7 +1063,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     }
 
     if (m_eagle3_ext.is_eagle3_model()) {
-        m_eagle3_ext.process_outputs(m_kvcache_request, m_kvcache_out_ports);
+        m_eagle3_ext.update_last_hidden_state(m_kvcache_request, m_kvcache_out_ports);
     }
 
     LOG_DEBUG("Done");
@@ -1097,8 +1090,8 @@ void ov::npuw::LLMInferRequest::infer() {
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
 
-    // Eagle3 Draft: Process user-provided hidden state inputs for draft model
-    m_eagle3_ext.store_user_tensors(inputs, [this](const ov::Output<const ov::Node>& port) {
+    // Eagle3: Accept and validate hidden state inputs
+    m_eagle3_ext.store_hidden_state_inputs(inputs, [this](const ov::Output<const ov::Node>& port) {
         return get_tensor(port);
     });
 

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstring>
 
+#include "infer_request_utils.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
@@ -21,11 +22,76 @@ bool matchEagle3InternalHiddenStatesString(const std::string& input) {
     return input == Eagle3LayerNames::internal_hidden_states;
 }
 
+ov::PartialShape Eagle3Extension::get_static_input(const std::shared_ptr<ov::Model>& model,
+                                                   const ov::Output<ov::Node>& input,
+                                                   uint32_t input_size) {
+    const auto& input_name = input.get_any_name();
+    const auto& input_shape = input.get_partial_shape();
+
+    // Check if this is an Eagle3 internal_hidden_states input
+    if (matchEagle3InternalHiddenStatesString(input_name)) {
+        OPENVINO_ASSERT(input_shape.size() == 3u,
+                        "Eagle3 internal_hidden_states must have 3 dimensions: [batch, seq_len, hidden_size]");
+        OPENVINO_ASSERT(input_shape[2].is_static(),
+                        "Eagle3 internal_hidden_states hidden_size dimension must be static");
+        return ov::PartialShape({1, input_size, input_shape[2]});
+    }
+
+    // Check if this is an Eagle3 hidden_states input
+    if (matchEagle3HiddenStatesString(input_name)) {
+        OPENVINO_ASSERT(input_shape.size() == 3u,
+                        "Eagle3 hidden_states must have 3 dimensions: [batch, seq_len, hidden_size]");
+
+        const auto& hidden_dim = input_shape[2];
+        if (hidden_dim.is_static()) {
+            return ov::PartialShape({1, input_size, hidden_dim});
+        }
+
+        // Calculate from internal_hidden_states dimension (3x relationship)
+        for (const auto& model_input : model->inputs()) {
+            if (matchEagle3InternalHiddenStatesString(model_input.get_any_name())) {
+                const auto& internal_shape = model_input.get_partial_shape();
+                if (internal_shape.size() == 3u && internal_shape[2].is_static()) {
+                    int64_t internal_hidden_size = internal_shape[2].get_length();
+                    return ov::PartialShape({1, input_size, internal_hidden_size * 3});
+                }
+            }
+        }
+
+        OPENVINO_THROW("Eagle3 hidden_states dimension is dynamic but internal_hidden_states not found or not static");
+    }
+
+    return ov::PartialShape();
+}
+
 void Eagle3Extension::validate_hidden_state_tensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& name) {
     OPENVINO_ASSERT(ov::element::f32 == tensor->get_element_type() || ov::element::f16 == tensor->get_element_type(),
                     name + " input must be float32 or float16");
     OPENVINO_ASSERT(tensor->get_shape().size() == 3,
                     name + " input must have 3 dimensions: [batch, token_length, embedding_size]");
+}
+
+void Eagle3Extension::store_hidden_state_inputs(
+    const std::vector<ov::Output<const ov::Node>>& inputs,
+    const std::function<ov::SoPtr<ov::ITensor>(const ov::Output<const ov::Node>&)>& get_tensor_func) {
+    // Only draft models need hidden state inputs
+    if (m_role != Eagle3ModelRole::Draft) {
+        return;
+    }
+
+    auto hidden_states_port = util::find_port_by_name(inputs, Eagle3LayerNames::hidden_states);
+    OPENVINO_ASSERT(hidden_states_port.has_value(),
+                    "Eagle3 Draft model requires 'hidden_states' input to be provided by user");
+    auto hidden_states_tensor = get_tensor_func(hidden_states_port.value());
+    validate_hidden_state_tensor(hidden_states_tensor, "hidden_states");
+    m_hidden_states = hidden_states_tensor;
+
+    auto internal_hidden_states_port = util::find_port_by_name(inputs, Eagle3LayerNames::internal_hidden_states);
+    OPENVINO_ASSERT(internal_hidden_states_port.has_value(),
+                    "Eagle3 Draft model requires 'internal_hidden_states' input to be provided by user");
+    auto internal_hidden_states_tensor = get_tensor_func(internal_hidden_states_port.value());
+    validate_hidden_state_tensor(internal_hidden_states_tensor, "internal_hidden_states");
+    m_internal_hidden_states = internal_hidden_states_tensor;
 }
 
 }  // namespace npuw
@@ -49,27 +115,11 @@ void pad_hidden_state_input(const ov::SoPtr<ov::ITensor>& padded_hidden_state,
     OPENVINO_ASSERT(padded_shape[2] == hidden_state_shape[2], "Embedding size must match");
     OPENVINO_ASSERT(padded_shape[1] >= hidden_state_shape[1], "Padded token length must be >= input token length");
 
-    // Calculate dimensions (batch size is always 1)
-    const size_t input_token_len = hidden_state_shape[1];
-    const size_t padded_token_len = padded_shape[1];
-    const size_t embedding_size = hidden_state_shape[2];
-    const size_t token_padding = padded_token_len - input_token_len;
-    const size_t elem_size = hidden_state->get_element_type().size();
+    // Zero-fill the padded tensor
+    std::memset(padded_hidden_state->data(), 0, padded_hidden_state->get_byte_size());
 
-    // Calculate byte sizes for efficient bulk operations
-    const size_t input_bytes = input_token_len * embedding_size * elem_size;
-    const size_t padding_bytes = token_padding * embedding_size * elem_size;
-    const size_t total_bytes = padded_hidden_state->get_byte_size();
-
-    // Get raw data pointers
-    const uint8_t* src_data = reinterpret_cast<const uint8_t*>(hidden_state->data());
-    uint8_t* dst_data = reinterpret_cast<uint8_t*>(padded_hidden_state->data());
-
-    // Use memset for efficient zero-filling (left padding)
-    std::memset(dst_data, 0, total_bytes);
-
-    // Use memcpy for efficient data copying (right-aligned after padding)
-    std::memcpy(dst_data + padding_bytes, src_data, input_bytes);
+    // Copy hidden state data to the right side
+    ov::npuw::util::copy_to_right(hidden_state, padded_hidden_state);
 }
 
 }  // anonymous namespace
@@ -103,8 +153,9 @@ void Eagle3Extension::initialize(const ov::AnyMap& rt_info,
         m_role = Eagle3ModelRole::Target;
         LOG_INFO("Eagle3 Target Model detected");
     } else {
-        m_role = Eagle3ModelRole::None;
-        LOG_WARN("Eagle3 model flag set in rt_info, but model structure doesn't match Draft or Target pattern");
+        OPENVINO_THROW("Eagle3 model flag set in rt_info, but model structure doesn't match Draft or Target pattern. "
+                       "Draft requires: hidden_states, internal_hidden_states inputs + last_hidden_state output. "
+                       "Target requires: last_hidden_state output only.");
     }
 }
 
@@ -116,31 +167,30 @@ void Eagle3Extension::prepare_inputs(std::shared_ptr<ov::IAsyncInferRequest> req
     }
 
     auto hidden_states_it = in_ports.find(Eagle3LayerNames::hidden_states);
-    if (hidden_states_it != in_ports.end() && m_hidden_states) {
-        auto padded_hidden_states = request->get_tensor(hidden_states_it->second);
-        pad_hidden_state_input(padded_hidden_states, m_hidden_states);
-        LOG_VERB("Eagle3 Draft: Set hidden_states input tensor");
-    }
+    OPENVINO_ASSERT(hidden_states_it != in_ports.end(), "Eagle3 Draft model must have hidden_states input port");
+    OPENVINO_ASSERT(m_hidden_states, "Eagle3 Draft model requires hidden_states input tensor to be provided");
+    auto padded_hidden_states = request->get_tensor(hidden_states_it->second);
+    pad_hidden_state_input(padded_hidden_states, m_hidden_states);
 
     auto internal_hidden_states_it = in_ports.find(Eagle3LayerNames::internal_hidden_states);
-    if (internal_hidden_states_it != in_ports.end() && m_internal_hidden_states) {
-        auto padded_internal_hidden_states = request->get_tensor(internal_hidden_states_it->second);
-        pad_hidden_state_input(padded_internal_hidden_states, m_internal_hidden_states);
-        LOG_VERB("Eagle3 Draft: Set internal_hidden_states input tensor");
-    }
+    OPENVINO_ASSERT(internal_hidden_states_it != in_ports.end(),
+                    "Eagle3 Draft model must have internal_hidden_states input port");
+    OPENVINO_ASSERT(m_internal_hidden_states,
+                    "Eagle3 Draft model requires internal_hidden_states input tensor to be provided");
+    auto padded_internal_hidden_states = request->get_tensor(internal_hidden_states_it->second);
+    pad_hidden_state_input(padded_internal_hidden_states, m_internal_hidden_states);
 }
 
-void Eagle3Extension::process_outputs(std::shared_ptr<ov::IAsyncInferRequest> request,
-                                      const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports) {
-    // Both draft and target models have last_hidden_state output
-    if (m_role == Eagle3ModelRole::Draft || m_role == Eagle3ModelRole::Target) {
-        auto last_hidden_state_it = out_ports.find(Eagle3LayerNames::last_hidden_state);
-        if (last_hidden_state_it != out_ports.end()) {
-            m_last_hidden_state = request->get_tensor(last_hidden_state_it->second);
-            LOG_VERB("Eagle3 " << (m_role == Eagle3ModelRole::Draft ? "Draft" : "Target")
-                               << ": Retrieved last_hidden_state output tensor");
-        }
-    }
+void Eagle3Extension::update_last_hidden_state(
+    std::shared_ptr<ov::IAsyncInferRequest> request,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports) {
+    auto last_hidden_state_it = out_ports.find(Eagle3LayerNames::last_hidden_state);
+    OPENVINO_ASSERT(last_hidden_state_it != out_ports.end(), "Eagle3 model must have last_hidden_state output port");
+
+    m_last_hidden_state = request->get_tensor(last_hidden_state_it->second);
+
+    LOG_VERB("Eagle3 " << (m_role == Eagle3ModelRole::Draft ? "Draft" : "Target")
+                       << ": Retrieved last_hidden_state output tensor");
 }
 
 void Eagle3Extension::prepare_inputs_for_chunk(
@@ -153,39 +203,37 @@ void Eagle3Extension::prepare_inputs_for_chunk(
         return;
     }
 
+    OPENVINO_ASSERT(chunk_token_count > 0, "Chunk token count must be greater than 0");
+
     auto process_hidden_state_chunk = [&](const std::string& input_name,
                                           const ov::SoPtr<ov::ITensor>& original_tensor) {
         auto input_it = in_ports.find(input_name);
-        if (input_it != in_ports.end() && original_tensor) {
-            auto padded_tensor = request->get_tensor(input_it->second);
+        OPENVINO_ASSERT(input_it != in_ports.end(), "Eagle3 Draft model must have " + input_name + " input port");
+        OPENVINO_ASSERT(original_tensor, "Eagle3 Draft model requires " + input_name + " input tensor to be provided");
 
-            // Create chunk slice from the original tensor
-            // Shape: [batch, seq_len, embedding_size] - always 3D
-            const auto& original_shape = original_tensor->get_shape();
-            if (original_shape.size() == 3) {
-                constexpr uint32_t seq_dim = 1;  // Token length dimension is always dimension 1
+        auto padded_tensor = request->get_tensor(input_it->second);
 
-                // Ensure chunk boundaries are valid
-                uint32_t total_tokens = static_cast<uint32_t>(original_shape[seq_dim]);
-                uint32_t chunk_end_token = std::min(chunk_start_token + chunk_token_count, total_tokens);
+        // Get original tensor shape: [batch, seq_len, embedding_size]
+        const auto& original_shape = original_tensor->get_shape();
+        OPENVINO_ASSERT(original_shape.size() == 3,
+                        input_name + " tensor must have 3 dimensions: [batch, seq_len, embedding_size]");
 
-                if (chunk_start_token < total_tokens && chunk_token_count > 0) {
-                    // Create tensor slice for current chunk
-                    ov::Shape start_shape(original_shape.size(), 0);
-                    ov::Shape end_shape = original_shape;
+        constexpr uint32_t seq_dim = 1;
+        uint32_t total_tokens = static_cast<uint32_t>(original_shape[seq_dim]);
 
-                    start_shape[seq_dim] = chunk_start_token;
-                    end_shape[seq_dim] = chunk_end_token;
+        // Validate chunk boundaries
+        OPENVINO_ASSERT(chunk_start_token < total_tokens,
+                        "chunk_start_token (" + std::to_string(chunk_start_token) +
+                            ") must be less than total_tokens (" + std::to_string(total_tokens) + ")");
 
-                    auto chunk_tensor =
-                        ov::get_tensor_impl(ov::Tensor(ov::make_tensor(original_tensor), start_shape, end_shape));
+        uint32_t chunk_end_token = std::min(chunk_start_token + chunk_token_count, total_tokens);
 
-                    pad_hidden_state_input(padded_tensor, chunk_tensor);
-                    LOG_VERB("Eagle3 Draft: Set " << input_name << " chunk [" << chunk_start_token << ":"
-                                                  << chunk_end_token << "] for chunk processing");
-                }
-            }
-        }
+        // Create tensor slice for current chunk along the sequence dimension
+        auto chunk_tensor = util::make_tensor_slice(original_tensor, seq_dim, chunk_start_token, chunk_end_token);
+
+        pad_hidden_state_input(padded_tensor, chunk_tensor);
+        LOG_VERB("Eagle3 Draft: Set " << input_name << " chunk [" << chunk_start_token << ":" << chunk_end_token
+                                      << "] for chunk processing");
     };
 
     // Process both hidden state inputs using the unified helper
