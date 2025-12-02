@@ -53,6 +53,10 @@ public:
         return _mutex;
     }
 
+    bool init_completed() {
+        return _init_completed;
+    }
+
     virtual void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) = 0;
     virtual const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const = 0;
     virtual void resize_last_submitted_event(size_t batch) = 0;
@@ -68,6 +72,7 @@ protected:
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
     // first inference starts running
     std::mutex _mutex;
+    bool _init_completed = false;
 };
 
 }  // namespace intel_npu
