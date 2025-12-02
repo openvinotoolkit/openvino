@@ -171,6 +171,19 @@ static const TypeMapping dnnlMatMulTypeMapping {
     return config.attrs.postOps.empty();
 }
 
+[[maybe_unused]] static inline bool dnnlMatMulSupportedPrecision(const FCConfig& config) {
+    // support regular float type matmul
+    if (any_of(srcType(config), f32, f16, bf16) && any_of(weiType(config), f32, f16, bf16)) {
+        return true;
+    }
+    // i32 can be up converted to f32
+    if (any_of(srcType(config), i32) && any_of(weiType(config), i32)) {
+        return true;
+    }
+    // support integer type quantization matmul
+    return any_of(srcType(config), u8, i8) && any_of(weiType(config), u8, i8);
+}
+
 struct CreateOptimalConfigDefault {
     std::optional<ConvConfig> operator()(const ConvConfig& config) const {
         return createOptimalConfigCommon(config, dnnlMatMulTypeMapping, dnnlFCLayoutConfig, fcMappingNotation);
@@ -195,7 +208,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(MlasGemmExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
-
+                VERIFY(weiRank(config) <= 3U, UNSUPPORTED_WEI_RANK);
+                VERIFY(weiRank(config) != 3U || weiDims(config)[0] <= 1, UNSUPPORTED_WEI_RANK);
                 return true;
             },
             HasNoOptimalConfig<FCAttrs>{},
@@ -278,8 +292,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
 
                         const bool fcSemantic = true;
+                        const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
                         ConvAttrs convAttrs{{1}, {0}, {0}, {0},
-                                            AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
+                                            AutoPaddingType::None, hasBias, attrs.weightsNonTransposed,
                                             false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
 
                         auto primitive =
@@ -366,9 +381,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(all_of(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(any_of(weiType(config), f32, i8, i4), UNSUPPORTED_WEI_PRECISIONS);
-                if (config.attrs.withBias) {
-                    VERIFY(biaType(config) == f32, UNSUPPORTED_SRC_PRECISIONS);
-                }
+                VERIFY(implication(hasBias(config), biaType(config) == f32), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
                 VERIFY(MatMulKleidiAIExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
@@ -402,13 +415,16 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             OperationType::MatMul,
             // supports
             []([[maybe_unused]] const FCConfig& config) -> bool {
-                // enable only with debug caps and env variable defined for now
                 CPU_DEBUG_CAP_ENABLE(
                     if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                         return true;
                     })
-                return false;
+                VERIFY(dnnlMatMulSupportedPrecision(config), UNSUPPORTED_SRC_WEI_PRECISIONS);
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
+                VERIFY(weiDims(config)[0] > 1, UNSUPPORTED_WEI_RANK);
+                return true;
             },
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
@@ -425,8 +441,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 MatMulAttrs matMulAttrs{false,
                                         false};
                 matMulAttrs.postOps = attrs.postOps;
-                matMulAttrs.transposeB = attrs.weightsNonTransposed;
+                matMulAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
                 matMulAttrs.constantWeights = true;
+                matMulAttrs.fcSemantic = true;
                 
                 return std::make_shared<
                     DnnlExecutor<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData,

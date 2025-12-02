@@ -16,8 +16,8 @@
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "ir_serializer.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "vcl_serializer.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 #include "zero_init_mock.hpp"
 
@@ -82,10 +82,6 @@ protected:
         std::shared_ptr<ZeroInitStructsMock> zeroInitMock = std::make_shared<ZeroInitStructsMock>(graphExtVersion);
         zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
         zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
-
-        auto compilerProperties = zeroInitStruct->getCompilerProperties();
-        const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-        irSerializer = std::make_shared<IRSerializer>(IRSerializer(model, maxOpsetVersion));
     }
 
     void TearDown() override {
@@ -94,15 +90,15 @@ protected:
 
     void serializeIR() {
         auto compilerProperties = zeroInitStruct->getCompilerProperties();
-        const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
         const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-        serializedIR = irSerializer->serializeIR(model, compilerVersion, maxOpsetVersion);
+        serializedIR =
+            driver_compiler_utils::serializeIR(model, compilerProperties.compilerVersion, maxOpsetVersion, true);
     }
 
     bool bypassUmdCache() {
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
-                if (configItem.first ==  ov::cache_dir.name()) {
+                if (configItem.first == ov::cache_dir.name()) {
                     const auto set_cache_dir = configItem.second;
                     if (!set_cache_dir.empty()) {
                         return true;
@@ -127,7 +123,6 @@ protected:
     GraphDescriptor graphDescriptor;
 
     std::shared_ptr<ov::Model> model;
-    std::shared_ptr<driver_compiler_utils::IRSerializer> irSerializer;
 
     std::string targetDevice;
     std::string blobPath;
@@ -424,5 +419,19 @@ TEST_P(ZeroGraphTest, SetAlignedBlob) {
 
     ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
+
+#ifdef _WIN32
+TEST_P(ZeroGraphTest, CheckNoThrowOnUnsupportedFeature) {
+    if (zeroInitStruct->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 11)) {
+        // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
+        if (zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(zeroInitStruct->getDevice(),
+                                                                            ZE_NPU_DRIVER_OPTIONS,
+                                                                            "NO_THROW_ON_UNSUPPORTED_FEATURE",
+                                                                            nullptr) != ZE_RESULT_SUCCESS) {
+            ADD_FAILURE() << "NO_THROW_ON_UNSUPPORTED_FEATURE shall be supported.";
+        }
+    }
+}
+#endif
 
 }  // namespace ov::test::behavior

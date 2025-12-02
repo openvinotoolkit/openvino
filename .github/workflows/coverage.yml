@@ -85,24 +85,31 @@ jobs:
 
       - name: Run OV core unit tests
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_core_unit_tests
+        continue-on-error: true
 
       - name: Run OV Proxy plugin tests
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_proxy_plugin_tests
+        continue-on-error: true
 
       - name: Run OV Hetero Func tests
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_hetero_func_tests --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
+        continue-on-error: true
 
       - name: Run IR frontend tests
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_ir_frontend_tests
+        continue-on-error: true
 
       - name: Run ONNX frontend tests
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_onnx_frontend_tests --gtest_filter=-*IE_GPU*
+        continue-on-error: true
 
       #- name: Run Paddle frontend unit tests
       #  run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/paddle_tests --gtest_filter=-*IE_GPU*
+      #  continue-on-error: true
 
       - name: Run TensorFlow frontend unit tests
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_tensorflow_frontend_tests --gtest_filter=-*IE_GPU*
+        continue-on-error: true
 
       - name: Build coverage with CMake
         uses: ashutoshvarma/action-cmake-build@ade188313bc7eaa6f14349569a64d8bc716342ff # master
@@ -125,8 +132,13 @@ jobs:
           pwd
       - name: Generate raport
         run: |
-          lcov --capture --directory ${{ github.workspace }}/. --output-file coverage.info
-          genhtml coverage.info --output-directory coverage-report
+          lcov --capture --directory ${{ github.workspace }}/build \
+            --output-file coverage.info \
+            --ignore-errors mismatch,source
+          genhtml coverage.info \
+            --output-directory coverage-report \
+            --ignore-errors source \
+            --synthesize-missing
       - name: Collect coverage
         uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:

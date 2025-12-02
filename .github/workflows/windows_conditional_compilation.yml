@@ -10,6 +10,11 @@ on:
     # run daily at 00:00
     - cron: '0 0 * * *'
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   merge_group:
   push:
     branches:
@@ -31,6 +36,7 @@ jobs:
   Smart_CI:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
@@ -177,9 +183,8 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF `
             -DCMAKE_CXX_STANDARD=20 `
             -DENABLE_TESTS=ON `
-            -DENABLE_CPPLINT=OFF `
             -DENABLE_NCC_STYLE=OFF `
-            -DENABLE_PROFILING_ITT=ON `
+            -DENABLE_PROFILING_ITT=FULL `
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
@@ -372,7 +377,6 @@ jobs:
         run: |
           cmake `
             -DBUILD_SHARED_LIBS=OFF `
-            -DENABLE_CPPLINT=OFF `
             -DSELECTIVE_BUILD=ON `
             -DENABLE_TEMPLATE=OFF `
             -DENABLE_INTEL_GPU=OFF `

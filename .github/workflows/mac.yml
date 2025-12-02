@@ -47,6 +47,7 @@ jobs:
   Smart_CI:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
@@ -215,13 +216,6 @@ jobs:
         working-directory: ${{ env.INSTALL_TEST_DIR }}
 
       # Setup additional Python versions for wheels building
-      - name: Setup Python 3.9
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: "3.9"
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
-
       - name: Setup Python 3.10
         uses: ./openvino/.github/actions/setup_python
         with:
@@ -245,7 +239,7 @@ jobs:
           
       - name: Build Python API and wheels
         run: |
-          for py_version in "3.9" "3.10" "3.11" "3.12" "3.13"
+          for py_version in "3.10" "3.11" "3.12" "3.13"
           do
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
             $python_exec_path -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
@@ -436,7 +430,7 @@ jobs:
 
       - name: Store artifacts to a shared drive
         id: store_artifacts
-        if: ${{ always() }}
+        if: ${{ github.event_name != 'merge_group' }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |
