@@ -88,42 +88,6 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
 void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
     TransformationsPipeline transformations(config, context);
-    //?
-    auto ops = model->get_ordered_ops();
-    bool found_f8e8m0 = false, found_f8e4m3 = false, found_f8e5m2 = false, found_f4e2m1 = false;
-    for (const auto& op : ops) {
-        for (const auto& input : op->inputs()) {
-            if (input.get_element_type() == ov::element::f8e8m0) {
-                found_f8e8m0 = true;
-            }
-            if (input.get_element_type() == ov::element::f8e4m3) {
-                found_f8e4m3 = true;
-            }
-            if (input.get_element_type() == ov::element::f8e5m2) {
-                found_f8e5m2 = true;
-            }
-            if (input.get_element_type() == ov::element::f4e2m1) {
-                found_f4e2m1 = true;
-            }
-            if ((found_f8e8m0 && found_f8e4m3) ||
-                (found_f8e8m0 && found_f8e5m2) ||
-                (found_f8e8m0 && found_f4e2m1)) {
-                break;
-            }
-        }
-    }
-    if (found_f8e8m0) {
-        std::cout << "1. Model contains f8e8m0 data type" << std::endl;
-    }
-    if (found_f8e4m3) {
-        std::cout << "2. Model contains f8e4m3 data type" << std::endl;
-    }
-    if (found_f8e5m2) {
-        std::cout << "2. Model contains f8e5m2 data type" << std::endl;
-    }
-    if (found_f4e2m1) {
-        std::cout << "2. Model contains f4e2m1 data type" << std::endl;
-    }
 
     auto start = Time::now();
     transformations.apply(model);
@@ -674,6 +638,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::model.name(), PropertyMutability::WO},
         ov::PropertyName{ov::intel_gpu::config_file.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::dynamic_quantization_data_type.name(), PropertyMutability::RW},
     };
 
     return supported_properties;

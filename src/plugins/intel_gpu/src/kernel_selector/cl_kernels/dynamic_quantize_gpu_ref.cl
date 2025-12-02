@@ -129,7 +129,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
 #else  // !ASYMMETRIC_QUANTIZATION
     max_val = work_group_reduce_max(max_val);
-#if IS_F8
+#if IS_MXFP
     float out_dt_max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)));
     float max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(max_val));
     half scale = out_dt_max_val_rounded_down / max_val_rounded_down;
@@ -162,7 +162,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
             val += zp;
 #endif
 #if IS_F8
-            BLOCK_WRITEN(OUTPUT_TYPE, 8, output + out_offset + x * 8, 0, TO_OUTPUT_VEC_TYPE_CUSTOM(val));
+            vstore8(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (char*)(&output[out_offset + x * 8]));
 #else
             vstore8(TO_OUTPUT_VEC_TYPE_CUSTOM(val), 0, output + out_offset + x * 8);
 #endif

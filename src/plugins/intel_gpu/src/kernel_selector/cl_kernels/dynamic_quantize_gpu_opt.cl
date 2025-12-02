@@ -68,22 +68,18 @@ KERNEL(dynamic_quantize_gpu_opt)(
         max_value = fmax(max_value, max[i]);
     }
 
-#if IS_F8
+#if IS_MXFP
     float out_dt_max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)));
     float max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(max_value));
     half quan_scale = out_dt_max_val_rounded_down / max_val_rounded_down;
 #else
     half quan_scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
-#endif // IS_F8
+#endif // MXFP
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
 #if IS_F8
         quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale);
-        //BLOCK_WRITEN(OUTPUT_TYPE, 4, output + output_offset + i * 4, 0, quantized_value[i]);
-        output[output_offset + i * 4] = AS_OUTPUT_TYPE(quantized_value[i].data[0]);
-        output[output_offset + i * 4 + 1] = AS_OUTPUT_TYPE(quantized_value[i].data[1]);
-        output[output_offset + i * 4 + 2] = AS_OUTPUT_TYPE(quantized_value[i].data[2]);
-        output[output_offset + i * 4 + 3] = AS_OUTPUT_TYPE(quantized_value[i].data[3]);
+        vstore4(quantized_value[i].data, 0, (char*)(&output[output_offset + i * 4]));
 #else
         quantized_value[i] = convert_char4(input_0[i] * (half4)quan_scale);
         vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
@@ -185,16 +181,21 @@ KERNEL(dynamic_quantize_gpu_opt)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
     OUTPUT2_TYPE zp = (OUTPUT2_TYPE)(-min_value * scale);
 #else
-    OUTPUT1_TYPE scale = 127.0h / max_value;
+    OUTPUT1_TYPE scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
 #endif
 
     val *= scale;
 #if ASYMMETRIC_QUANTIZATION
     val += zp;
     VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
-#else
+#else // ASYMMETRIC_QUANTIZATION
+#if IS_F8
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
+    VSTORE_N(out.data, 0, (char*)(&output[output_offset + (local_id * block_size)]));
+#else // IS_F8
     VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
-#endif
+#endif // IS_F8
+#endif // ASYMMETRIC_QUANTIZATION
 
     if (sglid == 0 && local_id == 0) {
 #if OUTPUT_DIMS == 2
@@ -296,7 +297,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
     OUTPUT2_TYPE zp = (OUTPUT2_TYPE)(-min_value * scale);
 #else
-    OUTPUT1_TYPE scale = 127.0h / max_value;
+    OUTPUT1_TYPE scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
 #endif
 
 
@@ -308,9 +309,14 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if ASYMMETRIC_QUANTIZATION
         val[i] += zp;
         VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
-#else
+#else // ASYMMETRIC_QUANTIZATION
+#if IS_F8
+        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val[i]);
+        VSTORE_N(out.data, 0, (char*)(&output[offset + ((local_id * iteration + i) * block_size)]));
+#else // IS_F8
         VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
-#endif
+#endif // IS_F8
+#endif // ASYMMETRIC_QUANTIZATION
     }
 
     if (sglid == 0 && local_id == 0) {

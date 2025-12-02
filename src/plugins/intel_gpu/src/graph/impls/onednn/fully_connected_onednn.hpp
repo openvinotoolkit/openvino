@@ -60,6 +60,8 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                                one_of(in0_dt, {data_types::f16, data_types::f32, data_types::i8, data_types::u8}) &&
                                one_of(wei_dt, {data_types::u8, data_types::i8, data_types::u4, data_types::i4}) &&
                                one_of(out_dt, {data_types::f16, data_types::f32, data_types::u8, data_types::i8});
+        compressed_case = compressed_case || (one_of(in0_dt, {data_types::f8e4m3, data_types::f8e5m2}) && wei_dt == data_types::i4 &&
+                                              one_of(out_dt, {data_types::f16, data_types::f32}));
         bool mxfp_compressed_case = fc_prim->compressed_weights &&
                                     one_of(in0_dt, {data_types::f8e4m3, data_types::f8e5m2, data_types::f4e2m1}) &&
                                     one_of(wei_dt, {data_types::f8e4m3, data_types::f8e5m2, data_types::f4e2m1}) &&
