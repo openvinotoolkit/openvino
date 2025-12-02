@@ -76,7 +76,7 @@ KERNEL(reverse_ref)(
 #endif
 #else  //reverse mode
 
-    for (uint i = 0; i < INPUT1_FEATURE_NUM; ++i) {
+    for (uint i = 0; i < INPUT1_LENGTH; ++i) {
         if (axis[i] == BATCH_INDEX) {
             b = OUTPUT_BATCH_NUM - b - 1;
         } else if (axis[i] == FEATURE_INDEX) {
