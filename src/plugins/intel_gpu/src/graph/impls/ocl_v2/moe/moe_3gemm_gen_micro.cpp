@@ -10,9 +10,7 @@
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
-// #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "ocl_v2/utils/jitter.hpp"
-// #include "moe_gemm_inst.h"
 #include "../utils/kernel_generator.hpp"
 
 // clang-format on
@@ -63,10 +61,10 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     GPU_DEBUG_TRACE_DETAIL << "\t m_wei_idx: " << m_wei_idx << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "\t m_wei_idx.get_shape(): " << params.input_layouts[m_wei_idx].to_short_string() << std::endl;
     const auto& weight_shape = params.input_layouts[m_wei_idx].get_shape();
-    // u4:bfyx:4x3072x8x128:nopad
+    // weight layout: u4:bfyx:4x3072x8x128:nopad
     size_t expert_stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) : (weight_shape[1] * weight_shape[2]);
     jit.make("EXPERT_STRIDE", expert_stride / 2);
-    // std::cout << "\t expert_stride: " << expert_stride / 2 << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "\t expert_stride: " << expert_stride / 2 << std::endl;
 
     GPU_DEBUG_TRACE_DETAIL << "\t m_scale_idx: " << m_scale_idx << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "\t m_scale_idx.get_shape(): " << params.input_layouts[m_scale_idx].to_short_string() << std::endl;
@@ -79,32 +77,26 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     }
 
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-    switch(m_type) {
-        case MoE3GemmMicroKernelType::MLP_GATE:
-        case MoE3GemmMicroKernelType::MLP_UP:
-            // f16:bfyx:[?,2048]:nopad
-            jit.make("INPUT_STRIDE", desc->_config.hidden_size);
-            jit.make("OUTPUT_STRIDE", desc->_config.inter_size);
-            // std::cout << "\t INPUT_STRIDE: " << desc->_config.hidden_size << std::endl;
-            // std::cout << "\t OUTPUT_STRIDE: " << desc->_config.inter_size << std::endl;
-            break;
-        case MoE3GemmMicroKernelType::MLP_DOWN:
-            jit.make("INPUT_STRIDE", desc->_config.inter_size);
-            jit.make("OUTPUT_STRIDE", desc->_config.hidden_size);
-            // std::cout << "\t INPUT_STRIDE: " << desc->_config.inter_size << std::endl;
-            // std::cout << "\t OUTPUT_STRIDE: " << desc->_config.hidden_size << std::endl;
-            break;
-        default:
-            OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");
-            break;
+    switch (m_type) {
+    case MoE3GemmMicroKernelType::MLP_GATE:
+    case MoE3GemmMicroKernelType::MLP_UP:
+        // f16:bfyx:[?,2048]:nopad
+        jit.make("INPUT_STRIDE", desc->_config.hidden_size);
+        jit.make("OUTPUT_STRIDE", desc->_config.inter_size);
+        break;
+    case MoE3GemmMicroKernelType::MLP_DOWN:
+        jit.make("INPUT_STRIDE", desc->_config.inter_size);
+        jit.make("OUTPUT_STRIDE", desc->_config.hidden_size);
+        break;
+    default:
+        OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");
+        break;
     }
 
     auto slm_size = moe_gemm.getSetting("slm_size");
-    // std::cout << "MoE3GemmMicroGenerator::get_jit_constants() slm_size: " << slm_size << std::endl;
     if (slm_size > 0)
         jit.make("USE_SLM", 1);
 
-    // std::cout << "MoE3GemmMicroGenerator::get_jit_constants() done " << std::endl;
     return jit;
 }
 
@@ -163,6 +155,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
         break;
     }
 
+    // weight layout example: u4:bfyx:4x3072x8x128:nopad
     const auto& weight_shape = params.get_input_layout(wei_idx).get_shape();
     const bool is_prefill = true;
     size_t m = weight_shape[1];
@@ -186,7 +179,9 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_moe.Ta_ext = convert_type(params.get_input_layout(wei_idx).data_type);
         problem_moe.A.setAlignment(micro::alignment_for_ld(k * problem_moe.Ta_ext));
 
-        problem_moe.Ta_scale = convert_type(params.get_input_layout(scale_idx).data_type);  // zp dt
+        // scale layout example: f16:bfyx:4x8x3072:nopad
+        const auto& scale_layout = params.get_input_layout(scale_idx);
+        problem_moe.Ta_scale = convert_type(scale_layout.data_type);
         problem_moe.A_scale.setAlignment(2);
         problem_moe.A_scale.layout = micro::MatrixLayout::N;
         problem_moe.asPtrDims = static_cast<int>(MICRO_DIMENSIONALITY::MATRIX);
@@ -197,6 +192,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
         opts_moe.scaleA = true;
         const bool is_weight_symmetric_quantized = false;
         if (!is_weight_symmetric_quantized) {
+            // zp layout example: u4:bfyx:4x8x3072:nopad
             const auto& zp_layout = params.get_input_layout(zp_idx);
             const auto zp_dt = convert_type(zp_layout.data_type);
             problem_moe.Tao = zp_dt;
