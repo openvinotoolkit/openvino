@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>  // DEBUG CVS-176305
-
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "pt_framework_node.hpp"
@@ -31,13 +29,6 @@ OutputVector translate_get_attr(const NodeContext& context) {
         // Case 2: dtype is Tensor with Complex element type
         bool is_complex = dtype.is<type::Complex>() ||
                           (dtype.is<type::Tensor>() && dtype.as<type::Tensor>().element_type.is<type::Complex>());
-
-        // DEBUG CVS-176305
-        std::cout << "[DEBUG translate_get_attr]" << std::endl;
-        std::cout << "  output_name=" << decoder->get_output_debug_name(0) << std::endl;
-        std::cout << "  dtype.is<type::Complex>()=" << dtype.is<type::Complex>() << std::endl;
-        std::cout << "  is_complex=" << is_complex << std::endl;
-        std::cout << "  output_shape=" << res[0].get_partial_shape() << std::endl;
 
         if (is_complex) {
             // Add complex mark to complex constant

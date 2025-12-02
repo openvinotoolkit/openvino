@@ -4,8 +4,6 @@
 
 #include "openvino/op/unsqueeze.hpp"
 
-#include <iostream>  // DEBUG CVS-176305
-
 #include "common_translators.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/complex_type_mark.hpp"
@@ -27,20 +25,6 @@ OutputVector translate_unsqueeze(const NodeContext& context) {
     auto dim = context.get_input(1);
 
     auto complex = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
-
-    // DEBUG CVS-176305
-    std::cout << "[DEBUG translate_unsqueeze]" << std::endl;
-    std::cout << "  input is ComplexTypeMark: " << (complex ? "true" : "false") << std::endl;
-    std::cout << "  input_node=" << x.get_node_shared_ptr()->get_type_name()
-              << ", input_shape=" << x.get_partial_shape() << std::endl;
-    // Print op_type if FrameworkNode
-    auto fw_node = as_type_ptr<ov::op::util::FrameworkNode>(x.get_node_shared_ptr());
-    if (fw_node) {
-        auto attrs = fw_node->get_attrs();
-        if (attrs.find("PtTypeName") != attrs.end()) {
-            std::cout << "  PtFrameworkNode op_type=" << attrs.at("PtTypeName") << std::endl;
-        }
-    }
 
     if (complex) {
         if (dim.get_element_type() != element::i32) {
