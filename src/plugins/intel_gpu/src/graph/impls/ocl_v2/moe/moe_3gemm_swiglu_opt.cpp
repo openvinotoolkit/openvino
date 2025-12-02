@@ -827,6 +827,10 @@ public:
         _gate_up_group_size = static_cast<int>(cur_moe->_config.group_size);
         _down_group_size = static_cast<int>(cur_moe->_config.group_size);
 
+        if (cur_moe->_config.group_size == std::numeric_limits<size_t>::max()) {
+            _gate_up_group_size = static_cast<int>(cur_moe->_config.hidden_size);
+            _down_group_size = static_cast<int>(cur_moe->_config.inter_size);
+        }
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt prefill: group_size=" << cur_moe->_config.group_size
                                << ", gate_up_group_size=" << _gate_up_group_size << ", down_group_size=" << _down_group_size << std::endl;
     }
