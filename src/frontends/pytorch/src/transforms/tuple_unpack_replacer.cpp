@@ -31,7 +31,7 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
         OutputVector outputs;
         auto input = tuple_unpack->input_value(0);
 
-        // CVS-176305: Check if input is wrapped in ComplexTypeMark
+        // Check if input is wrapped in ComplexTypeMark
         auto complex = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
         bool is_complex = complex != nullptr;
         if (is_complex) {
@@ -42,7 +42,7 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
         if (cast_fw_node(input_node, "prim::TupleConstruct")) {
             for (const auto& inp : input_node->inputs()) {
                 auto out = inp.get_source_output();
-                // CVS-176305: Preserve ComplexTypeMark for complex tensor outputs
+                // Preserve ComplexTypeMark for complex tensor outputs
                 if (is_complex) {
                     out = std::make_shared<ComplexTypeMark>(out);
                 }
@@ -57,7 +57,7 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
             auto split = std::make_shared<v1::Split>(input_node, axis_zero, tuple_unpack->outputs().size());
             for (size_t i = 0; i < split->get_output_size(); ++i) {
                 std::shared_ptr<Node> result = std::make_shared<v15::Squeeze>(split->output(i), axis_zero);
-                // CVS-176305: Preserve ComplexTypeMark for complex tensor outputs
+                // Preserve ComplexTypeMark for complex tensor outputs
                 if (is_complex) {
                     result = std::make_shared<ComplexTypeMark>(result);
                 }
@@ -68,7 +68,7 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
             // This case is produced by inlined_extension
             input_node->get_rt_info().erase("__torch_tuple_unpackable__");
             // remove TupleUnpack just bypassing it with all outputs from a custom operation which returns tuple
-            // CVS-176305: Preserve ComplexTypeMark for complex tensor outputs
+            // Preserve ComplexTypeMark for complex tensor outputs
             if (is_complex) {
                 OutputVector complex_outputs;
                 for (const auto& out : input_node->outputs()) {

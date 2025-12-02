@@ -129,7 +129,7 @@ class TestComplexOutput(PytorchLayerTest):
 
 class TestComplexMulWithBuffer(PytorchLayerTest):
     """
-    Test complex multiplication with buffer (CVS-176305).
+    Test complex multiplication with buffer.
     This tests that complex buffers from prim::GetAttr are correctly
     wrapped in ComplexTypeMark and preserved through operations.
     """
@@ -167,7 +167,7 @@ class TestComplexMulWithBuffer(PytorchLayerTest):
 
 class TestComplexRoPEPattern(PytorchLayerTest):
     """
-    Test Qwen-Image-like RoPE pattern with complex multiplication (CVS-176305).
+    Test Qwen-Image-like RoPE pattern with complex multiplication.
     This tests the full RoPE pattern: view_as_complex -> unsqueeze -> mul -> view_as_real.
     """
 
@@ -208,7 +208,7 @@ class TestComplexRoPEPattern(PytorchLayerTest):
 
 class TestComplexSqueeze(PytorchLayerTest):
     """
-    Test squeeze preserves ComplexTypeMark (CVS-176305).
+    Test squeeze preserves ComplexTypeMark.
     """
 
     def _prepare_input(self):
@@ -242,7 +242,7 @@ class TestComplexSqueeze(PytorchLayerTest):
 
 class TestComplexSelect(PytorchLayerTest):
     """
-    Test select preserves ComplexTypeMark (CVS-176305).
+    Test select preserves ComplexTypeMark.
     """
 
     def _prepare_input(self):
@@ -274,7 +274,7 @@ class TestComplexSelect(PytorchLayerTest):
 
 class TestComplexNarrow(PytorchLayerTest):
     """
-    Test narrow preserves ComplexTypeMark (CVS-176305).
+    Test narrow preserves ComplexTypeMark.
     """
 
     def _prepare_input(self):
@@ -306,7 +306,7 @@ class TestComplexNarrow(PytorchLayerTest):
 
 class TestComplexTypeAsChain(PytorchLayerTest):
     """
-    Test CVS-176305: type_as in complex operation chain.
+    Test type_as in complex operation chain.
     Tests the full RoPE pattern with type conversion.
     """
 

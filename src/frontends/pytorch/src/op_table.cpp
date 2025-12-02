@@ -754,7 +754,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::transpose", op::quantizable_op<op::translate_transpose>},
         {"aten::tril", op::translate_tril},
         {"aten::triu", op::translate_triu},
-        {"aten::type_as", op::translate_type_as},  // CVS-176305: custom translator for complex support
+        {"aten::type_as", op::translate_type_as},
         // aten::unbind - Supported in limited set of patterns
         {"aten::unflatten", op::translate_unflatten},
         {"aten::unfold", op::translate_unfold},
