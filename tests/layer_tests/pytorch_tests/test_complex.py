@@ -337,3 +337,87 @@ class TestComplexTypeAsChain(PytorchLayerTest):
     def test_rope_with_type_as(self, freqs_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(freqs_dtype), ie_device,
                    precision, ir_version, trace_model=True)
+
+
+class TestComplexGetAttrTypes(PytorchLayerTest):
+    """
+    Test complex buffer detection for different tensor types.
+
+    This tests the changes in:
+    - src/frontends/pytorch/src/op/get_attr.cpp
+
+    The fix adds proper detection of complex tensors when the dtype is
+    either directly Complex or Tensor with Complex element type.
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(2, 4, 2).astype(np.float32),)
+
+    def create_model(self, buffer_dtype):
+        class ComplexBufferModel(torch.nn.Module):
+            def __init__(self, buffer_dtype):
+                super().__init__()
+                # Create buffer with specified complex dtype
+                buffer = torch.randn(4, 2, dtype=torch.float32)
+                complex_buffer = torch.view_as_complex(buffer)
+                if buffer_dtype == torch.complex128:
+                    complex_buffer = complex_buffer.to(torch.complex128)
+                self.register_buffer('complex_data', complex_buffer)
+
+            def forward(self, x):
+                complex_x = torch.view_as_complex(x)
+                # Use complex buffer in computation
+                result = complex_x * self.complex_data
+                return torch.view_as_real(result)
+
+        return ComplexBufferModel(buffer_dtype), None, "prim::GetAttr"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("buffer_dtype", [torch.complex64, torch.complex128])
+    def test_complex_buffer_dtype(self, buffer_dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(buffer_dtype), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestComplexConstantTypes(PytorchLayerTest):
+    """
+    Test complex constant detection in node_context.cpp.
+
+    This tests the changes in:
+    - src/frontends/pytorch/src/node_context.cpp
+
+    The fix properly handles complex constants when dtype is directly Complex
+    (from torch.ComplexFloatTensor, torch.ComplexHalfTensor, etc.) in addition
+    to Tensor with Complex element type.
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(2, 3, 2).astype(np.float32),)
+
+    def create_model(self, const_dtype):
+        class ComplexConstModel(torch.nn.Module):
+            def __init__(self, const_dtype):
+                super().__init__()
+                self.const_dtype = const_dtype
+
+            def forward(self, x):
+                complex_x = torch.view_as_complex(x)
+                # Create inline complex constant
+                complex_const = torch.tensor([1.0 + 2.0j, 3.0 + 4.0j, 5.0 + 6.0j],
+                                              dtype=self.const_dtype)
+                result = complex_x * complex_const
+                return torch.view_as_real(result)
+
+        return ComplexConstModel(const_dtype), None, "prim::Constant"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("const_dtype", [torch.complex64, torch.complex128])
+    def test_complex_constant(self, const_dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(const_dtype), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
