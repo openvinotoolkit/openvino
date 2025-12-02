@@ -245,8 +245,8 @@ TEST_P(CheckWeightlessCacheAccuracyLargeConv, smoke_CheckWeightlessCacheAccuracy
                                                    model_dtype,
                                                    {3, 3},
                                                    {1, 1},
-                                                   {0, 0},
-                                                   {0, 0},
+                                                   {1, 1},
+                                                   {1, 1},
                                                    {1, 1},
                                                    ov::op::PadType::EXPLICIT,
                                                    512);
