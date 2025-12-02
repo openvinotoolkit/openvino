@@ -12,8 +12,9 @@ uchar _f16_to_bf8_universal(half val, bool is_saturation) {
 
     uchar ret_tmp = p[0] >> 8;
     const bool is_infnan = (ret_tmp & exp_mask) == exp_mask;
-
-    if (!is_infnan) {
+    if (is_infnan) {
+        ret_tmp |= (mant != 0); // The bit signifying NaNness may have been cut off
+    } else {
         ret_tmp += (mant & 0x80) && ((mant & 0x7F) || (mant & 0x100)); // RTE
         if (is_saturation) {
             bool is_overflow = (ret_tmp & exp_mask) == exp_mask;
