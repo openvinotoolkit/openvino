@@ -19,7 +19,6 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/core/type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -610,7 +609,6 @@ int get_model_prefer_threads(const int num_streams,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
     bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
-    auto is_paged_attention_model = false;
     bool is_LLM = config.modelType == Config::ModelType::LLM;
 
     auto default_prefer_threads_latency = [&]() {
