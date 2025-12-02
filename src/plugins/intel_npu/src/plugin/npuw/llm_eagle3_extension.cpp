@@ -10,6 +10,7 @@
 #include "infer_request_utils.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "util.hpp"
 
 namespace ov {
 namespace npuw {
@@ -116,7 +117,7 @@ void pad_hidden_state_input(const ov::SoPtr<ov::ITensor>& padded_hidden_state,
     OPENVINO_ASSERT(padded_shape[1] >= hidden_state_shape[1], "Padded token length must be >= input token length");
 
     // Zero-fill the padded tensor
-    std::memset(padded_hidden_state->data(), 0, padded_hidden_state->get_byte_size());
+    ov::npuw::util::fill_tensor_bytes(padded_hidden_state, 0u);
 
     // Copy hidden state data to the right side
     ov::npuw::util::copy_to_right(hidden_state, padded_hidden_state);
@@ -159,7 +160,7 @@ void Eagle3Extension::initialize(const ov::AnyMap& rt_info,
     }
 }
 
-void Eagle3Extension::prepare_inputs(std::shared_ptr<ov::IAsyncInferRequest> request,
+void Eagle3Extension::prepare_inputs(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                      const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports) {
     // Only draft models need to prepare Eagle3 inputs
     if (m_role != Eagle3ModelRole::Draft) {
@@ -182,7 +183,7 @@ void Eagle3Extension::prepare_inputs(std::shared_ptr<ov::IAsyncInferRequest> req
 }
 
 void Eagle3Extension::update_last_hidden_state(
-    std::shared_ptr<ov::IAsyncInferRequest> request,
+    const std::shared_ptr<ov::IAsyncInferRequest>& request,
     const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports) {
     auto last_hidden_state_it = out_ports.find(Eagle3LayerNames::last_hidden_state);
     OPENVINO_ASSERT(last_hidden_state_it != out_ports.end(), "Eagle3 model must have last_hidden_state output port");
@@ -194,7 +195,7 @@ void Eagle3Extension::update_last_hidden_state(
 }
 
 void Eagle3Extension::prepare_inputs_for_chunk(
-    std::shared_ptr<ov::IAsyncInferRequest> request,
+    const std::shared_ptr<ov::IAsyncInferRequest>& request,
     const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
     uint32_t chunk_start_token,
     uint32_t chunk_token_count) {

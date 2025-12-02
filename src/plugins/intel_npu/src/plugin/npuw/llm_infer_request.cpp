@@ -1152,15 +1152,14 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
         return m_logits;
     }
 
-    if (port_names.count(Eagle3LayerNames::last_hidden_state) > 0) {
-        if (!m_eagle3_ext.is_eagle3_model()) {
-            OPENVINO_THROW("Last hidden state is only available for Eagle3 models.");
+    if (m_eagle3_ext.is_eagle3_model()) {
+        if (port_names.count(Eagle3LayerNames::last_hidden_state) > 0) {
+            auto last_hidden_state = m_eagle3_ext.get_last_hidden_state();
+            if (!last_hidden_state) {
+                OPENVINO_THROW("Last hidden state tensor is not available. Please run inference first.");
+            }
+            return last_hidden_state;
         }
-        auto last_hidden_state = m_eagle3_ext.get_last_hidden_state();
-        if (!last_hidden_state) {
-            OPENVINO_THROW("Last hidden state tensor is not available. Please run inference first.");
-        }
-        return last_hidden_state;
     }
 
     return ov::ISyncInferRequest::get_tensor(port);
