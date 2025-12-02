@@ -790,7 +790,13 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
          ++i) {
         auto kvout = model->output(i);
 
-        if (kvout.get_any_name() == "last_hidden_state") {
+        // Skip outputs that are not KV cache (e.g., last_hidden_state)
+        // KV cache outputs follow the pattern: present.{layer}.key or present.{layer}.value
+        const auto& output_name = kvout.get_any_name();
+        bool is_kv_cache =
+            (output_name.find("present") != std::string::npos) &&
+            (output_name.find("key") != std::string::npos || output_name.find("value") != std::string::npos);
+        if (!is_kv_cache) {
             continue;
         }
 
@@ -968,16 +974,9 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[0] = 1;  // batch_dim
-        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
-            // NB: Eagle3 case, model accepts hidden_states[BATCH, SEQ_LEN, HIDDEN_SIZE]
-            NPUW_ASSERT(input.get_partial_shape().size() == 3u);
-            // NPUW_ASSERT(input.get_partial_shape()[2].is_static());
-            new_shape = ov::PartialShape({1, input_size, 12288});
-        } else if (ov::npuw::matchEagle3InternalHiddenStatesString(input_name)) {
-            // NB: Eagle3 case, model accepts internal_hidden_states[BATCH, SEQ_LEN, HIDDEN_SIZE]
-            NPUW_ASSERT(input.get_partial_shape().size() == 3u);
-            NPUW_ASSERT(input.get_partial_shape()[2].is_static());
-            new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
+        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name) ||
+                   ov::npuw::matchEagle3InternalHiddenStatesString(input_name)) {
+            new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size);
         } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
         } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
@@ -1925,6 +1924,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_prefix_caching_max_num_blocks);
         write(model_stream, m_gemma_sliding_window_size);
         write(model_stream, m_is_whisper);
+        write(model_stream, m_model_rt_info);
 
         // Write config
         write(model_stream, m_cfg);
@@ -2149,6 +2149,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_prefix_caching_max_num_blocks);
         read(model_stream, compiled->m_gemma_sliding_window_size);
         read(model_stream, compiled->m_is_whisper);
+        read(model_stream, compiled->m_model_rt_info);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
