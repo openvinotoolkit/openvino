@@ -31,9 +31,6 @@
     #define FOR_PRECOMPUTED_REDUCTION(x)
 #endif
 
-
-#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
-
 #define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT || F4E2M1_OUTPUT)
 
 // ***********************************************
@@ -96,7 +93,10 @@ KERNEL(dynamic_quantize_gpu_opt)(
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
 #if IS_F8
         quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale);
-        vstore4(quantized_value[i].data, 0, (char*)(&output[output_offset + i * 4]));
+        output[output_offset + i * 4] = AS_OUTPUT_TYPE(quantized_value[i].data[0]);
+        output[output_offset + i * 4 + 1] = AS_OUTPUT_TYPE(quantized_value[i].data[1]);
+        output[output_offset + i * 4 + 2] = AS_OUTPUT_TYPE(quantized_value[i].data[2]);
+        output[output_offset + i * 4 + 3] = AS_OUTPUT_TYPE(quantized_value[i].data[3]);
 #else
         quantized_value[i] = convert_char4(input_0[i] * (half4)quan_scale);
         FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += quantized_value[i][0] + quantized_value[i][1] + quantized_value[i][2] + quantized_value[i][3]);

@@ -140,6 +140,7 @@ pass::MarkCompressedFloatConstants::MarkCompressedFloatConstants() {
             return false;
         if (const_node->get_output_element_type(0) != element::f16 &&
             const_node->get_output_element_type(0) != element::bf16 &&
+            const_node->get_output_element_type(0) != element::f4e2m1 &&
             const_node->get_output_element_type(0) != element::f8e4m3 &&
             const_node->get_output_element_type(0) != element::f8e5m2 &&
             const_node->get_output_element_type(0) != element::f8e8m0)

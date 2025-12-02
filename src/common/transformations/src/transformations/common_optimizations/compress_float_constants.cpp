@@ -96,6 +96,7 @@ public:
                                                                                            ov::element::i8,
                                                                                            ov::element::u8,
                                                                                            ov::element::nf4,
+                                                                                           ov::element::f4e2m1,
                                                                                            ov::element::f8e4m3,
                                                                                            ov::element::f8e5m2}));
         auto convert = pattern::wrap_type<ov::op::v0::Convert>({weights});

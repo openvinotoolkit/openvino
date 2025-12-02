@@ -5,7 +5,7 @@ using namespace ov::pass::pattern;
         auto compressed_constant = [](const ov::Output<ov::Node>& output) {\
             return (output.get_element_type() == ov::element::u8 || output.get_element_type() == ov::element::i8 ||\
                     output.get_element_type() == ov::element::u4 || output.get_element_type() == ov::element::i4 ||\
-                    output.get_element_type() == ov::element::f8e4m3 || output.get_element_type() == ov::element::f8e5m2);\
+                    output.get_element_type() == ov::element::f4e2m1 || output.get_element_type() == ov::element::f8e4m3 || output.get_element_type() == ov::element::f8e5m2);\
         };\
         \
         auto reshape_squeeze = [](const ov::Output<ov::Node>& output) {\

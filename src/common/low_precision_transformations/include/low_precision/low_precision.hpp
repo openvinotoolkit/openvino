@@ -76,8 +76,6 @@ public:
 
     static bool doesFunctionContainF8DynQuanPatterns(const std::shared_ptr<const ov::Model>& model);
 
-    static bool doesFunctionContainMXFPDynQuanPatterns(const std::shared_ptr<const ov::Model>& model);
-
     template <typename T, class... Args>
     std::shared_ptr<T> add_main(Args&&... args) {
         const auto tr = std::make_shared<T>(std::forward<Args>(args)...);
