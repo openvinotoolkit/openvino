@@ -69,9 +69,11 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (ov::is_type<ov::op::v0::Parameter>(op)) {
         if (op->get_output_element_type(0) == ov::element::i64) {
             auto param_consumers = op->get_users();
-            return !std::any_of(param_consumers.begin(), param_consumers.end(), [](auto& input) {
-                return ov::is_type<ov::op::v0::Result>(input);
-            });
+            if (!param_consumers.empty()) {
+                return !std::any_of(param_consumers.begin(), param_consumers.end(), [](auto& input) {
+                    return ov::is_type<ov::op::v0::Result>(input);
+                });
+            }
         }
     }
 
