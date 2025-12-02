@@ -34,10 +34,8 @@
 #endif
 #include "cpu_map_scheduling.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
-#include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -613,17 +611,7 @@ int get_model_prefer_threads(const int num_streams,
                              Config& config) {
     bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
     auto is_paged_attention_model = false;
-    const auto is_LLM =
-        ov::op::util::is_large_language_model(*model, [&is_paged_attention_model](std::shared_ptr<ov::Node> node) {
-            if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
-                is_paged_attention_model = true;
-                return true;
-            } else if (ov::is_type<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(node)) {
-                return true;
-            }
-
-            return false;
-        });
+    bool is_LLM = config.modelType == Config::ModelType::LLM;
 
     auto default_prefer_threads_latency = [&]() {
         const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
