@@ -15,7 +15,7 @@
  * limitations under the License.
  *******************************************************************************/
 namespace KERNEL_NAME {
-    
+
 #include "cm_sdpa_common.hpp"
 
 #ifdef CM_HAS_LSC_UNTYPED_2D
@@ -138,6 +138,7 @@ _GENX_MAIN_ void KERNEL_NAME(
                                 reinterpret_cast<svmptr_t>(output + qo_offset));
 #endif
 #else
+#if CM_HAS_DPAS
     sdpa_kernel<false, num_heads, num_kv_heads, head_size, 0>(
                                 slm_K,
                                 slm_V,
@@ -156,6 +157,29 @@ _GENX_MAIN_ void KERNEL_NAME(
                                 kv_offset * sizeof(half),
                                 qo_offset * sizeof(half)
                                 );
+#else
+    sdpa_kernel_mma<false, num_heads, num_kv_heads, head_size, 0>(
+                                slm_K,
+                                slm_V,
+                                wg_local_id,
+                                local_size,
+                                0, //q_start,
+                                kv_seq_len, //kv_stop,
+                                q_len, //q_len,
+                                kv_seq_len, //kv_len,
+                                query,
+                                key,
+                                value,
+                                output,
+                                qo_offset * sizeof(half),
+                                kv_offset * sizeof(half),
+                                kv_offset * sizeof(half),
+                                qo_offset * sizeof(half)
+                                );
+
+
+
+#endif
 #endif
 }
 
