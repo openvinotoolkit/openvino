@@ -75,22 +75,28 @@ public:
         APIBaseTest::TearDown();
     }
 
-    std::shared_ptr<ov::Model> createModel(element::Type type, const PartialShape& shape, const ov::Layout& layout) {
+    std::shared_ptr<Model> createModelWithNInputs(element::Type type,
+                                                  const PartialShape& shape,
+                                                  const ov::Layout& layout,
+                                                  size_t n = 1) {
         ResultVector res;
         ParameterVector params;
 
-        auto data1 = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        data1->set_friendly_name("input");
-        data1->get_output_tensor(0).set_names({"tensor_input"});
-        data1->set_layout(layout);
-        auto constant = opset8::Constant::create(type, {1}, {1});
-        auto op1 = std::make_shared<ov::op::v1::Add>(data1, constant);
-        op1->set_friendly_name("Add");
-        auto res1 = std::make_shared<ov::op::v0::Result>(op1);
-        res1->set_friendly_name("Result");
-        res1->get_output_tensor(0).set_names({"tensor_output"});
-        params.push_back(data1);
-        res.push_back(res1);
+        for (size_t i = 0; i < n; i++) {
+            auto index_str = std::to_string(i);
+            auto data1 = std::make_shared<ov::op::v0::Parameter>(type, shape);
+            data1->set_friendly_name("input" + index_str);
+            data1->get_output_tensor(0).set_names({"tensor_input" + index_str});
+            data1->set_layout(layout);
+            auto constant = opset8::Constant::create(type, {1}, {1});
+            auto op1 = std::make_shared<ov::op::v1::Add>(data1, constant);
+            op1->set_friendly_name("Add" + index_str);
+            auto res1 = std::make_shared<ov::op::v0::Result>(op1);
+            res1->set_friendly_name("Result" + index_str);
+            res1->get_output_tensor(0).set_names({"tensor_output" + index_str});
+            params.push_back(data1);
+            res.push_back(res1);
+        }
 
         return std::make_shared<Model>(res, params);
     }
@@ -112,9 +118,9 @@ TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabled) {
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
-    auto model = createModel(element::f32, shape, "N...");
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result", "dummy"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0", "dummy"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -138,14 +144,14 @@ TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabledInternalOpe
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
-    auto model = createModel(element::f32, shape, "N...");
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
     auto zero_context = core->get_default_context(target_device);
     auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 10, 10, 10});
     auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
     auto input_strides = input_host_tensor.get_strides();
     auto output_strides = output_host_tensor.get_strides();
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = "input,Result,dummy";
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0,dummy";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -176,7 +182,7 @@ TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
-    auto model = createModel(element::f32, shape, "N...");
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
     auto zero_context = core->get_default_context(target_device);
     auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 10, 10, 10});
     auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
@@ -193,7 +199,7 @@ TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -231,17 +237,47 @@ TEST_P(RoiTensorsTestsRun, SetStridedTensorForUnexpectedTensorExpectedThrow) {
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
-    auto model = createModel(element::f32, shape, "N...");
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
     auto zero_context = core->get_default_context(target_device);
     auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
     auto output_strides = output_host_tensor.get_strides();
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0"};
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
     ov::Tensor output_view_tensor = ov::Tensor(ov::element::f32, shape, output_host_tensor.data(), output_strides);
     EXPECT_THROW(req.set_output_tensor(output_view_tensor), ov::Exception);
+}
+
+TEST_P(RoiTensorsTestsRun, SetStridedMultipleOutputTensorForUnexpectedTensorExpectedThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
+
+    auto shape = Shape{1, 2, 2, 2};
+    ov::CompiledModel compiled_model;
+    auto model = createModelWithNInputs(element::f32, shape, "N...", 2);
+    auto zero_context = core->get_default_context(target_device);
+    auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
+    auto output_strides = output_host_tensor.get_strides();
+
+    configuration[ov::intel_npu::enable_strides_for.name()] =
+        std::vector<std::string>{"input0", "input1", "tensor_output0"};
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+    ov::Tensor output_view_tensor = ov::Tensor(ov::element::f32, shape, output_host_tensor.data(), output_strides);
+    EXPECT_THROW(req.set_output_tensor(1, output_view_tensor), ov::Exception);
 }
 
 TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
@@ -260,7 +296,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
-    auto model = createModel(element::f32, shape, "N...");
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
 
     auto zero_context = core->get_default_context(target_device);
     auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 10, 10, 10});
@@ -276,7 +312,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -314,7 +350,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
-    auto model = createModel(element::f32, shape, "N...");
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
 
     auto input_tensor = ov::Tensor{ov::element::f32, Shape{1, 10, 10, 10}};
     auto output_tensor = ov::Tensor{ov::element::f32, Shape{3, 8, 8, 8}};
@@ -329,7 +365,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -374,7 +410,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContext) {
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
-    auto model = createModel(element::f32, shape, "N...");
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
 
     auto input_remote_tensor = std::make_shared<::intel_npu::ZeroRemoteTensor>(zero_context,
                                                                                init_struct,
@@ -397,7 +433,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContext) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -444,7 +480,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyToA
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
-    auto model = createModel(element::f32, shape, "N...");
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
 
     auto input_remote_tensor = std::make_shared<::intel_npu::ZeroRemoteTensor>(zero_context,
                                                                                init_struct,
@@ -467,7 +503,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyToA
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -522,7 +558,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyFro
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
-    auto model = createModel(element::f32, shape, "N...");
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
 
     auto input_remote_tensor = std::make_shared<::intel_npu::ZeroRemoteTensor>(zero_context,
                                                                                init_struct,
@@ -545,7 +581,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyFro
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -595,7 +631,7 @@ TEST_P(RoiTensorsTestsRun, ImportStandardAllocation) {
 
     auto shape = Shape{1, 2, 2, 1024};
     ov::CompiledModel compiled_model;
-    auto model = createModel(element::f32, shape, "N...");
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
 
     auto shape_input = Shape{1, 4, 8, 1024};
     auto shape_output = Shape{1, 2, 4, 2048};
@@ -616,7 +652,7 @@ TEST_P(RoiTensorsTestsRun, ImportStandardAllocation) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -668,7 +704,7 @@ TEST_P(RoiTensorsTestsRun, RunWithRemoteTensor) {
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
-    auto model = createModel(element::f32, shape, "N...");
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
 
     auto input_data = static_cast<float*>(input_remote_tensor.get());
     for (size_t i = 0; i < input_remote_tensor.get_size(); ++i) {
@@ -680,7 +716,7 @@ TEST_P(RoiTensorsTestsRun, RunWithRemoteTensor) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input", "Result"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
