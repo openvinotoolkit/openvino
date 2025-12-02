@@ -93,15 +93,13 @@ Metadata<METADATA_VERSION_3_0>::Metadata(const std::optional<OpenvinoVersion>& o
     _version = METADATA_VERSION_3_0;
 }
 
-void MetadataBase::read(std::istream& tensor) {
-    _source = Source(tensor);
-    read();
-}
-
-void MetadataBase::read(const ov::Tensor& tensor, size_t offset) {
-    _source = Source(tensor);
+void MetadataBase::read(Source source, size_t offset) {
+    _source = source;
     _cursorOffset = offset;
     read();
+    uint16_t paddingSize = 0;
+    read_data_from_source(reinterpret_cast<char*>(&paddingSize), sizeof(paddingSize));
+    read_data_from_source(nullptr, paddingSize);
 }
 
 void MetadataBase::read_data_from_source(char* destination, const size_t size) {
@@ -132,6 +130,11 @@ void MetadataBase::append_padding(std::ostream& stream) {
     if (paddingSize > 0) {
         std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
     }
+}
+
+void MetadataBase::write(std::ostream& stream) {
+    write_impl(stream);
+    append_padding(stream);
 }
 
 void Metadata<METADATA_VERSION_2_0>::read() {
@@ -209,19 +212,15 @@ void Metadata<METADATA_VERSION_3_0>::read() {
 
     _inputLayouts = readNLayouts(numberOfInputLayouts, "Input");
     _outputLayouts = readNLayouts(numberOfOutputLayouts, "Output");
-
-    uint16_t paddingSize = 0;
-    read_data_from_source(reinterpret_cast<char*>(&paddingSize), sizeof(paddingSize));
-    read_data_from_source(nullptr, paddingSize);
 }
 
-void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
+void Metadata<METADATA_VERSION_2_0>::write_impl(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
     _ovVersion.write(stream);
 }
 
-void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_0>::write(stream);
+void Metadata<METADATA_VERSION_2_1>::write_impl(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_0>::write_impl(stream);
 
     _numberOfInits = _initSizes.has_value() ? _initSizes->size() : 0;
     stream.write(reinterpret_cast<const char*>(&_numberOfInits), sizeof(_numberOfInits));
@@ -233,16 +232,16 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
     }
 }
 
-void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_1>::write(stream);
+void Metadata<METADATA_VERSION_2_2>::write_impl(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_1>::write_impl(stream);
 
     int64_t batchValue = _batchSize.value_or(0);
     stream.write(reinterpret_cast<const char*>(&batchValue), sizeof(batchValue));
 }
 
-void Metadata<METADATA_VERSION_3_0>::write(std::ostream& stream) {
+void Metadata<METADATA_VERSION_3_0>::write_impl(std::ostream& stream) {
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
-    Metadata<METADATA_VERSION_2_2>::write(stream);
+    Metadata<METADATA_VERSION_2_2>::write_impl(stream);
 
     const uint64_t numberOfInputLayouts = _inputLayouts.has_value() ? _inputLayouts->size() : 0;
     const uint64_t numberOfOutputLayouts = _outputLayouts.has_value() ? _outputLayouts->size() : 0;
@@ -262,8 +261,6 @@ void Metadata<METADATA_VERSION_3_0>::write(std::ostream& stream) {
 
     writeLayouts(_inputLayouts);
     writeLayouts(_outputLayouts);
-
-    append_padding(stream);
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version) {

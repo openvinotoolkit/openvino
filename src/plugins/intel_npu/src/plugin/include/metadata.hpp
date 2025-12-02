@@ -27,21 +27,21 @@ public:
         variant<uninitialized_source, std::reference_wrapper<std::istream>, std::reference_wrapper<const ov::Tensor>>;
 
     /**
-     * @brief Reads metadata from a stream.
+     * @brief Reads metadata from an istream or ov::Tensor.
      */
-    void read(std::istream& tensor);
-
-    /**
-     * @brief Reads metadata from a ov::Tensor.
-     */
-    void read(const ov::Tensor& tensor, size_t offset = 0);
+    void read(Source source, size_t offset = 0);
 
     virtual void read() = 0;
 
     /**
-     * @brief Writes metadata to a stream.
+     * @brief Calls write_impl and append padding.
      */
-    virtual void write(std::ostream& stream) = 0;
+    void write(std::ostream& stream);
+
+    /**
+     * @brief Permits overload to metadata write for each version based metadata class.
+     */
+    virtual void write_impl(std::ostream& stream);
 
     virtual bool is_compatible() = 0;
 
@@ -226,7 +226,7 @@ public:
      * This is the quickest way to handle many incompatible blob cases without needing to traverse the whole NPU
      * metadata section.
      */
-    void write(std::ostream& stream) override;
+    void write_impl(std::ostream& stream) override;
 
     /**
      * @brief Checks if metadata is supported.
@@ -268,7 +268,7 @@ public:
      * @details The number of init schedules, along with the size of each init binary object are written in addition to
      * the information registered by the previous metadata versions.
      */
-    void write(std::ostream& stream) override;
+    void write_impl(std::ostream& stream) override;
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
@@ -291,7 +291,7 @@ public:
 
     void read() override;
 
-    void write(std::ostream& stream) override;
+    void write_impl(std::ostream& stream) override;
 
     std::optional<int64_t> get_batch_size() const override;
 
@@ -316,7 +316,7 @@ public:
 
     void read() override;
 
-    void write(std::ostream& stream) override;
+    void write_impl(std::ostream& stream) override;
 
     size_t get_metadata_size() const override;
 
