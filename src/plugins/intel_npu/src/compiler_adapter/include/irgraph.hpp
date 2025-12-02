@@ -18,14 +18,87 @@ namespace intel_npu {
 class IRGraph final : public IGraph {
 public:
     struct MemRefType {
-        npu_mlir_runtime_mem_ref_t memRef;
-        MemRefType() {
-            memRef.basePtr = nullptr;
-            memRef.data = nullptr;
-            memRef.offset = 0;
-            memRef.dimsCount = 4;
-            std::fill(std::begin(memRef.sizes), std::end(memRef.sizes), 1);
-            std::fill(std::begin(memRef.strides), std::end(memRef.strides), 1);
+        npu_mlir_runtime_mem_ref_handle_t memRef;
+        void* basePtr;
+        void* data;
+        int64_t offset;
+        std::vector<int64_t> sizes;
+        std::vector<int64_t> strides;
+        uint32_t dimsCount;
+
+        MemRefType(void* basePtr,
+                   void* data,
+                   int64_t offset,
+                   const std::vector<int64_t>& sizes,
+                   const std::vector<int64_t>& strides,
+                   uint32_t dimsCount)
+            : memRef(nullptr),
+              basePtr(basePtr),
+              data(data),
+              offset(offset),
+              sizes(sizes),
+              strides(strides),
+              dimsCount(dimsCount) {
+            createMemRef();
+        }
+
+        MemRefType(const MemRefType& other)
+            : memRef(nullptr),
+              basePtr(other.basePtr),
+              data(other.data),
+              offset(other.offset),
+              sizes(other.sizes),
+              strides(other.strides),
+              dimsCount(other.dimsCount) {
+            createMemRef();
+        }
+
+        MemRefType(MemRefType&& other) noexcept
+            : memRef(other.memRef),
+              basePtr(other.basePtr),
+              data(other.data),
+              offset(other.offset),
+              sizes(std::move(other.sizes)),
+              strides(std::move(other.strides)),
+              dimsCount(other.dimsCount) {
+            other.memRef = nullptr;
+        }
+
+        MemRefType& operator=(const MemRefType& other) {
+            if (this != &other) {
+                destroyMemRef();
+
+                basePtr = other.basePtr;
+                data = other.data;
+                offset = other.offset;
+                sizes = other.sizes;
+                strides = other.strides;
+                dimsCount = other.dimsCount;
+
+                createMemRef();
+            }
+            return *this;
+        }
+
+        MemRefType& operator=(MemRefType&& other) noexcept {
+            if (this != &other) {
+                destroyMemRef();
+
+                memRef = other.memRef;
+                basePtr = other.basePtr;
+                data = other.data;
+                offset = other.offset;
+                sizes = std::move(other.sizes);
+                strides = std::move(other.strides);
+                dimsCount = other.dimsCount;
+
+                other.memRef = nullptr;
+            }
+            return *this;
+        }
+
+        ~MemRefType() {
+            destroyMemRef();
         }
 
         void setArg(const void* arg);
@@ -33,17 +106,42 @@ public:
         void updateStride();
 
         friend std::ostream& operator<<(std::ostream& os, const MemRefType& memRef) {
-            os << "BasePtr: " << memRef.memRef.basePtr << ", Data: " << memRef.memRef.data
-               << ", Offset: " << memRef.memRef.offset << ", Sizes: [";
-            for (int64_t size : memRef.memRef.sizes) {
+            os << "BasePtr: " << memRef.basePtr << ", Data: " << memRef.data << ", Offset: " << memRef.offset
+               << ", Sizes: [";
+            for (int64_t size : memRef.sizes) {
                 os << size << " ";
             }
             os << "], Strides: [";
-            for (int64_t stride : memRef.memRef.strides) {
+            for (int64_t stride : memRef.strides) {
                 os << stride << " ";
             }
             os << "]";
             return os;
+        }
+
+        void UpdateMemRefHandleStatus() {
+            // Update current MemRef handle to use latest metadata
+            auto result =
+                npuMLIRRuntimeSetMemRef(memRef, &basePtr, &data, offset, sizes.data(), strides.data(), dimsCount);
+            if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+                throw std::runtime_error("Failed to update MemRef handle");
+            }
+        }
+
+    private:
+        void createMemRef() {
+            auto result =
+                npuMLIRRuntimeCreateMemRef(&memRef, &basePtr, &data, offset, sizes.data(), strides.data(), dimsCount);
+            if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+                throw std::runtime_error("Failed to create MemRef handle");
+            }
+        }
+
+        void destroyMemRef() {
+            if (memRef != nullptr) {
+                npuMLIRRuntimeDestroyMemRef(memRef);
+                memRef = nullptr;
+            }
         }
     };
 

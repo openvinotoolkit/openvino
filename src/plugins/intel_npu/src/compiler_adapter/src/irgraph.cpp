@@ -17,22 +17,21 @@
 namespace intel_npu {
 
 void IRGraph::MemRefType::setArg(const void* arg) {
-    memRef.basePtr = memRef.data = arg;
+    basePtr = data = arg;
 }
 
 void IRGraph::MemRefType::setSize(const intel_npu::IODescriptor& desc) {
     // Note: check difference between shape from compiler and shape from IR.
     const auto& shape = desc.shapeFromCompiler.get_shape();
-    for (size_t i = 0; i < shape.size(); ++i)
-        memRef.sizes[i] = shape[i];
+    sizes = shape;
 }
 
 void IRGraph::MemRefType::updateStride() {
     // Note: NCHW layout
     uint64_t stride = 1;
     for (int32_t i = 4 - 1; i >= 0; --i) {
-        memRef.strides[i] = stride;
-        stride *= memRef.sizes[i];
+        strides[i] = stride;
+        stride *= sizes[i];
     }
 }
 
