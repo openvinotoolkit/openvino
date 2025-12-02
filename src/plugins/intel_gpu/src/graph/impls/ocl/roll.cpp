@@ -42,10 +42,17 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
 
             // Normalize axes and sum shift
             std::vector<ov::Dimension::value_type> shift(default_rank);
+
+            // Calculate the effective rank by excluding trailing dimensions with size 1.
+            // This is necessary to correctly map negative axes when trailing dimensions cause shift 0.
+            auto first_non_one_reverse = std::find_if(input_shape.rbegin(), input_shape.rend(), [](int dim) { return dim != 1; });
+            int trailing_ones_count = first_non_one_reverse - input_shape.rbegin();
+            int effective_rank = rank - trailing_ones_count;
+
             for (size_t a = 0; a < axes_raw.size(); ++a) {
                 auto& axis = axes_raw[a];
                 if (axis < 0) {
-                    axis += rank;
+                    axis += effective_rank;
                 }
                 if (axis < 0 || axis >= rank) {
                     OPENVINO_THROW(" Incorrect axis value: ", axis);
