@@ -19,7 +19,7 @@ import tensorflow as tf
 import subprocess
 
 
-from openvino.runtime import Dimension, PartialShape
+from openvino import Dimension, PartialShape
 
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)

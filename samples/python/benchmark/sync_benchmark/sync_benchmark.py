@@ -42,7 +42,7 @@ def main():
     # Create Core and use it to compile a model.
     # Select the device by providing the name as the second parameter to CLI.
     # Using MULTI device is pointless in sync scenario
-    # because only one instance of openvino.runtime.InferRequest is used
+    # because only one instance of openvino.InferRequest is used
     core = ov.Core()
     compiled_model = core.compile_model(sys.argv[1], device_name, latency)
     ireq = compiled_model.create_infer_request()
