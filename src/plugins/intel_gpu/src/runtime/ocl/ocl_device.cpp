@@ -386,6 +386,7 @@ bool does_device_support(int32_t param, const cl::Device& device) {
 
 memory_capabilities init_memory_caps(const cl::Device& device, const device_info& info) {
     std::vector<allocation_type> memory_caps;
+    memory_caps.push_back(allocation_type::cl_mem);
     if (info.supports_usm) {
         if (does_device_support(CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL, device)) {
             memory_caps.push_back(allocation_type::usm_host);
