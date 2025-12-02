@@ -491,35 +491,6 @@ protected:
     }
 };
 
-class MoE3GemmSwigluPrefillRepack : public KernelGenerator {
-public:
-    MoE3GemmSwigluPrefillRepack() : KernelGenerator("moe_3gemm_swiglu_fuse", "prefill_repack") {}
-
-protected:
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        auto& engine = params.prog->get_engine();
-        const auto& info = engine.get_device_info();
-
-        jit.make("PREFILL_SCALE_ZP_REPACK", 1);
-        jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
-        jit.make("INTERMEDIA_SIZE", desc->_config.inter_size);
-        return jit;
-    }
-
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        Arguments args;
-
-        return args;
-    }
-
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-        }};
-    }
-};
-
 class MoE3GemmSwigluPrefillSwiglu : public KernelGenerator {
 public:
     MoE3GemmSwigluPrefillSwiglu() : KernelGenerator("moe_3gemm_swiglu_fuse", "prefill_swiglu") {}
@@ -730,7 +701,6 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
 }
 
 static bool use_micro_gemm_prefill;
-static bool need_repack_scale_zp;
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
@@ -747,7 +717,6 @@ public:
     Stage::Ptr micro_gemm_down = make_stage<MoE3GemmMicroGenerator>(MoE3GemmMicroKernelType::MLP_DOWN);
     Stage::Ptr prefill_swiglu = make_stage<MoE3GemmSwigluPrefillSwiglu>();
     Stage::Ptr prefill_scatter_reduce = make_stage<MoE3GemmSwigluPrefillScatterReduce>();
-    Stage::Ptr prefill_scale_zp_repack = make_stage<MoE3GemmSwigluPrefillRepack>();
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -849,7 +818,6 @@ public:
             add_stage(prefill_swiglu, params);
             add_stage(micro_gemm_down, params);
             add_stage(prefill_scatter_reduce, params);
-            add_stage(prefill_scale_zp_repack, params);
         }
     }
 
@@ -858,15 +826,6 @@ public:
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
         _gate_up_group_size = static_cast<int>(cur_moe->_config.group_size);
         _down_group_size = static_cast<int>(cur_moe->_config.group_size);
-        // auto rtp = static_cast<MoE3GemmRuntimeParams*>(m_rt_params.get());
-
-        if (cur_moe->_config.group_size == std::numeric_limits<size_t>::max()) {
-            _gate_up_group_size = static_cast<int>(cur_moe->_config.hidden_size);
-            _down_group_size = static_cast<int>(cur_moe->_config.inter_size);
-            need_repack_scale_zp = false;
-        } else {
-            need_repack_scale_zp = true;
-        }
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt prefill: group_size=" << cur_moe->_config.group_size
                                << ", gate_up_group_size=" << _gate_up_group_size << ", down_group_size=" << _down_group_size << std::endl;
@@ -936,15 +895,9 @@ public:
         const auto& config = cur_moe->_config;
         size_t max_topk = static_cast<size_t>(config.top_k);
         size_t expert_num = static_cast<size_t>(config.num_expert);
-
         auto hidden_states_layout = params.input_layouts[0];
         auto batch = static_cast<size_t>(hidden_states_layout.get_shape()[0]);
         auto data_type = hidden_states_layout.data_type;
-        if (cur_moe->_config.group_size == std::numeric_limits<size_t>::max()) {
-            need_repack_scale_zp = false;
-        } else {
-            need_repack_scale_zp = true;
-        }
 
         std::vector<BufferDescriptor> internal_buffers;
         // softmax+topk
@@ -973,7 +926,7 @@ public:
         internal_buffers.emplace_back(index_layout, true);  // 8: topk
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] get_internal_buffer_descs(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
-                               << ", need_repack_scale_zp=" << need_repack_scale_zp << std::endl;
+                               << std::endl;
         // for micro_gemm
         if(use_micro_gemm_prefill && batch > 1) {
             layout layout_micro_gemm(ov::Shape{expert_num, batch}, ov::element::i32, cldnn::format::bfyx);
@@ -982,24 +935,6 @@ public:
             internal_buffers.emplace_back(layout_micro_gemm, true);  // 11: token len (input gather tokens) for each activated expert
             layout layout_token_idx(ov::Shape{batch * max_topk}, ov::element::i32, cldnn::format::bfyx);
             internal_buffers.emplace_back(layout_token_idx, true);  // 12: token idx per expert
-
-            // repack scale/zp
-            if(need_repack_scale_zp) {
-                auto gate_up_scale_shape = params.input_layouts[static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)].get_shape();
-                layout gate_up_scale_layout(ov::Shape{expert_num, gate_up_scale_shape[2], gate_up_scale_shape[1]}, ov::element::f16, cldnn::format::bfyx);
-                auto gate_up_zp_shape = params.input_layouts[static_cast<size_t>(MOE3GemmInputIndex::ZP_0)].get_shape();
-                layout gate_up_zp_layout(ov::Shape{expert_num, gate_up_zp_shape[2], gate_up_zp_shape[1]}, ov::element::u4, cldnn::format::bfyx);
-                internal_buffers.emplace_back(gate_up_scale_layout, true);  // 13: gate_scale
-                internal_buffers.emplace_back(gate_up_zp_layout, true);     // 14: gate_zp
-                internal_buffers.emplace_back(gate_up_scale_layout, true);  // 15: up_scale
-                internal_buffers.emplace_back(gate_up_zp_layout, true);     // 16: up_zp
-                auto down_scale_shape = params.input_layouts[static_cast<size_t>(MOE3GemmInputIndex::SCALE_2)].get_shape();
-                layout down_scale_layout(ov::Shape{expert_num, down_scale_shape[2], down_scale_shape[1]}, ov::element::f16, cldnn::format::bfyx);
-                auto down_zp_shape = params.input_layouts[static_cast<size_t>(MOE3GemmInputIndex::ZP_2)].get_shape();
-                layout down_zp_layout(ov::Shape{expert_num, down_zp_shape[2], down_zp_shape[1]}, ov::element::u4, cldnn::format::bfyx);
-                internal_buffers.emplace_back(down_scale_layout, true);  // 17: down_scale
-                internal_buffers.emplace_back(down_zp_layout, true);     // 18: down_zp
-            }
         }
         return internal_buffers;
     }
@@ -1466,65 +1401,6 @@ public:
             #endif
         }
 
-        // step 2.5: repack scale/zp if needed
-        if (need_repack_scale_zp) {
-            #if DEBUG_MOE_LOG
-            std::cout << "\nstep 2.5: repack scale/zp for moe_gemm" << std::endl;
-            #endif
-            // gate
-            ret_event = execute_stage({ret_event},
-                                      instance,
-                                      *prefill_scale_zp_repack,
-                                      {
-                                          instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)),
-                                          instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_0)),
-                                      },
-                                      {
-                                          intermediates_memories[13],
-                                          intermediates_memories[14],
-                                      },
-                                      {static_cast<size_t>(num_total_experts), static_cast<size_t>(_hidden_size/_gate_up_group_size), static_cast<size_t>(_intermediate_size/2)},
-                                      {1, 1, subgroup_size});
-            // up
-            ret_event = execute_stage({ret_event},
-                                      instance,
-                                      *prefill_scale_zp_repack,
-                                      {
-                                          instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_1)),
-                                          instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_1)),
-                                      },
-                                      {
-                                          intermediates_memories[15],
-                                          intermediates_memories[16],
-                                      },
-                                      {static_cast<size_t>(num_total_experts), static_cast<size_t>(_hidden_size/_gate_up_group_size), static_cast<size_t>(_intermediate_size/2)},
-                                      {1, 1, subgroup_size});
-            // down
-            ret_event = execute_stage({ret_event},
-                                      instance,
-                                      *prefill_scale_zp_repack,
-                                      {
-                                          instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_2)),
-                                          instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_2)),
-                                      },
-                                      {
-                                          intermediates_memories[17],
-                                          intermediates_memories[18],
-                                      },
-                                      {static_cast<size_t>(num_total_experts), static_cast<size_t>(_intermediate_size/_down_group_size), static_cast<size_t>(_hidden_size/2)},
-                                      {1, 1, subgroup_size});
-
-            #if DUMP_TENSOR_CONTENTS
-            {
-                stream.finish(); //debug
-                print_mem_f16(stream, instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_1)), "up_scale_1");
-                print_mem_f16(stream, intermediates_memories[15], "repack_up_scale");
-                print_mem_u4(stream, instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_1)), "up_zp_1");
-                print_mem_u4(stream, intermediates_memories[16], "repack_up_zp");
-            }
-            #endif
-        }
-
         // step 3: moe_gemm for up and gate
         //  input
         //      0: gathered token, shape = [token_len * expert_topK, hidden_size]
@@ -1840,8 +1716,7 @@ public:
         get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
 
         GPU_DEBUG_TRACE_DETAIL << "\nMoE3GemmFusedCompressed exec(): batch=" << batch << ", max_topk=" << max_topk
-                  << ", use_micro_gemm_prefill=" << use_micro_gemm_prefill
-                  << ", need_repack_scale_zp=" << need_repack_scale_zp << std::endl;
+                               << ", use_micro_gemm_prefill=" << use_micro_gemm_prefill << std::endl;
         if (use_micro_gemm_prefill) {
             GPU_DEBUG_TRACE_DETAIL << "\nUse micro_gemm prefill path" << std::endl;
             update_rt_params(instance);
