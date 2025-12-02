@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_convert.hpp"
@@ -196,21 +197,57 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
             return false;
         }
         auto constant_target_inputs = const_node->get_output_target_inputs(0);
-        auto convert = std::make_shared<ov::op::v0::Convert>(new_const, const_node->get_element_type());
 
-        convert->set_friendly_name(const_node->get_friendly_name());
-        new_const->set_friendly_name(const_node->get_friendly_name() + "_compressed");
-        ov::copy_runtime_info(const_node, convert);
-        ov::mark_as_decompression(convert);
-        if (postponed) {
-            postpone_fp16_compression(new_const->get_rt_info());
-            postpone_fp16_compression(new_const->get_output_tensor(0).get_rt_info());
+        // Check if the next node is a postponed constant. It will be constant_folded later during serialization.
+        auto postponed_constant_node = [&]() -> std::shared_ptr<ov::Node> {
+            if (constant_target_inputs.size() == 1 &&
+                constant_target_inputs.begin()->get_node()->get_rt_info().count("postponed_constant")) {
+                return constant_target_inputs.begin()->get_node()->shared_from_this();
+            }
+            return nullptr;
+        }();
 
-            for (const auto& target_input : constant_target_inputs) {
-                target_input.replace_source_output(convert);
+        if (postponed_constant_node && postponed) {
+            // If f16 conversion is also postponed, we need to insert Convert after the postponed_constant_node
+            if (is_fp16_compression_postponed(postponed_constant_node->get_rt_info())) {
+                // Convert was already added after postponed_constant_node. Get it and just update rt info
+                auto next_node = postponed_constant_node->get_output_target_inputs(0).begin()->get_node();
+                OPENVINO_ASSERT(ov::as_type<ov::op::v0::Convert>(next_node));
+                ov::copy_runtime_info(const_node, next_node->shared_from_this());
+            } else {
+                auto postponed_constant_target_inputs = postponed_constant_node->get_output_target_inputs(0);
+                auto convert =
+                    std::make_shared<ov::op::v0::Convert>(postponed_constant_node, const_node->get_element_type());
+
+                convert->set_friendly_name(postponed_constant_node->get_friendly_name());
+                ov::mark_as_decompression(convert);
+                ov::copy_runtime_info(const_node, convert);
+                postponed_constant_node->set_friendly_name(postponed_constant_node->get_friendly_name() +
+                                                           "_compressed");
+                postpone_fp16_compression(postponed_constant_node->get_rt_info());
+                postpone_fp16_compression(postponed_constant_node->get_output_tensor(0).get_rt_info());
+
+                for (const auto& target_input : postponed_constant_target_inputs) {
+                    target_input.replace_source_output(convert);
+                }
             }
         } else {
-            ov::replace_node(const_node, convert);
+            auto convert = std::make_shared<ov::op::v0::Convert>(new_const, const_node->get_element_type());
+
+            convert->set_friendly_name(const_node->get_friendly_name());
+            new_const->set_friendly_name(const_node->get_friendly_name() + "_compressed");
+            ov::copy_runtime_info(const_node, convert);
+            ov::mark_as_decompression(convert);
+            if (postponed) {
+                postpone_fp16_compression(new_const->get_rt_info());
+                postpone_fp16_compression(new_const->get_output_tensor(0).get_rt_info());
+
+                for (const auto& target_input : constant_target_inputs) {
+                    target_input.replace_source_output(convert);
+                }
+            } else {
+                ov::replace_node(const_node, convert);
+            }
         }
         return true;
     };

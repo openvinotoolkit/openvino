@@ -243,6 +243,10 @@ private:
     mutable bool done = false;
 };
 
+bool isPastKeyValuesKey(const std::string& str);
+
+bool isPastKeyValuesValue(const std::string& str);
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov

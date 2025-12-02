@@ -66,13 +66,12 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
             jit.make("NUM_GROUPS", scale_shape[2]);
         else
             jit.make("NUM_GROUPS", 1);
-
+        size_t expert_stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) : (weight_shape[1] * weight_shape[2]);
         if (is_u4_i4) {
-            size_t stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) / 2 : (weight_shape[1] * weight_shape[2]) / 2;
-            jit.make("EXPERT_STRIDE", stride);
+            jit.make("EXPERT_STRIDE", expert_stride / 2);
             jit.make("WEIGHT_COMPRESSED_INT4", 1);
         } else {
-            jit.make("EXPERT_STRIDE", (weight_shape[1] * weight_shape[2]));
+            jit.make("EXPERT_STRIDE", expert_stride);
         }
         if (!cfg.is_weight_symmetric_quantized)
             jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::f16));
@@ -205,7 +204,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
     }
 }
 DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
-    return DispatchDataFunc{[this](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         assert(!params.is_dynamic());
 
         auto* rtp = static_cast<MoEGemmRuntimeParams*>(rt_params);

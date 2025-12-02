@@ -416,6 +416,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D, StridedSliceLa
                              ::testing::ValuesIn(rest_input_types)),
                          StridedSliceLayerGPUTest::getTestCaseName);
 
+const std::vector<StridedSliceParams> testCasesCommon5D_shrink = {
+        StridedSliceParams{ { 1 }, { 2 }, { 1 }, { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 },  { 0, 0, 0, 0, 0 },  { 1, 0, 0, 0, 0 },  { 0, 0, 0, 0, 0 } },
+};
+
+const std::vector<InputShape> inputShapesDynamic5D_shrink = {
+        {{-1, -1, -1, -1, 4},
+        {{2, 1, 3, 4, 4}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D_shrink, StridedSliceLayerGPUTest,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(inputShapesDynamic5D_shrink),
+                             ::testing::ValuesIn(testCasesCommon5D_shrink),
+                             ::testing::ValuesIn(model_types),
+                             ::testing::ValuesIn(rest_input_types)),
+                         StridedSliceLayerGPUTest::getTestCaseName);
 
 const std::vector<StridedSliceParams> testCasesCommon6D = {
         StridedSliceParams{ { 0, 2, 5, 4 }, { 1, 4, 28, 27 }, { 1, 1, 1, 1 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },  { },  { },  { } },
