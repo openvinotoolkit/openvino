@@ -1859,12 +1859,8 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     ob << _is_body_program;
     ob << _can_be_optimized;
-    auto onednn_impls_size = get_layout_optimizer().get_all_onednn_impls_optimization_attribute().size();
-    ob << onednn_impls_size;
-    for (const auto& onednn_impl : get_layout_optimizer().get_all_onednn_impls_optimization_attribute()) {
-        ob << prim_map_storage::instance().get_type_string(onednn_impl.first);
-        ob << onednn_impl.second;
-    }
+
+    _layout_optimizer->save(ob);
 
     processing_order.save(ob);
 
@@ -2008,21 +2004,12 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     ib >> _is_body_program;
     ib >> _can_be_optimized;
 
-    size_t num_of_onednn_impls;
-    ib >> num_of_onednn_impls;
-    for (size_t num = 0; num < num_of_onednn_impls; num++) {
-        primitive_id p_id{};
-        bool enabled;
-        ib >> p_id;
-        ib >> enabled;
-        auto ptype_id = prim_map_storage::instance().get_type_id(p_id);
-        get_layout_optimizer().set_value_onednn(ptype_id, enabled);
-    }
+    _layout_optimizer->load(ib);
+    _layout_optimizer->set_implementation_forcing(_config.get_force_implementations());
 
     _loaded_from_cache = true;
 
     processing_order.load(ib, *this);
-    set_layout_optimizer_attributes(*_layout_optimizer);
 
     {
         auto& kernels_cache = get_kernels_cache();
