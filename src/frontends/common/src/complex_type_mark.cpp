@@ -231,7 +231,6 @@ ov::Output<ov::Node> ComplexTypeMark::mul(const NodeContext& context,
         // rhs is of a real type
         auto unsqueeze_axis = context.mark_node(make_shared<v0::Constant>(element::i32, Shape{1}, -1));
         auto unsqueezed_rhs = context.mark_node(make_shared<v0::Unsqueeze>(rhs, unsqueeze_axis));
-
         auto result = context.mark_node(make_shared<v1::Multiply>(lhs_data, unsqueezed_rhs))->output(0);
 
         auto complex_result = context.mark_node(make_shared<ComplexTypeMark>(result, result.get_element_type()));
@@ -239,10 +238,9 @@ ov::Output<ov::Node> ComplexTypeMark::mul(const NodeContext& context,
     } else if (rhs_complex) {
         auto rhs_data = rhs_complex->get_data();
 
-        // lhs is of a real type
+        // rhs is of a real type
         auto unsqueeze_axis = context.mark_node(make_shared<v0::Constant>(element::i32, Shape{1}, -1));
         auto unsqueezed_lhs = context.mark_node(make_shared<v0::Unsqueeze>(lhs, unsqueeze_axis));
-
         auto result = context.mark_node(make_shared<v1::Multiply>(unsqueezed_lhs, rhs_data))->output(0);
 
         auto complex_result = context.mark_node(make_shared<ComplexTypeMark>(result, result.get_element_type()));
@@ -300,7 +298,6 @@ ov::Output<ov::Node> ComplexTypeMark::convert_like(const NodeContext& context,
                                                    const ov::Output<ov::Node>& input,
                                                    const ov::Output<ov::Node>& like) {
     auto like_complex = as_type_ptr<ComplexTypeMark>(like.get_node_shared_ptr());
-    auto input_complex = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
 
     ov::Output<ov::Node> like_data = like;
     if (like_complex) {
@@ -308,6 +305,7 @@ ov::Output<ov::Node> ComplexTypeMark::convert_like(const NodeContext& context,
             (like_complex->get_data().get_node_shared_ptr() ? like_complex->get_data() : like_complex->get_real());
     }
 
+    auto input_complex = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     if (input_complex && input_complex->get_data().get_node_shared_ptr()) {
         auto new_input_data = input_complex->get_data();
         new_input_data = context.mark_node(make_shared<v1::ConvertLike>(new_input_data, like_data));

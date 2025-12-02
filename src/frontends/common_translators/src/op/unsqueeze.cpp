@@ -25,8 +25,9 @@ OutputVector translate_unsqueeze(const NodeContext& context) {
     auto dim = context.get_input(1);
 
     auto complex = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
+    bool is_complex = complex != nullptr;
 
-    if (complex) {
+    if (is_complex) {
         if (dim.get_element_type() != element::i32) {
             dim = context.mark_node(std::make_shared<v0::Convert>(dim, element::i32));
         }
