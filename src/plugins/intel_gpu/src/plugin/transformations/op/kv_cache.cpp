@@ -137,7 +137,7 @@ std::vector<ov::PartialShape> shape_infer(const KVCache* op, const std::vector<o
     if (op->get_output_size() >= 2) {
         out_shapes[0] = input_shapes[1];
         out_shapes[0][gather_axis] = input_shapes[2][0];
-        out_shapes[0][concat_axis] += input_shapes[0][concat_axis] - (op->get_trim() ? op->get_trim_length() : 0);
+        out_shapes[0][concat_axis] += input_shapes[0][concat_axis] - op->get_trim_length();
 
         std::vector<ov::Dimension> dims(out_shapes[0].size(), 1);
         dims[gather_axis] = out_shapes[0][gather_axis];
@@ -145,7 +145,7 @@ std::vector<ov::PartialShape> shape_infer(const KVCache* op, const std::vector<o
         out_shapes[1] = dims;
     } else {
         out_shapes[0] = input_shapes[1];
-        out_shapes[0][concat_axis] += input_shapes[0][concat_axis] - (op->get_trim() ? op->get_trim_length() : 0);
+        out_shapes[0][concat_axis] += input_shapes[0][concat_axis] - op->get_trim_length();
     }
 
     return out_shapes;
