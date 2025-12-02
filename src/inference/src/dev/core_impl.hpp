@@ -167,7 +167,7 @@ private:
     mutable ov::CacheGuard m_cache_guard;
 
     struct PluginDescriptor {
-        ov::util::Path m_lib_location{};
+        std::filesystem::path m_lib_location{};
         ov::AnyMap m_default_config{};
         std::vector<ov::util::FilePath> m_list_of_extensions{};
         CreatePluginEngineFunc* m_plugin_create_func = nullptr;
