@@ -1490,10 +1490,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (conv.is_dynamic()) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
                 bool is_dynamic_batch = !node->get_output_layout().get_partial_shape()[0].is_static();
                 bool is_fp32_conv = (node->get_input_layout().data_type == data_types::f32) &&
                                     (node->get_output_layout().data_type == data_types::f32);
                 is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
+#endif
             } else {
 #endif
                 auto input_size = node->get_input_layout(0).get_tensor();
