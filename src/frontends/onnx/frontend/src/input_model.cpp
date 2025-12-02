@@ -862,6 +862,19 @@ void InputModel::InputModelONNXImpl::set_name_for_operation(const Place::Ptr& op
 }
 
 void InputModel::InputModelONNXImpl::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
+    // Only support the case when new inputs are same as before
+    bool original_inputs = true;
+    for (const auto& input : inputs) {
+        if (!std::any_of(m_inputs.begin(), m_inputs.end(), [&input](const auto& existing_input) {
+                return input->is_equal(existing_input);
+            })) {
+            original_inputs = false;
+            break;
+        }
+    }
+    if (original_inputs) {
+        return;
+    }
     FRONT_END_NOT_IMPLEMENTED(override_all_inputs);
 }
 
