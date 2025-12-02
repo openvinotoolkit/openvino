@@ -53,6 +53,14 @@ OutputVector translate_list_unpack(const NodeContext& context) {
                 PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported operation type.");
             }
         } else {
+            // CVS-176305: Preserve ComplexTypeMark for complex tensor outputs
+            if (is_complex) {
+                OutputVector complex_outputs;
+                for (const auto& output : outputs) {
+                    complex_outputs.push_back(context.mark_node(std::make_shared<ComplexTypeMark>(output)));
+                }
+                return complex_outputs;
+            }
             return outputs;
         }
     }
