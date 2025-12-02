@@ -62,9 +62,9 @@ public:
 
     void safeAddExtension(ov::Core& core) {
         try {
-            auto extension = ov::detail::load_extensions(
+            auto extension = ov::detail::load_extensions(ov::util::make_path(
                 ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                   std::string("openvino_template_extension") + OV_BUILD_POSTFIX));
+                                                   std::string("openvino_template_extension") + OV_BUILD_POSTFIX)));
             core.add_extension(extension);
         } catch (const ov::Exception& ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
@@ -99,7 +99,7 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
             core.get_versions(deviceName);
             core.unload_plugin(deviceName);
         },
-        4000);
+        500);
 }
 
 // tested function: RegisterPlugins
@@ -138,7 +138,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
             core.unload_plugin(deviceName);
             std::filesystem::remove(fileName);
         },
-        1000);
+        500);
 }
 
 #endif  // !OPENVINO_STATIC_LIBRARY

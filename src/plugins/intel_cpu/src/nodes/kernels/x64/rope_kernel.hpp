@@ -27,6 +27,7 @@ struct jit_rotary_compile_params {
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
     size_t rotary_ndims = 0UL;
+    size_t cos_sin_ndims = 0UL;
     bool interleave = false;
     bool mix_cos_sin = false;
 };

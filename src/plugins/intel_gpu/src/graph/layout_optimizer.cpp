@@ -971,6 +971,17 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
     OPENVINO_ASSERT(rank == output_layout.get_partial_shape().size(), "Input and output ranks must match");
     OPENVINO_ASSERT(rank <= 5, "Not supported rank");
 
+    if (_optimization_attributes.byxf_onednn_convolution) {
+        if (rank <= 4) {
+            node.set_preferred_input_fmt(0, cldnn::format::byxf);
+            node.set_preferred_output_fmt(0, cldnn::format::byxf);
+        } else {
+            node.set_preferred_input_fmt(0, cldnn::format::bzyxf);
+            node.set_preferred_output_fmt(0, cldnn::format::bzyxf);
+        }
+        return;
+    }
+
     // Data type classification
     bool i8_u8_input = (input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8);
     bool i8_u8_output = (output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8);
@@ -1474,6 +1485,9 @@ void layout_optimizer::set_optimization_attribute(optimization_attributes_type a
     switch (attribute) {
         case optimization_attributes_type::group_convolution:
             _optimization_attributes.group_convolution = val;
+            break;
+        case optimization_attributes_type::byxf_onednn_convolution:
+            _optimization_attributes.byxf_onednn_convolution = val;
             break;
         case optimization_attributes_type::bfyx_only_layer:
             _optimization_attributes.bfyx_only_layer = val;

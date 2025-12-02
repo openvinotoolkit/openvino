@@ -7,16 +7,18 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestMean(PytorchLayerTest):
-    def _prepare_input(self, out, keep_dim, axis, dtype):
+    def _prepare_input(self, use_out, keep_dim, axis, dtype):
         import numpy as np
-        if not out:
+        if keep_dim is None:
+            keep_dim = False
+        if not use_out:
             return (np.random.randint(-10, 10, (1, 3, 224, 224)).astype(np.float32),)
         inp = np.random.randint(-10, 10, (1, 3, 224, 224)).astype(np.float32)
         calc_inp = inp.astype(dtype) if dtype is not None else inp
         if axis is None:
-            out = np.mean(calc_inp, keepdims=keep_dim or False)
+            out = np.mean(calc_inp, keepdims=keep_dim)
         else:
-            out = np.mean(calc_inp, keepdims=keep_dim or False, axis=axis)
+            out = np.mean(calc_inp, keepdims=keep_dim, axis=axis)
         out_tensor = np.zeros_like(out)
         return (inp, out_tensor)
 
@@ -34,10 +36,9 @@ class TestMean(PytorchLayerTest):
         }
         pt_dtype = dtypes.get(dtype)
 
-
         class aten_mean(torch.nn.Module):
             def __init__(self, axes=None, keep_dims=None, dtype=None, out=False):
-                super(aten_mean, self).__init__()
+                super().__init__()
                 self.axes = axes
                 self.keep_dims = keep_dims
                 self.dtype = dtype
@@ -46,16 +47,16 @@ class TestMean(PytorchLayerTest):
 
             def forward(self, x):
                 if self.axes is None and self.keep_dims is None:
-                    if self.dtype is None:
+                    if self.dtype is not None:
                         return torch.mean(x, dtype=self.dtype)
                     return torch.mean(x)
                 if self.axes is not None and self.keep_dims is None:
-                    if self.dtype is None:
-                        return torch.mean(x, self.axes)
-                    return torch.mean(x, self.axes, dtype=self.dtype)
+                    if self.dtype is not None:
+                        return torch.mean(x, self.axes, dtype=self.dtype)
+                    return torch.mean(x, self.axes)
                 if self.dtype is None:
-                    return torch.mean(x, self.axes, self.keep_dims)
-                return torch.mean(x, self.axes, self.keep_dims, dtype=self.dtype)
+                    return torch.mean(x, dim=self.axes, keepdim=self.keep_dims)
+                return torch.mean(x, dim=self.axes, keepdim=self.keep_dims, dtype=self.dtype)
 
             def forward_out(self, x, out):
                 if self.axes is not None and self.keep_dims is None:
@@ -63,26 +64,39 @@ class TestMean(PytorchLayerTest):
                         return torch.mean(x, self.axes, out=out)
                     return torch.mean(x, self.axes, dtype=self.dtype, out=out)
                 if self.dtype is None:
-                    return torch.mean(x, self.axes, self.keep_dims, out=out)
-                return torch.mean(x, self.axes, self.keep_dims, dtype=self.dtype, out=out)
+                    return torch.mean(x, dim=self.axes, keepdim=self.keep_dims, out=out)
+                return torch.mean(x, dim=self.axes, keepdim=self.keep_dims, dtype=self.dtype, out=out)
 
-        ref_net = None
-
-        return aten_mean(axes, keep_dims, pt_dtype, out), ref_net, "aten::mean"
+        return aten_mean(axes, keep_dims, pt_dtype, out), None, "aten::mean"
 
     @pytest.mark.parametrize("axes,keep_dim,dtype,out",
-                             [
-                                (None, None, None, False), (None, None, "float64", False), (None, None, "float32", False), (None, None, "int32", False),
-                                (0, False, None, False), (0, False, None, True), (0, True, None, False), (0, True, None, True), (0, True, "float64", False),
-                                (-1, None, "float32", False), (-1, None, "float32", True), (-1, True, None, False),
-                                (1, None, None, False), (1, None, None, True), ((2, 3), False, None, False), ((3, 2), True, None, False)
-                                ])
+                             [(None, None, None, False),
+                              (None, None, "float64", False),
+                              (None, None, "float32", False),
+                              (None, False, "float32", False),
+                              (0, False, None, False),
+                              (0, False, None, True),
+                              (0, True, None, False),
+                              (0, True, None, True),
+                              (0, True, "float64", False),
+                              (-1, None, "float32", False),
+                              (-1, None, "float32", True),
+                              (-1, True, None, False),
+                              (1, None, None, False),
+                              (1, None, None, True),
+                              ((2, 3), False, None, False),
+                              ((3, 2), True, None, False)
+                              ])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
-    def test_sum(self, axes, keep_dim, dtype, out, ie_device, precision, ir_version):
+    def test_mean(self, axes, keep_dim, dtype, out, ie_device, precision, ir_version):
         if PytorchLayerTest.use_torch_export() and out:
             pytest.skip(reason="export fails for out")
         self._test(*self.create_model(axes, keep_dim, dtype, out),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={"out": out, "axis": axes, "dtype": dtype, "keep_dim": keep_dim})
+                   ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"use_out": out,
+                                            "axis": axes,
+                                            "dtype": dtype,
+                                            "keep_dim": keep_dim})

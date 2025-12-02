@@ -158,15 +158,46 @@ void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx,
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::IBaseInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    // assert(persistent)
-    return m_port_to_tensor.at(port).tensor;
+    std::unique_lock lock(m_io_storages_mutex);
+
+    if (is_stored(port)) {
+        return m_port_to_tensor.at(port).tensor;
+    }
+
+    // I/O: allocate here on demand (to reduce memory consumption in case some I/O were shared)
+    // Input
+    for (std::size_t i = 0; i < m_npuw_model->inputs().size(); ++i) {
+        if (m_npuw_model->inputs()[i] == port) {
+            ov::SoPtr<ov::ITensor> allocated = allocOut(port, global_input_mem_device(i));
+            m_input_allocated.insert(allocated->data());
+            m_port_to_tensor[port] = TensorStorage{allocated, true};
+            return m_port_to_tensor.at(port).tensor;
+        }
+    }
+
+    // Output
+    for (size_t i = 0; i < m_npuw_model->outputs().size(); i++) {
+        if (m_npuw_model->outputs()[i] == port) {
+            auto tensor = alloc_global_out(i);
+            m_port_to_tensor[port] = TensorStorage{tensor, true};
+            return m_port_to_tensor.at(port).tensor;
+        }
+    }
+
+    NPUW_ASSERT(false);
+    return {};
 }
 
 void ov::npuw::IBaseInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                              const ov::SoPtr<ov::ITensor>& tensor) {
-    // Assigning via .at() to ensure it is a known port
-    // assert(persistent)
-    m_port_to_tensor.at(port).tensor = tensor;
+    std::unique_lock lock(m_io_storages_mutex);
+
+    if (!is_stored(port)) {
+        // TODO: might be useful to check if the tensor is allocated on the device
+        m_port_to_tensor[port] = TensorStorage{tensor, true};
+    } else {
+        m_port_to_tensor.at(port).tensor = tensor;
+    }
 
     // Check if setting input tensor
     if (m_port_to_tensor.at(port).persistent) {
@@ -190,6 +221,10 @@ void ov::npuw::IBaseInferRequest::check_tensors() const {
     return;
 }
 
+bool ov::npuw::IBaseInferRequest::is_stored(const ov::Output<const ov::Node>& port) const {
+    return m_port_to_tensor.find(port) != m_port_to_tensor.end();
+}
+
 void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const ov::Node>& port,
                                                           const ov::SoPtr<ov::ITensor>& tensor) {
     for (std::size_t i = 0; i < m_npuw_model->inputs().size(); ++i) {
@@ -209,6 +244,8 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
                         static_cast<ze_context_handle_t>(zrh.as<void*>()),
                         tensor->data()) > 0) {
                     if (tensor->is_continuous()) {
+                        // Note: no need for locking as it's internal method that should
+                        // only be called from set_tensor()
                         m_input_allocated.insert(tensor->data());
                     } else {
                         LOG_WARN("Strided remote tensor is not supported on the device! Expect worse performance due "
@@ -292,14 +329,14 @@ std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Type type,
                                                           const ov::Shape& shape,
-                                                          const std::string& device) {
+                                                          const std::string& device) const {
     auto ptr = ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
     m_footprint[device] += ptr->get_byte_size();
     return ptr;
 }
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const ov::Node>& node,
-                                                          const std::string& device) {
+                                                          const std::string& device) const {
     return allocMem(node.get_element_type(), node.get_shape(), device);
 }
 
@@ -328,31 +365,7 @@ std::string ov::npuw::IBaseInferRequest::global_output_mem_device(std::size_t id
     return *proto_comp_model_desc.device_it;
 }
 
-void ov::npuw::IBaseInferRequest::alloc_io() {
-    // Preallocate input tensors
-    LOG_INFO("Preallocating input tensors...");
-    for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
-        const auto& port = m_npuw_model->inputs()[i];
-        ov::SoPtr<ov::ITensor> allocated = allocOut(port, global_input_mem_device(i));
-        m_input_allocated.insert(allocated->data());
-        m_port_to_tensor[port] = TensorStorage{allocated, true};
-    }  // for(inputs)
-
-    // Preallocate output tensors
-    LOG_INFO("Preallocating output tensors...");
-    for (size_t i = 0; i < m_npuw_model->outputs().size(); i++) {
-        LOG_BLOCK();
-        const auto& port = m_npuw_model->outputs()[i];
-        LOG_INFO("Output " << i << " of " << m_npuw_model->outputs().size() << ": " << port);
-
-        // FIXME: Yes, the CompiledModel::ToSubmodel == JustInferRequest::LinkFrom
-        const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
-        LOG_INFO("Produced by Subgraph[" << from_submodel.first << "] / " << from_submodel.second);
-
-        auto tensor = alloc_global_out(i);
-        m_port_to_tensor[port] = TensorStorage{tensor, true};
-    }
-
+void ov::npuw::IBaseInferRequest::alloc_quant_gather() {
     // Try to allocate intermediate tensors to gather into, when host quant gather is enabled
     for (size_t i = 0; i < m_num_submodels; i++) {
         auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
@@ -363,7 +376,7 @@ void ov::npuw::IBaseInferRequest::alloc_io() {
     }
 }
 
-ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::alloc_global_out(std::size_t out_idx) {
+ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::alloc_global_out(std::size_t out_idx) const {
     const auto& port = m_npuw_model->outputs().at(out_idx);
     return allocOut(port, global_output_mem_device(out_idx));
 }
@@ -540,7 +553,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         LOG_DEBUG("Processing " << param_idx << " -> " << sub_in_idx << std::endl);
 
         const auto& g_port = m_npuw_model->inputs()[param_idx];
-        const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
+        const auto& g_tnsr = get_tensor(g_port);
         const auto& s_port = request->get_inputs()[sub_in_idx];
         LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
         LOG_BLOCK();
@@ -558,6 +571,8 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             // Register for future use
             m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
+            // Lock mutex just in case. m_input_allocated might be altered in parallel in get_tensor()
+            std::unique_lock lock(m_io_storages_mutex);
             // Input parameter is non-spatial, do normal handling
             if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
                 LOG_DEBUG("Will be copied");
@@ -877,7 +892,7 @@ void ov::npuw::IBaseInferRequest::bind_global_results(std::size_t idx, RqPtr req
         std::tie(result_idx, sub_out_idx) = it;
         const auto& g_port = m_npuw_model->outputs()[result_idx];
         const auto& s_port = request->get_outputs()[sub_out_idx];
-        request->set_tensor(s_port, m_port_to_tensor.at(g_port).tensor);
+        request->set_tensor(s_port, get_tensor(g_port));
     }
 
     LOG_DEBUG("Done");

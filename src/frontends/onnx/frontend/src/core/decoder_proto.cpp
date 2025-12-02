@@ -31,27 +31,18 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         }
         switch (attr.type()) {
         case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
-            if (attr.has_f())
-                return attr.f();
-            else
-                throw std::runtime_error("Attribute doesn't have value");
-            break;
+            // do not check attr.has_f() because f has default value 0.0
+            return attr.f();
         case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS:
             return std::vector<float>{attr.floats().begin(), attr.floats().end()};
         case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
-            if (attr.has_i())
-                return attr.i();
-            else
-                throw std::runtime_error("Attribute doesn't have value");
-            break;
+            // do not check attr.has_i() because i has default value 0
+            return attr.i();
         case AttributeProto_AttributeType::AttributeProto_AttributeType_INTS:
             return std::vector<int64_t>{attr.ints().begin(), attr.ints().end()};
         case AttributeProto_AttributeType::AttributeProto_AttributeType_STRING:
-            if (attr.has_s())
-                return attr.s();
-            else
-                throw std::runtime_error("Attribute doesn't have value");
-            break;
+            // do not check attr.has_s() because s has default value ""
+            return attr.s();
         case AttributeProto_AttributeType::AttributeProto_AttributeType_STRINGS:
             return std::vector<std::string>{attr.strings().begin(), attr.strings().end()};
         case AttributeProto_AttributeType::AttributeProto_AttributeType_GRAPH:
@@ -59,7 +50,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 return static_cast<ov::frontend::onnx::GraphIterator::Ptr>(
                     std::make_shared<GraphIteratorProto>(m_parent, &attr.g()));
             else
-                throw std::runtime_error("Attribute doesn't have value");
+                throw std::runtime_error("Attribute \"" + name + "\" doesn't have g value");
             break;
         case AttributeProto_AttributeType::AttributeProto_AttributeType_TENSOR:
             return static_cast<ov::frontend::onnx::DecoderBase::Ptr>(

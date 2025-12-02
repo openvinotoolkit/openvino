@@ -31,7 +31,8 @@ if(NOT X86_64)
       ${CMAKE_CURRENT_SOURCE_DIR}/transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_executor_test.cpp)
+      ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_executor_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/xattention_test.cpp)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
@@ -58,6 +59,7 @@ ov_add_test_target(
                 $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn
                 $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/src
                 $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
+                $<TARGET_PROPERTY:openvino::reference,SOURCE_DIR>/include
             PRIVATE
                 $<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include
         EXCLUDED_SOURCE_PATHS

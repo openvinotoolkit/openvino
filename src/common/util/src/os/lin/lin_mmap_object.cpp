@@ -77,7 +77,7 @@ public:
         }
         m_size = sb.st_size;
         if (m_size > 0) {
-            m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), 0);
+            m_data = mmap(nullptr, m_size, prot, MAP_SHARED, m_handle.get(), 0);
             if (m_data == MAP_FAILED) {
                 throw std::runtime_error("Can not create file mapping for " + path + ", err=" + std::strerror(errno));
             }

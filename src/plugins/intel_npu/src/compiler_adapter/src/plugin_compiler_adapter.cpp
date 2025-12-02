@@ -343,9 +343,9 @@ std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
     return {};
 }
 
-bool PluginCompilerAdapter::is_option_supported(std::string optname) const {
+bool PluginCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
     // This functions has no utility in PluginCompiler
-    // returning false for any request to avoid the option of spaming the plugin
+    // returning false for any request to avoid the option of spamming the plugin
     return false;
 }
 
