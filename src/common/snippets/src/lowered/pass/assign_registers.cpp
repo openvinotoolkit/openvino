@@ -90,21 +90,25 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
             // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a
             // accumulator
             // TODO [96351]: We should rewrite accumulator pattern using another way
-            const auto& input_tensor = expr->get_input_port_connector(0);
-            const auto& input = input_tensor->get_source();
             OPENVINO_ASSERT(!vec_pool.empty(), "Not enough vector registers in the pool to perform manual assignment");
             const auto& assigned = *vec_pool.begin();
-            for (const auto& tensor : input.get_expr()->get_input_port_connectors()) {
-                const auto parent = tensor->get_source();
-                const auto parent_expr = parent.get_expr();
-                if (ov::is_type<op::Fill>(parent_expr->get_node())) {
-                    if (ov::is_type<op::VectorBuffer>(parent_expr->get_input_expr_ptr(0)->get_node())) {
-                        manually_assigned[parent.get_descriptor_ptr()->get_reg()] =
-                            manually_assigned[parent_expr->get_input_port_descriptor(0)->get_reg()] = assigned;
+            for (size_t i = 0; i < expr->get_input_count(); ++i) {
+                const auto& input_tensor = expr->get_input_port_connector(i);  // loop all input connectors
+                // std::cout << "HorizonMax->get_input_count():" << expr->get_input_count() << std::endl;
+                const auto& input = input_tensor->get_source();
+                for (const auto& tensor : input.get_expr()->get_input_port_connectors()) {
+                    const auto parent = tensor->get_source();
+                    const auto parent_expr = parent.get_expr();
+                    if (ov::is_type<op::Fill>(parent_expr->get_node())) {
+                        if (ov::is_type<op::VectorBuffer>(parent_expr->get_input_expr_ptr(0)->get_node())) {
+                            // std::cout << "Fill out count:" << parent_expr->get_node()->get_output_size() << std::endl;
+                            manually_assigned[parent.get_descriptor_ptr()->get_reg()] =
+                                manually_assigned[parent_expr->get_input_port_descriptor(0)->get_reg()] = assigned;
+                        }
                     }
                 }
+                manually_assigned[input.get_descriptor_ptr()->get_reg()] = assigned;
             }
-            manually_assigned[input.get_descriptor_ptr()->get_reg()] = assigned;
             vec_pool.erase(vec_pool.begin());
         }
     }
