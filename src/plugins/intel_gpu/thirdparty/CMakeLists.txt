@@ -169,6 +169,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                             DNNL_ENABLE_MAX_CPU_ISA
                             DNNL_X64=1
                             NGEN_CONFIG
+                            NGEN_NO_OP_NAMES
                             XE3P
                             XE4)
         add_library(onednn_gpu_tgt INTERFACE)
