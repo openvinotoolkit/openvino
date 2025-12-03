@@ -31,7 +31,6 @@ void reorder_transfer::run(program& p) {
         if (input_size >= output_size && !reorder_node.is_constant())
             continue;
 
-
         auto transfer_through_node = [](cldnn::program_node* node) -> bool { // Conditions can be extended to other ops
             return node->is_type<permute>() &&
                    node->get_users().size() == 1 &&
