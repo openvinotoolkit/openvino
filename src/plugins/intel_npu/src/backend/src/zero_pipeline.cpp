@@ -274,12 +274,30 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     }
 }
 
-ov::Strides Pipeline::get_strides(const std::shared_ptr<ZeroTensor>& tensor) {
+std::vector<size_t> Pipeline::get_strides(const std::shared_ptr<ZeroTensor>& tensor) {
     if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous()) {
-        return ov::Strides{};
+        return {};
     }
 
-    return tensor->get_strides();
+    auto ov_strides = tensor->get_strides();
+    if (ov_strides.empty()) {
+        return {};
+    }
+
+    auto element_size = tensor->get_element_type().size();
+    std::vector<size_t> element_strides(ov_strides.size());
+    std::transform(ov_strides.rbegin(), ov_strides.rend(), element_strides.begin(), [element_size](size_t byte_stride) {
+        OPENVINO_ASSERT(byte_stride % element_size == 0,
+                        "Stride ",
+                        byte_stride,
+                        " bytes is not aligned to element size ",
+                        element_size,
+                        " bytes. Strides must be multiples of element size.");
+
+        return byte_stride / element_size;
+    });
+
+    return element_strides;
 };
 
 }  // namespace intel_npu
