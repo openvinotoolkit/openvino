@@ -7,7 +7,7 @@ from utils.constants import FULL_DEVICE_PROPERTY, SUPPORTED_PROPERTIES, DEVICE_A
 logger = get_logger("get_available_device")
 
 try:
-    from openvino.runtime import Core
+    from openvino import Core
 except:
     from utils.file_utils import get_ov_path, find_latest_dir
     import os
