@@ -4,7 +4,13 @@
 import os
 
 from datasets import Audio, load_dataset
-from huggingface_hub import hf_hub_download, model_info, snapshot_download
+from huggingface_hub import model_info, snapshot_download
+
+try:
+    from huggingface_hub import hf_hub_download as cached_download
+except ImportError:
+    from huggingface_hub import cached_download
+
 from PIL import Image
 import pytest
 import torch
