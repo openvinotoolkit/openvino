@@ -83,13 +83,9 @@ struct VersionCompatibilityPolicy {
     size_t max_build_diff = 0;
 };
 
-bool is_version_compatible(const Version& older_version,
-                           const Version& newer_version,
-                           const VersionCompatibilityPolicy& policy = {});
-
-bool is_version_compatible(const Version& older_version,
-                           const Version& newer_version,
-                           const VersionCompatibilityPolicy& policy) {
+inline bool is_version_compatible(const Version& older_version,
+                                  const Version& newer_version,
+                                  const VersionCompatibilityPolicy& policy = {}) {
     if (older_version > newer_version) {
         return false;
     }
