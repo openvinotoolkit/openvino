@@ -30,9 +30,6 @@ static std::set<std::string> get_element_type_names() {
                                                     ov::element::Type_t::u1,
                                                     ov::element::Type_t::boolean,
                                                     ov::element::Type_t::dynamic};
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    element_types.emplace_back(element::undefined);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     std::set<std::string> result;
     for (const auto& element_type : element_types) {
         std::string element_name = element_type.get_type_name();
