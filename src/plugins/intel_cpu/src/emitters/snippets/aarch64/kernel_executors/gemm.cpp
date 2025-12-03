@@ -46,10 +46,8 @@ void GemmKaiKernelExecutor::update_kernel([[maybe_unused]] const GemmKernelKaiCo
 void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                           const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                           GemmKernelKaiConfig& config) const {
-    const auto [M, N, K, beta] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
-
+    const auto [M, N, K, beta, LDC] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
     const auto LDA = snippets::utils::get_dim_stride(expr->get_input_port(0));
-    const auto LDC = snippets::utils::get_dim_stride(expr->get_output_port(0));
     const auto LDB = snippets::utils::get_dim_stride(expr->get_input_port(1));
     config.update(M, N, K, LDA, LDB, LDC, beta);
 }

@@ -117,6 +117,15 @@ void update_data_pointer_shifts(const LoopManagerPtr& loop_manager, const Unifie
     const auto input_count = loop_info->get_input_count();
     const auto output_count = loop_info->get_output_count();
 
+    auto extract_inner_split_loop = [](const LoopInfoPtr& loop_info) -> InnerSplittedUnifiedLoopInfoPtr {
+        if (auto inner_splitted_loop = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(loop_info)) {
+            return inner_splitted_loop;
+        }
+        if (const auto expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_info)) {
+            return ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(expanded_loop_info->get_unified_loop_info());
+        }
+        return nullptr;
+    };
     // WA: to find outer split loop whose dim_idx is less than cur_dim_idx,
     // we use the knowledge that such outer loop is connected with the inner split loop
     // which is nested inside the current loop
@@ -127,7 +136,7 @@ void update_data_pointer_shifts(const LoopManagerPtr& loop_manager, const Unifie
         auto fst_port_expr = loop_info->get_input_ports().front().get_expr_port()->get_expr();
         for (const auto loop_idx : fst_port_expr->get_loop_ids()) {
             const auto loop_info = loop_manager->get_loop_info(loop_idx);
-            if (const auto inner_split_loop = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(loop_info)) {
+            if (const auto inner_split_loop = extract_inner_split_loop(loop_info)) {
                 if (inner_split_loop->get_dim_idx() < cur_dim_idx) {
                     OPENVINO_ASSERT(outer_split_info_of_nested_loop == nullptr,
                                     "only 1 nested inner split loop is supported");

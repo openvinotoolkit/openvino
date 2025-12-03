@@ -18,6 +18,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/bucketize.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/exp.hpp"
@@ -43,6 +44,7 @@
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -353,6 +355,61 @@ TEST(TransformationTests, ConvertPrecision_Range) {
     OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_Range_i32_to_i64) {
+    std::shared_ptr<Model> model;
+    {
+        auto param = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
+        auto reduction_axes = ov::op::v0::Constant::create(element::i32, {1}, {0});
+        auto stop = std::make_shared<ov::op::v1::ReduceMax>(param, reduction_axes);
+        auto start = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
+        auto step = ov::op::v0::Constant::create(element::i32, {}, {1});
+        auto range = std::make_shared<ov::op::v4::Range>(start, stop, step, element::i64);
+        auto target_shape = ov::op::v0::Constant::create(element::i64, {2}, {1, -1});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(range, target_shape, false);
+        auto add_const = ov::op::v0::Constant::create(element::i64, {1, 1}, {1});
+        auto add = std::make_shared<ov::op::v1::Add>(reshape, add_const);
+        auto res = std::make_shared<ov::op::v0::Result>(add);
+
+        ov::disable_fp16_compression(start);
+        ov::disable_fp16_compression(reduction_axes);
+        ov::disable_fp16_compression(stop);
+        ov::disable_fp16_compression(step);
+        ov::disable_fp16_compression(range);
+        ov::disable_fp16_compression(add_const);
+        ov::disable_fp16_compression(add);
+
+        model = std::make_shared<Model>(OutputVector{res}, ParameterVector{param});
+
+        pass::Manager manager;
+
+        const precisions_map precisions = {{element::i64, element::i32}};
+
+        manager.register_pass<pass::ConvertPrecision>(precisions);
+        manager.run_passes(model);
+    }
+
+    std::shared_ptr<Model> model_ref;
+    {
+        auto param = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
+        auto reduction_axes = ov::op::v0::Constant::create(element::i32, {1}, {0});
+        auto stop = std::make_shared<ov::op::v1::ReduceMax>(param, reduction_axes);
+        auto start = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
+        auto step = ov::op::v0::Constant::create(element::i32, {}, {1});
+        auto range = std::make_shared<ov::op::v4::Range>(start, stop, step, element::i32);
+        auto target_shape = ov::op::v0::Constant::create(element::i32, {2}, {1, -1});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(range, target_shape, false);
+        auto add_const = ov::op::v0::Constant::create(element::i32, {1, 1}, {1});
+        auto add = std::make_shared<ov::op::v1::Add>(reshape, add_const);
+        auto res = std::make_shared<ov::op::v0::Result>(add);
+        model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{param});
+    }
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+    const auto res = fc.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantRelu) {
