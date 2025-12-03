@@ -354,7 +354,8 @@ void buildOperations(Graph& graph, IBuildStrategy::Ptr strategy, const Inference
     for (auto nh : graph.nodes()) {
         // NB: Make sure all data nodes that needs to be
         // dumped or validated are graph outputs.
-        if (!graph.meta(nh).has<GraphOutput>() && (graph.meta(nh).has<Validate>() || graph.meta(nh).has<Dump>() || graph.meta(nh).has<InferOutput>())) {
+        if (!graph.meta(nh).has<GraphOutput>() && (graph.meta(nh).has<Validate>()    || graph.meta(nh).has<Dump>() ||
+                                                   graph.meta(nh).has<InferOutput>() || graph.meta(nh).has<DualDeviceDump>())) {
             graph.meta(nh).set(GraphOutput{});
         }
     }

@@ -54,22 +54,17 @@ static Result performValidation(
     const AccuracySimulation::Options& opts) {
 
     std::vector<FailedIter> failed_iters;
-    size_t num_iters = std::min(ref_outputs.size(), tgt_outputs.size()); // iteration, layer
 
-    std::cout << "\nValidation will run for " << num_iters << " iterations\n";
-
-    std::cout << "\n Ref outputs size " << ref_outputs.size() << "\t Tgt outputs size " << tgt_outputs.size() << "\n";
-
-    for (size_t i = 0; i < num_iters; ++i) {
-        std::cout << "Before\n";
-        auto failed_list = compareOutputs(ref_outputs[i], tgt_outputs[i], infer, opts);
-        std::cout << "After\n";
+    // NB: Use tgt_outputs.size() as iteration count to match validation mode behavior.
+    // Reference outputs are cycled via modulo if fewer iterations are available.
+    for (size_t i = 0; i < tgt_outputs.size(); ++i) {
+        auto failed_list = compareOutputs(ref_outputs[i % ref_outputs.size()], tgt_outputs[i], infer, opts);
         if (!failed_list.empty()) {
             failed_iters.push_back(FailedIter{i, std::move(failed_list)});
         }
     }
 
-    return reportValidationResult(failed_iters, num_iters);
+    return reportValidationResult(failed_iters, tgt_outputs.size());
 }
 
 namespace {
@@ -104,8 +99,8 @@ void InputDataVisitor::operator()(std::monostate) {
 };
 
 void InputDataVisitor::operator()(const LayerVariantAttr<std::string>&) {
-    THROW_ERROR("Accuracy mode requires input data path to be provided"
-                " in form of either directory or single file!");
+    THROW_ERROR("Accuracy mode does not support per-layer input data paths."
+                " Provide either a single directory, a single file, or omit input data to use random generation!");
 };
 
 void InputDataVisitor::operator()(const std::string& path_str) {
@@ -161,7 +156,7 @@ struct OutputDataVisitor {
     }
 
     void operator()(std::monostate);
-    void operator()(const std::string&);
+    void operator()(std::string);
     void operator()(const LayerVariantAttr<std::string>&);
 
     InferDesc infer;
@@ -176,28 +171,40 @@ void OutputDataVisitor::operator()(std::monostate) {
 }
 
 void OutputDataVisitor::operator()(const LayerVariantAttr<std::string>&) {
-    THROW_ERROR("Reference mode requires output data path to be provided"
-                " in form of either directory or single file!");
+    THROW_ERROR("Accuracy mode does not support per-layer output data paths."
+                " Provide either a single directory, a single file, or omit output data to skip dumping!");
 }
 
 // TODO: modify so it will dump the reference data from reference and target device
-void OutputDataVisitor::operator()(const std::string& path_str) {
-    std::filesystem::path path{path_str};
+void OutputDataVisitor::operator()(std::string path_str) {
+    if (path_str.back() == '\\' || path_str.back() == '/') {
+        path_str.pop_back();
+    }
+    std::string reference_path{path_str + "_REFERENCE"};
+    std::string target_path{path_str + "_TARGET"};
+    std::filesystem::path ref_root{reference_path};
+    std::filesystem::path tgt_root{target_path};
+
+    std::cout << "Ref root: " << ref_root.string() << "\n";
+    std::cout << "Tgt root: " << tgt_root.string() << "\n";
+
+    std::vector<std::filesystem::path> ref_dump_paths;
+    std::vector<std::filesystem::path> tgt_dump_paths;
     // NB: It doesn't matter if path exist or not - regenerate and dump outputs anyway.
-    std::vector<std::filesystem::path> dump_path_vec;
-    if (isDirectory(path)) {
-        dump_path_vec = createDirectoryLayout(path, extractLayerNames(infer.output_layers));
+    if (isDirectory(ref_root) && isDirectory(tgt_root)) {
+        ref_dump_paths = createDirectoryLayout(ref_root, extractLayerNames(infer.output_layers));
+        tgt_dump_paths = createDirectoryLayout(tgt_root, extractLayerNames(infer.output_layers));
     } else {
         if (infer.output_layers.size() > 1) {
             THROW_ERROR("Model: " << infer.tag
                                   << " must have exactly one output layer in order to dump output data to file: "
-                                  << path);
+                                  << ref_root);
         }
-        dump_path_vec = {path};
+        ref_dump_paths = {ref_root};
+        tgt_dump_paths = {tgt_root};
     }
     for (uint32_t i = 0; i < infer.output_layers.size(); ++i) {
-        const auto& layer = infer.output_layers[i];
-        metas[i].set(Dump{dump_path_vec[i]});
+        metas[i].set(DualDeviceDump{ref_dump_paths[i], tgt_dump_paths[i]});
     }
 }
 
@@ -328,12 +335,12 @@ SyncSimulation::SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt
           m_tgt_iter_idx(0u),
           m_required_num_iterations(required_num_iterations) {
 
-        std::cout << "SYNC CONSTRUCTOR OUT META " << m_ref_out_meta.size() << " " << m_tgt_out_meta.size() << "\n";
+        // std::cout << "SYNC CONSTRUCTOR OUT META " << m_ref_out_meta.size() << " " << m_tgt_out_meta.size() << "\n";
 }
 
 Result SyncSimulation::run(ITermCriterion::Ptr criterion) {
-    std::cout << "Ref out mats size " << m_ref_out_mats.size() << "\n";
-    std::cout << "Tgt out mats size " << m_tgt_out_mats.size() << "\n";
+    // std::cout << "Ref out mats size " << m_ref_out_mats.size() << "\n";
+    // std::cout << "Tgt out mats size " << m_tgt_out_mats.size() << "\n";
     auto ref_criterion = criterion;
     auto tgt_criterion = criterion;
 
@@ -366,9 +373,9 @@ Result SyncSimulation::run(ITermCriterion::Ptr criterion) {
     ref_future.get();
     tgt_future.get();
 
-    std::cout << "Reference stuff: size: " << m_ref_out_iter.size() << " iter_idx: " << m_ref_iter_idx << "\n";
-    std::cout << "Reference stuff[0]: size: " << m_ref_out_iter[0].size() << "\n";
-    std::cout << "Target stuff: size: " << m_tgt_out_iter.size() << " iter_idx: " << m_tgt_iter_idx << "\n";
+    // std::cout << "Reference stuff: size: " << m_ref_out_iter.size() << " iter_idx: " << m_ref_iter_idx << "\n";
+    // std::cout << "Reference stuff[0]: size: " << m_ref_out_iter[0].size() << "\n";
+    // std::cout << "Target stuff: size: " << m_tgt_out_iter.size() << " iter_idx: " << m_tgt_iter_idx << "\n";
 
     auto validation_result = performValidation(
         m_ref_out_iter,
@@ -415,12 +422,13 @@ bool SyncSimulation::process(cv::GCompiled& pipeline, DeviceType device_type) {
 
     out_iter.push_back(out_mats);
 
-    // for (size_t i = 0; i < out_mats.size(); ++i) {
-    //     if (out_meta[i].has<Dump>()) {
-    //         const auto& dump = out_meta[i].get<Dump>();
-    //         dumpIterOutput(out_mats[i], dump, iter_idx);
-    //     }
-    // }
+    for (size_t i = 0; i < out_mats.size(); ++i) {
+        if (out_meta[i].has<DualDeviceDump>()) {
+            const auto& dump = out_meta[i].get<DualDeviceDump>();
+            auto dump_path = (device_type == DeviceType::Reference) ? dump.reference_path : dump.target_path;
+            dumpIterOutput(out_mats[i], Dump{dump_path}, iter_idx);
+        }
+    }
 
     ++iter_idx;
     return true;
@@ -498,7 +506,7 @@ std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& sou
     auto ref_compiled = m_comp.compile(descr_of(sources), std::move(ref_compile_args));
     auto ref_out_meta = m_comp.getOutMeta();
 
-    std::cout << "Compile Sync REF " << ref_out_meta.size() << "\n";
+    // std::cout << "Compile Sync REF " << ref_out_meta.size() << "\n";
 
     for (auto src : sources) {
         src->reset();
@@ -507,7 +515,7 @@ std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& sou
     auto tgt_compiled = m_comp.compile(descr_of(sources), std::move(tgt_compile_args));
     auto tgt_out_meta = m_comp.getOutMeta();
 
-    std::cout << "Compile Sync TGT " << tgt_out_meta.size() << "\n";
+    // std::cout << "Compile Sync TGT " << tgt_out_meta.size() << "\n";
 
     return std::make_shared<SyncSimulation>(std::move(ref_compiled), std::move(tgt_compiled), std::move(sources), 
                                             std::move(ref_out_meta), std::move(tgt_out_meta), m_strategy->required_num_iterations, std::move(m_opts), m_strategy->current_infer);
