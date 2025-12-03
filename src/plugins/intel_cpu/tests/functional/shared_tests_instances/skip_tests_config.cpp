@@ -587,7 +587,7 @@ std::vector<std::string> disabledTestPatterns() {
     if (!ov::test::snippets::is_fp16_supported_by_brgemm()) {
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*FP16.*)");
     } else {
-        retVector.emplace_back(R"(.*smoke_Snippets_MatMult/.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MatMult/.*fp16.*)");
         // Skip failing FP16 MHA tests on ARM64
         retVector.emplace_back(R"(smoke_Snippets_MHA_FP16_4D_Without_Multiply.*)");
         retVector.emplace_back(R"(smoke_Snippets_MHA_FP16_4D_With_Multiply_Static.*)");
