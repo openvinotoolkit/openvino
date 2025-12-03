@@ -130,7 +130,6 @@ ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::Result>& res,
     // output at least. The port descriptors are automatically created in constructor. We manually clean output ports.
     expr->m_output_port_descriptors.clear();
     expr->validate();
-    std::cout << "ExpressionFactory::create(const std::shared_ptr<op::Result>" << std::endl;
     return expr;
 }
 
