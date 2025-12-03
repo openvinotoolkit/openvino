@@ -21,6 +21,7 @@
 #include "permute_inst.h"
 #include "concatenation_inst.h"
 #include "fully_connected_inst.h"
+#include "mvn_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -484,6 +485,31 @@ TEST(reorder_inputs, add_reorder_between_single_output_type_node_and_multiple_us
     ASSERT_TRUE(fc2.get_dependency(0).is_type<reorder>());
 }
 
+TEST(reorder_inputs, mvn_expected_plain_format) {
+    // Topology: fsv16 -> permute -> mvn -> permute
+    // Given input shape is not supported by mvn fsv16 kernel, so expected format of mvn should be plain (bfyx) with proper reorders
+    auto& engine = get_test_engine();
+
+    topology topology;
+    topology.add(input_layout("input", layout{ { 1, 256, 60, 60 }, data_types::i8, format::b_fs_yx_fsv16 }));
+    topology.add(permute("permute1", input_info("input"), { 0, 2, 3, 1 }));
+    topology.add(mvn("mvn", input_info("permute1"), true, 1e-10f, true, {3}));
+    topology.add(permute("permute2", input_info("mvn"), { 0, 2, 3, 1 }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    program::ptr prog = nullptr;
+    OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+    ASSERT_NE(prog, nullptr);
+
+    auto prog_impl = prog.get();
+
+    auto& mvn_node = prog_impl->get_node("mvn");
+
+    ASSERT_EQ(mvn_node.get_input_layouts()[0].format, format::bfyx);
+    ASSERT_EQ(mvn_node.get_output_layout().format, format::bfyx);
+}
 // TODO Not yet implemented
 //TEST(reorder_inputs, impl_forcing_conv_format_kernel) {
 //    auto& engine = get_test_engine();
