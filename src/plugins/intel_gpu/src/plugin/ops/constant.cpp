@@ -125,7 +125,18 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             auto f32buf = reinterpret_cast<float*>(buf);
             f32buf[0] = static_cast<float>(f64data[0]);
         } else {
-            std::memcpy(&buf[0], &data[0], bufSize);
+            auto original_element_type = op->get_output_element_type(0);
+            size_t copy_size = (original_element_type == ov::element::u16 || original_element_type == ov::element::i16)
+                             ? ov::shape_size(const_shape) * original_element_type.size()
+                             : bufSize;
+            std::cerr << "[DEBUG_CVS-172561] ========================================" << std::endl;
+            std::cerr << "[DEBUG_CVS-172561]   NEW FIX: Use copy_size for memcpy" << std::endl;
+            std::cerr << "[DEBUG_CVS-172561]   NEW FIX: copy_size=" << copy_size << " bytes (correct)" << std::endl;
+            std::cerr << "[DEBUG_CVS-172561]   NEW FIX: bufSize=" << bufSize << " bytes (converted, too large)" << std::endl;
+            std::cerr.flush();
+            std::memcpy(&buf[0], &data[0], copy_size);
+            std::cerr << "[DEBUG_CVS-172561]   NEW FIX: memcpy with copy_size completed successfully!" << std::endl;
+            std::cerr.flush();
         }
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[cache_key] = initialconstPrimID;
