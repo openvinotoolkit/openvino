@@ -28,8 +28,9 @@ void reorder_transfer::run(program& p) {
 
         size_t input_size = data_type_traits::size_of(reorder_node.get_input_layout().data_type);
         size_t output_size = data_type_traits::size_of(reorder_node.get_output_layout().data_type);
-        if (input_size >= output_size)
+        if (input_size >= output_size && !reorder_node.is_constant())
             continue;
+
 
         auto transfer_through_node = [](cldnn::program_node* node) -> bool { // Conditions can be extended to other ops
             return node->is_type<permute>() &&
