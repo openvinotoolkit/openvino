@@ -1794,6 +1794,6 @@ def test_get_element_type_int32():
     assert model.get_element_type(x_output_edge) == Type.i32
 
     # get_element_type can return the concrete element type only for model inputs
-    # for other places, it returns undefined type
+    # for other places, it returns dynamic type
     const_node = model.get_place_by_tensor_name(tensor_name="const_node")
-    assert model.get_element_type(const_node) == Type.undefined
+    assert model.get_element_type(const_node) == Type.dynamic

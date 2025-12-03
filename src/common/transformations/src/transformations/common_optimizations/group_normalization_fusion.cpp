@@ -169,13 +169,13 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         if (group_norm_beta_1d_out_ps != expected_param_shape)
             return false;
 
-        auto gather_axis_const_m = op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto gather_axis_const_m = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
         nodes.push_back(gather_axis_const_m);
         auto gather_indices_vals = std::vector<int64_t>();
         for (auto i = 0; i < num_groups; i++)
             gather_indices_vals.insert(gather_indices_vals.end(), num_channels / num_groups, i);
         auto gather_indices_const_m =
-            op::v0::Constant::create(element::i64, Shape{static_cast<size_t>(num_channels)}, gather_indices_vals);
+            ov::op::v0::Constant::create(element::i64, Shape{static_cast<size_t>(num_channels)}, gather_indices_vals);
         nodes.push_back(gather_indices_const_m);
 
         if (pattern_map.count(instance_norm_beta_m) > 0) {
@@ -189,7 +189,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             // with group_norm parameters, i.e. 1D vector of shape (num_channels)
             std::shared_ptr<ov::Node> instance_norm_beta_1d_m = nullptr;
             if (ov::shape_size(instance_norm_beta.get_shape()) == 1) {
-                auto shape_1d_const_m = op::v0::Constant::create(element::i64, Shape{1}, {1});
+                auto shape_1d_const_m = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
                 nodes.push_back(shape_1d_const_m);
                 instance_norm_beta_1d_m =
                     std::make_shared<ov::op::v1::Reshape>(instance_norm_beta, shape_1d_const_m, true);
@@ -228,7 +228,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             // with group_norm parameters, i.e. 1D vector of shape (num_channels)
             std::shared_ptr<ov::Node> instance_norm_gamma_1d_m = nullptr;
             if (ov::shape_size(instance_norm_gamma.get_shape()) == 1) {
-                auto shape_1d_const_m = op::v0::Constant::create(element::i64, Shape{1}, {1});
+                auto shape_1d_const_m = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
                 nodes.push_back(shape_1d_const_m);
                 instance_norm_gamma_1d_m =
                     std::make_shared<ov::op::v1::Reshape>(instance_norm_gamma, shape_1d_const_m, true);
