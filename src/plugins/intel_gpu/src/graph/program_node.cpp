@@ -1653,8 +1653,9 @@ void program_node::create_onednn_primitive_attributes(
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
                     update_onednn_post_op_list(op_type, dep_idx, fmt, false, dims, dt);
                 } else {
-                    auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ? onednn::mem_flags::need_blocked : onednn::mem_flags::None;
-                    auto mem_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::undef, mem_flag);
+                    auto mem_desc = cldnn::format::is_blocked(get_output_layout().format)
+                        ? onednn::layout_to_memory_desc_blocked(in, dnnl::memory::format_tag::undef)
+                        : onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::undef);
                     post_ops.append_binary(alg, mem_desc);
                     update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false,
                             mem_desc.get_dims(), mem_desc.get_data_type());
@@ -1696,9 +1697,9 @@ void program_node::create_onednn_primitive_attributes(
                     if (this->is_type<gemm>() || this->is_type<fully_connected>()) {
                         return onednn::layout_to_memory_desc(lay, onednn::get_default_data_format(lay));
                     } else {
-                        auto mem_flag = cldnn::format::is_blocked(this->get_output_layout().format) ?
-                            onednn::mem_flags::need_blocked : onednn::mem_flags::None;
-                        return onednn::layout_to_memory_desc(lay, dnnl::memory::format_tag::undef, mem_flag);
+                        return cldnn::format::is_blocked(this->get_output_layout().format)
+                            ? onednn::layout_to_memory_desc_blocked(lay, dnnl::memory::format_tag::undef)
+                            : onednn::layout_to_memory_desc(lay, dnnl::memory::format_tag::undef);
                     }
                 };
 

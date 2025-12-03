@@ -45,8 +45,29 @@ enum class mem_flags : uint32_t {
     grouped      = 1 << 3,
 };
 
+dnnl::memory::desc layout_to_memory_desc(
+    const cldnn::layout& l,
+    dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef);
+
+dnnl::memory::desc layout_to_memory_desc_flatten(
+    const cldnn::layout& l,
+    dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::any);
+
+dnnl::memory::desc layout_to_memory_desc_strides(
+    const cldnn::layout& l,
+    dnnl::memory::format_tag target_fmt);
+
+dnnl::memory::desc layout_to_memory_desc_blocked(
+    const cldnn::layout& l,
+    dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef);
+
+dnnl::memory::desc layout_to_memory_desc_grouped(
+    const cldnn::layout& l,
+    dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::any);
+
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l,
-                        dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef, mem_flags flags = mem_flags::None);
+                        dnnl::memory::format_tag target_fmt, mem_flags flags);
+
 std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc> get_conv_memory_descs(cldnn::layout input_layout,
                                                                  cldnn::layout weights_layout,
                                                                  cldnn::layout output_layout,
