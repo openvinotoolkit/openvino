@@ -37,14 +37,6 @@ cldnn::format convert_data_format(dnnl::memory::format_tag fmt);
 dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l);
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target);
 
-enum class mem_flags : uint32_t {
-    None         = 0,
-    flatten      = 1 << 0,
-    use_strides  = 1 << 1,
-    need_blocked = 1 << 2,
-    grouped      = 1 << 3,
-};
-
 dnnl::memory::desc layout_to_memory_desc(
     const cldnn::layout& l,
     dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef);
@@ -65,8 +57,10 @@ dnnl::memory::desc layout_to_memory_desc_grouped(
     const cldnn::layout& l,
     dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::any);
 
-dnnl::memory::desc layout_to_memory_desc(cldnn::layout l,
-                        dnnl::memory::format_tag target_fmt, mem_flags flags);
+/// This function is specifically designed for quantize post-op inputs where:
+///  - For gemm/fully_connected: always use default format
+///  - For other primitives: use blocked format if output is blocked, otherwise use undef
+dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, bool use_default_format, bool is_output_blocked = false);
 
 std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc> get_conv_memory_descs(cldnn::layout input_layout,
                                                                  cldnn::layout weights_layout,
