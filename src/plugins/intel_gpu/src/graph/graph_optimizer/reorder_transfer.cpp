@@ -26,30 +26,9 @@ void reorder_transfer::run(program& p) {
         if (!is_simple_type_conversion_reorder)
             continue;
 
-        auto type_rank = [](ov::element::Type_t t) -> int {
-            switch (t) {
-                case ov::element::Type_t::boolean: return 0;
-                case ov::element::Type_t::i8:      return 1;
-                case ov::element::Type_t::i16:     return 2;
-                case ov::element::Type_t::i32:     return 4;
-                case ov::element::Type_t::i64:     return 8;
-                case ov::element::Type_t::u8:      return 1;
-                case ov::element::Type_t::u16:     return 2;
-                case ov::element::Type_t::u32:     return 4;
-                case ov::element::Type_t::u64:     return 8;
-                case ov::element::Type_t::bf16:    return 2;
-                case ov::element::Type_t::f16:     return 2;
-                case ov::element::Type_t::f32:     return 4;
-                case ov::element::Type_t::f64:     return 8;
-                default:                           return -1;
-            }
-        };
-
-        int input_rank  = type_rank(reorder_node.get_input_layout().data_type),
-            output_rank = type_rank(reorder_node.get_output_layout().data_type);
-        bool is_lower_to_higher = input_rank < output_rank;
-
-        if (!is_lower_to_higher || input_rank == -1 || output_rank == -1)
+        size_t input_size = data_type_traits::size_of(reorder_node.get_input_layout().data_type);
+        size_t output_size = data_type_traits::size_of(reorder_node.get_output_layout().data_type);
+        if (input_size >= output_size)
             continue;
 
         auto transfer_through_node = [](cldnn::program_node* node) -> bool { // Conditions can be extended to other ops
