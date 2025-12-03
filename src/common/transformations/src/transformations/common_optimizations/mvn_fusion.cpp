@@ -116,7 +116,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
 
         auto const_eps_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
         float eps_value;
-        if (!op::util::get_single_value(const_eps_node, eps_value)) {
+        if (!ov::op::util::get_single_value(const_eps_node, eps_value)) {
             return false;
         }
 
@@ -152,9 +152,9 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
                                            pattern_to_output.at(power).get_node_shared_ptr(),
                                            pattern_to_output.at(mean3).get_node_shared_ptr()});
 
-        op::MVNEpsMode mode;
+        ov::op::MVNEpsMode mode;
         if (pattern_to_output.count(add_eps_os)) {
-            mode = op::MVNEpsMode::OUTSIDE_SQRT;
+            mode = ov::op::MVNEpsMode::OUTSIDE_SQRT;
             nodes_to_copy_info.push_back(pattern_to_output.at(add_eps_os).get_node_shared_ptr());
             if (pattern_to_output.count(power_sqrt_os)) {
                 nodes_to_copy_info.push_back(pattern_to_output.at(power_sqrt_os).get_node_shared_ptr());
@@ -162,7 +162,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
                 nodes_to_copy_info.push_back(pattern_to_output.at(sqrt_os).get_node_shared_ptr());
             }
         } else if (pattern_to_output.count(powerOrSqrt_is)) {
-            mode = op::MVNEpsMode::INSIDE_SQRT;
+            mode = ov::op::MVNEpsMode::INSIDE_SQRT;
             nodes_to_copy_info.push_back(pattern_to_output.at(add_eps_is).get_node_shared_ptr());
             if (pattern_to_output.count(power_sqrt_is)) {
                 nodes_to_copy_info.push_back(pattern_to_output.at(power_sqrt_is).get_node_shared_ptr());
@@ -270,8 +270,8 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
         }
 
         float eps_value;
-        bool valid_constant_values = op::util::has_constant_value<float>(const_0_5_node, -0.5) &&
-                                     op::util::get_single_value(const_eps_node, eps_value);
+        bool valid_constant_values = ov::op::util::has_constant_value<float>(const_0_5_node, -0.5) &&
+                                     ov::op::util::get_single_value(const_eps_node, eps_value);
         if (!valid_constant_values) {
             return false;
         }
@@ -291,7 +291,7 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
         }
 
         auto mvn =
-            std::make_shared<ov::op::v6::MVN>(x_output, axes_1_node, true, eps_value, op::MVNEpsMode::INSIDE_SQRT);
+            std::make_shared<ov::op::v6::MVN>(x_output, axes_1_node, true, eps_value, ov::op::MVNEpsMode::INSIDE_SQRT);
         auto mul_gamma = std::make_shared<ov::op::v1::Multiply>(mvn, const_gamma_node);
         auto add_beta = std::make_shared<ov::op::v1::Add>(mul_gamma, const_beta_node);
 
