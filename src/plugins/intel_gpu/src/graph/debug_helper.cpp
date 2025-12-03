@@ -629,7 +629,7 @@ NetworkDebugHelper::NetworkDebugHelper(const network& net)
         GPU_DEBUG_TRACE << "Start network execution (net_id : " << net_id << ", iter :" << m_iter << ")" << std::endl;
     }
 
-    if (config.get_print_list_layers()) {
+    if (config.get_list_layers()) {
         for (auto& inst : m_network._exec_order) {
             GPU_DEBUG_COUT << inst->id() << std::endl;
             if (inst->get_node().is_type<loop>()) {
