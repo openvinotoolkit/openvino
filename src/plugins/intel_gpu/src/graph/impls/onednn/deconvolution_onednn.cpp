@@ -53,7 +53,7 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     }
 
     if (prim->bias.is_valid()) {
-        auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, onednn::mem_flags::flatten);
+        auto bias_md = onednn::layout_to_memory_desc_flatten(impl_params.get_input_layout(2), dnnl::memory::format_tag::any);
         return std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
             engine.get_onednn_engine(),
             dnnl::prop_kind::forward_inference,
@@ -192,7 +192,7 @@ public:
                                     *_attrs.get());
             _pd = *prim_desc;
         } else {
-            auto bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, onednn::mem_flags::flatten);
+            auto bias_md = onednn::layout_to_memory_desc_flatten(impl_params->get_input_layout(2), dnnl::memory::format_tag::any);
             auto prim_desc = std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
                                     ib.get_engine().get_onednn_engine(),
                                     dnnl::prop_kind::forward_inference, dnnl::algorithm::deconvolution_direct,
