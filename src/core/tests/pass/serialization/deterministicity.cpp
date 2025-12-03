@@ -365,30 +365,30 @@ TEST(DeterministicityInputOutput, LayerIdOrder) {
     const auto r1 = std::make_shared<op::v0::Result>(a1);
     const auto r2 = std::make_shared<op::v0::Result>(a2);
     const auto r3 = std::make_shared<op::v0::Result>(a3);
-    const auto model = std::make_shared<Model>(ResultVector{r3, r2, r1}, ParameterVector{p3, p2, p1}, "param_order");
-    p3->set_friendly_name("expect id 0");
-    p2->set_friendly_name("expect id 1");
+    const auto model = std::make_shared<Model>(ResultVector{r3, r1, r2}, ParameterVector{p2, p3, p1}, "param_order");
+    p2->set_friendly_name("expect id 0");
+    p3->set_friendly_name("expect id 1");
     p1->set_friendly_name("expect id 2");
     r3->set_friendly_name("expect id 6");
-    r2->set_friendly_name("expect id 7");
-    r1->set_friendly_name("expect id 8");
+    r1->set_friendly_name("expect id 7");
+    r2->set_friendly_name("expect id 8");
 
     std::stringstream xml, bin;
     ov::pass::Serialize(xml, bin).run_on_model(model);
 
-    const std::regex ids_pattern(R"(<layer id=\"(\d+)\" name=\"expect id (\d+)\" type=\"(?:Parameter|Result)\".*>)");
-    const std::string text = xml.str();
-    const std::sregex_iterator end;
-    std::sregex_iterator match(text.begin(), text.end(), ids_pattern);
-    int match_count = 0;
-    while (match != end) {
-        const auto stored_id = match->str(1);
-        const auto expeted_id = match->str(2);
-        EXPECT_EQ(stored_id, expeted_id) << match->str(0);
-
-        ++match_count;
-        ++match;
+    // order matters
+    const std::vector<std::string> expected_layer_id{R"(<layer id="0" name="expect id 0" type="Parameter")",
+                                                     R"(<layer id="1" name="expect id 1" type="Parameter")",
+                                                     R"(<layer id="2" name="expect id 2" type="Parameter")",
+                                                     R"(<layer id="6" name="expect id 6" type="Result")",
+                                                     R"(<layer id="7" name="expect id 7" type="Result")",
+                                                     R"(<layer id="8" name="expect id 8" type="Result")"};
+    const std::string xml_str = xml.str();
+    std::string::size_type pos = 0;
+    for (const auto& n : expected_layer_id) {
+        const auto found = xml_str.find(n, pos);
+        ASSERT_NE(found, std::string::npos) << "Not found: " << n;
+        pos = found;
     }
-    EXPECT_EQ(match_count, 6);
 }
 }  // namespace ov::test
