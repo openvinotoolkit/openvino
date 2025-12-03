@@ -36,7 +36,7 @@ def main():
         log.info(f'Usage: {sys.argv[0]} <path_to_model> <device_name>(default: CPU)')
         return 1
     # Optimize for throughput. Best throughput can be reached by
-    # running multiple openvino.runtime.InferRequest instances asyncronously
+    # running multiple openvino.InferRequest instances asyncronously
     tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
 
     # Create Core and use it to compile a model.
