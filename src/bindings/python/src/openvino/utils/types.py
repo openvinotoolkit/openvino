@@ -145,7 +145,9 @@ def get_shape(data: NumericData) -> TensorShape:
     return []
 
 
-def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = None, *, name: Optional[str] = None) -> Constant:
+def make_constant_node(
+    value: NumericData, dtype: Union[NumericType, Type] = None, *, name: Optional[str] = None
+) -> Constant:
     """Return an openvino Constant node with the specified value."""
     ndarray = get_ndarray(value)
     if dtype is not None:
