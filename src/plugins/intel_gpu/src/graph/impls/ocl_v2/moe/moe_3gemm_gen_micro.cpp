@@ -57,6 +57,7 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     jit.make("IS_GENERATE", 0);    // prefill
     jit.make("INPUT_SEQ_LEN", 4);  // prefill not use it
     jit.make("WEIGHT_COMPRESSED_ZP_INT4", 1);
+    jit.make("SCALE_ZP_NO_TRANSPOSE", 1);
 
     GPU_DEBUG_TRACE_DETAIL << "\t m_wei_idx: " << m_wei_idx << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "\t m_wei_idx.get_shape(): " << params.input_layouts[m_wei_idx].to_short_string() << std::endl;
