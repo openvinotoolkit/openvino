@@ -1109,8 +1109,6 @@ Discontinued in 2025
 
 Deprecated and to be removed in the future
 --------------------------------------------
-* ``openvino.Type.undefined`` is now deprecated and will be removed with version 2026.0.
-  ``openvino.Type.dynamic`` should be used instead.
 * APT & YUM Repositories Restructure:
   Starting with release 2025.1, users can switch to the new repository structure for APT and YUM,
   which no longer uses year-based subdirectories (like “2025”). The old (legacy) structure will

@@ -155,9 +155,7 @@ typedef struct {
 ```
 typedef enum {
 
-    UNDEFINED = 0U,  //!< Undefined element type
-
-    DYNAMIC,         //!< Dynamic element type
+    DYNAMIC = 0U,  //!< Dynamic element type
 
     BOOLEAN,         //!< boolean element type
 
