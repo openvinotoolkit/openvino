@@ -58,7 +58,7 @@ using namespace ov;
 //`simplify_gather`, optimizes gather if Gather is gathering the
 // whole input tensor
 static bool simplify_gather(shared_ptr<Node> node) {
-    if (auto gather = ov::as_type_ptr<op::util::GatherBase>(node)) {
+    if (auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(node)) {
         // check if we are gathering the whole input
         auto data = gather->input_value(0);
         auto indices = gather->input_value(1);
@@ -366,7 +366,7 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
     };
 
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, eliminate_reshape_v1, ov::op::v1::Reshape);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, eliminate_nop, op::v1::Broadcast, op::v3::Broadcast);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, eliminate_nop, ov::op::v1::Broadcast, ov::op::v3::Broadcast);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather,
                                simplify_gather,
                                ov::op::v1::Gather,
@@ -428,7 +428,7 @@ pass::EliminateReduceReshape::EliminateReduceReshape() {
 
 pass::EliminatePad::EliminatePad() {
     MATCHER_SCOPE(EliminatePad);
-    auto pad_node_pattern = pattern::wrap_type<op::util::PadBase>();
+    auto pad_node_pattern = pattern::wrap_type<ov::op::util::PadBase>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pad = m.get_match_root();
@@ -791,7 +791,7 @@ pass::EliminateSqueeze::EliminateSqueeze() {
         // eliminate redundant unsqueeze->squeeze
         if (auto unsqueeze = ov::as_type_ptr<ov::op::v0::Unsqueeze>(input)) {
             PartialShape data_shape;
-            if (op::util::is_parameter(input)) {
+            if (ov::op::util::is_parameter(input)) {
                 data_shape = unsqueeze->input(0).get_partial_shape();
             } else {
                 data_shape = input->input(0).get_partial_shape();
@@ -829,7 +829,7 @@ pass::EliminateSqueeze::EliminateSqueeze() {
         // eliminate redundant squeeze->squeeze
         if (auto squeeze_i = ov::as_type_ptr<ov::op::v0::Squeeze>(input)) {
             PartialShape data_shape;
-            if (op::util::is_parameter(input)) {
+            if (ov::op::util::is_parameter(input)) {
                 data_shape = squeeze_i->input(0).get_partial_shape();
             } else {
                 data_shape = input->input(0).get_partial_shape();
@@ -1096,7 +1096,7 @@ pass::EliminateEltwise::EliminateEltwise() {
         const auto& non_const_input = pattern_map.at(input);
         const auto& constant = pattern_map.at(constant_pattern);
 
-        if (!op::util::can_eliminate_eltwise_node(eltwise, constant, non_const_input)) {
+        if (!ov::op::util::can_eliminate_eltwise_node(eltwise, constant, non_const_input)) {
             return false;
         }
         return replace_output_update_name(eltwise->output(0), non_const_input);
@@ -1134,15 +1134,16 @@ pass::EliminateScatterUpdate::EliminateScatterUpdate() {
 
 ov::pass::EliminateNopBroadcast::EliminateNopBroadcast() {
     MATCHER_SCOPE(EliminateNopBroadcast);
-    auto root = pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast, op::v0::Tile>([](std::shared_ptr<Node> node) {
-        auto input_rank = node->get_input_partial_shape(0).rank();
-        auto output_rank = node->get_output_partial_shape(0).rank();
-        return input_rank.is_static() && output_rank.is_static() && input_rank == output_rank;
-    });
+    auto root = pattern::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast, ov::op::v0::Tile>(
+        [](std::shared_ptr<Node> node) {
+            auto input_rank = node->get_input_partial_shape(0).rank();
+            auto output_rank = node->get_output_partial_shape(0).rank();
+            return input_rank.is_static() && output_rank.is_static() && input_rank == output_rank;
+        });
 
     ov::matcher_pass_callback matcher_pass_callback = [](pattern::Matcher& m) {
         const auto& op = m.get_match_root();
-        if (op::util::is_constant_and_all_values_equal_int(op->input_value(1), 1))
+        if (ov::op::util::is_constant_and_all_values_equal_int(op->input_value(1), 1))
             return replace_output_update_name(op->output(0), op->input_value(0));
         return false;
     };
@@ -1153,14 +1154,14 @@ ov::pass::EliminateNopBroadcast::EliminateNopBroadcast() {
 
 ov::pass::EliminateSliceBeforeGatherElements::EliminateSliceBeforeGatherElements() {
     MATCHER_SCOPE(EliminateSliceBeforeGatherElements);
-    auto slice = pattern::wrap_type<op::v8::Slice>();
-    auto gather = pattern::wrap_type<op::v6::GatherElements>({slice, pattern::any_input()});
+    auto slice = pattern::wrap_type<ov::op::v8::Slice>();
+    auto gather = pattern::wrap_type<ov::op::v6::GatherElements>({slice, pattern::any_input()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
         const auto& slice_node = pattern_to_node.at(slice);
-        bool start_from_zero = op::util::is_constant_and_all_values_equal_int(slice_node->input_value(1), 0);
-        bool step_is_one = op::util::is_constant_and_all_values_equal_int(slice_node->input_value(3), 1);
+        bool start_from_zero = ov::op::util::is_constant_and_all_values_equal_int(slice_node->input_value(1), 0);
+        bool step_is_one = ov::op::util::is_constant_and_all_values_equal_int(slice_node->input_value(3), 1);
         if (!start_from_zero || !step_is_one)
             return false;
         const auto& gather_node = pattern_to_node.at(gather);
@@ -1190,9 +1191,9 @@ ov::pass::EliminateSlice::EliminateSlice() {
         int64_t max_int = slice->input_value(2).get_element_type() == element::i32
                               ? std::numeric_limits<int32_t>::max()
                               : std::numeric_limits<int64_t>::max();
-        bool is_nop = op::util::is_constant_and_all_values_equal_int(slice->input_value(1), 0) &&
-                      op::util::is_constant_and_all_values_equal_int(slice->input_value(2), max_int) &&
-                      op::util::is_constant_and_all_values_equal_int(slice->input_value(3), 1);
+        bool is_nop = ov::op::util::is_constant_and_all_values_equal_int(slice->input_value(1), 0) &&
+                      ov::op::util::is_constant_and_all_values_equal_int(slice->input_value(2), max_int) &&
+                      ov::op::util::is_constant_and_all_values_equal_int(slice->input_value(3), 1);
 
         if (is_nop) {
             return replace_output_update_name(slice->output(0), slice->input_value(0));
@@ -1236,7 +1237,7 @@ ov::pass::EliminateStridedSlice::EliminateStridedSlice() {
         }
         // check that that we will take all values
         if (strided_slice_node->get_input_size() == 4 &&
-            !op::util::is_constant_and_all_values_equal_int(strided_slice_node->input_value(3), 1)) {
+            !ov::op::util::is_constant_and_all_values_equal_int(strided_slice_node->input_value(3), 1)) {
             return false;
         }
 
@@ -1331,7 +1332,8 @@ ov::pass::EliminateStridedSliceByShape::EliminateStridedSliceByShape() {
         }
 
         // check that that we will take all values
-        if (node->get_input_size() >= 4 && !op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
+        if (node->get_input_size() >= 4 &&
+            !ov::op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
             return false;
         }
 
@@ -1349,15 +1351,17 @@ ov::pass::EliminateStridedSliceByShape::EliminateStridedSliceByShape() {
 
 ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
     MATCHER_SCOPE(PrepareShapeOpsForEliminationAroundBE);
-    auto first_label = pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze, op::v1::StridedSlice, op::util::GatherBase>(
-        pattern::rank_equals(0));
+    auto first_label = pattern::
+        wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze, ov::op::v1::StridedSlice, ov::op::util::GatherBase>(
+            pattern::rank_equals(0));
     auto other_input_label = pattern::any_input(pattern::rank_equals(0));
-    auto binary_op_label = pattern::wrap_type<op::util::BinaryElementwiseArithmetic,
-                                              op::util::BinaryElementwiseComparison,
-                                              op::util::BinaryElementwiseLogical>({first_label, other_input_label},
-                                                                                  pattern::consumers_count(1));
-    auto second_label = pattern::wrap_type<op::v1::Reshape, op::v0::Unsqueeze>({binary_op_label, pattern::any_input()},
-                                                                               pattern::rank_equals(1));
+    auto binary_op_label = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic,
+                                              ov::op::util::BinaryElementwiseComparison,
+                                              ov::op::util::BinaryElementwiseLogical>({first_label, other_input_label},
+                                                                                      pattern::consumers_count(1));
+    auto second_label =
+        pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({binary_op_label, pattern::any_input()},
+                                                                       pattern::rank_equals(1));
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();

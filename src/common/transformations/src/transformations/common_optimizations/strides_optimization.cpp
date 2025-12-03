@@ -129,7 +129,7 @@ ov::pass::ConvStridesPropagation::ConvStridesPropagation() {
 
         auto conv_strides = conv->get_strides();
         Strides strides_ones(conv_strides.size(), 1);
-        auto next_ops = op::util::get_node_target_inputs(conv);
+        auto next_ops = ov::op::util::get_node_target_inputs(conv);
         bool all_ops_are_valid;
         Strides strides;
         std::tie(strides, all_ops_are_valid) = check_next_ops(next_ops);
@@ -156,7 +156,7 @@ ov::pass::ConvStridesPropagation::ConvStridesPropagation() {
             // When padding type is not EXPLICIT, strides make a role to paddings calculation.
             // Change in padding, results in change in image position that filter is applied,
             // so we may end up with unwanted results after that.
-            conv->set_auto_pad(op::PadType::EXPLICIT);
+            conv->set_auto_pad(ov::op::PadType::EXPLICIT);
             conv->set_strides(conv_strides);
         }
 
@@ -171,11 +171,12 @@ ov::pass::ConvStridesPropagation::ConvStridesPropagation() {
 
 ov::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation() {
     MATCHER_SCOPE(SupportedNodesStridesPropagation);
-    auto root = pattern::wrap_type<op::util::UnaryElementwiseArithmetic, op::util::BinaryElementwiseArithmetic>();
+    auto root =
+        pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic, ov::op::util::BinaryElementwiseArithmetic>();
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
-        auto next_ops = op::util::get_node_target_inputs(node);
+        auto next_ops = ov::op::util::get_node_target_inputs(node);
         bool all_ops_are_valid;
         Strides strides;
         std::tie(strides, all_ops_are_valid) = check_next_ops(next_ops);
@@ -203,7 +204,7 @@ ov::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropagation
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
-        auto next_ops = op::util::get_node_target_inputs(node);
+        auto next_ops = ov::op::util::get_node_target_inputs(node);
         handle_not_equal_stride_props(next_ops);
         remove_strides_property_from_nodes(next_ops);
 

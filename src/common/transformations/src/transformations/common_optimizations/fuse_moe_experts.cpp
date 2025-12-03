@@ -53,7 +53,7 @@ namespace ov {
 namespace pass {
 
 using namespace ov::pass;
-using namespace ov::pass::pattern;
+using ov::pass::pattern::wrap_type, ov::pass::pattern::PatternValueMap;
 
 namespace {
 

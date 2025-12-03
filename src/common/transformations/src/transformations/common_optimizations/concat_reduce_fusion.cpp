@@ -40,7 +40,7 @@ ReduceType get_reduce_type(const std::shared_ptr<ov::Node>& reduce_node) {
 
 ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
     MATCHER_SCOPE(PullSqueezeThroughEltwise);
-    auto eltwise_pattern = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>();
+    auto eltwise_pattern = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>();
 
     auto squeeze_axes_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto squeeze_pattern = pattern::wrap_type<ov::op::v0::Squeeze>({eltwise_pattern, squeeze_axes_pattern});
@@ -96,8 +96,8 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto concat = as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());
-        auto reduce =
-            as_type_ptr<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
+        auto reduce = as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(
+            pattern_map.at(reduce_pattern).get_node_shared_ptr());
         if (!reduce || !concat)
             return false;
 

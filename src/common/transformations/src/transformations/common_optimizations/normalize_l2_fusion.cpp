@@ -67,15 +67,15 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
                 ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(exp3).get_node_shared_ptr())
                 : nullptr;
 
-        if (exp_input && !op::util::has_constant_value<float>(exp_input, 2.0f)) {
+        if (exp_input && !ov::op::util::has_constant_value<float>(exp_input, 2.0f)) {
             return false;
         }
 
-        if (exp2_input && !op::util::has_constant_value<float>(exp2_input, 0.5f)) {
+        if (exp2_input && !ov::op::util::has_constant_value<float>(exp2_input, 0.5f)) {
             return false;
         }
 
-        if (exp3_input && !op::util::has_constant_value<float>(exp3_input, -0.5f)) {
+        if (exp3_input && !ov::op::util::has_constant_value<float>(exp3_input, -0.5f)) {
             return false;
         }
 
@@ -84,13 +84,13 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
         }
 
         const auto eps_attr_value = eps_attr->cast_vector<float>()[0];
-        op::EpsMode mode;
+        ov::op::EpsMode mode;
         Output<Node> eps_node;
         if (pattern_to_output.count(max)) {
-            mode = op::EpsMode::MAX;
+            mode = ov::op::EpsMode::MAX;
             eps_node = pattern_to_output.at(max);
         } else if (pattern_to_output.count(add)) {
-            mode = op::EpsMode::ADD;
+            mode = ov::op::EpsMode::ADD;
             eps_node = pattern_to_output.at(add);
         } else {
             return false;

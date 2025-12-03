@@ -24,7 +24,7 @@ static bool use_broadcast(const std::shared_ptr<ov::op::v0::Concat>& concat) {
 ov::pass::ConcatToBroadcast::ConcatToBroadcast() {
     MATCHER_SCOPE(ConcatToBroadcast);
 
-    auto concat_label = pattern::wrap_type<op::v0::Concat>([](const Output<Node>& value) {
+    auto concat_label = pattern::wrap_type<ov::op::v0::Concat>([](const Output<Node>& value) {
         auto node = value.get_node_shared_ptr();
         if (node->output(0).get_partial_shape().rank().is_dynamic()) {
             return false;
@@ -46,7 +46,7 @@ ov::pass::ConcatToBroadcast::ConcatToBroadcast() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto root_node = pattern_map.at(concat_label).get_node_shared_ptr();
-        auto concat = ov::as_type_ptr<op::v0::Concat>(root_node);
+        auto concat = ov::as_type_ptr<ov::op::v0::Concat>(root_node);
         if (!concat) {
             return false;
         }

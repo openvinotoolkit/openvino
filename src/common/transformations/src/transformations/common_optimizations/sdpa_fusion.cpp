@@ -229,9 +229,9 @@ static std::shared_ptr<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_patte
             return nullptr;
         } else {
             if (rank.get_length() > 1) {
-                scale_node = op::util::make_try_fold<v1::Reshape>(scale_node,
-                                                                  v0::Constant::create(ov::element::i64, {1}, {1}),
-                                                                  false);
+                scale_node = ov::op::util::make_try_fold<v1::Reshape>(scale_node,
+                                                                      v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                                      false);
             }
             return scale_node.get_node_shared_ptr();
         }
