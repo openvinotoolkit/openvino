@@ -2,15 +2,16 @@
 
 #include "intel_gpu/primitives/input_layout.hpp"
 #include <intel_gpu/runtime/memory.hpp>
+
 namespace cldnn {
     struct WeightsReorderParams {
         WeightsReorderParams() {}
 
         WeightsReorderParams(const layout& in_layout, const layout& out_layout, bool transposed = false, bool grouped = false)
             : _in_layout(in_layout),
-            _out_layout(out_layout),
-            _transposed(transposed),
-            _grouped(grouped) {}
+              _out_layout(out_layout),
+              _transposed(transposed),
+              _grouped(grouped) {}
 
         size_t hash() const {
             size_t seed = hash_combine(_in_layout.hash(), _out_layout.hash());
@@ -24,9 +25,9 @@ namespace cldnn {
                 return false;
 
             return _in_layout == rhs._in_layout &&
-                _out_layout == rhs._out_layout &&
-                _transposed == rhs._transposed &&
-                _grouped == rhs._grouped;
+                   _out_layout == rhs._out_layout &&
+                   _transposed == rhs._transposed &&
+                   _grouped == rhs._grouped;
         }
 
         layout get_input_layout() const { return _in_layout; }
@@ -58,14 +59,16 @@ namespace cldnn {
         bool _grouped;
     };
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
     namespace onednn {
         struct WeightsReorderParamsOneDNN : public cldnn::WeightsReorderParams {
             WeightsReorderParamsOneDNN() : cldnn::WeightsReorderParams() {}
             WeightsReorderParamsOneDNN(const layout& in_layout,
-                                    const layout& out_layout,
-                                    const dnnl::memory::desc& in_desc,
-                                    const dnnl::memory::desc& out_desc,
-                                    bool transposed, bool grouped = false)
+                                       const layout& out_layout,
+                                       const dnnl::memory::desc& in_desc,
+                                       const dnnl::memory::desc& out_desc,
+                                       bool transposed,
+                                       bool grouped = false)
                 : WeightsReorderParams(in_layout, out_layout, transposed, grouped)
                 , _in_desc(std::make_shared<dnnl::memory::desc>(in_desc))
                 , _out_desc(std::make_shared<dnnl::memory::desc>(out_desc)) {}
@@ -86,11 +89,12 @@ namespace cldnn {
                 cldnn::WeightsReorderParams::load(ib);
                 std::vector<uint8_t> in;
                 ib >> in;
-                 _in_desc = std::make_shared<dnnl::memory::desc>(in);
+                _in_desc = std::make_shared<dnnl::memory::desc>(in);
                 std::vector<uint8_t> out;
                 ib >> out;
-                 _out_desc = std::make_shared<dnnl::memory::desc>(out);
+                _out_desc = std::make_shared<dnnl::memory::desc>(out);
             }
         };
     }
+#endif
 }

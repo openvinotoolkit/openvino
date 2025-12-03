@@ -21,9 +21,6 @@ enum class reorder_mean_mode {
     div,       // val/mean
 };
 
-
-
-
 /// @brief Changes how data is ordered in memory. Value type is not changed & all information is preserved.
 /// @details Corresponding values are bitwise equal before/after reorder.
 /// Also merged with subtraction layer, which can subtract, multiply or divide values based on mean_mode value, while doing reordering.
@@ -228,9 +225,12 @@ struct reorder : public primitive_base<reorder> {
             ob << false;
         } else {
             ob << true;
+#ifdef ENABLE_ONEDNN_FOR_GPU
             if (std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_reorder_params)) {
                 ob << true;
-            } else {
+            } else
+#endif
+            {
                 ob << false;
             }
             weights_reorder_params->save(ob);
@@ -248,11 +248,13 @@ struct reorder : public primitive_base<reorder> {
         bool has_weights_reorder_params;
         ib >> has_weights_reorder_params;
         if (has_weights_reorder_params) {
-            bool has_onednnweights_reorder = false;
-            ib >> has_onednnweights_reorder;
-            if ( has_onednnweights_reorder) { 
+            bool has_onednn_weights_reorder = false;
+            ib >> has_onednn_weights_reorder;
+            if (has_onednn_weights_reorder) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
                 weights_reorder_params = std::make_shared<onednn::WeightsReorderParamsOneDNN>();
                 weights_reorder_params->load(ib);
+#endif
             } else {
                 weights_reorder_params = std::make_shared<WeightsReorderParams>();
                 weights_reorder_params->load(ib);

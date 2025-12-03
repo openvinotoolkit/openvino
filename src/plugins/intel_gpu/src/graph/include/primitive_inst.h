@@ -94,9 +94,12 @@ struct primitive_impl {
             ob << false;
         } else {
             ob << true;
+#ifdef ENABLE_ONEDNN_FOR_GPU
             if (std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(_weights_reorder_params)) {
                 ob << true;
-            } else {
+            } else
+#endif
+            {
                 ob << false;
             }
             _weights_reorder_params->save(ob);
@@ -109,10 +112,12 @@ struct primitive_impl {
         bool has_weights_reorder_params;
         ib >> has_weights_reorder_params;
         if (has_weights_reorder_params) {
-            bool has_onednnweights_reorder = false;
-            ib >> has_onednnweights_reorder;
-            if ( has_onednnweights_reorder) { 
+            bool has_onednn_weights_reorder = false;
+            ib >> has_onednn_weights_reorder;
+            if (has_onednn_weights_reorder) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
                 _weights_reorder_params = std::make_shared<onednn::WeightsReorderParamsOneDNN>();
+#endif
             } else {
                 _weights_reorder_params = std::make_shared<WeightsReorderParams>();
             }
