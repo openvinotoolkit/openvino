@@ -793,7 +793,10 @@ public:
                                    << ", arch=" << static_cast<int>(info.arch) << std::endl;
         }
 
+        // Don't change the order of stages
         add_stage(softmax_topk, params);
+        add_stage(gather, params);
+        add_stage(scatter, params);
         add_stage(mlp_gate_up, params);
         add_stage(mlp_down, params);
         add_stage(mlp_reduce, params);
@@ -804,9 +807,6 @@ public:
             add_stage(prefill_swiglu, params);
             add_stage(micro_gemm_down, params);
             add_stage(prefill_scatter_reduce, params);
-        } else {
-            add_stage(gather, params);
-            add_stage(scatter, params);
         }
     }
 
@@ -1304,8 +1304,7 @@ public:
         //     mask 2: token len (input gather tokens) for each activated expert, dynamic shape = [activated_expert_num]
         //     mask 3: expert id, dynamic shape = [activated_expert_num]
         {
-            cldnn::mem_lock<int32_t, mem_lock_type::write> tokens_per_expert_lock(intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT],
-                                                                                  stream);
+            cldnn::mem_lock<int32_t, mem_lock_type::write> tokens_per_expert_lock(intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT], stream);
             cldnn::mem_lock<int32_t, mem_lock_type::write> experts_info_start_idx_lock(
                 intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT],
                 stream);
@@ -1464,14 +1463,13 @@ public:
             std::cout << "\nstep 4: prefill_swiglu token_size=" << token_size << ", hidden_size=" << _intermediate_size << std::endl;
 #    endif
 
-            ret_event =
-                execute_stage({ret_event},
-                              instance,
-                              *prefill_swiglu,
-                              {intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT], intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
-                              {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
-                              {static_cast<size_t>(token_size), static_cast<size_t>(_intermediate_size), 1},
-                              {1, subgroup_size, 1});
+            ret_event = execute_stage({ret_event},
+                                      instance,
+                                      *prefill_swiglu,
+                                      {intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT], intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
+                                      {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
+                                      {static_cast<size_t>(token_size), static_cast<size_t>(_intermediate_size), 1},
+                                      {1, subgroup_size, 1});
 
 #    if DUMP_TENSOR_CONTENTS
             {
@@ -1568,10 +1566,7 @@ public:
                           intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
                           "scatter_reduce_tokens_len_per_expert",
                           num_actually_used_experts);
-                print_mem(stream,
-                          intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS],
-                          "scatter_reduce_expert_id",
-                          num_actually_used_experts);
+                print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS], "scatter_reduce_expert_id", num_actually_used_experts);
                 print_mem_f16(stream, final_hidden_states_mem_ptr, "final_hidden_states");
             }
 #    endif
