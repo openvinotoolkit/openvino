@@ -1550,7 +1550,7 @@ public:
                                       instance.needs_completion_event(),
                                       {num_actually_used_experts});
             // TODO: remove this sync which maybe lead to output is incorrect
-            stream.finish();
+            // stream.finish();
 #    if DUMP_TENSOR_CONTENTS
             {
                 stream.finish();  // debug

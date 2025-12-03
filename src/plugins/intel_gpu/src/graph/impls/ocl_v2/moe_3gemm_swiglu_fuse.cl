@@ -83,7 +83,7 @@ KERNEL (gather_2d_ref)(
     dst_tok += k * HIDDEN_SIZE;
 
     if (off >= HIDDEN_SIZE) {
-        printf("Warning off >= HIDDEN_SIZE: k = %d, off = %d, HIDDEN_SIZE = %d\n", k, off, HIDDEN_SIZE);
+        // printf("Warning off >= HIDDEN_SIZE: k = %d, off = %d, HIDDEN_SIZE = %d\n", k, off, HIDDEN_SIZE);
         return;
     }
 
