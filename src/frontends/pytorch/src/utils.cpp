@@ -930,6 +930,37 @@ Output<Node> get_complex_shape(const NodeContext& context, const Output<Node>& c
     return context.mark_node(std::make_shared<v8::Slice>(input_shape, zero, stop, step, zero));
 }
 
+std::pair<Output<Node>, std::shared_ptr<ComplexTypeMark>> unwrap_complex(const Output<Node>& input) {
+    auto complex = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+    if (complex) {
+        return {complex->get_input_source_output(0), complex};
+    }
+    return {input, nullptr};
+}
+
+Output<Node> wrap_complex(const NodeContext& context,
+                          const Output<Node>& result,
+                          const std::shared_ptr<ComplexTypeMark>& complex) {
+    if (complex) {
+        return context.mark_node(std::make_shared<ComplexTypeMark>(result, complex->get_complex_part_type()));
+    }
+    return result;
+}
+
+OutputVector wrap_complex(const NodeContext& context,
+                          const OutputVector& results,
+                          const std::shared_ptr<ComplexTypeMark>& complex) {
+    if (complex) {
+        OutputVector wrapped;
+        wrapped.reserve(results.size());
+        for (const auto& r : results) {
+            wrapped.push_back(context.mark_node(std::make_shared<ComplexTypeMark>(r, complex->get_complex_part_type())));
+        }
+        return wrapped;
+    }
+    return results;
+}
+
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov

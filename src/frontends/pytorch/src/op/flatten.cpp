@@ -21,13 +21,7 @@ using namespace ov::op;
 
 OutputVector translate_flatten(const NodeContext& context) {
     num_inputs_check(context, 1, 3, true);  // allow_complex = true
-    auto x = context.get_input(0);
-
-    auto complex = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
-    bool is_complex = complex != nullptr;
-    if (is_complex) {
-        x = complex->get_input_source_output(0);
-    }
+    auto [x, complex] = unwrap_complex(context.get_input(0));
 
     Output<Node> shape;
     Output<Node> rank;
@@ -61,7 +55,7 @@ OutputVector translate_flatten(const NodeContext& context) {
     auto slice_end = std::make_shared<v8::Slice>(shape, end_dim_next, int_max, one);
 
     Output<Node> new_shape;
-    if (is_complex) {
+    if (complex) {
         // For complex tensors, append dimension 2 to preserve complex representation
         auto two = v0::Constant::create(element::i32, Shape{1}, {2});
         new_shape = std::make_shared<v0::Concat>(OutputVector{slice_begin, neg_1_const, slice_end, two}, 0);
@@ -72,11 +66,7 @@ OutputVector translate_flatten(const NodeContext& context) {
     }
 
     auto result = context.mark_node(std::make_shared<v1::Reshape>(x, new_shape, true));
-
-    if (is_complex) {
-        return {context.mark_node(std::make_shared<ComplexTypeMark>(result, complex->get_complex_part_type()))};
-    }
-    return {result};
+    return {wrap_complex(context, result, complex)};
 };
 
 }  // namespace op

@@ -14,38 +14,17 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_tuple_unpack(const NodeContext& context) {
-    auto input = context.get_input(0);
-
-    // Check if input is wrapped in ComplexTypeMark
-    auto complex = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
-    bool is_complex = complex != nullptr;
-    if (is_complex) {
-        input = complex->get_input_source_output(0);
-    }
+    auto [input, complex] = unwrap_complex(context.get_input(0));
 
     if (const auto& tuple = cast_fw_node(input.get_node_shared_ptr(), "prim::TupleConstruct")) {
         // TupleConstruct -> TupleUnpack can be annihilated
         auto res = tuple->input_values();
-        // Preserve ComplexTypeMark for complex tensor outputs
-        if (is_complex) {
-            for (auto& output : res) {
-                output = context.mark_node(std::make_shared<ComplexTypeMark>(output));
-            }
-        }
-        return res;
+        return wrap_complex(context, res, complex);
     } else {
         // Create framework node for unresolved cases
         const auto& outputs =
             make_framework_node(context, "Tuples are not supported yet and can be resolved only in specific cases.");
-        // Preserve ComplexTypeMark for complex tensor outputs
-        if (is_complex) {
-            OutputVector complex_outputs;
-            for (const auto& output : outputs) {
-                complex_outputs.push_back(context.mark_node(std::make_shared<ComplexTypeMark>(output)));
-            }
-            return complex_outputs;
-        }
-        return outputs;
+        return wrap_complex(context, outputs, complex);
     }
 };
 

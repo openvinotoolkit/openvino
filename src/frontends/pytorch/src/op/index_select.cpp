@@ -19,14 +19,11 @@ OutputVector translate_index_select(const NodeContext& context) {
     // aten::index_select(Tensor self, int dim, Tensor index) -> Tensor
     // aten::index_select.out(Tensor self, int dim, Tensor index, *, Tensor(a!) out) -> Tensor(a!)
     num_inputs_check(context, 3, 4, true);  // allow_complex = true
-    auto x = context.get_input(0);
+    auto [x, complex] = unwrap_complex(context.get_input(0));
     auto dim = context.get_input(1);
     auto indices = context.get_input(2);
 
-    auto complex = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
     if (complex) {
-        x = complex->get_input_source_output(0);
-
         // Normalize axis for complex tensor
         if (dim.get_element_type() != element::i32) {
             dim = context.mark_node(std::make_shared<v0::Convert>(dim, element::i32));
@@ -40,10 +37,7 @@ OutputVector translate_index_select(const NodeContext& context) {
         context.mutate_input(3, gather);
     }
 
-    if (complex) {
-        return {context.mark_node(std::make_shared<ComplexTypeMark>(gather, complex->get_complex_part_type()))};
-    }
-    return {gather};
+    return {wrap_complex(context, gather, complex)};
 };
 
 }  // namespace op

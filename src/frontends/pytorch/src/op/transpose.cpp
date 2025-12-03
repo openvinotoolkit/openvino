@@ -30,13 +30,7 @@ using namespace ov::op;
 
 OutputVector translate_transpose(const NodeContext& context) {
     num_inputs_check(context, 3, 3, true);  // allow_complex = true
-    auto data = context.get_input(0);
-
-    auto complex = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
-    bool is_complex = complex != nullptr;
-    if (is_complex) {
-        data = complex->get_input_source_output(0);
-    }
+    auto [data, complex] = unwrap_complex(context.get_input(0));
 
     // Get complex-aware rank for axis normalization
     Output<Node> rank;
@@ -57,7 +51,7 @@ OutputVector translate_transpose(const NodeContext& context) {
     Output<Node> scatter = std::make_shared<v3::ScatterElementsUpdate>(range, indices, updates, axis_0);
 
     // For complex tensors, append the last dimension index to preserve trailing dimension 2
-    if (is_complex) {
+    if (complex) {
         auto last_dim = context.mark_node(std::make_shared<v1::Reshape>(rank, v0::Constant::create(element::i32, Shape{1}, {1}), false));
         scatter = std::make_shared<v0::Concat>(OutputVector{scatter, last_dim}, 0);
     }
@@ -70,22 +64,12 @@ OutputVector translate_transpose(const NodeContext& context) {
     }
 
     auto result = context.mark_node(std::make_shared<v1::Transpose>(data, scatter));
-
-    if (is_complex) {
-        return {context.mark_node(std::make_shared<ComplexTypeMark>(result, complex->get_complex_part_type()))};
-    }
-    return {result};
+    return {wrap_complex(context, result, complex)};
 };
 
 OutputVector translate_t(const NodeContext& context) {
     num_inputs_check(context, 1, 1, true);  // allow_complex = true
-    auto input = context.get_input(0);
-
-    auto complex = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
-    bool is_complex = complex != nullptr;
-    if (is_complex) {
-        input = complex->get_input_source_output(0);
-    }
+    auto [input, complex] = unwrap_complex(context.get_input(0));
 
     // Get rank from original input for complex-aware rank calculation
     Output<Node> shape, rank;
@@ -94,26 +78,19 @@ OutputVector translate_t(const NodeContext& context) {
     if (input.get_partial_shape().rank().is_static()) {
         auto actual_rank = input.get_partial_shape().rank().get_length();
         // For complex tensors, the underlying data has one extra dimension (2)
-        auto logical_rank = is_complex ? actual_rank - 1 : actual_rank;
+        auto logical_rank = complex ? actual_rank - 1 : actual_rank;
         if (logical_rank < 2) {
-            if (is_complex) {
-                return {context.mark_node(std::make_shared<ComplexTypeMark>(input, complex->get_complex_part_type()))};
-            }
-            return {input};
+            return {wrap_complex(context, input, complex)};
         }
         // For complex tensors, dims should be {1, 0, 2} to keep trailing dim in place
         Output<Node> dims;
-        if (is_complex) {
+        if (complex) {
             dims = context.mark_node(v0::Constant::create(element::i32, Shape{3}, {1, 0, 2}));
         } else {
             dims = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
         }
         auto result = context.mark_node(std::make_shared<v1::Transpose>(input, dims));
-
-        if (is_complex) {
-            return {context.mark_node(std::make_shared<ComplexTypeMark>(result, complex->get_complex_part_type()))};
-        }
-        return {result};
+        return {wrap_complex(context, result, complex)};
     } else {
         // If rank is not known we create If operation
         auto const_2 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {2}));
@@ -121,7 +98,7 @@ OutputVector translate_t(const NodeContext& context) {
 
         // For complex tensors, dims should be {1, 0, 2} to keep trailing dim in place
         Output<Node> dims;
-        if (is_complex) {
+        if (complex) {
             dims = v0::Constant::create(element::i32, Shape{3}, {1, 0, 2});
         } else {
             dims = v0::Constant::create(element::i32, Shape{2}, {1, 0});
@@ -146,10 +123,7 @@ OutputVector translate_t(const NodeContext& context) {
         if_node->set_input(input, param_then, param_else);
         auto if_result = if_node->set_output(result_then, result_else);
 
-        if (is_complex) {
-            return {context.mark_node(std::make_shared<ComplexTypeMark>(if_result, complex->get_complex_part_type()))};
-        }
-        return {if_result};
+        return {wrap_complex(context, if_result, complex)};
     }
 };
 
@@ -158,13 +132,7 @@ OutputVector translate_movedim(const NodeContext& context) {
     // aten::movedim.intlist(Tensor(a) self, int[] source, int[] destination) -> Tensor(a)
     // based on https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/TensorShape.cpp#L3816
     num_inputs_check(context, 3, 3, true);  // allow_complex = true
-    auto x = context.get_input(0);
-
-    auto complex = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
-    bool is_complex = complex != nullptr;
-    if (is_complex) {
-        x = complex->get_input_source_output(0);
-    }
+    auto [x, complex] = unwrap_complex(context.get_input(0));
 
     auto src_dims = get_input_as_i32(context, 1);
     auto dst_dims = get_input_as_i32(context, 2);
@@ -200,7 +168,7 @@ OutputVector translate_movedim(const NodeContext& context) {
     Output<Node> scatter = std::make_shared<v3::ScatterElementsUpdate>(perm_dims, indices, updates, const_0);
 
     // For complex tensors, append the last dimension index to preserve trailing dimension 2
-    if (is_complex) {
+    if (complex) {
         auto last_dim = context.mark_node(std::make_shared<v1::Reshape>(rank, v0::Constant::create(element::i32, Shape{1}, {1}), false));
         scatter = context.mark_node(std::make_shared<v0::Concat>(OutputVector{scatter, last_dim}, 0));
     } else {
@@ -208,11 +176,7 @@ OutputVector translate_movedim(const NodeContext& context) {
     }
 
     auto result = context.mark_node(std::make_shared<v1::Transpose>(x, scatter));
-
-    if (is_complex) {
-        return {context.mark_node(std::make_shared<ComplexTypeMark>(result, complex->get_complex_part_type()))};
-    }
-    return {result};
+    return {wrap_complex(context, result, complex)};
 };
 
 }  // namespace op

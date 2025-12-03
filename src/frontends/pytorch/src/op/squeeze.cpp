@@ -18,34 +18,24 @@ using namespace ov::op;
 
 OutputVector translate_squeeze(const NodeContext& context) {
     num_inputs_check(context, 1, 2, true);  // allow_complex = true
-    auto x = context.get_input(0);
+    auto [data, complex] = unwrap_complex(context.get_input(0));
 
-    auto complex = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
-
-    if (complex) {
-        auto data = complex->get_input_source_output(0);
-        std::shared_ptr<Node> res;
-
-        if (context.input_is_none(1)) {
-            res = context.mark_node(std::make_shared<v0::Squeeze>(data));
-        } else {
-            auto dim = context.get_input(1);
+    std::shared_ptr<Node> res;
+    if (context.input_is_none(1)) {
+        res = context.mark_node(std::make_shared<v0::Squeeze>(data));
+    } else {
+        auto dim = context.get_input(1);
+        if (complex) {
             if (dim.get_element_type() != element::i32) {
                 dim = context.mark_node(std::make_shared<v0::Convert>(dim, element::i32));
             }
-            auto rank = std::get<1>(get_shape_rank(context, x, true));
+            auto rank = std::get<1>(get_shape_rank(context, context.get_input(0), true));
             dim = normalize_axis(context, dim, rank);
-            res = context.mark_node(std::make_shared<v0::Squeeze>(data, dim));
         }
-
-        return {context.mark_node(std::make_shared<ComplexTypeMark>(res->output(0), complex->get_complex_part_type()))};
+        res = context.mark_node(std::make_shared<v0::Squeeze>(data, dim));
     }
 
-    // Original non-complex path
-    if (context.input_is_none(1)) {
-        return {context.mark_node(std::make_shared<v0::Squeeze>(x))};
-    }
-    return {context.mark_node(std::make_shared<v0::Squeeze>(x, context.get_input(1)))};
+    return {wrap_complex(context, res->output(0), complex)};
 };
 
 }  // namespace op

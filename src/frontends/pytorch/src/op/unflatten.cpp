@@ -23,15 +23,9 @@ using namespace ov::op;
 OutputVector translate_unflatten(const NodeContext& context) {
     // aten::unflatten.int(Tensor(a) self, int dim, int[] sizes) -> Tensor(a)
     num_inputs_check(context, 3, 3, true);  // allow_complex = true
-    auto input = context.get_input(0);
+    auto [input, complex] = unwrap_complex(context.get_input(0));
     auto dim = context.get_input(1);
     auto sizes = context.get_input(2);
-
-    auto complex = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
-    bool is_complex = complex != nullptr;
-    if (is_complex) {
-        input = complex->get_input_source_output(0);
-    }
 
     if (context.get_input_type(2).is<type::List>()) {
         sizes = concat_list_construct(sizes);
@@ -51,7 +45,7 @@ OutputVector translate_unflatten(const NodeContext& context) {
     auto tail_part_rank = context.mark_node(std::make_shared<v8::Slice>(input_shape, dim_plus_one, max_int, one_1d));
 
     Output<Node> new_shape;
-    if (is_complex) {
+    if (complex) {
         // For complex tensors, append dimension 2 to preserve complex representation
         auto two = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2}));
         new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{head_part_rank, sizes, tail_part_rank, two}, 0));
@@ -60,11 +54,7 @@ OutputVector translate_unflatten(const NodeContext& context) {
     }
 
     auto result = context.mark_node(std::make_shared<v1::Reshape>(input, new_shape, false));
-
-    if (is_complex) {
-        return {context.mark_node(std::make_shared<ComplexTypeMark>(result, complex->get_complex_part_type()))};
-    }
-    return {result};
+    return {wrap_complex(context, result, complex)};
 };
 
 }  // namespace op

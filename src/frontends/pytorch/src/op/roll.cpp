@@ -20,13 +20,7 @@ using namespace ov::op;
 
 OutputVector translate_roll(const NodeContext& context) {
     num_inputs_check(context, 2, 3, true);  // allow_complex = true
-    auto data = context.get_input(0);
-
-    auto complex = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
-    bool is_complex = complex != nullptr;
-    if (is_complex) {
-        data = complex->get_input_source_output(0);
-    }
+    auto [data, complex] = unwrap_complex(context.get_input(0));
 
     const auto shifts = get_input_concat_if_list(context, 1);
     Output<Node> axes;
@@ -45,18 +39,10 @@ OutputVector translate_roll(const NodeContext& context) {
         const auto shape_of_data = std::make_shared<v3::ShapeOf>(data, element::i32);
         const auto reshape = std::make_shared<v1::Reshape>(roll, shape_of_data, false);
         context.mark_nodes({const_minus_1, flat, roll, shape_of_data, reshape});
-
-        if (is_complex) {
-            return {context.mark_node(std::make_shared<ComplexTypeMark>(reshape, complex->get_complex_part_type()))};
-        }
-        return {reshape};
+        return {wrap_complex(context, reshape, complex)};
     }
     auto result = context.mark_node(std::make_shared<v7::Roll>(data, shifts, axes));
-
-    if (is_complex) {
-        return {context.mark_node(std::make_shared<ComplexTypeMark>(result, complex->get_complex_part_type()))};
-    }
-    return {result};
+    return {wrap_complex(context, result, complex)};
 };
 
 }  // namespace op

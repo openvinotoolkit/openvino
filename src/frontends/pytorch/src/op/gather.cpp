@@ -25,13 +25,7 @@ OutputVector translate_gather(const NodeContext& context) {
     // aten::gather(Tensor self, int dim, Tensor index, *, bool sparse_grad=False) -> Tensor
     // aten::gather.out(Tensor self, int dim, Tensor index, *, bool sparse_grad=False, Tensor(a!) out) -> Tensor(a!)
     num_inputs_check(context, 3, 5, true);  // allow_complex = true
-    auto x = context.get_input(0);
-
-    auto complex = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
-    bool is_complex = complex != nullptr;
-    if (is_complex) {
-        x = complex->get_input_source_output(0);
-    }
+    auto [x, complex] = unwrap_complex(context.get_input(0));
 
     auto axis = context.const_input<int64_t>(1);
     auto index = context.get_input(2);
@@ -39,7 +33,7 @@ OutputVector translate_gather(const NodeContext& context) {
 
     // For complex tensors, GatherElements requires data and indices to have the same rank.
     // The underlying data has an extra dimension (2) at the end, so we need to expand indices.
-    if (is_complex) {
+    if (complex) {
         // Add extra dimension at the end: [N, M] -> [N, M, 1]
         auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
         index = context.mark_node(std::make_shared<v0::Unsqueeze>(index, minus_one));
@@ -61,10 +55,7 @@ OutputVector translate_gather(const NodeContext& context) {
         context.mutate_input(4, gather_elements);
     }
 
-    if (is_complex) {
-        return {context.mark_node(std::make_shared<ComplexTypeMark>(gather_elements, complex->get_complex_part_type()))};
-    }
-    return {gather_elements};
+    return {wrap_complex(context, gather_elements, complex)};
 };
 
 }  // namespace op
