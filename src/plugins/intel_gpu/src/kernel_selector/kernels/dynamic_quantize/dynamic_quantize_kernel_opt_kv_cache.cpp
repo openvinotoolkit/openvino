@@ -140,6 +140,8 @@ JitConstants DynamicQuantizeKernelKVCache::GetJitConstants(const dynamic_quantiz
 
     jit.AddConstant(MakeJitConstant("ITERATIONS_NUMBER", iterations_number));
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
+    if (!params.use_asymmetric_quantization)
+        std::cout << "  -- ASYMMETRIC_QUANTIZATION : " << params.use_asymmetric_quantization << std::endl;
     jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
 
     // Use FP32 accumulator type for scale/zp calculation

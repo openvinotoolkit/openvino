@@ -4,6 +4,10 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
+// [TEMP]
+#define INT4_RANGE 15
+#define INT4_MAX 7
+#define INT4_MIN -8
 
 inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_data,
                                     const uint in_data_offset,
@@ -31,14 +35,31 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
     // If the range of input data is zero, it is adjusted to the minimum value(0.001).
     #define ACCUMULATOR_TYPE float
     ACCUMULATOR_TYPE diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
-    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
-    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
+    // [TEMP]
+    // ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
+    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_RANGE) / diff_value);
+    // ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
+    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + INT4_MIN;
+
     INPUT0_TYPE scale = (INPUT1_TYPE)(scale_tmp);
     INPUT0_TYPE zp = (INPUT1_TYPE)(zp_tmp);
+    // [TEMP]
+    {
+        ACCUMULATOR_TYPE origin_scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
+        if ((int)zp > INT4_MAX || (int)zp < INT4_MIN) {
+            printf("(%.3f,%.3f,%d)", origin_scale_tmp, scale_tmp, (int)zp);
+            return;
+        }
+    }
     #undef ACCUMULATOR_TYPE
 
     unroll_for (uint i = 0; i < num_groups; i++) {
         OUTPUT_TYPE res = convert_char_rte(input_data[i] * scale + zp);
+        // [TEMP]
+        if ((int)res > INT4_MAX || (int)res < INT4_MIN) {
+            printf("(%d)", (int)res);
+            return;
+        }
 
         uint offset = out_data_offset + (i * SUBGROUP_SIZE + sglid) * out_data_pitch;
         out_data[offset] = res;
@@ -112,14 +133,22 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
                 // When the range is very small, expand the range to avoid zp overflow
                 range += fmax(1.0f, min_range);
             }
-            ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / range);
-            ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
+            // [TEMP]
+            // ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / range);
+            // ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
+            ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_RANGE) / range);
+            ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + INT4_MIN;
             INPUT0_TYPE scale = (INPUT1_TYPE)(scale_tmp);
             INPUT0_TYPE zp = (INPUT1_TYPE)(zp_tmp);
             #undef ACCUMULATOR_TYPE
 
             for (uint token = 0; token < token_pos_in_block + new_tokens_num; ++token) {
                 OUTPUT_TYPE quantized = convert_char_rte(cache_data_vec_decompressed[token] * scale + zp);
+                // [TEMP]
+                if ((int)quantized > INT4_MAX || (int)quantized < INT4_MIN) {
+                    printf("(%d)", (int)quantized);
+                    return;
+                }
                 out_data[out_offset_per_wi + token] = quantized;
             }
             comp_ptr[0] = 1.0/scale;
@@ -156,8 +185,10 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
             // When the range is very small, expand the range to avoid zp overflow
             range += fmax(1.0f, min_range);
         }
-        ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / range);
-        ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
+        // ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / range);
+        // ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
+        ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_RANGE) / range);
+        ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + INT4_MIN;
         INPUT0_TYPE scale = (INPUT1_TYPE)(scale_tmp);
         INPUT0_TYPE zp = (INPUT1_TYPE)(zp_tmp);
         #undef ACCUMULATOR_TYPE
@@ -170,6 +201,11 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
         // Store quantized key
         for (uint token_num = 0; token_num < tokens_num; token_num++) {
             OUTPUT_TYPE res = convert_char_rte(input_data[token_num] * scale + zp);
+            // [TEMP]
+            if ((int)res > INT4_MAX || (int)res < INT4_MIN) {
+                printf("(%d)", (int)res);
+                return;
+            }
             out_data[out_offset_per_wi] = res;
             out_offset_per_wi++;
         }
