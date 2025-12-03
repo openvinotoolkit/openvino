@@ -79,5 +79,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestQwenVL,
                             ::testing::ValuesIn(vit_param)),
                          RoPETestQwenVL::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
+                         RoPETestChatGLMHF,
+                         ::testing::Combine(::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(true, false)),
+                         RoPETestChatGLMHF::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestGPTOSS,
+                         RoPETestGPTOSS,
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f32),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         RoPETestGPTOSS::getTestCaseName);
+
 }  // namespace test
 }  // namespace ov
