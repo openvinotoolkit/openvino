@@ -12,6 +12,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 
@@ -377,12 +378,12 @@ TEST(DeterministicityInputOutput, LayerIdOrder) {
     ov::pass::Serialize(xml, bin).run_on_model(model);
 
     // order matters
-    const std::vector<std::string> expected_layer_id{R"(<layer id="0" name="expect id 0" type="Parameter")",
-                                                     R"(<layer id="1" name="expect id 1" type="Parameter")",
-                                                     R"(<layer id="2" name="expect id 2" type="Parameter")",
-                                                     R"(<layer id="6" name="expect id 6" type="Result")",
-                                                     R"(<layer id="7" name="expect id 7" type="Result")",
-                                                     R"(<layer id="8" name="expect id 8" type="Result")"};
+    constexpr auto expected_layer_id = util::make_array(R"(<layer id="0" name="expect id 0" type="Parameter")",
+                                                        R"(<layer id="1" name="expect id 1" type="Parameter")",
+                                                        R"(<layer id="2" name="expect id 2" type="Parameter")",
+                                                        R"(<layer id="6" name="expect id 6" type="Result")",
+                                                        R"(<layer id="7" name="expect id 7" type="Result")",
+                                                        R"(<layer id="8" name="expect id 8" type="Result")");
     const std::string xml_str = xml.str();
     std::string::size_type pos = 0;
     for (const auto& n : expected_layer_id) {
