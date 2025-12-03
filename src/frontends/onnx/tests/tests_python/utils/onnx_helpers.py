@@ -5,7 +5,7 @@
 import numpy as np
 import onnx
 
-from openvino.runtime import Core, Tensor, Model
+from openvino import Core, Tensor, Model
 
 
 def import_onnx_model(model: onnx.ModelProto) -> Model:
