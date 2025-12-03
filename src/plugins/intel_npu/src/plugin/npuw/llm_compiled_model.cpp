@@ -1694,12 +1694,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
 
-    if (!m_use_chunk_prefill && !m_is_text_embed) {
-        NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
-    } else {
-        LOG_DEBUG("Don't remove input key/values from prefill model.");
-        LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
-        if (!m_is_text_embed) {
+    if (!m_is_text_embed) {
+        if (!m_use_chunk_prefill) {
+            NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
+        } else {
+            LOG_DEBUG("Don't remove input key/values from prefill model.");
+            LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
             prefill_model = redirect_new_kv_to_output(prefill_model);
         }
     }
