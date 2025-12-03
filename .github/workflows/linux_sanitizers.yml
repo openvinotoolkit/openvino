@@ -384,7 +384,7 @@ jobs:
 
           ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
                 ${{ matrix.SANITIZER == 'Thread' && '--gtest_filter=-TransformationTestsF.TSGeneralTestBinaryGeneral:TransformationTestsF.TSGeneralTestConcatGeneral:PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
-                ${{ matrix.SANITIZER != '' && '--gtest_filter=-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
+                ${{ matrix.SANITIZER != '' && matrix.SANITIZER != 'Thread' && '--gtest_filter=-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
       - name: Common test utils tests
