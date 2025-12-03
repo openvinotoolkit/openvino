@@ -66,16 +66,10 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::string& model_dir) const {
-    auto full_path = model_dir == ""
-                         ? m_data_location
-                         : ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    ov::util::convert_path_win_style(full_path);
-    std::ifstream external_data_stream(ov::util::string_to_wstring(full_path).c_str(),
-                                       std::ios::binary | std::ios::in | std::ios::ate);
-#else
+    const auto full_path = model_dir.empty() ? ov::util::make_path(m_data_location)
+                                             : std::filesystem::absolute(std::filesystem::weakly_canonical(
+                                                   ov::util::path_join({model_dir, m_data_location})));
     std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
-#endif
 
     if (external_data_stream.fail()) {
         throw error::invalid_external_data{*this};
