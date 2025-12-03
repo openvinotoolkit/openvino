@@ -66,6 +66,8 @@ bool pass::EliminateBrgemmCopyB::run_on_model(const std::shared_ptr<ov::Model>& 
         // Since repacking is moved out of Subgraph body,
         // the rest weights subgraph must be updated with precision after repacking
         param->set_element_type(copy_b_node->get_config().wei_dt());
+        // Note: validation is called manually since set_element_type doesn't update output element type
+        param->validate_and_infer_types();
         if (pattern_map.count(m_rank_norm)) {
             pattern_map.at(m_rank_norm).get_node_shared_ptr()->validate_and_infer_types();
         }
