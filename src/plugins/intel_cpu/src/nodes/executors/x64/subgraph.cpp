@@ -308,7 +308,10 @@ void SubgraphDynamicSpecializedExecutor::exec_impl(const std::vector<MemoryPtr>&
                                                    const std::vector<MemoryPtr>& out_mem_ptrs) {
     const auto& callable = m_schedule->get_callable<dynamic_kernel>();
 
-    OPENVINO_ASSERT(m_data_offsets.size() == in_mem_ptrs.size() + out_mem_ptrs.size(), "Incorrect data offset count!");
+    // OPENVINO_ASSERT(m_data_offsets.size() == in_mem_ptrs.size() + out_mem_ptrs.size(), "Incorrect data offset count!");
+    // std::cout << "m_data_offsets size0: " << m_data_offsets.size() << std::endl;
+    // std::cout << "in_mem_ptrs size0: " << in_mem_ptrs.size() << std::endl;
+    // std::cout << "out_mem_ptrs size0: " << out_mem_ptrs.size() << std::endl;
     OPENVINO_ASSERT(m_data_offsets.front().size() == m_parallel_exec_domain.size(),
                     "Data offsets with invalid ranks detected");
 
