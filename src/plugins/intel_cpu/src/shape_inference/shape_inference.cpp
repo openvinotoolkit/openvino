@@ -68,6 +68,7 @@
 #include "gru_sequence_shape_inference.hpp"
 #include "i420_shape_inference.hpp"
 #include "identity_shape_inference.hpp"
+#include "internal_convolution_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
 #include "inverse_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"
@@ -218,8 +219,10 @@
 #include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "ov_ops/convolution.hpp"
 #include "ov_ops/glu.hpp"
 #include "pad_shape_inference.hpp"
 #include "prior_box_clustered_shape_inference.hpp"
@@ -754,6 +757,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUSequence, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::RMSNorm, ShapeInferTA, util::bit::mask(1)),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::GLU, ShapeInferTA, util::bit::mask()),
+    OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::Convolution, ShapeInferPaddingTA, util::bit::mask()),
 };
 // clang-format on
 

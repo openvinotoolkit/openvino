@@ -40,6 +40,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Eye", Type::Eye},
         {"Convolution", Type::Convolution},
         {"GroupConvolution", Type::Convolution},
+        {"ConvolutionBiased", Type::Convolution},
         {"MatMul", Type::MatMul},
         {"FullyConnected", Type::FullyConnected},
         {"FullyConnectedCompressed", Type::FullyConnected},
@@ -419,6 +420,7 @@ std::string algToString(const Algorithm alg) {
         CASE(PoolingAvg);
         CASE(AdaptivePoolingMax);
         CASE(AdaptivePoolingAvg);
+        CASE(ConvolutionBiased);
         CASE(ConvolutionCommon);
         CASE(ConvolutionGrouped);
         CASE(DeconvolutionCommon);
