@@ -9,6 +9,8 @@
 #include <string>
 #include <string_view>
 
+#include "openvino/core/except.hpp"
+
 namespace ov::util {
 struct Version {
     size_t major = 0;
@@ -74,38 +76,42 @@ struct Version {
 };
 
 struct VersionCompatibilityPolicy {
-    size_t max_major_diff = SIZE_MAX;
-    size_t max_minor_diff = SIZE_MAX;
-    size_t max_patch_diff = SIZE_MAX;
-    size_t max_tweak_diff = SIZE_MAX;
-    size_t max_build_diff = SIZE_MAX;
+    size_t max_major_diff = 0;
+    size_t max_minor_diff = 0;
+    size_t max_patch_diff = 0;
+    size_t max_tweak_diff = 0;
+    size_t max_build_diff = 0;
 };
 
-bool is_version_compatible(const Version& comparing_version,
-                           const Version& base_version,
-                           const VersionCompatibilityPolicy& policy = {}) {
-    if (comparing_version > base_version) {
+bool is_version_compatible(const Version& older_version,
+                           const Version& newer_version,
+                           const VersionCompatibilityPolicy& policy = {});
+
+bool is_version_compatible(const Version& older_version,
+                           const Version& newer_version,
+                           const VersionCompatibilityPolicy& policy) {
+    if (older_version > newer_version) {
         return false;
     }
 
     // Check each version component against policy
-    if (base_version.major - comparing_version.major > policy.max_major_diff) {
+    if (newer_version.major - older_version.major > policy.max_major_diff) {
         return false;
     }
 
-    if (base_version.minor - comparing_version.minor > policy.max_minor_diff) {
+    if (newer_version.minor - older_version.minor > policy.max_minor_diff) {
         return false;
     }
 
-    if (base_version.patch - comparing_version.patch > policy.max_patch_diff) {
+    if (newer_version.patch - older_version.patch > policy.max_patch_diff) {
         return false;
     }
 
-    if (base_version.tweak - comparing_version.tweak > policy.max_tweak_diff) {
+    if (newer_version.tweak - older_version.tweak > policy.max_tweak_diff) {
         return false;
     }
 
-    if (base_version.build - comparing_version.build > policy.max_build_diff) {
+    if (newer_version.build - older_version.build > policy.max_build_diff) {
         return false;
     }
 
