@@ -473,11 +473,15 @@ void IRGraphImpl::executeGraph(std::vector<MemRefType*>& inputMefRefs,
     auto deviceHandle = zeroInitStruct->getDevice();
     auto ddiTableHandle = zeroInitStruct->getGraphDdiTable().getImpl();
 
-    std::vector<npu_mlir_runtime_mem_ref_t*> inputs, outputs;
-    for (auto& in : inputMefRefs)
-        inputs.push_back(&in->memRef);
-    for (auto& out : outputMemRefs)
-        outputs.push_back(&out->memRef);
+    std::vector<npu_mlir_runtime_mem_ref_handle_t> inputs, outputs;
+    for (auto& in : inputMefRefs) {
+        in->UpdateMemRefHandleStatus();
+        inputs.push_back(in->memRef);
+    }
+    for (auto& out : outputMemRefs) {
+        out->UpdateMemRefHandleStatus();
+        outputs.push_back(out->memRef);
+    }
     npu_mlir_runtime_execute_params_t params;
     params.pInputs = inputs.data();
     params.numOfInputs = static_cast<uint32_t>(inputs.size());
@@ -499,13 +503,15 @@ void IRGraphImpl::executeGraph(std::vector<MemRefType*>& inputMefRefs,
 
 void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
                                      std::vector<MemRefType>& outputDescriptors) {
-    std::vector<npu_mlir_runtime_mem_ref_t*> inputs;
+    std::vector<npu_mlir_runtime_mem_ref_handle_t> inputs;
     for (auto& in : inputDescriptors) {
-        inputs.push_back(&in.memRef);
+        in.UpdateMemRefHandleStatus();
+        inputs.push_back(in.memRef);
     }
-    std::vector<npu_mlir_runtime_mem_ref_t*> outputs;
+    std::vector<npu_mlir_runtime_mem_ref_handle_t> outputs;
     for (auto& out : outputDescriptors) {
-        outputs.push_back(&out.memRef);
+        out.UpdateMemRefHandleStatus();
+        outputs.push_back(out.memRef);
     }
     if (npuMLIRRuntimePredictOutputShape(_engine, inputs.data(), (uint32_t)inputs.size(), outputs.data(), (uint32_t)outputs.size()) !=
         NPU_MLIR_RUNTIME_RESULT_SUCCESS) {

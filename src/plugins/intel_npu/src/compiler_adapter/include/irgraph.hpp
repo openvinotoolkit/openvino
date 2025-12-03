@@ -19,8 +19,8 @@ class IRGraph final : public IGraph {
 public:
     struct MemRefType {
         npu_mlir_runtime_mem_ref_handle_t memRef;
-        void* basePtr;
-        void* data;
+        const void* basePtr;
+        const void* data;
         int64_t offset;
         std::vector<int64_t> sizes;
         std::vector<int64_t> strides;
