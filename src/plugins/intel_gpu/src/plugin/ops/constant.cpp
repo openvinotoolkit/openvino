@@ -274,3 +274,4 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
 REGISTER_FACTORY_IMPL(v0, Constant);
 
 }  // namespace ov::intel_gpu
+
