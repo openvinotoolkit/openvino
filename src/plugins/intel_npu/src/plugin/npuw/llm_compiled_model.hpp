@@ -27,6 +27,7 @@ class LLMCompiledModel : public ov::npuw::ICompiledModel {
 
 public:
     static constexpr const char* output_embeds = "npuw_output_embed";
+    static constexpr const char* hidden_output_name_key = "hidden_output_name";
 
     static constexpr uint32_t whisper_batch_dim = 0u;
     static constexpr uint32_t whisper_seq_len_dim = 2u;

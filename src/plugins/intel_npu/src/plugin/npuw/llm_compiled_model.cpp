@@ -881,11 +881,12 @@ public:
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
             auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
 
-            // Some LLMs add intermediate hidden state outputs that can interfere with LM head detection
-            // Use "hidden_output_name" rt_info to distinguish them from the actual logits output
-            // For example, Eagle-3 target/draft models add "last_hidden_state" output which should be skipped
-            if (model_rt_info.count("hidden_output_name")) {
-                const auto& hidden_output_name = model_rt_info.at("hidden_output_name").as<std::string>();
+            // Some LLMs add intermediate hidden state outputs that can interfere with LM head detection.
+            // Use "hidden_output_name" rt_info to distinguish them from the actual logits output.
+            // For example, Eagle-3 target/draft models add "last_hidden_state" output which should be skipped.
+            if (model_rt_info.count(ov::npuw::LLMCompiledModel::hidden_output_name_key)) {
+                const auto& hidden_output_name =
+                    model_rt_info.at(ov::npuw::LLMCompiledModel::hidden_output_name_key).as<std::string>();
                 const auto& result_output_names = matched_result->output(0).get_names();
                 for (const auto& name : result_output_names) {
                     if (name == hidden_output_name) {
