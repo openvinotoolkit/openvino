@@ -127,6 +127,9 @@ ov::ParameterVector form_sdpa_params(ov::Dimension batch,
  * @param fuse_cache_reorder Whether to fuse cache reorder
  * @param build_state_initializer Whether to build state initializer
  * @param num_groups Number of groups for GQA
+ * @param trim_seq Length to which the sequence is trimmed (zero for no trim)
+ * @param src_idx Source indices for reorder
+ * @param dst_idx Destination indices for reorder
  * @return Shared pointer to the created model
  */
 std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch = ov::Dimension::dynamic(),
@@ -137,7 +140,10 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch = ov::D
                                                      bool stateful = false,
                                                      bool fuse_cache_reorder = false,
                                                      bool build_state_initializer = false,
-                                                     size_t num_groups = 1);
+                                                     size_t num_groups = 1,
+                                                     int trim_seq = 0,
+                                                     std::vector<int> src_idx = {},
+                                                     std::vector<int> dst_idx = {});
 
 /**
  * @brief Creates an LLM KV cache pattern with Scaled Dot Product Attention (SDPA)
