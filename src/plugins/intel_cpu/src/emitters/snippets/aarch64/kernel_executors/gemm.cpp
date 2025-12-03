@@ -14,6 +14,7 @@
 
 #include "emitters/snippets/brgemm_generic.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "snippets/kernel_executor_table.hpp"

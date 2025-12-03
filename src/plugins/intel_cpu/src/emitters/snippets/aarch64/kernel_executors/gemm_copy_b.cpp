@@ -100,8 +100,8 @@ void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::Expr
     const auto N = *in0_shape.rbegin();
     const auto K = *++in0_shape.rbegin();
     const auto& prc = expr->get_node()->get_input_element_type(0);
-    const auto row_stride_bytes = snippets::utils::get_dim_stride(expr->get_input_port(0), 1) * prc.size();
-    const auto col_stride_bytes = snippets::utils::get_dim_stride(expr->get_input_port(0), 0) * prc.size();
+    const auto row_stride_bytes = snippets::utils::get_dim_stride(expr->get_input_port(0), 0) * prc.size();
+    const auto col_stride_bytes = snippets::utils::get_dim_stride(expr->get_input_port(0), 1) * prc.size();
     config.update(N, K, row_stride_bytes, col_stride_bytes, prc);
 }
 
