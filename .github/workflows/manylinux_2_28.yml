@@ -74,7 +74,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_test\":{\"ubuntu_20_04_x64_py313\":\"mock\"},\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\"},\"ov_test\":{\"fedora_33\":\"mock\"},\"ov_test\":{\"debian_10_py310\":\"mock\"},\"ov_build\":{\"manylinux_2_28\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_test\":{\"ubuntu_20_04_x64_py313\":\"mock\"},\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_test\":{\"ubuntu_22_04_x64_py314\":\"mock\"},\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\"},\"ov_test\":{\"fedora_33\":\"mock\"},\"ov_test\":{\"debian_10_py310\":\"mock\"},\"ov_build\":{\"manylinux_2_28\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -90,6 +90,7 @@ jobs:
             ov_test/ubuntu_20_04_x64_py313
             ov_test/ubuntu_22_04_x64
             ov_test/ubuntu_22_04_x64_py314
+            ov_test/ubuntu_22_04_x64_py314t
             ov_test/ubuntu_24_04_x64
             ov_test/fedora_33
             ov_test/debian_10_py310
@@ -177,12 +178,18 @@ jobs:
             
       - name: Build Python API (Python 3.10-3.14)
         run: |
-          SUPPORTED_PYTHON_VERSIONS=("3.10" "3.11" "3.12" "3.13" "3.14")
+          SUPPORTED_PYTHON_VERSIONS=("3.10" "3.11" "3.12" "3.13" "3.14" "3.14t")
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
 
             py_build_dir=${{ github.workspace }}/build_py${PY_VER}
             simpler_python_version=$(echo $PY_VER | sed -e 's/\.//g')
-            python_path=/opt/python/cp${simpler_python_version}-cp${simpler_python_version}/bin/python3
+
+            if [ "$PY_VER" == "3.14t" ]; then
+              python_path=/opt/python/cp314-cp314t/bin/python3
+            else
+              python_path=/opt/python/cp${simpler_python_version}-cp${simpler_python_version}/bin/python3
+            fi
+
             PIP_VER=$(${python_path} -c "import pip; print(pip.__version__)")
             export "PIP_CACHE_DIR=${{ env.PIP_CACHE_PATH }}/${PIP_VER}"
             ${python_path} -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
@@ -285,6 +292,8 @@ jobs:
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64_py313 }}
           - python-version: "3.14"
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_py314 }}
+          - python-version: "3.14-nogil"
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_py314t }}
     with:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ matrix.image }}
