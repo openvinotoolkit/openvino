@@ -33,6 +33,9 @@ static constexpr char targetDeviceMessage[] =
 
 static constexpr char output_message[] = "Optional. Path to the output file. Default value: \"<model_xml_file>.blob\".";
 
+static constexpr char raw_blob_message[] =
+    "Optional. Specifies if the output blob should NOT contain NPU plugin metadata placed at the beginning of it.";
+
 static constexpr char log_level_message[] = "Optional. Log level for OpenVINO library.";
 
 static constexpr char config_message[] = "Optional. Path to the configuration file.";
@@ -85,6 +88,7 @@ DEFINE_bool(h, false, help_message);
 DEFINE_string(m, "", model_message);
 DEFINE_string(d, "", targetDeviceMessage);
 DEFINE_string(o, "", output_message);
+DEFINE_bool(raw_blob, false, raw_blob_message);
 DEFINE_string(log_level, "", log_level_message);
 DEFINE_string(c, "", config_message);
 DEFINE_bool(pc, false, perf_count_message);
@@ -320,6 +324,7 @@ static void showUsage() {
     std::cout << "    -m                           <value>     " << model_message << std::endl;
     std::cout << "    -d                           <value>     " << targetDeviceMessage << std::endl;
     std::cout << "    -o                           <value>     " << output_message << std::endl;
+    std::cout << "    -raw_blob                                " << raw_blob_message << std::endl;
     std::cout << "    -c                           <value>     " << config_message << std::endl;
     std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
     std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
@@ -483,6 +488,13 @@ int main(int argc, char* argv[]) {
         auto configs = parseConfigFile();
         if (FLAGS_pc) {
             configs["PERF_COUNT"] = "YES";
+        }
+        if (FLAGS_raw_blob) {
+            if (FLAGS_d == "NPU") {
+                configs["NPU_EXPORT_RAW_BLOB"] = "YES";
+            } else {
+                std::cout << "Ignoring -raw_blob flag used with other device than NPU." << std::endl;
+            }
         }
 
         std::cout << "Compiling model" << std::endl;
