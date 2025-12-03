@@ -16,6 +16,10 @@ KERNEL(reorder_kv_cache)(
     const unsigned int bh = (uint)get_global_id(0);
     const unsigned int d = (uint)get_global_id(1);
 
+    if (d >= INPUT0_SEQ_PITCH) {
+        return;
+    }
+
     unsigned long long out_offset = bh * OUTPUT_SEQ_PITCH * seq_len + d;
     unsigned long long in_offset = bh * INPUT0_SEQ_PITCH * seq_len + d;
 

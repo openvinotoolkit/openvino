@@ -573,7 +573,7 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_with_set_state) {
 }
 
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_trim_reorder) {
-    this->test_smoke_multipleIterations_stateful(false, true, true, 1, 2, ov::element::f16, 10, 1, true, 1, 15, {12, 13, 14}, {10, 11, 12});
+    this->test_smoke_multipleIterations_stateful(false, true, true, 1, 2, ov::element::f16, 1, 1, true, 1, 15, {12, 13, 14}, {10, 11, 12});
 }
 
 class KVCacheIssueTests: public ::testing::Test {
