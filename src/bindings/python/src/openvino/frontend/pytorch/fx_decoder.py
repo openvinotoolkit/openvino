@@ -384,7 +384,10 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return self._raw_outputs()[index]
 
     def _raw_inputs(self):
-        return [self._nodes[x] if not isinstance(x, InlinedInput) and x < len(self._nodes) else x.data for x in self._inputs]
+        return [
+            self._nodes[x] if not isinstance(x, InlinedInput) and x < len(self._nodes) else x.data
+            for x in self._inputs
+        ]
 
     def _raw_input(self, index):
         return self._raw_inputs()[index]
@@ -415,7 +418,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return ov_const.outputs()
 
     def input_is_none(self, index):
-        if index >= len(self._inputs) or (isinstance(self._inputs[index], InlinedInput) and self._inputs[index].data is None):
+        if index >= len(self._inputs) or (
+            isinstance(self._inputs[index], InlinedInput) and self._inputs[index].data is None
+        ):
             return True
         else:
             r_input = self._raw_input(index)
