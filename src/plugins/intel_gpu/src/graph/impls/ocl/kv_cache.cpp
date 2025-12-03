@@ -119,7 +119,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         kernel_arguments_data args;
         args.shape_info = instance.shape_info_memory_ptr();
         if (stage == reorder_trim_stage) {
-            args.inputs = { instance.input_memory_ptr(0), instance.input_memory_ptr(2 + indirect_offset), instance.input_memory_ptr(3 + indirect_offset) };
+            args.inputs = { instance.input_memory_ptr(0), instance.input_memory_ptr(3 + indirect_offset), instance.input_memory_ptr(4 + indirect_offset) };
             args.outputs = {instance.input_memory_ptr(0)};
         } else if (stage == concat_stage) {
             args.inputs = { instance.input_memory_ptr(0), instance.input_memory_ptr(1) };
@@ -199,7 +199,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         if (impl_param.input_layouts.size() >= 3) {
             indirect_offset = desc->indirect ? 1 : 0;
-            if (instance.input_memory_ptr(0) && instance.input_memory_ptr(2 + indirect_offset)->size()) {
+            if (instance.input_memory_ptr(0) && instance.input_memory_ptr(3 + indirect_offset)->size()) {
                 execute_stage(events, instance, res_events, reorder_trim_stage);
             }
         }
@@ -320,8 +320,8 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         params.inputs.resize(inputs_count);
         params.inputs[0] = convert_data_tensor(impl_param.input_layouts[0], tensor());
-        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[2 + (impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0)], tensor());
-        params.inputs[2] = convert_data_tensor(impl_param.input_layouts[3 + (impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0)], tensor());
+        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[3 + (impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0)], tensor());
+        params.inputs[2] = convert_data_tensor(impl_param.input_layouts[4 + (impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0)], tensor());
         params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0], tensor());
         params.seq_len = params.inputs[0].Y().pitch ? params.inputs[0].Feature().pitch / params.inputs[0].Y().pitch : 0;
         params.idx_len = params.inputs[2].Y().v;
@@ -332,8 +332,8 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;  // [kv_present, beam_table_present, compression_scale_present]
         std::map<size_t, size_t> in_tensor_to_offset_map = {
             {0, in_offsets_map.at(0)},  // kv_past
-            {1, in_offsets_map.at(2 + impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0)},  // src_idx
-            {2, in_offsets_map.at(3 + impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0)},  // dst_idx
+            {1, in_offsets_map.at(3 + impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0)},  // src_idx
+            {2, in_offsets_map.at(4 + impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0)},  // dst_idx
         };
         std::map<size_t, size_t> out_tensor_to_offset_map = {
             {0, in_offsets_map.at(0)},  // kv_present
