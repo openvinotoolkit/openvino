@@ -60,12 +60,22 @@ void GemmKaiKernelExecutor::update_kernel([[maybe_unused]] const GemmKernelKaiCo
 void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                           const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                           GemmKernelKaiConfig& config) const {
+    const auto& prc = expr->get_node()->get_input_element_type(0);
+    if (prc == ov::element::f16) {
+        const auto& a_layout = expr->get_input_port_descriptor(0)->get_layout();
+        const auto& b_layout = expr->get_input_port_descriptor(1)->get_layout();
+        const auto& c_layout = expr->get_output_port_descriptor(0)->get_layout();
+        OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(a_layout) &&
+                            ov::snippets::utils::is_planar_layout(b_layout) &&
+                            ov::snippets::utils::is_planar_layout(c_layout),
+                        "GemmKaiKernelExecutor supports only planar layouts for fp16");
+    }
+
     const auto [M, N, K, beta] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
 
     const auto LDA = snippets::utils::get_dim_stride(expr->get_input_port(0));
     const auto LDC = snippets::utils::get_dim_stride(expr->get_output_port(0));
     const auto LDB = snippets::utils::get_dim_stride(expr->get_input_port(1));
-    const auto& prc = expr->get_node()->get_input_element_type(0);
     config.update(M, N, K, LDA, LDB, LDC, beta, prc);
 }
 
