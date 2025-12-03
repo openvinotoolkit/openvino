@@ -1495,9 +1495,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 bool is_dynamic_batch = !node->get_output_layout().get_partial_shape()[0].is_static();
                 bool is_fp32_conv = (node->get_input_layout().data_type == data_types::f32) &&
                                     (node->get_output_layout().data_type == data_types::f32);
-                #ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef ENABLE_ONEDNN_FOR_GPU
                 is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
-                #endif
+#endif
             } else {
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
