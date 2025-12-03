@@ -24,7 +24,7 @@ HorizonSum::HorizonSum(const OutputVector& x) : Op(x) {
 
 std::shared_ptr<Node> HorizonSum::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(HorizonSum_clone_with_new_inputs);
-    return std::make_shared<HorizonSum>(new_args.at(0));
+    return std::make_shared<HorizonSum>(new_args);
 }
 
 void HorizonSum::validate_and_infer_types() {

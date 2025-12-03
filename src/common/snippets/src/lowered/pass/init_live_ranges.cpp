@@ -21,6 +21,7 @@
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/op/perf_count.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/op/reshape.hpp"
 
 namespace ov::snippets::lowered::pass {
 namespace {
@@ -85,9 +86,10 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
                 to_visit.pop();
                 for (const auto& consumer : current->get_consumers()) {
                     const auto& consumer_expr = consumer.get_expr();
-                    // set same reg for all connectors of buffer/result expression
+                    // set same reg for all input connectors of buffer/result/reshape expression
                     if (ov::is_type<BufferExpression>(consumer_expr) ||
-                        ov::as_type_ptr<op::Result>(consumer_expr->get_node())) {
+                        ov::as_type_ptr<op::Result>(consumer_expr->get_node()) ||
+                        ov::as_type_ptr<op::Reshape>(consumer_expr->get_node())) {
                         for (auto& in_connector : consumer_expr->get_input_port_connectors()) {
                             in_connector->get_source().get_descriptor_ptr()->set_reg(reg);
                             for (const auto& consumer : in_connector->get_consumers()) {
