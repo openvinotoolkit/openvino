@@ -1456,7 +1456,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     bool can_use_fsv16 = true;
     bool can_use_bs_fs_yx_bsv16_fsv16 = true;
     bool is_quantized_int8_model = false;
-    bool is_dynamic_batch_onednn_conv = false;
     size_t total_asym_quantized_conv_layers = 0;
     size_t total_dw_conv_layers = 0;
     size_t total_dw_splitted_conv_layers = 0;
