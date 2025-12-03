@@ -12,9 +12,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/util/common_util.hpp"
@@ -41,45 +39,30 @@ enum class LSTMInput {
     LSTM_INPUT_P
 };
 
-// Helper function to reduce tensor rank to target_rank by squeezing or reshaping
-std::shared_ptr<ov::Node> reduce_tensor_rank(const ov::Output<ov::Node>& input, int64_t target_rank) {
+// Helper function to reduce tensor rank to target_rank by squeezing leading dimensions.
+// Per ONNX specification, LSTM requires rank-3 inputs, so extra dimensions must be == 1.
+// If extra dimensions are != 1 at runtime, Squeeze will fail with a clear error.
+ov::Output<ov::Node> reduce_tensor_rank(const ov::Output<ov::Node>& input, int64_t target_rank) {
     const auto& input_shape = input.get_partial_shape();
 
-    if (!input_shape.rank().is_static()) {
-        return input.get_node_shared_ptr();
+    if (input_shape.rank().is_dynamic()) {
+        return input;
     }
 
     const auto input_rank = input_shape.rank().get_length();
 
     if (input_rank <= target_rank) {
-        return input.get_node_shared_ptr();
+        return input;
     }
 
-    // Strategy: Try to squeeze all leading dimensions that are equal to 1
+    // Squeeze all leading dimensions to reduce rank to target_rank
     std::vector<int64_t> axes_to_squeeze;
     for (int64_t i = 0; i < input_rank - target_rank; ++i) {
-        if (input_shape[i].is_static() && input_shape[i].get_length() == 1) {
-            axes_to_squeeze.push_back(i);
-        }
+        axes_to_squeeze.push_back(i);
     }
 
-    if (axes_to_squeeze.size() == static_cast<size_t>(input_rank - target_rank)) {
-        // All extra dimensions are 1, we can squeeze to get target rank
-        auto axes_const = v0::Constant::create(ov::element::i64, Shape{axes_to_squeeze.size()}, axes_to_squeeze);
-        return std::make_shared<v0::Squeeze>(input, axes_const);
-    } else {
-        // Some dimensions are not 1 or dynamic, need to reshape
-        auto shape_of_input = std::make_shared<v3::ShapeOf>(input);
-        auto start_idx = v0::Constant::create(ov::element::i64, Shape{1}, {input_rank - target_rank});
-        auto stop_idx = v0::Constant::create(ov::element::i64, Shape{1}, {input_rank});
-        auto step = v0::Constant::create(ov::element::i64, Shape{1}, {1});
-
-        // Get last target_rank dimensions: shape[-target_rank:]
-        auto last_dims = std::make_shared<v8::Slice>(shape_of_input, start_idx, stop_idx, step);
-
-        // Reshape to extract last target_rank dimensions
-        return std::make_shared<v1::Reshape>(input, last_dims, false);
-    }
+    auto axes_const = v0::Constant::create(ov::element::i64, Shape{axes_to_squeeze.size()}, axes_to_squeeze);
+    return std::make_shared<v0::Squeeze>(input, axes_const);
 }
 
 struct LSTMNgInputMap {
