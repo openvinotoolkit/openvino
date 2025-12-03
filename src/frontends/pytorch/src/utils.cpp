@@ -954,7 +954,8 @@ OutputVector wrap_complex(const NodeContext& context,
         OutputVector wrapped;
         wrapped.reserve(results.size());
         for (const auto& r : results) {
-            wrapped.push_back(context.mark_node(std::make_shared<ComplexTypeMark>(r, complex->get_complex_part_type())));
+            wrapped.push_back(
+                context.mark_node(std::make_shared<ComplexTypeMark>(r, complex->get_complex_part_type())));
         }
         return wrapped;
     }

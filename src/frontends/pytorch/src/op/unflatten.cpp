@@ -48,9 +48,11 @@ OutputVector translate_unflatten(const NodeContext& context) {
     if (complex) {
         // For complex tensors, append dimension 2 to preserve complex representation
         auto two = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2}));
-        new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{head_part_rank, sizes, tail_part_rank, two}, 0));
+        new_shape = context.mark_node(
+            std::make_shared<v0::Concat>(OutputVector{head_part_rank, sizes, tail_part_rank, two}, 0));
     } else {
-        new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{head_part_rank, sizes, tail_part_rank}, 0));
+        new_shape =
+            context.mark_node(std::make_shared<v0::Concat>(OutputVector{head_part_rank, sizes, tail_part_rank}, 0));
     }
 
     auto result = context.mark_node(std::make_shared<v1::Reshape>(input, new_shape, false));

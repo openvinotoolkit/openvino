@@ -52,7 +52,8 @@ OutputVector translate_transpose(const NodeContext& context) {
 
     // For complex tensors, append the last dimension index to preserve trailing dimension 2
     if (complex) {
-        auto last_dim = context.mark_node(std::make_shared<v1::Reshape>(rank, v0::Constant::create(element::i32, Shape{1}, {1}), false));
+        auto last_dim = context.mark_node(
+            std::make_shared<v1::Reshape>(rank, v0::Constant::create(element::i32, Shape{1}, {1}), false));
         scatter = std::make_shared<v0::Concat>(OutputVector{scatter, last_dim}, 0);
     }
 
@@ -169,7 +170,8 @@ OutputVector translate_movedim(const NodeContext& context) {
 
     // For complex tensors, append the last dimension index to preserve trailing dimension 2
     if (complex) {
-        auto last_dim = context.mark_node(std::make_shared<v1::Reshape>(rank, v0::Constant::create(element::i32, Shape{1}, {1}), false));
+        auto last_dim = context.mark_node(
+            std::make_shared<v1::Reshape>(rank, v0::Constant::create(element::i32, Shape{1}, {1}), false));
         scatter = context.mark_node(std::make_shared<v0::Concat>(OutputVector{scatter, last_dim}, 0));
     } else {
         context.mark_node(scatter.get_node_shared_ptr());

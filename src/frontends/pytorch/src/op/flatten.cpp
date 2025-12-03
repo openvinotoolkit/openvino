@@ -59,10 +59,27 @@ OutputVector translate_flatten(const NodeContext& context) {
         // For complex tensors, append dimension 2 to preserve complex representation
         auto two = v0::Constant::create(element::i32, Shape{1}, {2});
         new_shape = std::make_shared<v0::Concat>(OutputVector{slice_begin, neg_1_const, slice_end, two}, 0);
-        context.mark_nodes({zero, one, int_max, start_dim_u, end_dim_u, slice_begin, slice_end, neg_1_const, two, new_shape.get_node_shared_ptr()});
+        context.mark_nodes({zero,
+                            one,
+                            int_max,
+                            start_dim_u,
+                            end_dim_u,
+                            slice_begin,
+                            slice_end,
+                            neg_1_const,
+                            two,
+                            new_shape.get_node_shared_ptr()});
     } else {
         new_shape = std::make_shared<v0::Concat>(OutputVector{slice_begin, neg_1_const, slice_end}, 0);
-        context.mark_nodes({zero, one, int_max, start_dim_u, end_dim_u, slice_begin, slice_end, neg_1_const, new_shape.get_node_shared_ptr()});
+        context.mark_nodes({zero,
+                            one,
+                            int_max,
+                            start_dim_u,
+                            end_dim_u,
+                            slice_begin,
+                            slice_end,
+                            neg_1_const,
+                            new_shape.get_node_shared_ptr()});
     }
 
     auto result = context.mark_node(std::make_shared<v1::Reshape>(x, new_shape, true));

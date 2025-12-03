@@ -44,7 +44,8 @@ OutputVector translate_gather(const NodeContext& context) {
         auto slice_begin = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
         auto slice_end = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
         auto step = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
-        auto shape_without_last = context.mark_node(std::make_shared<v8::Slice>(index_shape, slice_begin, slice_end, step));
+        auto shape_without_last =
+            context.mark_node(std::make_shared<v8::Slice>(index_shape, slice_begin, slice_end, step));
         auto target_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{shape_without_last, two}, 0));
         index = context.mark_node(std::make_shared<v3::Broadcast>(index, target_shape));
     }
