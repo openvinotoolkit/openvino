@@ -13,9 +13,19 @@
 
 namespace ov::intel_gpu::ocl {
 
-//  mlp_gate: 0
-//  mlp_up: 1
-//  mlp_down: 2
+#define MOE_INTERNAL_BUFFER_TOPK_IDX                       0   // topk_idx
+#define MOE_INTERNAL_BUFFER_TOPK_WEIGHTS                   1   // topk_weights
+#define MOE_INTERNAL_BUFFER_UP_OUTPUT                      2   // up output
+#define MOE_INTERNAL_BUFFER_DOWN_OUTPUT                    3   // down output
+#define MOE_INTERNAL_BUFFER_GATE_UP_INPUT                  4   // gather input tensor
+#define MOE_INTERNAL_BUFFER_ROUTING_WEIGHTS                5   // routing_weights
+#define MOE_INTERNAL_BUFFER_GATE_OUTPUT                    6   // gate output
+#define MOE_INTERNAL_BUFFER_EXPERT_MASK_BATCH              7   // expert_mask_batch
+#define MOE_INTERNAL_BUFFER_EXPERT_MASK_TOPK               8   // expert_mask_topk
+#define MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS           9   // experts_ids for each activated expert
+#define MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT  10  // token start offset idx (input gather tokens) for each activated expert
+#define MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT 11  // token len (input gather tokens) for each activated expert
+#define MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT           12  // token idx per expert
 
 enum class MoE3GemmMicroKernelType : uint8_t { MLP_GATE = 0, MLP_UP = 1, MLP_DOWN = 2 };
 

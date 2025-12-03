@@ -321,40 +321,40 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
 
     switch (m_type) {
     case MoE3GemmMicroKernelType::MLP_GATE:
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // gather input tensor
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_UP_INPUT});  // gather input tensor
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_0)});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});                                    // gate output
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 9});                                    // experts_ids
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 10});                                   // input_offset_per_expert
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array - token len
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                             // m
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                             // k
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_0)});  // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_0)});     // zp
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_OUTPUT});                     // gate output
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS});            // experts_ids
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT});   // input_offset_per_expert
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT});  // n_array - token len
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_0)});                 // scale
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_0)});                    // zp
         break;
     case MoE3GemmMicroKernelType::MLP_UP:
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // gather input tensor
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_UP_INPUT});  // gather input tensor
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_1)});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});                                    // up output
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 9});                                    // experts_ids
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 10});                                   // input_offset_per_expert
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array - token len
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                             // m
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                             // k
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_1)});  // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_1)});     // zp
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_UP_OUTPUT});                       // up output
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS});            // experts_ids
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT});   // input_offset_per_expert
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT});  // n_array - token len
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_1)});                 // scale
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_1)});                    // zp
         break;
     case MoE3GemmMicroKernelType::MLP_DOWN:
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});  // intermediate_mem[6]
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_OUTPUT});  // intermediate_mem[6]
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_2)});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});                                    // down output
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 9});                                    // experts_ids
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 10});                                   // input_offset_per_expert
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 11});                                   // n_array - token len
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                             // m
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                             // k
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_2)});  // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_2)});     // zp
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_DOWN_OUTPUT});                     // down output
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS});            // experts_ids
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT});   // input_offset_per_expert
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT});  // n_array - token len
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_2)});                 // scale
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_2)});                    // zp
         break;
     default:
         OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");
