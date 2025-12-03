@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -27,9 +28,19 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_index(const NodeContext& context) {
-    num_inputs_check(context, 2, 2);
+    num_inputs_check(context, 2, 2, true);  // allow_complex = true
     auto x = context.get_input(0);
+
+    auto complex = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
+    bool is_complex = complex != nullptr;
+    if (is_complex) {
+        x = complex->get_input_source_output(0);
+    }
+
     if (context.input_is_none(1)) {
+        if (is_complex) {
+            return {context.mark_node(std::make_shared<ComplexTypeMark>(x, complex->get_complex_part_type()))};
+        }
         return {x};
     }
     auto indices = context.get_input(1);
@@ -45,6 +56,9 @@ OutputVector translate_index(const NodeContext& context) {
         bool use_input_as_output = true;
         index_tensor_on_list(rg, x, ids, rank.get_length(), res, use_input_as_output);
         context.mark_nodes(rg.get());
+        if (is_complex) {
+            return {context.mark_node(std::make_shared<ComplexTypeMark>(res, complex->get_complex_part_type()))};
+        }
         return {res};
     }
     auto index_ov_type = indices.get_element_type();
@@ -58,18 +72,32 @@ OutputVector translate_index(const NodeContext& context) {
         auto input_order = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
         auto masked_id = context.mark_node(std::make_shared<v1::Transpose>(nonzero, input_order));
         auto gather = context.mark_node(std::make_shared<v8::GatherND>(x, masked_id));
+        if (is_complex) {
+            return {context.mark_node(std::make_shared<ComplexTypeMark>(gather, complex->get_complex_part_type()))};
+        }
         return {gather};
     }
     if (index_ov_type != element::i32) {
         indices = context.mark_node(std::make_shared<ov::op::v0::Convert>(indices, element::i32));
     }
     auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-    return {context.mark_node(std::make_shared<v8::Gather>(x, indices, dim))};
+    auto result = context.mark_node(std::make_shared<v8::Gather>(x, indices, dim));
+    if (is_complex) {
+        return {context.mark_node(std::make_shared<ComplexTypeMark>(result, complex->get_complex_part_type()))};
+    }
+    return {result};
 };
 
 OutputVector translate_index_fx(const NodeContext& context) {
-    num_inputs_check(context, 2, 2);
+    num_inputs_check(context, 2, 2, true);  // allow_complex = true
     auto x = context.get_input(0);
+
+    auto complex = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
+    bool is_complex = complex != nullptr;
+    if (is_complex) {
+        x = complex->get_input_source_output(0);
+    }
+
     auto list_elems = get_list_as_outputs(context.get_input(1));
     ov::pass::NodeRegistry rg;
     auto rank = x.get_partial_shape().rank();
@@ -90,6 +118,9 @@ OutputVector translate_index_fx(const NodeContext& context) {
     bool use_input_as_output = true;
     index_tensor_on_list(rg, x, ids, rank, res, use_input_as_output);
     context.mark_nodes(rg.get());
+    if (is_complex) {
+        return {context.mark_node(std::make_shared<ComplexTypeMark>(res, complex->get_complex_part_type()))};
+    }
     return {res};
 };
 

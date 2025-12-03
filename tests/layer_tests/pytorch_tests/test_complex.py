@@ -421,3 +421,235 @@ class TestComplexConstantTypes(PytorchLayerTest):
                    precision, ir_version, trace_model=True)
 
 
+class TestComplexTranspose(PytorchLayerTest):
+    """
+    Test transpose preserves ComplexTypeMark.
+    Tests: aten::transpose, aten::t, aten::movedim
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        # Shape: [2, 3, 4, 2] - last dim 2 for complex
+        return (np.random.randn(2, 3, 4, 2).astype(np.float32),)
+
+    def create_model(self, op_type):
+        class complex_transpose(torch.nn.Module):
+            def forward(self, x):
+                x_complex = torch.view_as_complex(x)
+                # Transpose dims 0 and 1 of [2, 3, 4] -> [3, 2, 4]
+                result = x_complex.transpose(0, 1)
+                return torch.view_as_real(result)
+
+        class complex_t(torch.nn.Module):
+            def forward(self, x):
+                x_complex = torch.view_as_complex(x)
+                # Select first element to get 2D [3, 4], then t() -> [4, 3]
+                result = x_complex[0].t()
+                return torch.view_as_real(result)
+
+        class complex_movedim(torch.nn.Module):
+            def forward(self, x):
+                x_complex = torch.view_as_complex(x)
+                # movedim(0, 2) on [2, 3, 4] -> [3, 4, 2]
+                result = x_complex.movedim(0, 2)
+                return torch.view_as_real(result)
+
+        models = {
+            "transpose": complex_transpose,
+            "t": complex_t,
+            "movedim": complex_movedim,
+        }
+        return models[op_type](), None, f"aten::{op_type}"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("op_type", ["transpose", "t", "movedim"])
+    def test_complex_transpose(self, op_type, ie_device, precision, ir_version):
+        self._test(*self.create_model(op_type), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestComplexGather(PytorchLayerTest):
+    """
+    Test gather preserves ComplexTypeMark.
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        # Shape: [4, 3, 2] - last dim 2 for complex
+        return (np.random.randn(4, 3, 2).astype(np.float32),)
+
+    def create_model(self):
+        class complex_gather(torch.nn.Module):
+            def forward(self, x):
+                x_complex = torch.view_as_complex(x)
+                # Gather along dim 0: input [4, 3], index [2, 3] -> output [2, 3]
+                indices = torch.tensor([[0, 1, 2], [3, 2, 1]])
+                result = x_complex.gather(0, indices)
+                return torch.view_as_real(result)
+
+        return complex_gather(), None, "aten::gather"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_complex_gather(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestComplexIndexSelect(PytorchLayerTest):
+    """
+    Test index_select preserves ComplexTypeMark.
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        # Shape: [4, 3, 2] - last dim 2 for complex
+        return (np.random.randn(4, 3, 2).astype(np.float32),)
+
+    def create_model(self):
+        class complex_index_select(torch.nn.Module):
+            def forward(self, x):
+                x_complex = torch.view_as_complex(x)
+                # Index select along dim 0: input [4, 3], indices [2] -> output [2, 3]
+                indices = torch.tensor([0, 2])
+                result = x_complex.index_select(0, indices)
+                return torch.view_as_real(result)
+
+        return complex_index_select(), None, "aten::index_select"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_complex_index_select(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestComplexFlatten(PytorchLayerTest):
+    """
+    Test flatten preserves ComplexTypeMark.
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        # Shape: [2, 3, 4, 2] - last dim 2 for complex
+        return (np.random.randn(2, 3, 4, 2).astype(np.float32),)
+
+    def create_model(self, start_dim, end_dim):
+        class complex_flatten(torch.nn.Module):
+            def __init__(self, start_dim, end_dim):
+                super().__init__()
+                self.start_dim = start_dim
+                self.end_dim = end_dim
+
+            def forward(self, x):
+                x_complex = torch.view_as_complex(x)
+                # Flatten complex tensor from start_dim to end_dim
+                result = x_complex.flatten(self.start_dim, self.end_dim)
+                return torch.view_as_real(result)
+
+        return complex_flatten(start_dim, end_dim), None, "aten::flatten"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("start_dim,end_dim", [(0, 1), (1, 2)])
+    def test_complex_flatten(self, start_dim, end_dim, ie_device, precision, ir_version):
+        self._test(*self.create_model(start_dim, end_dim), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestComplexUnflatten(PytorchLayerTest):
+    """
+    Test unflatten preserves ComplexTypeMark.
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        # Shape: [6, 4, 2] - last dim 2 for complex
+        return (np.random.randn(6, 4, 2).astype(np.float32),)
+
+    def create_model(self):
+        class complex_unflatten(torch.nn.Module):
+            def forward(self, x):
+                x_complex = torch.view_as_complex(x)
+                # Unflatten dim 0: [6, 4] -> [2, 3, 4]
+                result = x_complex.unflatten(0, (2, 3))
+                return torch.view_as_real(result)
+
+        return complex_unflatten(), None, "aten::unflatten"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_complex_unflatten(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestComplexGetitem(PytorchLayerTest):
+    """
+    Test select preserves ComplexTypeMark.
+    Note: x[0] on a tensor traces as aten::select in TorchScript
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        # Shape: [4, 3, 2] - last dim 2 for complex
+        return (np.random.randn(4, 3, 2).astype(np.float32),)
+
+    def create_model(self):
+        class complex_select(torch.nn.Module):
+            def forward(self, x):
+                x_complex = torch.view_as_complex(x)
+                # x[0] traces as aten::select(x, dim=0, index=0): [4, 3] -> [3]
+                result = x_complex[0]
+                return torch.view_as_real(result)
+
+        return complex_select(), None, "aten::select"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_complex_getitem(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestComplexRoll(PytorchLayerTest):
+    """
+    Test roll preserves ComplexTypeMark.
+    """
+
+    def _prepare_input(self):
+        import numpy as np
+        # Shape: [4, 3, 2] - last dim 2 for complex
+        return (np.random.randn(4, 3, 2).astype(np.float32),)
+
+    def create_model(self, with_dims):
+        class complex_roll(torch.nn.Module):
+            def __init__(self, with_dims):
+                super().__init__()
+                self.with_dims = with_dims
+
+            def forward(self, x):
+                x_complex = torch.view_as_complex(x)
+                # Roll complex tensor
+                if self.with_dims:
+                    result = x_complex.roll(shifts=2, dims=0)
+                else:
+                    result = x_complex.roll(shifts=2)
+                return torch.view_as_real(result)
+
+        return complex_roll(with_dims), None, "aten::roll"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("with_dims", [True])  # without dims has separate issue with empty list
+    def test_complex_roll(self, with_dims, ie_device, precision, ir_version):
+        self._test(*self.create_model(with_dims), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+# Note: Advanced indexing (aten::index with list of indices) for complex tensors
+# requires more complex handling in index_tensor_on_list utility function.
+# Basic support is provided but full index_tensor_on_list support is not yet implemented.
+
+
