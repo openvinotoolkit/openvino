@@ -41,8 +41,6 @@ cd openvino
 # Init submodules
 git submodule update --init --recursive
 
-# Pull LFS files
-git lfs pull
 ```
 
 ## 3. Configure Debug build
@@ -50,14 +48,14 @@ git lfs pull
 ```bash
 mkdir -p ~/code/ov_build_debug
 cd ~/code/ov_build_debug
-
+               
 # Configure CMake build
 cmake -G Ninja \
-  -DCMAKE_BUILD_TYPE=Debug \                 # build with debug symbols
-  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \       # needed for VS Code intellisense
-  -DENABLE_PYTHON=ON \                       # enable Python bindings
-  -DPython3_EXECUTABLE=$(which python3) \    # use current Python
-  ../ov_src_debug/openvino                   # source path
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+  -DENABLE_PYTHON=ON \
+  -DPython3_EXECUTABLE=$(which python3) \
+  ../ov_src_debug/openvino
 ```
 
 For a faster build without GPU support:
