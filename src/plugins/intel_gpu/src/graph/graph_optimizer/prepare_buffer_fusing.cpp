@@ -320,7 +320,7 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
 
      // apply concatenation in place optimization
     for (auto& pred_layout : preds_layouts) {
-        auto pshape = pred_layout.get_partial_shape();
+        const auto& pshape = pred_layout.get_partial_shape();
         auto input_length = pshape[concat_axis].get_length();
 
         // shrink upper pad so it points at the end of the input's buffer
