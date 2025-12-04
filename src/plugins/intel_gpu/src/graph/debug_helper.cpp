@@ -628,6 +628,30 @@ NetworkDebugHelper::NetworkDebugHelper(const network& net)
         GPU_DEBUG_TRACE << "============================================================================" << std::endl;
         GPU_DEBUG_TRACE << "Start network execution (net_id : " << net_id << ", iter :" << m_iter << ")" << std::endl;
     }
+
+    if (config.get_list_layers()) {
+        for (auto& inst : m_network._exec_order) {
+            GPU_DEBUG_COUT << inst->id() << std::endl;
+            if (inst->get_node().is_type<loop>()) {
+                auto& loop_node = inst->get_node().as<loop>();
+                for (auto& prim : loop_node.get_body_program()->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
+                }
+            } else if (inst->get_node().is_type<condition>()) {
+                auto& cond_node = inst->get_node().as<condition>();
+                GPU_DEBUG_COUT << "* Branch_True" << std::endl;
+                for (auto& prim : cond_node.get_branch_true().inner_program->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
+                }
+                GPU_DEBUG_COUT << "* Branch_False" << std::endl;
+                for (auto& prim : cond_node.get_branch_false().inner_program->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
+                }
+            }
+        }
+        if (!m_network.is_internal())
+            exit(0);
+    }
 }
 
 NetworkDebugHelper::~NetworkDebugHelper() {
@@ -635,7 +659,7 @@ NetworkDebugHelper::~NetworkDebugHelper() {
     auto net_id = m_network.get_id();
     const auto& config = prog->get_config();
     // print '-data_shape' option for benchmark_app
-    if (config.get_verbose() >= 4) {
+    if (config.get_print_input_data_shapes() || config.get_verbose() >= 4) {
         std::stringstream data_shape_str;
         auto add_string = [&data_shape_str](std::string str) {
             data_shape_str << ((data_shape_str.rdbuf()->in_avail() == 0) ? " -data_shape " : ",") << str;
