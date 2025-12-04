@@ -113,7 +113,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto xattention_threshold = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
         auto xattention_block_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
         auto xattention_stride = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
-        auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0});
+        auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0, 0, 0, 0});
         auto adaptive_rkv_start_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
         auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto adaptive_rkv_diversity_block_set_indices =
@@ -245,7 +245,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto xattention_threshold = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
         auto xattention_block_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
         auto xattention_stride = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
-        auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0});
+        auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0, 0, 0, 0});
         auto adaptive_rkv_start_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
         auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto adaptive_rkv_diversity_block_set_indices =
@@ -301,7 +301,6 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                     xattention_threshold,
                                                                     xattention_block_size,
                                                                     xattention_stride,
-                                                                    // sinks?
                                                                     adaptive_rkv_start_size,
                                                                     adaptive_rkv_evictable_sizes,
                                                                     adaptive_rkv_diversity_block_set_indices,
