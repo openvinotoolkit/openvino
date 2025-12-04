@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <limits>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
@@ -21,7 +22,7 @@ struct Version {
 
     explicit Version(const char* version_str) {
         // Pattern: MAJOR.MINOR.PATCH[.TWEAK]-BUILD-...
-        std::regex full_pattern(R"(^([0-9]+)\.([0-9]+)\.([0-9]+)(\.([0-9]+))?\-([0-9]+)\-.*)");
+        std::regex full_pattern(R"(^([0-9]+)\.([0-9]+)\.([0-9]+)(?:\.([0-9]+))?\-([0-9]+)\-.*)");
         std::regex build_only_pattern(R"(^[0-9]+$)");
         std::cmatch match;
 
@@ -32,11 +33,11 @@ struct Version {
 
             // match[4] is the entire optional group (\.TWEAK), match[5] is TWEAK
             // the 4th version number is not used in OpenVINO, but used in OpenVINO extensions
-            if (match[5].matched) {
-                tweak = std::stoi(match[5].str());
+            if (match[4].matched) {
+                tweak = std::stoi(match[4].str());
             }
 
-            build = std::stoi(match[6].str());
+            build = std::stoi(match[5].str());
         } else if (std::regex_match(version_str, build_only_pattern)) {
             // Parse as just a build number
             build = std::stoi(version_str);
@@ -76,11 +77,11 @@ struct Version {
 };
 
 struct VersionCompatibilityPolicy {
-    size_t max_major_diff = 0;
-    size_t max_minor_diff = 0;
-    size_t max_patch_diff = 0;
-    size_t max_tweak_diff = 0;
-    size_t max_build_diff = 0;
+    size_t max_major_diff = std::numeric_limits<size_t>::max();
+    size_t max_minor_diff = std::numeric_limits<size_t>::max();
+    size_t max_patch_diff = std::numeric_limits<size_t>::max();
+    size_t max_tweak_diff = std::numeric_limits<size_t>::max();
+    size_t max_build_diff = std::numeric_limits<size_t>::max();
 };
 
 inline bool is_version_compatible(const Version& older_version,

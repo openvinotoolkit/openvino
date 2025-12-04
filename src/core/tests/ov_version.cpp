@@ -253,7 +253,7 @@ TEST_F(VersionCompatibilityTest, DefaultPolicy) {
     ov::util::Version newer("2024.6.0-12345-test");
 
     // Default policy has all max_diff = 0, so only identical versions are compatible
-    EXPECT_FALSE(ov::util::is_version_compatible(older, newer));
+    EXPECT_TRUE(ov::util::is_version_compatible(older, newer));
     EXPECT_FALSE(ov::util::is_version_compatible(newer, older));
     EXPECT_TRUE(ov::util::is_version_compatible(older, older));
 }
@@ -305,6 +305,15 @@ TEST_F(VersionCompatibilityTest, BuildDifferenceRespected) {
 
     EXPECT_FALSE(ov::util::is_version_compatible(older, newer, {0, 0, 0, 0, 4}));
     EXPECT_TRUE(ov::util::is_version_compatible(older, newer, {0, 0, 0, 0, 5}));
+}
+
+TEST_F(VersionCompatibilityTest, NotSpecifiedDifferencesAreUnlimited) {
+    ov::util::Version v1("2024.5.0-5-test");
+    ov::util::Version v2("2024.6.5-0-test");
+
+    // Only major and minor differences are specified. Difference in patch, tweak, build don't matter.
+    EXPECT_TRUE(ov::util::is_version_compatible(v1, v2, {0, 1}));
+    EXPECT_FALSE(ov::util::is_version_compatible(v2, v1, {0, 1}));
 }
 
 TEST_F(VersionCompatibilityTest, StrictPolicyNoToleranceExceptExact) {
