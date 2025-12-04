@@ -225,7 +225,7 @@ static FlashAttentionResults execute_flash_attention(const HFATileF32Nodes& f32_
     auto qkm_max = std::make_shared<ov::op::v1::ReduceMax>(qkm, axes_const, true);
     qkm_max->set_friendly_name("qkm_max");
 
-    results.maxx = std::make_shared<ov::op::v1::Maximum>(f32_nodes.past_max_f32, qkm_max);
+    results.maxx = std::make_shared<ov::op::v1::Maximum>(qkm_max, f32_nodes.past_max_f32);
     results.maxx->set_friendly_name("maxx");
 
     // p = exp(qkm - maxx)
