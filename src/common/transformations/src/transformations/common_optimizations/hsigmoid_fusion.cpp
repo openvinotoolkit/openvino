@@ -44,9 +44,9 @@ ov::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
         auto div_const_value =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0) &&
-                                     op::util::has_constant_value<float>(min_const_value, 6.0) &&
-                                     op::util::has_constant_value<float>(div_const_value, 6.0);
+        bool valid_constant_values = ov::op::util::has_constant_value<float>(add_const_value, 3.0) &&
+                                     ov::op::util::has_constant_value<float>(min_const_value, 6.0) &&
+                                     ov::op::util::has_constant_value<float>(div_const_value, 6.0);
 
         if (!valid_constant_values) {
             return false;
@@ -94,9 +94,9 @@ ov::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
         auto mul_const_value =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0f) &&
-                                     op::util::has_constant_value<float>(min_const_value, 6.0f) &&
-                                     op::util::has_constant_value<float>(mul_const_value, (1.0f / 6.0f), 0.0001f);
+        bool valid_constant_values = ov::op::util::has_constant_value<float>(add_const_value, 3.0f) &&
+                                     ov::op::util::has_constant_value<float>(min_const_value, 6.0f) &&
+                                     ov::op::util::has_constant_value<float>(mul_const_value, (1.0f / 6.0f), 0.0001f);
 
         if (!valid_constant_values) {
             return false;
@@ -145,10 +145,10 @@ ov::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
         auto div_const_value =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0f) &&
-                                     op::util::has_constant_value<float>(max_const_value, 0.0f) &&
-                                     op::util::has_constant_value<float>(min_const_value, 6.0f) &&
-                                     op::util::has_constant_value<float>(div_const_value, 6.0f);
+        bool valid_constant_values = ov::op::util::has_constant_value<float>(add_const_value, 3.0f) &&
+                                     ov::op::util::has_constant_value<float>(max_const_value, 0.0f) &&
+                                     ov::op::util::has_constant_value<float>(min_const_value, 6.0f) &&
+                                     ov::op::util::has_constant_value<float>(div_const_value, 6.0f);
 
         if (!valid_constant_values) {
             return false;
@@ -189,8 +189,8 @@ ov::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
         auto mul_const_value =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = op::util::has_constant_value(add_const_value, 3.0) &&
-                                     op::util::has_constant_value(mul_const_value, (1.0 / 6.0), 0.0001);
+        bool valid_constant_values = ov::op::util::has_constant_value(add_const_value, 3.0) &&
+                                     ov::op::util::has_constant_value(mul_const_value, (1.0 / 6.0), 0.0001);
 
         if (!valid_constant_values) {
             return false;
@@ -234,8 +234,8 @@ ov::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
         auto div_const_value =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
-        bool valid_constant_values =
-            op::util::has_constant_value(add_const_value, 3.0) && op::util::has_constant_value(div_const_value, 6.0);
+        bool valid_constant_values = ov::op::util::has_constant_value(add_const_value, 3.0) &&
+                                     ov::op::util::has_constant_value(div_const_value, 6.0);
 
         if (!valid_constant_values) {
             return false;
