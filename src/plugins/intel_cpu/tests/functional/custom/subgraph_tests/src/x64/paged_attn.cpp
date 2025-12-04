@@ -591,7 +591,7 @@ public:
         return outputs;
     }
 
-    std::vector<ov::Tensor> run_ref_test(std::shared_ptr<ov::Model> model, bool sinkInput = true) {
+    std::vector<ov::Tensor> run_ref_test(std::shared_ptr<ov::Model> model, bool sinkInput) {
         function = model;
         prepare();
         std::vector<ov::Tensor> outputs;
